@@ -86,11 +86,11 @@ instance Ord Error1 where
   compare = compare `on` errLoc
 
 instance PPrint Error1 where
-  pprint (Error1 l msg) = (pprint l <> ": Error")
-                          $+$ nest 2 msg
+  pprintTidy k (Error1 l msg) = (pprintTidy k l <> ": Error")
+                                $+$ nest 2 msg
 
 instance PPrint Error where
-  pprint (Error es) = vcat $ pprint <$> es
+  pprintTidy k (Error es) = vcat $ pprintTidy k <$> es
 
 instance Fixpoint Error1 where
   toFix = pprint

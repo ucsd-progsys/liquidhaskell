@@ -1,0 +1,1493 @@
+// trick is to do it without these
+qualif Cmp(v : @(0), x : @(0)): ((v > x)) // "tests/todo/elim00.hs.fq" (line 1, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v = x)) // "tests/todo/elim00.hs.fq" (line 2, column 8)
+
+
+constant Control.Exception.Base.irrefutPatError##09 : (func(1, [int;
+                                                                @(0)]))
+constant GHC.Base..##r2C : (func(3, [func(0, [@(0); @(1)]);
+                                     func(0, [@(2); @(0)]);
+                                     @(2);
+                                     @(1)]))
+constant runFun : (func(2, [(Arrow  @(0)  @(1)); @(0); @(1)]))
+constant GHC.Tuple.$40$$44$$44$$41$$35$$35$76 : (func(3, [@(0);
+                                                          @(1);
+                                                          @(2);
+                                                          (Tuple  @(0)  @(1)  @(2))]))
+constant GHC.Real.D$58$Integral$35$$35$rWH : (func(1, [func(0, [@(0);
+                                                                @(0);
+                                                                @(0)]);
+                                                       func(0, [@(0); @(0); @(0)]);
+                                                       func(0, [@(0); @(0); @(0)]);
+                                                       func(0, [@(0); @(0); @(0)]);
+                                                       func(0, [@(0); @(0); (Tuple  @(0)  @(0))]);
+                                                       func(0, [@(0); @(0); (Tuple  @(0)  @(0))]);
+                                                       func(0, [@(0); int]);
+                                                       (GHC.Real.Integral  @(0))]))
+constant addrLen : (func(0, [int; int]))
+constant papp5 : (func(10, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4));
+                            @(5);
+                            @(6);
+                            @(7);
+                            @(8);
+                            @(9);
+                            bool]))
+constant xsListSelector : (func(1, [[@(0)]; [@(0)]]))
+constant x_Tuple21 : (func(2, [(Tuple  @(0)  @(1)); @(0)]))
+constant x_Tuple65 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(4)]))
+constant Elim.foo##rlD : (func(0, [Elim.Foo; Elim.Foo]))
+constant x_Tuple55 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(4)]))
+constant GHC.Integer.Type.smallInteger##0Z : (func(0, [int; int]))
+constant x_Tuple33 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(2)]))
+constant x_Tuple77 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(6)]))
+constant GHC.Base.Just##r1e : (func(1, [@(0);
+                                        (GHC.Base.Maybe  @(0))]))
+constant Elim.xx##rlB : (func(0, [Elim.Foo; int]))
+constant papp3 : (func(6, [(Pred  @(0)  @(1)  @(2));
+                           @(3);
+                           @(4);
+                           @(5);
+                           bool]))
+constant GHC.Prim.$43$$35$$35$$35$98 : (func(0, [int; int; int]))
+constant x_Tuple63 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(2)]))
+constant x_Tuple41 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(0)]))
+constant GHC.Types.LT##6S : (GHC.Types.Ordering)
+constant GHC.Prim.$60$$35$$35$$35$9q : (func(0, [int; int; int]))
+constant papp4 : (func(8, [(Pred  @(0)  @(1)  @(2)  @(3));
+                           @(4);
+                           @(5);
+                           @(6);
+                           @(7);
+                           bool]))
+constant Elim.PP##rlx : (func(2, [@(0);
+                                  @(1);
+                                  (Elim.Pair  @(0)  @(1))]))
+constant x_Tuple64 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(3)]))
+constant GHC.Types.GT##6W : (GHC.Types.Ordering)
+constant GHC.Prim.$45$$35$$35$$35$99 : (func(0, [int; int; int]))
+constant GHC.Types.$58$$35$$35$64 : (func(1, [@(0);
+                                              [@(0)];
+                                              [@(0)]]))
+constant autolen : (func(1, [@(0); int]))
+constant GHC.Types.I###6c : (func(0, [int; int]))
+constant x_Tuple52 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(1)]))
+constant xx : (func(0, [Elim.Foo; int]))
+constant null : (func(1, [[@(0)]; bool]))
+constant GHC.Num.$43$$35$$35$rt : (func(1, [@(0); @(0); @(0)]))
+constant GHC.Tuple.$40$$44$$44$$44$$44$$41$$35$$35$7a : (func(5, [@(0);
+                                                                  @(1);
+                                                                  @(2);
+                                                                  @(3);
+                                                                  @(4);
+                                                                  (Tuple  @(0)  @(1)  @(2)  @(3)  @(4))]))
+constant papp2 : (func(4, [(Pred  @(0)  @(1)); @(2); @(3); bool]))
+constant x_Tuple62 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(1)]))
+constant GHC.Tuple.$40$$44$$41$$35$$35$74 : (func(2, [@(0);
+                                                      @(1);
+                                                      (Tuple  @(0)  @(1))]))
+constant Elim.yy##rlC : (func(0, [Elim.Foo; int]))
+constant fromJust : (func(1, [(GHC.Base.Maybe  @(0)); @(0)]))
+constant papp7 : (func(14, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                            @(7);
+                            @(8);
+                            @(9);
+                            @(10);
+                            @(11);
+                            @(12);
+                            @(13);
+                            bool]))
+constant x_Tuple53 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(2)]))
+constant x_Tuple71 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(0)]))
+constant GHC.Prim.$62$$35$$35$$35$9m : (func(0, [int; int; int]))
+constant x_Tuple74 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(3)]))
+constant Elim.Emp##rly : (func(2, [(Elim.Pair  @(0)  @(1))]))
+constant len : (func(2, [(@(0)  @(1)); int]))
+constant GHC.Tuple.$40$$44$$44$$44$$44$$44$$44$$41$$35$$35$7e : (func(7, [@(0);
+                                                                          @(1);
+                                                                          @(2);
+                                                                          @(3);
+                                                                          @(4);
+                                                                          @(5);
+                                                                          @(6);
+                                                                          (Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6))]))
+constant papp6 : (func(12, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                            @(6);
+                            @(7);
+                            @(8);
+                            @(9);
+                            @(10);
+                            @(11);
+                            bool]))
+constant x_Tuple22 : (func(2, [(Tuple  @(0)  @(1)); @(1)]))
+constant Data.Foldable.length##r1s : (func(2, [(@(0)  @(0)); int]))
+constant x_Tuple66 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(5)]))
+constant x_Tuple44 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(3)]))
+constant xListSelector : (func(1, [[@(0)]; @(0)]))
+constant strLen : (func(0, [int; int]))
+constant x_Tuple72 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(1)]))
+constant GHC.Tuple.$40$$44$$44$$44$$41$$35$$35$78 : (func(4, [@(0);
+                                                              @(1);
+                                                              @(2);
+                                                              @(3);
+                                                              (Tuple  @(0)  @(1)  @(2)  @(3))]))
+constant isJust : (func(1, [(GHC.Base.Maybe  @(0)); bool]))
+constant GHC.Prim.$61$$61$$35$$35$$35$9o : (func(0, [int;
+                                                     int;
+                                                     int]))
+constant Elim.Foo##rlA : (func(0, [int; int; Elim.Foo]))
+constant Prop : (func(0, [GHC.Types.Bool; bool]))
+constant x_Tuple31 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(0)]))
+constant x_Tuple75 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(4)]))
+constant papp1 : (func(2, [(Pred  @(0)); @(1); bool]))
+constant yy : (func(0, [Elim.Foo; int]))
+constant x_Tuple61 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(0)]))
+constant GHC.Prim.$62$$61$$35$$35$$35$9n : (func(0, [int;
+                                                     int;
+                                                     int]))
+constant lit$36$tests$47$pos$47$elim00.hs$58$14$58$5$45$30$124$PP$32$wink$32$cow : (Str)
+constant x_Tuple43 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(2)]))
+constant GHC.Types.EQ##6U : (GHC.Types.Ordering)
+constant x_Tuple51 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(0)]))
+constant GHC.Base.Nothing##r1d : (func(1, [(GHC.Base.Maybe  @(0))]))
+constant GHC.Num.$45$$35$$35$02B : (func(1, [@(0); @(0); @(0)]))
+constant GHC.Num.$42$$35$$35$ru : (func(1, [@(0); @(0); @(0)]))
+constant x_Tuple73 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(2)]))
+constant GHC.Types.$91$$93$$35$$35$6m : (func(1, [[@(0)]]))
+constant x_Tuple54 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(3)]))
+constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
+constant x_Tuple32 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(1)]))
+constant x_Tuple76 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(5)]))
+constant GHC.Prim.$60$$61$$35$$35$$35$9r : (func(0, [int;
+                                                     int;
+                                                     int]))
+constant GHC.Real.D$58$Fractional$35$$35$rVU : (func(1, [func(0, [@(0);
+                                                                  @(0);
+                                                                  @(0)]);
+                                                         func(0, [@(0); @(0)]);
+                                                         func(0, [(GHC.Real.Ratio  int); @(0)]);
+                                                         (GHC.Real.Fractional  @(0))]))
+constant fst : (func(2, [(Tuple  @(0)  @(1)); @(0)]))
+constant snd : (func(2, [(Tuple  @(0)  @(1)); @(1)]))
+constant GHC.Tuple.$40$$44$$44$$44$$44$$44$$41$$35$$35$7c : (func(6, [@(0);
+                                                                      @(1);
+                                                                      @(2);
+                                                                      @(3);
+                                                                      @(4);
+                                                                      @(5);
+                                                                      (Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5))]))
+constant x_Tuple42 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(1)]))
+constant GHC.Prim.void###0l : (GHC.Prim.Void#)
+
+
+bind 0 GHC.Prim.void###0l : {VV##180 : GHC.Prim.Void# | []}
+bind 1 Elim.Emp##rly : {VV : func(2, [(Elim.Pair  @(0)  @(1))]) | []}
+bind 2 GHC.Types.EQ##6U : {VV##185 : GHC.Types.Ordering | [(VV##185 = GHC.Types.EQ##6U)]}
+bind 3 GHC.Types.LT##6S : {VV##186 : GHC.Types.Ordering | [(VV##186 = GHC.Types.LT##6S)]}
+bind 4 GHC.Types.GT##6W : {VV##187 : GHC.Types.Ordering | [(VV##187 = GHC.Types.GT##6W)]}
+bind 5 Elim.Emp##rly : {VV : func(2, [(Elim.Pair  @(0)  @(1))]) | []}
+bind 6 GHC.Types.$91$$93$$35$$35$6m : {VV : func(1, [[@(0)]]) | []}
+bind 7 GHC.Types.GT##6W : {VV##213 : GHC.Types.Ordering | [((cmp VV##213) = GHC.Types.GT##6W)]}
+bind 8 GHC.Types.LT##6S : {VV##214 : GHC.Types.Ordering | [((cmp VV##214) = GHC.Types.LT##6S)]}
+bind 9 GHC.Types.EQ##6U : {VV##215 : GHC.Types.Ordering | [((cmp VV##215) = GHC.Types.EQ##6U)]}
+bind 10 GHC.Base.Nothing##r1d : {VV : func(1, [(GHC.Base.Maybe  @(0))]) | []}
+bind 11 ds_dxd : {VV##222 : Elim.Foo | []}
+bind 12 lq_anf$##dxr : {lq_tmp$x##223 : Elim.Foo | [(lq_tmp$x##223 = ds_dxd)]}
+bind 13 lq_anf$##dxr : {lq_tmp$x##225 : Elim.Foo | [(lq_tmp$x##225 = ds_dxd)]}
+bind 14 xig##awy : {lq_tmp$x##233 : int | []}
+bind 15 yog##awz : {lq_tmp$x##234 : int | [(xig##awy < lq_tmp$x##234)]}
+bind 16 lq_anf$##dxr : {lq_tmp$x##225 : Elim.Foo | [(lq_tmp$x##225 = ds_dxd);
+                                                    ((yy lq_tmp$x##225) = yog##awz);
+                                                    ((xx lq_tmp$x##225) = xig##awy);
+                                                    (lq_tmp$x##225 = (Elim.Foo##rlA xig##awy yog##awz));
+                                                    ((yy lq_tmp$x##225) = yog##awz);
+                                                    ((xx lq_tmp$x##225) = xig##awy)]}
+bind 17 lq_anf$##dxs : {lq_tmp$x##242 : (Elim.Pair  int  int) | [(lq_tmp$x##242 = (Elim.PP##rlx xig##awy yog##awz))]}
+bind 18 lq_anf$##dxt : {lq_tmp$x##273 : (Elim.Pair  int  int) | [(lq_tmp$x##273 = lq_anf$##dxs)]}
+bind 19 lq_anf$##dxt : {lq_tmp$x##277 : (Elim.Pair  int  int) | [(lq_tmp$x##277 = lq_anf$##dxs)]}
+bind 20 wink##ax3 : {lq_tmp$x##275 : int | [$k_##248[lq_tmp$x##277:=lq_anf$##dxt][VV##247:=lq_tmp$x##275][lq_tmp$x##242:=lq_anf$##dxt][lq_tmp$x##271:=lq_tmp$x##275][lq_tmp$x##273:=lq_anf$##dxt][lq_tmp$x##245:=xig##awy][lq_tmp$x##246:=yog##awz][lq_tmp$x##250:=lq_tmp$x##275]]}
+bind 21 cow##ax4 : {lq_tmp$x##276 : int | [$k_##252[lq_tmp$x##277:=lq_anf$##dxt][lq_tmp$x##281:=wink##ax3][VV##251:=lq_tmp$x##276][lq_tmp$x##242:=lq_anf$##dxt][lq_tmp$x##254:=lq_tmp$x##276][lq_tmp$x##273:=lq_anf$##dxt][lq_tmp$x##245:=xig##awy][lq_tmp$x##246:=yog##awz][lq_tmp$x##272:=lq_tmp$x##276]]}
+bind 22 lq_anf$##dxt : {lq_tmp$x##277 : (Elim.Pair  int  int) | [(lq_tmp$x##277 = lq_anf$##dxs);
+                                                                 (lq_tmp$x##277 = (Elim.PP##rlx wink##ax3 cow##ax4));
+                                                                 (lq_tmp$x##277 = (Elim.PP##rlx wink##ax3 cow##ax4));
+                                                                 (lq_tmp$x##277 = (Elim.PP##rlx wink##ax3 cow##ax4))]}
+bind 23 lq_tmp$x##307 : {VV##308 : int | []}
+bind 24 lq_anf$##dxt : {lq_tmp$x##313 : (Elim.Pair  int  int) | [(lq_tmp$x##313 = lq_anf$##dxs)]}
+bind 25 lq_anf$##dxt : {lq_tmp$x##313 : (Elim.Pair  int  int) | [(lq_tmp$x##313 = lq_anf$##dxs);
+                                                                 (lq_tmp$x##313 = Elim.Emp##rly);
+                                                                 (lq_tmp$x##313 = Elim.Emp##rly);
+                                                                 (lq_tmp$x##313 = Elim.Emp##rly)]}
+bind 26 ds_dxg : {VV##318 : GHC.Prim.Void# | [$k_##319]}
+bind 27 lq_anf$##dxu : {lq_tmp$x##335 : int | [(lq_tmp$x##335 ~~ lit$36$tests$47$pos$47$elim00.hs$58$14$58$5$45$30$124$PP$32$wink$32$cow);
+                                               ((strLen lq_tmp$x##335) = 39)]}
+bind 28 ds_dxh : {VV##268 : (Tuple  int  int) | [$k_##269]}
+bind 29 lq_anf$##dxw : {lq_tmp$x##368 : (Tuple  int  int) | [(lq_tmp$x##368 = ds_dxh)]}
+bind 30 lq_anf$##dxw : {lq_tmp$x##374 : (Tuple  int  int) | [(lq_tmp$x##374 = ds_dxh)]}
+bind 31 wink##ax3 : {lq_tmp$x##370 : int | [$k_##259[lq_tmp$x##368:=lq_anf$##dxw][VV##268:=lq_anf$##dxw][lq_tmp$x##364:=lq_tmp$x##370][VV##258:=lq_tmp$x##370][lq_tmp$x##374:=lq_anf$##dxw]]}
+bind 32 cow##Xxd : {lq_tmp$x##371 : int | [$k_##262[lq_tmp$x##368:=lq_anf$##dxw][VV##268:=lq_anf$##dxw][VV##261:=lq_tmp$x##371][lq_tmp$x##365:=lq_tmp$x##371][lq_tmp$x##379:=wink##ax3][lq_tmp$x##374:=lq_anf$##dxw];
+                                           $k_##266[lq_tmp$x##368:=lq_anf$##dxw][lq_tmp$x##373:=lq_tmp$x##371][VV##265:=lq_tmp$x##371][lq_tmp$x##264:=wink##ax3][lq_tmp$x##367:=lq_tmp$x##371][VV##268:=lq_anf$##dxw][lq_tmp$x##372:=wink##ax3][lq_tmp$x##366:=wink##ax3][lq_tmp$x##379:=wink##ax3][lq_tmp$x##374:=lq_anf$##dxw]]}
+bind 33 lq_anf$##dxw : {lq_tmp$x##374 : (Tuple  int  int) | [(lq_tmp$x##374 = ds_dxh);
+                                                             ((snd lq_tmp$x##374) = cow##Xxd);
+                                                             ((fst lq_tmp$x##374) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##374) = cow##Xxd);
+                                                             ((x_Tuple21 lq_tmp$x##374) = wink##ax3);
+                                                             (lq_tmp$x##374 = (GHC.Tuple.$40$$44$$41$$35$$35$74 wink##ax3 cow##Xxd));
+                                                             ((snd lq_tmp$x##374) = cow##Xxd);
+                                                             ((fst lq_tmp$x##374) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##374) = cow##Xxd);
+                                                             ((x_Tuple21 lq_tmp$x##374) = wink##ax3)]}
+bind 34 wink##ax3 : {VV##361 : int | [$k_##362]}
+// bind 45 wink##ax3 : {lq_tmp$x##452 : int | [$k_##428[lq_tmp$x##425:=wink##ax3][lq_tmp$x##456:=lq_anf$##dxy][VV##427:=lq_tmp$x##452][lq_tmp$x##426:=cow##ax4][lq_tmp$x##450:=lq_anf$##dxy][lq_tmp$x##430:=lq_tmp$x##452][lq_tmp$x##446:=lq_tmp$x##452][lq_tmp$x##422:=lq_anf$##dxy]]}
+
+bind 35 lq_anf$##dxv : {lq_tmp$x##398 : (Tuple  int  int) | [(lq_tmp$x##398 = ds_dxh)]}
+bind 36 lq_anf$##dxv : {lq_tmp$x##404 : (Tuple  int  int) | [(lq_tmp$x##404 = ds_dxh)]}
+bind 37 wink##ax3 : {lq_tmp$x##400 : int | [$k_##259[VV##268:=lq_anf$##dxv][lq_tmp$x##394:=lq_tmp$x##400][VV##258:=lq_tmp$x##400][lq_tmp$x##398:=lq_anf$##dxv][lq_tmp$x##404:=lq_anf$##dxv]]}
+bind 38 cow##ax4 : {lq_tmp$x##401 : int | [$k_##262[VV##268:=lq_anf$##dxv][VV##261:=lq_tmp$x##401][lq_tmp$x##409:=wink##ax3][lq_tmp$x##398:=lq_anf$##dxv][lq_tmp$x##395:=lq_tmp$x##401][lq_tmp$x##404:=lq_anf$##dxv];
+                                           $k_##266[lq_tmp$x##396:=wink##ax3][VV##265:=lq_tmp$x##401][lq_tmp$x##264:=wink##ax3][VV##268:=lq_anf$##dxv][lq_tmp$x##397:=lq_tmp$x##401][lq_tmp$x##409:=wink##ax3][lq_tmp$x##403:=lq_tmp$x##401][lq_tmp$x##398:=lq_anf$##dxv][lq_tmp$x##402:=wink##ax3][lq_tmp$x##404:=lq_anf$##dxv]]}
+bind 39 lq_anf$##dxv : {lq_tmp$x##404 : (Tuple  int  int) | [(lq_tmp$x##404 = ds_dxh);
+                                                             ((snd lq_tmp$x##404) = cow##ax4);
+                                                             ((fst lq_tmp$x##404) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##404) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##404) = wink##ax3);
+                                                             (lq_tmp$x##404 = (GHC.Tuple.$40$$44$$41$$35$$35$74 wink##ax3 cow##ax4));
+                                                             ((snd lq_tmp$x##404) = cow##ax4);
+                                                             ((fst lq_tmp$x##404) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##404) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##404) = wink##ax3)]}
+bind 40 cow##ax4 : {VV##391 : int | [$k_##392]}
+bind 41 lq_tmp$x##438 : {VV##439 : int | []}
+bind 42 ds_dxi : {lq_tmp$x##422 : (Tuple  int  int) | [((snd lq_tmp$x##422) = cow##ax4);
+                                                       ((fst lq_tmp$x##422) = wink##ax3);
+                                                       ((x_Tuple22 lq_tmp$x##422) = cow##ax4);
+                                                       ((x_Tuple21 lq_tmp$x##422) = wink##ax3)]}
+bind 43 lq_anf$##dxy : {lq_tmp$x##450 : (Tuple  int  int) | [(lq_tmp$x##450 = ds_dxi)]}
+bind 44 lq_anf$##dxy : {lq_tmp$x##456 : (Tuple  int  int) | [(lq_tmp$x##456 = ds_dxi)]}
+bind 45 wink##ax3 : {lq_tmp$x##452 : int | [$k_##428[lq_tmp$x##425:=wink##ax3][lq_tmp$x##456:=lq_anf$##dxy][VV##427:=lq_tmp$x##452][lq_tmp$x##426:=cow##ax4][lq_tmp$x##450:=lq_anf$##dxy][lq_tmp$x##430:=lq_tmp$x##452][lq_tmp$x##446:=lq_tmp$x##452][lq_tmp$x##422:=lq_anf$##dxy]]}
+bind 46 cow##ax4 : {lq_tmp$x##453 : int | [$k_##432[lq_tmp$x##425:=wink##ax3][lq_tmp$x##456:=lq_anf$##dxy][lq_tmp$x##426:=cow##ax4][VV##431:=lq_tmp$x##453][lq_tmp$x##450:=lq_anf$##dxy][lq_tmp$x##447:=lq_tmp$x##453][lq_tmp$x##461:=wink##ax3][lq_tmp$x##422:=lq_anf$##dxy][lq_tmp$x##434:=lq_tmp$x##453];
+                                           $k_##436[lq_tmp$x##425:=wink##ax3][lq_tmp$x##456:=lq_anf$##dxy][lq_tmp$x##426:=cow##ax4][lq_tmp$x##455:=lq_tmp$x##453][lq_tmp$x##450:=lq_anf$##dxy][lq_tmp$x##461:=wink##ax3][lq_tmp$x##438:=wink##ax3][lq_tmp$x##421:=wink##ax3][lq_tmp$x##422:=lq_anf$##dxy][lq_tmp$x##434:=lq_tmp$x##453][lq_tmp$x##448:=wink##ax3][lq_tmp$x##449:=lq_tmp$x##453][VV##435:=lq_tmp$x##453][lq_tmp$x##454:=wink##ax3]]}
+bind 47 lq_anf$##dxy : {lq_tmp$x##456 : (Tuple  int  int) | [(lq_tmp$x##456 = ds_dxi);
+                                                             ((snd lq_tmp$x##456) = cow##ax4);
+                                                             ((fst lq_tmp$x##456) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##456) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##456) = wink##ax3);
+                                                             (lq_tmp$x##456 = (GHC.Tuple.$40$$44$$41$$35$$35$74 wink##ax3 cow##ax4));
+                                                             ((snd lq_tmp$x##456) = cow##ax4);
+                                                             ((fst lq_tmp$x##456) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##456) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##456) = wink##ax3)]}
+bind 48 wink##awA : {VV##443 : int | [$k_##444]}
+
+bind 49 lq_anf$##dxx : {lq_tmp$x##480 : (Tuple  int  int) | [(lq_tmp$x##480 = ds_dxi)]}
+bind 50 lq_anf$##dxx : {lq_tmp$x##486 : (Tuple  int  int) | [(lq_tmp$x##486 = ds_dxi)]}
+bind 51 wink##ax3 : {lq_tmp$x##482 : int | [$k_##428[lq_tmp$x##425:=wink##ax3][VV##427:=lq_tmp$x##482][lq_tmp$x##426:=cow##ax4][lq_tmp$x##476:=lq_tmp$x##482][lq_tmp$x##430:=lq_tmp$x##482][lq_tmp$x##480:=lq_anf$##dxx][lq_tmp$x##422:=lq_anf$##dxx][lq_tmp$x##486:=lq_anf$##dxx]]}
+bind 52 cow##ax4 : {lq_tmp$x##483 : int | [$k_##432[lq_tmp$x##425:=wink##ax3][lq_tmp$x##426:=cow##ax4][VV##431:=lq_tmp$x##483][lq_tmp$x##491:=wink##ax3][lq_tmp$x##480:=lq_anf$##dxx][lq_tmp$x##477:=lq_tmp$x##483][lq_tmp$x##422:=lq_anf$##dxx][lq_tmp$x##434:=lq_tmp$x##483][lq_tmp$x##486:=lq_anf$##dxx];
+                                           $k_##436[lq_tmp$x##425:=wink##ax3][lq_tmp$x##426:=cow##ax4][lq_tmp$x##491:=wink##ax3][lq_tmp$x##480:=lq_anf$##dxx][lq_tmp$x##479:=lq_tmp$x##483][lq_tmp$x##485:=lq_tmp$x##483][lq_tmp$x##438:=wink##ax3][lq_tmp$x##421:=wink##ax3][lq_tmp$x##422:=lq_anf$##dxx][lq_tmp$x##434:=lq_tmp$x##483][lq_tmp$x##484:=wink##ax3][lq_tmp$x##478:=wink##ax3][lq_tmp$x##486:=lq_anf$##dxx][VV##435:=lq_tmp$x##483]]}
+bind 53 lq_anf$##dxx : {lq_tmp$x##486 : (Tuple  int  int) | [(lq_tmp$x##486 = ds_dxi);
+                                                             ((snd lq_tmp$x##486) = cow##ax4);
+                                                             ((fst lq_tmp$x##486) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##486) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##486) = wink##ax3);
+                                                             (lq_tmp$x##486 = (GHC.Tuple.$40$$44$$41$$35$$35$74 wink##ax3 cow##ax4));
+                                                             ((snd lq_tmp$x##486) = cow##ax4);
+                                                             ((fst lq_tmp$x##486) = wink##ax3);
+                                                             ((x_Tuple22 lq_tmp$x##486) = cow##ax4);
+                                                             ((x_Tuple21 lq_tmp$x##486) = wink##ax3)]}
+bind 54 cow##awB : {VV##473 : int | [$k_##474]}
+bind 55 ds_dxo : {VV##514 : Elim.Foo | []}
+bind 56 lq_anf$##dxz : {lq_tmp$x##515 : Elim.Foo | [(lq_tmp$x##515 = ds_dxo)]}
+bind 57 lq_anf$##dxz : {lq_tmp$x##517 : Elim.Foo | [(lq_tmp$x##517 = ds_dxo)]}
+bind 58 ds_dxp : {lq_tmp$x##525 : int | []}
+bind 59 ds_dxq : {lq_tmp$x##526 : int | [(ds_dxp < lq_tmp$x##526)]}
+bind 60 lq_anf$##dxz : {lq_tmp$x##517 : Elim.Foo | [(lq_tmp$x##517 = ds_dxo);
+                                                    ((yy lq_tmp$x##517) = ds_dxq);
+                                                    ((xx lq_tmp$x##517) = ds_dxp);
+                                                    (lq_tmp$x##517 = (Elim.Foo##rlA ds_dxp ds_dxq));
+                                                    ((yy lq_tmp$x##517) = ds_dxq);
+                                                    ((xx lq_tmp$x##517) = ds_dxp)]}
+bind 61 ds_dxl : {VV##537 : Elim.Foo | []}
+bind 62 lq_anf$##dxA : {lq_tmp$x##538 : Elim.Foo | [(lq_tmp$x##538 = ds_dxl)]}
+bind 63 lq_anf$##dxA : {lq_tmp$x##540 : Elim.Foo | [(lq_tmp$x##540 = ds_dxl)]}
+bind 64 ds_dxm : {lq_tmp$x##548 : int | []}
+bind 65 ds_dxn : {lq_tmp$x##549 : int | [(ds_dxm < lq_tmp$x##549)]}
+bind 66 lq_anf$##dxA : {lq_tmp$x##540 : Elim.Foo | [(lq_tmp$x##540 = ds_dxl);
+                                                    ((yy lq_tmp$x##540) = ds_dxn);
+                                                    ((xx lq_tmp$x##540) = ds_dxm);
+                                                    (lq_tmp$x##540 = (Elim.Foo##rlA ds_dxm ds_dxn));
+                                                    ((yy lq_tmp$x##540) = ds_dxn);
+                                                    ((xx lq_tmp$x##540) = ds_dxm)]}
+bind 67 VV##559 : {VV##559 : int | [(VV##559 = ds_dxm)]}
+bind 68 VV##561 : {VV##561 : int | [(VV##561 = ds_dxq)]}
+bind 69 VV##563 : {VV##563 : Elim.Foo | [((yy VV##563) = cow##awB);
+                                         ((xx VV##563) = wink##awA)]}
+bind 70 VV##565 : {VV##565 : int | [(VV##565 = cow##awB)]}
+bind 71 VV##567 : {VV##567 : int | [(VV##567 = wink##awA)]}
+bind 72 VV##569 : {VV##569 : int | [(VV##569 = cow##ax4)]}
+bind 73 VV##571 : {VV##571 : int | [(VV##571 = wink##ax3)]}
+bind 74 VV##573 : {VV##573 : int | [(VV##573 = cow##ax4)]}
+bind 75 VV##575 : {VV##575 : int | [(VV##575 = wink##ax3)]}
+bind 76 VV##577 : {VV##577 : int | [(VV##577 = cow##ax4)]}
+bind 77 VV##579 : {VV##579 : int | [(VV##579 = wink##ax3)]}
+bind 78 VV##581 : {VV##581 : (Tuple  int  int) | [$k_##333[VV##332:=VV##581][ds_dxg:=GHC.Prim.void###0l]]}
+bind 79 VV##583 : {VV##583 : int | [$k_##323[VV##322:=VV##583][VV##332:=VV##581][ds_dxg:=GHC.Prim.void###0l]]}
+bind 80 VV##585 : {VV##585 : int | [$k_##326[VV##325:=VV##585][VV##332:=VV##581][ds_dxg:=GHC.Prim.void###0l]]}
+bind 81 lq_tmp$x##264 : {VV##587 : int | []}
+bind 82 VV##588 : {VV##588 : int | [$k_##330[VV##332:=VV##581][VV##329:=VV##588][ds_dxg:=GHC.Prim.void###0l][lq_tmp$x##328:=lq_tmp$x##264]]}
+bind 83 VV##590 : {VV##590 : GHC.Prim.Void# | [(VV##590 = GHC.Prim.void###0l)]}
+bind 84 VV##592 : {VV##592 : (Tuple  int  int) | [$k_##351[lq_tmp$x##339:=lq_anf$##dxu][lq_tmp$x##357:=VV##592][VV##350:=VV##592]]}
+bind 85 VV##594 : {VV##594 : int | [$k_##341[lq_tmp$x##353:=VV##594][lq_tmp$x##339:=lq_anf$##dxu][lq_tmp$x##357:=VV##592][VV##340:=VV##594][VV##350:=VV##592]]}
+bind 86 VV##596 : {VV##596 : int | [$k_##344[lq_tmp$x##339:=lq_anf$##dxu][lq_tmp$x##357:=VV##592][VV##343:=VV##596][lq_tmp$x##354:=VV##596][VV##350:=VV##592]]}
+bind 87 lq_tmp$x##328 : {VV##598 : int | []}
+bind 88 VV##599 : {VV##599 : int | [$k_##348[lq_tmp$x##355:=lq_tmp$x##328][lq_tmp$x##356:=VV##599][VV##347:=VV##599][lq_tmp$x##339:=lq_anf$##dxu][lq_tmp$x##346:=lq_tmp$x##328][lq_tmp$x##357:=VV##592][VV##350:=VV##592]]}
+bind 89 VV##601 : {VV##601 : int | [(VV##601 = lq_anf$##dxu)]}
+bind 90 VV##603 : {VV##603 : (Tuple  int  int) | [((snd VV##603) = cow##ax4);
+                                                  ((fst VV##603) = wink##ax3);
+                                                  ((x_Tuple22 VV##603) = cow##ax4);
+                                                  ((x_Tuple21 VV##603) = wink##ax3)]}
+bind 91 VV##605 : {VV##605 : int | [$k_##297[lq_tmp$x##295:=cow##ax4][lq_tmp$x##299:=VV##605][lq_tmp$x##291:=VV##603][lq_tmp$x##294:=wink##ax3][VV##296:=VV##605]]}
+bind 92 VV##607 : {VV##607 : int | [$k_##301[lq_tmp$x##295:=cow##ax4][lq_tmp$x##291:=VV##603][lq_tmp$x##294:=wink##ax3][VV##300:=VV##607][lq_tmp$x##303:=VV##607]]}
+bind 93 lq_tmp$x##264 : {VV##609 : int | []}
+bind 94 VV##610 : {VV##610 : int | [$k_##305[lq_tmp$x##295:=cow##ax4][lq_tmp$x##290:=lq_tmp$x##264][VV##304:=VV##610][lq_tmp$x##307:=lq_tmp$x##264][lq_tmp$x##291:=VV##603][lq_tmp$x##294:=wink##ax3][lq_tmp$x##303:=VV##610]]}
+bind 95 VV##612 : {VV##612 : int | [(VV##612 = cow##ax4)]}
+bind 96 VV##614 : {VV##614 : int | [(VV##614 = wink##ax3)]}
+bind 97 VV##616 : {VV##616 : int | [(VV##616 = yog##awz)]}
+bind 98 VV##618 : {VV##618 : int | [(VV##618 = xig##awy)]}
+bind 99 VV##473 : {VV##473 : int | [$k_##474]}
+bind 100 VV##443 : {VV##443 : int | [$k_##444]}
+bind 101 VV##435 : {VV##435 : int | [$k_##436]}
+bind 102 VV##431 : {VV##431 : int | [$k_##432]}
+bind 103 VV##427 : {VV##427 : int | [$k_##428]}
+bind 104 VV##391 : {VV##391 : int | [$k_##392]}
+bind 105 VV##361 : {VV##361 : int | [$k_##362]}
+bind 106 VV##318 : {VV##318 : GHC.Prim.Void# | [$k_##319]}
+bind 107 VV##350 : {VV##350 : (Tuple  int  int) | [$k_##351]}
+bind 108 VV##340 : {VV##340 : int | [$k_##341]}
+bind 109 VV##343 : {VV##343 : int | [$k_##344]}
+bind 110 lq_tmp$x##346 : {VV##631 : int | []}
+bind 111 VV##347 : {VV##347 : int | [$k_##348]}
+bind 112 VV##332 : {VV##332 : (Tuple  int  int) | [$k_##333]}
+bind 113 VV##322 : {VV##322 : int | [$k_##323]}
+bind 114 VV##325 : {VV##325 : int | [$k_##326]}
+bind 115 lq_tmp$x##328 : {VV##636 : int | []}
+bind 116 VV##329 : {VV##329 : int | [$k_##330]}
+bind 117 VV##304 : {VV##304 : int | [$k_##305]}
+bind 118 VV##300 : {VV##300 : int | [$k_##301]}
+bind 119 VV##296 : {VV##296 : int | [$k_##297]}
+bind 120 VV##268 : {VV##268 : (Tuple  int  int) | [$k_##269]}
+bind 121 VV##258 : {VV##258 : int | [$k_##259]}
+bind 122 VV##261 : {VV##261 : int | [$k_##262]}
+bind 123 lq_tmp$x##264 : {VV##644 : int | []}
+bind 124 VV##265 : {VV##265 : int | [$k_##266]}
+bind 125 VV##251 : {VV##251 : int | [$k_##252]}
+bind 126 VV##247 : {VV##247 : int | [$k_##248]}
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       42;
+       48;
+       54 ]
+  lhs {VV##1 : int | [(VV##1 = cow##awB)]}
+  rhs {VV##1 : int | [(wink##awA < VV##1)]}
+  id 1 tag [1]
+  // META constraint id 1 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       42;
+       48;
+       49;
+       50;
+       51;
+       52;
+       53]
+  lhs {VV##2 : int | [(VV##2 = cow##ax4)]}
+  rhs {VV##2 : int | [$k_##474[VV##569:=VV##2][VV##F##2:=VV##2][VV##F:=VV##2][VV##473:=VV##2]]}
+  id 2 tag [1]
+  // META constraint id 2 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  lhs {VV##18 : (Tuple  int  int) | [((snd VV##18) = cow##ax4);
+                                     ((fst VV##18) = wink##ax3);
+                                     ((x_Tuple22 VV##18) = cow##ax4);
+                                     ((x_Tuple21 VV##18) = wink##ax3)]}
+  rhs {VV##18 : (Tuple  int  int) | [$k_##269[VV##F##18:=VV##18][VV##268:=VV##18][VV##603:=VV##18][VV##F:=VV##18]]}
+  id 18 tag [1]
+  // META constraint id 18 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       42;
+       43;
+       44;
+       45;
+       46;
+       47]
+  lhs {VV##3 : int | [(VV##3 = wink##ax3)]}
+  rhs {VV##3 : int | [$k_##444[VV##571:=VV##3][VV##F:=VV##3][VV##F##3:=VV##3][VV##443:=VV##3]]}
+  id 3 tag [1]
+  // META constraint id 3 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22;
+       90]
+  lhs {VV##19 : int | [$k_##297[lq_tmp$x##295:=cow##ax4][VV##605:=VV##19][lq_tmp$x##299:=VV##19][lq_tmp$x##291:=VV##603][VV##F##19:=VV##19][lq_tmp$x##294:=wink##ax3][VV##F:=VV##19][VV##296:=VV##19]]}
+  rhs {VV##19 : int | [$k_##259[VV##605:=VV##19][VV##268:=VV##603][VV##258:=VV##19][VV##F##19:=VV##19][VV##F:=VV##19]]}
+  id 19 tag [1]
+  // META constraint id 19 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40]
+  lhs {VV##4 : int | [(VV##4 = cow##ax4)]}
+  rhs {VV##4 : int | [$k_##432[lq_tmp$x##425:=wink##ax3][VV##431:=VV##4][VV##573:=VV##4][lq_tmp$x##434:=VV##4][VV##F:=VV##4][VV##F##4:=VV##4]]}
+  id 4 tag [1]
+  // META constraint id 4 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22;
+       90]
+  lhs {VV##20 : int | [$k_##301[lq_tmp$x##295:=cow##ax4][VV##607:=VV##20][VV##F##20:=VV##20][lq_tmp$x##291:=VV##603][lq_tmp$x##294:=wink##ax3][VV##300:=VV##20][lq_tmp$x##303:=VV##20][VV##F:=VV##20]]}
+  rhs {VV##20 : int | [$k_##262[VV##268:=VV##603][VV##607:=VV##20][VV##F##20:=VV##20][VV##261:=VV##20][VV##F:=VV##20]]}
+  id 20 tag [1]
+  // META constraint id 20 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40]
+  lhs {VV##5 : int | [(VV##5 = cow##ax4)]}
+  rhs {VV##5 : int | [$k_##436[lq_tmp$x##425:=wink##ax3][VV##F##5:=VV##5][VV##573:=VV##5][lq_tmp$x##438:=wink##ax3][lq_tmp$x##434:=VV##5][VV##F:=VV##5][VV##435:=VV##5]]}
+  id 5 tag [1]
+  // META constraint id 5 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22;
+       90;
+       93]
+  lhs {VV##21 : int | [$k_##305[lq_tmp$x##295:=cow##ax4][lq_tmp$x##290:=lq_tmp$x##264][VV##304:=VV##21][VV##610:=VV##21][lq_tmp$x##307:=lq_tmp$x##264][lq_tmp$x##291:=VV##603][lq_tmp$x##294:=wink##ax3][lq_tmp$x##303:=VV##21][VV##F##21:=VV##21][VV##F:=VV##21]]}
+  rhs {VV##21 : int | [$k_##266[VV##265:=VV##21][VV##610:=VV##21][VV##268:=VV##603][VV##F##21:=VV##21][VV##F:=VV##21]]}
+  id 21 tag [1]
+  // META constraint id 21 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40]
+  lhs {VV##6 : int | [(VV##6 = wink##ax3)]}
+  rhs {VV##6 : int | [$k_##428[VV##F##6:=VV##6][VV##427:=VV##6][lq_tmp$x##430:=VV##6][VV##F:=VV##6][VV##575:=VV##6]]}
+  id 6 tag [1]
+  // META constraint id 6 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  lhs {VV##22 : int | [(VV##22 = cow##ax4)]}
+  rhs {VV##22 : int | [$k_##301[VV##F##22:=VV##22][VV##612:=VV##22][lq_tmp$x##294:=wink##ax3][VV##300:=VV##22][lq_tmp$x##303:=VV##22][VV##F:=VV##22]]}
+  id 22 tag [1]
+  // META constraint id 22 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       35;
+       36;
+       37;
+       38;
+       39]
+  lhs {VV##7 : int | [(VV##7 = cow##ax4)]}
+  rhs {VV##7 : int | [$k_##392[VV##391:=VV##7][VV##F##7:=VV##7][VV##F:=VV##7][VV##577:=VV##7]]}
+  id 7 tag [1]
+  // META constraint id 7 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  lhs {VV##23 : int | [(VV##23 = cow##ax4)]}
+  rhs {VV##23 : int | [$k_##305[VV##304:=VV##23][lq_tmp$x##307:=wink##ax3][VV##612:=VV##23][lq_tmp$x##294:=wink##ax3][lq_tmp$x##303:=VV##23][VV##F:=VV##23][VV##F##23:=VV##23]]}
+  id 23 tag [1]
+  // META constraint id 23 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       29;
+       30;
+       31;
+       32;
+       33]
+  lhs {VV##8 : int | [(VV##8 = wink##ax3)]}
+  rhs {VV##8 : int | [$k_##362[VV##579:=VV##8][VV##F##8:=VV##8][VV##361:=VV##8][VV##F:=VV##8]]}
+  id 8 tag [1]
+  // META constraint id 8 : ()
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  lhs {VV##24 : int | [(VV##24 = wink##ax3)]}
+  rhs {VV##24 : int | [$k_##297[lq_tmp$x##299:=VV##24][VV##614:=VV##24][VV##F:=VV##24][VV##296:=VV##24][VV##F##24:=VV##24]]}
+  id 24 tag [1]
+  // META constraint id 24 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16]
+  lhs {VV##25 : int | [(VV##25 = yog##awz)]}
+  rhs {VV##25 : int | [$k_##252[VV##251:=VV##25][lq_tmp$x##254:=VV##25][lq_tmp$x##245:=xig##awy][VV##F:=VV##25][VV##616:=VV##25][VV##F##25:=VV##25]]}
+  id 25 tag [1]
+  // META constraint id 25 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16]
+  lhs {VV##26 : int | [(VV##26 = xig##awy)]}
+  rhs {VV##26 : int | [$k_##248[VV##618:=VV##26][VV##247:=VV##26][VV##F##26:=VV##26][VV##F:=VV##26][lq_tmp$x##250:=VV##26]]}
+  id 26 tag [1]
+  // META constraint id 26 : ()
+
+
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       115]
+  reft {VV##329 : int | [$k_##330]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25]
+  reft {VV##318 : GHC.Prim.Void# | [$k_##319]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       27;
+       107]
+  reft {VV##343 : int | [$k_##344]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40]
+  reft {VV##427 : int | [$k_##428]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16]
+  reft {VV##247 : int | [$k_##248]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       41]
+  reft {VV##435 : int | [$k_##436]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       42]
+  reft {VV##443 : int | [$k_##444]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  reft {VV##296 : int | [$k_##297]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       27;
+       110]
+  reft {VV##347 : int | [$k_##348]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40;
+       42;
+       48]
+  reft {VV##473 : int | [$k_##474]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       27]
+  reft {VV##350 : (Tuple  int  int) | [$k_##351]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34]
+  reft {VV##391 : int | [$k_##392]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26]
+  reft {VV##332 : (Tuple  int  int) | [$k_##333]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       120]
+  reft {VV##258 : int | [$k_##259]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       120]
+  reft {VV##261 : int | [$k_##262]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       27;
+       107]
+  reft {VV##340 : int | [$k_##341]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22;
+       23]
+  reft {VV##304 : int | [$k_##305]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       112]
+  reft {VV##325 : int | [$k_##326]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28]
+  reft {VV##361 : int | [$k_##362]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       123]
+  reft {VV##265 : int | [$k_##266]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       24;
+       25;
+       26;
+       112]
+  reft {VV##322 : int | [$k_##323]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       18;
+       19;
+       20;
+       21;
+       22]
+  reft {VV##300 : int | [$k_##301]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17]
+  reft {VV##268 : (Tuple  int  int) | [$k_##269]}
+  // META wf : ()
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       16;
+       17;
+       28;
+       34;
+       40]
+  reft {VV##431 : int | [$k_##432]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16]
+  reft {VV##251 : int | [$k_##252]}
+  // META wf : ()

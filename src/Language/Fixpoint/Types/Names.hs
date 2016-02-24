@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE PatternGuards              #-}
 
 
 -- | This module contains Haskell variables representing globally visible names.
@@ -186,19 +187,14 @@ instance IsString Symbol where
 instance Show Symbol where
   show = show . symbolRaw
 
---instance Monoid Symbol where
--- mempty        = ""
-
 mappendSym :: Symbol -> Symbol -> Symbol
 mappendSym s1 s2 = textSymbol $ mappend s1' s2'
     where
       s1'        = symbolText s1
       s2'        = symbolText s2
 
-
-
 instance PPrint Symbol where
-  pprint = text . symbolString
+  pprintTidy _ = text . symbolString
 
 instance Fixpoint T.Text where
   toFix = text . T.unpack
@@ -207,7 +203,17 @@ instance Fixpoint T.Text where
 --     but `symbolText`     if you want it to be human-readable.
 
 instance Fixpoint Symbol where
-  toFix = toFix . symbolSafeText
+  toFix = toFix . checkedText -- symbolSafeText
+
+checkedText :: Symbol -> T.Text
+checkedText x
+  | Just (c, t') <- T.uncons t
+  , okHd c && T.all okChr t'   = t
+  | otherwise                  = symbolSafeText x
+  where
+    t     = symbolText x
+    okHd  = (`S.member` alphaChars)
+    okChr = (`S.member` symChars)
 
 ---------------------------------------------------------------------------
 -- | Located Symbols -----------------------------------------------------

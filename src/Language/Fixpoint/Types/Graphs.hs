@@ -36,9 +36,9 @@ data CVertex = KVar  KVar    -- ^ real kvar vertex
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
-  pprint (KVar k)  = doubleQuotes $ pprint $ kv k
-  pprint (Cstr i)  = text "id_" <> pprint i
-  pprint (DKVar k) = pprint k   <> text "*"
+  pprintTidy _ (KVar k)  = doubleQuotes $ pprint $ kv k
+  pprintTidy _ (Cstr i)  = text "id_" <> pprint i
+  pprintTidy _ (DKVar k) = pprint k   <> text "*"
 
 
 instance Hashable CVertex

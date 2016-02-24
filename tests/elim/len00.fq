@@ -1,7 +1,6 @@
 
 // This qualifier saves the day; solve constraints WITHOUT IT
-
-qualif ListZ(v : [@(0)]): (len v >= 0)
+//qualif ListZ(v : [@(0)]): (len v >= 0)
 
 constant len : (func(2, [(@(0)  @(1)); int]))
 

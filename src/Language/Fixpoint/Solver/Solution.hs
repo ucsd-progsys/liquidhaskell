@@ -17,6 +17,7 @@ where
 
 import           Control.Parallel.Strategies
 import           Control.Arrow (second)
+import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -169,14 +170,17 @@ lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
 lhsPred be s c = {- F.tracepp msg $ -} apply g s bs
   where
-    g          = (be, bs)
+    g          = (ci, be, bs)
     bs         = F.senv c
+    ci         = sid c
     -- msg        = "LhsPred for id = " ++ show (sid c)
 
-type CombinedEnv = (F.BindEnv, F.IBindEnv)
+type Cid = Maybe Integer
+type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
 apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
+
 
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
 apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
@@ -184,10 +188,10 @@ apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
    --  msg   = "apply1 bind = " ++ show i
 
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
-bindExprs (be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
+bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
   where
-    (x, sr)        = F.lookupBindEnv i be
-    rs             = F.reftConjuncts $ F.sr_reft sr
+    (x, sr)          = F.lookupBindEnv i be
+    rs               = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
 applyExpr g s (F.PKVar k su) = applyKVar g s k su
@@ -206,27 +210,60 @@ hypPred :: CombinedEnv -> Solution -> F.Subst -> F.Hyp  -> F.Expr
 hypPred g s su = F.pOr . fmap (cubePred g s su)
 
 cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
-cubePred g s su c = F.PExist xts' $ F.pAnd [p', equate su su']
+cubePred g s su c = F.PExist xts
+                      $ F.pAnd [ psu
+                               , F.PExist yts' $ F.pAnd [p', psu'] ]
   where
-    xts'          = symSorts g bs'
+    yts'          = symSorts g bs'
     p'            = apply (addCEnv g bs) s bs'
     bs'           = delCEnv bs g
     F.Cube bs su' = c
+    psu'          = substPred su'
+    psu           = substPred su
+    xts           = substSorts g su
+
+-- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
+substSorts :: CombinedEnv -> F.Subst -> [(F.Symbol, F.Sort)]
+substSorts g (F.Su m) = [(x, t) | (x, e) <- xes
+                                , not (S.member x frees)
+                                , t      <- sortOf e ]
+  where
+    xes    = M.toList m
+    env    = combinedSEnv g
+    sortOf = maybeToList . So.checkSortExpr env
+    frees  = S.fromList (concatMap (F.syms . snd) xes)
+
+-- badExpr :: CombinedEnv -> F.Expr -> a
+-- badExpr _ e = errorstar $ "substSorts has a badExpr: " ++ show e
+
+combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
+combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
+
+substPred :: F.Subst -> F.Pred
+substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
-addCEnv (be, bs) bs' = (be, F.unionIBindEnv bs bs')
+addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 
 delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
-delCEnv bs (_, bs')  = F.diffIBindEnv bs bs'
+delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-symSorts (be, _) bs = second F.sr_sort <$> F.envCs be bs
+symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
 
-equate :: F.Subst -> F.Subst -> F.Expr
-equate su su' = F.pAnd [F.PAtom F.Eq e e' | (_, (e, e')) <- joinSubst su su' ]
+-- cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
+-- cubePred g s su c = F.PExist xts' $ F.pAnd [p', equate su su']
+  -- where
+    -- xts'          = symSorts g bs'
+    -- p'            = apply (addCEnv g bs) s bs'
+    -- bs'           = delCEnv bs g
+    -- F.Cube bs su' = c
 
-joinSubst :: F.Subst -> F.Subst -> [(F.Symbol, (F.Expr, F.Expr))]
-joinSubst (F.Su m1) (F.Su m2) = M.toList $ M.intersectionWith (,) m1 m2
+-- equate :: F.Subst -> F.Subst -> F.Expr
+-- equate su su' = F.pAnd [F.PAtom F.Eq e e' | (_, (e, e')) <- joinSubst su su' ]
+--
+-- joinSubst :: F.Subst -> F.Subst -> [(F.Symbol, (F.Expr, F.Expr))]
+-- joinSubst (F.Su m1) (F.Su m2) = M.toList $ M.intersectionWith (,) m1 m2
 
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars

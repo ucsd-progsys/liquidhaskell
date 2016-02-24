@@ -55,7 +55,7 @@ data Stats = Stats { numKvarCs  :: !Int
 
 
 instance PPrint (Worklist a) where
-  pprint = pprint . S.toList . wCs
+  pprintTidy k = pprintTidy k . S.toList . wCs
 
 instance PTable Stats where
   ptable s = DocTable [ (text "# Sliced Constraints", pprint (numKvarCs s))
@@ -76,7 +76,7 @@ data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
                          } deriving (Eq, Show)
 
 instance PPrint WorkItem where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance Ord WorkItem where
   compare (WorkItem i1 t1 r1) (WorkItem i2 t2 r2)
