@@ -441,7 +441,7 @@ instance PPrint Expr where
                                    "-" <> pprintPrec (zn + 1) k e
     where zn = 2
   pprintPrec z k (EApp f es)     = parensIf (z > za) $
-                                   pprintTidy k f <+> (pprintPrec (za+1) k es)
+                                   pprintPrec za k f <+> pprintPrec (za+1) k es
     where za = 8
   pprintPrec z k (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) k e1 <+>
