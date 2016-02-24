@@ -58,6 +58,7 @@ Library
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
                    Language.Fixpoint.Types.Graphs,
+                   Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,

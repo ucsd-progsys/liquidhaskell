@@ -54,7 +54,7 @@ nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]
 nonCutHyp  :: KIndex -> SInfo a -> KVar -> Hyp
 nonCutHyp kI si k = nonCutCube kDom <$> cs
   where
-    kDom          = getDomain si k
+    kDom          = kvarDomain si k
     cs            = getSubC   si <$> M.lookupDefault [] k kI
 
 nonCutCube :: [Symbol] -> SimpC a -> Cube
@@ -66,14 +66,6 @@ rhsSubst kDom        = rsu . crhs
     rsu (PKVar _ su) = filterSubst (\x _ -> x `elem` kDom) su
     rsu _            = errorstar "Eliminate.rhsSubst called on bad input"
 
-domain :: BindEnv -> WfC a -> [Symbol]
-domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
-
-getDomain :: SInfo a -> KVar -> [Symbol]
-getDomain si k = domain (bs si) (getWfC si k)
-
-getWfC :: SInfo a -> KVar -> WfC a
-getWfC si k = ws si M.! k
 
 getSubC :: SInfo a -> Integer -> SimpC a
 getSubC si i = safeLookup msg i (cm si)

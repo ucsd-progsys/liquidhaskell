@@ -31,23 +31,43 @@ import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
+--------------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 validate :: F.SInfo a -> ValidateM ()
 validate = errorstar "TODO: validate input"
+--------------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
          >=> fM dropWfcFunctions
-         >=>    checkRhsCs
+         >=> fM dropBogusSubstitutions
+         >=>    banMixedRhs
          >=>    banQualifFreeVars
          >=>    banConstraintFreeVars
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | remove substitutions `K[x := e]` where `x` is not in the domain of K
+--------------------------------------------------------------------------------
+dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
+dropBogusSubstitutions si0 = V.mapKVarSubsts (dropBogusSubst si0) si0
+  where
+    kvDoms = M.mapWithKey (F.ws si) 
+    drop :: F.KVar -> F.Subst -> F.Subst
+    drop = F.filterSubst . f
+    f k x _  = x `member` dom k
+    M.lookupDefault ... (F.ws si0)
+
+kvarDomain :: F.SInfo a -> F.KVar -> S.HashSet F.Symbol
+kvarDomain = undefined
+
+--------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
@@ -58,7 +78,7 @@ cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
 cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
   where
     be = F.bs fi
-    lits = fst <$> (F.toListSEnv $ F.lits fi)
+    lits = fst <$> F.toListSEnv (F.lits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . freeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
@@ -71,11 +91,11 @@ badCs :: Misc.ListNE (F.SimpC a) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . F.subcId)
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | check that no qualifier has free variables
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
@@ -93,16 +113,16 @@ nubDiff a b = a' `S.difference` b'
     a' = S.fromList a
     b' = S.fromList b
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]
----------------------------------------------------------------------------
-checkRhsCs :: F.SInfo a -> ValidateM (F.SInfo a)
----------------------------------------------------------------------------
-checkRhsCs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
+--------------------------------------------------------------------------------
+banMixedRhs :: F.SInfo a -> ValidateM (F.SInfo a)
+--------------------------------------------------------------------------------
+banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
-    ics       = M.toList $ F.cm fi
-    bads      = [(i, c) | (i, c) <- ics, not $ isOk c]
-    isOk c    = isKvarC c || isConcC c
+    ics        = M.toList $ F.cm fi
+    bads       = [(i, c) | (i, c) <- ics, not $ isOk c]
+    isOk c     = isKvarC c || isConcC c
 
 badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1
@@ -116,11 +136,11 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 -- isOkRhs p = all isKvar ps  || all isConc ps
 --  where
 --     ps    = F.conjuncts p
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 symbolSorts :: F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
@@ -145,9 +165,9 @@ compact xts
     (bad, ok) = L.partition multiSorted . binds $ xts
     binds     = M.toList . M.map Misc.sortNub . Misc.group
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 bindSorts  :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 bindSorts fi
   | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
   | otherwise  = Left $ dupBindErrors [ (x, ts) | (x, ts) <- bad]
@@ -165,9 +185,9 @@ dupBindErrors = foldr1 E.catError . map dbe
    dbe (x, y) = E.err E.dummySpan $ vcat [ "Multiple sorts for" <+> pprint x
                                          , nest 4 (pprint y) ]
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
             M.toList
           . M.map Misc.groupList
@@ -184,17 +204,17 @@ binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
 --------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
     f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
     defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Drop functions from WfC environments
 --------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropWfcFunctions fi | F.allowHO fi = fi
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
@@ -203,11 +223,11 @@ dropWfcFunctions fi = fi { F.ws = ws' }
     ws'           = deleteWfCBinds discards          <$> F.ws fi
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.lits = lits' }
   where
     discards        = {- tracepp "DISCARDING" -} diss
