@@ -235,7 +235,10 @@ substSorts g (F.Su m) = [(x, t) | (x, e) <- xes
     sortOf e = fromMaybe (badExpr g e) $ So.checkSortExpr env e
 
 badExpr :: CombinedEnv -> F.Expr -> a
-badExpr _ e = errorstar $ "substSorts has a badExpr: " ++ show e
+badExpr g e = errorstar $ "substSorts has a badExpr: "
+                        ++ show e
+                        ++ " in env \n"
+                        ++ show (combinedSEnv g)
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
 combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
