@@ -33,8 +33,7 @@ module Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor (mapKVarSubsts)
-import           Language.Fixpoint.Misc          (fst3)
-
+import           Language.Fixpoint.Solver.Validate (getDomain)
 import qualified Data.HashMap.Strict as M
 import           Data.Foldable       (foldl')
 
@@ -46,19 +45,12 @@ wfcUniqify fi = updateWfcs $ remakeSubsts fi
 --------------------------------------------------------------
 remakeSubsts :: SInfo a -> SInfo a
 --------------------------------------------------------------
-remakeSubsts fi = mapKVarSubsts (remakeSubstIfWfcExists fi) fi
-
---TODO: why are there kvars with no WfC?
-remakeSubstIfWfcExists :: SInfo a -> KVar -> Subst -> Subst
-remakeSubstIfWfcExists fi k su
-  | k `M.member` ws fi = remakeSubst fi k su
-  | otherwise          = Su M.empty
+remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
 remakeSubst fi k su = foldl' (updateSubst k) su kDom
   where
-    w    = (ws fi) M.! k
-    kDom = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
+    kDom = getDomain fi k
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym
