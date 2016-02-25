@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 import Prelude hiding (error)
 import CoreSyn
 import DataCon
+import TyCon
 import Id
 import Name
 import Type hiding (isFunTy)
@@ -62,24 +63,24 @@ import Language.Haskell.Liquid.UX.Errors
 
 import Debug.Trace (trace)
 
-makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
+makeAxiom :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
-makeAxiom lmap cbs _ _ x
+makeAxiom tce lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                             insertAxiom v (val x)
-                             updateLMap lmap x x v
-                             updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return ((val x, makeType v),
-                                     (v, makeAssumeType v):vts, defAxioms v def)
-    (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                             insertAxiom v (val x)
-                             updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                             updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return ((val x, makeType v),
-                                     ((v, makeAssumeType v): vts),
-                                     defAxioms v def)
-    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
+        (NonRec v def:_)   -> do vts <- zipWithM (makeAxiomType tce lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                                 insertAxiom v (val x)
+                                 updateLMap lmap x x v
+                                 updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
+                                 return ((val x, makeType v),
+                                         (v, makeAssumeType v):vts, defAxioms v def)
+        (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType tce lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                                 insertAxiom v (val x)
+                                 updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                                 updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
+                                 return ((val x, makeType v),
+                                         ((v, makeAssumeType v): vts),
+                                         defAxioms v def)
+        _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
 
     --coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
@@ -112,8 +113,8 @@ updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
 
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
-makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
-makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
+makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
+makeAxiomType tce lmap x v (Axiom _ xs _ lhs rhs)
   = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
@@ -122,10 +123,10 @@ makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
     tr  = toRTypeRep tt
     res = ty_res tr `strengthen` MkUReft ref mempty mempty
 
-    llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of
+    llhs = case runToLogic tce lmap' mkErr (coreToLogic lhs) of
        Left e -> e
        Right e -> panic Nothing $ show e
-    lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of
+    lrhs = case runToLogic tce lmap' mkErr (coreToLogic rhs) of
        Left e -> e
        Right e -> panic Nothing $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)

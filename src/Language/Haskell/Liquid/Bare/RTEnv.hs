@@ -178,6 +178,7 @@ buildExprEdges table  = ordNub . go
     go (PImp p q)          = go p ++ go q
     go (PIff p q)          = go p ++ go q
     go (PAll _ p)          = go p
+    go (ELam _ e)          = go e 
 
     go (PAtom _ e1 e2)     = go e1 ++ go e2 
 

@@ -176,6 +176,7 @@ expandAutoProof inite e it
         ds   <- ae_assert  <$> get
         cmb  <- ae_cmb     <$> get
         lmap <- ae_lmap    <$> get
+        isHO <- ae_isHO    <$> get 
         e'   <- unANFExpr e
 
         foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) x >> (ae_lmap <$> get))) lmap vs'
@@ -191,7 +192,7 @@ expandAutoProof inite e it
         le     <- makeGoalPredicate e'
         fn     <- freshFilePath
         axioms <- makeAxioms
-        let sol = unsafePerformIO (solve $ makeQuery fn it le axioms ctors ds env pvs)
+        let sol = unsafePerformIO (solve $ makeQuery fn it isHO le axioms ctors ds env pvs)
         return $ {-
           traceShow (
             "\n\nTo prove\n" ++ show (showpp le) ++
@@ -243,8 +244,8 @@ makeEnvironment avs vs
 
 
 
-makeQuery :: FilePath -> Integer -> F.Expr -> [HAxiom] -> [HVarCtor] -> [F.Expr] -> [P.LVar] ->  [HVar] -> HQuery
-makeQuery fn i p axioms cts ds env vs
+makeQuery :: FilePath -> Integer -> Bool -> F.Expr -> [HAxiom] -> [HVarCtor] -> [F.Expr] -> [P.LVar] ->  [HVar] -> HQuery
+makeQuery fn i isHO p axioms cts ds env vs 
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p
 
@@ -255,6 +256,7 @@ makeQuery fn i p axioms cts ds env vs
            , q_fname  = fn
            , q_axioms = axioms
            , q_decls  = (P.Pred <$> ds)
+           , q_isHO   = isHO 
            }
 
 checkEnv pv@(P.Var x s _)
@@ -279,8 +281,9 @@ unANFExpr e = (foldl (flip Let) e . ae_binds) <$> get
 
 makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
-     case runToLogic lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
-       Left p  -> return p
+     tce  <- ae_emb     <$> get
+     case runToLogic tce lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
+       Left p    -> return p
        Right err -> panicError err
 
 makeRefinement :: Maybe SpecType -> [Var] -> F.Expr
@@ -408,6 +411,7 @@ data AEnv = AE { ae_axioms  :: [T.HAxiom]            -- axiomatized functions
                                                      -- these axioms are guarded to used only with "smaller" arguments
                , ae_assert  :: [F.Expr]              --
                , ae_cmb     :: CoreExpr -> CoreExpr -> CoreExpr  -- how to combine proofs
+               , ae_isHO    :: Bool                  -- allow higher order binders 
                }
 
 
@@ -430,6 +434,7 @@ initAEEnv info sigs
                      , ae_recs    = []
                      , ae_assert  = []
                      , ae_cmb     = \x y -> (App (App (Var by) x) y)
+                     , ae_isHO    = higherorder $ config spc 
                      }
     where
       spc        = spec info

@@ -29,6 +29,7 @@ data Config = Config {
   , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
+  , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , binders        :: [String]   -- ^ set of binders to check
