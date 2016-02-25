@@ -6,16 +6,15 @@ module Benchmark where
 import Data.Csv
 import qualified Data.Map as Map
 import Data.Foldable
-
--- TODO: need some notion of time the benchmark occurred
+import Data.Time.LocalTime
 
 data Benchmark =
    Benchmark { benchName :: String,
-               benchTimestamp :: Int,
+               benchTimestamp :: LocalTime,
                benchTime :: Double,
                benchPass :: Bool
                }
-   deriving (Show, Eq)
+   deriving (Eq)
 
 instance Ord Benchmark where
    compare lhs rhs = compare (benchTimestamp lhs) (benchTimestamp rhs)
@@ -37,7 +36,8 @@ toBenchMap f = foldl' fn Map.empty f
 instance FromRecord Benchmark where
    parseRecord r = Benchmark
                    <$> r .! 0
-                   <*> pure (-1)
+                   <*> pure (error ("Shouldn't be evaluated until after"
+                                    ++ " reassignment!"))
                    <*> r .! 1
                    <*> do asStr <- r .! 2
                           return $ read asStr {- Since the test suite

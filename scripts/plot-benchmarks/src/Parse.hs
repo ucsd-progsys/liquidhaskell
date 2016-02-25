@@ -7,6 +7,8 @@ import System.Directory
 import Data.Either
 import qualified Data.Vector as V
 import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Time.Clock.POSIX
+import Data.Time.LocalTime
 
 gulpLogs :: FilePath -> IO [V.Vector Benchmark]
 gulpLogs f = do
@@ -22,11 +24,17 @@ parseLog :: FilePath -> IO (Either String (V.Vector Benchmark))
 parseLog p = do
    file <- BS.readFile p
    let (hdr, csv) = splitHeader file delimiter
+   timezone <- getCurrentTimeZone
    case (getEpochTime hdr) of
       Nothing -> return $ Left "missing timestamp!"
       Just ts -> case (decode HasHeader csv) of
          Right bm ->
-            return $ Right $ fmap (\a -> a {benchTimestamp = ts}) bm
+            return $ Right $ fmap
+               (\a -> a {benchTimestamp = utcToLocalTime
+                                             timezone
+                                             $ posixSecondsToUTCTime
+                                               $ realToFrac ts})
+               bm
 
 delimiter :: String
 delimiter = take 80 $ repeat '-'
