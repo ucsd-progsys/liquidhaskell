@@ -20,7 +20,7 @@ import           Control.Arrow (second)
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
@@ -215,40 +215,41 @@ cubePred g s k su c = F.PExist xts
                                 , F.PExist yts' $ F.pAnd [p', psu'] ]
   where
     yts'          = symSorts g bs'
-    p'            = apply (addCEnv g bs) s bs'
+    g'            = addCEnv g bs
+    p'            = apply g' s bs'
     bs'           = delCEnv bs g
     F.Cube bs su' = c
-    psu'          = substPred su'
-    psu           = substPred su
-    xts           = substSorts g k su
+    (_  , psu')   = substElim g' k su'
+    (xts, psu)    = substElim g  k su
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
-substSorts :: CombinedEnv -> F.KVar -> F.Subst -> [(F.Symbol, F.Sort)]
-substSorts g k (F.Su m) = [(x, t) | (x, e) <- xes
-                                  , not (S.member x frees)
-                                  , let t   = sortOf e ]
+substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
+substElim g _ (F.Su m) = (xts, p)
   where
+    p      = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e, _) <- xets  ]
+    xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
-    -- sortOf = maybeToList . So.checkSortExpr env
-    sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
+    sortOf = maybeToList . So.checkSortExpr env
+    -- sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
 
-badExpr :: CombinedEnv -> F.KVar -> F.Expr -> a
-badExpr g@(i,_,_) k e
-  = errorstar $ "substSorts has a badExpr: "
-              ++ show e
-              ++ " in cid = "
-              ++ show i
-              ++ " for kvar " ++ show k
-              ++ " in env \n"
-              ++ show (combinedSEnv g)
+--badExpr :: CombinedEnv -> F.KVar -> F.Expr -> a
+--badExpr g@(i,_,_) k e
+  -- = errorstar $ "substSorts has a badExpr: "
+              -- ++ show e
+              -- ++ " in cid = "
+              -- ++ show i
+              -- ++ " for kvar " ++ show k
+              -- ++ " in env \n"
+              -- ++ show (combinedSEnv g)
+
+-- substPred :: F.Subst -> F.Pred
+-- substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
 combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
-
-substPred :: F.Subst -> F.Pred
-substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')

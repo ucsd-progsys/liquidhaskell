@@ -95,7 +95,7 @@ accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)
   where
     --TODO: could we ignore the old SortedReft? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
-    newSym       = tracepp "kArgSymbol" $  kArgSymbol oldSym (kv k)
+    newSym       = {- tracepp "kArgSymbol" $ -}  kArgSymbol oldSym (kv k)
     (i', be')    = insertBindEnv newSym sr (bs fi)
 --------------------------------------------------------------
 
