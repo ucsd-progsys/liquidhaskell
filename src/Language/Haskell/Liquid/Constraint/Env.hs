@@ -163,7 +163,7 @@ addBind l x r = do
   st          <- get
   let (i, bs') = F.insertBindEnv x r (binds st)
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-  return ((x, F.sr_sort r), traceShow ("addBind: " ++ showpp x) i)
+  return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
   
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds
