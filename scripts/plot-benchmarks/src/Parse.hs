@@ -9,14 +9,14 @@ import qualified Data.Vector as V
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
+import System.FilePath
 
 gulpLogs :: FilePath -> IO [V.Vector Benchmark]
 gulpLogs f = do
-   abspath <- makeAbsolute f
-   conts <- getDirectoryContents abspath
+   conts <- getDirectoryContents f
    let justCsv = filter (isSuffixOf ".csv") conts
    let noHidden = filter (\a -> not (isPrefixOf "." a)) justCsv
-   let toGulp = fmap (\a -> abspath ++ a) noHidden
+   let toGulp = fmap (\a -> f </> a) noHidden
    logs <- sequence $ fmap parseLog toGulp
    return $ rights logs
 

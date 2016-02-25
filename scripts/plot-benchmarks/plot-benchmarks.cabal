@@ -2,10 +2,10 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                plot-benchmarks
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Plot benchmarks in .csv format over time
 license:             BSD3
-license-file:        ../LICENSE
+license-file:        ../../LICENSE
 author:              Chris Tetreault
 maintainer:          ctetreau@ucsd.edu
 copyright:           University of California, San Diego.
@@ -24,10 +24,13 @@ executable plot-benchmarks
                      , cassava >= 0.4 && < 0.5
                      , bytestring >= 0.10 && < 0.11
                      , vector >= 0.11 && < 0.12
-                     , containers >= 0.4 && < 0.6
+                     , containers >= 0.5 && < 0.6
                      , time >= 1.5 && < 1.6
                      , process >= 1.2 && < 1.3
                      , directory >= 1.2 && < 1.3
-                     , unordered-containers>=0.2 && <0.2.6
+                     , unordered-containers >= 0.2 && < 0.2.6
+                     , colour >= 2.3 && < 2.4
+                     , cmdargs >= 0.10 && < 0.11
+                     , filepath >= 1.4 && < 1.5
   hs-source-dirs:      src
   default-language:    Haskell2010

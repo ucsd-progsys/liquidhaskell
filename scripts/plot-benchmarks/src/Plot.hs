@@ -11,17 +11,36 @@ import Data.List
 import Graphics.Rendering.Chart.Easy
 import Graphics.Rendering.Chart.Backend.Diagrams
 import Data.Time.LocalTime
+import Data.Colour ()
+import Data.Colour.Names ()
+import System.FilePath
+
+fileOptions :: FileOptions
+fileOptions = def-- (def {_fo_size = (1024, 768)} :: FileOptions)
+
+lineColor1 :: AlphaColour Double
+lineColor1 = withOpacity darkred 0.5
+
+pointColor1 :: AlphaColour Double
+pointColor1 = opaque red
+
+lineColor2 :: AlphaColour Double
+lineColor2 = withOpacity darkgreen 0.5
+
+pointColor2 :: AlphaColour Double
+pointColor2 = opaque green
 
 plotData :: (Default r, ToRenderable r)
-            => [(String, [(LocalTime, a)])]
+            => FilePath
+            -> [(String, [(LocalTime, a)])]
             -> (String -> [(LocalTime, a)] -> EC r ())
             -> IO ()
-plotData dps with = sequence_ $ fmap plotDp dps
+plotData out dps with = sequence_ $ fmap plotDp dps
    where
       plotDp (n, dps') = do
          let n' = specToUscore n
-         let options = (def :: FileOptions)
-         toFile options (n' ++ ".svg") $ with n dps'
+         let options = fileOptions
+         toFile options (out </> n' ++ ".svg") $ with n dps'
       specToUscore s = fmap mapper s
          where
             mapper c = case c of
@@ -30,18 +49,23 @@ plotData dps with = sequence_ $ fmap plotDp dps
                c' -> c'
 
 plotCompareData :: (Default r, ToRenderable r)
-                   => [((String, [(LocalTime, a)]),(String, [(LocalTime, a)]))]
-                   -> (String -> ([(LocalTime, a)],[(LocalTime, a)]) -> EC r ())
+                   => FilePath
+                   -> [((String, [(LocalTime, a)]),(String, [(LocalTime, a)]))]
+                   -> (String
+                       -> String
+                       -> ([(LocalTime, a)],[(LocalTime, a)]) -> EC r ())
                    -> IO ()
-plotCompareData dps with = sequence_ $ fmap plotDp dps
+plotCompareData out dps with = sequence_ $ fmap plotDp dps
    where
       plotDp ((ln, ldps'), (rn, rdps')) = do
          let ln' = specToUscore ln
          let rn' = specToUscore rn
-         let n = ln ++ " vs " ++ rn
          let dps' = (ldps', rdps')
-         let options = (def :: FileOptions)
-         toFile options (ln' ++ "_vs_" ++ rn' ++ ".svg") $ with n dps'
+         let options = fileOptions
+         toFile
+            options
+            (out </> ln' ++ "_vs_" ++ rn' ++ ".svg")
+            $ with ln rn dps'
       specToUscore s = fmap mapper s
          where
             mapper c = case c of
@@ -49,33 +73,41 @@ plotCompareData dps with = sequence_ $ fmap plotDp dps
                '.' -> '_'
                c' -> c'
 
---plotCompareTimeData :: ((String, [(Int, Double)]), (String, [(Int, Double)]))
---                       -> IO ()
-{-
-plotCompareTimeData dps = plotCompareData dps with
+plotCompareTimeData :: FilePath
+                       -> [((String, [(LocalTime, Double)]),
+                            (String, [(LocalTime, Double)]))]
+                       -> IO ()
+plotCompareTimeData out dps = plotCompareData out dps with
    where
-      with :: String -> ([(Int, a)], [(Int, a)]) -> EC r ()
-      with n' (ldps, rdps) = do
-         layoutlr_title .= n' ++ " Times"
-         plotLeft (line n' [ldps])
-         plotRight (line n' [rdps])-}
+      with ln rn (ldps, rdps) = do
+         layoutlr_title .= ln ++ " vs. " ++ rn ++ " Times"
+         setColors [lineColor1, lineColor2, pointColor1, pointColor2]
+         setShapes [PointShapeCircle, PointShapeCircle]
+         plotLeft $ line "" [ldps]
+         plotRight $ line "" [rdps]
+         plotLeft $ points ln ldps
+         plotRight $ points rn rdps
 
-plotTimeData :: [(String, [(LocalTime, Double)])] -> IO ()
-plotTimeData dps = plotData dps with
+plotTimeData :: FilePath -> [(String, [(LocalTime, Double)])] -> IO ()
+plotTimeData out dps = plotData out dps with
    where
       with n' dps' = do
             layout_title .= n' ++ " Times"
-            plot (line n' [dps'])
+            setColors [lineColor1, pointColor1]
+            plot $ line "" [dps']
+            plot $ points n' dps'
 
-plotSuccessData :: [(String, [(LocalTime, Bool)])] -> IO ()
-plotSuccessData dps = plotData dps with
+getCompareData :: ([Benchmark] -> [(LocalTime, a)])
+                  -> FilePath
+                  -> [(String, String)]
+                  -> IO [((String, [(LocalTime, a)]),
+                          (String, [(LocalTime, a)]))]
+getCompareData mapper f bps = sequence $ fmap pairUp bps
    where
-      dps'' v = fmap (\(l, r) -> case r of
-                                  True -> (l, (1 :: Integer))
-                                  False -> (l, 0)) v
-      with n' dps' = do
-         layout_title .= n' ++ " Test Result"
-         plot (line n' [dps'' dps'])
+      pairUp (l, r) = do
+         [l'] <- getData mapper f [l]
+         [r'] <- getData mapper f [r]
+         return (l', r')
 
 getData :: ([Benchmark] -> [(LocalTime, a)])
                 -> FilePath
@@ -94,11 +126,41 @@ getData mapper f bs = do
       sortMapper (name, dps) = (name, sortBy comparator dps)
 
 getTimeData :: FilePath -> [String] -> IO [(String, [(LocalTime, Double)])]
-getTimeData = getData mapper
-   where
-      mapper bs' = [(benchTimestamp x, benchTime x) | x <- bs' ]
+getTimeData = getData timeDataMapper
+
+
+getCompareTimeData :: FilePath
+                   -> [(String, String)]
+                   -> IO [((String, [(LocalTime, Double)]),
+                           (String, [(LocalTime, Double)]))]
+getCompareTimeData = getCompareData timeDataMapper
+
+timeDataMapper :: [Benchmark] -> [(LocalTime, Double)]
+timeDataMapper bs' = [(benchTimestamp x, benchTime x) | x <- bs' ]
+
+
 
 getSuccessData :: FilePath -> [String] -> IO [(String, [(LocalTime, Bool)])]
 getSuccessData = getData mapper
    where
       mapper bs' = [(benchTimestamp x, benchPass x) | x <- bs' ]
+
+plotSuccessData :: FilePath -> [(String, [(LocalTime, Bool)])] -> IO ()
+plotSuccessData out dps = plotData out dps with
+   where
+      dps'' v = fmap (\(l, r) -> case r of
+                                  True -> (l, (1 :: Integer))
+                                  False -> (l, 0)) v
+      with n' dps' = do
+         layout_title .= n' ++ " Test Result"
+         plot (line n' [dps'' dps'])
+
+
+{-
+pairUp :: [a] -> [(a, a)]
+pairUp [] = []
+pairUp (_:[]) = error "odd number of list elements in pairUp!"
+pairUp (l:r:xs) = (l, r):(pairUp xs)
+-}
+
+testCmd = getTimeData "./" ["Tests/Unit/crash/BadSyn4.hs"] >>= (plotTimeData "./")
