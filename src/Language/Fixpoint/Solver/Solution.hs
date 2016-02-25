@@ -202,17 +202,17 @@ applyKVar g s k su
   | Just eqs <- M.lookup k (F.sMap s)
   = qBindPred su eqs
   | Just cs  <- M.lookup k (F.sHyp s)
-  = hypPred g s su cs
+  = hypPred g s k su cs
   | otherwise
   = errorstar $ "Unknown kvar: " ++ show k
 
-hypPred :: CombinedEnv -> Solution -> F.Subst -> F.Hyp  -> F.Expr
-hypPred g s su = F.pOr . fmap (cubePred g s su)
+hypPred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Hyp  -> F.Expr
+hypPred g s k su = F.pOr . fmap (cubePred g s k su)
 
-cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
-cubePred g s su c = F.PExist xts
-                      $ F.pAnd [ psu
-                               , F.PExist yts' $ F.pAnd [p', psu'] ]
+cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.Expr
+cubePred g s k su c = F.PExist xts
+                       $ F.pAnd [ psu
+                                , F.PExist yts' $ F.pAnd [p', psu'] ]
   where
     yts'          = symSorts g bs'
     p'            = apply (addCEnv g bs) s bs'
@@ -220,25 +220,29 @@ cubePred g s su c = F.PExist xts
     F.Cube bs su' = c
     psu'          = substPred su'
     psu           = substPred su
-    xts           = substSorts g su
+    xts           = substSorts g k su
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
-substSorts :: CombinedEnv -> F.Subst -> [(F.Symbol, F.Sort)]
-substSorts g (F.Su m) = [(x, t) | (x, e) <- xes
-                                , not (S.member x frees)
-                                , let t   = sortOf e ]
+substSorts :: CombinedEnv -> F.KVar -> F.Subst -> [(F.Symbol, F.Sort)]
+substSorts g k (F.Su m) = [(x, t) | (x, e) <- xes
+                                  , not (S.member x frees)
+                                  , let t   = sortOf e ]
   where
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     -- sortOf = maybeToList . So.checkSortExpr env
-    sortOf e = fromMaybe (badExpr g e) $ So.checkSortExpr env e
+    sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
 
-badExpr :: CombinedEnv -> F.Expr -> a
-badExpr g e = errorstar $ "substSorts has a badExpr: "
-                        ++ show e
-                        ++ " in env \n"
-                        ++ show (combinedSEnv g)
+badExpr :: CombinedEnv -> F.KVar -> F.Expr -> a
+badExpr g@(i,_,_) k e
+  = errorstar $ "substSorts has a badExpr: "
+              ++ show e
+              ++ " in cid = "
+              ++ show i
+              ++ " for kvar " ++ show k
+              ++ " in env \n"
+              ++ show (combinedSEnv g)
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
 combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
@@ -254,20 +258,6 @@ delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
-
--- cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
--- cubePred g s su c = F.PExist xts' $ F.pAnd [p', equate su su']
-  -- where
-    -- xts'          = symSorts g bs'
-    -- p'            = apply (addCEnv g bs) s bs'
-    -- bs'           = delCEnv bs g
-    -- F.Cube bs su' = c
-
--- equate :: F.Subst -> F.Subst -> F.Expr
--- equate su su' = F.pAnd [F.PAtom F.Eq e e' | (_, (e, e')) <- joinSubst su su' ]
---
--- joinSubst :: F.Subst -> F.Subst -> [(F.Symbol, (F.Expr, F.Expr))]
--- joinSubst (F.Su m1) (F.Su m2) = M.toList $ M.intersectionWith (,) m1 m2
 
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars
