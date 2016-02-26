@@ -55,17 +55,6 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
     ks         = M.keys (F.ws si)
     dom        = S.fromList . F.kvarDomain si
 
----------------------------------------------------------------------------
--- filterBogusSubstitutions :: F.SInfo a -> F.SInfo a
--- ---------------------------------------------------------------------------
--- filterBogusSubstitutions fi = mapKVarSubsts (filterByDomain fi) fi
---
--- filterByDomain :: F.SInfo a -> F.KVar -> F.Subst -> F.Subst
--- filterByDomain si k su = F.filterSubst (go kDom) su
-  -- where
-    -- kDom = getDomain si k
-    -- go dom sym _ = sym `elem` dom
-
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
@@ -128,11 +117,6 @@ badRhs1 :: (Integer, F.SimpC a) -> E.Error
 badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+> pprint i
                                           , nest 4 (pprint (F.crhs c)) ]
 
--- | Conservative check that KVars appear at "top-level" in pred
--- isOkRhs :: F.Pred -> Bool
--- isOkRhs p = all isKvar ps  || all isConc ps
---  where
---     ps    = F.conjuncts p
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
@@ -259,18 +243,3 @@ replaceDeadKvars fi = mapKVars go fi
   where
     go k | k `M.member` F.ws fi = Nothing
          | otherwise            = Just F.PFalse
-
----------------------------------------------------------------------------
--- | General helper functions
----------------------------------------------------------------------------
--- domain :: F.BindEnv -> F.WfC a -> [F.Symbol]
--- domain be wfc = Misc.fst3 (F.wrft wfc) : map fst (F.envCs be $ F.wenv wfc)
---
--- getDomain :: F.SInfo a -> F.KVar -> [F.Symbol]
--- getDomain si k = domain (F.bs si) (getWfC si k)
---
--- getWfC :: F.SInfo a -> F.KVar -> F.WfC a
--- getWfC si k = Misc.mlookup (F.ws si) k
---
--- freeVars :: F.Reft -> S.HashSet F.Symbol
--- freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft
