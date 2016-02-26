@@ -8,6 +8,7 @@ module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Types  (CId)
 import           Language.Fixpoint.Misc          (fst3, mlookup)
+import           Language.Fixpoint.Solver.Validate (freeVars)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -66,9 +67,6 @@ insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
 
 namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
 namesToIds syms m = S.fromList $ catMaybes [M.lookup sym m | sym <- S.toList syms] --TODO why any Nothings?
-
-freeVars :: Reft -> S.HashSet Symbol
-freeVars rft@(Reft (v, _)) = S.delete v $ S.fromList $ syms rft
 --------------------------------------------------------------
 
 --------------------------------------------------------------
