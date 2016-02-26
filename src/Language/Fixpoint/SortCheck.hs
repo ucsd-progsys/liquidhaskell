@@ -388,7 +388,7 @@ elabAppAs f t g es = do
   eTs   <- mapM (checkExpr f) es
   gTios <- sortFunction (length es) gT
   su    <- unifys f (snd gTios:fst gTios) (t:eTs)
-  let tg = apply su gT 
+  let tg = apply su gT
   g'    <- elabAs f tg g
   let ts = apply su <$> eTs
   es'   <- zipWithM (elabAs f) ts es
@@ -449,8 +449,8 @@ checkApp f to g es
 
 checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
-checkExprAs f t e 
-  = do t' <- checkExpr f e 
+checkExprAs f t e
+  = do t' <- checkExpr f e
        θ  <- unifys f [t'] [t]
        return $ apply θ t
 
@@ -466,8 +466,8 @@ checkApp' f to g' e
        case to of
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ts = apply θ' <$> ets 
-                          _ <- zipWithM (checkExprAs f) ts es 
+                          let ts = apply θ' <$> ets
+                          _ <- zipWithM (checkExprAs f) ts es
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
@@ -488,6 +488,7 @@ checkOp f e1 o e2
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
+checkOpTy :: (PPrint a) => Env -> a -> Sort -> Sort -> CheckM Sort
 checkOpTy _ _ FReal FReal
   = return FReal
 
@@ -501,11 +502,13 @@ checkOpTy f _ t@(FObj l) (FObj l')
 checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
+checkFractional :: Env -> Symbol -> CheckM ()
 checkFractional f l
   = do t <- checkSym f l
        unless (t == FFrac) (throwError $ errNonFractional l)
        return ()
 
+checkNumeric :: Env -> Symbol -> CheckM ()
 checkNumeric f l
   = do t <- checkSym f l
        unless (t == FNum || t == FFrac) (throwError $ errNonNumeric l)
@@ -523,14 +526,18 @@ checkBoolSort e s
  | s == boolSort = return ()
  | otherwise     = throwError $ errBoolSort e s
 
+act `withError` e = act `catchError` (\_ -> throwError e)
+
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
-                                        su <- unifys f [t1] [t2]
-                                        checkExprAs f (apply su t1) e1 
-                                        checkExprAs f (apply su t2) e2
-                                        checkRelTy f (PAtom Eq e1 e2) Eq t1 t2
+                                        su <- (unifys f [t1] [t2]) `withError` (errRel e t1 t2)
+                                        _  <- checkExprAs f (apply su t1) e1
+                                        _  <- checkExprAs f (apply su t2) e2
+                                        checkRelTy f e Eq t1 t2
+                                     where
+                                        e = PAtom Eq e1 e2
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
@@ -550,8 +557,8 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy f _ Eq t1 t2            = void $ unifys f [t1] [t2]
-checkRelTy f _ Ne t1 t2            = void $ unifys f [t1] [t2]
+checkRelTy f e Eq t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f e Ne t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 
 checkRelTy _ _ Ueq _ _             = return ()
 checkRelTy _ _ Une _ _             = return ()
@@ -608,15 +615,15 @@ unify1 f θ t1 t2@(FAbs _ _) = do
   t2' <- generalize t2
   unifyMany f θ [t1] [t2']
 
-unify1 f θ (FObj l) FInt = do
-  checkNumeric f l
+unify1 f θ t@(FObj l) FInt = do
+  checkNumeric f l `catchError` (\_ -> throwError $ errUnify t FInt)
   return θ
 
-unify1 f θ FInt (FObj l) = do
-  checkNumeric f l
+unify1 f θ FInt t@(FObj l) = do
+  checkNumeric f l `catchError` (\_ -> throwError $ errUnify FInt t)
   return θ
 
-unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
+unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f θ [t1, t2] [t1', t2']
 
 unify1 _ θ t1 t2
@@ -683,9 +690,9 @@ sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
      Nothing          -> throwError $ errNonFunction i t
-     Just (_, ts, t') -> if length ts < i 
+     Just (_, ts, t') -> if length ts < i
                           then throwError $ errNonFunction i t
-                          else let (its, ots) = splitAt i ts 
+                          else let (its, ots) = splitAt i ts
                                in return (its, foldl FFunc t' ots)
 
 ------------------------------------------------------------------------
