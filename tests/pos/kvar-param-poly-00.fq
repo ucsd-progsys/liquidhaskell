@@ -1,0 +1,26 @@
+
+// a kvar's params can be instantiated / substituted with values of a different
+// type. Here, K0(v:alpha, x:alpha) but is instantiated with int.
+
+qualif Bog(v:a, x:a) : (x = v)
+
+bind 1 x : {v: alpha | true}
+
+bind 2 a : {v: int | v = 10 }
+bind 3 b : {v: int | $k0[x:= a]}
+
+constraint:
+  env [ 1 ]
+  lhs {v : alpha  | v = x }
+  rhs {v : alpha  | $k0   } 
+  id 1 tag []
+
+constraint:
+  env [ 2; 3 ]
+  lhs {v : int | v = b  }
+  rhs {v : int | v = 10 }
+  id 2 tag []
+
+wf:
+  env [ 1 ]
+  reft {v: alpha | $k0}

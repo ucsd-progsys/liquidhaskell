@@ -226,7 +226,7 @@ cubePred g s k su c = F.PExist xts
 substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e, _) <- xets  ]
+    p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e ]
     xes    = M.toList m

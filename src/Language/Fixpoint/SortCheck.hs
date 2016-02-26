@@ -143,6 +143,9 @@ instance MonadError String CheckM where
                                       (j, Left s) -> runCM (f s) j
                                       (j, Right x) -> (j, Right x)
 
+withError :: CheckM a -> String -> CheckM a
+act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
+
 instance Functor CheckM where
   fmap f (CM m) = CM $ \i -> case m i of {(j, Left s) -> (j, Left s); (j, Right x) -> (j, Right $ f x)}
 
@@ -348,10 +351,10 @@ elab f (POr ps) = do
   ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f (PAtom Eq e1 e2) = do
+elab f e@(PAtom Eq e1 e2) = do
   t1        <- checkExpr f e1
   t2        <- checkExpr f e2
-  (t1',t2') <- unite f  t1 t2
+  (t1',t2') <- unite f  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   return (PAtom Eq e1' e2', boolSort)
@@ -387,7 +390,7 @@ elabAppAs f t g es = do
   gT    <- generalize =<< checkExpr f g
   eTs   <- mapM (checkExpr f) es
   gTios <- sortFunction (length es) gT
-  su    <- unifys f (snd gTios:fst gTios) (t:eTs)
+  su    <- unifys f (snd gTios : fst gTios) (t:eTs)
   let tg = apply su gT
   g'    <- elabAs f tg g
   let ts = apply su <$> eTs
@@ -402,15 +405,10 @@ elabEApp f e1 e2 = do
   return (e1', s1, e2', s2, s)
 
 unite :: Env -> Sort -> Sort -> CheckM (Sort, Sort)
--- unite' f t1@(FObj l) t2@FInt = do
-  -- checkNumeric f l
-  -- return (t1, t2)
--- unite' f t1@FInt t2@(FObj l) = do
-  -- checkNumeric f l
-  -- return (t1, t2)
 unite f t1 t2 = do
   su <- unifys f [t1] [t2]
   return (apply su t1, apply su t2)
+
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
@@ -425,7 +423,7 @@ checkIte f p e1 e2
   = do checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
-       ((`apply` t1) <$> unifys f [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
+       ((`apply` t1) <$> unifys f [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -433,7 +431,7 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
+       ((`apply` t) <$> unifys f [t] [t']) `withError` (errCast e t' t)
 
 elabAppSort :: Env -> Sort -> Sort -> CheckM Sort
 elabAppSort f s1 s2 =
@@ -526,7 +524,6 @@ checkBoolSort e s
  | s == boolSort = return ()
  | otherwise     = throwError $ errBoolSort e s
 
-act `withError` e = act `catchError` (\_ -> throwError e)
 
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
@@ -544,12 +541,12 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
 
 checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
-  = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l')
-checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
+  = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
+checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
+checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `withError` (errNonNumeric l)
 checkRelTy _ _ _ FReal FReal       = return ()
-checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
-checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
+checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `withError` (errNonFractional l)
+checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `withError` (errNonFractional l)
 
 checkRelTy _ e Eq t1 t2
   | t1 == boolSort ||
@@ -616,11 +613,11 @@ unify1 f θ t1 t2@(FAbs _ _) = do
   unifyMany f θ [t1] [t2']
 
 unify1 f θ t@(FObj l) FInt = do
-  checkNumeric f l `catchError` (\_ -> throwError $ errUnify t FInt)
+  checkNumeric f l `withError` (errUnify t FInt)
   return θ
 
 unify1 f θ FInt t@(FObj l) = do
-  checkNumeric f l `catchError` (\_ -> throwError $ errUnify FInt t)
+  checkNumeric f l `withError` (errUnify FInt t)
   return θ
 
 unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
@@ -713,6 +710,8 @@ emptySubst = Th M.empty
 -------------------------------------------------------------------------
 -- | Error messages -----------------------------------------------------
 -------------------------------------------------------------------------
+
+errElabExpr e        = printf "Elaborate fails on %s" (showpp e)
 
 errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
 
