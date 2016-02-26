@@ -374,15 +374,15 @@ fi cs ws binds ls ks qs bi fn aHO
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 data GInfo c a =
-  FI { cm       :: M.HashMap Integer (c a)
-     , ws       :: M.HashMap KVar (WfC a)
-     , bs       :: !BindEnv
-     , lits     :: !(SEnv Sort)
-     , kuts     :: Kuts
-     , quals    :: ![Qualifier]
-     , bindInfo :: M.HashMap BindId a
-     , fileName :: FilePath
-     , allowHO  :: !Bool
+  FI { cm       :: M.HashMap Integer (c a)    -- ^ cst id |-> Horn Constraint
+     , ws       :: M.HashMap KVar (WfC a)     -- ^ Kvar   |-> WfC defining its scope/args
+     , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
+     , lits     :: !(SEnv Sort)               -- ^ Constant symbols
+     , kuts     :: Kuts                       -- ^ Set of KVars *not* to eliminate
+     , quals    :: ![Qualifier]               -- ^ Abstract domain
+     , bindInfo :: M.HashMap BindId a         -- ^ Metadata about binders
+     , fileName :: FilePath                   -- ^ Source file name
+     , allowHO  :: !Bool                      -- ^ Hmm. Move to Config?
      }
   deriving (Eq, Show, Functor, Generic)
 

@@ -32,7 +32,7 @@ type ValidateM a = Either E.Error a
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
-         >=> fM dropWfcFunctions
+         >=> fM sanitizeWfC
          >=> fM replaceDeadKvars
          >=> fM dropBogusSubstitutions
          >=>    banMixedRhs
@@ -192,17 +192,46 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
     defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
 --------------------------------------------------------------------------------
+-- | Drop irrelevant binders from WfC Environments
+--------------------------------------------------------------------------------
+sanitizeWfC :: F.SInfo a -> F.SInfo a
+sanitizeWfC si = si { F.ws = ws' }
+  where
+    keepF      = conjKF [nonConstantF si, nonFunctionF si]
+    (_, drops) = filterBindEnv keepF   $  F.bs si
+    ws'        = deleteWfCBinds drops <$> F.ws si
+
+conjKF :: [KeepBindF] -> KeepBindF
+conjKF fs x t = and [f x t | f <- fs]
+
+nonConstantF :: F.SInfo a -> KeepBindF
+nonConstantF si = \x _ -> not (x `F.memberSEnv` cEnv)
+  where
+    cEnv        = F.lits si
+
+nonFunctionF :: F.SInfo a -> KeepBindF
+nonFunctionF si
+  | F.allowHO si    = \_ _ -> True
+  | otherwise       = \_ t -> isNothing (F.functionSort t)
+
+--------------------------------------------------------------------------------
 -- | Drop functions from WfC environments
 --------------------------------------------------------------------------------
-dropWfcFunctions :: F.SInfo a -> F.SInfo a
---------------------------------------------------------------------------------
-dropWfcFunctions fi | F.allowHO fi = fi
-dropWfcFunctions fi = fi { F.ws = ws' }
-  where
-    nonFunction   = isNothing . F.functionSort
-    (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
-    ws'           = deleteWfCBinds discards          <$> F.ws fi
-
+-- dropWfcFunctions :: F.SInfo a -> F.SInfo a
+-- --------------------------------------------------------------------------------
+-- dropWfcFunctions fi | F.allowHO fi = fi
+-- dropWfcFunctions fi = fi { F.ws = ws' }
+  -- where
+    -- nonFunction   = isNothing . F.functionSort
+    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
+    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
+--
+-- dropWfcFunctions fi | F.allowHO fi = fi
+-- dropWfcFunctions fi = fi { F.ws = ws' }
+  -- where
+    -- nonFunction   = isNothing . F.functionSort
+    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
+    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
 
 --------------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
