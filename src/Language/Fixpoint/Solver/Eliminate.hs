@@ -52,20 +52,18 @@ nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Hyp)]
 nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]
 
 nonCutHyp  :: KIndex -> SInfo a -> KVar -> Hyp
-nonCutHyp kI si k = nonCutCube kDom <$> cs
+nonCutHyp kI si k = nonCutCube <$> cs
   where
-    kDom          = kvarDomain si k
     cs            = getSubC   si <$> M.lookupDefault [] k kI
 
-nonCutCube :: [Symbol] -> SimpC a -> Cube
-nonCutCube kDom c = Cube (senv c) (rhsSubst kDom c)
+nonCutCube :: SimpC a -> Cube
+nonCutCube c = Cube (senv c) (rhsSubst c)
 
-rhsSubst :: [Symbol] -> SimpC a -> Subst
-rhsSubst kDom        = rsu . crhs
+rhsSubst :: SimpC a -> Subst
+rhsSubst             = rsu . crhs
   where
-    rsu (PKVar _ su) = filterSubst (\x _ -> x `elem` kDom) su
+    rsu (PKVar _ su) = su
     rsu _            = errorstar "Eliminate.rhsSubst called on bad input"
-
 
 getSubC :: SInfo a -> Integer -> SimpC a
 getSubC si i = safeLookup msg i (cm si)

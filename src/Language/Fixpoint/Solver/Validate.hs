@@ -4,22 +4,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Solver.Validate
-       ( -- * Validate FInfo
-         validate
-
-         -- * Transform FInfo to enforce invariants
-       , sanitize
+       ( -- * Transform FInfo to enforce invariants
+         sanitize
 
          -- * Sorts for each Symbol
        , symbolSorts
+
        )
        where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import qualified Language.Fixpoint.Types.Visitor as V --   (isConcC, isKvarC, mapKVars)
-import           Language.Fixpoint.SortCheck        (isFirstOrder)
+import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
+import           Language.Fixpoint.SortCheck     (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
-import           Language.Fixpoint.Misc        (fM, errorstar)
+import           Language.Fixpoint.Misc          (fM)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M
@@ -27,24 +25,15 @@ import qualified Data.HashSet             as S
 import qualified Data.List as L
 import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
--- import           Text.Printf
 import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
 --------------------------------------------------------------------------------
----------------------------------------------------------------------------
-validate :: F.SInfo a -> ValidateM ()
-validate = errorstar "TODO: validate input"
---------------------------------------------------------------------------------
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
---------------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
----------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
          >=> fM dropWfcFunctions
+         >=> fM replaceDeadKvars
          >=> fM dropBogusSubstitutions
          >=>    banMixedRhs
          >=>    banQualifFreeVars
@@ -54,7 +43,7 @@ sanitize   = fM dropFuncSortedShadowedBinders
 -- | remove substitutions `K[x := e]` where `x` is not in the domain of K
 --------------------------------------------------------------------------------
 dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
-dropBogusSubstitutions si0 = V.mapKVarSubsts (F.filterSubst . keepSubst) si0
+dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
   where
     kvM                    = kvarDomainM si0
     kvXs k                 = M.lookupDefault S.empty k kvM
@@ -66,13 +55,24 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
     ks         = M.keys (F.ws si)
     dom        = S.fromList . F.kvarDomain si
 
+---------------------------------------------------------------------------
+-- filterBogusSubstitutions :: F.SInfo a -> F.SInfo a
+-- ---------------------------------------------------------------------------
+-- filterBogusSubstitutions fi = mapKVarSubsts (filterByDomain fi) fi
+--
+-- filterByDomain :: F.SInfo a -> F.KVar -> F.Subst -> F.Subst
+-- filterByDomain si k su = F.filterSubst (go kDom) su
+  -- where
+    -- kDom = getDomain si k
+    -- go dom sym _ = sym `elem` dom
+
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
 banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
-    fi = V.mapKVars (const $ Just F.PTrue) fi0
+    fi = mapKVars (const $ Just F.PTrue) fi0
     bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
 
 cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
@@ -119,7 +119,7 @@ banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
     ics        = M.toList $ F.cm fi
     bads       = [(i, c) | (i, c) <- ics, not $ isOk c]
-    isOk c     = V.isKvarC c || V.isConcC c
+    isOk c     = isKvarC c || isConcC c
 
 badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1
@@ -248,3 +248,29 @@ filterBindEnv f be  = (F.bindEnvFromList keep, discard')
     (keep, discard) = L.partition f' $ F.bindEnvToList be
     discard'        = Misc.fst3     <$> discard
     f' (_, x, t)    = f x (F.sr_sort t)
+
+
+---------------------------------------------------------------------------
+-- | Replace KVars that do not have a WfC with PFalse
+---------------------------------------------------------------------------
+replaceDeadKvars :: F.SInfo a -> F.SInfo a
+---------------------------------------------------------------------------
+replaceDeadKvars fi = mapKVars go fi
+  where
+    go k | k `M.member` F.ws fi = Nothing
+         | otherwise            = Just F.PFalse
+
+---------------------------------------------------------------------------
+-- | General helper functions
+---------------------------------------------------------------------------
+-- domain :: F.BindEnv -> F.WfC a -> [F.Symbol]
+-- domain be wfc = Misc.fst3 (F.wrft wfc) : map fst (F.envCs be $ F.wenv wfc)
+--
+-- getDomain :: F.SInfo a -> F.KVar -> [F.Symbol]
+-- getDomain si k = domain (F.bs si) (getWfC si k)
+--
+-- getWfC :: F.SInfo a -> F.KVar -> F.WfC a
+-- getWfC si k = Misc.mlookup (F.ws si) k
+--
+-- freeVars :: F.Reft -> S.HashSet F.Symbol
+-- freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft
