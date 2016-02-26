@@ -9,7 +9,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
 
-import           Control.Monad (filterM)
+import           Control.Monad (when, filterM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
@@ -36,7 +36,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- runSolverM cfg fi n act
-    whenLoud $ printStats fi wkl stat
+    when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
   where
@@ -58,8 +58,8 @@ solve_ :: (NFData a, F.Fixpoint a)
 solve_ cfg fi s0 wkl = do
   let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
-  st      <- stats
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
+  st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
@@ -171,7 +171,6 @@ rhsPred c
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
-
 
 
 --------------------------------------------------------------------------------

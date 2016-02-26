@@ -36,7 +36,9 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
-  , isTautoPred
+  , mkEApp
+  , intKvar
+  , vv_
 
   -- * Generalizing Embedding with Typeclasses
   , Expression (..)
@@ -44,7 +46,7 @@ module Language.Fixpoint.Types.Refinements (
   , Subable (..)
   , Reftable (..)
 
-  -- * Constructing Refinements
+  -- * Constructors
   , reft                    -- "smart
   , trueSortedReft          -- trivial reft
   , trueReft, falseReft     -- trivial reft
@@ -55,20 +57,27 @@ module Language.Fixpoint.Types.Refinements (
   , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
-  , reftPred, reftBind
+  , reftPred
+  , reftBind
+
+  -- * Predicates
   , isFunctionSortedReft, functionSort
   , isNonTrivial
+  , isTautoPred
   , isSingletonReft
   , isEVar
   , isFalse
+
+  -- * Destructing
   , flattenRefas
   , conjuncts
+  , eApps
+  , splitEApp
+  , reftConjuncts
+
+  -- * Transforming
   , mapPredReft
   , pprintReft
-  , reftConjuncts
-  , intKvar
-  , vv_
-  , mkEApp, eApps, splitEApp
   ) where
 
 import qualified Data.Binary as B
@@ -119,7 +128,6 @@ instance B.Binary Bop
 instance B.Binary Expr
 instance B.Binary Reft
 instance B.Binary SortedReft
-
 
 
 reftConjuncts :: Reft -> [Reft]
