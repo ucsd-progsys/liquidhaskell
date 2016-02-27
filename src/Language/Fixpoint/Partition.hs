@@ -285,17 +285,12 @@ deps cfg si = forceCuts cutKs $ edgeDeps cutEs
     allEs   = kvEdges si
 
 cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
-cutVars cfg si
-  | useCuts cfg = F.ksVars . F.kuts $ si
-  | otherwise   = S.empty
+cutVars _ si = F.ksVars . F.kuts $ si
+  -- / | useCuts cfg = F.ksVars . F.kuts $ si
+  -- / | otherwise   = S.empty
 
 forceCuts :: (Hashable a, Eq a) => S.HashSet a -> GDeps a  -> GDeps a
 forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
-
-
--- delCutEdges :: S.HashSet CVertex -> [CEdge] -> [CEdge]
--- delCutEdges
-
 
 
 edgeDeps :: [CEdge] -> GDeps F.KVar
