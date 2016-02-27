@@ -200,7 +200,7 @@ elim cfg fi
       let (s0, fi') = E.eliminate fi
       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
       -- elimSolGraph cfg s0
-      donePhase Loud "Eliminate"
+      -- donePhase Loud "Eliminate"
       writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
       -- donePhase Loud "DonePrint"
       return (s0, fi')

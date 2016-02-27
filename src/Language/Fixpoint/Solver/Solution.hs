@@ -223,12 +223,35 @@ cubePred g s k su c = F.PExist xts
     (xts, psu)    = substElim g  k su
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
+
+-- | substElim returns the binders that must be existentially quantified,
+--   and the equality predicate relating the kvar-"parameters" and their
+--   actual values. i.e. given
+--
+--      K[x1 := e1]...[xn := en]
+--
+--   where e1 ... en have types t1 ... tn
+--   we want to quantify out
+--
+--     x1:t1 ... xn:tn
+--
+--   and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
+--   we use ~~ because the param and value may have different sorts, see:
+--
+--      tests/pos/kvar-param-poly-00.hs
+--
+--   Finally, we filter out binders if they are
+--   1. "free" in e1...en i.e. in the outer environment.
+--      (Hmm, that shouldn't happen...?)
+--   2. are binders corresponding to sorts (e.g. `a : num`, currently used
+--      to hack typeclasses current.)
+
 substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim g _ (F.Su m) = (xts, p)
   where
     p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (F.isClass t) ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
