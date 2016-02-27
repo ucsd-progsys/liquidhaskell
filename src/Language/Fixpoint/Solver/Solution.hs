@@ -251,12 +251,17 @@ substElim g _ (F.Su m) = (xts, p)
   where
     p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (F.isClass t) ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t) ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
     -- sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
+
+isClass :: F.Sort -> Bool
+isClass F.FNum  = True
+isClass F.FFrac = True
+isClass _       = False
 
 --badExpr :: CombinedEnv -> F.KVar -> F.Expr -> a
 --badExpr g@(i,_,_) k e

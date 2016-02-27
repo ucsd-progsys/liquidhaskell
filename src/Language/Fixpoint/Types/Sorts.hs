@@ -34,7 +34,6 @@ module Language.Fixpoint.Types.Sorts (
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
-  , isClass
   , fTyconSymbol, symbolFTycon, fTyconSort
   , fApp, fApp', fAppTC
   , fObj
@@ -226,11 +225,6 @@ mapSort :: Sort -> Sort -> Sort
 
 setSort :: Sort -> Sort
 setSort    = FApp (FTC $ symbolFTycon' "Set_Set")
-
-isClass :: Sort -> Bool
-isClass FNum  = True
-isClass FFrac = True
-isClass _     = False
 
 
 bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
