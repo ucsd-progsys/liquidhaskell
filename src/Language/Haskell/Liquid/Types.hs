@@ -237,7 +237,7 @@ import            Text.PrettyPrint.HughesPJ    hiding (first)
 import            Text.Printf
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
+import           Language.Fixpoint.Types      hiding (isClass, Error (..), SrcSpan, Result, Predicate, Def, R)
 import           Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
 import qualified Language.Fixpoint.Types.PrettyPrint as F
 import           Language.Fixpoint.Types.Config     hiding (Config)
