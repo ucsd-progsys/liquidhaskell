@@ -275,28 +275,40 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------------------------
 --------------------------------------------------------------------------------
-deps :: (F.TaggedC c a) => F.GInfo c a -> GDeps F.KVar
+deps :: (F.TaggedC c a) => Config -> F.GInfo c a -> GDeps F.KVar
 --------------------------------------------------------------------------------
-deps si         = Deps (takeK cs) (takeK ns)
+deps cfg si = forceCuts cutKs $ edgeDeps cutEs
+  where
+    cutEs   = [ (u, v) | (u, v) <- allEs, not (S.member v cutVs)]
+    cutKs   = cutVars cfg si
+    cutVs   = S.map KVar cutKs
+    allEs   = kvEdges si
+
+cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
+cutVars cfg si
+  | useCuts cfg = F.ksVars . F.kuts $ si
+  | otherwise   = S.empty
+
+forceCuts :: (Hashable a, Eq a) => S.HashSet a -> GDeps a  -> GDeps a
+forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
+
+
+-- delCutEdges :: S.HashSet CVertex -> [CEdge] -> [CEdge]
+-- delCutEdges
+
+
+
+edgeDeps :: [CEdge] -> GDeps F.KVar
+edgeDeps es     = Deps (takeK cs) (takeK ns)
   where
     Deps cs ns  = gDeps cutF (edgeGraph es)
-    es          = kvEdges si
-    -- ORIG cutF = chooseCut isK (cuts si)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
 
--- crash _ = undefined
--- cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
--- cutter si = chooseCut isK (cuts si)
-
--- ORIG isK :: CVertex -> Bool
--- ORIG isK (KVar _) = True
--- ORIG isK _        = False
 -- ORIG cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
 -- ORIG cuts = S.map KVar . F.ksVars . F.kuts
-
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
@@ -410,7 +422,7 @@ graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
 graphStatistics cfg si = when (elimStats cfg) $ do
   writeGraph f  (kvGraph si)
-  appendFile f . ppc . ptable $ graphStats si
+  appendFile f . ppc . ptable $ graphStats cfg si
   where
     f     = queryFile Dot cfg
     ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
@@ -432,8 +444,8 @@ instance PTable Stats where
     , ("KVars NonLin"     , pprint stSetKVNonLin)
     ]
 
-graphStats :: F.SInfo a -> Stats
-graphStats si     = Stats {
+graphStats :: Config -> F.SInfo a -> Stats
+graphStats cfg si = Stats {
     stNumKVCuts   = S.size (depCuts d)
   , stNumKVNonLin = S.size  nlks
   , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
@@ -442,7 +454,7 @@ graphStats si     = Stats {
   }
   where
     nlks          = nlKVars si
-    d             = deps si
+    d             = deps cfg si
 
 nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
 nlKVars fi = S.unions $ nlKVarsC bs <$> cs

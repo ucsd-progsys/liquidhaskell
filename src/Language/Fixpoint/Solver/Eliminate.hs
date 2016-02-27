@@ -6,26 +6,27 @@ module Language.Fixpoint.Solver.Eliminate (eliminate) where
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
+import           Language.Fixpoint.Types.Config    (Config)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Partition       (depCuts, depNonCuts, deps)
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 
 --------------------------------------------------------------------------------
-eliminate :: SInfo a -> (Solution, SInfo a)
+eliminate :: Config -> SInfo a -> (Solution, SInfo a)
 --------------------------------------------------------------------------------
-eliminate si  = ( sHyp, si' )
+eliminate cfg si = (sHyp, si')
   where
-    sHyp      = solFromList [] kHyps
-    si'       = cutSInfo   kI cKs si
-    kHyps     = nonCutHyps kI nKs si
-    kI        = kIndex  si
-    (cKs,nKs) = kutVars si
+    sHyp         = solFromList [] kHyps
+    si'          = cutSInfo   kI cKs si
+    kHyps        = nonCutHyps kI nKs si
+    kI           = kIndex  si
+    (cKs,nKs)    = kutVars cfg si
 
-kutVars :: SInfo a -> (S.HashSet KVar, S.HashSet KVar)
-kutVars si   = (depCuts ds, depNonCuts ds)
+kutVars :: Config -> SInfo a -> (S.HashSet KVar, S.HashSet KVar)
+kutVars cfg si   = (depCuts ds, depNonCuts ds)
   where
-    ds       = deps si
+    ds           = deps cfg si
 
 --------------------------------------------------------------------------------
 -- | Map each `KVar` to the list of constraints on which it appears on RHS

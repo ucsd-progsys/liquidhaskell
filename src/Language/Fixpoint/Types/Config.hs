@@ -64,6 +64,7 @@ data Config
     , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
+    , useCuts     :: Bool                -- ^ use cut variables with `--eliminate`
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -89,6 +90,7 @@ instance Default Config where
                , save        = def
                , minimize    = def
                , gradual     = False
+               , useCuts     = False
                }
 
 instance Command Config where
@@ -165,6 +167,7 @@ config = Config {
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   , minimize    = False &= help "Use delta debug to minimize fq file"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
+  , useCuts     = False &= help "Use cut variables during --eliminate"
   }
   &= verbosity
   &= program "fixpoint"
