@@ -1,7 +1,14 @@
 # TODO
 
+## UNSOUND tests
+
++ tests/neg/elim00.hs
++ tests/todo/elim00.hs.fq
 
 ## hanging tests
+
++ Data/Text/Fusion.hs
+
 
 ```
 $ stack exec -- fixpoint tests/todo/RBTree-ord.hs.fq --eliminate
