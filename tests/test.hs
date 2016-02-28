@@ -49,7 +49,8 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, benchTests ]
+    tests = group "Tests" [ benchTests ]
+    -- tests = group "Tests" [ unitTests, benchTests ]
     -- tests = group "Tests" [ selfTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)

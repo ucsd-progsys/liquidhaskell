@@ -362,19 +362,29 @@ freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
 freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
+freshTy_reftype _ t = (fixTy t >>= refresh) {- =>> addKVars k
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   kvars   (kuts s)   }
+addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
   where
-     kvars      = F.KS $ S.fromList $ specTypeKVars t
+     ks         = F.KS $ S.fromList $ specTypeKVars t
 
 isKut          :: KVKind -> Bool
 isKut RecBindE = True
 isKut _        = False
+
+-}
+
+addKuts :: (PPrint a) => a -> SpecType -> CG ()
+addKuts x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
+  where
+     ks'     = S.fromList $ specTypeKVars t
+     ks
+       | S.null ks' = ks'
+       | otherwise  = F.tracepp ("addKuts: " ++ showpp x) ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
@@ -676,7 +686,7 @@ consCB tflag _ γ (Rec xes) | tflag
 
 consCB _ str γ (Rec xes) | not str
   = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       sflag     <- scheck <$> get
+       sflag   <- scheck <$> get
        let cmakeDivType = if sflag then makeDivType else id
        let xets = mapThd3 (fmap cmakeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -734,21 +744,25 @@ consBind isRec γ (x, e, Asserted spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
+       return $ Asserted spect
 
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
-  where πs   = ty_preds $ toRTypeRep spect
+       return $ Asserted spect
+    where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
+       when (isExportedId x) (addKuts x t)
        return $ Asserted t
-
+    -- where
+      -- x   = F.tracepp msg x_
+      -- msg = "isGlobal: " ++ show (isExportedId x_)
+      -- tpl = isExportedId x
 
 noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
 
@@ -1114,6 +1128,7 @@ isClassConCo co
 -- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
 --   the above existential elimination is not easy (e.g. at joins, recursive binders)
 
+cconsFreshE :: KVKind -> CGEnv -> Expr Var -> CG SpecType
 cconsFreshE kvkind γ e
   = do t   <- freshTy_type kvkind e $ exprType e
        addW $ WfC γ t

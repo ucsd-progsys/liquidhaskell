@@ -533,10 +533,14 @@ instance PPrint GhcInfo where
     , "*************** Core Bindings ***************"
     , pprintCBs $ cbs info                          ]
 
-
+-- RJ: the silly guards below are to silence the unused-var checker
 pprintCBs :: [CoreBind] -> Doc
--- pprintCBs = pprDoc . tidyCBs
-pprintCBs = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+pprintCBs
+  | True      = pprintCBsTidy
+  | otherwise = pprintCBsVerbose
+
+pprintCBsTidy    = pprDoc . tidyCBs
+pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 -- pprintCBs = showSDocDebug . tidyCBs
 -- showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
