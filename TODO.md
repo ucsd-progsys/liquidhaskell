@@ -2,9 +2,17 @@
 
 ## UNSOUND tests
 
-+ tests/neg/elim00.hs
-+ tests/todo/elim00.hs.fq
+Why does REMOVING the extra cut var (see comment in file) cause the other var to
+be solved to FALSE? Print out the LHS used for the OTHER var to see why...
 
++ liquid-fixpoint/tests/todo/elim000.min.fq 
+
+
+
++ tests/neg/elim00.hs
+
+
+  
 ## hanging tests
 
 + Data/Text/Fusion.hs
