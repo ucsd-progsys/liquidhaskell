@@ -9,7 +9,7 @@ import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types.Config    (Config)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
-import           Language.Fixpoint.Partition       (depCuts, depNonCuts, deps)
+import           Language.Fixpoint.Graph           (depCuts, depNonCuts, deps)
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 
 --------------------------------------------------------------------------------

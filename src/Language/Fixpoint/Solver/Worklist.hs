@@ -26,8 +26,8 @@ module Language.Fixpoint.Solver.Worklist
 import           Prelude hiding (init)
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
+import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Solver.Types
-import           Language.Fixpoint.Solver.Graph
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
@@ -35,7 +35,7 @@ import qualified Data.List                 as L
 import           Data.Graph (graphFromEdges)
 import           Text.PrettyPrint.HughesPJ (text)
 
--- | Worklist -------------------------------------------------------------
+-- | Worklist ------------------------------------------------------------------
 
 data Worklist a = WL { wCs     :: !WorkSet
                      , wPend   :: !(CMap ())

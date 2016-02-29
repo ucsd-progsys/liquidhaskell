@@ -32,7 +32,6 @@ import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
-import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import qualified Language.Fixpoint.Solver.Eliminate as E
 -- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
@@ -47,7 +46,7 @@ import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
+import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery)

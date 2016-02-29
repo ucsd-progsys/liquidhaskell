@@ -12,7 +12,7 @@ import           Control.Arrow ((&&&))
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Partition           (partition')
+import           Language.Fixpoint.Graph (partition')
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import           Data.List (sort,group)

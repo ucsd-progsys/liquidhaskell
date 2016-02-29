@@ -1,5 +1,10 @@
 # TODO
 
+## refactor graphs
+
+
+
+
 1. Need to update all transitive deps via ELIMINATED KVars
 
 2. Why are ranks crap ?
@@ -11,7 +16,7 @@
 
 (b) unify construction of graph for eliminate & regular worklist
 
-  
+
 --eliminate (WRONG)
 
 1 := Rank {rScc = 5, rIcc = 5, rTag = [4]}

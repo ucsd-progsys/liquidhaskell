@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.Types.Graphs (
+module Language.Fixpoint.Graph.Types (
   -- * Graphs
     CVertex (..)
   , CEdge

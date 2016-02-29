@@ -11,7 +11,7 @@ import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Config     (Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files      hiding (Result)
-import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
+import           Language.Fixpoint.Graph -- (mcInfo, partition, partition')
 import           Language.Fixpoint.Types
 import           Control.DeepSeq
 

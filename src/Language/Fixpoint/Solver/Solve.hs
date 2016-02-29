@@ -18,7 +18,7 @@ import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.Graph (isTarget)
+import           Language.Fixpoint.Graph (isTarget)
 import           Text.PrettyPrint.HughesPJ
 
 -- DEBUG
