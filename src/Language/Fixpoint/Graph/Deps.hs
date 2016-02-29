@@ -29,24 +29,14 @@ module Language.Fixpoint.Graph.Deps (
 
        ) where
 
-
--- import           GHC.Generics              (Generic)
--- import           Data.Graph                       (Graph, Vertex)
--- import           Debug.Trace (trace)
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
 import           Data.Tree (flatten)
--- import           Control.Monad             (when)
-import           Language.Fixpoint.Misc         -- hiding (group)
--- import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Config
--- import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
--- import           Language.Fixpoint.Graph.Reducible  (isReducible)
-import           Language.Fixpoint.Types.Visitor  (rhsKVars, envKVars, kvars, isConcC)
-
 
 import qualified Data.HashSet                         as S
 import qualified Data.List                            as L
@@ -55,9 +45,6 @@ import qualified Data.Graph                           as G
 import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
--- import           Text.PrettyPrint.HughesPJ
-import           Data.List (sortBy)
-
 
 ---------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -84,7 +71,7 @@ sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs
     cm           = F.cm fi
 
 subcKVars :: (F.TaggedC c a) => F.BindEnv -> c a -> [F.KVar]
-subcKVars be c = envKVars be c ++ rhsKVars c
+subcKVars be c = V.envKVars be c ++ V.rhsKVars c
 
 ---------------------------------------------------------------------------
 mkSlice :: (F.TaggedC c a) => F.GInfo c a -> Slice
@@ -125,7 +112,7 @@ sliceEdges is es = [ (i, i, filter inSlice js) | (i, _, js) <- es, inSlice i ]
 ---------------------------------------------------------------------------
 isTarget :: (F.TaggedC c a) => c a -> Bool
 ---------------------------------------------------------------------------
-isTarget c   = isConcC c && isNonTriv c
+isTarget c   = V.isConcC c && isNonTriv c
   where
    isNonTriv = not .  F.isTautoPred . F.crhs
 
@@ -177,13 +164,13 @@ succs cm rdBy i = sortNub $ concatMap kvReads iKs
 ---------------------------------------------------------------------------
 kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> CId -> [F.KVar]
 ---------------------------------------------------------------------------
-kvWriteBy cm = kvars . F.crhs . lookupCMap cm
+kvWriteBy cm = V.kvars . F.crhs . lookupCMap cm
 
 ---------------------------------------------------------------------------
 kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
 ---------------------------------------------------------------------------
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- envKVars bs ci]
+                             , k       <- V.envKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi
@@ -295,7 +282,7 @@ edgeRankCut km vs = case ks of
   where
     ks            = orderBy [k | (KVar k, _ ,_) <- vs]
     rank          = (km M.!)
-    orderBy       = sortBy (compare `on` rank)
+    orderBy       = L.sortBy (compare `on` rank)
 
 --------------------------------------------------------------------------------
 type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])

@@ -20,7 +20,6 @@ module Language.Fixpoint.Graph.Types (
   -- * Printing
   , writeGraph
 
-
   -- * Constraints
   , CId
   , CSucc
