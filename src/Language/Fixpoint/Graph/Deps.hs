@@ -22,13 +22,11 @@ module Language.Fixpoint.Graph.Deps (
        -- , kvReadBy
 
       -- * Queries over dependencies
-      , graphStatistics
       , GDeps (..)
       , deps
       , kvGraph
       , decompose
 
-      -- , isReducible
        ) where
 
 
@@ -38,15 +36,15 @@ module Language.Fixpoint.Graph.Deps (
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
 import           Data.Tree (flatten)
-import           Control.Monad             (when)
+-- import           Control.Monad             (when)
 import           Language.Fixpoint.Misc         -- hiding (group)
-import           Language.Fixpoint.Utils.Files
+-- import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
-import           Language.Fixpoint.Types.PrettyPrint
+-- import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
-import           Language.Fixpoint.Graph.Reducible  (isReducible)
+-- import           Language.Fixpoint.Graph.Reducible  (isReducible)
 import           Language.Fixpoint.Types.Visitor  (rhsKVars, envKVars, kvars, isConcC)
 import           Language.Fixpoint.Solver.Types
 
@@ -58,7 +56,7 @@ import qualified Data.Graph                           as G
 import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
-import           Text.PrettyPrint.HughesPJ
+-- import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
 
 
@@ -328,51 +326,3 @@ addCut _ Nothing         = mempty
 addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
-
---------------------------------------------------------------------------------
-graphStatistics :: Config -> F.SInfo a -> IO ()
---------------------------------------------------------------------------------
-graphStatistics cfg si = when (elimStats cfg) $ do
-  writeGraph f  (kvGraph si)
-  appendFile f . ppc . ptable $ graphStats cfg si
-  where
-    f     = queryFile Dot cfg
-    ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
-
-data Stats = Stats {
-    stNumKVCuts   :: !Int   -- ^ number of kvars whose removal makes deps acyclic
-  , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
-  , stNumKVTotal  :: !Int   -- ^ number of kvars
-  , stIsReducible :: !Bool  -- ^ is dep-graph reducible
-  , stSetKVNonLin :: S.HashSet F.KVar -- ^ set of non-linear kvars
-  }
-
-instance PTable Stats where
-  ptable (Stats {..})  = DocTable [
-      ("# KVars [Cut]"    , pprint stNumKVCuts)
-    , ("# KVars [NonLin]" , pprint stNumKVNonLin)
-    , ("# KVars [All]"    , pprint stNumKVTotal)
-    , ("# Reducible"      , pprint stIsReducible)
-    , ("KVars NonLin"     , pprint stSetKVNonLin)
-    ]
-
-graphStats :: Config -> F.SInfo a -> Stats
-graphStats cfg si = Stats {
-    stNumKVCuts   = S.size (depCuts d)
-  , stNumKVNonLin = S.size  nlks
-  , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
-  , stIsReducible = isReducible si
-  , stSetKVNonLin = nlks
-  }
-  where
-    nlks          = nlKVars si
-    d             = deps cfg si
-
-nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
-nlKVars fi = S.unions $ nlKVarsC bs <$> cs
-  where
-    bs     = F.bs fi
-    cs     = M.elems (F.cm fi)
-
-nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
-nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]

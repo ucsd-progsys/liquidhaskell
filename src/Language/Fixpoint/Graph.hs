@@ -7,9 +7,11 @@ module Language.Fixpoint.Graph (
   , module Language.Fixpoint.Graph.Partition
   , module Language.Fixpoint.Graph.Reducible
   , module Language.Fixpoint.Graph.Deps
+  , module Language.Fixpoint.Graph.Statistics
   ) where
 
 import           Language.Fixpoint.Graph.Types
 import           Language.Fixpoint.Graph.Partition
 import           Language.Fixpoint.Graph.Reducible
 import           Language.Fixpoint.Graph.Deps
+import           Language.Fixpoint.Graph.Statistics
