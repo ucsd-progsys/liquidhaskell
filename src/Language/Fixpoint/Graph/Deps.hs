@@ -46,7 +46,6 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
 -- import           Language.Fixpoint.Graph.Reducible  (isReducible)
 import           Language.Fixpoint.Types.Visitor  (rhsKVars, envKVars, kvars, isConcC)
-import           Language.Fixpoint.Solver.Types
 
 
 import qualified Data.HashSet                         as S

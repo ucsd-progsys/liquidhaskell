@@ -2,10 +2,12 @@
 -- | This module contains the types for representing dependency
 --   graphs between kvars and constraints.
 
+{-# LANGUAGE ImplicitParams        #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Graph.Types (
+
   -- * Graphs
     CVertex (..)
   , CEdge
@@ -17,6 +19,23 @@ module Language.Fixpoint.Graph.Types (
 
   -- * Printing
   , writeGraph
+
+
+  -- * Constraints
+  , CId
+  , CSucc
+  , KVRead
+  , DepEdge
+
+  -- * Slice of relevant constraints
+  , Slice (..)
+
+  -- * Constraint Dependency Graphs
+  , CGraph (..)
+
+  -- * Alias for Constraint Maps
+  , CMap
+  , lookupCMap
   )
   where
 
@@ -28,6 +47,10 @@ import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements -- Constraints
 
+-- import           Language.Fixpoint.Misc (safeLookup)
+import qualified Language.Fixpoint.Types   as F
+import qualified Data.HashMap.Strict       as M
+import GHC.Stack
 --------------------------------------------------------------------------------
 
 data CVertex = KVar  KVar    -- ^ real kvar vertex
@@ -68,3 +91,35 @@ isJunkEdge (DKVar _, _)     = True
 isJunkEdge (_, DKVar _)     = True
 isJunkEdge (Cstr _, Cstr _) = True
 isJunkEdge _                = False
+
+
+
+---------------------------------------------------------------------------
+-- | Dramatis Personae
+---------------------------------------------------------------------------
+
+type CId     = Integer
+type CSucc   = CId -> [CId]
+type CMap a  = M.HashMap CId a
+type KVRead  = M.HashMap F.KVar [CId]
+type DepEdge = (CId, CId, [CId])
+
+data Slice = Slice { slKVarCs :: [CId]     -- ^ CIds that transitively "reach" below
+                   , slConcCs :: [CId]     -- ^ CIds with Concrete RHS
+                   , slEdges  :: [DepEdge] -- ^ Dependencies between slKVarCs
+                   } deriving (Eq, Show)
+
+data CGraph = CGraph { gEdges :: [DepEdge]
+                     , gRanks :: CMap Int
+                     , gSucc  :: CSucc
+                     , gSccs  :: Int
+                     }
+
+---------------------------------------------------------------------------
+-- | CMap API -------------------------------------------------------------
+---------------------------------------------------------------------------
+
+lookupCMap :: (?callStack :: CallStack) => CMap a -> CId -> a
+lookupCMap rm i = safeLookup err i rm
+  where
+    err      = "lookupCMap: cannot find info for " ++ show i

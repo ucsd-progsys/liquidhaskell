@@ -20,12 +20,6 @@ import qualified Data.HashSet                         as S
 import qualified Data.HashMap.Strict                  as M
 import           Text.PrettyPrint.HughesPJ
 
--- import           Data.Maybe                       (mapMaybe, fromMaybe)
--- import           Data.Tree (flatten)
--- import           Language.Fixpoint.Misc         -- hiding (group)
--- import           Language.Fixpoint.Types.Visitor    (rhsKVars, envKVars, kvars, isConcC)
--- import           Language.Fixpoint.Solver.Types
-
 -- import qualified Data.List                            as L
 -- import qualified Data.Graph                           as G
 -- import qualified Data.Tree                            as T
