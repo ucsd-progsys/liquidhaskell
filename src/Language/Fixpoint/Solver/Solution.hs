@@ -194,7 +194,7 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     rs               = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
-applyExpr g s (F.PKVar k su) = applyKVar g s k su
+applyExpr g s (F.PKVar k su) = {- F.tracepp ("applyKVar: " ++ show k) $ -} applyKVar g s k su
 applyExpr _ _ p              = p
 
 applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr

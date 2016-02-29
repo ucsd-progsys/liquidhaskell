@@ -24,7 +24,7 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Types.PrettyPrint -- (PTable (..), PPrint (..))
+import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import           Language.Fixpoint.Solver.Graph
@@ -94,6 +94,9 @@ data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
                  , rTag  :: !F.Tag  -- ^ The constraint's Tag
                  } deriving (Eq, Show)
 
+instance PPrint Rank where
+  pprintTidy _ = text . show
+
 --------------------------------------------------------------------------------
 -- | Initialize worklist and slice out irrelevant constraints ------------------
 --------------------------------------------------------------------------------
@@ -103,7 +106,7 @@ init fi    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
                 , wDeps   = cSucc cd
                 , wCm     = cm
-                , wRankm  = rankm
+                , wRankm  = F.tracepp "W.init ranks" rankm
                 , wLast   = Nothing
                 , wRanks  = cNumScc cd
                 , wTime   = 0

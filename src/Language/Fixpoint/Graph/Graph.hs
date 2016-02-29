@@ -16,7 +16,8 @@ module Language.Fixpoint.Solver.Graph (
        , cGraph, gSccs
 
        -- * Kvars written and read by a constraint
-       , kvWriteBy, kvReadBy
+       , kvWriteBy
+       -- , kvReadBy
        ) where
 
 
@@ -46,7 +47,7 @@ slice fi = fi { F.cm = cm'
      ws' = M.filterWithKey inW (F.ws fi)
      ks  = sliceKVars fi sl
      is  = S.fromList (slKVarCs sl ++ slConcCs sl)
-     sl  = mkSlice fi
+     sl  = kSlice fi
      inC i _ = S.member i is
      inW k _ = S.member k ks
 
@@ -97,36 +98,6 @@ sliceEdges is es = [ (i, i, filter inSlice js) | (i, _, js) <- es, inSlice i ]
     -- im        = M.fromList [(i, is) | (i,_,is) <- slEdges sl]
 
 ---------------------------------------------------------------------------
--- | Dependencies ---------------------------------------------------------
----------------------------------------------------------------------------
-kvSucc :: (F.TaggedC c a) => F.GInfo c a -> CSucc
----------------------------------------------------------------------------
-kvSucc fi = succs cm rdBy
-  where
-    rdBy  = kvReadBy fi
-    cm    = F.cm     fi
-
-succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CSucc
-succs cm rdBy i = sortNub $ concatMap kvReads iKs
-  where
-    iKs         = kvWriteBy cm i
-    kvReads k   = M.lookupDefault [] k rdBy
-
----------------------------------------------------------------------------
-kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> CId -> [F.KVar]
----------------------------------------------------------------------------
-kvWriteBy cm = kvars . F.crhs . lookupCMap cm
-
----------------------------------------------------------------------------
-kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
----------------------------------------------------------------------------
-kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- envKVars bs ci]
-  where
-    cm      = F.cm fi
-    bs      = F.bs fi
-
----------------------------------------------------------------------------
 isTarget :: (F.TaggedC c a) => c a -> Bool
 ---------------------------------------------------------------------------
 isTarget c   = isConcC c && isNonTriv c
@@ -160,3 +131,34 @@ graphRanks g vf = (M.fromList irs, sccs)
     rvss       = zip [0..] sccs
     sccs       = L.reverse $ map flatten $ scc g
     v2i        = fst3 . vf
+
+
+---------------------------------------------------------------------------
+-- | Dependencies ---------------------------------------------------------
+---------------------------------------------------------------------------
+kvSucc :: (F.TaggedC c a) => F.GInfo c a -> CSucc
+---------------------------------------------------------------------------
+kvSucc fi = succs cm rdBy
+  where
+    rdBy  = kvReadBy fi
+    cm    = F.cm     fi
+
+succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CSucc
+succs cm rdBy i = sortNub $ concatMap kvReads iKs
+  where
+    iKs         = kvWriteBy cm i
+    kvReads k   = M.lookupDefault [] k rdBy
+
+---------------------------------------------------------------------------
+kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> CId -> [F.KVar]
+---------------------------------------------------------------------------
+kvWriteBy cm = kvars . F.crhs . lookupCMap cm
+
+---------------------------------------------------------------------------
+kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
+---------------------------------------------------------------------------
+kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
+                             , k       <- envKVars bs ci]
+  where
+    cm      = F.cm fi
+    bs      = F.bs fi

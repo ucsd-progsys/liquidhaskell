@@ -23,6 +23,14 @@ eliminate cfg si = (sHyp, si')
     kI           = kIndex  si
     (cKs,nKs)    = kutVars cfg si
 
+cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
+cutSInfo kI cKs si = si { ws = ws', cm = cm' }
+  where
+    ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
+    cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
+    cs    = S.fromList      (concatMap kCs cKs)
+    kCs k = M.lookupDefault [] k kI
+
 kutVars :: Config -> SInfo a -> (S.HashSet KVar, S.HashSet KVar)
 kutVars cfg si   = (depCuts ds, depNonCuts ds)
   where
@@ -40,14 +48,6 @@ kIndex si  = group [(k, i) | (i, c) <- iCs, k <- rkvars c]
   where
     iCs    = M.toList (cm si)
     rkvars = kvars . crhs
-
-cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
-cutSInfo kI cKs si = si { ws = ws', cm = cm' }
-  where
-    ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
-    cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
-    cs    = S.fromList      (concatMap kCs cKs)
-    kCs k = M.lookupDefault [] k kI
 
 nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Hyp)]
 nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]

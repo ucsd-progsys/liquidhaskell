@@ -47,7 +47,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
 import qualified Data.HashSet              as S
 
-import Data.Graph.Inductive
+-- import Data.Graph.Inductive
 
 
 
@@ -329,19 +329,6 @@ edgeRankCut km vs = case ks of
 --------------------------------------------------------------------------------
 type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
 --------------------------------------------------------------------------------
--- ORIG chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
--- ORIG --------------------------------------------------------------------------------
--- ORIG chooseCut f ks vs = case vs'' of
-                      -- ORIG []  -> Nothing
-                      -- ORIG v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
-  -- ORIG where
-    -- ORIG vs'           = [x | (x,_,_) <- vs, f x]
-    -- ORIG is            = S.intersection (S.fromList vs') ks
-    -- ORIG vs''          = if S.null is then vs' else S.toList is
-       -- ORIG -- ^ -- we select a RANDOM element,
-       -- ORIG ------- instead pick the "first" element.
-
-
 
 --------------------------------------------------------------------------------
 type Cutable a = (Eq a, Ord a, Hashable a, Show a)
