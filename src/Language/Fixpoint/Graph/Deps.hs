@@ -14,7 +14,6 @@ module Language.Fixpoint.Graph.Deps (
        -- * Constraint Rd/Wr dependencies for Worklist
        , cDeps
 
-
       -- * Eliminatable KVars
       , Elims (..)
       , elimVars
@@ -236,20 +235,23 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> Elims F.KVar
 --------------------------------------------------------------------------------
-elimVars cfg si = forceCuts cutKs $ edgeDeps cutEs
+elimVars cfg si = forceKuts ks . edgeDeps . removeKutEdges ks $ kvEdges si
   where
-    cutEs   = [ (u, v) | (u, v) <- allEs, not (S.member v cutVs)]
-    cutKs   = cutVars cfg si
-    cutVs   = S.map KVar cutKs
-    allEs   = kvEdges si
+    ks          = cutVars cfg si
+
+removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
+removeKutEdges ks = filter (not . isKut . snd) -- [ (u, v) | (u, v) <- es, isNotCut v ]
+  where
+    cutVs         = S.map KVar ks
+    isKut         = (`S.member` cutVs)
 
 cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
 cutVars _ si = F.ksVars . F.kuts $ si
   -- / | useCuts cfg = F.ksVars . F.kuts $ si
   -- / | otherwise   = S.empty
 
-forceCuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
-forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
+forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
+forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
 
 edgeDeps :: [CEdge] -> Elims F.KVar

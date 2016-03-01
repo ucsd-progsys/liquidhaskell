@@ -3,6 +3,7 @@
 ## refactor graphs
 
 
+
 1. Need to update all transitive deps via ELIMINATED KVars
 
 2. Why are ranks crap ?
@@ -11,6 +12,23 @@
    ELIMINATED (non-cut) kvars ...
 
 (a) push eliminate inside Solver.solve
+    > Solution, CSucc, Ranks, NumScc
+      "eliminate cfg" ->
+
+    data SolverInfo = SI { siSol   :: Solution
+                         , siQuery :: SInfo a
+                         , siDeps  :: CDeps
+                         }
+
+    Eliminate.eliminate :: Config -> SInfo a -> SolverInfo a
+
+    Solver.solverInfo :: Config -> SInfo a -> SolverInfo a
+
+    Solver.solverInfo cfg si
+      | eliminate cfg = E.eliminate cfg si
+      | otherwise     = SI mempty si (cDeps si)
+
+    W.init :: SolverInfo a -> Worklist a
 
 (b) unify construction of graph for eliminate & regular worklist
 
