@@ -16,6 +16,8 @@ module Language.Fixpoint.Graph.Partition (
   , MCInfo (..)
   , mcInfo
 
+  -- * Debug
+  , dumpPartitions
 
   ) where
 
@@ -83,29 +85,26 @@ mcInfo c = do
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result (Integer, a))
 partition cfg fi
   = do dumpPartitions cfg fis
-       writeGraph      f   g
+       -- writeGraph      f   g
        return mempty
     where
-      f        = queryFile Dot cfg
-      (g, fis) = partition' Nothing fi
+      --f   = queryFile Dot cfg
+      fis = partition' Nothing fi
 
 ------------------------------------------------------------------------------
--- | Partition an FInfo into multiple disjoint FInfos
+-- | Partition an FInfo into multiple disjoint FInfos. Info is Nothing to
+--   produce the maximum possible number of partitions. Or a MultiCore Info
+--   to control the partitioning
 ------------------------------------------------------------------------------
-partition' :: Maybe MCInfo -- ^ Nothing to produce the maximum possible
-                             -- number of partitions. Or a MultiCore Info
-                             -- to control the partitioning
-           -> F.FInfo a -> (KVGraph, [F.FInfo a])
+partition' :: Maybe MCInfo -> F.FInfo a -> [F.FInfo a]
 ------------------------------------------------------------------------------
 partition' mn fi  = case mn of
-   Nothing -> (g, fis mkPartition id)
-   Just mi -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
+   Nothing -> fis mkPartition id
+   Just mi -> partitionN mi fi $ fis mkPartition' finfoToCpart
   where
-    g              = kvGraph   fi
-    css            = decompose g
+    css            = decompose fi
     fis partF ctor = applyNonNull [ctor fi] (pbc partF) css
     pbc partF      = partitionByConstraints partF fi
-
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
 -- amounts of work

@@ -20,13 +20,6 @@ import qualified Data.HashSet                         as S
 import qualified Data.HashMap.Strict                  as M
 import           Text.PrettyPrint.HughesPJ
 
--- import qualified Data.List                            as L
--- import qualified Data.Graph                           as G
--- import qualified Data.Tree                            as T
--- import           Data.Function (on)
--- import           Data.Hashable
--- import           Data.List (sortBy)
-
 --------------------------------------------------------------------------------
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------

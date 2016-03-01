@@ -2,7 +2,6 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ConstraintKinds       #-}
-{-# LANGUAGE RecordWildCards       #-}
 
 module Language.Fixpoint.Graph.Deps (
        -- * Remove Constraints that don't affect Targets
@@ -11,19 +10,16 @@ module Language.Fixpoint.Graph.Deps (
        -- * Predicate describing Targets
        , isTarget
 
-       -- * Compute Kvar dependencies
+       -- * Constraint Rd/Wr dependencies for Worklist
        , cDeps
 
-
-      -- * Queries over dependencies
+      -- * Eliminatable KVars
       , Elims (..)
       , elimVars
 
-
-      , kvGraph
+      -- * Partition
       , decompose
-
-       ) where
+      ) where
 
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
@@ -172,13 +168,12 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
     bs      = F.bs fi
 
 
-
 -------------------------------------------------------------------------------
-decompose :: KVGraph -> KVComps
+decompose :: (F.TaggedC c a) => F.GInfo c a -> KVComps
 -------------------------------------------------------------------------------
-decompose kg = map (fst3 . f) <$> vss
+decompose si = map (fst3 . f) <$> vss
   where
-    (g,f,_)  = G.graphFromEdges kg
+    (g,f,_)  = G.graphFromEdges (kvGraph si)
     vss      = T.flatten <$> G.components g
 
 -------------------------------------------------------------------------------
@@ -250,7 +245,7 @@ forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 edgeDeps :: [CEdge] -> Elims F.KVar
 edgeDeps es     = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = Elims cutF (edgeGraph es)
+    Deps cs ns  = gElims cutF (edgeGraph es)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z

@@ -70,10 +70,11 @@ solveFQ cfg = do
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg q
-  | parts cfg    = partition  cfg        $!! q
+  -- // | parts cfg    = partition  cfg        $!! q
   | stats cfg    = statistics cfg        $!! q
   | minimize cfg = minQuery   cfg solve' $!! q
   | otherwise    = solve'     cfg        $!! q
+
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
