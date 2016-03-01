@@ -21,24 +21,17 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent
 import           Data.Binary
--- import           Data.Maybe                         (fromMaybe)
--- import           Data.List                          hiding (partition)
--- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
--- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
--- import           Text.Printf                        (printf)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import qualified Language.Fixpoint.Solver.Eliminate as E
--- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
--- import           Language.Fixpoint.Solver.Solution  (Solution)
 
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors

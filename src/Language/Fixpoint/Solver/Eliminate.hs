@@ -34,7 +34,7 @@ cutSInfo kI cKs si = si { ws = ws', cm = cm' }
 kutVars :: Config -> SInfo a -> (S.HashSet KVar, S.HashSet KVar)
 kutVars cfg si   = (depCuts ds, depNonCuts ds)
   where
-    ds           = deps cfg si
+    ds           = elimVars cfg si
 
 --------------------------------------------------------------------------------
 -- | Map each `KVar` to the list of constraints on which it appears on RHS

@@ -26,7 +26,8 @@ module Language.Fixpoint.Solver.Worklist
 import           Prelude hiding (init)
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
-import           Language.Fixpoint.Graph
+import           Language.Fixpoint.Graph.Types
+-- import           Language.Fixpoint.Graph
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S

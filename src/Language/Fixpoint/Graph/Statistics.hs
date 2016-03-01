@@ -64,7 +64,7 @@ graphStats cfg si = Stats {
   }
   where
     nlks          = nlKVars si
-    d             = deps cfg si
+    d             = elimVars cfg si
 
 nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
 nlKVars fi = S.unions $ nlKVarsC bs <$> cs

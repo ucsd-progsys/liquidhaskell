@@ -11,22 +11,15 @@ module Language.Fixpoint.Graph.Deps (
        -- * Predicate describing Targets
        , isTarget
 
-       -- * Compute Ranks / SCCs
-       , graphRanks
-
        -- * Compute Kvar dependencies
        , cDeps
 
-      -- , cGraph
-      -- , gSccs
-
-       -- * Kvars written and read by a constraint
-       , kvWriteBy
-       -- , kvReadBy
 
       -- * Queries over dependencies
-      , GDeps (..)
-      , deps
+      , Elims (..)
+      , elimVars
+
+
       , kvGraph
       , decompose
 
@@ -219,26 +212,26 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
 --------------------------------------------------------------------------------
-data GDeps a
+data Elims a
   = Deps { depCuts    :: !(S.HashSet a)
          , depNonCuts :: !(S.HashSet a)
          }
     deriving (Show)
 
-instance (Eq a, Hashable a) => Monoid (GDeps a) where
+instance (Eq a, Hashable a) => Monoid (Elims a) where
   mempty                            = Deps S.empty S.empty
   mappend (Deps d1 n1) (Deps d2 n2) = Deps (S.union d1 d2) (S.union n1 n2)
 
-dCut, dNonCut :: (Hashable a) => a -> GDeps a
+dCut, dNonCut :: (Hashable a) => a -> Elims a
 dNonCut v = Deps S.empty (S.singleton v)
 dCut    v = Deps (S.singleton v) S.empty
 
 --------------------------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------------------------
 --------------------------------------------------------------------------------
-deps :: (F.TaggedC c a) => Config -> F.GInfo c a -> GDeps F.KVar
+elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> Elims F.KVar
 --------------------------------------------------------------------------------
-deps cfg si = forceCuts cutKs $ edgeDeps cutEs
+elimVars cfg si = forceCuts cutKs $ edgeDeps cutEs
   where
     cutEs   = [ (u, v) | (u, v) <- allEs, not (S.member v cutVs)]
     cutKs   = cutVars cfg si
@@ -250,14 +243,14 @@ cutVars _ si = F.ksVars . F.kuts $ si
   -- / | useCuts cfg = F.ksVars . F.kuts $ si
   -- / | otherwise   = S.empty
 
-forceCuts :: (Hashable a, Eq a) => S.HashSet a -> GDeps a  -> GDeps a
+forceCuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
 
-edgeDeps :: [CEdge] -> GDeps F.KVar
+edgeDeps :: [CEdge] -> Elims F.KVar
 edgeDeps es     = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gDeps cutF (edgeGraph es)
+    Deps cs ns  = Elims cutF (edgeGraph es)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
@@ -294,20 +287,20 @@ type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
 --------------------------------------------------------------------------------
 type Cutable a = (Eq a, Ord a, Hashable a, Show a)
 --------------------------------------------------------------------------------
-gDeps :: (Cutable a) => Cutter a -> [(a, a, [a])] -> GDeps a
+gElims :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
 --------------------------------------------------------------------------------
-gDeps f g = sccsToDeps f (G.stronglyConnCompR g)
+gElims f g = sccsToDeps f (G.stronglyConnCompR g)
 
 
-sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> GDeps a
+sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> Elims a
 sccsToDeps f xs = mconcat $ sccDep f <$> xs
 
-sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> GDeps a
+sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> Elims a
 sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
 sccDep f (G.CyclicSCC vs)      = cycleDep f vs
 
 
-cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> GDeps a
+cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> Elims a
 cycleDep _ [] = mempty
 cycleDep f vs = addCut f (f vs)
 
