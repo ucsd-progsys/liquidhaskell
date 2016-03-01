@@ -20,7 +20,7 @@ import           Text.PrettyPrint.HughesPJ
 
 statistics :: Config -> F.FInfo a -> IO (F.Result (Integer, a))
 statistics _ fi = do
-  let (_, fis) = partition' Nothing fi
+  let fis = partition' Nothing fi
   putStrLn $ render $ pprint $ partitionStats fis
   donePhase Loud "Statistics"
   return mempty

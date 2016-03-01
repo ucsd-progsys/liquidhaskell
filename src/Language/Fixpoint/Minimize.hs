@@ -23,11 +23,11 @@ minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
          -> IO (Result (Integer, a))
 ---------------------------------------------------------------------------
 minQuery cfg solve fi = do
-  let cfg'     = cfg { minimize = False }
-  let (_, fis) = partition' Nothing fi
-  failFis     <- filterM (fmap isUnsafe . solve cfg') fis
-  failCs      <- concatMapM (getMinFailingCons cfg' solve) failFis
-  let minFi    = fi { cm = M.fromList failCs, fileName = minFileName fi }
+  let cfg'  = cfg { minimize = False }
+  let fis   = partition' Nothing fi
+  failFis  <- filterM (fmap isUnsafe . solve cfg') fis
+  failCs   <- concatMapM (getMinFailingCons cfg' solve) failFis
+  let minFi = fi { cm = M.fromList failCs, fileName = minFileName fi }
   saveQuery cfg' minFi
   putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
   return mempty

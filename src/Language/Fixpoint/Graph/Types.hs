@@ -11,7 +11,7 @@ module Language.Fixpoint.Graph.Types (
   -- * Graphs
     CVertex (..)
   , CEdge
-  , KVGraph
+  , KVGraph (..)
 
   -- * Components
   , Comps
@@ -71,10 +71,10 @@ instance PPrint CVertex where
 
 instance Hashable CVertex
 
-type CEdge    = (CVertex, CVertex)
-type KVGraph  = [(CVertex, CVertex, [CVertex])]
-type Comps a  = [[a]]
-type KVComps  = Comps CVertex
+data KVGraph    = KVGraph { kvgEdges :: [(CVertex, CVertex, [CVertex])] }
+type CEdge      = (CVertex, CVertex)
+type Comps a    = [[a]]
+type KVComps    = Comps CVertex
 
 --------------------------------------------------------------------------------
 writeGraph :: FilePath -> KVGraph -> IO ()
@@ -82,7 +82,7 @@ writeGraph :: FilePath -> KVGraph -> IO ()
 writeGraph f = writeFile f . render . ppGraph
 
 ppGraph :: KVGraph -> Doc
-ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
+ppGraph (KVGraph g) = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 
 ppEdges :: [CEdge] -> Doc
 ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]

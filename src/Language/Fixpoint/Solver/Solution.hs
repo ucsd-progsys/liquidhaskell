@@ -312,7 +312,7 @@ elimSolGraph cfg s = writeGraph f (solutionGraph s)
 --------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
 --------------------------------------------------------------------------------
-solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
+solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
      kEqs       = M.toList (F.sMap s)

@@ -63,7 +63,6 @@ Library
                    Language.Fixpoint.Graph.Reducible,
                    Language.Fixpoint.Graph.Partition,
                    Language.Fixpoint.Graph.Deps,
-                   Language.Fixpoint.Graph.Statistics,
                    Language.Fixpoint.Graph,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,

@@ -2,16 +2,9 @@
 --   serialization functions for representing and computing
 --   with constraint dependencies.
 
-module Language.Fixpoint.Graph (
-    module Language.Fixpoint.Graph.Types
-  , module Language.Fixpoint.Graph.Partition
-  , module Language.Fixpoint.Graph.Reducible
-  , module Language.Fixpoint.Graph.Deps
-  , module Language.Fixpoint.Graph.Statistics
-  ) where
+module Language.Fixpoint.Graph (module X ) where
 
-import           Language.Fixpoint.Graph.Types
-import           Language.Fixpoint.Graph.Partition
-import           Language.Fixpoint.Graph.Reducible
-import           Language.Fixpoint.Graph.Deps
-import           Language.Fixpoint.Graph.Statistics
+import Language.Fixpoint.Graph.Types     as X
+import Language.Fixpoint.Graph.Partition as X
+import Language.Fixpoint.Graph.Reducible as X
+import Language.Fixpoint.Graph.Deps      as X

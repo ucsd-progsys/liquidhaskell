@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 module Language.Fixpoint.Graph.Deps (
        -- * Remove Constraints that don't affect Targets
@@ -13,23 +14,31 @@ module Language.Fixpoint.Graph.Deps (
        -- * Constraint Rd/Wr dependencies for Worklist
        , cDeps
 
+
       -- * Eliminatable KVars
       , Elims (..)
       , elimVars
 
       -- * Partition
       , decompose
+
+      -- * Debug
+      , graphStatistics
       ) where
 
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
 import           Data.Tree (flatten)
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types.Visitor      as V
+import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
+import           Language.Fixpoint.Graph.Reducible  (isReducible)
 
+import           Control.Monad             (when)
 import qualified Data.HashSet                         as S
 import qualified Data.List                            as L
 import qualified Data.HashMap.Strict                  as M
@@ -37,6 +46,7 @@ import qualified Data.Graph                           as G
 import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
+import           Text.PrettyPrint.HughesPJ
 
 ---------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -173,7 +183,7 @@ decompose :: (F.TaggedC c a) => F.GInfo c a -> KVComps
 -------------------------------------------------------------------------------
 decompose si = map (fst3 . f) <$> vss
   where
-    (g,f,_)  = G.graphFromEdges (kvGraph si)
+    (g,f,_)  = G.graphFromEdges . kvgEdges . kvGraph $ si
     vss      = T.flatten <$> G.components g
 
 -------------------------------------------------------------------------------
@@ -182,7 +192,7 @@ kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
 kvGraph = edgeGraph . kvEdges
 
 edgeGraph :: [CEdge] -> KVGraph
-edgeGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
+edgeGraph es = KVGraph [(v,v,vs) | (v, vs) <- groupList es ]
 
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
@@ -245,7 +255,7 @@ forceCuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 edgeDeps :: [CEdge] -> Elims F.KVar
 edgeDeps es     = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gElims cutF (edgeGraph es)
+    Deps cs ns  = gElims cutF (kvgEdges $ edgeGraph es)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
@@ -343,3 +353,52 @@ inRanks fi es outR
     isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
     cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
+
+
+--------------------------------------------------------------------------------
+graphStatistics :: Config -> F.SInfo a -> IO ()
+--------------------------------------------------------------------------------
+graphStatistics cfg si = when (elimStats cfg) $ do
+  writeGraph f  (kvGraph si)
+  appendFile f . ppc . ptable $ graphStats cfg si
+  where
+    f     = queryFile Dot cfg
+    ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
+
+data Stats = Stats {
+    stNumKVCuts   :: !Int   -- ^ number of kvars whose removal makes deps acyclic
+  , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
+  , stNumKVTotal  :: !Int   -- ^ number of kvars
+  , stIsReducible :: !Bool  -- ^ is dep-graph reducible
+  , stSetKVNonLin :: S.HashSet F.KVar -- ^ set of non-linear kvars
+  }
+
+instance PTable Stats where
+  ptable (Stats {..})  = DocTable [
+      ("# KVars [Cut]"    , pprint stNumKVCuts)
+    , ("# KVars [NonLin]" , pprint stNumKVNonLin)
+    , ("# KVars [All]"    , pprint stNumKVTotal)
+    , ("# Reducible"      , pprint stIsReducible)
+    , ("KVars NonLin"     , pprint stSetKVNonLin)
+    ]
+
+graphStats :: Config -> F.SInfo a -> Stats
+graphStats cfg si = Stats {
+    stNumKVCuts   = S.size (depCuts d)
+  , stNumKVNonLin = S.size  nlks
+  , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
+  , stIsReducible = isReducible si
+  , stSetKVNonLin = nlks
+  }
+  where
+    nlks          = nlKVars si
+    d             = elimVars cfg si
+
+nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
+nlKVars fi = S.unions $ nlKVarsC bs <$> cs
+  where
+    bs     = F.bs fi
+    cs     = M.elems (F.cm fi)
+
+nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
+nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]

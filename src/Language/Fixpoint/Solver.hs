@@ -70,7 +70,7 @@ solveFQ cfg = do
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg q
-  -- // | parts cfg    = partition  cfg        $!! q
+  | parts cfg    = partition  cfg        $!! q
   | stats cfg    = statistics cfg        $!! q
   | minimize cfg = minQuery   cfg solve' $!! q
   | otherwise    = solve'     cfg        $!! q
@@ -121,10 +121,10 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
-  let fi       = slice fi0
+  let fi     = slice fi0
   withProgressFI fi $ do
     mci <- mcInfo c
-    let (_, fis) = partition' (Just mci) fi
+    let fis   = partition' (Just mci) fi
     writeLoud $ "Number of partitions : " ++ show (length fis)
     writeLoud $ "number of cores      : " ++ show (cores c)
     writeLoud $ "minimum part size    : " ++ show (minPartSize c)
