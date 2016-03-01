@@ -113,7 +113,6 @@ solveSeqWith s c fi0 = withProgressFI fi $ s c fi
   where
     fi               = slice fi0
 
-
 ---------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
 ---------------------------------------------------------------------------
