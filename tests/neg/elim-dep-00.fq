@@ -1,0 +1,43 @@
+
+qualif False(v:int) : (0 = 1)
+qualif Zero(v:int) : (0 = v)
+qualif One(v:int) : (1 = v)
+
+bind 1 x : {v:int | $k2 }
+
+// cut $k1 -- eliminating $k1 causes UNSOUNDNESS
+
+cut $k2
+
+
+constraint:
+  env [ ]
+  lhs {v : int | v = 0 }
+  rhs {v : int | $k1   }
+  id 1 tag []
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | v = x + 1 }
+  rhs {v : int | $k1       }
+  id 2 tag []
+
+constraint:
+  env [ ]
+  lhs {v : int | $k1}
+  rhs {v : int | $k2}
+  id 3 tag []
+
+constraint:
+  env [ ]
+  lhs {v : int | $k2  }
+  rhs {v : int | 0 = v}
+  id 4 tag []
+
+wf:
+  env [ ]
+  reft {v: int | $k1}
+
+wf:
+  env [ ]
+  reft {v: int | $k2}

@@ -246,4 +246,8 @@ saveSolution cfg res = when (save cfg) $ do
 ---------------------------------------------------------------------------
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
-withProgressFI = withProgress . fromIntegral . gSccs . cGraph
+withProgressFI _ act = do
+  putStrLn "FIXME: ProgressBar"
+  putStrLn "FIXME: ProgressBar"
+  putStrLn "FIXME: ProgressBar"
+  withProgress 50  act -- . fromIntegral . gSccs . undefined -- cGraph

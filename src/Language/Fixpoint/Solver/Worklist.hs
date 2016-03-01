@@ -31,7 +31,6 @@ import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
-import           Data.Graph (graphFromEdges)
 import           Text.PrettyPrint.HughesPJ (text)
 
 -- | Worklist ------------------------------------------------------------------
@@ -85,16 +84,6 @@ instance Ord WorkItem where
               , compare (rTag r1) (rTag r2)   -- Tag
               , compare i1         i2         -- Otherwise Set drops items
               ]
-
--- | Ranks ---------------------------------------------------------------------
-
-data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
-                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
-                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
-                 } deriving (Eq, Show)
-
-instance PPrint Rank where
-  pprintTidy _ = text . show
 
 --------------------------------------------------------------------------------
 -- | Initialize worklist and slice out irrelevant constraints ------------------
@@ -174,55 +163,6 @@ workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiTime = t
                                 , wiRank = lookupCMap r i }
 
----------------------------------------------------------------------------
--- | Constraint Dependencies ----------------------------------------------
----------------------------------------------------------------------------
-
-data CDeps = CDs { cSucc   :: CSucc
-                 , cRank   :: CMap Rank
-                 , cNumScc :: Int
-                 }
-
----------------------------------------------------------------------------
-cDeps :: F.SInfo a -> CDeps
----------------------------------------------------------------------------
-cDeps fi  = CDs { cSucc   = gSucc cg
-                , cNumScc = gSccs cg
-                , cRank   = M.fromList [(i, rf i) | i <- is ]
-                }
-  where
-    rf    = rankF (F.cm fi) outRs inRs
-    inRs  = inRanks fi es outRs
-    outRs = gRanks cg
-    es    = gEdges cg
-    cg    = cGraph fi
-    cm    = F.cm fi
-    is    = M.keys cm
-
-rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
-rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
-  where
-    outScc        = lookupCMap outR
-    inScc         = lookupCMap inR
-    tag           = F._ctag . lookupCMap cm
-
-
-
----------------------------------------------------------------------------
-inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
----------------------------------------------------------------------------
-inRanks fi es outR
-  | ks == mempty      = outR
-  | otherwise         = fst $ graphRanks g' vf'
-  where
-    ks                = F.kuts fi
-    cm                = F.cm fi
-    (g', vf', _)      = graphFromEdges es'
-    es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
-    isCut i j         = S.member i cutCIds && isEqOutRank i j
-    isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
-    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
-    isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 
 ---------------------------------------------------------------------------

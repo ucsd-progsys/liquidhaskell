@@ -35,6 +35,12 @@ module Language.Fixpoint.Graph.Types (
   -- * Alias for Constraint Maps
   , CMap
   , lookupCMap
+
+  -- * Ranks
+  , Rank (..)
+
+  -- * Constraint Dependencies
+  , CDeps (..)
   )
   where
 
@@ -122,3 +128,23 @@ lookupCMap :: (?callStack :: CallStack) => CMap a -> CId -> a
 lookupCMap rm i = safeLookup err i rm
   where
     err      = "lookupCMap: cannot find info for " ++ show i
+
+---------------------------------------------------------------------------
+-- | Constraint Dependencies ----------------------------------------------
+---------------------------------------------------------------------------
+
+data CDeps = CDs { cSucc   :: CSucc
+                 , cRank   :: CMap Rank
+                 , cNumScc :: Int
+                 }
+
+
+-- | Ranks ---------------------------------------------------------------------
+
+data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
+                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
+                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
+                 } deriving (Eq, Show)
+
+instance PPrint Rank where
+  pprintTidy _ = text . show

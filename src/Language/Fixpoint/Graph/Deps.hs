@@ -15,7 +15,10 @@ module Language.Fixpoint.Graph.Deps (
        , graphRanks
 
        -- * Compute Kvar dependencies
-       , cGraph, gSccs
+       , cDeps
+
+      -- , cGraph
+      -- , gSccs
 
        -- * Kvars written and read by a constraint
        , kvWriteBy
@@ -312,3 +315,43 @@ addCut _ Nothing         = mempty
 addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
+
+
+---------------------------------------------------------------------------
+cDeps :: F.SInfo a -> CDeps
+---------------------------------------------------------------------------
+cDeps fi  = CDs { cSucc   = gSucc cg
+                , cNumScc = gSccs cg
+                , cRank   = M.fromList [(i, rf i) | i <- is ]
+                }
+  where
+    rf    = rankF (F.cm fi) outRs inRs
+    inRs  = inRanks fi es outRs
+    outRs = gRanks cg
+    es    = gEdges cg
+    cg    = cGraph fi
+    cm    = F.cm fi
+    is    = M.keys cm
+
+rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
+rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
+  where
+    outScc        = lookupCMap outR
+    inScc         = lookupCMap inR
+    tag           = F._ctag . lookupCMap cm
+
+---------------------------------------------------------------------------
+inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
+---------------------------------------------------------------------------
+inRanks fi es outR
+  | ks == mempty      = outR
+  | otherwise         = fst $ graphRanks g' vf'
+  where
+    ks                = F.kuts fi
+    cm                = F.cm fi
+    (g', vf', _)      = G.graphFromEdges es'
+    es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
+    isCut i j         = S.member i cutCIds && isEqOutRank i j
+    isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
+    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
+    isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
