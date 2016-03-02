@@ -36,7 +36,9 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
-  , isTautoPred
+  , mkEApp
+  , intKvar
+  , vv_
 
   -- * Generalizing Embedding with Typeclasses
   , Expression (..)
@@ -44,7 +46,7 @@ module Language.Fixpoint.Types.Refinements (
   , Subable (..)
   , Reftable (..)
 
-  -- * Constructing Refinements
+  -- * Constructors
   , reft                    -- "smart
   , trueSortedReft          -- trivial reft
   , trueReft, falseReft     -- trivial reft
@@ -55,20 +57,27 @@ module Language.Fixpoint.Types.Refinements (
   , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
-  , reftPred, reftBind
+  , reftPred
+  , reftBind
+
+  -- * Predicates
   , isFunctionSortedReft, functionSort
   , isNonTrivial
+  , isTautoPred
   , isSingletonReft
   , isEVar
   , isFalse
+
+  -- * Destructing
   , flattenRefas
   , conjuncts
+  , eApps
+  , splitEApp
+  , reftConjuncts
+
+  -- * Transforming
   , mapPredReft
   , pprintReft
-  , reftConjuncts
-  , intKvar
-  , vv_
-  , mkEApp, eApps, splitEApp
   ) where
 
 import qualified Data.Binary as B
@@ -119,7 +128,6 @@ instance B.Binary Bop
 instance B.Binary Expr
 instance B.Binary Reft
 instance B.Binary SortedReft
-
 
 
 reftConjuncts :: Reft -> [Reft]
@@ -188,7 +196,7 @@ data Constant = I !Integer
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv 
+data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -202,7 +210,7 @@ data Expr = ESym !SymConst
           | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
           | ELam !(Symbol, Sort)   !Expr
-          | ETApp !Expr !Sort 
+          | ETApp !Expr !Sort
           | ETAbs !Expr !Symbol
 
 --- Used to be predicates
@@ -320,7 +328,7 @@ instance Fixpoint Expr where
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix PGrad            = text "??"
-  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e 
+  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -381,28 +389,25 @@ isEVar _        = False
 isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
 
-
-
-
 instance PPrint Constant where
-  pprint = toFix
+  pprintTidy _ = toFix
 
 instance PPrint Brel where
-  pprint Eq = text "=="
-  pprint Ne = text "/="
-  pprint r  = toFix r
+  pprintTidy _ Eq = "=="
+  pprintTidy _ Ne = "/="
+  pprintTidy _ r  = toFix r
 
 instance PPrint Bop where
-  pprint  = toFix
+  pprintTidy _  = toFix
 
 instance PPrint Sort where
-  pprint = toFix
+  pprintTidy _ = toFix
 
 instance PPrint KVar where
-  pprint (KV x) = text "$" <> pprint x
+  pprintTidy _ (KV x) = text "$" <> pprint x
 
 instance PPrint SymConst where
-  pprint (SL x) = doubleQuotes $ text $ T.unpack x
+  pprintTidy _ (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
 parensIf True  = parens
@@ -436,81 +441,80 @@ opPrec Div    = 7
 opPrec RDiv   = 7
 
 instance PPrint Expr where
-  pprintPrec _ (ESym c)        = pprint c
-  pprintPrec _ (ECon c)        = pprint c
-  pprintPrec _ (EVar s)        = pprint s
+  pprintPrec _ k (ESym c)        = pprintTidy k c
+  pprintPrec _ k (ECon c)        = pprintTidy k c
+  pprintPrec _ k (EVar s)        = pprintTidy k s
   -- pprintPrec _ (EBot)          = text "_|_"
-  pprintPrec z (ENeg e)        = parensIf (z > zn) $
-                                   text "-" <> pprintPrec (zn+1) e
+  pprintPrec z k (ENeg e)        = parensIf (z > zn) $
+                                   "-" <> pprintPrec (zn + 1) k e
     where zn = 2
-  pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <+> (pprintPrec (za+1) es)
+  pprintPrec z k (EApp f es)     = parensIf (z > za) $
+                                   pprintPrec za k f <+> pprintPrec (za+1) k es
     where za = 8
-  pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
-                                   pprintPrec (zo+1) e1 <+>
-                                   pprint o             <+>
-                                   pprintPrec (zo+1) e2
+  pprintPrec z k (EBin o e1 e2)  = parensIf (z > zo) $
+                                   pprintPrec (zo+1) k e1 <+>
+                                   pprintTidy k o         <+>
+                                   pprintPrec (zo+1) k e2
     where zo = opPrec o
-  pprintPrec z (EIte p e1 e2)  = parensIf (z > zi) $
-                                   text "if"   <+> pprintPrec (zi+1) p  <+>
-                                   text "then" <+> pprintPrec (zi+1) e1 <+>
-                                   text "else" <+> pprintPrec (zi+1) e2
+  pprintPrec z k (EIte p e1 e2)  = parensIf (z > zi) $
+                                   "if"   <+> pprintPrec (zi+1) k p  <+>
+                                   "then" <+> pprintPrec (zi+1) k e1 <+>
+                                   "else" <+> pprintPrec (zi+1) k e2
     where zi = 1
-  pprintPrec _ (ECst e so)     = parens $ pprint e <+> text ":" <+> pprint so
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> pprintTidy k so
 
-  -- pprintPrec _ PTop            = text "???"
-  pprintPrec _ PTrue           = trueD
-  pprintPrec _ PFalse          = falseD
-  pprintPrec z (PNot p)        = parensIf (z > zn) $
-                                   text "not" <+> pprintPrec (zn+1) p
+  pprintPrec _ _ PTrue           = trueD
+  pprintPrec _ _ PFalse          = falseD
+  pprintPrec z k (PNot p)        = parensIf (z > zn) $
+                                   "not" <+> pprintPrec (zn+1) k p
     where zn = 8
-  pprintPrec z (PImp p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) p1) <+>
-                                   text "=>"              <+>
-                                   (pprintPrec (zi+1) p2)
+  pprintPrec z k (PImp p1 p2)    = parensIf (z > zi) $
+                                   (pprintPrec (zi+1) k p1) <+>
+                                   "=>"                     <+>
+                                   (pprintPrec (zi+1) k p2)
     where zi = 2
-  pprintPrec z (PIff p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) p1) <+>
-                                   text "<=>"             <+>
-                                   (pprintPrec (zi+1) p2)
+  pprintPrec z k (PIff p1 p2)    = parensIf (z > zi) $
+                                   (pprintPrec (zi+1) k p1) <+>
+                                   "<=>"                    <+>
+                                   (pprintPrec (zi+1) k p2)
     where zi = 2
-  pprintPrec z (PAnd ps)       = parensIf (z > za) $
-                                   pprintBin (za + 1) trueD andD ps
+  pprintPrec z k (PAnd ps)       = parensIf (z > za) $
+                                   pprintBin (za + 1) k trueD andD ps
     where za = 3
-  pprintPrec z (POr  ps)       = parensIf (z > zo) $
-                                   pprintBin (zo + 1) falseD orD  ps
+  pprintPrec z k (POr  ps)       = parensIf (z > zo) $
+                                   pprintBin (zo + 1) k falseD orD ps
     where zo = 3
-  pprintPrec z (PAtom r e1 e2) = parensIf (z > za) $
-                                   pprintPrec (za+1) e1 <+>
-                                   pprint r             <+>
-                                   pprintPrec (za+1) e2
+  pprintPrec z k (PAtom r e1 e2) = parensIf (z > za) $
+                                   pprintPrec (za+1) k e1 <+>
+                                   pprintTidy k r         <+>
+                                   pprintPrec (za+1) k e2
     where za = 4
-  pprintPrec _ (PAll xts p)    = pprintQuant "forall" xts p
-  pprintPrec _ (PExist xts p)  = pprintQuant "exists" xts p
-  pprintPrec _ (ELam (x,t) e)  = text "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprint e
-  pprintPrec _ p@(PKVar {})    = toFix p
-  pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
-  pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
-  pprintPrec _ PGrad           = text "?"
+  pprintPrec _ k (PAll xts p)    = pprintQuant k "forall" xts p
+  pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
+  pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
+  pprintPrec _ _ p@(PKVar {})    = toFix p
+  pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
+  pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
+  pprintPrec _ _ PGrad           = "?"
 
-pprintQuant d xts p = (d <+> toFix xts)
-                      $+$
-                      ("  ." <+> pprint p)
+pprintQuant k d xts p = (d <+> toFix xts)
+                        $+$
+                        ("  ." <+> pprintTidy k p)
 
 trueD  = "true"
 falseD = "false"
 andD   = "&&"
 orD    = "||"
 
-pprintBin _ b _ [] = b
-pprintBin z _ o xs = vIntersperse o $ pprintPrec z <$> xs
+pprintBin _ _ b _ [] = b
+pprintBin z k _ o xs = vIntersperse o $ pprintPrec z k <$> xs
 
 vIntersperse _ []     = empty
 vIntersperse _ [d]    = d
 vIntersperse s (d:ds) = vcat (d : ((s <+>) <$> ds))
 
-pprintReft :: Reft -> Doc
-pprintReft (Reft (_,ra)) = pprintBin z trueD andD flat
+pprintReft :: Tidy -> Reft -> Doc
+pprintReft k (Reft (_,ra)) = pprintBin z k trueD andD flat
   where
     flat = flattenRefas [ra]
     z    = if length flat > 1 then 3 else 0

@@ -1,0 +1,26 @@
+qualif Zog(v:a) : (10 <= v)
+qualif Bog(v:a, x:a) : (x <= v)
+
+bind 0 a : {v: int | $k0[zogbert := pikachu] }
+
+constraint:
+  env [ ]
+  lhs {v : int | v = 10}
+  rhs {v : int | $k0}
+  id 1 tag []
+
+constraint:
+  env [ ]
+  lhs {v : int | v = 20}
+  rhs {v : int | $k0}
+  id 2 tag []
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | v = a}
+  rhs {v : int | 10 <= v}
+  id 3 tag []
+
+wf:
+  env [ ]
+  reft {v: int | $k0}

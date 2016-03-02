@@ -61,15 +61,11 @@ insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMa
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
     sr = snd $ lookupBindEnv i be
-    symSet = freeVars $ sr_reft sr
+    symSet = reftFreeVars $ sr_reft sr
     refSet = namesToIds symSet nameMap
 
 namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
-namesToIds syms m = S.fromList $ catMaybes [M.lookup sym m | sym <- S.toList syms] --TODO why any Nothings?
-
-freeVars :: Reft -> S.HashSet Symbol
-freeVars rft@(Reft (v, _)) = S.delete v $ S.fromList $ syms rft
---------------------------------------------------------------
+namesToIds xs m = S.fromList $ catMaybes [M.lookup x m | x <- S.toList xs] --TODO why any Nothings?
 
 --------------------------------------------------------------
 mkRenameMap :: BindEnv -> RenameMap

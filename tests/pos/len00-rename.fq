@@ -9,16 +9,16 @@ bind 0 y : {v : [(Tuple int a)] | [len v >= 0]}
 
 constraint:
   env [0]
-  lhs {v : [(Tuple int a)] | [v = y] }
-  rhs {v : [(Tuple int a)] | [$k0]   }
+  lhs {v1 : [(Tuple int a)] | [v1 = y] }
+  rhs {v1 : [(Tuple int a)] | [$k0[v0 := v1]]   }
   id 1 tag []
 
 constraint:
   env []
-  lhs {v : [(Tuple int a)] | [$k0]             }
-  rhs {v : [(Tuple int a)] | [len v >= 0] }
+  lhs {v2 : [(Tuple int a)] | [$k0[v0 := v2]]             }
+  rhs {v2 : [(Tuple int a)] | [len v2 >= 0] }
   id 2 tag []
 
 wf:
   env [ ]
-  reft {v : [(Tuple int a)] | [$k0] }
+  reft {v0 : [(Tuple int a)] | [$k0] }

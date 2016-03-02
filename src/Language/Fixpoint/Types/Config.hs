@@ -56,6 +56,7 @@ data Config
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
     , elimStats   :: Bool                -- ^ print eliminate stats
+    , solverStats :: Bool                -- ^ print solver stats
     , metadata    :: Bool                -- ^ print meta-data associated with constraints
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
@@ -77,10 +78,11 @@ instance Default Config where
                , genSorts    = def
                , ueqAllSorts = def
                , linear      = def
-               , allowHO     = False 
+               , allowHO     = False
                , newcheck    = False
                , eliminate   = def
                , elimStats   = def
+               , solverStats = False
                , metadata    = def
                , stats       = def
                , parts       = def
@@ -153,6 +155,7 @@ config = Config {
   , allowHO     = False &= help "Allow higher order binders into fixpoint environment"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
+  , solverStats = False &= help "Print solver stats"
   , save        = False &= help "Save Query as .fq and .bfq files"
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"

@@ -208,15 +208,14 @@ instance Reftable SortedReft where
 
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
-  pprint r
+  pprintTidy k r
     | isTauto r        = text "true"
-    | otherwise        = pprintReft r
+    | otherwise        = pprintReft k r
 
 instance PPrint SortedReft where
-  pprint (RR so (Reft (v, ras)))
+  pprintTidy k (RR so (Reft (v, ras)))
     = braces
-    $ pprint v <+> text ":" <+> toFix so <+> text "|" <+> pprint ras
-
+    $ pprintTidy k v <+> text ":" <+> toFix so <+> text "|" <+> pprintTidy k ras
 
 instance Fixpoint Reft where
   toFix = pprReftPred
