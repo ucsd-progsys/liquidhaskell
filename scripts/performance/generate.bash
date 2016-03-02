@@ -7,15 +7,13 @@ ALL_FOUND=true;
 
 SCRIPT_DIR=`dirname $0`;
 
-GIPEDA_DIR="$SCRIPT_DIR/gipeda";
-GIPEDA_SITE="$GIPEDA_DIR/site";
-GIPEDA_REPO="$GIPEDA_DIR/repository";
-GIPEDA_FIXPOINT="$GIPEDA_REPO/liquid-fixpoint";
-GIPEDA_PROVER="$GIPEDA_REPO/prover";
-GIPEDA_LOGS="$GIPEDA_DIR/logs";
-REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
+SCRIPT_LOGS="$SCRIPT_DIR/logs";
+SCRIPT_REPO="$SCRIPT_LOGS/repository";
+SCRIPT_FIXPOINT="$SCRIPT_REPO/liquid-fixpoint";
+SCRIPT_PROVER="$SCRIPT_REPO/prover";
+REPO_TEST="$SCRIP_REPO/dist/build/test/test";
 REPO_TEST_ARGS=" --timeout 10m";
-REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
+REPO_LOG="$SCRIPT_REPO/tests/logs/cur/summary.csv";
 
 ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40";
 ALL_GIT_HASHES="$GIT log --format=%H";
@@ -28,7 +26,7 @@ START_FOUND=false;
 END_FOUND=false;
 
 function refresh_repo {
-    cd $GIPEDA_REPO;
+    cd $SCRIPT_REPO;
     abort_if_failed "Couldn't change to $GIPEDA_REPO...";
 
     $GIT pull origin master;
@@ -53,7 +51,7 @@ function refresh_repo {
 
 function generate_log {
     local HASH=$1;
-    local RESULT=$GIPEDA_LOGS/$HASH.log;
+    local RESULT=$SCRIPT_LOGS/$HASH.log;
     local SHOULD_GEN=true;
 
     if [ -e $RESULT ]
@@ -83,8 +81,8 @@ function generate_log {
             return 1;
         fi
 
-        $CABAL sandbox add-source $GIPEDA_FIXPOINT;
-        $CABAL sandbox add-source $GIPEDA_PROVER;
+        $CABAL sandbox add-source $SCRIPT_FIXPOINT;
+        $CABAL sandbox add-source $SCRIPT_PROVER;
 
         $CABAL install --enable-tests;
         if [ $? != 0 ]
@@ -187,17 +185,15 @@ else
     exit 1;
 fi
 
-
-
 $CABAL update;
 abort_if_failed "Couldn't perform cabal update...";
 
 # generate logs
 
-if [ ! -e $GIPEDA_LOGS ]
+if [ ! -e $SCRIPT_LOGS ]
 then
-    mkdir $GIPEDA_LOGS;
-    abort_if_failed "$GIPEDA_LOGS doesn't exist and couldn't be created...";
+    mkdir $SCRIPT_LOGS;
+    abort_if_failed "$SCRIPT_LOGS doesn't exist and couldn't be created...";
 fi
 
 # Refresh the repo prior to working
@@ -240,16 +236,3 @@ do
     fi
 
 done
-
-# refresh the repo prior to attempting to generate the site
-refresh_repo;
-
-# generate site
-
-cd $GIPEDA_DIR;
-abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
-
-./gipeda;
-abort_if_failed "Unable to generate report...";
-
-echo "Site generation completed successfully!";
