@@ -18,7 +18,7 @@ import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Graph (isTarget)
+import           Language.Fixpoint.Graph -- (isTarget)
 import           Text.PrettyPrint.HughesPJ
 
 -- DEBUG
@@ -35,12 +35,13 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.
 --------------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- runSolverM cfg fi n act
+    (res, stat) <- runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
   where
-    wkl  = W.init fi
+    sI   = solverInfo cfg fi
+    wkl  = W.init sI 
     n    = fromIntegral $ W.wRanks wkl
     act  = solve_ cfg fi s0 wkl
 
@@ -49,6 +50,13 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
   where
     ppTs          = putStrLn . showpp . mconcat
 
+
+--------------------------------------------------------------------------------
+solverInfo :: Config -> F.SInfo a -> SolverInfo a
+--------------------------------------------------------------------------------
+solverInfo cfg fI
+  | eliminate cfg = error "FIXME"
+  | otherwise     = SI mempty fI (cDeps fI)
 
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)

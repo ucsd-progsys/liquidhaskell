@@ -27,7 +27,7 @@ import           Prelude hiding (init)
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Graph.Types
-import           Language.Fixpoint.Graph (cDeps, isTarget)
+import           Language.Fixpoint.Graph   (isTarget)
 
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
@@ -52,7 +52,6 @@ data Stats = Stats { numKvarCs  :: !Int
                    , numConcCs  :: !Int
                    , _numSccs   :: !Int
                    } deriving (Eq, Show)
-
 
 instance PPrint (Worklist a) where
   pprintTidy k = pprintTidy k . S.toList . wCs
@@ -90,9 +89,9 @@ instance Ord WorkItem where
 --------------------------------------------------------------------------------
 -- | Initialize worklist and slice out irrelevant constraints ------------------
 --------------------------------------------------------------------------------
-init :: F.SInfo a -> Worklist a
+init :: SolverInfo a -> Worklist a
 --------------------------------------------------------------------------------
-init fi    = WL { wCs     = items
+init sI    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
                 , wDeps   = cSucc cd
                 , wCm     = cm
@@ -103,8 +102,8 @@ init fi    = WL { wCs     = items
                 , wConcCs = concCs
                 }
   where
-    cm        = F.cm  fi
-    cd        = cDeps fi
+    cm        = F.cm  (siQuery sI)
+    cd        = siDeps sI
     rankm     = cRank cd
     items     = S.fromList $ workItemsAt rankm 0 <$> kvarCs
     concCs    = fst <$> ics

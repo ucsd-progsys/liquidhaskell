@@ -235,9 +235,10 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> Elims F.KVar
 --------------------------------------------------------------------------------
-elimVars cfg si = forceKuts ks . edgeDeps . removeKutEdges ks $ kvEdges si
+elimVars cfg si = forceKuts ks . edgeDeps . removeKutEdges ks $ es
   where
     ks          = cutVars cfg si
+    es          = kvEdges si
 
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
 removeKutEdges ks = filter (not . isKut . snd) -- [ (u, v) | (u, v) <- es, isNotCut v ]

@@ -41,6 +41,9 @@ module Language.Fixpoint.Graph.Types (
 
   -- * Constraint Dependencies
   , CDeps (..)
+
+  -- * Solver Info
+  , SolverInfo (..)
   )
   where
 
@@ -148,3 +151,14 @@ data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
 
 instance PPrint Rank where
   pprintTidy _ = text . show
+
+
+
+--------------------------------------------------------------------------------
+-- | `SolverInfo` contains all the stuff needed to produce a result, and is the
+--   the essential ingredient of the state needed by solve_
+--------------------------------------------------------------------------------
+data SolverInfo a = SI { siSol   :: F.Solution
+                       , siQuery :: F.SInfo a
+                       , siDeps  :: CDeps
+                       }
