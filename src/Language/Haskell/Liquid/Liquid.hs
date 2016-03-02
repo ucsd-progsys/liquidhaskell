@@ -16,7 +16,11 @@ module Language.Haskell.Liquid.Liquid (
 
 import           Prelude hiding (error)
 import           Data.Maybe
+import           Data.Time
+import           System.Directory
+import           System.Environment
 import           System.Exit
+import           System.FilePath
 import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
@@ -87,9 +91,18 @@ checkOne mE cfg t = do
 
 checkOne' :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
 checkOne' mE cfg t = do
+  stash t
   (gInfo, hEnv) <- getGhcInfo mE cfg t
   d <- liquidOne t gInfo
   return (d, Just hEnv)
+  where
+    stash f = do tm <- getCurrentTime
+                 hm <- getEnv "HOME"
+                 let lhdir = hm </> "liquid-cache"
+                     ts = formatTime defaultTimeLocale (iso8601DateFormat (Just "%H.%M.%S")) tm
+                     f' = lhdir </> f ++ "-" ++ ts
+                 createDirectoryIfMissing True (takeDirectory f')
+                 copyFile f f'
 
 
 actOrDie :: IO a -> IO (Either ErrorResult a)
