@@ -31,13 +31,17 @@ import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
+import Test.Tasty.Runners.AntXML
+
 import Text.Printf
 
 testRunner = rerunningTests
                [ listingTests
-               , combineReporters consoleTestReporter loggingTestReporter
+               , combineReporters myConsoleReporter antXMLRunner
+               , myConsoleReporter
                ]
 
+myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
 
 main :: IO ()
 main = do unsetEnv "LIQUIDHASKELL_OPTS"

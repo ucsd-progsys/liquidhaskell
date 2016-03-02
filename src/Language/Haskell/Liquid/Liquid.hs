@@ -1,3 +1,6 @@
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -31,7 +34,7 @@ import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
-import qualified Language.Fixpoint.Types as F -- (Result (..)) -- , FixResult (..))
+import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -177,7 +180,7 @@ solveCs cfg tgt cgi info dc
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
-                    -- , FC.extSolver   = extSolver   cfg
+                       -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
                        , FC.save        = saveQuery cfg
                        , FC.srcFile     = tgt
@@ -188,6 +191,7 @@ solveCs cfg tgt cgi info dc
                        -- , FC.stats   = True
                        }
        ferr s  = fmap (cinfoUserError s . snd)
+
 
 cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
 cinfoUserError s =  e2u s . cinfoError

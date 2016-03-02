@@ -22,7 +22,7 @@ import           GHC                              hiding (exprType)
 import           HscTypes
 
 import           OccName                          (mkVarOccFS)
-import           Id                               (mkUserLocalM, mkSysLocalM)
+import           Id                               (mkUserLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)

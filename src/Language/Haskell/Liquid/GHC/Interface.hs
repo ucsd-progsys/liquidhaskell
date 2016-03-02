@@ -46,7 +46,7 @@ import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.UX.Errors
+
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.UX.Tidy
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
-import Language.Haskell.Liquid.Types.Errors
+
 
 
 --------------------------------------------------------------------------------
@@ -504,8 +504,8 @@ reqFile ext s
   = Nothing
 
 instance PPrint GhcSpec where
-  pprint spec =  (text "******* Target Variables ********************")
-              $$ (pprint $ tgtVars spec)
+  pprintTidy k spec =  (text "******* Target Variables ********************")
+              $$ (pprintTidy k $ tgtVars spec)
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* Assumed Type Signatures *************")
@@ -516,7 +516,7 @@ instance PPrint GhcSpec where
               $$ (pprintLongList $ meas spec)
 
 instance PPrint GhcInfo where
-  pprint info =   (text "*************** Imports *********************")
+  pprintTidy k info =   (text "*************** Imports *********************")
               $+$ (intersperse comma $ text <$> imports info)
               $+$ (text "*************** Includes ********************")
               $+$ (intersperse comma $ text <$> includes info)
@@ -525,7 +525,7 @@ instance PPrint GhcInfo where
               $+$ (text "*************** Defined Variables ***********")
               $+$ (pprDoc $ defVars info)
               $+$ (text "*************** Specification ***************")
-              $+$ (pprint $ spec info)
+              $+$ (pprintTidy k $ spec info)
               $+$ (text "*************** Core Bindings ***************")
               $+$ (pprintCBs $ cbs info)
 
@@ -536,8 +536,8 @@ instance Show GhcInfo where
   show = showpp
 
 instance PPrint TargetVars where
-  pprint AllVars   = text "All Variables"
-  pprint (Only vs) = text "Only Variables: " <+> pprint vs
+  pprintTidy _ AllVars   = text "All Variables"
+  pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
 
 ------------------------------------------------------------------------
 -- | Dealing With Errors -------------------------------------------------

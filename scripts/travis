@@ -135,7 +135,7 @@ function install_dependencies {
 ## Building & Testing Stages
 
 function do_build {
-  loud stack build liquidhaskell --test --no-run-tests --haddock --no-haddock-deps
+  loud stack build liquidhaskell --test --no-run-tests --haddock --no-haddock-deps --flag liquidhaskell:devel
 }
 
 function do_test {

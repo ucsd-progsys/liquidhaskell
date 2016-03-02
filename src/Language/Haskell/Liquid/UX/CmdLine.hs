@@ -15,7 +15,7 @@
 
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
-     getOpts, mkOpts
+     getOpts, mkOpts, defConfig
 
    -- * Update Configuration With Pragma
    , withPragmas
@@ -32,7 +32,7 @@ import Prelude hiding (error)
 
 import Control.Monad
 import Data.Maybe
-import Data.Traversable (mapM)
+
 import System.Directory
 import System.Exit
 import System.Environment
@@ -42,12 +42,12 @@ import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
 import Data.List                           (nub)
-import Data.Monoid
+
 
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats, higherorder,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -59,8 +59,8 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-import Language.Haskell.Liquid.UX.Errors
-import Language.Haskell.Liquid.UX.Cabal
+
+
 
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)

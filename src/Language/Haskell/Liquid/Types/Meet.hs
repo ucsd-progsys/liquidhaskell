@@ -9,7 +9,7 @@ import           SrcLoc
 import           Text.PrettyPrint.HughesPJ (Doc)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Types.Errors
+
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Tidy
 

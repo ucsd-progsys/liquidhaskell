@@ -28,11 +28,11 @@ import Data.Text.Encoding
 
 import TysWiredIn
 
-import Control.Applicative
 
-import Language.Fixpoint.Misc (snd3, traceShow)
-import Language.Fixpoint.Types.Names (propConName, isPrefixOfSym)
-import Language.Fixpoint.Types hiding (Error, Def, R, simplify)
+
+import Language.Fixpoint.Misc (snd3)
+
+import Language.Fixpoint.Types hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
@@ -44,7 +44,7 @@ import Language.Haskell.Liquid.Types.RefType
 
 import qualified Data.HashMap.Strict as M
 
-import Data.Monoid
+
 
 
 logicType :: (Reftable r) => Type -> RRType r
