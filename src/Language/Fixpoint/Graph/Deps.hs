@@ -18,8 +18,8 @@ module Language.Fixpoint.Graph.Deps (
 
       -- * Compute Raw Dependencies
       , kvEdges
-      , cDeps -- FIXME: HIDE THIS!
-        
+      , cDeps -- FIXME:BEN HIDE THIS!
+
       -- * Partition
       , decompose
 
@@ -225,10 +225,10 @@ elimDeps es nonKutVs = graphDeps (graphElim es nonKutVs)
 
 
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim = error "FIXME"
+graphElim = error "FIXME:BEN"
 
 graphDeps :: [CEdge] -> CDeps
-graphDeps = error "FIXME"
+graphDeps = error "FIXME:BEN"
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
