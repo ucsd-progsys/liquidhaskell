@@ -10,7 +10,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Data.Char
-import Data.Foldable (foldMap)
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe)
@@ -154,9 +153,13 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/maps.hs"
                    , "tests/pos/maps1.hs"
                    , "tests/neg/maps.hs"
-                   , "tests/pos/Product.hs" ]
+                   , "tests/pos/Product.hs"
+                   , "tests/pos/Gradual.hs"
+                   ]
 
-knownToFail Z3   = [ "tests/pos/linspace.hs" ]
+knownToFail Z3   = [ "tests/pos/linspace.hs"
+                   , "tests/pos/Gradual.hs"
+                   ]
 
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
@@ -255,7 +258,7 @@ partitionM f = go [] []
 -- isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
 
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f []     = pure []
+concatMapM _ []     = pure []
 concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
 
 -- | Combine two @TestReporter@s into one.
@@ -267,6 +270,7 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       f1 <- run1 opts tree
       f2 <- run2 opts tree
       return $ \smap -> f1 smap >> f2 smap
+combineReporters _ _ = error "combineReporters needs TestReporters"
 
 type Summary = [(String, Double, Bool)]
 
