@@ -36,9 +36,9 @@ import           TypeRep
 
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
-import           Data.Monoid                     (mappend, mconcat, mempty)
+
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types.Names   (suffixSymbol, symbolString)
+
 import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GHC.Misc
@@ -46,9 +46,9 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types
 
-import           Control.Applicative             ((<$>))
+
 import           Data.List                       (nub)
-import           Language.Haskell.Liquid.Types.Errors
+
 
 import           Data.Default
 
@@ -76,22 +76,22 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
     rt'      = subst su rt
 
 instance PPrint TyConP where
-  pprint (TyConP vs ps ls _ _ _)
-    = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-      (parens $ hsep (punctuate comma (map pprint ps))) <+>
-      (parens $ hsep (punctuate comma (map pprint ls)))
+  pprintTidy k (TyConP vs ps ls _ _ _)
+    = (parens $ hsep (punctuate comma (map (pprintTidy k) vs))) <+>
+      (parens $ hsep (punctuate comma (map (pprintTidy k) ps))) <+>
+      (parens $ hsep (punctuate comma (map (pprintTidy k) ls)))
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP _ vs ps ls cs yts t _)
-     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-       (parens $ hsep (punctuate comma (map pprint ps))) <+>
-       (parens $ hsep (punctuate comma (map pprint ls))) <+>
-       (parens $ hsep (punctuate comma (map pprint cs))) <+>
-       (parens $ hsep (punctuate comma (map pprint yts))) <+>
-       pprint t
+  pprintTidy k (DataConP _ vs ps ls cs yts t _)
+     = (parens $ hsep (punctuate comma (map (pprintTidy k) vs))) <+>
+       (parens $ hsep (punctuate comma (map (pprintTidy k) ps))) <+>
+       (parens $ hsep (punctuate comma (map (pprintTidy k) ls))) <+>
+       (parens $ hsep (punctuate comma (map (pprintTidy k) cs))) <+>
+       (parens $ hsep (punctuate comma (map (pprintTidy k) yts))) <+>
+       pprintTidy k t
 
 instance Show DataConP where
   show = showpp
@@ -245,7 +245,7 @@ pad msg _ xs ys
     nys         = length ys
 
 substPredP _ su p@(RProp _ (RHole _))
-  = panic Nothing ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
+  = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where

@@ -5,7 +5,7 @@ import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Visitor
 -- import Control.Applicative                 ((<$>))
-import Data.Monoid
+
 
 simplifyBounds :: SpecType -> SpecType
 simplifyBounds = fmap go

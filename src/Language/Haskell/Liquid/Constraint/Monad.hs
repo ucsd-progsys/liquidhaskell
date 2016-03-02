@@ -18,7 +18,7 @@ import           Name (getSrcSpan)
 import           SrcLoc -- (SrcSpan)
 import           Outputable hiding (showPpr, panic) -- (SrcSpan)
 
-import GHC.Stack
+
 
 import qualified Data.HashMap.Strict as M
 -- import qualified Data.HashSet        as S
@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.Types.RefType
 
 
-import Debug.Trace
+
 
 
 --------------------------------------------------------------------------------

@@ -25,9 +25,9 @@ test:
     - mkdir -p $CIRCLE_TEST_REPORTS/tasty
   override:
     - cabal build
-    - cabal exec -- sh -c "./dist/build/test/test --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
+    - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
         timeout: 1800
   post:
-    - cabal haddock
+    - cabal haddock --haddock-options="--no-print-missing-docs"
     - cp -r dist/doc $CIRCLE_ARTIFACTS
     - cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log

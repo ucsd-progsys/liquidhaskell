@@ -85,7 +85,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-import Control.DeepSeq
+
 import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
@@ -103,7 +103,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
+
 import Data.List (sort, foldl')
 
 
@@ -1104,7 +1104,7 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance (RefTypable c tv r) => PPrint (RType c tv r) where
-  pprint = ppRType TopPrec
+  pprintTidy _ = ppRType TopPrec
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
   show = showpp
@@ -1113,5 +1113,5 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprint re = text "RENV" $+$ 
-              pprint (reLocal re)
+  pprintTidy k re = text "RENV" $+$ 
+              pprintTidy k (reLocal re)

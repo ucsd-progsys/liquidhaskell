@@ -65,13 +65,14 @@ Executable liquid
                , pretty >= 1.1 && < 1.2
                , process >= 1.2 && < 1.3
                , liquid-fixpoint >= 0.6.1 && < 0.7
-               -- , ghc-options >= 0.2
                , located-base
                , prover
                , liquidhaskell
 
   Main-is: src/Liquid.hs
-  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
+  ghc-options: -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
   Default-Extensions: PatternGuards
 
 Executable lhi
@@ -82,7 +83,6 @@ Executable lhi
                , deepseq >= 1.3 && < 1.5
                , pretty >= 1.1 && < 1.2
                , liquid-fixpoint >= 0.6 && < 0.7
-               -- , ghc-options >= 0.2
                , located-base
                , prover
                , liquidhaskell
@@ -96,11 +96,10 @@ Executable lhi
                , cereal
                , process >= 1.2 && < 1.3
   Main-is: src/LHi.hs
-  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
+  ghc-options: -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
   Default-Extensions: PatternGuards
-
-
-
 
 Library
    Default-Language: Haskell98
@@ -119,7 +118,7 @@ Library
                 , Diff >= 0.3 && < 0.4
                 , filepath >= 1.3 && < 1.5
                 , ghc-paths >= 0.1 && < 0.2
-                , hscolour >= 1.22 && < 1.25
+                , hscolour >= 1.22 && < 2.0
                 , mtl >= 2.1 && < 2.3
                 , parsec >= 3.1 && < 3.2
                 , pretty >= 1.1 && < 1.2
@@ -132,8 +131,7 @@ Library
                 , liquid-fixpoint >= 0.6 && < 0.7
                 , located-base
                 , prover
-               --  , ghc-options >= 0.2
-                , aeson >= 0.8 && < 0.11
+                , aeson >= 0.10 && < 0.12
                 , bytestring >= 0.10 && < 0.11
                 , fingertree >= 0.1 && < 0.2
                 , Cabal >= 1.18
@@ -234,9 +232,11 @@ Library
                     Language.Haskell.Liquid.Desugar710.Match,
                     Language.Haskell.Liquid.Desugar710.MatchCon,
                     Language.Haskell.Liquid.Desugar710.MatchLit
-   ghc-options: -Werror -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
+   ghc-options: -W
    if flag(include)
      hs-source-dirs: devel
+   if flag(devel)
+     ghc-options: -Werror
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
@@ -244,7 +244,9 @@ test-suite test
   default-language: Haskell98
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
-  ghc-options:       -O2 -threaded
+  ghc-options:       -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
   main-is:           test.hs
   build-depends:     base  >= 4 && < 5,
                      containers >= 0.5 && < 0.6,
@@ -256,6 +258,7 @@ test-suite test
                      stm >= 2.4 && < 2.5,
                      tagged >= 0.7.3 && < 0.9,
                      tasty >= 0.10 && < 0.12,
+                     tasty-ant-xml,
                      tasty-hunit >= 0.9 && < 0.10,
                      tasty-rerun >= 1.1 && < 1.2,
                      transformers >= 0.3 && < 0.5

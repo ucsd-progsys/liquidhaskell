@@ -34,21 +34,21 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
-import           Data.Maybe                 (fromMaybe)
-import           Data.Aeson hiding (Result)
+
+
 import qualified Control.Exception  as Ex
 
 import Language.Haskell.Liquid.GHC.Misc      (showPpr, stringTyVar)
-import Language.Haskell.Liquid.Misc      (intToString)
+
 import Language.Fixpoint.Types      hiding (Result, SrcSpan, Error)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
 import Language.Haskell.Liquid.Types.PrettyPrint
-import Language.Haskell.Liquid.Types.Errors
-import Language.Fixpoint.Misc hiding (intersperse)
 
-import SrcLoc
-import Data.List    (intersperse )
+
+
+
+
 import Data.Generics                       (everywhere, mkT)
 import Text.PrettyPrint.HughesPJ
 
@@ -205,15 +205,12 @@ panicError = Ex.throw
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
 instance PPrint (CtxError Doc) where
-  pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ctErr ce
 
 instance PPrint (CtxError SpecType) where
-  pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ppSpecTypeErr <$> ctErr ce
 
 instance PPrint Error where
-  pprint       = pprintTidy Full
   pprintTidy k = ppError k empty . fmap ppSpecTypeErr
 
 ppSpecTypeErr :: SpecType -> Doc

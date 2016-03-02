@@ -21,26 +21,20 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
-import Language.Haskell.Liquid.Types.Names
 
-import Language.Fixpoint.Types.Names (hpropConName, propConName)
+
+
 import Language.Fixpoint.Types
 
 import BasicTypes
 import DataCon
 import TyCon
 import TysWiredIn
-import Kind
 
-import Var
 import TypeRep
 import CoreSyn
 
-import Data.Monoid
-import Control.Applicative
 
-import Prover.Names
-import Language.Haskell.Liquid.Types.Errors
 
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 

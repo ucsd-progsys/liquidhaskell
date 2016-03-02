@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-import           Type
+
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
 import           GHC.Generics
@@ -52,21 +52,20 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), Symbol, Expr, Reft)
+import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr, Reft)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
-import qualified Control.Monad.Error as Ex
 import qualified Outputable as Out
 import           DynFlags (unsafeGlobalDynFlags)
 import Data.List    (intersperse )
-import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
+import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
-import           GHC.Stack
+
 
 instance PPrint ParseError where
-  pprint e = vcat $ tail $ map text ls
+  pprintTidy _ e = vcat $ tail $ map text ls
     where
       ls = lines $ showErrorMessages "or" "unknown parse error"
                                      "expecting" "unexpected" "end of input"
@@ -147,7 +146,7 @@ instance Show Oblig where
 instance NFData Oblig
 
 instance PPrint Oblig where
-  pprint = ppOblig
+  pprintTidy _ = ppOblig
 
 ppOblig :: Oblig -> Doc
 ppOblig OCons = text "Constraint Check"
@@ -326,20 +325,13 @@ instance Ord (TError a) where
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
 
-showSpan' :: (Show a) => a -> SrcSpan
-showSpan' = mkGeneralSrcSpan . fsLit . show
-
-instance Ex.Error (TError a) where
-   strMsg = ErrOther (showSpan' "Yikes! Exception!") . text
-
-
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
 --------------------------------------------------------------------------------
 type UserError  = TError Doc
 
 instance PPrint SrcSpan where
-  pprint = text . showSDoc . Out.ppr
+  pprintTidy _ = text . showSDoc . Out.ppr
      where
         showSDoc sdoc = Out.renderWithStyle
                         unsafeGlobalDynFlags
@@ -348,7 +340,6 @@ instance PPrint SrcSpan where
                               Out.AllTheWay)
 
 instance PPrint UserError where
-  pprint       = pprintTidy Full
   pprintTidy k = ppError k empty . fmap pprint
 
 instance Show UserError where

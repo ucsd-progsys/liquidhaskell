@@ -65,10 +65,10 @@ import Control.Monad.State
 
 
 import Var
-import Type   (Type)
-import Class  (Class)
 
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
+
+
 
 import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
@@ -113,7 +113,7 @@ instance Monoid LConstraint where
 
 
 instance PPrint CGEnv where
-  pprint = pprint . renv
+  pprintTidy k = pprintTidy k . renv
 
 instance Show CGEnv where
   show = showpp
@@ -146,17 +146,17 @@ instance PPrint SubC where
   --           $+$ (text " |- " <+> (pprint (lhs c) $+$
   --                                 text "<:"      $+$
   --                                 pprint (rhs c)))
-  pprint c@(SubC {}) = pprint (senv c)
-                       $+$ ("||-" <+> vcat [ pprint (lhs c)
+  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
+                       $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
                                            , "<:"
-                                           , pprint (rhs c) ] )
-  pprint c@(SubR {}) = pprint (senv c)
-                       $+$ ("||-" <+> vcat [ pprint (ref c)
-                                           , parens (pprint (oblig c))])
+                                           , pprintTidy k (rhs c) ] )
+  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
+                       $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
+                                           , parens (pprintTidy k (oblig c))])
 
 
 instance PPrint WfC where
-  pprint (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprint r
+  pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
 
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
@@ -198,7 +198,7 @@ data CGInfo = CGInfo {
   }
 
 instance PPrint CGInfo where
-  pprint cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
+  pprintTidy _ cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
 
 pprCGInfo _cgi
   =  text "*********** Constraint Information ***********"

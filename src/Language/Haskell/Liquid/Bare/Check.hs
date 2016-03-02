@@ -20,7 +20,7 @@ import Var
 
 import Control.Applicative ((<|>))
 import Control.Arrow ((&&&))
-import Control.Monad.Writer
+
 import Data.Maybe
 import Data.Function (on)
 import Text.PrettyPrint.HughesPJ
@@ -40,7 +40,7 @@ import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTy
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Haskell.Liquid.UX.Errors
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 

@@ -28,7 +28,7 @@ import TyCon
 import TysWiredIn
 import Var
 
-import Control.Monad.Error (catchError, throwError)
+import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint.HughesPJ (text)

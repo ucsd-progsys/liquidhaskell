@@ -10,8 +10,8 @@
 module Language.Haskell.Liquid.Constraint.Fresh (Freshable(..)) where
 
 import           Prelude                hiding (error)
-import           Data.Monoid                   (mempty)
-import           Language.Fixpoint.Misc
+
+
 import           Language.Fixpoint.Types
 import           Language.Haskell.Liquid.Misc  (single)
 import           Language.Haskell.Liquid.Types

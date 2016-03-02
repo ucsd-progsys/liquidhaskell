@@ -21,7 +21,7 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
 import Prelude hiding (error, undefined)
-import GHC.Err.Located hiding (error)
+
 import GHC.Stack
 import CoreUtils     (exprType)
 import MkCore
@@ -34,7 +34,7 @@ import Type
 import TyCon
 import PrelNames
 import TypeRep
-import Class            (Class, className)
+import Class            (className)
 import Var
 import Kind
 import Id
@@ -54,21 +54,21 @@ import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import Data.Bifunctor
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
-import qualified Control.Exception as Ex
 
-import Text.Printf
 
-import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
+
+
+
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
-import           Language.Haskell.Liquid.UX.Errors
-import           Language.Haskell.Liquid.UX.Tidy (panicError)
-import Language.Fixpoint.SortCheck (pruneUnsortedReft)
+
+
+
 import Language.Fixpoint.Types.Visitor
-import Language.Fixpoint.Types.Names (symbolString)
+
 import Language.Haskell.Liquid.Constraint.Fresh
 import Language.Haskell.Liquid.Constraint.Env
 import Language.Haskell.Liquid.Constraint.Monad
@@ -78,19 +78,18 @@ import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.Types.Variance
+
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Types.Names
-import Language.Haskell.Liquid.Types.Bounds
+
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                 , symbolFastString, stringVar, stringTyVar)
+                                                 , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
