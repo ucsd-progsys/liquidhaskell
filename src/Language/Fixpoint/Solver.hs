@@ -28,7 +28,6 @@ import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
@@ -174,9 +173,8 @@ solveNative' !cfg !fi0 = do
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
-  (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
   -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si3
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
@@ -184,20 +182,6 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
-
-
-elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
-elim cfg fi
-  | eliminate cfg = do
-      let (s0, fi') = E.eliminate cfg fi
-      writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-      -- elimSolGraph cfg s0
-      -- donePhase Loud "Eliminate"
-      writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
-      -- donePhase Loud "DonePrint"
-      return (s0, fi')
-  | otherwise     =
-      return (mempty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)

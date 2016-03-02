@@ -11,13 +11,15 @@ module Language.Fixpoint.Graph.Deps (
        -- * Predicate describing Targets
        , isTarget
 
-       -- * Constraint Rd/Wr dependencies for Worklist
-       , cDeps
-
       -- * Eliminatable KVars
       , Elims (..)
       , elimVars
+      , elimDeps
 
+      -- * Compute Raw Dependencies
+      , kvEdges
+      , cDeps -- FIXME: HIDE THIS!
+        
       -- * Partition
       , decompose
 
@@ -213,6 +215,21 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
   where
     i          = F.subcId c
 
+
+
+--------------------------------------------------------------------------------
+-- | Eliminated Dependencies
+--------------------------------------------------------------------------------
+elimDeps :: [CEdge] -> S.HashSet F.KVar -> CDeps
+elimDeps es nonKutVs = graphDeps (graphElim es nonKutVs)
+
+
+graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
+graphElim = error "FIXME"
+
+graphDeps :: [CEdge] -> CDeps
+graphDeps = error "FIXME"
+
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -233,10 +250,11 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------------------------
 --------------------------------------------------------------------------------
-elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> Elims F.KVar
+elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
-elimVars cfg si = forceKuts ks . edgeDeps . removeKutEdges ks $ es
+elimVars cfg si = (es, ds)
   where
+    ds          = forceKuts ks . edgeDeps . removeKutEdges ks $ es
     ks          = cutVars cfg si
     es          = kvEdges si
 
@@ -358,6 +376,8 @@ inRanks fi es outR
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 
+
+
 --------------------------------------------------------------------------------
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
@@ -395,7 +415,7 @@ graphStats cfg si = Stats {
   }
   where
     nlks          = nlKVars si
-    d             = elimVars cfg si
+    d             = snd $ elimVars cfg si
 
 nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
 nlKVars fi = S.unions $ nlKVarsC bs <$> cs

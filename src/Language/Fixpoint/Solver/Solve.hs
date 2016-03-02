@@ -15,10 +15,11 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
-import qualified Language.Fixpoint.Solver.Solution as S
-import qualified Language.Fixpoint.Solver.Worklist as W
+import qualified Language.Fixpoint.Solver.Solution  as S
+import qualified Language.Fixpoint.Solver.Worklist  as W
+import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Graph -- (isTarget)
+import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
 
 -- DEBUG
@@ -31,9 +32,9 @@ import           Data.Maybe (catMaybes)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-solve cfg s0 fi = do
+solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
@@ -41,23 +42,24 @@ solve cfg s0 fi = do
     return res
   where
     sI   = solverInfo cfg fi
-    wkl  = W.init sI 
+    wkl  = W.init sI
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ cfg fi s0 wkl
+    act  = solve_ cfg fi (siSol sI) wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
   where
     ppTs          = putStrLn . showpp . mconcat
 
-
 --------------------------------------------------------------------------------
 solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
-  | eliminate cfg = error "FIXME"
-  | otherwise     = SI mempty fI (cDeps fI)
-
+  | eliminate cfg = E.solverInfo cfg fI
+  | otherwise     = SI mempty fI cD
+  where
+    cD            = elimDeps (kvEdges fI) mempty
+    
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
        => Config -> F.SInfo a -> F.Solution -> W.Worklist a
