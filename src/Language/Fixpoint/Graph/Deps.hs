@@ -20,6 +20,7 @@ module Language.Fixpoint.Graph.Deps (
       , kvEdges
       , cDeps -- FIXME:BEN HIDE THIS!
 
+
       -- * Partition
       , decompose
 
