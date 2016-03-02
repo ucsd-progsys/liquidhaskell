@@ -24,15 +24,15 @@ instance Applicative RIO where
 
 instance Monad RIO where
 {-@ instance Monad RIO where
- >>= :: forall < p  :: World -> Prop 
+  >>= :: forall < p  :: World -> Prop 
                , p2 :: a -> World -> Prop 
                , r  :: a -> Prop
                , q1 :: World -> a -> World -> Prop
                , q2 :: a -> World -> b -> World -> Prop
                , q  :: World -> b -> World -> Prop>.
        {x::a<r>, w::World<p>|- World<q1 w x> <: World<p2 x>}
-       {y::a, w::World<p>, w2::World<p2 y>, x::b, y::a<r> |- World<q2 y w2 x> <: World<q w x>}     
-       {x::a, w::World, w2::World<q1 w x>|- {v:a | v = x} <: a<r>}   
+       {w::World<p>, x::a<r>, w1:: World<q1 w x>, w2::{v:World<p2 x> | v == w1}, y::b|- World<q2 x w2 y> <: World<q w y>}     
+       {x::a, w::World<p>, w2::World<q1 w x>|- {v:a | v = x} <: a<r>}   
        RIO <p, q1> a
     -> (x:a<r> -> RIO <{v:World<p2 x> | true}, \w1 y -> {v:World<q2 x w1 y> | true}> b)
     -> RIO <p, q> b ;
@@ -42,7 +42,7 @@ instance Monad RIO where
                , q2 :: World -> b -> World -> Prop
                , q :: World -> b -> World -> Prop>.
        {x::a, w::World<p>|- World<q1 w x> <: World<p2>}
-       {w::World<p>, w2::World<p2>, x::b, y::a |- World<q2 w2 x> <: World<q w x>}     
+       {w::World<p>, w2::World<p2>, y::a, w3:: {v:World<q1 w y> | v == w2}, x::b |- World<q2 w2 x> <: World<q w x>}     
        RIO <p, q1> a
     -> RIO <p2, q2> b
     -> RIO <p, q> b  ;

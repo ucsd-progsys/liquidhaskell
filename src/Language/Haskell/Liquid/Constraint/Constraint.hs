@@ -1,38 +1,45 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Constraint.Constraint  where
+-- TODO: what exactly is the purpose of this module? What do these functions do?
 
-import Data.Monoid
+module Language.Haskell.Liquid.Constraint.Constraint (
+  constraintToLogic
+, addConstraints
+) where
+
+import Prelude hiding (error)
 import Data.Maybe
-import Control.Applicative
-
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Constraint.Types
-
+import Language.Haskell.Liquid.Constraint.Env
 import Language.Fixpoint.Types
 
-instance Monoid LConstraint where
-        mempty  = LC []
-        mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
+--------------------------------------------------------------------------------
+addConstraints :: CGEnv -> [(Symbol, SpecType)] -> CGEnv
+--------------------------------------------------------------------------------
+addConstraints γ t = γ {lcs = mappend (t2c t) (lcs γ)}
+  where
+    t2c z          = LC [z]
 
-typeToConstraint t = LC [t]
+--------------------------------------------------------------------------------
+constraintToLogic :: REnv -> LConstraint -> Expr
+--------------------------------------------------------------------------------
+constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ <$> ts)
 
-addConstraints t γ = γ {lcs = mappend (typeToConstraint t) (lcs γ)}
-
-constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ  <$> ts)
-
-constraintToLogicOne γ env
-  =  pAnd [subConstraintToLogicOne
-            (zip xs xts)
-            (last xs,
-            (last $ (fst <$> xts), r))
+-- RJ: The code below is atrocious. Please fix it!
+constraintToLogicOne :: (Reftable r) => REnv -> [(Symbol, RRType r)] -> Expr
+constraintToLogicOne γ binds
+  = pAnd [subConstraintToLogicOne
+          (zip xs xts)
+          (last xs,
+          (last (fst <$> xts), r))
           | xts <- xss]
   where
-   xts      = init env
+   xts      = init binds
    (xs, ts) = unzip xts
-   r        = snd $ last env
-   xss      = combinations ((\t -> [(x, t) | x <- grapBindsWithType t γ]) <$> ts)
+   r        = snd $ last binds
+   xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where
@@ -42,8 +49,6 @@ subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
                                         su'          = (x', EVar x):(v, EVar x) : su
                                     in
                                      (subst (mkSubst su') p : acc, su')
-
-
 
 combinations :: [[a]] -> [[a]]
 combinations []           = [[]]

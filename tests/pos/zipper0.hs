@@ -11,7 +11,7 @@ data Stack a = Stack { focus  :: !a        -- focused thing in this set
 {-@ type UListDif a N = {v:[a] | ((not (Set_mem N (listElts v))) && (Set_emp (listDup v)))} @-}
 
 {-@
-data Stack a = Stack { focus :: a   
+data Stack a = Stack { focus :: a
                      , up    :: UListDif a focus
                      , down  :: UListDif a focus }
 @-}
@@ -24,15 +24,15 @@ data Stack a = Stack { focus :: a
 
 {-@ type UStack a = {v:Stack a |(Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))}@-}
 
-{-@ measure getFocus :: forall a. (Stack a) -> a 
+{-@ measure getFocus :: forall a. (Stack a) -> a
     getFocus (Stack focus up down) = focus
   @-}
 
-{-@ measure getUp :: forall a. (Stack a) -> [a] 
+{-@ measure getUp :: forall a. (Stack a) -> [a]
     getUp (Stack focus up down) = up
   @-}
 
-{-@ measure getDown :: forall a. (Stack a) -> [a] 
+{-@ measure getDown :: forall a. (Stack a) -> [a]
     getDown (Stack focus up down) = down
   @-}
 
@@ -50,12 +50,12 @@ q0 = undefined
 
 {-@ focusUp :: UStack a -> UStack a @-}
 focusUp :: Stack a -> Stack a
-focusUp (Stack t [] rs)     = Stack x xs [] where (x:xs) = reverse (t:rs)
+focusUp (Stack t [] rs)     = Stack xiggety xs [] where (xiggety:xs) = reverse (t:rs)
 focusUp (Stack t (l:ls) rs) = Stack l ls (t:rs)
 
 {-@ focusDown :: UStack a -> UStack a @-}
 focusDown :: Stack a -> Stack a
-focusDown = reverseStack . focusUp . reverseStack 
+focusDown = reverseStack . focusUp . reverseStack
 
 -- | reverse a stack: up becomes down and down becomes up.
 {-@ reverseStack :: UStack a -> UStack a @-}
@@ -63,26 +63,7 @@ reverseStack :: Stack a -> Stack a
 reverseStack (Stack t ls rs) = Stack t rs ls
 
 
-
 -- TODO ASSUMES
 {-@ reverse :: {v:[a] | (Set_emp (listDup v))} -> {v:[a]|(Set_emp (listDup v))} @-}
 reverse :: [a] -> [a]
 reverse = undefined
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

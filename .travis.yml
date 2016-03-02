@@ -1,31 +1,37 @@
-language: haskell
-ghc: 7.8 # Only used for Cabal
+sudo: false
+language: c
 
+# Only build master, develop, and PRs
 branches:
   only:
-    - master
-    - unknown_syms
-
-sudo: false
+  - master
+  - develop
 
 addons:
   apt:
     packages:
-    - ocaml
-    - camlidl
     - libgmp-dev
+    - z3
 
+# Caching so the next build will be fast too.
 cache:
-  apt: true
   directories:
-  - $HOME/.stack
-  - .stack-work
+    - $HOME/.stack
+    - .stack-work
+
+before_install:
+# Download and unpack the stack executable
+- mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
+- travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+- travis_retry stack install cabal-install
+# - scripts/travis install_smt "$SMT"
 
 env:
   global:
-  - STACK=0.1.5.0
+  # - STACK=1.0.0.0
   - SMT=z3
-  - GHC=ghc-7.10.2
+  - GHC=ghc-7.10.3
   matrix:
   - TESTS=Unit/
   - TESTS=Benchmarks/text
@@ -37,9 +43,14 @@ env:
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
+# This line does all of the work: installs GHC if necessary, build the library,
+# executables, and test suites, and runs the test suites. --no-terminal works
+# around some quirks in Travis's terminal implementation.
+#script:
+#- stack $ARGS --no-terminal --install-ghc test liquidhaskell --haddock --no-haddock-deps --test-arguments "-j2 -p $TESTS"
+
 install:
- - scripts/travis install_smt "$SMT"
- - scripts/travis install_stack "$STACK"
+ # - scripts/travis install_stack "$STACK"
  - scripts/travis configure_stack "$GHC"
  - scripts/travis setup_ghc
  - scripts/travis install_dependencies

@@ -1,7 +1,7 @@
 TODO
 ====
 
-Check covariants
+Check Covariance
 ----------------
 
 See https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/todo/kmpMonad.hs#L55
@@ -14,9 +14,13 @@ Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
 
 Automatically refine *inductors*
 --------------------------------
-Proposed by Valentine: in dependent languages (Coq) inductors (like our `loop` for natural numbers)
+
+Proposed by Valentine: in dependent languages (Coq)
+inductors (like our `loop` for natural numbers)
 automatically get types abstracted over properties.
-Trasversal should create such functions. Maybe we can automatically refine them.
+Trasversal should create such functions.
+Maybe we can automatically refine them.
+
 
 Check refinements using `Eq` and `Ord` info
 -------------------------------------------
@@ -447,25 +451,6 @@ Random Links
 
 - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
 
-
-GITTERY
-=======
-
-To make local branch `goo`
-
-    $ git branch foo
-    $ git checkout foo
-    $ ...
-    $ git commit -a -m "did work in foo"
-
-To send branch to the mothership
-
-    $ git push origin foo
-
-To work with branch elsewhere
-
-    $ git pull
-    $ git checkout foo
 
 Benchmark Tags
 ==============

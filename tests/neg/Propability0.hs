@@ -7,8 +7,6 @@ module Propability where
    snd :: Int -> Real 
 -}
 
-{-@ LIQUID "--real" @-}
-
 {-@ type Propability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
 
 {-@ p :: Propability @-}

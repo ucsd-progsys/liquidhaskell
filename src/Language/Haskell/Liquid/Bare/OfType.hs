@@ -12,17 +12,18 @@ module Language.Haskell.Liquid.Bare.OfType (
   , mkSpecType'
   ) where
 
+import Prelude hiding (error)
 import BasicTypes
 import Name
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
 
-import Control.Applicative
+
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
 import Data.Maybe (fromMaybe)
-import Data.Monoid
+
 import Data.Traversable (forM)
 import Text.Parsec.Pos
 import Text.Printf
@@ -30,14 +31,13 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
-import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
+import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
 
-import Language.Haskell.Liquid.GhcMisc 
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.Bounds
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
@@ -63,10 +63,10 @@ ofBSort
 
 ofBPVar :: BPVar -> BareM RPVar
 ofBPVar
-  = mapM_pvar ofBSort
+  = mapMPvar ofBSort
 
-mapM_pvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
-mapM_pvar f (PV x t v txys)
+mapMPvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
+mapMPvar f (PV x t v txys)
   = do t'    <- forM t f
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys
        return $ PV x t' v txys'
@@ -91,7 +91,7 @@ txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
 txPvar m π = π { pargs = args' }
   where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
               | otherwise            = pargs π'
-        π'    = fromMaybe (errorstar err) $ M.lookup (pname π) m
+        π'    = fromMaybe (panic Nothing err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
@@ -135,12 +135,11 @@ ofBRType appRTAlias resolveReft
     go (RExprArg (Loc l l' e))
       = RExprArg . Loc l l' <$> resolve l e
 
-    go_ref (RPropP ss r)
-      = RPropP <$> mapM go_syms ss <*> resolveReft r
+    go_ref (RProp ss (RHole r))
+      = rPropP <$> mapM go_syms ss <*> resolveReft r
     go_ref (RProp ss t)
       = RProp <$> mapM go_syms ss <*> go t
-    go_ref (RHProp _ _)
-      = errorstar "TODO:EFFECTS:ofBRType"
+
 
     go_syms
       = secondM ofBSort
@@ -161,7 +160,7 @@ ofBRType appRTAlias resolveReft
             rs' <- mapM go_ref rs
             ts' <- mapM go ts
             bareTCApp r' lc' rs' ts'
-    goRApp _ _ = errorstar "This cannot happen"
+    goRApp _ _ = impossible Nothing "goRApp failed through to final case"
 
 
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
@@ -210,11 +209,11 @@ exprArg _   (RVar x _)
 exprArg _   (RApp x [] [] _)
   = EVar (symbol x)
 exprArg msg (RApp f ts [] _)
-  = EApp (symbol <$> f) (exprArg msg <$> ts)
+  = mkEApp (symbol <$> f) (exprArg msg <$> ts)
 exprArg msg (RAppTy (RVar f _) t _)
-  = EApp (dummyLoc $ symbol f) [exprArg msg t]
+  = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
-  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg
+  = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
 
 --------------------------------------------------------------------------------
 
@@ -239,7 +238,7 @@ bareTCApp r (Loc _ _ c) rs ts
 
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
-tyApp _                 _  _   _  = errorstar $ "Bare.Type.tyApp on invalid inputs"
+tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
 expandRTypeSynonyms :: (PPrint r, Reftable r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

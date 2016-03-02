@@ -3,53 +3,50 @@
 module Language.Haskell.Liquid.WiredIn
        ( propType
        , propTyCon
-       , arrowTyCon 
-       , arrowType
-       , runFunName, runFunSort
        , hpropTyCon
        , pdVarReft
        , wiredTyCons, wiredDataCons
        , wiredSortedSyms
 
-       -- | Constants for automatic proofs 
-       , dictionaryVar, dictionaryTyVar, dictionaryBind 
+       -- | Constants for automatic proofs
+       , dictionaryVar, dictionaryTyVar, dictionaryBind
        , proofTyConName, combineProofsName
        ) where
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.Types.Variance
+import Language.Haskell.Liquid.Types.PredType
 
-import Language.Fixpoint.Names (hpropConName, propConName)
+
+
 import Language.Fixpoint.Types
 
 import BasicTypes
 import DataCon
 import TyCon
 import TysWiredIn
-import Kind 
 
-import Var 
 import TypeRep
 import CoreSyn
 
-import Data.Monoid
-import Control.Applicative
 
-wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
+
+wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar) 
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar)
 dictionaryTyVar = stringTyVar "da"
 dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
-  where 
-   v = dictionaryVar 
+  where
+   v = dictionaryVar
    a = dictionaryTyVar
 
 
@@ -59,35 +56,22 @@ dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
 -----------------------------------------------------------------------
 
 
-combineProofsName :: String 
+combineProofsName :: String
 combineProofsName = "combineProofs"
 
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
-arrowConName, runFunName :: Symbol
-arrowConName = "Arrow"
-runFunName   = "runFun"
-
-arrowTyCon, propTyCon, hpropTyCon :: TyCon
+propTyCon, hpropTyCon :: TyCon
 
 
-{- ATTENTION: Uniques should be different when defining TyCons 
+{- ATTENTION: Uniques should be different when defining TyCons
    otherwise the TyCons are equal and they will all resolve to
    bool in fixpoint, as propTyCon is a bool
  -}
 
-arrowTyCon = (symbolTyConWithKind k 'w' 24 arrowConName) 
-  where k = mkArrowKinds [superKind, superKind] superKind
-
 propTyCon  = symbolTyCon 'w' 25 propConName
 hpropTyCon = symbolTyCon 'w' 26 hpropConName
-
-
-arrowFTyCon = symbolFTycon $ dummyLoc arrowConName
-
-runFunSort :: Sort 
-runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
@@ -95,8 +79,6 @@ runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, F
 
 propType :: Reftable r => RRType r
 propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
-
-arrowType t1 t2 = RApp (RTyCon arrowTyCon [] defaultTyConInfo) [t1, t2] [] mempty
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------
@@ -111,8 +93,7 @@ wiredDataCons   = snd wiredTyDataCons
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where
-    (tcs, dcs)  = unzip l
-    l           = listTyDataCons : map tupleTyDataCons [2..maxArity]
+    (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
@@ -128,11 +109,11 @@ listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just 
       xs         = "xsListSelector"
       p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
       px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)]
-      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty
+      lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
+      xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
-      fsize z    = EApp (dummyLoc "len") [EVar z]
+      fsize z    = mkEApp (dummyLoc "len") [EVar z]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
@@ -151,7 +132,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     ps            = mkps pnames (ta:ts) ((fld, EVar fld) : zip flds (EVar <$> flds))
     ups           = uPVar <$> ps
     pxs           = mkps pnames (ta:ts) ((fld, EVar x1) : zip flds (EVar <$> xs))
-    lt            = rApp c (rVar <$> tyvs) (RPropP [] . pdVarReft <$> ups) mempty
+    lt            = rApp c (rVar <$> tyvs) (rPropP [] . pdVarReft <$> ups) mempty
     xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
     cargs         = reverse $ (x1, rVar tv) : zip xs xts
     pnames        = mks_ "p"
@@ -159,14 +140,14 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
-pdVarReft = (\p -> U mempty p mempty) . pdVar
+pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
-mkps _  _      _           = error "Bare : mkps"
+mkps _  _      _           = panic Nothing "Bare : mkps"
 
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
   where
     p                                   = PV n (PVProp t) (vv Nothing) args
     a                                   = (t, f, x)
-mkps_ _     _       _          _    _ = error "Bare : mkps_"
+mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"

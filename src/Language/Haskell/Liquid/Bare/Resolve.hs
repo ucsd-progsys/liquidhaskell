@@ -7,27 +7,26 @@ module Language.Haskell.Liquid.Bare.Resolve (
     Resolvable(..)
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+
+import Prelude hiding (error)
+
 import Control.Monad.State
 import Data.Char (isUpper)
 import Text.Parsec.Pos
 
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (prims, unconsSym)
+import Language.Fixpoint.Types.Names (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
-                                Pred(..),
                                 Qualifier(..),
                                 Reft(..),
                                 Sort(..),
                                 Symbol,
                                 fTyconSymbol,
                                 symbol,
-                                symbolFTycon,
-                                fAppTC,
-                                fApp)
+                                symbolFTycon)
 
 import Language.Haskell.Liquid.Misc (secondM, third3M)
 import Language.Haskell.Liquid.Types
@@ -44,26 +43,29 @@ instance Resolvable a => Resolvable [a] where
 instance Resolvable Qualifier where
   resolve _ (Q n ps b l) = Q n <$> mapM (secondM (resolve l)) ps <*> resolve l b <*> return l
 
-instance Resolvable Pred where
+
+instance Resolvable Expr where
+  resolve l (EVar s)        = EVar   <$> resolve l s
+  resolve l (EApp s es)     = EApp   <$> resolve l s  <*> resolve l es
+  resolve l (ENeg e)        = ENeg   <$> resolve l e
+  resolve l (EBin o e1 e2)  = EBin o <$> resolve l e1 <*> resolve l e2
+  resolve l (EIte p e1 e2)  = EIte   <$> resolve l p  <*> resolve l e1 <*> resolve l e2
+  resolve l (ECst x s)      = ECst   <$> resolve l x  <*> resolve l s
   resolve l (PAnd ps)       = PAnd    <$> resolve l ps
   resolve l (POr  ps)       = POr     <$> resolve l ps
   resolve l (PNot p)        = PNot    <$> resolve l p
   resolve l (PImp p q)      = PImp    <$> resolve l p  <*> resolve l q
   resolve l (PIff p q)      = PIff    <$> resolve l p  <*> resolve l q
-  resolve l (PBexp b)       = PBexp   <$> resolve l b
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
+  resolve l (ELam (x,t) e)  = ELam    <$> ((,) <$> resolve l x <*> resolve l t) <*> resolve l e
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
-  -- resolve l (PExist vs p)   = PExist  <$> mapM (secondM (resolve l)) vs <*> resolve l p
-  resolve _ p               = return p
-
-instance Resolvable Expr where
-  resolve l (EVar s)       = EVar   <$> resolve l s
-  resolve l (EApp s es)    = EApp   <$> resolve l s  <*> resolve l es
-  resolve l (ENeg e)       = ENeg   <$> resolve l e
-  resolve l (EBin o e1 e2) = EBin o <$> resolve l e1 <*> resolve l e2
-  resolve l (EIte p e1 e2) = EIte   <$> resolve l p  <*> resolve l e1 <*> resolve l e2
-  resolve l (ECst x s)     = ECst   <$> resolve l x  <*> resolve l s
-  resolve _ x              = return x
+  resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
+  resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 
+  resolve _ (PKVar k s)     = return $ PKVar k s 
+  resolve l (PExist ss e)   = PExist ss <$> resolve l e
+  resolve _ (ESym s)        = return $ ESym s 
+  resolve _ (ECon c)        = return $ ECon c 
+  resolve _ PGrad           = return PGrad 
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)
@@ -88,22 +90,23 @@ instance Resolvable Symbol where
   resolve l x = fmap val $ resolve l $ Loc l l x
 
 instance Resolvable Sort where
-  resolve _ FInt         = return FInt
-  resolve _ FReal        = return FReal
-  resolve _ FNum         = return FNum
-  resolve _ FFrac        = return FFrac
-  resolve _ s@(FObj _)   = return s --FObj . S <$> lookupName env m s
-  resolve _ s@(FVar _)   = return s
-  resolve l (FFunc i ss) = FFunc i <$> resolve l ss
+  resolve _ FInt          = return FInt
+  resolve _ FReal         = return FReal
+  resolve _ FNum          = return FNum
+  resolve _ FFrac         = return FFrac
+  resolve _ s@(FObj _)    = return s --FObj . S <$> lookupName env m s
+  resolve _ s@(FVar _)    = return s
+  resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
+  resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
-    | tcs' `elem` prims  = FTC <$> return c
-    | otherwise          = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
+    | tcs' `elem` prims   = FTC <$> return c
+    | otherwise           = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
 
 instance Resolvable (UReft Reft) where
-  resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s
+  resolve l (MkUReft r p s) = MkUReft <$> resolve l r <*> resolve l p <*> return s
 
 instance Resolvable Reft where
   resolve l (Reft (s, ra)) = Reft . (s,) <$> resolve l ra

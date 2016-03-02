@@ -1,7 +1,7 @@
+
+-- Issue overload-div-int-real #579
+
 module Div where
-
-{-@ LIQUID "--real" @-}
-
 
 {-@ type Valid = {v:Bool | ( (Prop v) <=> true ) } @-}
 

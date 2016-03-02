@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.Lookup (
   , lookupGhcDataCon
   ) where
 
+import Prelude hiding (error)
 import BasicTypes
 import ConLike
 import DataCon
@@ -27,7 +28,7 @@ import TyCon
 import TysWiredIn
 import Var
 
-import Control.Monad.Error (catchError, throwError)
+import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint.HughesPJ (text)
@@ -35,10 +36,10 @@ import Text.PrettyPrint.HughesPJ (text)
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
+import Language.Fixpoint.Types.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
-import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 

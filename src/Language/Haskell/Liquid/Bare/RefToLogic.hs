@@ -7,17 +7,22 @@ module Language.Haskell.Liquid.Bare.RefToLogic (
 
   ) where
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
-import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc  (errorstar)
-import Language.Fixpoint.Names
-import Language.Haskell.Liquid.GhcMisc (dropModuleUnique)
+import Language.Fixpoint.Types hiding (R)
+
+
+import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
+
+
+
 import qualified Data.HashMap.Strict as M
 
-import Control.Applicative                      ((<$>))
+
 
 txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'
@@ -28,7 +33,7 @@ class Transformable a where
   tx' :: LogicMap -> InlnEnv -> a -> a
   tx' lmap imap x = M.foldrWithKey tx x limap
     where
-      limap       = M.fromList ((mapSnd Left <$> M.toList lmap) ++ (mapSnd Right <$> M.toList imap))
+      limap       = M.fromList ((mapSnd Left <$> (M.toList $ logic_map lmap)) ++ (mapSnd Right <$> M.toList imap))
 
 
 instance (Transformable a) => (Transformable [a]) where
@@ -51,7 +56,7 @@ instance Transformable RReft where
 
 instance Transformable Reft where
   tx s m (Reft (v, p)) = if v == s
-                         then errorstar "Transformable: this should not happen"
+                         then impossible Nothing "Transformable: v != s"
                          else Reft(v, tx s m p)
 
 -- OLD instance Transformable Refa where
@@ -62,33 +67,17 @@ instance (Transformable a, Transformable b) => Transformable (Either a b) where
   tx s m (Left  x) = Left  (tx s m x)
   tx s m (Right x) = Right (tx s m x)
 
-instance Transformable Pred where
-  tx _ _ PTrue           = PTrue
-  tx _ _ PFalse          = PFalse
-  tx _ _ PTop            = PTop
-  tx s m (PAnd ps)       = PAnd (tx s m <$> ps)
-  tx s m (POr ps)        = POr (tx s m <$> ps)
-  tx s m (PNot p)        = PNot (tx s m p)
-  tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
-  tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
-  tx s m (PBexp (EApp f es)) = txPApp (s, m) f (tx s m <$> es)
-  tx s m (PBexp e)       = PBexp (tx s m e)
-  tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
-  tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
-  tx _ _ (PExist _ _)    = error "tx: PExist is for fixpoint internals only"
- --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
-  tx _ _ p@(PKVar _ _)   = p
 
 txQuant xss s m p
-  | s `elem` (fst <$> xss) = errorstar "Transformable.tx on Pred: this should not happen"
+  | s `elem` (fst <$> xss) = impossible Nothing "Transformable.tx on Pred"
   | otherwise              = tx s m p
 
 
 instance Transformable Expr where
   tx s m (EVar s')
-    | cmpSymbol s s'    = mexpr m
+    | cmpSymbol s s'    = mexpr s' m
     | otherwise         = EVar s'
-  tx s m (EApp f es)    = txEApp (s, m) f (tx s m <$> es)
+  tx s m e@(EApp _ _)   = txEApp (s, m) e -- f (tx s m es)
   tx _ _ (ESym c)       = ESym c
   tx _ _ (ECon c)       = ECon c
   --tx _ _ (ELit l s')    = ELit l s'
@@ -97,6 +86,24 @@ instance Transformable Expr where
   tx s m (EIte p e1 e2) = EIte (tx s m p) (tx s m e1) (tx s m e2)
   tx s m (ECst e s')    = ECst (tx s m e) s'
   tx _ _ EBot           = EBot
+  tx _ _ PTrue           = PTrue
+  tx _ _ PFalse          = PFalse
+  tx _ _ PTop            = PTop
+  tx s m (PAnd ps)       = PAnd (tx s m <$> ps)
+  tx s m (POr ps)        = POr (tx s m <$> ps)
+  tx s m (PNot p)        = PNot (tx s m p)
+  tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
+  tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
+  tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
+  tx s m (ELam (x,t) e)  = ELam (x,t) $ txQuant [(x,t)] s m e
+  tx s m (PAll xss p)    = PAll xss   $ txQuant xss s m p
+  tx _ _ (PExist _ _)    = panic Nothing "tx: PExist is for fixpoint internals only"
+ --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
+  tx _ _ p@(PKVar _ _)   = p
+  tx _ _ p@(ETApp _ _)   = p
+  tx _ _ p@(ETAbs _ _)   = p
+  tx _ _ p@PGrad         = p
+
 
 instance Transformable (Measure t c) where
   tx s m x = x{eqns = tx s m <$> (eqns x)}
@@ -109,35 +116,39 @@ instance Transformable Body where
   tx s m (P p)   = P $ tx s m p
   tx s m (R v p) = R v $ tx s m p
 
-mexpr (Left  (LMap _ _ e)) = e
-mexpr (Right (TI _ (Right e))) = e
-mexpr _ = errorstar "mexpr"
+mexpr _ (Left  (LMap _ [] e)) = e
+mexpr s (Left  (LMap _ _  _)) = EVar s
+mexpr _ (Right (TI _ e)) = e
+-- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
-txEApp (s, (Left (LMap _ xs e))) f es
+txEApp (s,m) e = go f
+  where
+    (f, es) = splitEApp e 
+    go (EVar x) = txEApp' (s,m) x  (tx s m <$> es) 
+    go f        = eApps (tx s m f) (tx s m <$> es)
+
+txEApp' (s, (Left (LMap _ xs e))) f es
+  | cmpSymbol s f && length xs == length es   
+  = subst (mkSubst $ zip xs es) e
+  | otherwise
+  = mkEApp (dummyLoc f) es
+
+txEApp' (s, (Right (TI xs e))) f es
+  | cmpSymbol s f && length xs == length es
+  = subst (mkSubst $ zip xs es) e
+  | otherwise
+  = mkEApp (dummyLoc f) es
+
+
+{-
+txPApp (s, (Right (TI xs e))) f es
   | cmpSymbol s (val f)
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = EApp f es
 
-txEApp (s, (Right (TI xs (Right e)))) f es
-  | cmpSymbol s (val f)
-  = subst (mkSubst $ zip xs es) e
-  | otherwise
-  = EApp f es
-
-txEApp (s, (Right (TI _ (Left _)))) f es
-  | cmpSymbol s (val f)
-  = errorstar "txEApp: deep internal error"
-  | otherwise
-  = EApp f es
-
-txPApp (s, (Right (TI xs (Left e)))) f es
-  | cmpSymbol s (val f)
-  = subst (mkSubst $ zip xs es) e
-  | otherwise
-  = PBexp $ EApp f es
-
-txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
+txPApp (s, m) f es = txEApp (s, m) f es
+-}
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
   = dropModuleNamesAndUnique s1 == dropModuleNamesAndUnique s2

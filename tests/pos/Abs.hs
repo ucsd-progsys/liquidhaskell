@@ -3,10 +3,10 @@ module Abs () where
 absN ::  (Num a, Ord a) => a -> a
 absN x = if x > 0 then x else (-x)
 
-absI ::  Int -> Int 
+absI ::  Int -> Int
 absI x = if x > 0 then x else (-x)
 
---incI ::  Int -> Int 
+--incI ::  Int -> Int
 --incI = (+) 1
 
 x0 = absN 4

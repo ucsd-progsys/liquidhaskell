@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.Bare.Plugged (
   , makePluggedDataCons
   ) where
 
+import Prelude hiding (error)
 import DataCon
 import Module
 import Name
@@ -15,22 +16,24 @@ import TyCon
 import Type (expandTypeSynonyms)
 import Var
 
-import Control.Applicative ((<$>), (<*>))
+
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Except
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
-import Data.Monoid
+
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (dummySymbol)
+import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 
-import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
+import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan)
+import Language.Haskell.Liquid.Types.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
+
+import Language.Haskell.Liquid.Misc (zipWithDefM)
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
@@ -59,7 +62,6 @@ makePluggedDataCons embs tcEnv dcs
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
 
-
 plugHoles tce tyi x f t (Loc l l' st)
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
@@ -76,7 +78,9 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
-    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t (toType st)
+    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint t) (pprint $ toType st) hsSp
+    hsSp              = getSrcSpan x
+    lqSp              = sourcePos2SrcSpan l l'
 
     go :: SpecType -> SpecType -> BareM SpecType
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }
@@ -85,8 +89,8 @@ plugHoles tce tyi x f t (Loc l l' st)
         addHoles = everywhere (mkT $ addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType
-        addHole t@(RVar v r)       = RVar v (f t (uReft ("v", hole)))
-        addHole t@(RApp c ts ps r) = RApp c ts ps (f t (uReft ("v", hole)))
+        addHole t@(RVar v _)       = RVar v (f t (uReft ("v", hole)))
+        addHole t@(RApp c ts ps _) = RApp c ts ps (f t (uReft ("v", hole)))
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = return v
@@ -99,7 +103,9 @@ plugHoles tce tyi x f t (Loc l l' st)
     go t                (REx b x t')       = REx b x <$> go t t'
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
-    go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
+    -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
+    -- keep different types for now, as a pretty error message will be created at Bare.Check
+    go (RApp _ ts _ _)  (RApp c ts' p r)   = RApp c <$> (zipWithDefM go ts ts') <*> return p <*> return r
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.

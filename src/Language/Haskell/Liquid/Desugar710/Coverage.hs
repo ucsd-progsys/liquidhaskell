@@ -7,6 +7,7 @@
 
 module Language.Haskell.Liquid.Desugar710.Coverage (addTicksToBinds, hpcInitCode) where
 
+import Prelude hiding (error)
 import Type
 import HsSyn
 import Module

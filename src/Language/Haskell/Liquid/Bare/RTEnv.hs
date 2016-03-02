@@ -4,7 +4,8 @@ module Language.Haskell.Liquid.Bare.RTEnv (
     makeRTEnv
   ) where
 
-import Control.Applicative ((<$>))
+import Prelude hiding (error)
+
 import Data.Graph hiding (Graph)
 import Data.Maybe
 
@@ -12,12 +13,13 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
-import Language.Fixpoint.Misc (errorstar, fst3)
-import Language.Fixpoint.Types (Expr(..), Pred(..), Symbol)
+import Language.Fixpoint.Misc (fst3)
+import Language.Fixpoint.Types (Expr(..), Symbol)
 
-import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.RefType (symbolRTyVar)
+import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
+import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -30,11 +32,9 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 makeRTEnv specs
   = do makeREAliases ets
-       makeRPAliases pts
        makeRTAliases rts
     where
        rts = (concat [(m,) <$> Ms.aliases  s | (m, s) <- specs])
-       pts = (concat [(m,) <$> Ms.paliases s | (m, s) <- specs])
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
 
 
@@ -47,16 +47,6 @@ makeRTAliases
              let l' = rtPosE xt
              body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
-
-makeRPAliases
-  = graphExpand buildPredEdges expBody
-  where
-    expBody (mod, xt)
-      = inModule mod $
-          do let l  = rtPos  xt
-             let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandPred $ rtBody xt)
-             setRPAlias (rtName xt) $ xt { rtBody = body }
 
 makeREAliases
   = graphExpand buildExprEdges expBody
@@ -88,7 +78,7 @@ fromAliasSymbol :: AliasTable t -> Symbol -> (ModName, RTAlias Symbol t)
 fromAliasSymbol table sym
   = fromMaybe err $ M.lookup sym table
   where
-    err = errorstar $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
+    err = panic Nothing $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
 
 
 type Graph t = [Node t]
@@ -122,7 +112,7 @@ checkCyclicAliases table graph
                       , acycle = map locate scc
                       }
     err []
-      = errorstar "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
+      = panic Nothing "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
 
     locate sym
       = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol table sym
@@ -165,46 +155,37 @@ buildTypeEdges table = ordNub . go
     --                         Just _  -> [c]
     --                         Nothing -> [ ]
 
-    go_ref (RPropP _ _) = Nothing
+    go_ref (RProp _ (RHole _)) = Nothing
     go_ref (RProp  _ t) = Just t
-    go_ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildTypeEdges"
 
-buildPredEdges :: AliasTable Pred -> Pred -> [Symbol]
-buildPredEdges table = ordNub . go
+
+buildExprEdges table  = ordNub . go
   where
-    go :: Pred -> [Symbol]
-    go (PBexp (EApp lf _)) = [ f | let f = val lf, M.member f table]
+    go :: Expr -> [Symbol]
+    go (EApp e1 e2)   = go e1 ++ go e2
+    go (ENeg e)       = go e
+    go (EBin _ e1 e2) = go e1 ++ go e2
+    go (EIte _ e1 e2) = go e1 ++ go e2
+    go (ECst e _)     = go e
+
+    go (ESym _)       = []
+    go (ECon _)       = []
+    go (EVar v)       = go_alias v 
+
     go (PAnd ps)           = concatMap go ps
     go (POr ps)            = concatMap go ps
     go (PNot p)            = go p
     go (PImp p q)          = go p ++ go q
     go (PIff p q)          = go p ++ go q
     go (PAll _ p)          = go p
-    go _                   = []
+    go (ELam _ e)          = go e 
 
-    -- go (PBexp _)           = []
-    -- go (PAtom _ _ _)       = []
-    -- go PTrue               = []
-    -- go PFalse              = []
-    -- go PTop                = []
+    go (PAtom _ e1 e2)     = go e1 ++ go e2 
 
-buildExprEdges table  = ordNub . go
-  where
-    go :: Expr -> [Symbol]
-    go (EApp lf es)   = go_alias (val lf) ++ concatMap go es
-    go (ENeg e)       = go e
-    go (EBin _ e1 e2) = go e1 ++ go e2
-    go (EIte _ e1 e2) = go e1 ++ go e2
-    go (ECst e _)     = go e
-    go _              = []
-
-    -- go (ELit _ _)     = []
-    -- go (ESym _)       = []
-    -- go (ECon _)       = []
-    -- go (EVar _)       = []
-    -- go EBot           = []
+    go (ETApp e _)         = go e 
+    go (ETAbs e _)         = go e 
+    go (PKVar _ _)         = []
+    go (PExist _ e)        = go e 
+    go PGrad               = [] 
 
     go_alias f           = [f | M.member f table ]
-    --   = case M.lookup f table of
-    --       Just _  -> [f]
-    --       Nothing -> [ ]

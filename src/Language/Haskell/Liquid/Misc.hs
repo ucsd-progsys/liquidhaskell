@@ -2,7 +2,9 @@
 
 module Language.Haskell.Liquid.Misc where
 
-import Control.Applicative
+import Prelude hiding (error)
+import Control.Monad (liftM2)
+
 import Control.Arrow (first)
 import System.FilePath
 
@@ -10,16 +12,14 @@ import           Control.Exception     (catch, IOException)
 import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
-import           Data.Maybe            (fromJust)
+import           Data.Maybe
 import           Data.Hashable
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import           Text.PrettyPrint.HughesPJ ((<>), char)
-import           Debug.Trace (trace)
 
-import Language.Fixpoint.Misc
-
-import Paths_liquidhaskell
+import           Language.Fixpoint.Misc
+import           Paths_liquidhaskell
 
 
 (!?) :: [a] -> Int -> Maybe a
@@ -45,7 +45,9 @@ replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 fourth4 (_,_,_,x) = x
 third4  (_,_,x,_) = x
 
-mapSndM f (x, y) = return . (x,) =<< f y
+mapSndM :: (Applicative m) => (b -> m c) -> (a, b) -> m (a, c)
+-- mapSndM f (x, y) = return . (x,) =<< f y
+mapSndM f (x, y) = (x, ) <$> f y
 
 firstM  f (a,b) = (,b) <$> f a
 secondM f (a,b) = (a,) <$> f b
@@ -56,7 +58,7 @@ third3M  f (a,b,c) = (a,b,) <$> f c
 
 third3 f (a,b,c) = (a,b,f c)
 
-zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : (zip4 xs1 xs2 xs3 xs4)
+zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
 
 
@@ -83,10 +85,15 @@ mapN 0 f (x:xs) = f x : xs
 mapN n f (x:xs) = x : mapN (n-1) f xs
 mapN _ _ []     = []
 
+zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
+zipWithDefM _ []     []     = return []
+zipWithDefM _ xs     []     = return xs
+zipWithDefM _ []     ys     = return ys
+zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
 
---------------------------------------
+--------------------------------------------------------------------------------
 -- Originally part of Fixpoint's Misc:
---------------------------------------
+--------------------------------------------------------------------------------
 
 single x = [x]
 
@@ -151,3 +158,13 @@ tryIgnore s a = catch a $ \e ->
                    return ()
 
 (=>>) m f = m >>= (\x -> f x >> return x)
+
+
+firstJust :: (a -> Maybe b) -> [a] -> Maybe b
+firstJust f xs = listToMaybe $ mapMaybe f xs
+
+intToString :: Int -> String
+intToString 1 = "1st"
+intToString 2 = "2nd"
+intToString 3 = "3rd"
+intToString n = show n ++ "th"

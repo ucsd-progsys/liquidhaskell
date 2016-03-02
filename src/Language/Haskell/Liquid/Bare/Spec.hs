@@ -22,29 +22,30 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHBounds
   ) where
 
+import Prelude hiding (error)
 import MonadUtils (mapMaybeM)
 import TyCon
 import Var
 
-import Control.Applicative ((<$>))
-import Control.Monad.Error
+
+import Control.Monad.Except
 import Control.Monad.State
 import Data.Maybe
-import Data.Monoid
+
 
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (group, snd3)
-import Language.Fixpoint.Names (dropSym, isPrefixOfSym,  symbolString)
-import Language.Fixpoint.Types (Qualifier(..), symbol)
-import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
+import Language.Fixpoint.Types.Names (dropSym, isPrefixOfSym,  symbolString)
+import Language.Fixpoint.Types (Qualifier(..), symbol, atLoc)
+import Language.Haskell.Liquid.Types.Dictionaries
+import Language.Haskell.Liquid.GHC.Misc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4, mapFst, concatMapM)
-import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
+import Language.Haskell.Liquid.Types.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -146,7 +147,7 @@ grepClassAsserts  = concatMap go
 
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
-                   -> [(ModName,Var,Located SpecType)]
+                   -> [(ModName, Var ,Located SpecType)]
 makeDefaultMethods defVs sigs
   = [ (m,dmv,t)
     | dmv <- defVs
@@ -228,26 +229,26 @@ makeSpecDictionary embs vars (_, spec)
 makeSpecDictionaryOne embs vars (RI x t xts)
   = do t'  <-  mkTy t
        tyi <- gets tcEnv
-       ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
-       let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
+       ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
+       let (d, dts) = makeDictionary $ RI x (val t') $ zip xs ts'
        let v = lookupName d
        return ((, dts) <$> v)
   where
-    mkTy  t  = mkSpecType (loc x) t
-    mkTy' t  = generalize  <$> mkTy t
+    mkTy  t  = atLoc x         <$> mkSpecType (loc x) t
+    mkTy' t  = fmap generalize <$> mkTy t
     (xs, ts) = unzip xts
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x
                 _        -> Nothing
 
-makeBounds name defVars cbs specs
+makeBounds tce name defVars cbs specs
   = do bnames  <- mkThing makeHBounds
-       hbounds <- makeHaskellBounds cbs bnames
-       bnds    <- M.fromList <$> (mapM go (concatMap (M.toList . Ms.bounds . snd ) specs))
+       hbounds <- makeHaskellBounds tce cbs bnames
+       bnds    <- M.fromList <$> mapM go (concatMap (M.toList . Ms.bounds . snd ) specs)
        modify   $ \env -> env{ bounds = hbounds `mappend` bnds }
   where
-    go (x,bound) = (x,) <$> (mkBound bound)
+    go (x,bound) = (x,) <$> mkBound bound
     mkThing mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name]
 
 

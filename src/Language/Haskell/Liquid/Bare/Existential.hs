@@ -2,17 +2,17 @@ module Language.Haskell.Liquid.Bare.Existential (
     txExpToBind
   ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad.State
 import Data.Char
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar, fst3)
-import Language.Fixpoint.Names (headSym)
+import Prelude hiding (error)
+import Language.Fixpoint.Misc (fst3)
+import Language.Fixpoint.Types.Names (headSym)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, exprReft)
 
-import Language.Haskell.Liquid.RefType (strengthen, uTop)
+import Language.Haskell.Liquid.Types.RefType (strengthen, uTop)
 import Language.Haskell.Liquid.Types
 
 -------------------------------------------------------------------------------
@@ -63,9 +63,9 @@ expToBindT t
   = return t
 
 expToBindReft              :: SpecProp -> State ExSt SpecProp
+expToBindReft (RProp s (RHole r)) = rPropP s <$> expToBindRef r
 expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
-expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
-expToBindReft (RHProp _ _) = errorstar "TODO:EFFECTS:expToBindReft"
+
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds
@@ -77,11 +77,11 @@ addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
 addExist t x (tx, e) = REx x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
-        r  = exprReft e 
+        r  = exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (U r (Pr p) l)
-  = mapM expToBind p >>= return . (\p -> U r p l). Pr
+expToBindRef (MkUReft r (Pr p) l)
+  = mapM expToBind p >>= return . (\p -> MkUReft r p l). Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p

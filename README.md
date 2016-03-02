@@ -421,6 +421,36 @@ use the `no-prune-unsorted` flag.
     liquid --no-prune-unsorted test.hs
 
 
+Case Expansion
+-------------------------
+
+By default LiquidHaskell expands all data constructors to the case statements. 
+For example, 
+if `F = A1 | A2 | .. | A10`, 
+then liquidHAskell will expand the code 
+`case f of {A1 -> True; _ -> False}` 
+to `case f of {A1 -> True; A2 -> False; ...; A10 -> False}`. 
+This expansion can lead to more precise code analysis
+but it can get really expensive due to code explosion. 
+The `no-case-expand` flag prevents this expansion and keeps the user
+provided cases for the case expression. 
+
+    liquid --no-case-expand test.hs
+
+
+Higher order logic
+-------------------
+The flag `--higherorder` allows reasoning about higher order functions.
+
+
+Restriction to Linear Arithmetic
+---------------------------------
+When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic: 
+division and multiplication on integers are interpreted by `z3`. To treat division 
+and multiplication as unintepreted functions use the `linear` flag
+
+    liquid --linear test.hs
+
 
 Ignore False Predicates
 -----------------------
@@ -442,15 +472,22 @@ Writing Specifications
 Modules WITHOUT code
 --------------------
 
-For a module Foo.Bar.Baz the spec file is
+When checking a file `target.hs`, you can specify an _include_ directory by 
 
-    include/Foo/Bar/Baz.spec
+    liquid -i /path/to/include/  target.hs
+    
+Now, to write specifications for some module `Foo.Bar.Baz` for which
+you _do not_ have the code, you can create a `.spec` file at:
+
+    /path/to/include/Foo/Bar/Baz.spec
 
 See, for example, the contents of
 
-    include/Prelude.spec
-    include/Data/List.spec
-    include/Data/Vector.spec
++ [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
++ [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
++ [include/Data/Vector.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec)
+    
+(**Note**: The above directories are part of the LH prelude, and included by default when running `liquid`.)
 
 Modules WITH code: Data
 -----------------------

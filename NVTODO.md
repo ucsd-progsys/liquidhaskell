@@ -1,7 +1,27 @@
 Equational Reasoning 
 --------------------
 
-HERE HERE: started mapFusion: the argument function is not interpreted correctly,  i.e., as runFun
+
+- look at isabelle's lambda lifting 
+- http://www.concrete-semantics.org/concrete-semantics.pdf
+- http://www.mimuw.edu.pl/~lukaszcz/combs.pdf
+
+HERE HERE BACK TO LOGIC!!!! No need for defunc this time!
+
+tests 
+  - [OK] AppendArrow 
+  - [OK] MapAppend
+  - [OK] MapFusion
+  - [OK] ConcatMap
+  - [OK] Monadic Laws for Lists 
+  - Associativity of Monadic Laws 
+      - allow functions
+      - proove it by hand
+
+
+
+TODO: what if multiple arguments appear many times?
+
 
 
 Other: 

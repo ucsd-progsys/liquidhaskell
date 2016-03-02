@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
@@ -9,26 +9,28 @@ module Language.Haskell.Liquid.Bare.DataType (
   , meetDataConSpec
   ) where
 
+import Prelude hiding (error)
 import DataCon
 import TyCon
 import Var
+import SrcLoc (SrcSpan)
+import Name (getSrcSpan)
 
-import Control.Applicative ((<$>))
 import Data.Maybe
-import Data.Monoid
+
 
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
-import Language.Fixpoint.Types (Symbol, TCEmb, meet)
+import Language.Fixpoint.Types (Symbol, TCEmb)
 
-import Language.Haskell.Liquid.GhcMisc (symbolTyVar)
-import Language.Haskell.Liquid.PredType (dataConPSpecType)
-import Language.Haskell.Liquid.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
+import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
+import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
+import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -36,6 +38,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
+
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -55,17 +58,29 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
         merge []     vs  = ((Nothing,) . Just) <$> vs
         merge ds     []  = ((,Nothing) . Just) <$> ds
 
+dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
+dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
 
-
-dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType RTyCon RTyVar RReft))]
-dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
-
-meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
+dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
+dataConSpec' dcs = concatMap tx dcs
   where
-    dcm                  = M.fromList $ dataConSpec dcs
-    upd dcm (x, t)       = M.insert x (maybe t (meet t) (M.lookup x dcm)) dcm
+    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
+    sspan z      = sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
-ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
+meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
+meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+  where
+    dcm0                 = M.fromList $ dataConSpec' dcs
+    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
+    upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
+                             where
+                               tx' = maybe t (meetX x t) (M.lookup x dcm)
+
+
+-- FIXME: ES: why the maybes?
+ofBDataDecl :: Maybe DataDecl
+            -> (Maybe (LocSymbol, [Variance]))
+            -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon tc
@@ -98,7 +113,7 @@ ofBDataDecl Nothing (Just (tc, is))
     (tcov, tcontr) = (is, [])
 
 ofBDataDecl Nothing Nothing
-  = errorstar $ "Bare.DataType.ofBDataDecl called on invalid inputs"
+  = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 getPsSig m pos (RAllT _ t)
   = getPsSig m pos t
@@ -114,21 +129,20 @@ getPsSig m pos (RFun _ t1 t2 r)
 getPsSig m pos (RHole r)
   = addps m pos r
 getPsSig _ _ z
-  = error $ "getPsSig" ++ show z
+  = panic Nothing $ "getPsSig" ++ show z
 
-getPsSigPs m pos (RPropP _ r) = addps m pos r
-getPsSigPs m pos (RProp  _ t) = getPsSig m pos t
-getPsSigPs _ _   (RHProp _ _) = errorstar "TODO:EFFECTS:getPsSigPs"
+getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
+getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
-addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
-  where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
+addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
+  where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
        let cs   = map ofType (dataConStupidTheta c')
-       let t0   = rApp tc rs (RPropP [] . pdVarReft <$> πs) mempty
+       let t0   = rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0 l')
     where
        (xs, ts) = unzip xts
