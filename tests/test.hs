@@ -97,7 +97,7 @@ benchTests
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         ["HsColour.hs"]           ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []                        ExitSuccess
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                ["RIO.hs", "DataBase.hs"] ExitSuccess
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
     ]
 
