@@ -1,5 +1,3 @@
-{-@ LIQUID "--real" @-}
-
 module Even where 
 
 {-@ type Even = {v:Int | v mod 2 = 0} @-}

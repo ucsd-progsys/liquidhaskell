@@ -21,7 +21,7 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
 import Prelude hiding (error, undefined)
-import GHC.Err.Located hiding (error)
+
 import GHC.Stack
 import CoreUtils     (exprType)
 import MkCore
@@ -34,7 +34,7 @@ import Type
 import TyCon
 import PrelNames
 import TypeRep
-import Class            (Class, className)
+import Class            (className)
 import Var
 import Kind
 import Id
@@ -54,21 +54,21 @@ import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import Data.Bifunctor
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
-import qualified Control.Exception as Ex
 
-import Text.Printf
 
-import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
+
+
+
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
-import           Language.Haskell.Liquid.UX.Errors
-import           Language.Haskell.Liquid.UX.Tidy (panicError)
-import Language.Fixpoint.SortCheck (pruneUnsortedReft)
+
+
+
 import Language.Fixpoint.Types.Visitor
-import Language.Fixpoint.Types.Names (symbolString)
+
 import Language.Haskell.Liquid.Constraint.Fresh
 import Language.Haskell.Liquid.Constraint.Env
 import Language.Haskell.Liquid.Constraint.Monad
@@ -78,19 +78,18 @@ import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.Types.Variance
+
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Types.Names
-import Language.Haskell.Liquid.Types.Bounds
+
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                 , symbolFastString, stringVar, stringTyVar)
+                                                 , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
@@ -99,7 +98,7 @@ import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
-import Debug.Trace
+-- import Debug.Trace (trace)
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -133,11 +132,13 @@ consAct info
        let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
-    mkSigs γ = case (grtys γ,  assms γ, renv γ) of
-                (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
-    fixEnv   = feEnv . fenv
+    fixEnv           = feEnv . fenv
+    mkSigs γ         = toListREnv (renv  γ) ++
+                       toListREnv (assms γ) ++
+                       toListREnv (grtys γ)
+
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -176,7 +177,7 @@ initEnv info
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -260,15 +261,15 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 
 measEnv sp xts cbs lts asms hs autosizes
   = CGE { cgLoc = Sp.empty
-        , renv  = fromListREnv $ second val <$> meas sp
+        , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
         , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
         , ial   = mkRTyConIAl    $ ialiases   sp
-        , grtys = fromListREnv xts
-        , assms = fromListREnv asms
+        , grtys = fromListREnv xts  []
+        , assms = fromListREnv asms []
         , emb   = tce
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
@@ -324,12 +325,12 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
+  , allowHO    = higherorder cfg   
   }
   where
     tce        = tcEmbeds spc
     spc        = spec info
-    tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-
+    tyi        = tyconEnv spc
     mkSort = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
@@ -919,6 +920,30 @@ cconsLazyLet _ _ _
 consE :: CGEnv -> Expr Var -> CG SpecType
 --------------------------------------------------------------------------------
 
+-- NV this is a hack to type polymorphic axiomatized functions
+-- no need to check this code with flag, the axioms environment withh 
+-- be empty if there is no axiomatization
+
+consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       addW        $ WfC γ t
+       t'         <- refreshVV t
+       tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       return $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
+
+{-
+consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β 
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       addW        $ WfC γ t
+       t'         <- refreshVV t
+       tt  <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       return $ RAllT (rTyVar β) 
+                  $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
+-}
+-- NV END HACK 
+
 consE γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
@@ -975,6 +1000,14 @@ consE γ e'@(App e a)
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       {- 
+       tt <- addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       let rr = case (argExpr γ e, argExpr γ a) of 
+                 (Just e', Just a') -> uTop $ F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) (F.EApp e' a'))
+                 _                  -> mempty
+       return $ tt `strengthen` rr 
+       -}
+
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1061,9 +1094,6 @@ isClassConCo co
 -- but only when
 --
 --   D:C :: (a -> b) -> C
-
-singletonReft (Just x) _ = uTop $ F.symbolReft x
-singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
 
 -- | @consElimE@ is used to *synthesize* types by **existential elimination**
 --   instead of *checking* via a fresh template. That is, assuming
@@ -1246,7 +1276,7 @@ argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
-argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
+argExpr _ _           = Nothing
 
 
 --------------------------------------------------------------------------------
@@ -1264,8 +1294,9 @@ argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-varRefType γ x = varRefType' γ x <$> (γ ??= x)
-
+varRefType γ x = do
+  xt <- varRefType' γ x <$> (γ ??= x)
+  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1277,18 +1308,25 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+singletonReft (Just x) _ = uTop $ F.symbolReft x
+singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
+
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenS :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
-topMeet r r' = F.top r `F.meet` r'
 
+topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
+topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+  -- where
+    -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 
+  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

@@ -10,14 +10,14 @@ import qualified Data.List as L
 import Data.Maybe              (fromMaybe)
 import TyCon            (TyCon)
 import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (srcSpan, atLoc, meet, TCEmb)
+import Language.Fixpoint.Types (atLoc, meet, TCEmb)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
-import Language.Haskell.Liquid.Misc (intToString, safeZipWithError)
+import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Types.Errors (panic)
+
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,

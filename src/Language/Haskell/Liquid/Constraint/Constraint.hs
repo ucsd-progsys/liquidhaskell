@@ -23,13 +23,13 @@ addConstraints γ t = γ {lcs = mappend (t2c t) (lcs γ)}
     t2c z          = LC [z]
 
 --------------------------------------------------------------------------------
-constraintToLogic :: CGEnv -> LConstraint -> Expr
+constraintToLogic :: REnv -> LConstraint -> Expr
 --------------------------------------------------------------------------------
-constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ  <$> ts)
+constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ <$> ts)
 
 -- RJ: The code below is atrocious. Please fix it!
-constraintToLogicOne :: (Reftable r) => CGEnv -> [(Symbol, RRType r)] -> Expr
-constraintToLogicOne γ binds -- env
+constraintToLogicOne :: (Reftable r) => REnv -> [(Symbol, RRType r)] -> Expr
+constraintToLogicOne γ binds
   = pAnd [subConstraintToLogicOne
           (zip xs xts)
           (last xs,
@@ -39,7 +39,7 @@ constraintToLogicOne γ binds -- env
    xts      = init binds
    (xs, ts) = unzip xts
    r        = snd $ last binds
-   xss      = combinations ((\t -> [(x, t) | x <- bindsOfType t γ]) <$> ts)
+   xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where

@@ -3,9 +3,6 @@
 module Language.Haskell.Liquid.WiredIn
        ( propType
        , propTyCon
-       , arrowTyCon
-       , arrowType
-       , runFunName, runFunSort
        , hpropTyCon
        , pdVarReft
        , wiredTyCons, wiredDataCons
@@ -24,28 +21,22 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
-import Language.Haskell.Liquid.Types.Names
 
-import Language.Fixpoint.Types.Names (hpropConName, propConName)
+
+
 import Language.Fixpoint.Types
 
 import BasicTypes
 import DataCon
 import TyCon
 import TysWiredIn
-import Kind
 
-import Var
 import TypeRep
 import CoreSyn
 
-import Data.Monoid
-import Control.Applicative
 
-import Prover.Names
-import Language.Haskell.Liquid.Types.Errors
 
-wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
+wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
@@ -71,10 +62,7 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
-runFunName :: Symbol
-runFunName = "runApp"
-
-arrowTyCon, propTyCon, hpropTyCon :: TyCon
+propTyCon, hpropTyCon :: TyCon
 
 
 {- ATTENTION: Uniques should be different when defining TyCons
@@ -82,17 +70,8 @@ arrowTyCon, propTyCon, hpropTyCon :: TyCon
    bool in fixpoint, as propTyCon is a bool
  -}
 
-arrowTyCon = (symbolTyConWithKind k 'w' 24 arrowConName)
-  where k = mkArrowKinds [superKind, superKind] superKind
-
 propTyCon  = symbolTyCon 'w' 25 propConName
 hpropTyCon = symbolTyCon 'w' 26 hpropConName
-
-
-
-runFunSort :: Sort
-runFunSort = mkFFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
-
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
@@ -100,8 +79,6 @@ runFunSort = mkFFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0,
 
 propType :: Reftable r => RRType r
 propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
-
-arrowType t1 t2 = RApp (RTyCon arrowTyCon [] defaultTyConInfo) [t1, t2] [] mempty
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------

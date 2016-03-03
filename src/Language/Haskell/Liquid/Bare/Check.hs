@@ -20,7 +20,7 @@ import Var
 
 import Control.Applicative ((<|>))
 import Control.Arrow ((&&&))
-import Control.Monad.Writer
+
 import Data.Maybe
 import Data.Function (on)
 import Text.PrettyPrint.HughesPJ
@@ -40,7 +40,7 @@ import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTy
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Haskell.Liquid.UX.Errors
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -237,7 +237,6 @@ checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType
 ------------------------------------------------------------------------------------------------
 
 checkRType emb env t   =  checkAppTys t
-                      <|> checkFunRefs t
                       <|> checkAbstractRefs t
                       <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
@@ -274,7 +273,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   where
     expectedArity = realTcArity tc
 
-
+{- 
 checkFunRefs t = go t
   where
     go (RAllT _ t)      = go t
@@ -291,6 +290,7 @@ checkFunRefs t = go t
     go (RFun _ t1 t2 r)
       | isTauto r       = go t1 <|> go t2
       | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
+-} 
 
 checkAbstractRefs t = go t
   where

@@ -438,6 +438,19 @@ provided cases for the case expression.
     liquid --no-case-expand test.hs
 
 
+Higher order logic
+-------------------
+The flag `--higherorder` allows reasoning about higher order functions.
+
+
+Restriction to Linear Arithmetic
+---------------------------------
+When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic: 
+division and multiplication on integers are interpreted by `z3`. To treat division 
+and multiplication as unintepreted functions use the `linear` flag
+
+    liquid --linear test.hs
+
 
 Ignore False Predicates
 -----------------------

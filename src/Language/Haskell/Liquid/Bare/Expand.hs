@@ -6,16 +6,16 @@ module Language.Haskell.Liquid.Bare.Expand (
   ) where
 
 import Prelude hiding (error)
-import Control.Monad.Reader hiding (forM)
+
 import Control.Monad.State hiding (forM)
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, mkEApp, eApps, splitEApp)
+import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Errors
+
 
 import Language.Haskell.Liquid.Bare.Env
 
@@ -70,6 +70,8 @@ expandExpr (PIff p q)
   = PIff <$> expandExpr p <*> expandExpr q
 expandExpr (PAll xs p)
   = PAll xs <$> expandExpr p
+expandExpr (ELam xt e)
+  = ELam xt <$> expandExpr e
 
 expandExpr (ETApp e s)
   = (`ETApp` s) <$> expandExpr e 
@@ -81,6 +83,9 @@ expandExpr (PAtom b e1 e2)
 
 expandExpr (PKVar k s)
   = return $ PKVar k s 
+
+expandExpr PGrad
+  = return PGrad
 
 expandExpr (PExist s e)
   = PExist s <$> expandExpr e 

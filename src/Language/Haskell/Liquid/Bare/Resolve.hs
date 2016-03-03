@@ -15,7 +15,7 @@ import Data.Char (isUpper)
 import Text.Parsec.Pos
 
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (prims, unconsSym)
@@ -26,9 +26,7 @@ import Language.Fixpoint.Types (Expr(..),
                                 Symbol,
                                 fTyconSymbol,
                                 symbol,
-                                symbolFTycon,
-                                fAppTC,
-                                fApp)
+                                symbolFTycon)
 
 import Language.Haskell.Liquid.Misc (secondM, third3M)
 import Language.Haskell.Liquid.Types
@@ -59,6 +57,7 @@ instance Resolvable Expr where
   resolve l (PImp p q)      = PImp    <$> resolve l p  <*> resolve l q
   resolve l (PIff p q)      = PIff    <$> resolve l p  <*> resolve l q
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
+  resolve l (ELam (x,t) e)  = ELam    <$> ((,) <$> resolve l x <*> resolve l t) <*> resolve l e
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
   resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 
@@ -66,6 +65,7 @@ instance Resolvable Expr where
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
   resolve _ (ESym s)        = return $ ESym s 
   resolve _ (ECon c)        = return $ ECon c 
+  resolve _ PGrad           = return PGrad 
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)

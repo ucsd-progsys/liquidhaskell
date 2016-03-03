@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.Constraint.Split (
 
 import           Prelude hiding (error)
 
-import           GHC.Stack
+
 
 import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified TyCon  as TC
@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
-import           Language.Haskell.Liquid.Types.Errors
+
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
@@ -110,11 +110,16 @@ rsplitW γ (RProp ss t0)
        splitW $ WfC γ' t0
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
-bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
+bsplitW γ t = 
+  do pflag <- pruneRefs <$> get 
+     isHO  <- allowHO   <$> get  
+     return $ bsplitW' γ t pflag isHO
 
-bsplitW' γ t pflag
-  | F.isNonTrivial r' = F.wfC (feBinds $ fenv γ) r' ci
-  | otherwise         = []
+bsplitW' γ t pflag isHO
+  | isHO || F.isNonTrivial r' 
+  = F.wfC (feBinds $ fenv γ) r' ci
+  | otherwise         
+  = []
   where
     r'                = rTypeSortedReft' pflag γ t
     ci                = Ci (getLocation γ) Nothing
@@ -350,7 +355,7 @@ splitC (SubR γ o r)
     rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
-    REnv g = renv γ
+    g   = reLocal $ renv γ
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -361,15 +366,25 @@ rsplitsCWithVariance False _ _ _ _
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
-bsplitC γ t1 t2
-  = do checkStratum γ t1 t2
-       pflag <- pruneRefs <$> get
-       γ' <- γ ++= ("bsplitC", v, t1)
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
-       let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
-       return $ bsplitC' γ' t1' t2 pflag
+bsplitC γ t1 t2 = do
+  checkStratum γ t1 t2
+  pflag  <- pruneRefs <$> get
+  isHO   <- allowHO   <$> get
+  let t1' = addLhsInv γ t1
+  return  $ bsplitC' γ t1' t2 pflag isHO
+
+addLhsInv :: CGEnv -> SpecType -> SpecType
+addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
   where
-    F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
+    r         = (mempty :: UReft F.Reft) { ur_reft = F.Reft (F.dummySymbol, p) }
+    p         = constraintToLogic rE' (lcs γ)
+    rE'       = insertREnv v t (renv γ)
+    v         = rTypeValueVar t
+
+     -- γ'     <- γ ++= ("bsplitC", v, t1)
+       -- let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
+       -- let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
+       -- let F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
@@ -378,25 +393,26 @@ checkStratum γ t1 t2
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
-bsplitC' γ t1 t2 pflag
-  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
-  = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
-  | F.isNonTrivial r2'
-  = F.subC γ' r1'  r2' Nothing tag ci
-  | otherwise
-  = []
+bsplitC' γ t1 t2 pflag isHO 
+ | isHO 
+ = F.subC γ' r1'  r2' Nothing tag ci
+ | F.isFunctionSortedReft r1' && F.isNonTrivial r2'    
+ = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci   
+ | F.isNonTrivial r2'    
+ = F.subC γ' r1'  r2' Nothing tag ci      
+ | otherwise   
+ = []
   where
-    γ'     = feBinds $ fenv γ
-    r1'    = rTypeSortedReft' pflag γ t1
-    r2'    = rTypeSortedReft' pflag γ t2
-    ci     = Ci src err
-    tag    = getTag γ
-    err    = Just $ ErrSubType src (text "subtype") g t1 t2
-    src    = getLocation γ
-    REnv g = renv γ
+    γ'  = feBinds $ fenv γ
+    r1' = rTypeSortedReft' pflag γ t1
+    r2' = rTypeSortedReft' pflag γ t2
+    ci  = Ci src err
+    tag = getTag γ
+    err = Just $ ErrSubType src (text "subtype") g t1 t2
+    src = getLocation γ
+    g   = reLocal $ renv γ
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
-
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )

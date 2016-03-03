@@ -28,7 +28,6 @@ import           SrcLoc
 import           GHC                              (Name, Class)
 import           Var              (Var)
 import           TyCon            (TyCon)
-import           Data.Maybe
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
 import           Text.PrettyPrint.HughesPJ
@@ -59,37 +58,37 @@ pprintSymbol x = char '‘' <> pprint x <> char '’'
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
 instance PPrint ErrMsg where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint SourceError where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint Var where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance PPrint Name where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance PPrint TyCon where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance PPrint Type where
-  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
+  pprintTidy _ = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
 
 instance PPrint Class where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance Show Predicate where
   show = showpp
 
 instance (PPrint t) => PPrint (Annot t) where
-  pprint (AnnUse t) = text "AnnUse" <+> pprint t
-  pprint (AnnDef t) = text "AnnDef" <+> pprint t
-  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
-  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+  pprintTidy k (AnnUse t) = text "AnnUse" <+> pprintTidy k t
+  pprintTidy k (AnnDef t) = text "AnnDef" <+> pprintTidy k t
+  pprintTidy k (AnnRDf t) = text "AnnRDf" <+> pprintTidy k t
+  pprintTidy _ (AnnLoc l) = text "AnnLoc" <+> pprDoc l
 
 instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
+  pprintTidy _ (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
 
 instance PPrint a => Show (AnnInfo a) where
   show = showpp
@@ -127,6 +126,8 @@ type OkRT c tv r = ( TyConable c
                    , Reftable (RTProp c tv r)
                    , RefTypable c tv ()
                    , RefTypable c tv r
+                   , PPrint (RType c tv r)
+                   , PPrint (RType c tv ())
                    )
 
 --------------------------------------------------------------------------------
@@ -148,8 +149,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p t@(RFun _ _ _ _)
-  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
+ppr_rtype bb p t@(RFun _ _ _ r)
+  = ppTy r $ maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
@@ -236,8 +237,8 @@ ppAllExpr bb p t
           split zs t                = (reverse zs, t)
 
 ppReftPs _ _ rs
-  | all isTauto rs   = empty
-  | not (ppPs ppEnv) = empty
+  --- | all isTauto rs   = empty
+  --- | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
 -- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
@@ -309,8 +310,8 @@ ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
 ppr_pvar_sort bb p t = ppr_rtype bb p t
 
 ppr_ref :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
-ppr_ref  (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+-- ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty
@@ -322,9 +323,9 @@ ppRefSym s  = pprint s
 dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (MkUReft r p _)
-    | isTauto r  = pprint p
-    | isTauto p  = pprint r
-    | otherwise  = pprint p <> text " & " <> pprint r
+  pprintTidy k (MkUReft r p _)
+    --- | isTauto r  = pprintTidy k p
+    --- | isTauto p  = pprintTidy k r
+    | otherwise  = pprintTidy k p <> text " & " <> pprintTidy k r
 
 --------------------------------------------------------------------------------

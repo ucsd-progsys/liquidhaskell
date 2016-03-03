@@ -34,7 +34,7 @@ import           Language.Haskell.Liquid.Misc (mapSndM, mapSnd)
 import           Language.Haskell.Liquid.Types.Errors
 
 import           Data.List                (foldl', isInfixOf)
-import           Control.Applicative      ((<$>))
+
 
 import qualified Data.List as L
 

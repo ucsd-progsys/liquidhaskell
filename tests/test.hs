@@ -10,7 +10,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Data.Char
-import Data.Foldable (foldMap)
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe)
@@ -31,13 +30,17 @@ import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
+import Test.Tasty.Runners.AntXML
+
 import Text.Printf
 
 testRunner = rerunningTests
                [ listingTests
-               , combineReporters consoleTestReporter loggingTestReporter
+               , combineReporters myConsoleReporter antXMLRunner
+               , myConsoleReporter
                ]
 
+myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
 
 main :: IO ()
 main = do unsetEnv "LIQUIDHASKELL_OPTS"
@@ -83,8 +86,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
---     , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs"]           ExitSuccess
---     , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs"]           (ExitFailure 1)
+    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs"]           ExitSuccess
+    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs"]           (ExitFailure 1)
    ]
 
 benchTests
@@ -94,7 +97,7 @@ benchTests
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         ["HsColour.hs"]           ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []                        ExitSuccess
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                ["RIO.hs", "DataBase.hs"] ExitSuccess
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
     ]
 
@@ -150,15 +153,19 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/maps.hs"
                    , "tests/pos/maps1.hs"
                    , "tests/neg/maps.hs"
-                   , "tests/pos/Product.hs" ]
+                   , "tests/pos/Product.hs"
+                   , "tests/pos/Gradual.hs"
+                   ]
 
-knownToFail Z3   = [ "tests/pos/linspace.hs" ]
+knownToFail Z3   = [ "tests/pos/linspace.hs"
+                   , "tests/pos/Gradual.hs"
+                   ]
 
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
 testCmd bin dir file smt (LO opts)
-  = printf "cd %s && %s --verbose --smtsolver %s %s %s" dir bin (show smt) file opts
+  = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
@@ -203,6 +210,32 @@ demosIgnored = [ "Composition.hs"
 
 group n xs = testGroup n <$> sequence xs
 
+gitTimestamp :: IO String
+gitTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitEpochTimestamp :: IO String
+gitEpochTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitHash :: IO String
+gitHash = do
+   res <- readProcess "git" ["show", "--format=\"%h\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitRef :: IO String
+gitRef = do
+   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   return $ filter notNoise res
+
+notNoise :: Char -> Bool
+notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
+
+headerDelim :: String
+headerDelim = take 80 $ repeat '-'
+
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
@@ -225,7 +258,7 @@ partitionM f = go [] []
 -- isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
 
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f []     = pure []
+concatMapM _ []     = pure []
 concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
 
 -- | Combine two @TestReporter@s into one.
@@ -237,6 +270,7 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       f1 <- run1 opts tree
       f2 <- run2 opts tree
       return $ \smap -> f1 smap >> f2 smap
+combineReporters _ _ = error "combineReporters needs TestReporters"
 
 type Summary = [(String, Double, Bool)]
 
@@ -296,10 +330,21 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
+    -- build header
+    ref <- gitRef
+    timestamp <- gitTimestamp
+    epochTime <- gitEpochTimestamp
+    hash <- gitHash
+    let hdr = unlines [ref ++ " : " ++ hash,
+                       "Timestamp: " ++ timestamp,
+                       "Epoch Timestamp: " ++ epochTime,
+                       headerDelim,
+                       "test, time(s), result"]
+
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines
-                   $ "test, time(s), result"
+                   $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
     system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap

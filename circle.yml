@@ -1,0 +1,33 @@
+machine:
+  ghc:
+    version: 7.10.2
+  pre:
+    - sudo add-apt-repository -y ppa:hvr/z3
+    - sudo apt-get -y update
+    - sudo apt-get -y install z3
+
+checkout:
+  post:
+    - git submodule sync
+    - git submodule update --init
+
+dependencies:
+  override:
+    - cabal update
+    - cabal sandbox init
+    - cabal sandbox add-source ./liquid-fixpoint
+    - cabal sandbox add-source ./prover
+    - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
+    - cabal configure --enable-tests -finclude -fdevel
+
+test:
+  pre:
+    - mkdir -p $CIRCLE_TEST_REPORTS/tasty
+  override:
+    - cabal build
+    - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
+        timeout: 1800
+  post:
+    - cabal haddock --haddock-options="--no-print-missing-docs"
+    - cp -r dist/doc $CIRCLE_ARTIFACTS
+    - cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log

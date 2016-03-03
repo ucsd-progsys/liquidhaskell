@@ -1,5 +1,3 @@
-{-@ LIQUID "--real" @-}
-
 {-# LANGUAGE CPP #-}
 
 #define DISCOUNT_PERCENTAGE   2

@@ -14,14 +14,14 @@ import Language.Haskell.Liquid.Measure
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit)
-import Language.Haskell.Liquid.Types.Errors
+
 
 import qualified Language.Fixpoint.Types as F
 
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import Data.Monoid
-import Control.Applicative
+
+
+
 
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------
