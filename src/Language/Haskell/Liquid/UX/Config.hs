@@ -28,7 +28,8 @@ data Config = Config {
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
-  , real           :: Bool       -- ^ supports real number arithmetic
+  , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
+  , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , binders        :: [String]   -- ^ set of binders to check
@@ -57,6 +58,7 @@ data Config = Config {
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
+  , elimStats      :: Bool       -- ^ print eliminate stats
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

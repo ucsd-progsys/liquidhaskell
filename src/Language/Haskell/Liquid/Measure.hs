@@ -30,17 +30,17 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List (foldl', partition)
 
-import Data.Monoid hiding ((<>))
-import Data.Bifunctor
-import Control.Applicative      ((<$>))
 
-import Data.Maybe (fromMaybe, isNothing, fromJust, catMaybes)
+
+
+
+import Data.Maybe (fromMaybe, isNothing)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (Def, R, SrcSpan)
+import Language.Fixpoint.Types hiding (R, SrcSpan)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
-import Language.Haskell.Liquid.Misc     (mapSnd)
+
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.Bounds

@@ -19,7 +19,7 @@ import Language.Fixpoint.Types (Expr(..), Symbol)
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Errors (panic)
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -178,6 +178,7 @@ buildExprEdges table  = ordNub . go
     go (PImp p q)          = go p ++ go q
     go (PIff p q)          = go p ++ go q
     go (PAll _ p)          = go p
+    go (ELam _ e)          = go e 
 
     go (PAtom _ e1 e2)     = go e1 ++ go e2 
 
@@ -185,5 +186,6 @@ buildExprEdges table  = ordNub . go
     go (ETAbs e _)         = go e 
     go (PKVar _ _)         = []
     go (PExist _ e)        = go e 
+    go PGrad               = [] 
 
     go_alias f           = [f | M.member f table ]

@@ -58,13 +58,13 @@ instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-        pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
-                                        text "forall" <+> pprint vs <+> text "." <+>
-                                        pprint (fst <$> ps) <+> text "=" <+>
-                                        pprint_bsyms (fst <$> xs) <+> pprint e
+        pprintTidy k (Bound s vs ps xs e) =   text "bound" <+> pprintTidy k s <+>
+                                        text "forall" <+> pprintTidy k vs <+> text "." <+>
+                                        pprintTidy k (fst <$> ps) <+> text "=" <+>
+                                        pprint_bsyms k (fst <$> xs) <+> pprintTidy k e
 
-pprint_bsyms [] = text ""
-pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
+pprint_bsyms _ [] = text ""
+pprint_bsyms k xs = text "\\" <+> pprintTidy k xs <+> text "->"
 
 instance Bifunctor Bound where
         first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e

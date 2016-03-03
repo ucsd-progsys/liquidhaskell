@@ -16,7 +16,7 @@ import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc
+
 
 
 -- import Control.Applicative      ((<$>))

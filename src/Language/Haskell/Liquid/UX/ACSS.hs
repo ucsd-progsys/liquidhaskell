@@ -22,7 +22,7 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Types.Errors (panic, impossible, todo)
+import Language.Haskell.Liquid.Types.Errors (panic, impossible)
 
 data AnnMap  = Ann {
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)

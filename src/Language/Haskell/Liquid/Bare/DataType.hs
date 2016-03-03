@@ -17,12 +17,12 @@ import SrcLoc (SrcSpan)
 import Name (getSrcSpan)
 
 import Data.Maybe
-import Data.Monoid
+
 
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Symbol, TCEmb, meet)
+import Language.Fixpoint.Types (Symbol, TCEmb)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
@@ -38,7 +38,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.UX.Errors
+
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------

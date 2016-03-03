@@ -2,9 +2,6 @@
 
 module Div where
 
-{-@ LIQUID "--real" @-}
-
-
 {-@ type Valid = {v:Bool | ( (Prop v) <=> true ) } @-}
 
 {-@ mulAssoc :: Double -> Double -> Double -> Valid @-}

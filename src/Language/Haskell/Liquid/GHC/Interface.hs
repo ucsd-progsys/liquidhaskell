@@ -40,13 +40,13 @@ import Data.List (find, nub, (\\))
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 
-import System.Console.CmdArgs.Verbosity (whenLoud)
+import System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
 import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.UX.Errors
+
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.UX.Tidy
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
-import Language.Haskell.Liquid.Types.Errors
+
 
 
 --------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ getGhcInfo'' :: Config -> FilePath -> Ghc GhcInfo
 getGhcInfo'' cfg0 target
   = {- runGhc (Just libdir) $ -} do
       liftIO              $ cleanFiles target
-      liftIO $ donePhase Loud "Cleaned Files"
+      liftIO $ whenNormal $ donePhase Loud "Cleaned Files"
       addRootTarget     =<< guessTarget target Nothing
       (name, tgtSpec)    <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
@@ -98,15 +98,15 @@ getGhcInfo'' cfg0 target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
-      liftIO $ donePhase Loud "Parsed All Specifications"
+      impSpecs           <- getSpecs (not $ linear cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+      liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
                               unless (isSpecImport n) $
                                 addTarget =<< guessTarget f Nothing
                               return (n,s)
       load LoadAllTargets
-      liftIO $ donePhase Loud "Loaded Targets"
+      liftIO $ whenNormal $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
@@ -504,8 +504,8 @@ reqFile ext s
   = Nothing
 
 instance PPrint GhcSpec where
-  pprint spec =  (text "******* Target Variables ********************")
-              $$ (pprint $ tgtVars spec)
+  pprintTidy k spec =  (text "******* Target Variables ********************")
+              $$ (pprintTidy k $ tgtVars spec)
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* Assumed Type Signatures *************")
@@ -516,7 +516,7 @@ instance PPrint GhcSpec where
               $$ (pprintLongList $ meas spec)
 
 instance PPrint GhcInfo where
-  pprint info =   (text "*************** Imports *********************")
+  pprintTidy k info =   (text "*************** Imports *********************")
               $+$ (intersperse comma $ text <$> imports info)
               $+$ (text "*************** Includes ********************")
               $+$ (intersperse comma $ text <$> includes info)
@@ -525,7 +525,7 @@ instance PPrint GhcInfo where
               $+$ (text "*************** Defined Variables ***********")
               $+$ (pprDoc $ defVars info)
               $+$ (text "*************** Specification ***************")
-              $+$ (pprint $ spec info)
+              $+$ (pprintTidy k $ spec info)
               $+$ (text "*************** Core Bindings ***************")
               $+$ (pprintCBs $ cbs info)
 
@@ -536,8 +536,8 @@ instance Show GhcInfo where
   show = showpp
 
 instance PPrint TargetVars where
-  pprint AllVars   = text "All Variables"
-  pprint (Only vs) = text "Only Variables: " <+> pprint vs
+  pprintTidy _ AllVars   = text "All Variables"
+  pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
 
 ------------------------------------------------------------------------
 -- | Dealing With Errors -------------------------------------------------

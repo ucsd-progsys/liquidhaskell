@@ -15,7 +15,7 @@
 
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
-     getOpts, mkOpts
+     getOpts, mkOpts, defConfig
 
    -- * Update Configuration With Pragma
    , withPragmas
@@ -32,7 +32,7 @@ import Prelude hiding (error)
 
 import Control.Monad
 import Data.Maybe
-import Data.Traversable (mapM)
+
 import System.Directory
 import System.Exit
 import System.Environment
@@ -42,25 +42,25 @@ import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
 import Data.List                           (nub)
-import Data.Monoid
+
 
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, --extSolver,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result)
+import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-import Language.Haskell.Liquid.UX.Errors
-import Language.Haskell.Liquid.UX.Cabal
+
+
 
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
@@ -96,9 +96,13 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Incremental Checking: only check changed binders"
 
- , real
+ , higherorder
     = def
-          &= help "Supports real number arithmetic"
+          &= help "Allow higher order binders into the logic"
+
+ , linear
+    = def
+          &= help "Use uninterpreted integer multiplication and division"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -208,6 +212,10 @@ config = cmdArgsMode $ Config {
     = False &= help "Scrape qualifiers from used, imported specifications"
             &= name "scrape-used-imports"
             &= explicit
+
+ , elimStats
+    = False &= name "elimStats"
+            &= help "Print eliminate stats"
 
  } &= verbosity
    &= program "liquid"
@@ -327,7 +335,8 @@ defConfig = Config { files          = def
                    , idirs          = def
                    , newcheck       = True
                    , fullcheck      = def
-                   , real           = def
+                   , linear         = def
+                   , higherorder    = def
                    , diffcheck      = def
                    , saveQuery      = def
                    , binders        = def
@@ -356,6 +365,7 @@ defConfig = Config { files          = def
                    , port           = defaultPort
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
+                   , elimStats      = False
                    }
 
 

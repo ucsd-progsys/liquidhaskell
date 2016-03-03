@@ -19,11 +19,11 @@ import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
 
-import Control.Applicative
+
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
 import Data.Maybe (fromMaybe)
-import Data.Monoid
+
 import Data.Traversable (forM)
 import Text.Parsec.Pos
 import Text.Printf

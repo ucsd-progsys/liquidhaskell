@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Transforms.RefSplit (
         ) where
 
 import Prelude hiding (error)
-import Control.Applicative
+
 import Data.List (partition)
 import Text.PrettyPrint.HughesPJ
 

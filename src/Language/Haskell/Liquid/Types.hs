@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -127,7 +126,7 @@ module Language.Haskell.Liquid.Types (
   , stripRTypeBase
 
   -- * Class for values that can be pretty printed
-  , PPrint (..)
+  , PPrint (..), pprint
   , showpp
 
   -- * Printer Configuration
@@ -195,7 +194,7 @@ module Language.Haskell.Liquid.Types (
   where
 
 import Prelude                          hiding  (error)
-import SrcLoc                                   (noSrcSpan, SrcSpan)
+import SrcLoc                                   (SrcSpan)
 import TyCon
 import DataCon
 import NameSet
@@ -209,18 +208,18 @@ import PrelInfo         (isNumericClass)
 import TysPrim          (eqPrimTyCon)
 import TysWiredIn                               (listTyCon)
 
-import            Control.Arrow                            (second)
+
 import            Control.Monad                            (liftM, liftM2, liftM3, liftM4)
-import qualified  Control.Exception
-import qualified  Control.Monad.Error as Ex
+
+
 import            Control.DeepSeq
-import            Control.Applicative                      ((<$>))
+
 import            Data.Bifunctor
 import            Data.Bifunctor.TH
 import            Data.Typeable                            (Typeable)
 import            Data.Generics                            (Data)
 
-import            Data.Monoid                              hiding ((<>))
+
 
 
 import qualified  Data.Foldable as F
@@ -228,20 +227,20 @@ import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
 import qualified  Data.HashSet as S
 import            Data.Maybe                   (fromMaybe)
-import            Data.Traversable             hiding (mapM)
+
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
 import qualified  Data.Text                    as T
-import            Text.Parsec.Pos              (SourcePos)
-import            Text.Parsec.Error            (ParseError)
+
+
 import            Text.PrettyPrint.HughesPJ    hiding (first)
 import            Text.Printf
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
-import           Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.Types.PrettyPrint as F
-import           Language.Fixpoint.Types.Config     hiding (Config)
+import           Language.Fixpoint.Types      hiding (Error, SrcSpan, Result, Predicate, R)
+
+
+
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
@@ -355,10 +354,20 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es 
   = subst (mkSubst $ zip xs es) e
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e  
+  = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = def
+
+dropApp e i | i <= 0 = e 
+dropApp (EApp e _) i = dropApp e (i-1)
+dropApp _ _          = errorstar "impossible"
+ 
+isApp (EApp (EVar _) (EVar _)) = True 
+isApp (EApp e (EVar _))        = isApp e 
+isApp _                        = False
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
@@ -463,10 +472,6 @@ instance Subable Qualifier where
 mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r)
-
-instance NFData Strata
-
-instance NFData PrType
 
 instance NFData RTyVar
 
@@ -687,7 +692,7 @@ type Strata = [Stratum]
 isSVar (SVar _) = True
 isSVar _        = False
 
-instance Monoid Strata where
+instance {-# OVERLAPPING #-} Monoid Strata where
   mempty        = []
   mappend s1 s2 = nub $ s1 ++ s2
 
@@ -761,7 +766,7 @@ instance Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
 
 instance PPrint RTyCon where
-  pprint = text . showPpr . rtc_tc
+  pprintTidy _ = text . showPpr . rtc_tc
 
 
 instance Show RTyCon where
@@ -945,12 +950,6 @@ instance Subable Stratum where
   substf _ s        = s
   substa f (SVar s) = SVar $ substa f s
   substa _ s        = s
-
-instance Subable Strata where
-  syms s     = concatMap syms s
-  subst su   = (subst su <$>)
-  substf f   = (substf f <$>)
-  substa f   = (substa f <$>)
 
 instance Reftable Strata where
   isTauto []         = True
@@ -1237,6 +1236,7 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 rTypeReft :: (Reftable r) => RType c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase
 
+  
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)
   = Just x
@@ -1279,14 +1279,14 @@ instance Show Stratum where
   show (SVar s) = show s
 
 instance PPrint Stratum where
-  pprint = text . show
+  pprintTidy _ = text . show
 
-instance PPrint Strata where
-  pprint [] = empty
-  pprint ss = hsep (pprint <$> nub ss)
+instance {-# OVERLAPPING #-} PPrint Strata where
+  pprintTidy _ [] = empty
+  pprintTidy k ss = hsep (pprintTidy k <$> nub ss)
 
 instance PPrint (PVar a) where
-  pprint = ppr_pvar
+  pprintTidy _ = ppr_pvar
 
 ppr_pvar :: PVar a -> Doc
 ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
@@ -1295,13 +1295,24 @@ ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
 
 
 instance PPrint Predicate where
-  pprint (Pr [])       = text "True"
-  pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
+  pprintTidy _ (Pr [])       = text "True"
+  pprintTidy k (Pr pvs)      = hsep $ punctuate (text "&") (map (pprintTidy k) pvs)
 
 
--- | The type used during constraint generation, used also to define contexts
--- for errors, hence in this file, and NOT in Constraint.hs
-newtype REnv = REnv  (M.HashMap Symbol SpecType)
+-- | The type used during constraint generation, used
+--   also to define contexts for errors, hence in this
+--   file, and NOT in elsewhere. **DO NOT ATTEMPT TO MOVE**
+--   Am splitting into
+--   + global : many bindings, shared across all constraints
+--   + local  : few bindings, relevant to particular constraints
+
+data REnv = REnv
+  { reGlobal :: M.HashMap Symbol SpecType -- ^ the "global" names for module
+  , reLocal  :: M.HashMap Symbol SpecType -- ^ the "local" names for sub-exprs
+  }
+
+instance NFData REnv where
+  rnf (REnv {}) = ()
 
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
@@ -1401,23 +1412,23 @@ data CMeasure ty = CM
   } deriving (Data, Typeable, Generic, Functor)
 
 instance PPrint Body where
-  pprint (E e)   = pprint e
-  pprint (P p)   = pprint p
-  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)
+  pprintTidy k (E e)   = pprintTidy k e
+  pprintTidy k (P p)   = pprintTidy k p
+  pprintTidy k (R v p) = braces (pprintTidy k v <+> text "|" <+> pprintTidy k p)
 
 instance PPrint a => PPrint (Def t a) where
-  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body
-    where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
+  pprintTidy k (Def m p c _ bs body) = pprintTidy k m <+> pprintTidy k (fst <$> p) <+> cbsd <> text " = " <> pprintTidy k body
+    where cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
 
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprint (M n s eqs) =  pprint n <> text " :: " <> pprint s
-                     $$ vcat (pprint `fmap` eqs)
+  pprintTidy k (M n s eqs) =  pprintTidy k n <> text " :: " <> pprintTidy k s
+                     $$ vcat (pprintTidy k `fmap` eqs)
 
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
 
 instance PPrint t => PPrint (CMeasure t) where
-  pprint (CM n s) =  pprint n <> text " :: " <> pprint s
+  pprintTidy k (CM n s) =  pprintTidy k n <> text " :: " <> pprintTidy k s
 
 instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp
@@ -1540,10 +1551,10 @@ updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + n) m
 instance NFData KVKind
 
 instance PPrint KVKind where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint KVProf where
-  pprint (KVP m) = pprint $ M.toList m
+  pprintTidy k (KVP m) = pprintTidy k $ M.toList m
 
 instance NFData KVProf
 
@@ -1566,7 +1577,7 @@ instance Symbolic DataCon where
 
 
 instance PPrint DataCon where
-  pprint = text . showPpr
+  pprintTidy _ = text . showPpr
 
 instance Show DataCon where
   show = showpp
@@ -1593,7 +1604,7 @@ instance Bifunctor MSpec   where
   second                    = fmap
 
 instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
-  pprint =  vcat . fmap pprint . fmap snd . M.toList . measMap
+  pprintTidy k =  vcat . fmap (pprintTidy k) . fmap snd . M.toList . measMap
 
 instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
   show (MSpec ct m cm im)
@@ -1621,7 +1632,7 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
 --------------------------------------------------------------------------------
 
 instance PPrint RTyVar where
-  pprint (RTV α)
+  pprintTidy _k (RTV α)
    | ppTyVar ppEnv = ppr_tyvar α
    | otherwise     = ppr_tyvar_short α
 
@@ -1629,8 +1640,9 @@ ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprintTidy k (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprintTidy k s
+  -- pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
+  -- pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 
 ppRefArgs :: [Symbol] -> Doc

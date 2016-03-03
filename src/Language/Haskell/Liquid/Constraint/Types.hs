@@ -1,5 +1,6 @@
 
-{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -64,10 +65,10 @@ import Control.Monad.State
 
 
 import Var
-import Type   (Type)
-import Class  (Class)
 
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
+
+
 
 import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
@@ -84,17 +85,17 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv
-  = CGE { cgLoc  :: !SpanStack         -- ^ Location in original source file
-        , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
-        , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        , denv   :: !RDEnv             -- ^ Dictionary Environment
-        , fenv   :: !FEnv              -- ^ Fixpoint Environment
-        , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-        , invs   :: !RTyConInv         -- ^ Datatype invariants
-        , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants
-        , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
-        , assms  :: !REnv              -- ^ Top-level variables with assumed types
-        , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+  = CGE { cgLoc :: !SpanStack         -- ^ Location in original source file
+        , renv  :: !REnv              -- ^ SpecTypes for Bindings in scope
+        , syenv :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+        , denv  :: !RDEnv             -- ^ Dictionary Environment
+        , fenv  :: !FEnv              -- ^ Fixpoint Environment
+        , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+        , invs  :: !RTyConInv         -- ^ Datatype invariants
+        , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
+        , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+        , assms :: !REnv              -- ^ Top-level variables with assumed types
+        , emb   :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
@@ -112,7 +113,7 @@ instance Monoid LConstraint where
 
 
 instance PPrint CGEnv where
-  pprint = pprint . renv
+  pprintTidy k = pprintTidy k . renv
 
 instance Show CGEnv where
   show = showpp
@@ -141,13 +142,21 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance PPrint SubC where
-  pprint c = pprint (senv c)
-             $+$ (text " |- " <+> (pprint (lhs c) $+$
-                                   text "<:"      $+$
-                                   pprint (rhs c)))
+  -- pprint c = pprint (senv c)
+  --           $+$ (text " |- " <+> (pprint (lhs c) $+$
+  --                                 text "<:"      $+$
+  --                                 pprint (rhs c)))
+  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
+                       $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
+                                           , "<:"
+                                           , pprintTidy k (rhs c) ] )
+  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
+                       $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
+                                           , parens (pprintTidy k (oblig c))])
+
 
 instance PPrint WfC where
-  pprint (WfC w r) = pprint w <> text " |- " <> pprint r
+  pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
 
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
@@ -185,10 +194,11 @@ data CGInfo = CGInfo {
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+  , allowHO    :: !Bool  
   }
 
 instance PPrint CGInfo where
-  pprint cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
+  pprintTidy _ cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
 
 pprCGInfo _cgi
   =  text "*********** Constraint Information ***********"
@@ -284,18 +294,15 @@ insertFEnv (FE benv env) ((x, t), i)
 insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
-initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
+initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-instance NFData REnv where
-  rnf (REnv _) = () -- rnf m
-
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _ _)
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _ _)
+    = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData FEnv where

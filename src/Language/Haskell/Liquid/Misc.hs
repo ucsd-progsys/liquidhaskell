@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.Misc where
 
 import Prelude hiding (error)
 import Control.Monad (liftM2)
-import Control.Applicative
+
 import Control.Arrow (first)
 import System.FilePath
 
@@ -17,7 +17,7 @@ import           Data.Hashable
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import           Text.PrettyPrint.HughesPJ ((<>), char)
-import           Debug.Trace (trace)
+
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 

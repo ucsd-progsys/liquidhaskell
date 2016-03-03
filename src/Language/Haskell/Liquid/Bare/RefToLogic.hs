@@ -13,12 +13,12 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
-import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc  (traceShow)
-import Language.Fixpoint.Types.Names
+import Language.Fixpoint.Types hiding (R)
+
+
 import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
 
-import Language.Haskell.Liquid.Types.Errors (panic, impossible)
+
 
 import qualified Data.HashMap.Strict as M
 
@@ -95,12 +95,15 @@ instance Transformable Expr where
   tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
   tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
   tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
-  tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
+  tx s m (ELam (x,t) e)  = ELam (x,t) $ txQuant [(x,t)] s m e
+  tx s m (PAll xss p)    = PAll xss   $ txQuant xss s m p
   tx _ _ (PExist _ _)    = panic Nothing "tx: PExist is for fixpoint internals only"
  --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p
   tx _ _ p@(ETApp _ _)   = p
   tx _ _ p@(ETAbs _ _)   = p
+  tx _ _ p@PGrad         = p
+
 
 instance Transformable (Measure t c) where
   tx s m x = x{eqns = tx s m <$> (eqns x)}
@@ -125,13 +128,13 @@ txEApp (s,m) e = go f
     go f        = eApps (tx s m f) (tx s m <$> es)
 
 txEApp' (s, (Left (LMap _ xs e))) f es
-  | cmpSymbol s f
+  | cmpSymbol s f && length xs == length es   
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es
 
 txEApp' (s, (Right (TI xs e))) f es
-  | cmpSymbol s f
+  | cmpSymbol s f && length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es

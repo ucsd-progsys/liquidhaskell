@@ -12,6 +12,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE PartialTypeSignatures     #-}
 
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
@@ -26,12 +27,15 @@ module Language.Haskell.Liquid.Constraint.Env (
   , addBinders
   , addSEnv
   , (-=)
+  , globalize
 
   -- * Construction
   , fromListREnv
-
+  , toListREnv
+  , insertREnv -- TODO: remove this ASAP
+    
   -- * Query
-  , bindsOfType
+  , localBindsOfType
   , lookupREnv
   , (?=)
 
@@ -66,11 +70,11 @@ import qualified Data.HashSet            as S
 import qualified Data.HashMap.Strict     as M
 import qualified Language.Fixpoint.Types as F
 
-import           Language.Fixpoint.Misc hiding (errorstar)
+
 import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
-import           Language.Haskell.Liquid.Misc (firstJust)
-import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan)
+
+
 import           Language.Haskell.Liquid.Types.RefType
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
@@ -78,6 +82,8 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Transforms.RefSplit
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
+
+-- import Debug.Trace (trace)
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -89,19 +95,53 @@ instance Freshable CG Integer where
 -- | Refinement Type Environments ----------------------------------------------
 --------------------------------------------------------------------------------
 
-toListREnv (REnv env)     = M.toList env
-filterREnv f (REnv env)   = REnv $ M.filter f env
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-memberREnv x (REnv env)   = M.member x env
+-- updREnvLocal :: REnv -> (_ -> _) -> REnv
+updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
+
+-- RJ: REnv-Split-Bug?
+filterREnv :: (SpecType -> Bool) -> REnv -> REnv
+filterREnv f rE        = rE `updREnvLocal` (M.filter f)
+
+fromListREnv :: [(F.Symbol, SpecType)] -> [(F.Symbol, SpecType)] -> REnv
+fromListREnv gXts lXts = REnv
+  { reGlobal = M.fromList gXts
+  , reLocal  = M.fromList lXts
+  }
+
+-- RJ: REnv-Split-Bug?
+deleteREnv :: F.Symbol -> REnv -> REnv
+deleteREnv x rE = rE `updREnvLocal` (M.delete x)
+
+insertREnv :: F.Symbol -> SpecType -> REnv -> REnv
+insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` (M.insert x y)
+
+lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
+lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
+
+memberREnv :: F.Symbol -> REnv -> Bool
+memberREnv x rE = or   $ M.member x <$> renvMaps rE
+
+globalREnv :: REnv -> REnv
+globalREnv (REnv gM lM) = REnv gM' M.empty
+  where
+    gM'  = M.unionWith (\_ t -> t) gM lM
+
+renvMaps rE = [reLocal rE, reGlobal rE]
 
 --------------------------------------------------------------------------------
-bindsOfType :: RRType r  -> CGEnv -> [F.Symbol]
+localBindsOfType :: RRType r  -> REnv -> [F.Symbol]
 --------------------------------------------------------------------------------
-bindsOfType tx γ = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+localBindsOfType tx γ = fst <$> localsREnv (filterREnv ((== toRSort tx) . toRSort) γ)
 
+-- RJ: REnv-Split-Bug?
+localsREnv :: REnv -> [(F.Symbol, SpecType)]
+localsREnv = M.toList . reLocal
+
+globalsREnv :: REnv -> [(F.Symbol, SpecType)]
+globalsREnv = M.toList . reGlobal
+
+toListREnv :: REnv -> [(F.Symbol, SpecType)]
+toListREnv re = globalsREnv re ++ localsREnv re
 
 --------------------------------------------------------------------------------
 extendEnvWithVV :: CGEnv -> SpecType -> CG CGEnv
@@ -114,54 +154,50 @@ extendEnvWithVV γ t
   where
     vv = rTypeValueVar t
 
-
+addBinders :: CGEnv -> F.Symbol -> [(F.Symbol, SpecType)] -> CG CGEnv
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
-addBind l x r
-  = do st          <- get
-       let (i, bs') = F.insertBindEnv x r (binds st)
-       put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
+addBind l x r = do
+  st          <- get
+  let (i, bs') = F.insertBindEnv x r (binds st)
+  put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
+  return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
-
-
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, REx y tyy tyx)
+addCGEnv tx γ (eMsg, x, REx y tyy tyx)
   = do y' <- fresh
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
+       γ' <- addCGEnv tx γ (eMsg, y', tyy)
+       addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (msg, x, t)
+addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (eMsg, x, t)
   where
-    xs    = bindsOfType tyy γ
-    t     = foldl F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
-
+    xs            = localBindsOfType tyy (renv γ)
+    t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
-addCGEnv tx γ (_, x, t')
-  = do idx   <- fresh
-       let t  = tx $ normalize idx t'
-       let l  = getLocation γ
-       let γ' = γ { renv = insertREnv x t (renv γ) }
-       pflag <- pruneRefs <$> get
-       is    <- if isBase t
-                  then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
-                  else return []
-       return $ γ' { fenv = insertsFEnv (fenv γ) is }
+addCGEnv tx γ (_, x, t') = do
+  idx   <- fresh
+  allowHOBinders <- allowHO <$> get 
+  let t  = tx $ normalize idx t'
+  let l  = getLocation γ
+  let γ' = γ { renv = insertREnv x t (renv γ) }
+  pflag <- pruneRefs <$> get
+  is    <- if allowHOBinders || isBase t 
+            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t    
+            else return []
+  return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' pflag γ
-  | pflag
-  = pruneUnsortedReft (feEnv $ fenv γ) . f
-  | otherwise
-  = f
+  | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f
+  | otherwise = f
   where
-    f = rTypeSortedReft (emb γ)
+    f         = rTypeSortedReft (emb γ)
 
 normalize idx = normalizeVV idx . normalizePds
 
@@ -176,23 +212,31 @@ normalizeVV _ t
 --------------------------------------------------------------------------------
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(γ, msg) += (x, r)
+(γ, eMsg) += (x, r)
   | x == F.dummySymbol
   = return γ
   | x `memberREnv` (renv γ)
   = err
   | otherwise
-  =  γ ++= (msg, x, r)
-  where err = panic Nothing $ msg ++ " Duplicate binding for "
+  =  γ ++= (eMsg, x, r)
+  where err = panic Nothing $ eMsg ++ " Duplicate binding for "
                                   ++ F.symbolString x
                                   ++ "\n New: " ++ showpp r
                                   ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
 
 
 --------------------------------------------------------------------------------
+globalize :: CGEnv -> CGEnv
+--------------------------------------------------------------------------------
+globalize γ = γ {renv = globalREnv (renv γ)}
+
+
+--------------------------------------------------------------------------------
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(++=) γ = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ
+(++=) γ (eMsg, x, t)
+  = -- trace ("++= " ++ show x) $
+    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -200,7 +244,7 @@ addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
-(γ, _) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
+(γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }, "+++=") += (x, t)
 
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
