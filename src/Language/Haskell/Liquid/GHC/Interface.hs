@@ -67,7 +67,9 @@ import Language.Fixpoint.Utils.Files
 --------------------------------------------------------------------------------
 
 getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
-getGhcInfo hscEnv cfg0 target =  do
+getGhcInfo hscEnv cfg0 target = do
+  tryIgnore "create temp directory" $
+    createDirectoryIfMissing False $ tempDirectory target
   (cfg, name, tgtSpec) <- parseRootTarget cfg0 target
   runLiquidGhc hscEnv cfg $ getGhcInfo' cfg target name tgtSpec
 
