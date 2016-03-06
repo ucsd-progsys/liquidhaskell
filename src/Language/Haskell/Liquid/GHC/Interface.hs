@@ -69,7 +69,7 @@ import Language.Fixpoint.Utils.Files
 getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
 getGhcInfo hscEnv cfg0 target =  do
   (cfg, name, tgtSpec) <- parseRootTarget cfg0 target
-  runLiquidGhc hscEnv cfg target $ getGhcInfo' cfg target name tgtSpec
+  runLiquidGhc hscEnv cfg $ getGhcInfo' cfg target name tgtSpec
 
 getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
 getGhcInfo' cfg target name tgtSpec = do
@@ -111,8 +111,8 @@ parseRootTarget cfg0 target = do
 -- Configure GHC for Liquid Haskell --------------------------------------------
 --------------------------------------------------------------------------------
 
-runLiquidGhc :: Maybe HscEnv -> Config -> FilePath -> Ghc a -> IO a
-runLiquidGhc hscEnv cfg target act =
+runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
+runLiquidGhc hscEnv cfg act =
   withSystemTempDirectory "liquid" $ \tmp ->
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
