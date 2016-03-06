@@ -137,6 +137,7 @@ Library
                 , Cabal >= 1.18
                 , bifunctors >= 5.1 && < 6.0
                 , cereal
+                , temporary >= 1.2 && < 2.0
 
    hs-source-dirs:  src, include
 

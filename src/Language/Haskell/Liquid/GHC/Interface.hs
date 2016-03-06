@@ -44,6 +44,7 @@ import qualified Data.HashSet        as S
 
 import System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
+import System.IO.Temp
 import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
@@ -66,21 +67,12 @@ import Language.Fixpoint.Utils.Files
 --------------------------------------------------------------------------------
 
 getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
-getGhcInfo = getGhcInfo'
+getGhcInfo hscEnv cfg0 target =  do
+  (cfg, name, tgtSpec) <- parseRootTarget cfg0 target
+  runLiquidGhc hscEnv cfg target $ getGhcInfo' cfg target name tgtSpec
 
-getGhcInfo' :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
-getGhcInfo' hEnv cfg f = runGhc (Just libdir) $ do
-  maybe (return ()) setSession hEnv
-  df <- getDynFlags
-  info <- defaultCleanupHandler df $ getGhcInfo'' cfg f
-  hEnv' <- getSession
-  return (info, hEnv')
-
-getGhcInfo'' :: Config -> FilePath -> Ghc GhcInfo
-getGhcInfo'' cfg0 target = do
-  (cfg, name, tgtSpec) <- liftIO $ parseRootTarget cfg0 target
-  configureGhc cfg target
-
+getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
+getGhcInfo' cfg target name tgtSpec = do
   impSpecs <- findAndLoadTargets cfg target
 
   modGuts <- makeMGIModGuts target
@@ -101,7 +93,9 @@ getGhcInfo'' cfg0 target = do
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts (idirs cfg) target imps incs
 
-  return $ GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  let info = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  hscEnv' <- getSession
+  return (info, hscEnv')
 
 --------------------------------------------------------------------------------
 -- Build Target Spec & Config --------------------------------------------------
@@ -117,42 +111,33 @@ parseRootTarget cfg0 target = do
 -- Configure GHC for Liquid Haskell --------------------------------------------
 --------------------------------------------------------------------------------
 
-configureGhc :: Config -> FilePath -> Ghc ()
-configureGhc cfg target = do
-  liftIO $ cleanFiles target
-  updateDynFlags cfg
-
--- TODO: Don't do this, make GHC compile to a temp dir instead
-cleanFiles :: FilePath -> IO ()
-cleanFiles f = do
-  forM_ bins (tryIgnore "delete binaries" . removeFileIfExists)
-  tryIgnore "create temp directory" $ createDirectoryIfMissing False dir
-  where
-    bins = replaceExtension f <$> ["hi", "o"]
-    dir = tempDirectory f
-
-removeFileIfExists :: FilePath -> IO ()
-removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
-
-updateDynFlags :: Config -> Ghc ()
-updateDynFlags cfg = do
-  df <- getSessionDynFlags
-  let df' = df { importPaths  = idirs cfg ++ importPaths df
-               , libraryPaths = idirs cfg ++ libraryPaths df
-               , includePaths = idirs cfg ++ includePaths df
-               -- , profAuto     = ProfAutoCalls
-               , ghcLink      = LinkInMemory
-               --FIXME: this *should* be HscNothing, but that prevents us from
-               -- looking up *unexported* names in another source module..
-               , hscTarget    = HscInterpreted -- HscNothing
-               , ghcMode      = CompManager
-               -- prevent GHC from printing anything
-               , log_action   = \_ _ _ _ _ -> return ()
-               } `xopt_set` Opt_MagicHash
-                 `gopt_set` Opt_ImplicitImportQualified
-                 `gopt_set` Opt_PIC
-  (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
-  void $ setSessionDynFlags df''
+runLiquidGhc :: Maybe HscEnv -> Config -> FilePath -> Ghc a -> IO a
+runLiquidGhc hscEnv cfg target act =
+  withSystemTempDirectory "liquid" $ \tmp ->
+    runGhc (Just libdir) $ do
+      maybe (return ()) setSession hscEnv
+      df <- getSessionDynFlags
+      let df' = df { importPaths  = idirs cfg ++ importPaths df
+                   , libraryPaths = idirs cfg ++ libraryPaths df
+                   , includePaths = idirs cfg ++ includePaths df
+                   -- , profAuto     = ProfAutoCalls
+                   , ghcLink      = LinkInMemory
+                   --FIXME: this *should* be HscNothing, but that prevents us from
+                   -- looking up *unexported* names in another source module..
+                   , hscTarget    = HscInterpreted -- HscNothing
+                   , ghcMode      = CompManager
+                   -- prevent GHC from printing anything
+                   , log_action   = \_ _ _ _ _ -> return ()
+                   -- redirect .hi/.o/etc files to temp directory
+                   , objectDir    = Just tmp
+                   , hiDir        = Just tmp
+                   , stubDir      = Just tmp
+                   } `xopt_set` Opt_MagicHash
+                     `gopt_set` Opt_ImplicitImportQualified
+                     `gopt_set` Opt_PIC
+      (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
+      setSessionDynFlags df''
+      defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------
 -- Load Target and Recursive Imports -------------------------------------------
