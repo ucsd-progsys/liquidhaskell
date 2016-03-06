@@ -13,53 +13,53 @@ module Language.Haskell.Liquid.GHC.Interface (
   , pprintCBs
   ) where
 
--- TODO: Clean up imports!
-
 import Prelude hiding (error)
+
+import GHC hiding (Target, desugarModule)
+import GHC.Paths (libdir)
+
+import Bag
+import Class
+import CoreMonad
+import CoreSyn
+import DataCon
+import DriverPhases
+import DriverPipeline
+import DynFlags
+import ErrUtils
+import HscTypes hiding (Target)
 import IdInfo
 import InstEnv
-import Bag (bagToList)
-import ErrUtils
-import GHC hiding (Target, desugarModule)
-import DriverPhases (Phase(..))
-import DriverPipeline (compileFile)
-import Text.PrettyPrint.HughesPJ
-import HscTypes hiding (Target)
-import CoreSyn
-
-import Class
 import Var
-import CoreMonad    (liftIO)
-import DataCon
+
 import Control.Exception
-
-import GHC.Paths (libdir)
-import System.FilePath ( replaceExtension, normalise)
-
-import DynFlags
 import Control.Monad
-import Data.List (find, nub, (\\))
-import Data.Maybe
-import qualified Data.HashSet        as S
 
-import System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
-import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
+import Data.List hiding (intersperse)
+import Data.Maybe
+import qualified Data.HashSet as S
+
+import System.Console.CmdArgs.Verbosity hiding (Loud)
+import System.Directory
+import System.FilePath
 import System.IO.Temp
+
+import Text.PrettyPrint.HughesPJ
+
 import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
-import Language.Haskell.Liquid.Types
-
-import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.Parse
+import Language.Haskell.Liquid.Transforms.ANF
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.CmdLine (withPragmas)
+import Language.Haskell.Liquid.UX.CmdLine
 import Language.Haskell.Liquid.UX.Tidy
-import Language.Haskell.Liquid.Parse
-import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
 
 --------------------------------------------------------------------------------
