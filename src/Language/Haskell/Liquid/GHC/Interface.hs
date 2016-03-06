@@ -100,16 +100,6 @@ getGhcInfo' cfg target name tgtSpec = do
   return (info, hscEnv')
 
 --------------------------------------------------------------------------------
--- Build Target Spec & Config --------------------------------------------------
---------------------------------------------------------------------------------
-
-parseRootTarget :: Config -> FilePath -> IO (Config, ModName, Ms.BareSpec)
-parseRootTarget cfg0 target = do
-  (name, tgtSpec) <- parseSpec target
-  cfg <- withPragmas cfg0 target $ Ms.pragmas tgtSpec
-  return (cfg, ModName Target $ getModName name, tgtSpec)
-
---------------------------------------------------------------------------------
 -- Configure GHC for Liquid Haskell --------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -142,8 +132,14 @@ runLiquidGhc hscEnv cfg act =
       defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------
--- Load Target and Recursive Imports -------------------------------------------
+-- Parse, Find, & Load Targets -------------------------------------------------
 --------------------------------------------------------------------------------
+
+parseRootTarget :: Config -> FilePath -> IO (Config, ModName, Ms.BareSpec)
+parseRootTarget cfg0 target = do
+  (name, tgtSpec) <- parseSpec target
+  cfg <- withPragmas cfg0 target $ Ms.pragmas tgtSpec
+  return (cfg, ModName Target $ getModName name, tgtSpec)
 
 findAndLoadTargets :: Config -> FilePath -> Ghc [(ModName, Ms.BareSpec)]
 findAndLoadTargets cfg target = do
@@ -153,7 +149,6 @@ findAndLoadTargets cfg target = do
   impSpecs <- getSpecs cfg (idirs cfg) target impNames [Spec, Hs, LHs]
   liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
 
-  -- TODO: Handle this via GHC options instead
   compileCFiles =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
 
   impSpecs' <- forM impSpecs $ \(f, n, s) -> do
@@ -183,7 +178,7 @@ compileCFiles cfg = do
   void $ setSessionDynFlags $ df { ldInputs = map (FileOption "") os ++ ldInputs df }
 
 --------------------------------------------------------------------------------
--- Convert ModGuts Format ------------------------------------------------------
+-- Assemble Information for Spec Extraction ------------------------------------
 --------------------------------------------------------------------------------
 
 makeMGIModGuts :: FilePath -> Ghc MGIModGuts
@@ -197,10 +192,6 @@ makeMGIModGuts f = do
       return $! miModGuts deriv modGuts
     Nothing ->
       panic Nothing $ "Ghc Interface: Unable to get GhcModGuts"
-
---------------------------------------------------------------------------------
--- Logic Map -------------------------------------------------------------------
---------------------------------------------------------------------------------
 
 makeLogicMap :: IO (Either Error LogicMap)
 makeLogicMap = do
@@ -248,7 +239,7 @@ definedVars = concatMap defs
     defs (Rec xes)    = map fst xes
 
 --------------------------------------------------------------------------------
--- Find & Parse Target and Import Specs ----------------------------------------
+-- Find & Parse Specs ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 getSpecs cfg paths target names exts = do
