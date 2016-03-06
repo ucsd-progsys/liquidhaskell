@@ -1,4 +1,4 @@
-LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
+LiquidHaskell [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
 =============
 
 Requirements
