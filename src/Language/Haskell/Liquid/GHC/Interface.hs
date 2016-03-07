@@ -75,7 +75,10 @@ getGhcInfo hscEnv cfg0 target = do
 
 getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
 getGhcInfo' cfg target name tgtSpec = do
-  impSpecs <- findAndLoadTargets cfg target
+  paths <- importPaths <$> getSessionDynFlags
+  liftIO $ whenLoud $ putStrLn $ "paths =" ++ show paths
+
+  impSpecs <- findAndLoadTargets cfg paths target
 
   modGuts <- makeMGIModGuts target
   hscEnv <- getSession
@@ -93,7 +96,7 @@ getGhcInfo' cfg target name tgtSpec = do
 
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
-  hqualFiles <- moduleHquals modGuts (idirs cfg) target imps incs
+  hqualFiles <- moduleHquals modGuts paths target imps incs
 
   let info = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
   hscEnv' <- getSession
@@ -141,12 +144,12 @@ parseRootTarget cfg0 target = do
   cfg <- withPragmas cfg0 target $ Ms.pragmas tgtSpec
   return (cfg, ModName Target $ getModName name, tgtSpec)
 
-findAndLoadTargets :: Config -> FilePath -> Ghc [(ModName, Ms.BareSpec)]
-findAndLoadTargets cfg target = do
+findAndLoadTargets :: Config -> [FilePath] -> FilePath -> Ghc [(ModName, Ms.BareSpec)]
+findAndLoadTargets cfg paths target = do
   setTargets . return =<< guessTarget target Nothing
 
   impNames <- allDepNames <$> depanal [] False
-  impSpecs <- getSpecs cfg (idirs cfg) target impNames [Spec, Hs, LHs]
+  impSpecs <- getSpecs cfg paths target impNames [Spec, Hs, LHs]
   liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
 
   compileCFiles =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
