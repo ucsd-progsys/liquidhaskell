@@ -116,6 +116,7 @@ runLiquidGhc hscEnv cfg act =
       let df'' = df' { importPaths  = idirs cfg ++ importPaths df'
                      , libraryPaths = idirs cfg ++ libraryPaths df'
                      , includePaths = idirs cfg ++ includePaths df'
+                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
                      --FIXME: this *should* be HscNothing, but that prevents us from
