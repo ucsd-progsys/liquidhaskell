@@ -113,6 +113,7 @@ runLiquidGhc hscEnv cfg act =
       maybe (return ()) setSession hscEnv
       df <- getSessionDynFlags
       (df',_,_) <- parseDynamicFlags df (map noLoc $ ghcOptions cfg)
+      loud <- liftIO isLoud
       let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                      , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                      , includePaths = nub $ idirs cfg ++ includePaths df'
@@ -123,8 +124,10 @@ runLiquidGhc hscEnv cfg act =
                      -- looking up *unexported* names in another source module..
                      , hscTarget    = HscInterpreted -- HscNothing
                      , ghcMode      = CompManager
-                     -- prevent GHC from printing anything
-                     , log_action   = \_ _ _ _ _ -> return ()
+                     -- prevent GHC from printing anything, unless in Loud mode
+                     , log_action   = if loud
+                                        then defaultLogAction
+                                        else \_ _ _ _ _ -> return ()
                      -- redirect .hi/.o/etc files to temp directory
                      , objectDir    = Just tmp
                      , hiDir        = Just tmp
