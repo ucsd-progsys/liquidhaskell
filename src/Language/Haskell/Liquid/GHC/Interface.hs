@@ -109,25 +109,25 @@ runLiquidGhc hscEnv cfg act =
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- getSessionDynFlags
-      let df' = df { importPaths  = idirs cfg ++ importPaths df
-                   , libraryPaths = idirs cfg ++ libraryPaths df
-                   , includePaths = idirs cfg ++ includePaths df
-                   -- , profAuto     = ProfAutoCalls
-                   , ghcLink      = LinkInMemory
-                   --FIXME: this *should* be HscNothing, but that prevents us from
-                   -- looking up *unexported* names in another source module..
-                   , hscTarget    = HscInterpreted -- HscNothing
-                   , ghcMode      = CompManager
-                   -- prevent GHC from printing anything
-                   , log_action   = \_ _ _ _ _ -> return ()
-                   -- redirect .hi/.o/etc files to temp directory
-                   , objectDir    = Just tmp
-                   , hiDir        = Just tmp
-                   , stubDir      = Just tmp
-                   } `xopt_set` Opt_MagicHash
-                     `gopt_set` Opt_ImplicitImportQualified
-                     `gopt_set` Opt_PIC
-      (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
+      (df',_,_) <- parseDynamicFlags df (map noLoc $ ghcOptions cfg)
+      let df'' = df' { importPaths  = idirs cfg ++ importPaths df'
+                     , libraryPaths = idirs cfg ++ libraryPaths df'
+                     , includePaths = idirs cfg ++ includePaths df'
+                     -- , profAuto     = ProfAutoCalls
+                     , ghcLink      = LinkInMemory
+                     --FIXME: this *should* be HscNothing, but that prevents us from
+                     -- looking up *unexported* names in another source module..
+                     , hscTarget    = HscInterpreted -- HscNothing
+                     , ghcMode      = CompManager
+                     -- prevent GHC from printing anything
+                     , log_action   = \_ _ _ _ _ -> return ()
+                     -- redirect .hi/.o/etc files to temp directory
+                     , objectDir    = Just tmp
+                     , hiDir        = Just tmp
+                     , stubDir      = Just tmp
+                     } `xopt_set` Opt_MagicHash
+                       `gopt_set` Opt_ImplicitImportQualified
+                       `gopt_set` Opt_PIC
       setSessionDynFlags df''
       defaultCleanupHandler df'' act
 
@@ -168,10 +168,6 @@ declNameString = moduleNameString . unLoc . ideclName . unLoc
 
 compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
-  df  <- getSessionDynFlags
-  setSessionDynFlags $ df { includePaths = nub $ idirs cfg ++ includePaths df
-                          , importPaths  = nub $ idirs cfg ++ importPaths df
-                          , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
   os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
   df  <- getSessionDynFlags
