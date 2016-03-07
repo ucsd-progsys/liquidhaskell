@@ -89,8 +89,7 @@ import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                 , sourcePosSrcSpan)
+                                                 , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
