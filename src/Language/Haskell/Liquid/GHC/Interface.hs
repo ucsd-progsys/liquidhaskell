@@ -76,7 +76,7 @@ getGhcInfo hscEnv cfg0 target = do
 getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
 getGhcInfo' cfg target name tgtSpec = do
   paths <- importPaths <$> getSessionDynFlags
-  liftIO $ whenLoud $ putStrLn $ "paths =" ++ show paths
+  liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
 
   impSpecs <- findAndLoadTargets cfg paths target
 
@@ -113,9 +113,9 @@ runLiquidGhc hscEnv cfg act =
       maybe (return ()) setSession hscEnv
       df <- getSessionDynFlags
       (df',_,_) <- parseDynamicFlags df (map noLoc $ ghcOptions cfg)
-      let df'' = df' { importPaths  = idirs cfg ++ importPaths df'
-                     , libraryPaths = idirs cfg ++ libraryPaths df'
-                     , includePaths = idirs cfg ++ includePaths df'
+      let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
+                     , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
+                     , includePaths = nub $ idirs cfg ++ includePaths df'
                      , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
@@ -172,6 +172,10 @@ declNameString = moduleNameString . unLoc . ideclName . unLoc
 
 compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
+  df  <- getSessionDynFlags
+  setSessionDynFlags $ df { includePaths = nub $ idirs cfg ++ includePaths df
+                          , importPaths  = nub $ idirs cfg ++ importPaths df
+                          , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
   os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
   df  <- getSessionDynFlags
