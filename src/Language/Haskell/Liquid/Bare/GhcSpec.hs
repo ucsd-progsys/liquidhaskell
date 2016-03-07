@@ -199,7 +199,7 @@ makeAxioms tce cbs spec sp
                      , logicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 
 
 makeGhcSpec0 cfg defVars exports name sp
@@ -252,7 +252,7 @@ makeGhcSpec4 defVars specs name su sp
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
-       let sigs = strengthenHaskellMeasures hmeas ++ tySigs sp
+       let msgs = strengthenHaskellMeasures hmeas
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let tx   = mapSnd (fmap $ txRefToLogic lmap inlmap)
@@ -263,9 +263,10 @@ makeGhcSpec4 defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
-                     , tySigs     = tx  <$> sigs
+                     , tySigs     = tx  <$> tySigs  sp 
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
+                     , inSigs     = tx  <$> msgs 
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]

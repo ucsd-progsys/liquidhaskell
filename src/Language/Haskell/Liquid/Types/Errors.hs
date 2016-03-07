@@ -236,12 +236,12 @@ data TError t =
                 } -- ^ Incompatible using error
 
   | ErrMeas     { pos :: !SrcSpan
-                , ms  :: !Symbol
+                , ms  :: !Doc 
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
   | ErrHMeas    { pos :: !SrcSpan
-                , ms  :: !Symbol
+                , ms  :: !Doc 
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 

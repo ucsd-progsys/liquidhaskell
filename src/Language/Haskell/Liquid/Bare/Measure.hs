@@ -103,7 +103,7 @@ makeMeasureInline tce lmap cbs  x
     fromLR (Right r) = r
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
 updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
@@ -126,7 +126,7 @@ makeMeasureDefinition tce lmap cbs x
                            Right e -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
@@ -235,7 +235,7 @@ makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs 
                            Right e      -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)
