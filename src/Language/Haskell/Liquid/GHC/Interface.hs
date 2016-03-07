@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -111,32 +112,58 @@ runLiquidGhc hscEnv cfg act =
   withSystemTempDirectory "liquid" $ \tmp ->
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
-      df <- getSessionDynFlags
-      (df',_,_) <- parseDynamicFlags df (map noLoc $ ghcOptions cfg)
-      loud <- liftIO isLoud
-      let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
-                     , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                     , includePaths = nub $ idirs cfg ++ includePaths df'
-                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
-                     -- , profAuto     = ProfAutoCalls
-                     , ghcLink      = LinkInMemory
-                     --FIXME: this *should* be HscNothing, but that prevents us from
-                     -- looking up *unexported* names in another source module..
-                     , hscTarget    = HscInterpreted -- HscNothing
-                     , ghcMode      = CompManager
-                     -- prevent GHC from printing anything, unless in Loud mode
-                     , log_action   = if loud
-                                        then defaultLogAction
-                                        else \_ _ _ _ _ -> return ()
-                     -- redirect .hi/.o/etc files to temp directory
-                     , objectDir    = Just tmp
-                     , hiDir        = Just tmp
-                     , stubDir      = Just tmp
-                     } `xopt_set` Opt_MagicHash
-                       `gopt_set` Opt_ImplicitImportQualified
-                       `gopt_set` Opt_PIC
-      setSessionDynFlags df''
-      defaultCleanupHandler df'' act
+      ensureCorrectGhcVersion
+      df <- configureDynFlags cfg tmp
+      defaultCleanupHandler df act
+
+configureDynFlags :: Config -> FilePath -> Ghc DynFlags
+configureDynFlags cfg tmp = do
+  loud <- liftIO isLoud
+  df <- getSessionDynFlags
+  (df',_,_) <- parseDynamicFlags df (map noLoc $ ghcOptions cfg)
+  let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
+                 , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
+                 , includePaths = nub $ idirs cfg ++ includePaths df'
+                 , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
+                 -- , profAuto     = ProfAutoCalls
+                 , ghcLink      = LinkInMemory
+                 --FIXME: this *should* be HscNothing, but that prevents us from
+                 -- looking up *unexported* names in another source module..
+                 , hscTarget    = HscInterpreted -- HscNothing
+                 , ghcMode      = CompManager
+                 -- prevent GHC from printing anything, unless in Loud mode
+                 , log_action   = if loud
+                                    then defaultLogAction
+                                    else \_ _ _ _ _ -> return ()
+                 -- redirect .hi/.o/etc files to temp directory
+                 , objectDir    = Just tmp
+                 , hiDir        = Just tmp
+                 , stubDir      = Just tmp
+                 } `xopt_set` Opt_MagicHash
+                   `gopt_set` Opt_ImplicitImportQualified
+                   `gopt_set` Opt_PIC
+  setSessionDynFlags df''
+  return df''
+
+--------------------------------------------------------------------------------
+-- GHC Version Check -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+compiledGhcVersion :: String
+compiledGhcVersion = VERSION_ghc
+
+getGhcApiVersion :: Ghc String
+getGhcApiVersion = projectVersion <$> getSessionDynFlags
+
+ensureCorrectGhcVersion :: Ghc ()
+ensureCorrectGhcVersion = do
+  ghcApiVersion <- getGhcApiVersion
+  unless (ghcApiVersion == compiledGhcVersion) $ panic Nothing $
+    "LiquidHaskell was compiled against GHC "
+      ++ compiledGhcVersion
+      ++ ", but is currently running against version "
+      ++ ghcApiVersion
+      ++ " of the GHC library. Please ensure that these versions match."
 
 --------------------------------------------------------------------------------
 -- Parse, Find, & Load Targets -------------------------------------------------
