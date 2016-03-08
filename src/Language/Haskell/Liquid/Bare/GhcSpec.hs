@@ -99,12 +99,14 @@ listLMap = toLogicMap [(nilName, [], hNil),
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts', invariants = invs', meas = meas' }
+  = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts', invariants = invs', meas = meas', inSigs = inSigs' }
   where
-    (sigs, ts') = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    (assms, ts) = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (sigs, ts')   = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
+    (assms, ts'') = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (insigs, ts)  = replaceLocalBinds tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
     tySigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs'    = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
+    inSigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
     dicts'      = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'       = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
     meas'       = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
