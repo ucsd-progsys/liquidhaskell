@@ -702,6 +702,14 @@ Inductive Haskell Functions from Data Types to some type can be lifted to logic
     llen []     = 0
     llen (x:xs) = 1 + llen xs
 
+The above definition 
+  - refines list's data constructors types with the llen information, and 
+  - specifies a singleton type for the haskell function 
+         `llen :: xs:[a] -> {v:Int | v == llen xs}`
+    If the user specifies another type for llen, say 
+         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
+    then the auto generated singleton type is overwriten.
+
 Self-Invariants
 ===============
 
