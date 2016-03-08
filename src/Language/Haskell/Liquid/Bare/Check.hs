@@ -384,7 +384,7 @@ checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType Da
 checkMeasure emb γ (M name@(Loc src _ n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where
-    txerror = ErrMeas (sourcePosSrcSpan src) n
+    txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
   where

@@ -84,7 +84,7 @@ makeAxiom tce lmap cbs _ _ x
     --                        Right _ -> error $ "ERROR" -- throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
     makeType v       = x{val = ufType    $ varType v}
     makeAssumeType v = x{val = axiomType x $ varType v}
@@ -132,7 +132,7 @@ makeAxiomType tce lmap x v (Axiom _ xs _ lhs rhs)
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
 
-    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
+    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
     --mkBinds (_:xs) (v:vs) = v:mkBinds xs vs
     --mkBinds _ _ = []

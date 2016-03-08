@@ -99,12 +99,14 @@ listLMap = toLogicMap [(nilName, [], hNil),
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts', invariants = invs', meas = meas' }
+  = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts', invariants = invs', meas = meas', inSigs = inSigs' }
   where
-    (sigs, ts') = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    (assms, ts) = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (sigs, ts')   = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
+    (assms, ts'') = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (insigs, ts)  = replaceLocalBinds tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
     tySigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs'    = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
+    inSigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
     dicts'      = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'       = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
     meas'       = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
@@ -199,7 +201,7 @@ makeAxioms tce cbs spec sp
                      , logicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 
 
 makeGhcSpec0 cfg defVars exports name sp
@@ -252,7 +254,7 @@ makeGhcSpec4 defVars specs name su sp
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
-       let sigs = strengthenHaskellMeasures hmeas ++ tySigs sp
+       let msgs = strengthenHaskellMeasures hmeas
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let tx   = mapSnd (fmap $ txRefToLogic lmap inlmap)
@@ -263,9 +265,10 @@ makeGhcSpec4 defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
-                     , tySigs     = tx  <$> sigs
+                     , tySigs     = tx  <$> tySigs  sp 
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
+                     , inSigs     = tx  <$> msgs 
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
