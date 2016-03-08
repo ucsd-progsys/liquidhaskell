@@ -168,7 +168,7 @@ initEnv info
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
-       f5       <- refreshArgs' $ vals inSigs sp            -- assumed refinedments     (with `assume`)
+       f5       <- refreshArgs' $ vals inSigs sp             -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
        let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
