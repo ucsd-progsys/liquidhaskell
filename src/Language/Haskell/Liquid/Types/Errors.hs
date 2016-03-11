@@ -57,8 +57,7 @@ import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
-import qualified Outputable as Out
-import           DynFlags (unsafeGlobalDynFlags)
+import           System.FilePath
 import Data.List    (intersperse )
 import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
@@ -331,13 +330,39 @@ errSpan =  pos
 type UserError  = TError Doc
 
 instance PPrint SrcSpan where
-  pprintTidy _ = text . showSDoc . Out.ppr
-     where
-        showSDoc sdoc = Out.renderWithStyle
-                        unsafeGlobalDynFlags
-                        sdoc (Out.mkUserStyle
-                              Out.alwaysQualify
-                              Out.AllTheWay)
+  pprintTidy _ = pprSrcSpan
+
+pprSrcSpan :: SrcSpan -> Doc
+pprSrcSpan (UnhelpfulSpan s) = text $ unpackFS s
+pprSrcSpan (RealSrcSpan s)   = pprRealSrcSpan s
+
+pprRealSrcSpan :: RealSrcSpan -> Doc
+pprRealSrcSpan span
+  | sline == eline && scol == ecol =
+    hcat [ pathDoc <> colon
+         , int sline <> colon
+         , int scol
+         ]
+  | sline == eline =
+    hcat $ [ pathDoc <> colon
+           , int sline <> colon
+           , int scol
+           ] ++ if ecol - scol <= 1 then [] else [char '-' <> int (ecol - 1)]
+  | otherwise =
+    hcat [ pathDoc <> colon
+         , parens (int sline <> comma <> int scol)
+         , char '-'
+         , parens (int eline <> comma <> int ecol')
+         ]
+ where
+   path  = srcSpanFile      span
+   sline = srcSpanStartLine span
+   eline = srcSpanEndLine   span
+   scol  = srcSpanStartCol  span
+   ecol  = srcSpanEndCol    span
+
+   pathDoc = text $ normalise $ unpackFS path
+   ecol'   = if ecol == 0 then ecol else ecol - 1
 
 instance PPrint UserError where
   pprintTidy k = ppError k empty . fmap pprint
