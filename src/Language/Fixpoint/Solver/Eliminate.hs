@@ -17,7 +17,7 @@ solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD
   where
-    cD             = elimDeps es nKs
+    cD             = elimDeps sI es nKs
     sI'            = cutSInfo   kI cKs sI
     sHyp           = solFromList [] kHyps
     kHyps          = nonCutHyps kI nKs sI

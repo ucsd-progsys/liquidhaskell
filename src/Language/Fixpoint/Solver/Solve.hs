@@ -58,7 +58,7 @@ solverInfo cfg fI
   | eliminate cfg = E.solverInfo cfg fI
   | otherwise     = SI mempty fI cD
   where
-    cD            = elimDeps (kvEdges fI) mempty
+    cD            = elimDeps fI (kvEdges fI) mempty
     
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)

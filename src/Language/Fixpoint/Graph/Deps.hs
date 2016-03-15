@@ -18,8 +18,6 @@ module Language.Fixpoint.Graph.Deps (
 
       -- * Compute Raw Dependencies
       , kvEdges
-      , cDeps -- FIXME:BEN HIDE THIS!
-
 
       -- * Partition
       , decompose
@@ -221,15 +219,32 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
-elimDeps :: [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps es nonKutVs = graphDeps (graphElim es nonKutVs)
+elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
+elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
 
 
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim = error "FIXME:BEN"
+graphElim cs ks = S.foldl' graphElimSingle cs ks
 
-graphDeps :: [CEdge] -> CDeps
-graphDeps = error "FIXME:BEN"
+graphElimSingle :: [CEdge] -> F.KVar -> [CEdge]
+graphElimSingle cs k = filter (elimCsK cIns k) (cs ++ newEdges)
+  where
+    cOuts = [c | (KVar k1, Cstr c) <- cs, k1 == k]
+    cIns  = [c | (Cstr c, KVar k1) <- cs, k1 == k]
+    newEdges = concatMap (newEdgesSingle cs cOuts) cIns
+
+newEdgesSingle :: [CEdge] -> [Integer] -> Integer -> [CEdge]
+newEdgesSingle cs cOuts cIn = [(KVar k, Cstr c) | k <- kIns, c <- cOuts]
+  where
+    kIns = [k | (KVar k, Cstr c) <- cs, c == cIn]
+
+elimCsK :: [Integer] -> F.KVar -> CEdge -> Bool
+elimCsK cIns k (v1, v2) = okV v1 && okV v2
+  where
+    okV (Cstr c)   = c `notElem` cIns
+    okV (KVar k1)  = k1 /= k
+    okV (DKVar k1) = k1 /= k
+
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
@@ -337,21 +352,40 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
     sccs                 = G.stronglyConnCompR vs'
 
 
+
 ---------------------------------------------------------------------------
-cDeps :: F.SInfo a -> CDeps
+graphDeps :: F.SInfo a -> [CEdge] -> CDeps
 ---------------------------------------------------------------------------
-cDeps fi  = CDs { cSucc   = gSucc cg
-                , cNumScc = gSccs cg
-                , cRank   = M.fromList [(i, rf i) | i <- is ]
-                }
+graphDeps fi cs = CDs { cSucc   = gSucc cg
+                      , cNumScc = gSccs cg
+                      , cRank   = M.fromList [(i, rf i) | i <- is ]
+                      }
   where
     rf    = rankF (F.cm fi) outRs inRs
     inRs  = inRanks fi es outRs
     outRs = gRanks cg
     es    = gEdges cg
-    cg    = cGraph fi
-    cm    = F.cm fi
-    is    = M.keys cm
+    cg    = cGraphCE cs
+    is    = [i | (Cstr i, _) <- cs]
+
+--TODO merge these with cGraph and kvSucc
+cGraphCE :: [CEdge] -> CGraph
+cGraphCE cs = CGraph { gEdges = es
+                     , gRanks = outRs
+                     , gSucc  = next
+                     , gSccs  = length sccs }
+  where
+    es             = [(i, i, next i) | (Cstr i, _) <- cs]
+    next           = kvSuccCE cs
+    (g, vf, _)     = G.graphFromEdges es
+    (outRs, sccs)  = graphRanks g vf
+
+kvSuccCE :: [CEdge] -> CSucc
+kvSuccCE cs i = sortNub $ concatMap kvReads iKs
+  where
+    rdBy      = group [(k, i) | (KVar k, Cstr i) <- cs]
+    iKs       = [k | (Cstr i1, KVar k) <- cs, i == i1]
+    kvReads k = M.lookupDefault [] k rdBy
 
 rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
 rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
