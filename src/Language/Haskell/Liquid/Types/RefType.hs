@@ -1080,7 +1080,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
 
-    go pos (ForAllTy v t)  = go pos t
+    go pos (ForAllTy _ t)  = go pos t
     go pos (TyVarTy v)     = [(v, pos)]
     go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
     go pos (TyConApp c' ts) 
@@ -1102,9 +1102,6 @@ makeTyConVariance c = varSignToVariance <$> tvs
     goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
     goTyConApp pos Covariant     t = go pos       t 
     goTyConApp pos Contravariant t = go (not pos) t 
-
-    varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
-    errmsg v      = panic Nothing $ "GhcMisc.makeTyConVariance: var not found" ++ showPpr v
 
 
 --------------------------------------------------------------------------------
