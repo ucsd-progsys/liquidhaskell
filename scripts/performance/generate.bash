@@ -56,8 +56,6 @@ function generate_log {
     local RESULT=$SCRIPT_LOGS/$HASH.log;
     local SHOULD_GEN=true;
 
-    DONE_LOGS=`expr $DONE_LOGS + 1`
-
     if [ -e $RESULT ]
     then
         if [ $FORCE = false ]
@@ -68,6 +66,7 @@ function generate_log {
 
     if [ $SHOULD_GEN = true ]
     then
+        DONE_LOGS=`expr $DONE_LOGS + 1`
         $GIT checkout $HASH;
         $GIT submodule update;
         $MAKE clean;
