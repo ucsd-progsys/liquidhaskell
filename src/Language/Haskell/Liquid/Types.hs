@@ -296,6 +296,7 @@ data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
                                                  -- eg.  see include/Prelude.spec
   , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
+  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures 
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types

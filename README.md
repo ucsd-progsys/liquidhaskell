@@ -1,4 +1,4 @@
-LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
+LiquidHaskell [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
 =============
 
 Requirements
@@ -701,6 +701,14 @@ Inductive Haskell Functions from Data Types to some type can be lifted to logic
     llen        :: [a] -> Int
     llen []     = 0
     llen (x:xs) = 1 + llen xs
+
+The above definition 
+  - refines list's data constructors types with the llen information, and 
+  - specifies a singleton type for the haskell function 
+         `llen :: xs:[a] -> {v:Int | v == llen xs}`
+    If the user specifies another type for llen, say 
+         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
+    then the auto generated singleton type is overwriten.
 
 Self-Invariants
 ===============
