@@ -11,7 +11,7 @@ SCRIPT_LOGS="$SCRIPT_DIR/logs";
 SCRIPT_REPO="$SCRIPT_LOGS/repository";
 SCRIPT_FIXPOINT="$SCRIPT_REPO/liquid-fixpoint";
 SCRIPT_PROVER="$SCRIPT_REPO/prover";
-REPO_TEST="$SCRIP_REPO/dist/build/test/test";
+REPO_TEST="$SCRIPT_REPO/dist/build/test/test";
 REPO_TEST_ARGS=" --timeout 10m";
 REPO_LOG="$SCRIPT_REPO/tests/logs/cur/summary.csv";
 
@@ -27,7 +27,7 @@ END_FOUND=false;
 
 function refresh_repo {
     cd $SCRIPT_REPO;
-    abort_if_failed "Couldn't change to $GIPEDA_REPO...";
+    abort_if_failed "Couldn't change to $SCRIPT_REPO...";
 
     $GIT pull origin master;
 
