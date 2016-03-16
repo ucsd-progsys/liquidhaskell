@@ -262,7 +262,7 @@ data PPEnv
 
 ppEnv           = ppEnvCurrent
 ppEnvCurrent    = PP False False False False
-ppEnvPrintPreds = PP False False False False
+_ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
