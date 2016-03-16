@@ -1086,12 +1086,12 @@ makeTyConVariance c = varSignToVariance <$> tvs
     go pos (TyConApp c' ts) 
        | c == c' 
        = []
-{-
- -- NV fix that: what happens if we have mutually recursive data types?
- -- I cannot check them because the check will diverge  
+
+-- NV fix that: what happens if we have mutually recursive data types?
+-- now just provide "default" Bivariant for mutually rec types. 
+-- but there should be a finer solution
        | mutuallyRecursive c c'
-       = concat $ zipWith goTyConApp (repeat Bivariant) ts 
--}
+       = concat $ zipWith (goTyConApp pos) (repeat Bivariant) ts 
        | otherwise 
        = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
 
@@ -1103,6 +1103,18 @@ makeTyConVariance c = varSignToVariance <$> tvs
     goTyConApp pos Covariant     t = go pos       t 
     goTyConApp pos Contravariant t = go (not pos) t 
 
+    mutuallyRecursive c c' = (c `S.member` (dataConsOfTyCon c')) || (c' `S.member` (dataConsOfTyCon c))
+
+
+dataConsOfTyCon :: TyCon -> S.HashSet TyCon
+dataConsOfTyCon c = mconcat $ go <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+  where
+    go (ForAllTy _ t)  = go t 
+    go (TyVarTy _)     = S.empty
+    go (AppTy t1 t2)   = go t1 `S.union` go t2
+    go (TyConApp c ts) = S.insert c $ mconcat $ go <$> ts
+    go (FunTy t1 t2)   = go t1 `S.union` go t2
+    go (LitTy _)       = S.empty
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------
