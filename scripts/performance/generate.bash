@@ -140,7 +140,7 @@ function usage {
 
 # Get options
 
-while getopts ":s:e:f" OPT; do
+while getopts ":s:e:n:f" OPT; do
     case $OPT in
         s)
             START=$OPTARG;;
