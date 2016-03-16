@@ -80,7 +80,7 @@ import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon)
 
 -- import           Data.Monoid      hiding ((<>))
-import           Data.Maybe               (fromMaybe, isJust)
+import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
@@ -1060,30 +1060,61 @@ mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> (Maybe (Symbol -> Expr))
 mkTyConInfo c usertyvar userprvariance f
   = TyConInfo (if null usertyvar then defaulttyvar else usertyvar) userprvariance f
   where
-        defaulttyvar      = varSignToVariance <$> [0 ..n]
+        defaulttyvar      = makeTyConVariance c 
 
-        varSignToVariance i = case filter (\p -> fst p == i) varsigns of
-                                []       -> Invariant
-                                [(_, b)] -> if b then Covariant else Contravariant
-                                _        -> Bivariant
 
-        varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
-        initmap   = zip (showPpr <$> tyvars) [0..n]
-        mkmap vs  = zip (showPpr <$> vs) (repeat dindex) ++ initmap
-        goDCon dc = concatMap (go (mkmap (DataCon.dataConExTyVars dc)) True) (DataCon.dataConOrigArgTys dc)
-        go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t
-        go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
-        go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
-        go m pos (TyConApp _ ts) = concatMap (go m pos) ts
-        go m pos (FunTy t1 t2)   = go m (not pos) t1 ++ go m pos t2
-        go _ _   (LitTy _)       = []
+makeTyConVariance :: TyCon -> VarianceInfo
+makeTyConVariance c = varSignToVariance <$> tvs 
+  where
+    tvs = tyConTyVarsDef c
 
-        varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
-        tyvars        = tyConTyVarsDef c
-        n             = (TC.tyConArity c) - 1
-        errmsg v      = panic Nothing $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
-        dindex        = -1
+    varsigns = if TC.isTypeSynonymTyCon c 
+                  then go True (fromJust $ TC.synTyConRhs_maybe c)
+                  else L.nub $ concatMap goDCon $ TC.tyConDataCons c 
 
+    varSignToVariance v = case filter (\p -> showPpr (fst p) == showPpr v) varsigns of
+                            []       -> Invariant
+                            [(_, b)] -> if b then Covariant else Contravariant
+                            _        -> Bivariant
+
+
+    goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
+
+    go pos (ForAllTy _ t)  = go pos t
+    go pos (TyVarTy v)     = [(v, pos)]
+    go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
+    go pos (TyConApp c' ts) 
+       | c == c' 
+       = []
+
+-- NV fix that: what happens if we have mutually recursive data types?
+-- now just provide "default" Bivariant for mutually rec types. 
+-- but there should be a finer solution
+       | mutuallyRecursive c c'
+       = concat $ zipWith (goTyConApp pos) (repeat Bivariant) ts 
+       | otherwise 
+       = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
+
+    go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
+    go _   (LitTy _)       = []
+
+    goTyConApp _   Invariant     _ = [] 
+    goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
+    goTyConApp pos Covariant     t = go pos       t 
+    goTyConApp pos Contravariant t = go (not pos) t 
+
+    mutuallyRecursive c c' = c `S.member` (dataConsOfTyCon c')
+
+
+dataConsOfTyCon :: TyCon -> S.HashSet TyCon
+dataConsOfTyCon c = mconcat $ go <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+  where
+    go (ForAllTy _ t)  = go t 
+    go (TyVarTy _)     = S.empty
+    go (AppTy t1 t2)   = go t1 `S.union` go t2
+    go (TyConApp c ts) = S.insert c $ mconcat $ go <$> ts
+    go (FunTy t1 t2)   = go t1 `S.union` go t2
+    go (LitTy _)       = S.empty
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------
