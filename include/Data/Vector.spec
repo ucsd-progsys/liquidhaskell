@@ -2,6 +2,9 @@ module spec Data.Vector where
 
 import GHC.Base
 
+data variance Vector covariant
+
+
 measure vlen    :: forall a. (Data.Vector.Vector a) -> Int
 
 invariant       {v: Data.Vector.Vector a | 0 <= vlen v } 
