@@ -1103,7 +1103,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
     goTyConApp pos Covariant     t = go pos       t 
     goTyConApp pos Contravariant t = go (not pos) t 
 
-    mutuallyRecursive c c' = (c `S.member` (dataConsOfTyCon c')) || (c' `S.member` (dataConsOfTyCon c))
+    mutuallyRecursive c c' = c `S.member` (dataConsOfTyCon c')
 
 
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
