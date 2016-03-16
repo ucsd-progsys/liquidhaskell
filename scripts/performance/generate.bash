@@ -21,6 +21,8 @@ ALL_GIT_HASHES="$GIT log --format=%H";
 START=0;
 END=0;
 FORCE=false;
+MAX_LOGS=-1;
+DONE_LOGS=0;
 
 START_FOUND=false;
 END_FOUND=false;
@@ -53,6 +55,8 @@ function generate_log {
     local HASH=$1;
     local RESULT=$SCRIPT_LOGS/$HASH.log;
     local SHOULD_GEN=true;
+
+    DONE_LOGS=`expr $DONE_LOGS + 1`
 
     if [ -e $RESULT ]
     then
@@ -126,10 +130,11 @@ function abort_if_failed {
 }
 
 function usage {
-    echo "$0 -s [START HASH] -e [END HASH] -f"
+    echo "$0 -s [START HASH] -e [END HASH] -f -n [MAX LOGS TO GENERATE]"
     echo "   -s - hash to start generating logs at";
     echo "   -e - hash to end generating logs at";
     echo "   -f - If passed, will force re-creation of all logs. This will take an extremely long time!";
+    echo "   -n - Only generate n logs (useful for cron jobs and such)"
     exit 1;
 }
 
@@ -143,6 +148,8 @@ while getopts ":s:e:f" OPT; do
             END=$OPTARG;;
         f)
             FORCE=true;;
+        n)
+            MAX_LOGS=$OPTARG;;
         *)
             usage;;
     esac
@@ -231,6 +238,12 @@ do
         then
             START_FOUND=true;
         fi
+
+        if [ $MAX_LOGS = $DONE_LOGS  ]
+        then
+            START_FOUND=true;
+        fi
+
         rm -rf /tmp/ghc*;
         rm -rf /tmp/cabal*;
     fi
