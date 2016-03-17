@@ -751,7 +751,7 @@ instanceP
 
 classP :: Parser (RClass BareType)
 classP
-  = do sups <- superP
+  = do sups <- supersP
        c <- locUpperIdP
        spaces
        tvs <- manyTill tyVarIdP (try $ reserved "where")
@@ -761,7 +761,9 @@ classP
   where
     mb Nothing   = []
     mb (Just xs) = xs
-    superP = maybeP (parens ( liftM (toRCls <$>)  (bareTypeP `sepBy1` comma)) <* reserved "=>")
+    superP = toRCls <$> bareAtomP (refBindP bindP)
+    supersP = maybeP (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                      <* reserved "=>")
     toRCls x = x
 --     toRCls (RApp c ts rs r) = RCls c ts
 --     toRCls t@(RCls _ _)     = t
