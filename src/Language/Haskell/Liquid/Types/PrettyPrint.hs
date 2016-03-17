@@ -237,8 +237,8 @@ ppAllExpr bb p t
           split zs t                = (reverse zs, t)
 
 ppReftPs _ _ rs
-  --- | all isTauto rs   = empty
-  --- | not (ppPs ppEnv) = empty
+  | all isTauto rs   = empty
+  | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
 -- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc

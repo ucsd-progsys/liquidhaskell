@@ -137,6 +137,7 @@ Library
                 , Cabal >= 1.18
                 , bifunctors >= 5.1 && < 6.0
                 , cereal
+                , temporary >= 1.2 && < 2.0
 
    hs-source-dirs:  src, include
 
@@ -175,7 +176,6 @@ Library
                     Language.Haskell.Liquid.UX.CTags,
                     Language.Haskell.Liquid.UX.Config,
                     Language.Haskell.Liquid.UX.CmdLine,
-                    Language.Haskell.Liquid.UX.Cabal,
                     Language.Haskell.Liquid.GHC.Misc,
                     Language.Haskell.Liquid.GHC.Play,
                     Language.Haskell.Liquid.Misc,

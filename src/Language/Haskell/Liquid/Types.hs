@@ -260,9 +260,9 @@ data PPEnv
        , ppShort :: Bool
        }
 
-ppEnv           = ppEnvPrintPreds
-_ppEnvCurrent   = PP False False False False
-ppEnvPrintPreds = PP False False False False
+ppEnv           = ppEnvCurrent
+ppEnvCurrent    = PP False False False False
+_ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
@@ -296,6 +296,7 @@ data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
                                                  -- eg.  see include/Prelude.spec
   , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
+  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures 
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types

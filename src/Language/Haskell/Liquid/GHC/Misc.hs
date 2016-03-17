@@ -104,6 +104,8 @@ miModGuts cls mg  = MI {
   , mgi_cls_inst  = cls
   }
 
+mgi_namestring = moduleNameString . moduleName . mgi_module
+
 --------------------------------------------------------------------------------
 -- | Encoding and Decoding Location --------------------------------------------
 --------------------------------------------------------------------------------
@@ -351,8 +353,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
-
-addContext m = getContext >>= setContext . (m:)
 
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
