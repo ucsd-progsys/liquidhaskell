@@ -37,6 +37,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
 import           Language.Fixpoint.Graph.Reducible  (isReducible)
+import           Language.Fixpoint.Graph.Indexed
 
 import           Control.Monad             (when)
 import qualified Data.HashSet                         as S
@@ -222,22 +223,28 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
 elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
 
-{-
+{- | `graphElim` "eliminates" a kvar k by replacing every "path"
 
-  defK / kIns  :: k :-> [c | (c, k) \in E]
-  useK / kOuts :: k :-> [c | (k, c) \in E]
-         cIns  :: c :-> [k | (k, c) \in E]
+          ki -> ci -> k -> c
 
-          ki -> ci -> k -> c2
+      with an edge
 
-          ==
-
-          ki ------------> c2
-
+          ki ------------> c
 -}
 
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim = undefined
+graphElim es ks = ikvgEdges $ elimKs ks $ edgesIkvg es
+  where
+    elimKs      = flip (S.foldl' elimK)
+
+elimK  :: IKVGraph -> F.KVar -> IKVGraph
+elimK g k   = (g `addLinks` es') `delNode` kV
+  where
+   es'      = [(ki, c) | ki <- kis, c <- cs]
+   cs       = getSuccs g kV
+   cis      = getPreds g kV
+   kis      = concatMap (getPreds g) cis
+   kV       = KVar k
 
 {-
 -- ORIG BLCOSMAN: graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
