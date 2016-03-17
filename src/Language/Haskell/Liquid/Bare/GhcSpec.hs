@@ -145,7 +145,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
          >>= makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
-         >>= makeGhcSpec3 datacons tycons embs syms
+         >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms embs cbs name specs
          >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)

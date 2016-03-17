@@ -19,7 +19,7 @@ import TyCon
 import Var
 
 import Control.Applicative ((<|>))
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), second)
 
 import Data.Maybe
 import Data.Function (on)
@@ -62,7 +62,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
-                     ++ mapMaybe (checkBind "type"         emb tcEnv env) (tySigs     sp)
+                     ++ mapMaybe (checkBind "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -87,6 +87,12 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
+    clsSigs sp       =  concat
+                        [ map (second (Loc l l)) flds
+                        | (dc, DataConP l _ _ _ _ flds _ _) <- dconsP sp
+                        , traceShow dc True
+                        , isClassTyCon (dataConTyCon dc)
+                        ]
     sigs             =  tySigs sp ++ asmSigs sp
 
 
