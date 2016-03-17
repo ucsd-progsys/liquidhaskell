@@ -46,6 +46,8 @@ import qualified Language.Haskell.Liquid.Measure as Measure
 
 import Language.Fixpoint.Parse hiding (angles, refBindP, refP, refDefP)
 
+-- import Debug.Trace
+
 ----------------------------------------------------------------------------
 -- Top Level Parsing API ---------------------------------------------------
 ----------------------------------------------------------------------------
@@ -757,13 +759,17 @@ classP
        tvs <- manyTill tyVarIdP (try $ reserved "where")
        ms <- grabs tyBindP
        spaces
-       return $ RClass (fmap symbol c) (mb sups) tvs ms
+       return $ RClass (fmap symbol c) sups tvs ms
   where
-    mb Nothing   = []
-    mb (Just xs) = xs
-    superP = toRCls <$> bareAtomP (refBindP bindP)
-    supersP = maybeP (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+    superP =  toRCls <$> bareAtomP (refBindP bindP)
+      -- c <- locUpperIdP
+      -- spaces
+      -- tvs <- many1 bareAtomNoAppP
+      -- return (RApp c tvs [] mempty)
+
+    supersP = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                       <* reserved "=>")
+              <|> return []
     toRCls x = x
 --     toRCls (RApp c ts rs r) = RCls c ts
 --     toRCls t@(RCls _ _)     = t
