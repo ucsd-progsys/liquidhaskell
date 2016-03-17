@@ -222,29 +222,46 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
 elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
 
+{-
+
+  defK / kIns  :: k :-> [c | (c, k) \in E]
+  useK / kOuts :: k :-> [c | (k, c) \in E]
+         cIns  :: c :-> [k | (k, c) \in E]
+
+          ki -> ci -> k -> c2
+
+          ==
+
+          ki ------------> c2
+
+-}
 
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim cs ks = S.foldl' graphElimSingle cs ks
+graphElim = undefined
 
-graphElimSingle :: [CEdge] -> F.KVar -> [CEdge]
-graphElimSingle cs k = filter (elimCsK cIns k) (cs ++ newEdges)
-  where
-    cOuts = [c | (KVar k1, Cstr c) <- cs, k1 == k]
-    cIns  = [c | (Cstr c, KVar k1) <- cs, k1 == k]
-    newEdges = concatMap (newEdgesSingle cs cOuts) cIns
-
-newEdgesSingle :: [CEdge] -> [Integer] -> Integer -> [CEdge]
-newEdgesSingle cs cOuts cIn = [(KVar k, Cstr c) | k <- kIns, c <- cOuts]
-  where
-    kIns = [k | (KVar k, Cstr c) <- cs, c == cIn]
-
-elimCsK :: [Integer] -> F.KVar -> CEdge -> Bool
-elimCsK cIns k (v1, v2) = okV v1 && okV v2
-  where
-    okV (Cstr c)   = c `notElem` cIns
-    okV (KVar k1)  = k1 /= k
-    okV (DKVar k1) = k1 /= k
-
+{-
+-- ORIG BLCOSMAN: graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
+-- ORIG BLCOSMAN: graphElim = S.foldl' graphElimSingle
+-- ORIG BLCOSMAN:
+-- ORIG BLCOSMAN: graphElimSingle :: [CEdge] -> F.KVar -> [CEdge]
+-- ORIG BLCOSMAN: graphElimSingle cs k = filter (elimCsK cIns k) (cs ++ newEdges)
+  -- ORIG BLCOSMAN: where
+    -- ORIG BLCOSMAN: cOuts    = [c | (KVar k1, Cstr c) <- cs, k1 == k]
+    -- ORIG BLCOSMAN: cIns     = [c | (Cstr c, KVar k1) <- cs, k1 == k]
+    -- ORIG BLCOSMAN: newEdges = concatMap (newEdgesSingle cs cOuts) cIns
+-- ORIG BLCOSMAN:
+-- ORIG BLCOSMAN: newEdgesSingle :: [CEdge] -> [Integer] -> Integer -> [CEdge]
+-- ORIG BLCOSMAN: newEdgesSingle cs cOuts cIn = [(KVar k, Cstr c) | k <- kIns, c <- cOuts]
+  -- ORIG BLCOSMAN: where
+    -- ORIG BLCOSMAN: kIns                    = [k | (KVar k, Cstr c) <- cs, c == cIn]
+-- ORIG BLCOSMAN:
+-- ORIG BLCOSMAN: elimCsK :: [Integer] -> F.KVar -> CEdge -> Bool
+-- ORIG BLCOSMAN: elimCsK cIns k (v1, v2) = okV v1 && okV v2
+  -- ORIG BLCOSMAN: where
+    -- ORIG BLCOSMAN: okV (Cstr c)   = c `notElem` cIns
+    -- ORIG BLCOSMAN: okV (KVar k1)  = k1 /= k
+    -- ORIG BLCOSMAN: okV (DKVar k1) = k1 /= k
+-}
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------

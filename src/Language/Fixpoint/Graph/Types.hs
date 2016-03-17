@@ -132,9 +132,9 @@ lookupCMap rm i = safeLookup err i rm
   where
     err      = "lookupCMap: cannot find info for " ++ show i
 
----------------------------------------------------------------------------
--- | Constraint Dependencies ----------------------------------------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Constraint Dependencies ---------------------------------------------------
+--------------------------------------------------------------------------------
 
 data CDeps = CDs { cSucc   :: CSucc
                  , cRank   :: CMap Rank
@@ -152,13 +152,12 @@ data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
 instance PPrint Rank where
   pprintTidy _ = text . show
 
-
-
 --------------------------------------------------------------------------------
 -- | `SolverInfo` contains all the stuff needed to produce a result, and is the
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
-data SolverInfo a = SI { siSol   :: F.Solution
-                       , siQuery :: F.SInfo a
-                       , siDeps  :: CDeps
-                       }
+data SolverInfo a = SI
+  { siSol   :: F.Solution
+  , siQuery :: F.SInfo a
+  , siDeps  :: CDeps
+  }
