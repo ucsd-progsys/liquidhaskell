@@ -58,3 +58,23 @@ splitHeader msg delim = (hdr, BS.pack $ unlines csv)
                                       ((ls, rs), True)
                                       else
                                       ((e:ls, rs), False)
+
+dumpLogs :: FilePath -> [(String, [(LocalTime, Benchmark)])] -> IO ()
+dumpLogs out dps = sequence_ $ fmap dumpLog dps
+   where
+      dumpLog :: (String, [(LocalTime, Benchmark)]) -> IO ()
+      dumpLog (n, dps') = do
+         let n' = specToUscore n
+         let dps'' = encodeByName
+                        (V.fromList [csvOutName,
+                                     csvOutDate,
+                                     csvOutTime,
+                                     csvOutPass])
+                        dps'
+         BS.writeFile (out </> n' ++ ".csv") dps''
+      specToUscore s = fmap mapper s
+         where
+            mapper c = case c of
+               '/' -> '_'
+               '.' -> '_'
+               c' -> c'
