@@ -202,10 +202,10 @@ applyExpr _ _ p              = p
 
 applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar g s k su
-  | Just eqs <- M.lookup k (F.sMap s)
-  = qBindPred su eqs
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
+  | Just eqs <- M.lookup k (F.sMap s)
+  = qBindPred su eqs -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "Unknown kvar: " ++ show k
 
