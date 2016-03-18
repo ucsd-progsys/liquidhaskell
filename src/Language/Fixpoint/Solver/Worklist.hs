@@ -95,7 +95,7 @@ init sI    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
                 , wDeps   = cSucc cd
                 , wCm     = cm
-                , wRankm  = F.tracepp "W.init ranks" rankm
+                , wRankm  = {- F.tracepp "W.init ranks" -} rankm
                 , wLast   = Nothing
                 , wRanks  = cNumScc cd
                 , wTime   = 0

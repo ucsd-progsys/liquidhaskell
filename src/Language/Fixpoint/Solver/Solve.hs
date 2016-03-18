@@ -19,6 +19,7 @@ import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
+import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
 
@@ -26,7 +27,6 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
-
 import           Data.List  (sort)
 import           Data.Maybe (catMaybes)
 -- import           Debug.Trace (trace)
@@ -36,7 +36,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- runSolverM cfg sI n act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -45,6 +45,14 @@ solve cfg fi = do
     wkl  = W.init sI
     n    = fromIntegral $ W.wRanks wkl
     act  = solve_ cfg fi (siSol sI) wkl
+
+--------------------------------------------------------------------------------
+-- | Progress Bar
+--------------------------------------------------------------------------------
+withProgressFI :: SolverInfo a -> IO b -> IO b
+withProgressFI = withProgress . fromIntegral . cNumScc . siDeps
+
+--------------------------------------------------------------------------------
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
@@ -59,7 +67,7 @@ solverInfo cfg fI
   | otherwise     = SI mempty fI cD
   where
     cD            = elimDeps fI (kvEdges fI) mempty
-    
+
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
        => Config -> F.SInfo a -> F.Solution -> W.Worklist a
@@ -110,13 +118,13 @@ refineC :: Int -> F.Solution -> F.SimpC a -> SolveM (Bool, F.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = tracepp msg $ S.lhsPred be s c
+                   let lhs = {- tracepp msg $ -} S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
     (ks, rhs) = rhsCands s c
-    msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
-                  _i (show (F.sid c)) (showpp s)
+    -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
+    --               _i (show (F.sid c)) (showpp s)
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
 rhsCands :: F.Solution -> F.SimpC a -> ([F.KVar], F.Cand (F.KVar, F.EQual))
@@ -131,11 +139,11 @@ predKs (F.PAnd ps)    = concatMap predKs ps
 predKs (F.PKVar k su) = [(k, su)]
 predKs _              = []
 
----------------------------------------------------------------------------
--- | Convert Solution into Result -----------------------------------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Convert Solution into Result ----------------------------------------------
+--------------------------------------------------------------------------------
 result :: (F.Fixpoint a) => Config -> W.Worklist a -> F.Solution -> SolveM (F.Result (Integer, a))
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 result _ wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s

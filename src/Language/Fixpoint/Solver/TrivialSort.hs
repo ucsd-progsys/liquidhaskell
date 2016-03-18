@@ -42,8 +42,7 @@ type TrivInfo     = (NonTrivSorts, KVarMap)
 --------------------------------------------------------------------
 mkNonTrivSorts :: FInfo a -> NonTrivSorts
 --------------------------------------------------------------------
-mkNonTrivSorts = tracepp "mkNonTrivSorts: "
-               . nonTrivSorts . trivInfo
+mkNonTrivSorts = {- tracepp "mkNonTrivSorts: " . -}  nonTrivSorts . trivInfo
 
 --------------------------------------------------------------------
 nonTrivSorts :: TrivInfo -> NonTrivSorts
