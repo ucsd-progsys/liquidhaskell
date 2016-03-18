@@ -16,6 +16,7 @@ import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
+import Id
 import Var
 
 import Control.Applicative ((<|>))
@@ -87,12 +88,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
-    clsSigs sp       =  concat
-                        [ map (second (Loc l l)) flds
-                        | (dc, DataConP l _ _ _ _ flds _ _) <- dconsP sp
-                        , traceShow dc True
-                        , isClassTyCon (dataConTyCon dc)
-                        ]
+    clsSigs sp       =  [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             =  tySigs sp ++ asmSigs sp
 
 
