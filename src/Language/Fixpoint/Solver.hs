@@ -21,25 +21,16 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent
 import           Data.Binary
--- import           Data.Maybe                         (fromMaybe)
--- import           Data.List                          hiding (partition)
--- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
--- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
--- import           Text.Printf                        (printf)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
-import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import qualified Language.Fixpoint.Solver.Eliminate as E
--- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
--- import           Language.Fixpoint.Solver.Solution  (Solution)
 
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
@@ -47,7 +38,7 @@ import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
+import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery)
@@ -82,6 +73,7 @@ solve cfg q
   | stats cfg    = statistics cfg        $!! q
   | minimize cfg = minQuery   cfg solve' $!! q
   | otherwise    = solve'     cfg        $!! q
+
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
@@ -120,7 +112,6 @@ solveSeqWith s c fi0 = withProgressFI fi $ s c fi
   where
     fi               = slice fi0
 
-
 ---------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
 ---------------------------------------------------------------------------
@@ -128,10 +119,10 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
-  let fi       = slice fi0
+  let fi     = slice fi0
   withProgressFI fi $ do
     mci <- mcInfo c
-    let (_, fis) = partition' (Just mci) fi
+    let fis   = partition' (Just mci) fi
     writeLoud $ "Number of partitions : " ++ show (length fis)
     writeLoud $ "number of cores      : " ++ show (cores c)
     writeLoud $ "minimum part size    : " ++ show (minPartSize c)
@@ -182,9 +173,8 @@ solveNative' !cfg !fi0 = do
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
-  (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
   -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si3
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
@@ -192,20 +182,6 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
-
-
-elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
-elim cfg fi
-  | eliminate cfg = do
-      let (s0, fi') = E.eliminate cfg fi
-      writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-      -- elimSolGraph cfg s0
-      -- donePhase Loud "Eliminate"
-      writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
-      -- donePhase Loud "DonePrint"
-      return (s0, fi')
-  | otherwise     =
-      return (mempty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
@@ -247,4 +223,8 @@ saveSolution cfg res = when (save cfg) $ do
 ---------------------------------------------------------------------------
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
-withProgressFI = withProgress . fromIntegral . gSccs . cGraph
+withProgressFI _ act = do
+  putStrLn "FIXME: ProgressBar"
+  putStrLn "FIXME: ProgressBar"
+  putStrLn "FIXME: ProgressBar"
+  withProgress 50  act -- . fromIntegral . gSccs . undefined -- cGraph

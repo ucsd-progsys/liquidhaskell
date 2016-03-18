@@ -145,6 +145,8 @@ mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
+removes k v m = M.insert k (L.delete v (M.lookupDefault [] k m)) m
+
 count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
 count = M.toList . fmap sum . group . fmap (, 1)
 

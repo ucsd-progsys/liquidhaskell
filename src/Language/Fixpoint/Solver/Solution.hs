@@ -11,6 +11,7 @@ module Language.Fixpoint.Solver.Solution
         , noKvars
 
           -- * Debug
+        , elimSolGraph
         , solutionGraph
         )
 where
@@ -22,13 +23,15 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
+import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types.Constraints hiding (ws, bs)
-import           Language.Fixpoint.Types.Graphs
+import           Language.Fixpoint.Graph
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
@@ -194,15 +197,15 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     rs               = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
-applyExpr g s (F.PKVar k su) = applyKVar g s k su
+applyExpr g s (F.PKVar k su) = {- F.tracepp ("applyKVar: " ++ show k) $ -} applyKVar g s k su
 applyExpr _ _ p              = p
 
 applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar g s k su
-  | Just eqs <- M.lookup k (F.sMap s)
-  = qBindPred su eqs
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
+  | Just eqs <- M.lookup k (F.sMap s)
+  = qBindPred su eqs -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "Unknown kvar: " ++ show k
 
@@ -298,9 +301,18 @@ qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
 
 --------------------------------------------------------------------------------
+-- | Build and print the graph of post eliminate solution, which has an edge
+--   from k -> k' if k' appears directly inside the "solution" for k
+--------------------------------------------------------------------------------
+elimSolGraph :: Config -> F.Solution -> IO ()
+elimSolGraph cfg s = writeGraph f (solutionGraph s)
+  where
+    f              = queryFile Dot cfg
+
+--------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
 --------------------------------------------------------------------------------
-solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
+solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
      kEqs       = M.toList (F.sMap s)
