@@ -230,21 +230,34 @@ elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
       with an edge
 
           ki ------------> c
+
+es = [ id_1 : id_1, id_2 : id_2, id_3 : id_3, id_4 : id_4, id_5 : id_5
+     , "k1" : $k1*, "k0" : $k0*, $k1* : $k1*, $k0* : $k0*, id_1 : "k0"
+     , id_2 : "k0", "k0" : id_3, id_3 : "k1", "k1" : id_4, id_4 : "k0"
+     , "k1" : id_5]] :
+
+
+     ["k0" : id_4, "k0" : id_5, "k0" : id_3, "k0" : $k0*, $k0* : $k0*
+     , $k1* : $k1*, id_2 : "k0", id_2 : id_2, id_3 : id_3, id_1 : "k0"
+     , id_1 : id_1, id_4 : "k0", id_4 : id_4, id_5 : id_5]
+
 -}
 
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim es ks = ikvgEdges $ elimKs ks $ edgesIkvg es
+graphElim es ks = {- tracepp msg $ -} ikvgEdges $ elimKs ks $ edgesIkvg es
   where
+    -- msg         = "graphElim: ks = " ++ showpp ks ++ "\nes = " ++ showpp es
     elimKs      = flip (S.foldl' elimK)
 
 elimK  :: IKVGraph -> F.KVar -> IKVGraph
-elimK g k   = (g `addLinks` es') `delNode` kV
+elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
   where
-   es'      = [(ki, c) | ki <- kis, c <- cs]
+   es'      = [(ki, c) | ki@(KVar _) <- kis, c@(Cstr _) <- cs]
    cs       = getSuccs g kV
    cis      = getPreds g kV
    kis      = concatMap (getPreds g) cis
    kV       = KVar k
+
 
 {-
 -- ORIG BLCOSMAN: graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
