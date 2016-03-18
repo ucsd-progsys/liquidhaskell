@@ -18,6 +18,7 @@ GHC.Types.False :: {v:GHC.Types.Bool | (~ (Prop(v)))}
 GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> (Prop(v)))}
 
 
+GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
 
 

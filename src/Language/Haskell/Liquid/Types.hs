@@ -260,9 +260,9 @@ data PPEnv
        , ppShort :: Bool
        }
 
-ppEnv           = ppEnvPrintPreds
-_ppEnvCurrent   = PP False False False False
-ppEnvPrintPreds = PP False False False False
+ppEnv           = ppEnvCurrent
+ppEnvCurrent    = PP False False False False
+_ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 

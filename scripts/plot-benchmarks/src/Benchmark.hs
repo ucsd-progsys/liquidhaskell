@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Benchmark where
 
@@ -42,3 +43,14 @@ instance FromRecord Benchmark where
                    <*> do asStr <- r .! 2
                           return $ read asStr {- Since the test suite
    generates this field by calling show, this read Should Be Safe (TM) -}
+
+csvOutName = "Name"
+csvOutDate = "Committer Date"
+csvOutTime = "Time (Seconds)"
+csvOutPass = "Success"
+
+instance ToNamedRecord (LocalTime, Benchmark) where
+   toNamedRecord (_, bm) = namedRecord [csvOutName .= benchName bm,
+                                   csvOutDate .= (show $ benchTimestamp bm),
+                                   csvOutTime .= (benchTime bm),
+                                   csvOutPass .= (show $ benchPass bm)]
