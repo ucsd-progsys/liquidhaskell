@@ -57,6 +57,7 @@ import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
+import           System.Directory
 import           System.FilePath
 import Data.List    (intersperse )
 import           Text.Parsec.Error (errorMessages, showErrorMessages)
@@ -109,7 +110,11 @@ srcSpanInfo (RealSrcSpan s)
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = getNth (i - 1) . lines <$> readFile f
+getFileLine f i = do
+  b <- doesFileExist f
+  if b
+    then getNth (i - 1) . lines <$> readFile f
+    else return Nothing
 
 getNth :: Int -> [a] -> Maybe a
 getNth i xs
