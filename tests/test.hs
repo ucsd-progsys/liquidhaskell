@@ -222,7 +222,7 @@ gitEpochTimestamp = do
 
 gitHash :: IO String
 gitHash = do
-   res <- readProcess "git" ["show", "--format=\"%h\"", "--quiet"] []
+   res <- readProcess "git" ["show", "--format=\"%H\"", "--quiet"] []
    return $ filter notNoise res
 
 gitRef :: IO String
