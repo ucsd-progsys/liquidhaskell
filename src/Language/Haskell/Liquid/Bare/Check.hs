@@ -20,7 +20,7 @@ import Id
 import Var
 
 import Control.Applicative ((<|>))
-import Control.Arrow ((&&&), second)
+import Control.Arrow ((&&&))
 
 import Data.Maybe
 import Data.Function (on)
