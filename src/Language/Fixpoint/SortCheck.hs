@@ -223,7 +223,7 @@ class Checkable a where
   checkSort γ _ = check γ
 
 instance Checkable Expr where
-  check γ e = do {checkExpr f e; return ()}
+  check γ e = void $ checkExpr f e
    where f =  (`lookupSEnvWithDistance` γ)
 
   checkSort γ s e = void $ checkExpr f (ECst e s)
@@ -266,6 +266,7 @@ checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
+addEnv :: Eq a => (a -> SESearch b) -> [(a, b)] -> a -> SESearch b
 addEnv f bs x
   = case L.lookup x bs of
       Just s  -> Found s
@@ -447,6 +448,7 @@ checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
   = snd <$> checkApp' f to g es
 
+checkExprAs :: Env -> Sort -> Expr -> CheckM Sort
 checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e 
@@ -483,16 +485,24 @@ checkNeg f e = do
    _        -> throwError $ printf "Operand has non-numeric type %s in %s"
                             (showFix t) (showFix e)
 
+checkOp :: Env -> Expr -> Bop -> Expr -> CheckM Sort
 checkOp f e1 o e2
   = do t1 <- checkExpr f e1
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
-checkOpTy _ _ FReal FReal
-  = return FReal
-
+checkOpTy :: PPrint a => Env -> a -> Sort -> Sort -> CheckM Sort
 checkOpTy _ _ FInt FInt
   = return FInt
+
+checkOpTy _ _ FReal FReal
+  = return FReal
+-- Coercing int to real is somewhat suspicious, but z3 seems
+-- to be ok with it
+checkOpTy _ _ FInt  FReal
+  = return FReal
+checkOpTy _ _ FReal FInt
+  = return FReal
 
 checkOpTy f _ t@(FObj l) (FObj l')
   | l == l'
@@ -501,11 +511,13 @@ checkOpTy f _ t@(FObj l) (FObj l')
 checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
+checkFractional :: Env -> Symbol -> CheckM ()
 checkFractional f l
   = do t <- checkSym f l
        unless (t == FFrac) (throwError $ errNonFractional l)
        return ()
 
+checkNumeric :: Env -> Symbol -> CheckM ()
 checkNumeric f l
   = do t <- checkSym f l
        unless (t == FNum || t == FFrac) (throwError $ errNonNumeric l)
@@ -541,6 +553,8 @@ checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
 checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy _ _ _ FReal FReal       = return ()
+checkRelTy _ _ _ FInt  FReal       = return ()
+checkRelTy _ _ _ FReal FInt        = return ()
 checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
 checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
 
@@ -616,6 +630,9 @@ unify1 f θ FInt (FObj l) = do
   checkNumeric f l
   return θ
 
+unify1 _ θ FInt  FReal = return θ
+unify1 _ θ FReal FInt  = return θ
+
 unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
   unifyMany f θ [t1, t2] [t1', t2']
 
@@ -625,6 +642,7 @@ unify1 _ θ t1 t2
   | otherwise
   = throwError $ errUnify t1 t2
 
+subst :: (Int, Sort) -> Sort -> Sort
 subst (j,tj) t@(FVar i)
   | i == j    = tj
   | otherwise = t
