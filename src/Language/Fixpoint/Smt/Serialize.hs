@@ -217,7 +217,10 @@ instance SMTLIB2 Command where
   smt2 (Define t)          = format "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = format "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
-  smt2 (Distinct az)       = format "(assert (distinct {}))"       (Only $ smt2s az)
+  smt2 (Distinct az)
+    -- Distinct must have at least 2 arguments
+    | length az < 2        = ""
+    | otherwise            = format "(assert (distinct {}))"       (Only $ smt2s az)
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
