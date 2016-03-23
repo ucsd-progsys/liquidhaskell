@@ -37,6 +37,7 @@ measure Set_sub  :: (Data.Set.Set a) -> (Data.Set.Set a) -> Prop
 
 isSubsetOf    :: (GHC.Classes.Ord a) => x:(Data.Set.Set a) -> y:(Data.Set.Set a) -> {v:Bool | ((Prop v) <=> (Set_sub x y))}
 member        :: (GHC.Classes.Ord a) => x:a -> xs:(Data.Set.Set a) -> {v:Bool | ((Prop v) <=> (Set_mem x xs))}
+null          :: (GHC.Classes.Ord a) => xs:(Data.Set.Set a) -> {v:Bool | ((Prop v) <=> (Set_emp xs))}
 
 empty         :: {v:(Data.Set.Set a) | (Set_emp v)}
 singleton     :: x:a -> {v:(Data.Set.Set a) | v = (Set_sng x)}

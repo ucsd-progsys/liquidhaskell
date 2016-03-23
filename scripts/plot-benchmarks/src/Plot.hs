@@ -155,12 +155,7 @@ plotSuccessData out dps = plotData out dps with
          layout_title .= n' ++ " Test Result"
          plot (line n' [dps'' dps'])
 
-
-{-
-pairUp :: [a] -> [(a, a)]
-pairUp [] = []
-pairUp (_:[]) = error "odd number of list elements in pairUp!"
-pairUp (l:r:xs) = (l, r):(pairUp xs)
--}
-
-testCmd = getTimeData "./" ["Tests/Unit/crash/BadSyn4.hs"] >>= (plotTimeData "./")
+getAllData :: FilePath -> [String] -> IO [(String, [(LocalTime, Benchmark)])]
+getAllData = getData mapper
+   where
+      mapper bs' = [(benchTimestamp x, x) | x <- bs']
