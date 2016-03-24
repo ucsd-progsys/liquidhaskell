@@ -203,8 +203,10 @@ import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import Var
 import GHC                                      (HscEnv, ModuleName, moduleNameString)
 import GHC.Generics
+import Class
 import CoreSyn (CoreBind, CoreExpr)
 import PrelInfo         (isNumericClass)
+import Type             (getClassPredTys_maybe)
 import TysPrim          (eqPrimTyCon)
 import TysWiredIn                               (listTyCon)
 
@@ -226,7 +228,7 @@ import qualified  Data.Foldable as F
 import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
 import qualified  Data.HashSet as S
-import            Data.Maybe                   (fromMaybe)
+import            Data.Maybe                   (fromMaybe, mapMaybe)
 
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
@@ -740,8 +742,14 @@ instance TyConable RTyCon where
   isEqual    = (eqPrimTyCon ==) . rtc_tc
   ppTycon    = toFix
 
-  isNumCls c  = maybe False isNumericClass    (tyConClass_maybe $ rtc_tc c)
-  isFracCls c = maybe False isFractionalClass (tyConClass_maybe $ rtc_tc c)
+  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
+                (tyConClass_maybe $ rtc_tc c)
+  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
+                (tyConClass_maybe $ rtc_tc c)
+
+isClassOrSubClass p cls
+  = p cls || any (isClassOrSubClass p . fst)
+                 (mapMaybe getClassPredTys_maybe (classSCTheta cls))
 
 -- MOVE TO TYPES
 instance TyConable Symbol where

@@ -16,6 +16,7 @@ import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
+import Id
 import Var
 
 import Control.Applicative ((<|>))
@@ -62,6 +63,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
+                     ++ mapMaybe (checkBind "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -86,6 +88,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
+    clsSigs sp       =  [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             =  tySigs sp ++ asmSigs sp
 
 
