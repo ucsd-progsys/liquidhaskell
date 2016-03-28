@@ -188,4 +188,4 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
     -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
     -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
     -- a malformed predicate application. Niki, help!!
-    dropPreds = fmap (\(MkUReft r ps ss) -> MkUReft r mempty ss)
+    dropPreds = fmap (\(MkUReft r _ps ss) -> MkUReft r mempty ss)
