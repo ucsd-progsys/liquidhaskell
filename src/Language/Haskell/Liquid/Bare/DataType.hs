@@ -169,9 +169,9 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return (fs `zip` ts)
     where
-    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) (freePred dcp) (freeLabels dcp)
-                               [(z, tyRes dcp, mempty)]
-                               (subst su t `strengthen` mt))
+    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) [] (freeLabels dcp)
+                               [(z, res, mempty)]
+                               (dropPreds (subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
            , not (isFunTy t) -- NOTE: we only have measures for non-function fields
            , let vv = rTypeValueVar t
@@ -183,3 +183,9 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
     args = tyArgs dcp
     xs   = map fst args
     z    = "lq$recSel"
+    res  = dropPreds (tyRes dcp)
+
+    -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
+    -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
+    -- a malformed predicate application. Niki, help!!
+    dropPreds = fmap (\(MkUReft r ps ss) -> MkUReft r mempty ss)
