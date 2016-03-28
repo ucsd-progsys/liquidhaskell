@@ -169,8 +169,11 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return (fs `zip` ts)
     where
-    ts   = [ Loc l l' (rFun z (tyRes dcp) (subst su t `strengthen` mt))
+    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) (freePred dcp) (freeLabels dcp)
+                               [(z, tyRes dcp, mempty)]
+                               (subst su t `strengthen` mt))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
+           , not (isFunTy t) -- NOTE: we only have measures for non-function fields
            , let vv = rTypeValueVar t
              -- the measure singleton refinement, eg `v = getBar foo`
            , let mt = uReft (vv, PAtom Eq (EVar vv) (EApp (EVar x) (EVar z)))
