@@ -1053,10 +1053,8 @@ makeLexReft old acc (e:es) (e':es')
 makeLexReft _ _ _ _
   = panic Nothing "RefType.makeLexReft on invalid input"
 
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
 mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> (Maybe (Symbol -> Expr)) -> TyConInfo
-
 mkTyConInfo c usertyvar userprvariance f
   = TyConInfo (if null usertyvar then defaulttyvar else usertyvar) userprvariance f
   where
@@ -1144,5 +1142,5 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprintTidy k re = text "RENV" $+$ 
+  pprintTidy k re = text "RENV" $+$
               pprintTidy k (reLocal re)

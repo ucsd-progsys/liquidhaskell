@@ -1,0 +1,11 @@
+resolver: lts-4.0
+
+packages:
+- .
+
+extra-deps:
+- Chart-diagrams-1.5.4 
+- SVGFonts-1.5.0.0
+- tuple-0.3.0.2
+- OneTuple-0.2.1
+- lucid-svg-0.5.0.0

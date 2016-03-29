@@ -57,6 +57,7 @@ import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
+import           System.Directory
 import           System.FilePath
 import Data.List    (intersperse )
 import           Text.Parsec.Error (errorMessages, showErrorMessages)
@@ -109,7 +110,11 @@ srcSpanInfo (RealSrcSpan s)
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = getNth (i - 1) . lines <$> readFile f
+getFileLine f i = do
+  b <- doesFileExist f
+  if b
+    then getNth (i - 1) . lines <$> readFile f
+    else return Nothing
 
 getNth :: Int -> [a] -> Maybe a
 getNth i xs
@@ -207,6 +212,13 @@ data TError t =
                 , var :: !Doc
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
+
+  | ErrDupMeas  { pos :: !SrcSpan
+                , var :: !Doc
+                , tycon :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple definitions of the same measure
+
 
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
@@ -587,6 +599,12 @@ ppError' _ dSp _ (ErrHMeas _ t s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
+        $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp _ (ErrDupMeas _ v t ls)
+  = dSp <+> text "Multiple Instance Measures for" <+> pprint v
+        <+> text "and" <+> pprint t
+        <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)

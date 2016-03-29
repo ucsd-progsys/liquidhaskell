@@ -16,6 +16,7 @@ import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
+import Id
 import Var
 
 import Control.Applicative ((<|>))
@@ -62,9 +63,11 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
+                     ++ mapMaybe (checkBind "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
+                     ++ checkClassMeasures (measures sp)
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
                      ++ checkQualifiers env                        (qualifiers sp)
@@ -86,6 +89,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
+    clsSigs sp       =  [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             =  tySigs sp ++ asmSigs sp
 
 
@@ -410,3 +414,17 @@ checkMBody' emb sort γ body = case body of
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = ty_res $ toRTypeRep sort
+
+checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
+checkClassMeasures ms = mapMaybe checkOne byTyCon
+  where
+  byName = L.groupBy ((==) `on` (val.name)) ms
+
+  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
+                      byName
+
+  checkOne [_]    = Nothing
+  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
+                                     (pprint (val (name m)))
+                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))
