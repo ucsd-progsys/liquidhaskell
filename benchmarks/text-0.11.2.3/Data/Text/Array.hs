@@ -135,14 +135,8 @@ data MArray s = MArray {
 
 {-@ data MArray s = MArray
             (maBA :: MutableByteArray# s)
-            (maLen :: Nat)
+            (malen :: Nat)
   @-}
-
-{-@ measure malen :: MArray s -> Int
-    malen (MArray maBA maLen) = maLen
-  @-}
-
-{-@ maLen :: ma:(MArray s) -> {v:Nat | v = (malen ma)} @-}
 
 {-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
 
