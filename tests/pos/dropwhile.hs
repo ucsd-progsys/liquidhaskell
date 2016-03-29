@@ -5,14 +5,17 @@ module DropWhile where
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (head, dropWhile, (.), filter)
 
-
 main :: IO ()
 main =
   if head (dropWhile ((/=) 3) (1:::2:::3:::Emp)) == 3
     then return ()
-    else error "Not going to happen"
+    else liquidError "Not going to happen"
 
-{-@ head ::  List <p> a -> a<p> @-}
+-------------------------------------------------------------------------------
+-- | The `head` function returns a value that satisfies the abstract refinement
+-------------------------------------------------------------------------------
+
+{-@ head ::  forall <p :: a -> Prop>. List <p> a -> a<p> @-}
 head (x ::: _) = x
 
 -------------------------------------------------------------------------------
@@ -48,7 +51,7 @@ one = 3 ::: 2 ::: 1 ::: Emp
 -------------------------------------------------------------------------------
 
 {-@ dropWhile :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>.
-                   (Witness a p w) => 
+                   (Witness a p w) =>
                    (x:a -> Bool<w x>) -> List a -> List <p> a
   @-}
 dropWhile :: (a -> Bool) -> List a -> List a
