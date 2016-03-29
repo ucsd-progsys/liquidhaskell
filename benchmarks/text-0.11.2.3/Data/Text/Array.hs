@@ -109,14 +109,8 @@ data Array = Array {
 {-@ data Array
          = Array
             (aBA :: ByteArray#)
-            (aLen :: Nat)
+            (alen :: Nat)
   @-}
-
-{-@ measure alen :: Array -> Int
-    alen (Array aBA aLen) = aLen
-  @-}
-
-{-@ aLen :: a:Array -> {v:Nat | v = (alen a)} @-}
 
 {-@ type ArrayN N = {v:Array | (alen v) = N} @-}
 
