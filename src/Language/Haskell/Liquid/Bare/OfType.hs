@@ -82,16 +82,16 @@ mkSpecType' l πs t
   = ofBRType expandRTAliasApp resolveReft t
   where
     resolveReft
-      = (resolve l <=< expandReft) . txParam subvUReft (uPVar <$> πs) t
+      = (resolve l <=< expandReft) . txParam l subvUReft (uPVar <$> πs) t
 
 
-txParam f πs t = f (txPvar (predMap πs t))
+txParam l f πs t = f (txPvar l (predMap πs t))
 
-txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
-txPvar m π = π { pargs = args' }
+txPvar :: SourcePos -> M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
+txPvar l m π = π { pargs = args' }
   where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
               | otherwise            = pargs π'
-        π'    = fromMaybe (panic Nothing err) $ M.lookup (pname π) m
+        π'    = fromMaybe (panic (Just $ sourcePosSrcSpan l) err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
