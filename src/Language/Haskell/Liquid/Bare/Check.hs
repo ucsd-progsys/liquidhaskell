@@ -423,6 +423,7 @@ checkClassMeasures ms = mapMaybe checkOne byTyCon
   byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
                       byName
 
+  checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
   checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
                                      (pprint (val (name m)))
