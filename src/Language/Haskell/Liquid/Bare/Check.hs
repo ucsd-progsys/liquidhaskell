@@ -67,6 +67,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
+                     ++ checkClassMeasures (measures sp)
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
                      ++ checkQualifiers env                        (qualifiers sp)
@@ -413,3 +414,18 @@ checkMBody' emb sort γ body = case body of
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = ty_res $ toRTypeRep sort
+
+checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
+checkClassMeasures ms = mapMaybe checkOne byTyCon
+  where
+  byName = L.groupBy ((==) `on` (val.name)) ms
+
+  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
+                      byName
+
+  checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
+  checkOne [_]    = Nothing
+  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
+                                     (pprint (val (name m)))
+                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))

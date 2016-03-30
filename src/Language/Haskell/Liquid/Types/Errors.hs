@@ -213,6 +213,13 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
+  | ErrDupMeas  { pos :: !SrcSpan
+                , var :: !Doc
+                , tycon :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple definitions of the same measure
+
+
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
@@ -576,6 +583,12 @@ ppError' _ dSp _ (ErrHMeas _ t s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
+        $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp _ (ErrDupMeas _ v t ls)
+  = dSp <+> text "Multiple Instance Measures for" <+> pprint v
+        <+> text "and" <+> pprint t
+        <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
