@@ -140,7 +140,6 @@ consAct info
                        toListREnv (intys γ) ++
                        toListREnv (grtys γ)
 
-
 addCombine τ γ
   = do t <- trueTy combineType
        γ ++= ("combineProofs", combineSymbol, t)
@@ -728,6 +727,10 @@ consBind :: Bool
          -> (Var, CoreExpr ,Template SpecType)
          -> CG (Template SpecType)
 --------------------------------------------------------------------------------
+consBind _ _ (x, _, t)
+  | RecSelId {} <- idDetails x -- don't check record selectors
+  = return t
+
 consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
            (_,πs,_,_) = bkUniv spect

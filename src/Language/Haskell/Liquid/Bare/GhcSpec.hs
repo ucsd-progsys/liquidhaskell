@@ -134,7 +134,7 @@ makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, 
 makeGhcSpec' cfg cbs vars defVars exports specs
   = do name          <- modName <$> get
        makeRTEnv  specs
-       (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
+       (tycons, datacons, dcSs, recSs, tyi, embs) <- makeGhcSpecCHOP1 specs
        makeBounds embs name defVars cbs specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -143,7 +143,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
-         >>= makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su
+         >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
          >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
          >>= makeSpecDictionaries embs vars specs
@@ -281,7 +281,8 @@ makeGhcSpecCHOP1 specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
        let dcSelectors  = concatMap makeMeasureSelectors datacons
-       return           (tycons, second val <$> datacons, dcSelectors, tyi, embs)
+       recSels         <- makeRecordSelectorSigs datacons
+       return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, embs)
 
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
