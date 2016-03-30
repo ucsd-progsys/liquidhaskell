@@ -307,8 +307,8 @@ splitC (SubC γ t1 (RAllP p t))
     t' = fmap (replacePredsWithRefs su) t
     su = (uPVar p, pVartoRConc p)
 
-splitC (SubC _ t1@(RAllP _ _) t2)
-  = panic Nothing $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitC (SubC γ t1@(RAllP _ _) t2)
+  = panic (Just $ getLocation γ) $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
