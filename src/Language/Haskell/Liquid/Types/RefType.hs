@@ -187,7 +187,6 @@ instance ( SubsTy tv (RType c tv ()) c
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
-
 instance ( OkRT c tv r
          , RefTypable c tv r
          , RefTypable c tv ()
@@ -1058,17 +1057,17 @@ mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> (Maybe (Symbol -> Expr))
 mkTyConInfo c usertyvar userprvariance f
   = TyConInfo (if null usertyvar then defaulttyvar else usertyvar) userprvariance f
   where
-        defaulttyvar      = makeTyConVariance c 
+        defaulttyvar      = makeTyConVariance c
 
 
 makeTyConVariance :: TyCon -> VarianceInfo
-makeTyConVariance c = varSignToVariance <$> tvs 
+makeTyConVariance c = varSignToVariance <$> tvs
   where
     tvs = tyConTyVarsDef c
 
-    varsigns = if TC.isTypeSynonymTyCon c 
+    varsigns = if TC.isTypeSynonymTyCon c
                   then go True (fromJust $ TC.synTyConRhs_maybe c)
-                  else L.nub $ concatMap goDCon $ TC.tyConDataCons c 
+                  else L.nub $ concatMap goDCon $ TC.tyConDataCons c
 
     varSignToVariance v = case filter (\p -> showPpr (fst p) == showPpr v) varsigns of
                             []       -> Invariant
@@ -1081,25 +1080,25 @@ makeTyConVariance c = varSignToVariance <$> tvs
     go pos (ForAllTy _ t)  = go pos t
     go pos (TyVarTy v)     = [(v, pos)]
     go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
-    go pos (TyConApp c' ts) 
-       | c == c' 
+    go pos (TyConApp c' ts)
+       | c == c'
        = []
 
 -- NV fix that: what happens if we have mutually recursive data types?
--- now just provide "default" Bivariant for mutually rec types. 
+-- now just provide "default" Bivariant for mutually rec types.
 -- but there should be a finer solution
        | mutuallyRecursive c c'
-       = concat $ zipWith (goTyConApp pos) (repeat Bivariant) ts 
-       | otherwise 
+       = concat $ zipWith (goTyConApp pos) (repeat Bivariant) ts
+       | otherwise
        = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
 
     go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
     go _   (LitTy _)       = []
 
-    goTyConApp _   Invariant     _ = [] 
+    goTyConApp _   Invariant     _ = []
     goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
-    goTyConApp pos Covariant     t = go pos       t 
-    goTyConApp pos Contravariant t = go (not pos) t 
+    goTyConApp pos Covariant     t = go pos       t
+    goTyConApp pos Contravariant t = go (not pos) t
 
     mutuallyRecursive c c' = c `S.member` (dataConsOfTyCon c')
 
@@ -1107,7 +1106,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon c = mconcat $ go <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
   where
-    go (ForAllTy _ t)  = go t 
+    go (ForAllTy _ t)  = go t
     go (TyVarTy _)     = S.empty
     go (AppTy t1 t2)   = go t1 `S.union` go t2
     go (TyConApp c ts) = S.insert c $ mconcat $ go <$> ts

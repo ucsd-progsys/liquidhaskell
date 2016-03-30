@@ -66,7 +66,9 @@ dropWhile f Emp  = Emp
 witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
 witness p w = \ y b v -> (not b) ==> w y b ==> (v == y) ==> p v
 
-
+{-@ measure tail :: forall a. { es : [a] | len es >= 1 } -> [a] @-}
+tail :: [a] -> [a]
+tail = undefined
 -------------------------------------------------------------------------------
 -- | Drop elements until you hit a `3`
 -------------------------------------------------------------------------------

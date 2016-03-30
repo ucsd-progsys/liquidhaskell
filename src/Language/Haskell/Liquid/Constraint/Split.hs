@@ -110,15 +110,15 @@ rsplitW γ (RProp ss t0)
        splitW $ WfC γ' t0
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
-bsplitW γ t = 
-  do pflag <- pruneRefs <$> get 
-     isHO  <- allowHO   <$> get  
+bsplitW γ t =
+  do pflag <- pruneRefs <$> get
+     isHO  <- allowHO   <$> get
      return $ bsplitW' γ t pflag isHO
 
 bsplitW' γ t pflag isHO
-  | isHO || F.isNonTrivial r' 
+  | isHO || F.isNonTrivial r'
   = F.wfC (feBinds $ fenv γ) r' ci
-  | otherwise         
+  | otherwise
   = []
   where
     r'                = rTypeSortedReft' pflag γ t
@@ -351,11 +351,15 @@ splitC (SubR γ o r)
     r2  = F.RR F.boolSort $ F.Reft (vv, F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err
-    err = Just $ ErrAssType src o (text $ show o ++ "type error") g rr -- (F.toReft r)
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") g (rHole rr)
     rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ
+
+rHole :: F.Reft -> SpecType
+rHole = RHole . uTop
+
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -393,14 +397,14 @@ checkStratum γ t1 t2
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
-bsplitC' γ t1 t2 pflag isHO 
- | isHO 
+bsplitC' γ t1 t2 pflag isHO
+ | isHO
  = F.subC γ' r1'  r2' Nothing tag ci
- | F.isFunctionSortedReft r1' && F.isNonTrivial r2'    
- = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci   
- | F.isNonTrivial r2'    
- = F.subC γ' r1'  r2' Nothing tag ci      
- | otherwise   
+ | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
+ = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+ | F.isNonTrivial r2'
+ = F.subC γ' r1'  r2' Nothing tag ci
+ | otherwise
  = []
   where
     γ'  = feBinds $ fenv γ
@@ -408,7 +412,7 @@ bsplitC' γ t1 t2 pflag isHO
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ) 
+    err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
 
