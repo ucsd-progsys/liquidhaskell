@@ -52,7 +52,7 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr, Reft)
+import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
@@ -182,7 +182,7 @@ data TError t =
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
-               , cond :: !Reft
+               , cond :: t
                } -- ^ condition failure error
 
   | ErrParse    { pos  :: !SrcSpan
@@ -240,12 +240,12 @@ data TError t =
                 } -- ^ Incompatible using error
 
   | ErrMeas     { pos :: !SrcSpan
-                , ms  :: !Doc 
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
   | ErrHMeas    { pos :: !SrcSpan
-                , ms  :: !Doc 
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 
@@ -450,28 +450,12 @@ ppPropInContext p c
       , nests 2 [ text "Not provable in context"
                 , pprint c                 ]]
 
-{-
-pprintCtx :: (PTable c) => c -> Doc
-pprintCtx = pprint . ptable
-
-instance (PPrint a, PPrint b) => PTable (M.HashMap a b) where
-  ptable t = DocTable [ (pprint k, pprint v) | (k, v) <- M.toList t]
-
-
-pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
-pprintKVs = vcat . punctuate (text "\n") . map pp1
-  where
-    pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
--}
-
-
-
 instance ToJSON RealSrcSpan where
-  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
-                     , "startLine" .= l1 -- srcSpanStartLine sp
-                     , "startCol"  .= c1 -- srcSpanStartCol  sp
-                     , "endLine"   .= l2 -- srcSpanEndLine   sp
-                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+  toJSON sp = object [ "filename"  .= f
+                     , "startLine" .= l1
+                     , "startCol"  .= c1
+                     , "endLine"   .= l2
+                     , "endCol"    .= c2
                      ]
     where
       (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
