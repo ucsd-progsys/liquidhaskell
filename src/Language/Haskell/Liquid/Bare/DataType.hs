@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
     makeConTypes
   , makeTyConEmbeds
-
+  , makeRecordSelectorSigs
   , dataConSpec
   , meetDataConSpec
   ) where
@@ -22,11 +23,11 @@ import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Symbol, TCEmb)
+import Language.Fixpoint.Types (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
+import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.Misc (mapSnd)
@@ -39,6 +40,7 @@ import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 
+-- import Debug.Trace
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -156,3 +158,34 @@ makeTyConEmbeds' :: TCEmb (Located Symbol) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where
     tx (c, y) = (, y) <$> lookupGhcTyCon c
+
+makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, Located SpecType)]
+makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
+  where
+  makeOne (dc, Loc l l' dcp)
+    | null (dataConFieldLabels dc)
+    = return []
+    | otherwise = do
+        fs <- mapM lookupGhcVar (dataConFieldLabels dc)
+        return (fs `zip` ts)
+    where
+    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) [] (freeLabels dcp)
+                               [(z, res, mempty)]
+                               (dropPreds (subst su t `strengthen` mt)))
+           | (x, t) <- reverse args -- NOTE: the reverse here is correct
+           , not (isFunTy t) -- NOTE: we only have measures for non-function fields
+           , let vv = rTypeValueVar t
+             -- the measure singleton refinement, eg `v = getBar foo`
+           , let mt = uReft (vv, PAtom Eq (EVar vv) (EApp (EVar x) (EVar z)))
+           ]
+
+    su   = mkSubst $ [ (x, EApp (EVar x) (EVar z)) | x <- xs ]
+    args = tyArgs dcp
+    xs   = map fst args
+    z    = "lq$recSel"
+    res  = dropPreds (tyRes dcp)
+
+    -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
+    -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
+    -- a malformed predicate application. Niki, help!!
+    dropPreds = fmap (\(MkUReft r _ps ss) -> MkUReft r mempty ss)
