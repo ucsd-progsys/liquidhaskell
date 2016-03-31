@@ -16,7 +16,6 @@ import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
 import           Data.Hashable
 import           Data.Maybe                          (maybeToList)
-
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
