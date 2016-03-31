@@ -109,14 +109,8 @@ data Array = Array {
 {-@ data Array
          = Array
             (aBA :: ByteArray#)
-            (aLen :: Nat)
+            (alen :: Nat)
   @-}
-
-{-@ measure alen :: Array -> Int
-    alen (Array aBA aLen) = aLen
-  @-}
-
-{-@ aLen :: a:Array -> {v:Nat | v = (alen a)} @-}
 
 {-@ type ArrayN N = {v:Array | (alen v) = N} @-}
 
@@ -141,14 +135,8 @@ data MArray s = MArray {
 
 {-@ data MArray s = MArray
             (maBA :: MutableByteArray# s)
-            (maLen :: Nat)
+            (malen :: Nat)
   @-}
-
-{-@ measure malen :: MArray s -> Int
-    malen (MArray maBA maLen) = maLen
-  @-}
-
-{-@ maLen :: ma:(MArray s) -> {v:Nat | v = (malen ma)} @-}
 
 {-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
 

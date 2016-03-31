@@ -15,8 +15,7 @@ import           Control.Arrow                       (second)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
 import           Data.Hashable
-import           Data.Maybe                          (fromMaybe, maybeToList)
-
+import           Data.Maybe                          (maybeToList)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
@@ -34,7 +33,6 @@ tidyError sol
   . tidyErrContext sol
   . applySolution sol
 
-
 tidyErrContext :: FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
   = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
@@ -47,7 +45,8 @@ tidyErrContext _ e@(ErrSubType {})
 tidyErrContext _ e@(ErrAssType {})
   = e { ctx = c', cond = subst θ p }
     where
-      (θ, c') = tidyCtx xs $ ctx e
+      m       = ctx e
+      (θ, c') = tidyCtx xs m
       xs      = syms p
       p       = cond e
 
@@ -57,9 +56,8 @@ tidyErrContext _ e
 --------------------------------------------------------------------------------
 tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
 --------------------------------------------------------------------------------
-tidyCtx xs m  = (θ, M.fromList yts')
+tidyCtx xs m  = (θ, M.fromList yts)
   where
-    yts'      = {- traceShow ("tidyCtx: xs = " ++ show xs ++ "\nm = " ++ show m) -} yts
     yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
@@ -81,7 +79,7 @@ tidyREnv      :: [Symbol] -> Ctx -> [(Symbol, SpecType)]
 tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
-    deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
+    deps y    = maybe [] (syms . rTypeReft) (M.lookup y m)
     ok        = not . isFunTy
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]

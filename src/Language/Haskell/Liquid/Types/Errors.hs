@@ -52,11 +52,12 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr, Reft)
+import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
+import           System.Directory
 import           System.FilePath
 import Data.List    (intersperse )
 import           Text.Parsec.Error (errorMessages, showErrorMessages)
@@ -109,7 +110,11 @@ srcSpanInfo (RealSrcSpan s)
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = getNth (i - 1) . lines <$> readFile f
+getFileLine f i = do
+  b <- doesFileExist f
+  if b
+    then getNth (i - 1) . lines <$> readFile f
+    else return Nothing
 
 getNth :: Int -> [a] -> Maybe a
 getNth i xs
@@ -177,7 +182,7 @@ data TError t =
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
-               , cond :: !Reft
+               , cond :: t
                } -- ^ condition failure error
 
   | ErrParse    { pos  :: !SrcSpan
@@ -208,6 +213,13 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
+  | ErrDupMeas  { pos :: !SrcSpan
+                , var :: !Doc
+                , tycon :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple definitions of the same measure
+
+
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
@@ -235,12 +247,12 @@ data TError t =
                 } -- ^ Incompatible using error
 
   | ErrMeas     { pos :: !SrcSpan
-                , ms  :: !Doc 
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
   | ErrHMeas    { pos :: !SrcSpan
-                , ms  :: !Doc 
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 
@@ -445,28 +457,12 @@ ppPropInContext p c
       , nests 2 [ text "Not provable in context"
                 , pprint c                 ]]
 
-{-
-pprintCtx :: (PTable c) => c -> Doc
-pprintCtx = pprint . ptable
-
-instance (PPrint a, PPrint b) => PTable (M.HashMap a b) where
-  ptable t = DocTable [ (pprint k, pprint v) | (k, v) <- M.toList t]
-
-
-pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
-pprintKVs = vcat . punctuate (text "\n") . map pp1
-  where
-    pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
--}
-
-
-
 instance ToJSON RealSrcSpan where
-  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
-                     , "startLine" .= l1 -- srcSpanStartLine sp
-                     , "startCol"  .= c1 -- srcSpanStartCol  sp
-                     , "endLine"   .= l2 -- srcSpanEndLine   sp
-                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+  toJSON sp = object [ "filename"  .= f
+                     , "startLine" .= l1
+                     , "startCol"  .= c1
+                     , "endLine"   .= l2
+                     , "endCol"    .= c2
                      ]
     where
       (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
@@ -587,6 +583,12 @@ ppError' _ dSp _ (ErrHMeas _ t s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
+        $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp _ (ErrDupMeas _ v t ls)
+  = dSp <+> text "Multiple Instance Measures for" <+> pprint v
+        <+> text "and" <+> pprint t
+        <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)

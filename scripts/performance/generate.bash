@@ -53,7 +53,7 @@ function refresh_repo {
 
 function generate_log {
     local HASH=$1;
-    local RESULT=$SCRIPT_LOGS/$HASH.log;
+    local RESULT=$SCRIPT_LOGS/$HASH.csv;
     local SHOULD_GEN=true;
 
     if [ -e $RESULT ]
