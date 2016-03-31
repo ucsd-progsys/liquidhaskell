@@ -1,4 +1,4 @@
-Liquid Fixpoint [![Build Status](https://travis-ci.org/ucsd-progsys/liquid-fixpoint.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquid-fixpoint)
+Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) [![Build Status](https://img.shields.io/travis/ucsd-progsys/liquid-fixpoint/master.svg)](https://travis-ci.org/ucsd-progsys/liquid-fixpoint)
 ===============
 
 
