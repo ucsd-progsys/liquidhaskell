@@ -1,5 +1,4 @@
 -- | Progress Bar API
-
 module Language.Fixpoint.Utils.Progress (
       withProgress
     , progressInit
@@ -11,7 +10,9 @@ import           Control.Monad                    (unless)
 import           System.IO.Unsafe                 (unsafePerformIO)
 import           System.Console.CmdArgs.Verbosity (isLoud)
 import           Data.IORef
-import           System.Console.AsciiProgress -- (ProgressBar(..), Options(..), isComplete, def, newProgressBar, tick)
+
+
+import           System.Console.AsciiProgress
 
 {-# NOINLINE pbRef #-}
 pbRef :: IORef (Maybe ProgressBar)
