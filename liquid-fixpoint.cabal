@@ -93,7 +93,6 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
@@ -122,6 +121,10 @@ Library
                , dotgen
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
+  if !os(windows)
+    Build-Depends: ascii-progress >= 0.3
+  if os(windows)
+    hs-source-dirs: win
 
 test-suite test
   default-language: Haskell98
