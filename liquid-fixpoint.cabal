@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.6.1
+version:             0.5.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
@@ -93,7 +93,6 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
@@ -122,6 +121,10 @@ Library
                , dotgen
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
+  if !os(windows)
+    Build-Depends: ascii-progress >= 0.3
+  if os(windows)
+    hs-source-dirs: win
 
 test-suite test
   default-language: Haskell98
