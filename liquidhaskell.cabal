@@ -60,11 +60,11 @@ Executable liquid
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
                , ghc
-               , cmdargs >= 0.10
-               , deepseq >= 1.3
-               , pretty >= 1.1
-               , process >= 1.2
-               , liquid-fixpoint >= 0.6.1 && < 0.7
+               , cmdargs
+               , deepseq
+               , pretty
+               , process
+               , liquid-fixpoint
                , located-base
                , prover
                , liquidhaskell
@@ -79,10 +79,10 @@ Executable lhi
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
                , ghc
-               , cmdargs >= 0.10
-               , deepseq >= 1.3
-               , pretty >= 1.1
-               , liquid-fixpoint >= 0.6 && < 0.7
+               , cmdargs
+               , deepseq
+               , pretty
+               , liquid-fixpoint
                , located-base
                , prover
                , liquidhaskell
@@ -94,7 +94,7 @@ Executable lhi
                , data-default
                , unordered-containers
                , cereal
-               , process >= 1.2 && < 1.3
+               , process
   Main-is: src/LHi.hs
   ghc-options: -W -threaded
   if flag(devel)
@@ -128,7 +128,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.6 && < 0.7
+                , liquid-fixpoint >= 0.5 && < 0.6
                 , located-base
                 , prover
                 , aeson >= 0.10
@@ -138,6 +138,12 @@ Library
                 , bifunctors >= 5.1
                 , cereal
                 , temporary >= 1.2
+                , transformers >= 0.3
+                , text-format
+                , th-lift
+                , exceptions >= 0.6
+                , QuickCheck >= 2.7
+
 
    hs-source-dirs:  src, include
 
@@ -231,7 +237,18 @@ Library
                     Language.Haskell.Liquid.Desugar710.HscMain,
                     Language.Haskell.Liquid.Desugar710.Match,
                     Language.Haskell.Liquid.Desugar710.MatchCon,
-                    Language.Haskell.Liquid.Desugar710.MatchLit
+                    Language.Haskell.Liquid.Desugar710.MatchLit,
+
+                    Test.Target,
+                    Test.Target.Eval,
+                    Test.Target.Expr,
+                    Test.Target.Monad,
+                    Test.Target.Serialize,
+                    Test.Target.Targetable,
+                    Test.Target.Targetable.Function,
+                    Test.Target.Testable,
+                    Test.Target.Types,
+                    Test.Target.Util
    ghc-options: -W
    if flag(include)
      hs-source-dirs: devel

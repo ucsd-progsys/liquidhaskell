@@ -173,6 +173,8 @@ solveCs cfg tgt cgi info dc
        let annm  = annotMap cgi
        let res   = ferr sol r
        let out0  = mkOutput cfg res sol annm
+       res      <- getModels cfg res
+
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
                         { o_result  = res               }

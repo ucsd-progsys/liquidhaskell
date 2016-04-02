@@ -169,6 +169,7 @@ data TError t =
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
+               , model:: !(M.HashMap Symbol Doc)
                } -- ^ liquid type error
 
   | ErrFCrash  { pos  :: !SrcSpan
@@ -522,7 +523,7 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext p c)
 
-ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
+ppError' td dSp dCtx (ErrSubType _ _ c tA tE _)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
         $+$ (ppFull td $ ppReqInContext tA tE c)
