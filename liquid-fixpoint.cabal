@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.6.1
+version:             0.5.0.1
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
@@ -29,22 +29,33 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
 
 Extra-Source-Files: tests/neg/*.fq
                   , tests/pos/*.fq
+                  , unix/Language/Fixpoint/Utils/*.hs
+                  , win/Language/Fixpoint/Utils/*.hs
 
 Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquid-fixpoint/
 
+Flag devel
+  Description: turn on stricter error reporting for development
+  Default:     False
+  Manual:      True
+
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
-  ghc-options:   -threaded -Werror -W -fno-warn-missing-methods
+  ghc-options:   -threaded -W -fno-warn-missing-methods
+  if flag(devel)
+    ghc-options: -Werror
   hs-source-dirs: bin
   Build-Depends: base >= 4.7 && < 5
                , liquid-fixpoint
 
 Library
   default-language: Haskell98
-  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods
+  ghc-options:     -W -fno-warn-missing-methods
+  if flag(devel)
+    ghc-options:   -Werror
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -93,7 +104,6 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
@@ -122,12 +132,19 @@ Library
                , dotgen
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
+  if !os(windows)
+    Build-Depends: ascii-progress >= 0.3
+    hs-source-dirs: unix
+  if os(windows)
+    hs-source-dirs: win
 
 test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tests
-  ghc-options:      -O2 -threaded
+  ghc-options:      -threaded
+  if flag(devel)
+    ghc-options:    -Werror
   main-is:          test.hs
   build-depends:    base,
                     directory,
