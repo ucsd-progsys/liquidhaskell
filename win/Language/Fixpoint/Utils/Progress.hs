@@ -6,12 +6,6 @@ module Language.Fixpoint.Utils.Progress (
     , progressClose
     ) where
 
-import           Control.Monad                    (unless)
-import           System.IO.Unsafe                 (unsafePerformIO)
-import           System.Console.CmdArgs.Verbosity (isLoud)
-import           Data.IORef
-
-
 withProgress :: Int -> IO a -> IO a
 withProgress _ x = x
 
