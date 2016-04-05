@@ -697,11 +697,11 @@ instance SubsTy tv ty Symbol where
   subt _ = id
 
 instance (SubsTy tv ty Expr) => SubsTy tv ty Reft where
-  subt su (Reft (x, e)) = Reft (x, traceShow ("Substituting Reft") $ subt su e)
+  subt su (Reft (x, e)) = Reft (x, subt su e)
 
 
 instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
-  subt su (ELam (x, s) e) = traceShow ("Substituting ELam ") $ ELam (x, subt su s) $ subt su e 
+  subt su (ELam (x, s) e) = ELam (x, subt su s) $ subt su e 
   subt su (EApp e1 e2)    = EApp (subt su e1) (subt su e2)
   subt su (ENeg e)        = ENeg (subt su e)
   subt su (PNot e)        = PNot (subt su e)
