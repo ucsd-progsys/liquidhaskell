@@ -32,6 +32,7 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
+import Language.Fixpoint.Misc 
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -100,7 +101,7 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 
-ofBRType :: (PPrint r, UReftable r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy Symbol (RType (Located Symbol) Symbol ()) r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -113,7 +114,7 @@ ofBRType appRTAlias resolveReft
            goRApp aliases t
     go (RAppTy t1 t2 r)
       = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
-    go (RFun x t1 t2 r)
+    go t@(RFun x t1 t2 r)
       =  do env <- get
             goRFun (bounds env) x t1 t2 r
     go (RVar a r)
@@ -240,5 +241,5 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r) => RRType r -> RRType r
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

@@ -24,7 +24,6 @@ module Language.Haskell.Liquid.Constraint.Axioms (
 
   ) where
 
-
 import Prelude hiding (error)
 
 import Literal
@@ -43,7 +42,7 @@ import Text.PrettyPrint.HughesPJ hiding (first, sep)
 import Control.Monad.State
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
-import Data.Maybe               (fromJust)
+import Data.Maybe               (fromJust, isJust)
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
 
@@ -108,6 +107,13 @@ instance Provable CoreExpr where
   expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isCases f = grapInt i >>= expandCasesProof ee e
   expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isCases f = grapInt i >>= expandCasesProof ee e
 
+
+  expProofs ee@(App (App (Tick _ (Var f)) i) e) | isReWrite f = grapInt i >>= expandReWriteProof ee e
+  expProofs ee@(App (App (Var f) i) e)          | isReWrite f = grapInt i >>= expandReWriteProof ee e
+  expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isReWrite f = grapInt i >>= expandReWriteProof ee e
+  expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isReWrite f = grapInt i >>= expandReWriteProof ee e
+
+
   expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
   expProofs (Lam x e)   = addVar x >> liftM  (Lam x) (expProofs e)
   expProofs (Let b e)   = do b' <- expProofs b
@@ -139,6 +145,117 @@ expProofsCase _ (c, xs, e)
 
 instance Provable CoreAlt where
   expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
+
+
+expandReWriteProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
+expandReWriteProof inite e' _
+  = do as    <- ae_axioms <$> get 
+       e     <- unANFExpr e'
+       cmb   <- ae_cmb     <$> get
+       return $ rewriteToCore cmb inite $ findAxioms as e 
+
+findAxioms :: [T.HAxiom] -> CoreExpr -> [(Id, [CoreExpr])]
+findAxioms axms e = snd4 <$> rewrite axms lhs rhs 
+  where
+    (lhs, rhs) = grepLhs e
+    snd4 (_, x, _, _) = x 
+
+
+data BFS = BFS CoreExpr [(T.HAxiom, CoreExpr, BFS)]  deriving (Show)
+
+takeBFS 1 (BFS e _)  = BFS e [] 
+takeBFS n (BFS e bs) = BFS e (mapThd3 (takeBFS (n-1)) <$> bs)
+
+mapSnd f (x, y) = (x, f y)
+mapThd3 f (x, y, z) = (x, y, f z)
+
+
+instance Eq CoreExpr where
+  (Var x) == (Var y) =  x == y 
+  (App e1 e2) == (App e1' e2') = e1 == e1' && e2 == e2' 
+  _ == _ = False 
+
+rewrite axms source target = go' 10 source
+  where
+    go' _ e | e == target = [] 
+    go' i e | i > 0 = let j = go e in j ++ concatMap (\(_, _, _, e') -> go' (i-1) e') j  
+    go' _ _ = [] 
+
+
+    go e@(App (App f a1) a2) =  [(ax, is, App (App f a1) a2, App (App f a1') a2) | (ax, is, _, a1') <- go a1 ]
+                              ++ [(ax, is, App (App f a1) a2, App (App f a1) a2') | (ax, is, _, a2') <- go a2 ] 
+                              ++ [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]] 
+    go e@(App f a) = [(ax, is, App f a, App f a') | (ax, is, _, a') <- go a ] ++ [(axm, is, e, e') | axm <- axms, Just (is, e') <- [applyAxiom axm e]] 
+    go e = [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]] 
+
+
+grepLhs :: CoreExpr -> (CoreExpr, CoreExpr)
+grepLhs e = lookupANF $ go $ mapSnd untick $ splitLet [] $ untick e
+  where
+    splitLet acc (Let (NonRec x ex) e) = splitLet ((x, ex):acc) e 
+    splitLet acc e                     = (acc, e)
+
+    go (bs, App (App (App (App (Var v) {- type -} _ ) {- dictionary-} _) e1) e2) |  isEqVar v = (bs, (e1, e2)) 
+    go (bs, Var v) = go (bs, untick $ fromJust $ L.lookup v bs)
+    go (bs, Tick _ e) = go (bs, e)
+    go (bs, e) = panic Nothing ("No equality found on the argument of rewrite " ++ show e)
+
+    untick (Tick _ e) = untick e 
+    untick (App e1 e2) = App (untick e1) (untick e2)
+    untick e = e 
+
+    lookupANF (bs, (e1, e2)) = (unANF bs e1, unANF bs e2)
+
+    unANF bs (Var x) | Just e <- L.lookup x bs = unANF bs e 
+                     | otherwise               = Var x 
+    unANF bs (App e (Type _)) = unANF bs e 
+    unANF bs (App e (Var x)) | isClassPred (varType x) = unANF bs e 
+    unANF bs (App e1 e2) = App (unANF bs e1) (unANF bs e2)
+    unANF bs (Tick _ e) = unANF bs e 
+    unANF _ e = e 
+
+{-
+TODO: merge with Bare/Axiom.hs
+-}
+
+class Subable a where
+  subst  :: (Var, CoreExpr) -> a -> a
+  substs :: [(Var, CoreExpr)] -> a -> a
+  substs [] x = x 
+  substs (s:ss) x = substs ss (subst s x)
+
+instance Subable CoreExpr where
+  subst (x, ex) (Var y) | x == y    = ex
+                        | otherwise = Var y
+  subst su (App f e) = App (subst su f) (subst su e)
+  subst su (Lam x e) = Lam x (subst su e)
+  subst _ _          = todo Nothing "Subable" 
+
+applyAxiom :: T.HAxiom -> CoreExpr -> Maybe ((Id, [CoreExpr]), CoreExpr) 
+applyAxiom axm e'
+  | Just su <- isInstance (abinds axm) e (alhs axm), noFreeVars su 
+  = Just ((fromJust $ rname axm, (\v -> (fromJust $ L.lookup v su)) <$> abinds axm), substs su (arhs axm))
+  | otherwise
+  = Nothing 
+  where
+    noFreeVars su = all (`elem` abinds axm) (fst <$> su)
+    e = simplify e' 
+
+simplify (App e (Type _)) = simplify e 
+simplify e = e 
+
+isInstance :: [Id] -> CoreExpr -> CoreExpr -> Maybe [(Var, CoreExpr)]
+isInstance fv e (Var v) | v `elem` fv = Just [(v, e)]
+isInstance _ (Var v) (Var y) | v == y = Just [] 
+isInstance fv (App e1 e2) (App e1' e2') = do
+  su1 <- isInstance fv e1 e1'
+  su2 <- isInstance fv e2 e2'
+  return (su1 ++ su2)
+isInstance _ e1 e2 = Nothing -- error ("isInstance on " ++ show (e1, e2))
+
+
+
+
 
 expandCasesProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
 expandCasesProof inite e it
@@ -549,9 +666,11 @@ makeCombineVar τ =  stringVar combineProofsName τ
 -------------------------------------------------------------------------------
 
 canIgnore v = isInternal v || isTyVar v
-isAuto    v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v
-isCases   v = isPrefixOfSym "cases" $ dropModuleNames $ F.symbol v
-isProof   v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v
+isAuto    v = isPrefixOfSym "auto"    $ dropModuleNames $ F.symbol v
+isReWrite v = isPrefixOfSym "rewrite" $ dropModuleNames $ F.symbol v
+isCases   v = isPrefixOfSym "cases"   $ dropModuleNames $ F.symbol v
+isProof   v = isPrefixOfSym "Proof"   $ dropModuleNames $ F.symbol v
+isEqVar   v = isPrefixOfSym "=="      $ dropModuleNames $ F.symbol v
 
 
 returnsProof :: Var -> Bool
