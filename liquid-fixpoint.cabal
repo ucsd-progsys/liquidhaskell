@@ -39,7 +39,7 @@ Source-Repository head
 Flag devel
   Description: turn on stricter error reporting for development
   Default:     False
-  Manual:      False
+  Manual:      True
 
 Executable fixpoint
   default-language: Haskell98
