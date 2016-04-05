@@ -246,7 +246,7 @@ Library
      hs-source-dirs: devel
    if flag(devel)
      ghc-options: -Werror
-   ghc-prof-options: -fprof-auto
+     ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
 test-suite test
