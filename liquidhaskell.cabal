@@ -66,7 +66,7 @@ Executable liquid
                , process
                , liquid-fixpoint
                , located-base
-               , prover
+               -- , prover
                , liquidhaskell
 
   Main-is: src/Liquid.hs
@@ -84,7 +84,7 @@ Executable lhi
                , pretty
                , liquid-fixpoint
                , located-base
-               , prover
+               -- , prover
                , liquidhaskell
                , network
                , directory
@@ -130,7 +130,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.5 && < 0.6
                 , located-base
-                , prover
+                -- , prover
                 , aeson >= 0.10
                 , bytestring >= 0.10
                 , fingertree >= 0.1
@@ -214,6 +214,15 @@ Library
                     Language.Haskell.Liquid.Bare.Spec,
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,
+
+                    Language.Haskell.Liquid.Prover.Constants,
+                    Language.Haskell.Liquid.Prover.Misc,
+                    Language.Haskell.Liquid.Prover.Parser,
+                    Language.Haskell.Liquid.Prover.Pretty,
+                    Language.Haskell.Liquid.Prover.SMTInterface,
+                    Language.Haskell.Liquid.Prover.Solve,
+                    Language.Haskell.Liquid.Prover.Types,
+                    Language.Haskell.Liquid.Prover.Names,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,

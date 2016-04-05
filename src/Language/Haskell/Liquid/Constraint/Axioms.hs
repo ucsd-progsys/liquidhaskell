@@ -65,9 +65,9 @@ import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe
 
-import Prover.Types (Axiom(..), Query(..))
-import qualified Prover.Types as P
-import Prover.Solve (solve)
+import Language.Haskell.Liquid.Prover.Types (Axiom(..), Query(..))
+import qualified Language.Haskell.Liquid.Prover.Types as P
+import Language.Haskell.Liquid.Prover.Solve (solve)
 
 
 import qualified Data.HashSet        as S

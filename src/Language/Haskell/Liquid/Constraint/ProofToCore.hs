@@ -21,7 +21,7 @@ import Language.Haskell.Liquid.WiredIn
 
 
 
-import Prover.Types
+import Language.Haskell.Liquid.Prover.Types
 import Language.Haskell.Liquid.Transforms.CoreToLogic ()
 import qualified Data.List as L
 import Data.Maybe (fromMaybe)
