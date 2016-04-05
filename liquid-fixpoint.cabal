@@ -29,6 +29,8 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
 
 Extra-Source-Files: tests/neg/*.fq
                   , tests/pos/*.fq
+                  , unix/Language/Fixpoint/Utils/*.hs
+                  , win/Language/Fixpoint/Utils/*.hs
 
 Source-Repository head
   Type:        git
@@ -123,6 +125,7 @@ Library
     Build-Depends: located-base
   if !os(windows)
     Build-Depends: ascii-progress >= 0.3
+    hs-source-dirs: unix
   if os(windows)
     hs-source-dirs: win
 
