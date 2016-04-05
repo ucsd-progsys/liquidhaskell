@@ -32,7 +32,6 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
-import Language.Fixpoint.Misc 
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -114,7 +113,7 @@ ofBRType appRTAlias resolveReft
            goRApp aliases t
     go (RAppTy t1 t2 r)
       = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
-    go t@(RFun x t1 t2 r)
+    go (RFun x t1 t2 r)
       =  do env <- get
             goRFun (bounds env) x t1 t2 r
     go (RVar a r)

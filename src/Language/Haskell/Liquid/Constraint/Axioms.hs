@@ -42,7 +42,7 @@ import Text.PrettyPrint.HughesPJ hiding (first, sep)
 import Control.Monad.State
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
-import Data.Maybe               (fromJust, isJust)
+import Data.Maybe               (fromJust)
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
 
@@ -160,14 +160,16 @@ findAxioms axms e = snd4 <$> rewrite axms lhs rhs
     (lhs, rhs) = grepLhs e
     snd4 (_, x, _, _) = x 
 
-
+{-
 data BFS = BFS CoreExpr [(T.HAxiom, CoreExpr, BFS)]  deriving (Show)
 
 takeBFS 1 (BFS e _)  = BFS e [] 
 takeBFS n (BFS e bs) = BFS e (mapThd3 (takeBFS (n-1)) <$> bs)
 
-mapSnd f (x, y) = (x, f y)
 mapThd3 f (x, y, z) = (x, y, f z)
+-}
+
+mapSnd f (x, y) = (x, f y)
 
 
 instance Eq CoreExpr where
@@ -198,7 +200,7 @@ grepLhs e = lookupANF $ go $ mapSnd untick $ splitLet [] $ untick e
     go (bs, App (App (App (App (Var v) {- type -} _ ) {- dictionary-} _) e1) e2) |  isEqVar v = (bs, (e1, e2)) 
     go (bs, Var v) = go (bs, untick $ fromJust $ L.lookup v bs)
     go (bs, Tick _ e) = go (bs, e)
-    go (bs, e) = panic Nothing ("No equality found on the argument of rewrite " ++ show e)
+    go (_ , e) = panic Nothing ("No equality found on the argument of rewrite " ++ show e)
 
     untick (Tick _ e) = untick e 
     untick (App e1 e2) = App (untick e1) (untick e2)
@@ -251,7 +253,7 @@ isInstance fv (App e1 e2) (App e1' e2') = do
   su1 <- isInstance fv e1 e1'
   su2 <- isInstance fv e2 e2'
   return (su1 ++ su2)
-isInstance _ e1 e2 = Nothing -- error ("isInstance on " ++ show (e1, e2))
+isInstance _ _ _ = Nothing -- error ("isInstance on " ++ show (e1, e2))
 
 
 
