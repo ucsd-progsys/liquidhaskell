@@ -1,4 +1,8 @@
-flags: {}
+flags:
+  liquidhaskell:
+    devel: True
+  liquid-fixpoint:
+    devel: True
 packages:
 - ./prover
 - ./liquid-fixpoint
