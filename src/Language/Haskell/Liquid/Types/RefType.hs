@@ -513,7 +513,7 @@ addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
-expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
            => (M.HashMap TyCon FTycon)
            -> (M.HashMap TyCon RTyCon)
            -> RRType r
@@ -717,7 +717,7 @@ instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
   subt su (PAtom b e1 e2) = PAtom b (subt su e1) (subt su e2)
   subt su (PAll xes e)    = PAll (subt su <$> xes) (subt su e)
   subt su (PExist xes e)  = PExist (subt su <$> xes) (subt su e)
-  subt su e               = e  
+  subt _ e                = e  
 
 instance (SubsTy tv ty a, SubsTy tv ty b) => SubsTy tv ty (a, b) where
   subt su (x, y) = (subt su x, subt su y)
