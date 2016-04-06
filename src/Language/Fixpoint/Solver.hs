@@ -26,7 +26,7 @@ import           Data.Binary
 -- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
--- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
 -- import           Text.Printf                        (printf)
 import           Control.Monad                      (when)
@@ -65,7 +65,7 @@ solveFQ cfg = do
     let stat = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
-    colorStrLn (colorResult stat) (statStr $!! stat)
+    whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
     return $ eCode r
   where
     file    = inFile       cfg

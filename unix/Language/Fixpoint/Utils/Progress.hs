@@ -6,9 +6,9 @@ module Language.Fixpoint.Utils.Progress (
     , progressClose
     ) where
 
-import           Control.Monad                    (unless)
+import           Control.Monad                    (when)
 import           System.IO.Unsafe                 (unsafePerformIO)
-import           System.Console.CmdArgs.Verbosity (isLoud)
+import           System.Console.CmdArgs.Verbosity (isNormal)
 import           Data.IORef
 
 
@@ -28,8 +28,8 @@ withProgress n act = displayConsoleRegions $ do
 
 progressInit :: Int -> IO ()
 progressInit n = do
-  loud <- isLoud
-  unless loud $ do
+  normal <- isNormal 
+  when normal $ do
     pr <- mkPB n
     writeIORef pbRef (Just pr)
 
