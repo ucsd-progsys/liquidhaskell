@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Liquid (
 import           Prelude hiding (error)
 import           Data.Maybe
 import           System.Exit
-import           Control.DeepSeq
+-- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
 import           Var
@@ -126,7 +126,7 @@ liquidOne tgt info = do
   let cbs'' = maybe cbs' DC.newBinds dc
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
-  cgi `deepseq` donePhase Loud "generateConstraints"
+  -- cgi `deepseq` whenLoud (donePhase Loud "generateConstraints")
   whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
   whenNormal $ donePhase Loud "solve"
