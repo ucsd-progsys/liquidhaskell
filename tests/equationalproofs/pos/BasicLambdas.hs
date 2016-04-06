@@ -11,6 +11,12 @@ module Append where
 import Axiomatize
 import Equational
 
-{-@ helper :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) == (\x:a -> m2)} @-}
-helper :: a  -> a -> Proof 
-helper _ _ = Proof
+{-@ funEq :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) == (\x:a -> m2)} @-}
+funEq :: a  -> a -> Proof 
+funEq _ _ = Proof
+
+
+{-@ funApp :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) (m1) == ((\x:a -> m2)) (m2) } @-}
+funApp :: a  -> a -> Proof 
+funApp _ _ = Proof
+
