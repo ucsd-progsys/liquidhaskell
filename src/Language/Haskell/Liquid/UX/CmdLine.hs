@@ -400,8 +400,9 @@ consoleResultFull cfg out r _ = do
    writeResult cfg (colorResult r) cr
    -- writeFile   (extFileName Result target) (showFix cr)
 
-consoleResultJson _ _ _ =
-  B.putStrLn . encode . ACSS.errors 
+consoleResultJson _ _ _ annm = do
+  putStrLn "RESULT"
+  B.putStrLn . encode . ACSS.errors $ annm
 
 resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext

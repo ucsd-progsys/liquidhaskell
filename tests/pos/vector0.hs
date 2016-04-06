@@ -1,10 +1,16 @@
-module Vec0 () where
+module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
+
 import Data.Vector hiding (map, concat, zipWith, filter, foldl, foldr, (++))
 
+{-@ inc :: Nat -> Nat @-}
+inc :: Int -> Int
+inc x = x - 1
+
+prop :: Bool
 prop = prop0 && prop1 && prop2 && prop3 && prop4
-  where 
+  where
     xs    = [1,2,3,4] :: [Int]
     vs    = fromList xs
     x     = Prelude.head xs
@@ -14,4 +20,3 @@ prop = prop0 && prop1 && prop2 && prop3 && prop4
     prop2 = liquidAssertB (Data.Vector.length vs > 0)
     prop3 = liquidAssertB (Data.Vector.length vs > 3)
     prop4 = liquidAssertB ((vs ! 0 + vs ! 1 + vs ! 2 + vs ! 3) > 0)
-
