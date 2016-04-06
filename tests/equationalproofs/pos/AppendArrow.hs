@@ -16,6 +16,7 @@
 module Append where
 
 import Axiomatize
+import Equational
 
 data L a = N |  C a (L a)
 
