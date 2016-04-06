@@ -20,10 +20,9 @@ import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Solver.Graph (isTarget)
 import           Text.PrettyPrint.HughesPJ
-
 -- DEBUG
 import           Text.Printf
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
 
 import           Data.List  (sort)
