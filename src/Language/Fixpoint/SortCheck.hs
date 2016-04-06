@@ -355,7 +355,7 @@ elab f (PAtom Eq e1 e2) = do
   (t1',t2') <- unite f  t1 t2
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
-  return (PAtom Eq e1' e2', boolSort)
+  return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
 
 elab f (PAtom r e1 e2) = do
   (e1', _) <- elab f e1

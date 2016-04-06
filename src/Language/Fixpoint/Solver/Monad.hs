@@ -91,7 +91,7 @@ runSolverM cfg fi' _ act = do
     return $ fst res
 
   where
-    acquire = makeContextWithSEnv lar (solver cfg) file env
+    acquire = makeContextWithSEnv (C.allowHO cfg) lar (solver cfg) file env
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
