@@ -32,7 +32,8 @@ import Prelude hiding (error)
 
 import Control.Monad
 import Data.Maybe
-
+import Data.Aeson (encode)
+import qualified Data.ByteString.Lazy.Char8 as B
 import System.Directory
 import System.Exit
 import System.Environment
@@ -50,7 +51,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
-import Language.Fixpoint.Utils.Files
+-- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
@@ -381,17 +382,25 @@ defConfig = Config { files          = def
 ------------------------------------------------------------------------
 exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out
-  = do {-# SCC "annotate" #-} annotate cfg target out
-       whenNormal $ donePhase Loud "annotate"
-       writeCheckVars $ o_vars  out
-       cr <- resultWithContext r
-       writeResult cfg (colorResult r) cr
-       writeFile   (extFileName Result target) (showFix cr)
-       return $ out { o_result = r }
-    where
-       r         = o_result out `addErrors` o_errors out
+exitWithResult cfg target out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg target out
+  whenNormal $ donePhase Loud "annotate"
+  let r = o_result out `addErrors` o_errors out
+  consoleResult cfg out r annm
+  return $ out { o_result = r }
 
+consoleResult cfg
+  | json cfg  = consoleResultJson cfg
+  | otherwise = consoleResultFull cfg
+
+consoleResultFull cfg out r _ = do
+   writeCheckVars $ o_vars out
+   cr <- resultWithContext r
+   writeResult cfg (colorResult r) cr
+   -- writeFile   (extFileName Result target) (showFix cr)
+
+consoleResultJson _ _ _ annm =
+  B.putStrLn $ encode annm
 
 resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
