@@ -48,6 +48,7 @@ import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
+import           Debug.Trace
 
 ---------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -221,7 +222,10 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
+elimDeps si es nonKutVs = graphDeps si $ trace msg es'
+  where
+    es'                 = graphElim es nonKutVs
+    msg                 = "graphElim: " ++ show (length es')
 
 {- | `graphElim` "eliminates" a kvar k by replacing every "path"
 
@@ -230,24 +234,12 @@ elimDeps si es nonKutVs = graphDeps si (graphElim es nonKutVs)
       with an edge
 
           ki ------------> c
-
-es = [ id_1 : id_1, id_2 : id_2, id_3 : id_3, id_4 : id_4, id_5 : id_5
-     , "k1" : $k1*, "k0" : $k0*, $k1* : $k1*, $k0* : $k0*, id_1 : "k0"
-     , id_2 : "k0", "k0" : id_3, id_3 : "k1", "k1" : id_4, id_4 : "k0"
-     , "k1" : id_5]] :
-
-
-     ["k0" : id_4, "k0" : id_5, "k0" : id_3, "k0" : $k0*, $k0* : $k0*
-     , $k1* : $k1*, id_2 : "k0", id_2 : id_2, id_3 : id_3, id_1 : "k0"
-     , id_1 : id_1, id_4 : "k0", id_4 : id_4, id_5 : id_5]
-
 -}
-
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
 graphElim es ks = {- tracepp msg $ -} ikvgEdges $ elimKs ks $ edgesIkvg es
   where
-    -- msg         = "graphElim: ks = " ++ showpp ks ++ "\nes = " ++ showpp es
     elimKs      = flip (S.foldl' elimK)
+    -- msg         = "graphElim: ks = " ++ showpp ks ++ "\nes = " ++ showpp es
 
 elimK  :: IKVGraph -> F.KVar -> IKVGraph
 elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)

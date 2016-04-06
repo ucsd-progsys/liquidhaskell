@@ -165,8 +165,7 @@ solveNative' !cfg !fi0 = do
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
-  -- rnf si2 `seq` donePhase Loud "Uniqify"
-  -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
+  rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si3
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
