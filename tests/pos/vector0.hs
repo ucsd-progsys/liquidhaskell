@@ -4,10 +4,6 @@ import Language.Haskell.Liquid.Prelude
 
 import Data.Vector hiding (map, concat, zipWith, filter, foldl, foldr, (++))
 
-{-@ inc :: Nat -> Nat @-}
-inc :: Int -> Int
-inc x = x - 1
-
 prop :: Bool
 prop = prop0 && prop1 && prop2 && prop3 && prop4
   where
