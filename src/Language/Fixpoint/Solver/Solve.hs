@@ -128,7 +128,7 @@ result _ wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
-  lift $ print (F.sid <$> stat)
+  lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   return   $ F.Result (ci <$> stat) (F.solResult s)
   where
     ci c = (F.subcId c, F.sinfo c)

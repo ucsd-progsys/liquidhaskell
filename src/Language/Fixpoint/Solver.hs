@@ -65,7 +65,7 @@ solveFQ cfg = do
     let stat = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
-    colorStrLn (colorResult stat) (statStr $!! stat)
+    whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
     return $ eCode r
   where
     file    = inFile       cfg
