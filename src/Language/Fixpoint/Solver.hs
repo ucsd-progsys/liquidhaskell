@@ -26,7 +26,7 @@ import           Data.Binary
 -- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
--- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
 -- import           Text.Printf                        (printf)
 import           Control.Monad                      (when)
