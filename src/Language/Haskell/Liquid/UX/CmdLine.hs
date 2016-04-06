@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 import Prelude hiding (error)
 
+
 import Control.Monad
 import Data.Maybe
 import Data.Aeson (encode)
@@ -60,7 +61,7 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-
+import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
 import Text.Parsec.Pos                     (newPos)
@@ -399,8 +400,8 @@ consoleResultFull cfg out r _ = do
    writeResult cfg (colorResult r) cr
    -- writeFile   (extFileName Result target) (showFix cr)
 
-consoleResultJson _ _ _ annm =
-  B.putStrLn $ encode annm
+consoleResultJson _ _ _ =
+  B.putStrLn . encode . ACSS.errors 
 
 resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
