@@ -20,3 +20,17 @@ funEq _ _ = Proof
 funApp :: a  -> a -> Proof 
 funApp _ _ = Proof
 
+{-@ axiomatize bind @-}
+$(axiomatize
+  [d| bind :: a -> (a -> b) ->  b
+      bind x f = f x 
+    |])
+
+
+-- HERE 
+{- helper :: m:a -> {v: a |  v == bind m (\x:a -> m)} @-}
+helper :: Eq a => a -> a 
+helper m = bind m h 
+  where
+    h   =  \x -> m
+

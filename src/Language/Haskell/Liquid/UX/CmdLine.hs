@@ -30,9 +30,11 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 import Prelude hiding (error)
 
+
 import Control.Monad
 import Data.Maybe
-
+import Data.Aeson (encode)
+import qualified Data.ByteString.Lazy.Char8 as B
 import System.Directory
 import System.Exit
 import System.Environment
@@ -50,7 +52,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
-import Language.Fixpoint.Utils.Files
+-- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
@@ -59,7 +61,7 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-
+import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
 import Text.Parsec.Pos                     (newPos)
@@ -217,6 +219,9 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , json
+    = False &= name "json"
+            &= help "Print results in JSON (for editor integration)"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -237,6 +242,7 @@ getOpts as = do
                          config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
                          as
   cfg    <- fixConfig cfg1
+  when (json cfg) $ setVerbosity Quiet
   whenNormal $ putStrLn copyright
   withSmtSolver cfg
 
@@ -366,6 +372,7 @@ defConfig = Config { files          = def
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
                    , elimStats      = False
+                   , json           = False
                    }
 
 
@@ -376,17 +383,26 @@ defConfig = Config { files          = def
 ------------------------------------------------------------------------
 exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out
-  = do {-# SCC "annotate" #-} annotate cfg target out
-       donePhase Loud "annotate"
-       writeCheckVars $ o_vars  out
-       cr <- resultWithContext r
-       writeResult cfg (colorResult r) cr
-       writeFile   (extFileName Result target) (showFix cr)
-       return $ out { o_result = r }
-    where
-       r         = o_result out `addErrors` o_errors out
+exitWithResult cfg target out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg target out
+  whenNormal $ donePhase Loud "annotate"
+  let r = o_result out `addErrors` o_errors out
+  consoleResult cfg out r annm
+  return $ out { o_result = r }
 
+consoleResult cfg
+  | json cfg  = consoleResultJson cfg
+  | otherwise = consoleResultFull cfg
+
+consoleResultFull cfg out r _ = do
+   writeCheckVars $ o_vars out
+   cr <- resultWithContext r
+   writeResult cfg (colorResult r) cr
+   -- writeFile   (extFileName Result target) (showFix cr)
+
+consoleResultJson _ _ _ annm = do
+  putStrLn "RESULT"
+  B.putStrLn . encode . ACSS.errors $ annm
 
 resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext

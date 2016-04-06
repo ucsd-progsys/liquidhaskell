@@ -31,12 +31,27 @@ $(axiomatize
     |])
 
 
+-- HERE 
+
 -- | Left Associativity: (m >>= f) >>= g ≡  m >>= (\x -> f x >>= g)
 
-{-@ prop_left_associativity :: m:Maybe a -> f:(a -> Maybe a) -> g:(a -> Maybe a) 
-                            -> {v: Bool | m == bind m (\x:a -> m ) } @-}
-prop_left_associativity :: Eq a => Maybe a -> (a -> Maybe a) -> (a -> Maybe a) ->  Bool 
-prop_left_associativity m f g = bind (bind m f) g == bind m (\x -> (bind (f x) g ))
+{- prop_left_associativity :: m:Maybe a -> f:(a -> Maybe a) -> g:(a -> Maybe a) 
+                            -> {v: Proof |  bind (bind m f) g == bind m (\x:a -> (bind (f x) g ))} @-}
+prop_left_associativity :: Eq a => Maybe a -> (a -> Maybe a) -> (a -> Maybe a) ->  Proof 
+prop_left_associativity Nothing f g = pr1 `by` pr2 `by` pr3 
+  where
+  	h   =  \x -> (bind (f x) g)
+  	e1  = bind (bind Nothing f) g 
+  	pr1 = axiom_bind_Nothing f
+  	e2  = bind Nothing g 
+  	pr2 = axiom_bind_Nothing g 
+  	e3  = Nothing 
+  	pr3 = axiom_bind_Nothing h 
+  	e4  = bind Nothing h 
+
+{- prop_left_associativity :: m:Maybe a -> f:(a -> Maybe a) -> g:(a -> Maybe a) 
+                            -> {v: Proof |  bind (bind m f) g == bind m (\x:a -> (bind (f x) g ))} @-}
+prop_left_associativity (Just x) f g = undefined --  bind (bind m f) g == bind m (\x -> (bind (f x) g ))
 
 
 

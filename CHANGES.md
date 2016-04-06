@@ -2,6 +2,11 @@
 
 ## NEXT
 
+- Add a `--json` flag that runs in quiet mode where all output is
+  suppressed and only the list of errors is returned as a JSON object to be
+  consumed by an editor.
+
+
 ## 0.5.0.1
 
 - Fixed a bug in the specification for `Data.Traversable.sequence`

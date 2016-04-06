@@ -82,7 +82,7 @@ mkOutput cfg res sol anna
 
 -- | @annotate@ actually renders the output to files
 -------------------------------------------------------------------
-annotate :: Config -> FilePath -> Output Doc -> IO ()
+annotate :: Config -> FilePath -> Output Doc -> IO ACSS.AnnMap
 -------------------------------------------------------------------
 annotate cfg srcF out
   = do generateHtml srcF tpHtmlF tplAnnMap
@@ -90,6 +90,7 @@ annotate cfg srcF out
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
        when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+       return typAnnMap
     where
        tplAnnMap  = mkAnnMap cfg res annTpl
        typAnnMap  = mkAnnMap cfg res annTyp
