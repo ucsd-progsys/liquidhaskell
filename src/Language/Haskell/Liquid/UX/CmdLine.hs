@@ -217,6 +217,9 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , json
+    = False &= name "json"
+            &= help "Print results in JSON (for editor integration)"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -237,6 +240,7 @@ getOpts as = do
                          config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
                          as
   cfg    <- fixConfig cfg1
+  when (json cfg) $ setVerbosity Quiet
   whenNormal $ putStrLn copyright
   withSmtSolver cfg
 
@@ -366,6 +370,7 @@ defConfig = Config { files          = def
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
                    , elimStats      = False
+                   , json           = False
                    }
 
 
@@ -378,7 +383,7 @@ exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
 exitWithResult cfg target out
   = do {-# SCC "annotate" #-} annotate cfg target out
-       donePhase Loud "annotate"
+       whenNormal $ donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        cr <- resultWithContext r
        writeResult cfg (colorResult r) cr
