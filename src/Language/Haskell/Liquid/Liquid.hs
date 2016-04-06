@@ -43,6 +43,7 @@ import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Model
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
@@ -171,9 +172,9 @@ solveCs cfg tgt cgi info dc
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
-       let res   = ferr sol r
+       res      <- fmap (cinfoUserError sol) <$> getModels info cfg (fmap snd r)
+       -- let res   = ferr sol r
        let out0  = mkOutput cfg res sol annm
-       res      <- getModels cfg res
 
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
@@ -192,7 +193,6 @@ solveCs cfg tgt cgi info dc
                        , FC.elimStats   = elimStats   cfg
                        -- , FC.stats   = True
                        }
-       ferr s  = fmap (cinfoUserError s . snd)
 
 
 cinfoUserError   :: F.FixSolution -> Cinfo -> UserError

@@ -143,6 +143,7 @@ Library
                 , th-lift
                 , exceptions >= 0.6
                 , QuickCheck >= 2.7
+                , ghc-prim
 
 
    hs-source-dirs:  src, include
@@ -220,6 +221,7 @@ Library
                     Language.Haskell.Liquid.Bare.Spec,
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,
+                    Language.Haskell.Liquid.Model,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,

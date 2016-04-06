@@ -7,10 +7,11 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo
+    getGhcInfo,
+    runLiquidGhc,
 
   -- * printer
-  , pprintCBs
+    pprintCBs
   ) where
 
 import Prelude hiding (error)
@@ -117,7 +118,11 @@ runLiquidGhc hscEnv cfg act =
       let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                      , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                      , includePaths = nub $ idirs cfg ++ includePaths df'
-                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
+                     , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                                                    (ModRenaming True [])
+                                    : ExposePackage (PackageArg "liquidhaskell")
+                                                    (ModRenaming True [])
+                                    : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
                      --FIXME: this *should* be HscNothing, but that prevents us from
