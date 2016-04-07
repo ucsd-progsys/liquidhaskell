@@ -25,8 +25,8 @@ module Language.Fixpoint.Graph.Indexed (
   , getPreds
   ) where
 
-import qualified Language.Fixpoint.Misc    as Misc
 import           Language.Fixpoint.Graph.Types
+import qualified Data.HashSet              as S
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List as L
 
@@ -35,8 +35,8 @@ import qualified Data.List as L
 --------------------------------------------------------------------------------
 
 data IKVGraph = IKVGraph
-  { igSucc :: M.HashMap CVertex [CVertex]  -- ^ out-edges of a `CVertex`
-  , igPred :: M.HashMap CVertex [CVertex]  -- ^ in-edges  of a `CVertex`
+  { igSucc :: M.HashMap CVertex (S.HashSet CVertex)  -- ^ out-edges of a `CVertex`
+  , igPred :: M.HashMap CVertex (S.HashSet CVertex)  -- ^ in-edges  of a `CVertex`
   } deriving (Show)
 
 
@@ -59,13 +59,13 @@ edgesIkvg :: [CEdge] -> IKVGraph
 edgesIkvg = addLinks empty
 
 ikvgEdges :: IKVGraph -> [CEdge]
-ikvgEdges g = [ (u, v) | (u, vs) <- M.toList (igSucc g), v <- vs]
+ikvgEdges g = [ (u, v) | (u, vs) <- M.toList (igSucc g), v <- S.toList vs]
 
 getSuccs :: IKVGraph -> CVertex -> [CVertex]
-getSuccs g u = M.lookupDefault [] u (igSucc g)
+getSuccs g u = S.toList $ M.lookupDefault S.empty u (igSucc g)
 
 getPreds :: IKVGraph -> CVertex -> [CVertex]
-getPreds g v = M.lookupDefault [] v (igPred g)
+getPreds g v = S.toList $ M.lookupDefault S.empty v (igPred g)
 
 --------------------------------------------------------------------------------
 empty :: IKVGraph
@@ -74,17 +74,20 @@ empty = IKVGraph M.empty M.empty
 txMany op es g = L.foldl' (flip op) g es
 
 addSucc :: CEdge -> IKVGraph -> IKVGraph
-addSucc (u, v) g = g { igSucc = Misc.inserts u v (igSucc g) }
+addSucc (u, v) g = g { igSucc = inserts u v (igSucc g) }
 
 addPred :: CEdge -> IKVGraph -> IKVGraph
-addPred (u, v) g = g { igPred = Misc.inserts v u (igPred g) }
+addPred (u, v) g = g { igPred = inserts v u (igPred g) }
 
 delSucc :: CEdge -> IKVGraph -> IKVGraph
-delSucc (u, v) g = g { igSucc = Misc.removes u v (igSucc g)}
+delSucc (u, v) g = g { igSucc = removes u v (igSucc g)}
 
 delPred :: (CVertex, CVertex) -> IKVGraph -> IKVGraph
-delPred (u, v) g = g { igPred = Misc.removes v u (igPred g)}
+delPred (u, v) g = g { igPred = removes v u (igPred g)}
 
 delVtx :: CVertex -> IKVGraph -> IKVGraph
 delVtx v g = g { igSucc = M.delete v (igSucc g) }
                { igPred = M.delete v (igPred g) }
+
+inserts k v m = M.insert k (S.insert v $ M.lookupDefault S.empty k m) m
+removes k v m = M.insert k (S.delete v (M.lookupDefault S.empty k m)) m

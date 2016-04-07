@@ -243,12 +243,14 @@ graphElim es ks = {- tracepp msg $ -} ikvgEdges $ elimKs ks $ edgesIkvg es
 
 elimK  :: IKVGraph -> F.KVar -> IKVGraph
 elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
+--elimK g k   = trace ("num edges: " ++ (show $ length $ ikvgEdges g') ++ "num nodes: " ++ (show $ length $ M.keys $ igSucc g')) g'
   where
    es'      = [(ki, c) | ki@(KVar _) <- kis, c@(Cstr _) <- cs]
    cs       = getSuccs g kV
    cis      = getPreds g kV
    kis      = concatMap (getPreds g) cis
    kV       = KVar k
+   --g'       = trace (show k) $ (g `addLinks` es') `delNodes` (kV : cis)
 
 
 {-
