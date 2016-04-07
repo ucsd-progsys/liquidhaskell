@@ -11,7 +11,7 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE ViewPatterns         #-}
-module Test.Target.Testable (test, Testable) where
+module Test.Target.Testable (test, Testable, setup) where
 
 import           Control.Applicative
 import           Control.Exception               (AsyncException, evaluate)
@@ -164,23 +164,29 @@ setup = {-# SCC "setup" #-} do
    -- declare sorts
    ss  <- S.toList <$> gets sorts
    let defSort b e = io $ smtWrite ctx (T.toStrict $ format "(define-sort {} () {})" (b,e))
-   -- FIXME: combine this with the code in `fresh`
+   -- -- FIXME: combine this with the code in `fresh`
    forM_ ss $ \case
      FObj "Int" -> return ()
      FInt       -> return ()
      FObj "GHC.Types.Bool"   -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
      FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
      s        -> defSort (smt2 s) ("Int" :: T.Text)
+   traceM "DONE SORTS"
    -- declare constructors
    cts <- gets constructors
-   mapM_ (\ (c,t) -> io $ smtWrite ctx $ T.toStrict $ makeDecl (symbol c) t) cts
+   mapM_ (\ (c,t) -> do
+             traceShowM (symbol c)
+             traceShowM t
+             io $ smtWrite ctx $ T.toStrict $ makeDecl (symbol c) t) cts
    let nullary = [var c | (c,t) <- cts, not (func t)]
    unless (null nullary) $
      void $ io $ smtWrite ctx $ T.toStrict $ smt2 $ Distinct nullary
    -- declare variables
+   traceM "DONE CTORS"
    vs <- gets variables
    let defVar (x,t) = io $ smtWrite ctx $ T.toStrict (makeDecl x (arrowize t))
    mapM_ defVar vs
+   traceM "DONE VARS"
    -- declare measures
    ms <- gets measEnv
    let defFun x t = io $ smtWrite ctx $ T.toStrict (makeDecl x t)

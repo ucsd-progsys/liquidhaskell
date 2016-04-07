@@ -55,7 +55,7 @@ import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
--- import           Debug.Trace
+import           Debug.Trace
 
 
 newtype Target a = Target (StateT TargetState (ReaderT TargetOpts IO) a)
@@ -211,11 +211,15 @@ making ty act
 lookupCtor :: Symbol -> Target SpecType
 lookupCtor c
   = do mt <- lookup c <$> gets ctorEnv
-       m  <- gets filePath
-       o  <- asks ghcOpts
        case mt of
-         Just t -> return t
+         Just t -> do
+           traceShowM ("lookupCtor.lh", c)
+           traceShowM ("lookupCtor.lh", t)
+           return t
          Nothing -> do
+           m  <- gets filePath
+           o  <- asks ghcOpts
+           traceShowM ("lookupCtor.ghc", c)
            t <- io $ runGhc o $ do
                   _ <- loadModule m
                   t <- GHC.exprType (printf "(%s)" (symbolString c))
@@ -240,8 +244,9 @@ fresh :: Sort -> Target Symbol
 fresh sort
   = do n <- freshInt
        let sorts' = sortTys sort
-       modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
+       -- modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
        let x = symbol $ ST.unpack (ST.intercalate "->" $ map (symbolText.unObj) sorts') ++ show n
+       traceShowM x
        modify $ \s@(TargetState {..}) -> s { variables = (x,sort) : variables }
        return x
 

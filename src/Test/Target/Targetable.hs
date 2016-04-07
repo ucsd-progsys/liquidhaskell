@@ -41,7 +41,7 @@ import           Test.Target.Monad
 import           Test.Target.Types
 import           Test.Target.Util
 
--- import Debug.Trace
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 --- Constrainable Data
@@ -111,7 +111,9 @@ reproxy _ = Proxy
 -- return a list of types representing suitable arguments for @d@.
 unfold :: Symbol -> SpecType -> Target [(Symbol, SpecType)]
 unfold cn t = do
+  traceShowM ("unfold.cn", cn)
   dcp <- lookupCtor cn
+  traceShowM ("unfold.dcp", dcp)
   tyi <- gets tyconInfo
   emb <- gets embEnv
   let ts = applyPreds (addTyConInfo emb tyi t) dcp
@@ -127,7 +129,7 @@ apply c vs = do
     Nothing -> return ()
   let x = app c vs
   t <- lookupCtor c
-  -- traceShowM ("apply.ctor", c, t)
+  traceShowM ("apply.ctor", c, t)
   let (xs, _, _, rt) = bkArrowDeep t
       su             = mkSubst $ zip (map symbol xs) vs
   addConstructor (c, rTypeSort mempty t)
