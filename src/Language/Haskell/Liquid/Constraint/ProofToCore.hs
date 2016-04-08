@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+  {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
@@ -60,6 +60,17 @@ instance ToCore HCtor where
 
 instance ToCore HVar where
   toCore _ _ v = H.Var $ var_info v
+
+
+
+-------------------------------------------------------------------------------
+----------------  Combining Rewrite Rules  ------------------------------------
+-------------------------------------------------------------------------------
+
+rewriteToCore :: CmbExpr -> CoreExpr -> [(Id, [CoreExpr])] -> CoreExpr
+rewriteToCore c def apps = combineProofs c def (go <$> apps)
+  where
+    go (x, es) = makeApp (H.Var x) es  
 
 
 -------------------------------------------------------------------------------

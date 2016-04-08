@@ -71,7 +71,7 @@ instance Bifunctor Bound where
         second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 
-makeBound :: (PPrint r, UReftable r)
+makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
 makeBound (Bound _  vs ps xs p) ts qs t
   = RRTy cts mempty OCons t

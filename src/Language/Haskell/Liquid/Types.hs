@@ -801,6 +801,7 @@ type RDEnv = DEnv Var SpecType
 --------------------------------------------------------------------------
 
 data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
+                         , rname  :: Maybe b 
                          , abinds :: [b]
                          , atypes :: [s]
                          , alhs   :: e
@@ -811,13 +812,14 @@ type LAxiom = Axiom Symbol Sort Expr
 
 
 instance Show (Axiom Var Type CoreExpr) where
-  show (Axiom (n, c) bs _ts lhs rhs) = "Axiom : " ++
-                                       "\nFun Name: " ++ (showPpr n) ++
-                                       "\nData Con: " ++ (showPpr c) ++
-                                       "\nArguments:" ++ (showPpr bs)  ++
-                                       -- "\nTypes    :" ++ (showPpr ts)  ++
-                                       "\nLHS      :" ++ (showPpr lhs) ++
-                                       "\nRHS      :" ++ (showPpr rhs)
+  show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
+                                         "\nFun Name: " ++ (showPpr n) ++
+                                         "\nReal Name: " ++ (showPpr v) ++
+                                         "\nData Con: " ++ (showPpr c) ++
+                                         "\nArguments:" ++ (showPpr bs)  ++
+                                         -- "\nTypes    :" ++ (showPpr ts)  ++
+                                         "\nLHS      :" ++ (showPpr lhs) ++
+                                         "\nRHS      :" ++ (showPpr rhs)
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
