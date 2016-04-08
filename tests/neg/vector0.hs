@@ -14,7 +14,6 @@ prop0 :: Bool
 prop0 = liquidAssertB (x >= 0)
         where x = Prelude.head xs
 
-
 prop1 :: Bool
 prop1 = liquidAssertB (n > 0)
         where n = Prelude.length xs
