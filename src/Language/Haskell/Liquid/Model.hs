@@ -4,6 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Language.Haskell.Liquid.Model where
 
@@ -31,6 +32,9 @@ import           Test.Target.Testable
 import           Test.Target.Util
 
 import           GHC
+import           GHC.Paths
+import qualified Outputable as GHC
+import           DynFlags
 import           InstEnv
 import           Type
 import           TysWiredIn
@@ -39,13 +43,17 @@ import           Debug.Trace
 
 getModels :: GhcInfo -> Config -> FixResult Cinfo -> IO (FixResult Cinfo)
 getModels info cfg fi = case fi of
-  Unsafe cs -> fmap Unsafe . runLiquidGhc (Just (env info)) cfg $ do
+  Unsafe cs -> fmap Unsafe . GHC.runGhc (Just libdir) $ do
+    setSession (env info)
     imps <- getContext
     setContext (IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                           { ideclQualified = True })
                 : imps)
     mapM (getModel info cfg) cs
   _         -> return fi
+  where
+  mbenv = Nothing -- Just (env info)
+
 
 getModel :: GhcInfo -> Config -> Cinfo -> Ghc Cinfo
 getModel info cfg ci@(Ci { ci_err = Just err@(ErrSubType { ctx, tact, texp }) }) = do
@@ -54,13 +62,17 @@ getModel info cfg ci@(Ci { ci_err = Just err@(ErrSubType { ctx, tact, texp }) })
   vtds <- addDicts vts
   liftIO $ print $ length vtds
 
+  df <- getDynFlags
   let opts = defaultOpts
   smt <- liftIO $ makeContext False (solver opts) (target info)
-  model <- liftIO $ runTarget opts (initState "" (spec info) smt) $ do
-    cs <- gets ctorEnv
+  model <- liftIO $ runTarget opts (initState (target info) (spec info) smt df) $ do
+    cs <- gets constructors
     traceShowM ("constructors", cs)
     n <- asks depth
-    vs <- forM vtds $ \(v, t, TargetDict d@Dict) -> query (dictProxy d) n t
+    vs <- forM vtds $ \(v, t, TargetDict d@Dict) -> do
+      traceShowM ("QUERY", v, t)
+      modify $ \s@(TargetState {..}) -> s { variables = (v,getType (dictProxy d)) : variables }
+      query (dictProxy d) n v t
     traceM "DONE QUERY"
     setup
     traceM "DONE SETUP"
@@ -110,6 +122,8 @@ addDict (v, t) =
           -- FIXME: HOW THE HELL DOES THIS BREAK THE PRINTER??!?!??!?!
           hv <- compileExpr $ traceShowId
                 ("Language.Haskell.Liquid.Model.Dict :: Language.Haskell.Liquid.Model.Dict (Test.Target.Targetable.Targetable ("++ showpp mt ++"))")
+          df <- getDynFlags
+          traceShowM ("addDict", showpp mt)
           let d = TargetDict $ unsafeCoerce hv
           -- let d = TargetDict (Dict :: Dict (Targetable [Int]))
           return (Just (v, t, d))

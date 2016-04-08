@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE ImplicitParams              #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -75,6 +76,7 @@ import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
+import GHC.Stack
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -155,6 +157,7 @@ validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
 
+tvId :: (?loc :: CallStack) => TyVar -> String
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
@@ -215,12 +218,23 @@ sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
-showPpr       = showSDoc . ppr
+showPpr :: (?loc :: CallStack) => Outputable a => a -> String
+showPpr       = -- trace (showCallStack ?loc) .
+                showSDoc . ppr
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc
+                  (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
 showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
+
+
+-- defaultGlobalDynFlags :: DynFlags
+-- defaultGlobalDynFlags =
+--     (defaultDynFlags settings) { verbosity = 2 }
+--   where
+--     settings = impossible Nothing "v_unsafeGlobalDynFlags: not initialised"
+
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
@@ -397,8 +411,11 @@ tyConTyVarsDef c = TC.tyConTyVars c
 instance Symbolic TyCon where
   symbol = symbol . qualifiedNameSymbol . getName
 
+instance Symbolic Class where
+  symbol = symbol . qualifiedNameSymbol . getName
+
 instance Symbolic Name where
-  symbol = symbol . showPpr
+  symbol = symbol . qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol
@@ -419,16 +436,16 @@ instance Fixpoint Type where
   toFix = pprDoc
 
 instance Show Name where
-  show = showPpr
+  show = symbolString . symbol
 
 instance Show Var where
-  show = showPpr
+  show = symbolString . symbol
 
 instance Show Class where
-  show = showPpr
+  show = symbolString . symbol
 
 instance Show TyCon where
-  show = showPpr
+  show = symbolString . symbol
 
 instance NFData Class where
   rnf t = seq t ()

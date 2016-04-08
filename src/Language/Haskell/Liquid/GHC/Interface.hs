@@ -44,6 +44,7 @@ import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
 import System.FilePath
 import System.IO.Temp
+import System.IO.Unsafe
 
 import Text.PrettyPrint.HughesPJ
 
@@ -107,9 +108,14 @@ getGhcInfo' cfg target name tgtSpec = do
 -- Configure GHC for Liquid Haskell --------------------------------------------
 --------------------------------------------------------------------------------
 
+{-# NOINLINE initStaticFlags #-}
+-- | Use lazy evaluation to only call 'parseStaticFlags' once.
+initStaticFlags :: [GHC.Located String]
+initStaticFlags = unsafePerformIO $ fmap fst (parseStaticFlags [])
+
 runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
 runLiquidGhc hscEnv cfg act =
-  withSystemTempDirectory "liquid" $ \tmp ->
+  withSystemTempDirectory "liquid" $ \tmp -> initStaticFlags `seq` do
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- getSessionDynFlags

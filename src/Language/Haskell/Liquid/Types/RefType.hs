@@ -69,6 +69,7 @@ module Language.Haskell.Liquid.Types.RefType (
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
+import Name
 import Var
 import Kind
 import GHC              hiding (Located)
@@ -106,6 +107,7 @@ import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, string
 
 import Data.List (sort, foldl')
 
+import Debug.Trace
 
 strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
     where
@@ -313,10 +315,10 @@ eqpd (Pr vs) (Pr ws)
 
 
 instance Eq RTyVar where
-  RTV α == RTV α' = tvId α == tvId α'
+  RTV α == RTV α' = α == α'
 
 instance Ord RTyVar where
-  compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
+  compare (RTV α) (RTV α') = compare α α'
 
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
@@ -918,8 +920,13 @@ typeSort tce (TyConApp c τs)
   = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
   = fApp (typeSort tce t1) [typeSort tce t2]
+typeSort _tce (TyVarTy tv)
+  = let x = FObj $ tyVarUniqueSymbol tv
+    in x
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
+
+tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
 
@@ -928,13 +935,14 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        sas                 = tyVarUniqueSymbol <$> as
         n                   = length as
 
 tyConName c
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = symbol c
+  | otherwise         = let x = symbol c -- . getOccString $ c
+                        in x
 
 typeSortFun tce t -- τ1 τ2
   = mkFFunc 0  sos

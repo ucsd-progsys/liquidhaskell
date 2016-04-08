@@ -48,13 +48,13 @@ getCtors t              = error $ "getCtors: " ++ showpp t
 dataConSymbol_noUnique :: GHC.DataCon -> Symbol
 dataConSymbol_noUnique = qualifiedNameSymbol . GHC.getName
 
-genFun :: Targetable a => Proxy a -> t -> SpecType -> Target Symbol
-genFun p _ (stripQuals -> t)
+genFun :: Targetable a => Proxy a -> t -> Symbol -> SpecType -> Target Symbol
+genFun p _ x (stripQuals -> t)
   = do forM_ (getCtors t) $ \dc -> do
          let c = dataConSymbol_noUnique dc
          t <- lookupCtor c
          addConstructor (c, rTypeSort mempty t)
-       fresh (getType p)
+       return x -- fresh (getType p)
 
 stitchFun :: forall f. (Targetable (Res f))
           => Proxy f -> SpecType -> Target ([Expr] -> Res f)
@@ -82,7 +82,7 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                  _ <- io $ command ctx Push
                  xes <- mapM genExpr es
                  let su = mkSubst $ zipWith (\v e -> (v, var e)) vs xes
-                 xo <- query (Proxy :: Proxy (Res f)) d (subst su to)
+                 xo <- qquery (Proxy :: Proxy (Res f)) d (subst su to)
                  vs <- gets variables
                  mapM_ (\x -> io . smtWrite ctx $ T.toStrict $ makeDecl (symbol x) (snd x)) vs
                  cs <- gets constraints

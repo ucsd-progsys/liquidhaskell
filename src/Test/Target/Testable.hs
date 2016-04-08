@@ -131,7 +131,7 @@ class (AllHave Targetable (Args f), Targetable (Res f)
 
 instance (Show a, Targetable a, Testable b) => Testable (a -> b) where
   queryArgs f d (stripQuals -> (RFun x i o _))
-    = do v  <- query (Proxy :: Proxy a) d i
+    = do v  <- qquery (Proxy :: Proxy a) d i
          vs <- queryArgs (f undefined) d (subst (mkSubst [(x,var v)]) o)
          return (v:vs)
   queryArgs _ _ t = error $ "queryArgs called with non-function type: " ++ show t
@@ -169,7 +169,8 @@ setup = {-# SCC "setup" #-} do
      FObj "Int" -> return ()
      FInt       -> return ()
      FObj "GHC.Types.Bool"   -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
-     FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
+     -- FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
+     s | smt2 s == "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
      s        -> defSort (smt2 s) ("Int" :: T.Text)
    traceM "DONE SORTS"
    -- declare constructors
@@ -194,12 +195,14 @@ setup = {-# SCC "setup" #-} do
      let x = val (name m)
      unless (x `M.member` theorySymbols) $
        defFun x (rTypeSort emb (sort m))
+   traceM "DONE MEASURES"
    -- assert constraints
    cs <- gets constraints
    --mapM_ (\c -> do {i <- gets seed; modify $ \s@(GS {..}) -> s { seed = seed + 1 };
    --                 io . command ctx $ Assert (Just i) c})
    --  cs
    mapM_ (io . smtWrite ctx . T.toStrict . smt2 . Assert Nothing) cs
+   traceM "DONE CONSTRAINTS"
    -- deps <- V.fromList . map (symbol *** symbol) <$> gets deps
    -- io $ generateDepGraph "deps" deps cs
    -- return (ctx,vs,deps)

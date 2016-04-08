@@ -50,6 +50,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types    hiding (var, Target)
 
 import qualified GHC
+import qualified Outputable as GHC
 
 import           Test.Target.Serialize
 import           Test.Target.Types
@@ -132,10 +133,11 @@ data TargetState = TargetState
   , filePath     :: !FilePath
   , makingTy     :: !Sort
   , smtContext   :: !Context
+  , dynFlags     :: !GHC.DynFlags
   }
 
-initState :: FilePath -> GhcSpec -> Context -> TargetState
-initState fp sp ctx = TargetState
+initState :: FilePath -> GhcSpec -> Context -> GHC.DynFlags -> TargetState
+initState fp sp ctx df = TargetState
   { variables    = []
   , choices      = []
   , constraints  = []
@@ -155,6 +157,7 @@ initState fp sp ctx = TargetState
   , filePath     = fp
   , makingTy     = FObj ""
   , smtContext   = ctx
+  , dynFlags     = df
   }
   where
     -- FIXME: can we NOT tidy???
@@ -211,15 +214,19 @@ making ty act
 lookupCtor :: Symbol -> Target SpecType
 lookupCtor c
   = do mt <- lookup c <$> gets ctorEnv
+       cs <- gets ctorEnv
+       -- traceShowM ("lookupCtor.constructors", cs)
+
        case mt of
          Just t -> do
-           traceShowM ("lookupCtor.lh", c)
-           traceShowM ("lookupCtor.lh", t)
+           -- traceShowM ("lookupCtor.lh", c)
+           df <- gets dynFlags
+           -- traceShowM ("lookupCtor.lh", GHC.showPpr df (toType t))
            return t
          Nothing -> do
            m  <- gets filePath
            o  <- asks ghcOpts
-           traceShowM ("lookupCtor.ghc", c)
+           -- traceShowM ("lookupCtor.ghc", c)
            t <- io $ runGhc o $ do
                   _ <- loadModule m
                   t <- GHC.exprType (printf "(%s)" (symbolString c))
@@ -244,9 +251,9 @@ fresh :: Sort -> Target Symbol
 fresh sort
   = do n <- freshInt
        let sorts' = sortTys sort
-       -- modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
+       modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
        let x = symbol $ ST.unpack (ST.intercalate "->" $ map (symbolText.unObj) sorts') ++ show n
-       traceShowM x
+       -- traceShowM x
        modify $ \s@(TargetState {..}) -> s { variables = (x,sort) : variables }
        return x
 

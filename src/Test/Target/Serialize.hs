@@ -88,7 +88,7 @@ instance SMTLIB2 Expr where
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 PGrad            = "true"
-  smt2  e               = errorstar ("smtlib2 Pred  " ++ show e)
+  smt2  _e               = "true" -- errorstar ("smtlib2 Pred  " ++ show e)
 
 
 

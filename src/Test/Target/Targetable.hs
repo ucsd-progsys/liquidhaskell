@@ -8,8 +8,10 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+{-# LANGUAGE ImplicitParams       #-}
 module Test.Target.Targetable
-  ( Targetable(..)
+  ( Targetable(..), qquery
   , unfold, apply, unapply
   , oneOf, whichOf
   , constrain, ofReft
@@ -29,6 +31,7 @@ import           Data.Proxy
 import qualified Data.Text                       as T
 import           Data.Word                       (Word8)
 import           GHC.Generics
+import           GHC.Stack
 
 import           Language.Fixpoint.Types         hiding (prop, ofReft, reft)
 import           Language.Haskell.Liquid.Types.RefType
@@ -60,7 +63,7 @@ import Debug.Trace
 class Targetable a where
   -- | Construct an SMT query describing all values of the given type up to the
   -- given 'Depth'.
-  query   :: Proxy a -> Depth -> SpecType -> Target Symbol
+  query   :: (?loc :: CallStack) => Proxy a -> Depth -> Symbol -> SpecType -> Target Symbol
 
   -- | Reconstruct a Haskell value from the SMT model.
   decode  :: Symbol
@@ -84,9 +87,12 @@ class Targetable a where
                   => Proxy a -> Sort
   getType _ = FObj $ qualifiedDatatypeName (undefined :: Rep a a)
 
-  default query :: (Generic a, GQuery (Rep a))
-                => Proxy a -> Int -> SpecType -> Target Symbol
-  query p = gquery (reproxyRep p)
+  default query :: (?loc :: CallStack) => (Generic a, GQuery (Rep a))
+                => Proxy a -> Int -> Symbol -> SpecType -> Target Symbol
+  query p d x t = do
+    -- traceShowM ("query")
+    -- traceShowM ("query", t)
+    gquery (reproxyRep p) d x t
 
   default toExpr :: (Generic a, GToExpr (Rep a))
                  => a -> Expr
@@ -103,6 +109,9 @@ class Targetable a where
                 => a -> SpecType -> Target (Bool, Expr)
   check v t = gcheck (from v) t
 
+qquery :: Targetable a => Proxy a -> Int -> SpecType -> Target Symbol
+qquery p d t = fresh (getType p) >>= \x -> query p d x t
+
 reproxy :: proxy a -> Proxy b
 reproxy _ = Proxy
 {-# INLINE reproxy #-}
@@ -111,30 +120,36 @@ reproxy _ = Proxy
 -- return a list of types representing suitable arguments for @d@.
 unfold :: Symbol -> SpecType -> Target [(Symbol, SpecType)]
 unfold cn t = do
-  traceShowM ("unfold.cn", cn)
+  -- traceShowM ("unfold.cn", cn)
   dcp <- lookupCtor cn
-  traceShowM ("unfold.dcp", dcp)
+  -- traceShowM ("unfold.dcp")
+  -- traceShowM ("unfold.t.r", reft t)
   tyi <- gets tyconInfo
   emb <- gets embEnv
-  let ts = applyPreds (addTyConInfo emb tyi t) dcp
+  let ts = applyPreds t dcp -- (addTyConInfo emb tyi t) dcp
+  -- traceM "unfold.ts.rs"
+  -- mapM_ (traceShowM . rt_reft . snd) ts
   return ts
 
 -- | Given a data constructor @d@ and a list of expressions @xs@, construct a
 -- new expression corresponding to @d xs@.
 apply :: Symbol -> [Expr] -> Target Expr
-apply c vs = do 
+apply c vs = do
+  -- traceShowM ("apply")
+  -- traceShowM ("apply", c, vs)
   mc <- gets chosen
   case mc of
     Just ch -> mapM_ (addDep ch) vs
     Nothing -> return ()
   let x = app c vs
   t <- lookupCtor c
-  traceShowM ("apply.ctor", c, t)
+  -- traceShowM ("apply.ctor", c, t)
   let (xs, _, _, rt) = bkArrowDeep t
       su             = mkSubst $ zip (map symbol xs) vs
   addConstructor (c, rTypeSort mempty t)
   constrain $ ofReft (subst su $ reft rt) x
   return x
+
 
 -- | Split a symbolic variable representing the application of a data
 -- constructor into a pair of the data constructor and the sub-variables.
@@ -172,8 +187,11 @@ whichOf v = do
 
 
 -- | Assert a logical predicate, guarded by the current choice variable.
-constrain :: Expr -> Target ()
+constrain :: (?loc :: CallStack) => Expr -> Target ()
 constrain p = do
+  -- traceShowM ("constrain")
+  -- traceM (showCallStack ?loc)
+  -- traceShowM ("constrain", p)
   mc <- gets chosen
   case mc of
     Nothing -> addConstraint p
@@ -192,7 +210,7 @@ ofReft (Reft (v, p)) e
 --------------------------------------------------------------------------------
 instance Targetable () where
   getType _ = FObj "GHC.Tuple.()"
-  query _ _ _ = fresh (FObj "GHC.Tuple.()")
+  query _ _ x _ = return x -- fresh (FObj "GHC.Tuple.()")
   -- this is super fiddly, but seemingly required since GHC.exprType chokes on "GHC.Tuple.()"
   toExpr _   = app ("()" :: Symbol) []
 
@@ -204,8 +222,10 @@ instance Targetable () where
 
 instance Targetable Int where
   getType _ = FObj "GHC.Types.Int"
-  query _ d t = fresh FInt >>= \x ->
-    do constrain $ ofReft (reft t) (var x)
+  query _ d x t = -- fresh FInt >>= \x ->
+    do -- traceShowM ("query.int", var x)
+       -- traceShowM ("queyr.int", reft t)
+       constrain $ ofReft (reft t) (var x)
        -- use the unfolding depth to constrain the range of Ints, like QuickCheck
        constrain $ var x `ge` fromIntegral (negate d)
        constrain $ var x `le` fromIntegral d
@@ -221,7 +241,7 @@ instance Targetable Int where
 
 instance Targetable Integer where
   getType _ = FObj "GHC.Integer.Type.Integer"
-  query _ d t = query (Proxy :: Proxy Int) d t
+  query _ d x t = query (Proxy :: Proxy Int) d x t
   toExpr  x = toExpr (fromIntegral x :: Int)
 
   decode v t = decode v t >>= \(x::Int) -> return . fromIntegral $ x
@@ -233,7 +253,7 @@ instance Targetable Integer where
 
 instance Targetable Char where
   getType _ = FObj "GHC.Types.Char"
-  query _ d t = fresh FInt >>= \x ->
+  query _ d x t = -- fresh FInt >>= \x ->
     do constrain $ var x `ge` 0
        constrain $ var x `le` fromIntegral d
        constrain $ ofReft (reft t) (var x)
@@ -249,7 +269,7 @@ instance Targetable Char where
 
 instance Targetable Word8 where
   getType _ = FObj "GHC.Word.Word8"
-  query _ d t = fresh FInt >>= \x ->
+  query _ d x t = -- fresh FInt >>= \x ->
     do _ <- asks depth
        constrain $ var x `ge` 0
        constrain $ var x `le` fromIntegral d
@@ -266,7 +286,7 @@ instance Targetable Word8 where
 
 instance Targetable Bool where
   getType _ = FObj "GHC.Types.Bool"
-  query _ _ t = fresh boolsort >>= \x ->
+  query _ _ x t = -- fresh boolsort >>= \x ->
     do constrain $ ofReft (reft t) (var x)
        return x
 
@@ -313,7 +333,7 @@ class GToExpr f where
   gtoExpr      :: f a -> Expr
 
 class GQuery f where
-  gquery       :: Proxy (f a) -> Int -> SpecType -> Target Symbol
+  gquery       :: (?loc :: CallStack) => Proxy (f a) -> Int -> Symbol -> SpecType -> Target Symbol
 
 class GDecode f where
   gdecode      :: Symbol -> [Symbol] -> Target (f a)
@@ -331,9 +351,10 @@ instance (Datatype c, GToExprCtor f) => GToExpr (D1 c f) where
       (EVar d, xs) = splitEApp $ gtoExprCtor x
 
 instance (Datatype c, GQueryCtors f) => GQuery (D1 c f) where
-  gquery p d t = inModule mod . making sort $ do
+  gquery p d x t = inModule mod . making sort $ do
+    --traceShowM ("gquery", sort)
     xs <- gqueryCtors (reproxyGElem p) d t
-    x  <- fresh sort
+    -- x  <- fresh sort
     oneOf x xs
     constrain $ ofReft (reft t) (var x)
     return x
@@ -357,7 +378,7 @@ instance (Targetable a) => GToExpr (K1 i a) where
   gtoExpr (K1 x) = toExpr x
 
 instance (Targetable a) => GQuery (K1 i a) where
-  gquery p d t = do 
+  gquery p d _ t = do
     let p' = reproxy p :: Proxy a
     ty <- gets makingTy
     depth <- asks depth
@@ -365,7 +386,8 @@ instance (Targetable a) => GQuery (K1 i a) where
     let d' = if getType p' == ty || sc
                 then d
                 else depth
-    query p' d' t
+
+    qquery p' d' t
 
 instance Targetable a => GDecodeFields (K1 i a) where
   gdecodeFields (v:vs) = do
@@ -395,7 +417,7 @@ class GToExprCtor f where
   gtoExprCtor   :: f a -> Expr
 
 class GQueryCtors f where
-  gqueryCtors :: Proxy (f a) -> Int -> SpecType -> Target [(Expr, Expr)]
+  gqueryCtors :: (?loc :: CallStack) => Proxy (f a) -> Int -> SpecType -> Target [(Expr, Expr)]
 
 reproxyLeft :: Proxy ((c (f :: * -> *) (g :: * -> *)) a) -> Proxy (f a)
 reproxyLeft = reproxy
@@ -455,10 +477,11 @@ gisRecursive :: (Constructor c, GRecursive f)
 gisRecursive (p :: Proxy (C1 c f a)) t
   = t `elem` gconArgTys (reproxyGElem p)
 
-gqueryCtor :: (Constructor c, GQueryFields f)
+gqueryCtor :: (?loc :: CallStack) => (Constructor c, GQueryFields f)
            => Proxy (C1 c f a) -> Int -> SpecType -> Target (Expr, Expr)
 gqueryCtor (p :: Proxy (C1 c f a)) d t
   = guarded cn $ do
+      -- traceShowM ("gqueryCtor", cn, t)
       mod <- symbolString <$> gets modName
       ts  <- unfold (symbol $ qualify mod cn) t
       xs  <- gqueryFields (reproxyGElem p) d ts
@@ -476,7 +499,7 @@ class GRecursive f where
   gconArgTys  :: Proxy (f a) -> [Sort]
 
 class GQueryFields f where
-  gqueryFields  :: Proxy (f a) -> Int -> [(Symbol,SpecType)] -> Target [Expr]
+  gqueryFields  :: (?loc :: CallStack) => Proxy (f a) -> Int -> [(Symbol,SpecType)] -> Target [Expr]
 
 class GDecodeFields f where
   gdecodeFields :: [Symbol] -> Target ([Symbol], f a)
@@ -520,7 +543,7 @@ instance Targetable a => GRecursive (S1 c (K1 i a)) where
   gconArgTys _ = [getType (Proxy :: Proxy a)]
 
 instance (GQuery f) => GQueryFields (S1 c f) where
-  gqueryFields p d (t:_) = sequence [var <$> gquery (reproxyGElem p) (d-1) (snd t)]
+  gqueryFields p d (t:_) = sequence [var <$> gquery (reproxyGElem p) (d-1) "" (snd t)]
   gqueryFields _ _ _     = error "gqueryfields _ _ []"
 
 instance GDecodeFields f => GDecodeFields (S1 c f) where
