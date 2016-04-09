@@ -38,6 +38,7 @@ Let me know if you have any questions about the code, or need more
 comments/explanation.
 -}
 
+{-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -56,6 +57,9 @@ import Data.Monoid
 import Data.Proxy
 import Debug.Trace
 import GHC.TypeLits
+
+import Prelude hiding (max)
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 traceMsg msg x = trace (msg ++ show x) x
 
@@ -83,8 +87,17 @@ mkTarg = stringToBS . symbolVal
 
 
 -- | Naive specification of string matching (from Bird)
+{-@ indicesSpec :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
+-- indicesSpec targ = map ((BS.length targ -) . BS.length) . filter (targ `BS.isSuffixOf`) . BS.inits
+indicesSpec targ s = [ BS.length s' - BS.length targ | s' <- BS.inits s
+                                                     , targ `BS.isSuffixOf` s' ]
+
 indicesSpec :: BS.ByteString -> BS.ByteString -> [Int]
-indicesSpec targ = map ((BS.length targ -) . BS.length) . filter (targ `BS.isSuffixOf`) . BS.inits
+
+{-@ LIQUID "--scrape-used-imports" @-}
+{- LIQUID "--diff" @-}
+
+{-@ BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | (Prop v) => (bLength targ <= bLength s) } @-}
 
 
 -- | Datatype to name string matching algorithms; will use it's lifted
@@ -92,7 +105,7 @@ indicesSpec targ = map ((BS.length targ -) . BS.length) . filter (targ `BS.isSuf
 data Alg = BM  -- ^ Boyer-Moore from stringsearch package
          | Spec  -- ^ Naive spec
 
-indices :: Alg -> BS.ByteString -> BS.ByteString -> [Int]
+{-@ indices :: Alg -> t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
 indices BM   = assumeIndices -- RJ BS.indices
 indices Spec = indicesSpec
 
@@ -129,7 +142,7 @@ data MatchIdxs
               , input   :: {input : Int | input >= bLength targ}
               , left    :: {left  : BS.ByteString | bLength left == bLength targ - 1}
               , matches :: [{v:Int | v <= input - bLength targ}]
-              , right   :: {right: BS.ByteString | bLength right == bLength right - 1}
+              , right   :: {right : BS.ByteString | bLength right == bLength targ - 1}
               }
   @-}
 
@@ -139,26 +152,46 @@ matchIdxsIs (Small _ _) = []
 matchIdxsIs (MatchIdxs _ _ _ is _) = is
 
 -- | create a 'MatchIdxs'
-{-@ myIndices :: Alg -> ByteStringNE -> BS.ByteString -> MatchIdxs @-}
+{-@ myIndices :: Alg -> t:ByteStringNE -> BS.ByteString -> MatchIdxsT t @-}
 myIndices alg t bs
-  | BS.length bs > fringeLen = MatchIdxs t (BS.length bs) left is right
+  | BS.length bs > fringeLen = let right1 = BS.drop (BS.length bs - fringeLen) bs in
+                                MatchIdxs t (BS.length bs) left is right1
   | otherwise = Small t bs
   where
     is        = indices alg t bs
     fringeLen = BS.length t - 1
     left      = BS.take fringeLen bs
-    right     = BS.drop (BS.length bs - fringeLen) bs
+    -- right1 = BS.drop (BS.length bs - fringeLen) bs
 
-{-@ type NatEq N = {v:Nat | v == N} @-}
-{-@ type ByteStringNE  = {v:BS.ByteString | bLength v > 0 }   @-}
-{-@ type ByteStringN N = {v:BS.ByteString | bLength v == N}   @-}
+-- ISSUE: get contextual output with --diff
+-- ISSUE: why does LAZYVAR right1 not work? it drops the output type on right1!
+{- LAZYVAR right1 -}
+
+{-@ type OkPos Targ Str = {v:Nat | v <= bLength Str - bLength Targ} @-}
+{-@ type NatEq N        = {v:Nat | v == N} @-}
+{-@ type ByteStringNE   = {v:BS.ByteString | bLength v > 0 }   @-}
+{-@ type ByteStringN N  = {v:BS.ByteString | bLength v == N}   @-}
+{-@ type MatchIdxsT T   = {v:MatchIdxs | target v == T}        @-}
 {-@ assume BS.length :: b:BS.ByteString -> NatEq (bLength b)  @-}
 {-@ assume BS.empty  :: {v:BS.ByteString | bLength v == 0}    @-}
 {-@ assume BS.take   :: n:Nat -> b:BS.ByteString -> ByteStringN {min n (bLength b)} @-}
+{-@ assume BS.drop   :: n:Nat -> b:{BS.ByteString | n <= bLength b} -> ByteStringN {bLength b - n} @-}
+{-@ assume BS.inits  :: b:BS.ByteString -> [{v:BS.ByteString | bLength v <= bLength b}] @-}
+{-@ assume BS.append :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
+
+{-@ measure target @-}
+target :: MatchIdxs -> BS.ByteString
+target (Small t _)           = t
+target (MatchIdxs t _ _ _ _) = t
+
 
 {-@ inline min @-}
 min :: Int -> Int -> Int
 min x y = if x <= y then x else y
+
+{-@ inline max @-}
+max :: Int -> Int -> Int
+max x y = if x <= y then y else x
 
 -- RJ instance (KnownSymbol t, StringMatch alg) => Monoid (MatchIdxs alg t) where
 {-@ mmempty :: ByteStringNE -> MatchIdxs @-}
@@ -167,30 +200,46 @@ mmempty t = Small t BS.empty -- mempty
 mmconcat :: Alg -> BS.ByteString -> [MatchIdxs] -> MatchIdxs
 mmconcat alg t mxs = undefined
 
-{-@ mmappend :: Alg -> ByteStringNE -> MatchIdxs -> MatchIdxs -> MatchIdxs @-}
--- mmappend :: Alg -> BS.ByteString -> MatchIdxs -> MatchIdxs -> MatchIdxs
+-- qualifier help
+{- qualif LESum(v:Int, x:Int, y:Int): (v <= x + y) @-}
+
+{-@ qualif BB(v:Int, n:Int, d:Int, b:BS.ByteString): v <= (n + d) - bLength b @-}
+
+{-@ bump1 :: b:BS.ByteString -> n:Int -> d:Nat -> BNat {n - (bLength b)} -> BNat {n + d - (bLength b)} @-}
+bump1 :: BS.ByteString -> Int -> Int -> Int -> Int
+bump1 _ _ d x =  x + d
+
+{-@ bump :: b:BS.ByteString -> n:Int -> d:Nat -> [BNat {n - (bLength b)}] -> [BNat {n + d - (bLength b)}] @-}
+bump :: BS.ByteString -> Int -> Int -> [Int] -> [Int]
+bump _ _ d = map (+ d)
+
+{-@ mmappend :: Alg -> t:ByteStringNE -> MatchIdxsT t -> MatchIdxsT t -> MatchIdxsT t @-}
 mmappend alg t mx my = case (mx, my) of
   (Small tx x, Small _ y) -> myIndices alg tx (x <> y)
-  (Small tx x, MatchIdxs _ yLen ly iy rt) -> MatchIdxs tx (xLen + yLen) lt is rt
+  (Small tx x, MatchIdxs _ yLen ly iy rt) -> MatchIdxs tx xyLen lt is rt
      where
-       xLen = BS.length x
-       xly  = x <> ly
-       lt   =  BS.take fringeLen xly
-       is   = idxFun xly <> map (+ xLen) iy
-  (MatchIdxs tx xLen lt ix rx, _) -> MatchIdxs tx (xLen + yLen) lt (ix <> is) rt
-          where (yLen, is, rt) = case my of
-                  Small ty y -> (BS.length y, is, rt) where
-                    rxy = rx <> y
-                    rt = BS.drop (BS.length rxy - fringeLen) rxy
-                    is = map (+ (xLen - fringeLen)) (idxFun rxy)
-                  MatchIdxs ty yLen ly iy rt -> (yLen, is, rt) where
-                    is = ixy <> map (+ xLen) iy
-                    ixy = map (+ (xLen - fringeLen)) $ idxFun (rx <> ly)
+       xyLen = xLen + yLen
+       xLen  = BS.length x
+       xly   = BS.append x ly
+       lt    = BS.take fringeLen xly
+       is    = idxFun xly ++ map (+ xLen) iy
+{-
+  (MatchIdxs tx xLen lt ix rx, Small ty y) -> MatchIdxs tx xyLen lt ix {- (... ++ is) -} rt
+     where
+       xyLen = xLen + yLen
+       yLen  = BS.length y
+       is    = map (+ (xLen - fringeLen)) (idxFun rxy)
+       rt    = BS.drop (BS.length rxy - fringeLen) rxy
+       rxy   = BS.append rx y
+
+                  -- TODO MatchIdxs ty yLen ly iy rt -> (yLen, is, rt) where
+                    -- TODO is = ixy <> map (+ xLen) iy
+                    -- TODO ixy = map (+ (xLen - fringeLen)) $ idxFun (rx <> ly)
+
+-}
       where
         fringeLen = BS.length t - 1
         idxFun    = indices alg t
-
-
 
 -- | Example applications
 --
@@ -205,17 +254,16 @@ indicesBS' alg bufLen chunkSz t bs =
 indicesBS    = indicesBS' BM   -- RJ (Proxy :: Proxy BM)
 indicesNaive = indicesBS' Spec -- RJ (Proxy :: Proxy Spec)
 
-
 {-@ isInfixOfBS :: Int -> Int -> ByteStringNE -> BS.ByteString -> Bool @-}
-isInfixOfBS bufLen chunkSz targ = not . null . indicesBS bufLen chunkSz targ
-
+isInfixOfBS bufLen chunkSz t = not . null . indicesBS bufLen chunkSz t
 
 ------------------------------------------------------------------------------------------
 {-@ measure bLength :: BS.ByteString -> Int @-}
+{-@ type LNat N = {v:Nat | v < N} @-}
 
 chunksOf :: Int -> [a] -> [[a]]
 chunksOf = undefined
 
-{-@ assumeIndices :: targ:BS.ByteString -> str:BS.ByteString -> [{v:Nat | v < bLength str}] @-}
+{-@ assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
 assumeIndices :: BS.ByteString -> BS.ByteString -> [Int]
 assumeIndices = undefined
