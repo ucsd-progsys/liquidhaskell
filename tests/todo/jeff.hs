@@ -214,30 +214,31 @@ bump :: BS.ByteString -> Int -> Int -> [Int] -> [Int]
 bump _ _ d = map (+ d)
 
 {-@ mmappend :: Alg -> t:ByteStringNE -> MatchIdxsT t -> MatchIdxsT t -> MatchIdxsT t @-}
-mmappend alg t mx my = case (mx, my) of
-  (Small tx x, Small _ y) -> myIndices alg tx (x <> y)
-  (Small tx x, MatchIdxs _ yLen ly iy rt) -> MatchIdxs tx xyLen lt is rt
-     where
-       xyLen = xLen + yLen
-       xLen  = BS.length x
-       xly   = BS.append x ly
-       lt    = BS.take fringeLen xly
-       is    = idxFun xly ++ map (+ xLen) iy
-  (MatchIdxs tx xLen lt ix rx, Small ty y) -> MatchIdxs tx xyLen lt (ix ++ is) rt
-     where
-       xyLen = liquidAssert (tx == t) $ xLen + yLen
-       yLen  = BS.length y
-       is    = map (+ (xLen - fringeLen)) (idxFun rxy)
-       rt    = BS.drop (BS.length rxy - fringeLen) rxy
-       rxy   = BS.append rx y
-
-                  -- TODO MatchIdxs ty yLen ly iy rt -> (yLen, is, rt) where
-                    -- TODO is = ixy <> map (+ xLen) iy
-                    -- TODO ixy = map (+ (xLen - fringeLen)) $ idxFun (rx <> ly)
-
-      where
-        fringeLen = BS.length t - 1
-        idxFun    = indices alg t
+mmappend alg t mx my =
+  let fringeLen = BS.length t - 1
+      idxFun    = indices alg t
+  in
+  case (mx, my) of
+    (Small tx x, Small _ y) -> myIndices alg tx (x <> y)
+    (Small tx x, MatchIdxs _ yLen ly iy rt) -> MatchIdxs tx xyLen lt is rt
+       where
+         xyLen = xLen + yLen
+         xLen  = BS.length x
+         xly   = BS.append x ly
+         lt    = BS.take fringeLen xly
+         is    = idxFun xly ++ map (+ xLen) iy
+    (MatchIdxs tx xLen lt ix rx, Small ty y) -> MatchIdxs tx xyLen lt (ix ++ is) rt
+       where
+         xyLen = xLen + yLen
+         yLen  = BS.length y
+         is    = map (+ (xLen - fringeLen)) (idxFun rxy)
+         rt    = BS.drop (BS.length rxy - fringeLen) rxy
+         rxy   = BS.append rx y
+    (MatchIdxs tx xLen lt ix rx, MatchIdxs ty yLen ly iy rt) -> MatchIdxs tx xyLen lt (ix ++ is) rt
+       where
+         xyLen = xLen + yLen
+         is    = ixy ++ map (+ xLen) iy
+         ixy   = map (+ (xLen - fringeLen)) $ idxFun (BS.append rx ly)
 
 -- | Example applications
 --
