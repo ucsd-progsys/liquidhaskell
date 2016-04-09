@@ -223,10 +223,9 @@ mmappend alg t mx my = case (mx, my) of
        xly   = BS.append x ly
        lt    = BS.take fringeLen xly
        is    = idxFun xly ++ map (+ xLen) iy
-{-
-  (MatchIdxs tx xLen lt ix rx, Small ty y) -> MatchIdxs tx xyLen lt ix {- (... ++ is) -} rt
+  (MatchIdxs tx xLen lt ix rx, Small ty y) -> MatchIdxs tx xyLen lt (ix ++ is) rt
      where
-       xyLen = xLen + yLen
+       xyLen = liquidAssert (tx == t) $ xLen + yLen
        yLen  = BS.length y
        is    = map (+ (xLen - fringeLen)) (idxFun rxy)
        rt    = BS.drop (BS.length rxy - fringeLen) rxy
@@ -236,7 +235,6 @@ mmappend alg t mx my = case (mx, my) of
                     -- TODO is = ixy <> map (+ xLen) iy
                     -- TODO ixy = map (+ (xLen - fringeLen)) $ idxFun (rx <> ly)
 
--}
       where
         fringeLen = BS.length t - 1
         idxFun    = indices alg t
@@ -258,6 +256,7 @@ indicesNaive = indicesBS' Spec -- RJ (Proxy :: Proxy Spec)
 isInfixOfBS bufLen chunkSz t = not . null . indicesBS bufLen chunkSz t
 
 ------------------------------------------------------------------------------------------
+{-@ invariant {v:BS.ByteString | 0 <= bLength v } @-}
 {-@ measure bLength :: BS.ByteString -> Int @-}
 {-@ type LNat N = {v:Nat | v < N} @-}
 
