@@ -161,10 +161,11 @@ myIndices alg t bs
     is        = indices alg t bs
     fringeLen = BS.length t - 1
     left      = BS.take fringeLen bs
-    -- right1 = BS.drop (BS.length bs - fringeLen) bs
+    -- right1    = BS.drop (BS.length bs - fringeLen) bs
 
 -- ISSUE: get contextual output with --diff
 -- ISSUE: why does LAZYVAR right1 not work? it drops the output type on right1!
+
 {- LAZYVAR right1 -}
 
 {-@ type OkPos Targ Str = {v:Nat | v <= bLength Str - bLength Targ} @-}
