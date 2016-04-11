@@ -6,7 +6,7 @@ bar1, bar2 :: List Int
 
 type List a = [a]
 
-{-@ type ListN a N = {v:[a] | len v == N} @-}
+{-@ type ListN a N = { v:[a] | len v == N } @-}
 
 {-@ instance Monoid (List a) where
       mempty  :: ListN a 0
