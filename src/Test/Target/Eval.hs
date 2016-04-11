@@ -36,7 +36,7 @@ import           Test.Target.Util
 eval :: Reft -> Expr -> Target Bool
 eval r e = do
   cts <- gets freesyms
-  evalWith (M.fromList $ map (second (`VC` [])) cts) r e
+  evalWith (M.fromList $ map (\(_, c) -> (c, c `VC` [])) cts) r e
 
 -- | Evaluate a refinement with the given expression substituted for the value
 -- variable, in the given environment of free symbols.

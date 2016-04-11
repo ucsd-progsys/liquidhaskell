@@ -439,15 +439,18 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-ppReqInContext :: (PPrint t, PPrint c) => t -> t -> c -> Doc
-ppReqInContext tA tE c
+ppReqInContext :: (PPrint t) => t -> t -> (M.HashMap Symbol t)
+               -> (M.HashMap Symbol Doc)
+               -> Doc
+ppReqInContext tA tE c m
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
                 , text "VV :" <+> pprint tA]
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprint tE]
       , nests 2 [ text "In Context"
-                , pprint c                 ]]
+                , pprint c
+                , pprint m ]]
 
 
 ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc
@@ -523,15 +526,15 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext p c)
 
-ppError' td dSp dCtx (ErrSubType _ _ c tA tE _)
+ppError' td dSp dCtx (ErrSubType _ _ c tA tE model)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext tA tE c model)
 
 ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext tA tE c mempty)
 
 ppError' _ dSp dCtx (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"

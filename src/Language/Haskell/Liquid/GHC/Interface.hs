@@ -144,6 +144,8 @@ runLiquidGhc hscEnv cfg act =
                      , hiDir        = Just tmp
                      , stubDir      = Just tmp
                      } `xopt_set` Opt_MagicHash
+                       `xopt_set` Opt_DeriveGeneric
+                       `xopt_set` Opt_StandaloneDeriving
                        `gopt_set` Opt_ImplicitImportQualified
                        `gopt_set` Opt_PIC
       setSessionDynFlags df''

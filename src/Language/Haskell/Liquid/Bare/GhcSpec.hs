@@ -140,7 +140,8 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
+       quals   <- mconcat <$> mapM makeQualifiers specs
+       syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias)) quals
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
          >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
@@ -150,7 +151,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcAxioms embs cbs name specs
          >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
          -- This step need the updated logic map, ie should happen after makeGhcAxioms
-         >>= makeGhcSpec4 defVars specs name su
+         >>= makeGhcSpec4 quals defVars specs name su
          >>= addProofType
 
 
@@ -246,14 +247,13 @@ makeGhcSpec3 datacons tycons embs syms sp
                     , tcEmbeds   = embs
                     , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
 
-makeGhcSpec4 defVars specs name su sp
+makeGhcSpec4 quals defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
-       quals   <- mconcat <$> mapM makeQualifiers specs
        let msgs = strengthenHaskellMeasures hmeas
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get

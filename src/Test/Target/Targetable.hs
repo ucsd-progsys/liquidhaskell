@@ -284,16 +284,16 @@ instance Targetable Word8 where
     b <- eval (reft t) e
     return (b, e)
 
-instance Targetable Bool where
-  getType _ = FObj "GHC.Types.Bool"
-  query _ _ x t = -- fresh boolsort >>= \x ->
-    do constrain $ ofReft (reft t) (var x)
-       return x
+instance Targetable Bool
+  -- getType _ = FObj "GHC.Types.Bool"
+  -- query _ _ x t = -- fresh boolsort >>= \x ->
+  --   do constrain $ ofReft (reft t) (var x)
+  --      return x
 
-  decode v _ = getValue v >>= \case
-    "true"  -> return True
-    "false" -> return False
-    x       -> Ex.throwM (SmtError $ "expected boolean, got: " ++ T.unpack x)
+  -- decode v _ = getValue v >>= \case
+  --   "true"  -> return True
+  --   "false" -> return False
+  --   x       -> Ex.throwM (SmtError $ "expected boolean, got: " ++ T.unpack x)
 
 
 instance Targetable a => Targetable [a]
