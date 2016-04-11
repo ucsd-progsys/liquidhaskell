@@ -38,11 +38,13 @@ Let me know if you have any questions about the code, or need more
 comments/explanation.
 -}
 
+
+{-@ LIQUID "--diff" @-}
+{-@ LIQUID "--scrape-used-imports" @-}
 {-@ LIQUID "--short-names" @-}
-{-@ LIQUID "--no-termination" @-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{- LANGUAGE KindSignatures -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -58,17 +60,16 @@ import Data.Proxy
 import Debug.Trace
 import GHC.TypeLits
 
-import Prelude hiding (max)
 import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Prelude hiding (max)
 
 traceMsg msg x = trace (msg ++ show x) x
 
-chunksBS :: Int -> BS.ByteString -> [BS.ByteString]
+{-@ chunksBS :: Int -> b:BS.ByteString -> [BS.ByteString] / [(bLength b)] @-}
 chunksBS n' xs | BS.null xs = []
                | otherwise = x : chunksBS n xs'
-    where (x,xs') = BS.splitAt n xs
-          n = max 1 n'
-
+    where (x,xs') = BS.splitAt (liquidAssert (n > 0) n) xs
+          n       = max 1 n'
 
 bsToString :: BS.ByteString -> String
 bsToString = map (chr . fromIntegral) . BS.unpack
@@ -85,7 +86,6 @@ mkTarg :: forall t . KnownSymbol t => Proxy t -> BS.ByteString
 mkTarg = stringToBS . symbolVal
 
 
-
 -- | Naive specification of string matching (from Bird)
 {-@ indicesSpec :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
 -- indicesSpec targ = map ((BS.length targ -) . BS.length) . filter (targ `BS.isSuffixOf`) . BS.inits
@@ -93,10 +93,6 @@ indicesSpec targ s = [ BS.length s' - BS.length targ | s' <- BS.inits s
                                                      , targ `BS.isSuffixOf` s' ]
 
 indicesSpec :: BS.ByteString -> BS.ByteString -> [Int]
-
-{-@ LIQUID "--scrape-used-imports" @-}
-{- LIQUID "--diff" @-}
-
 {-@ BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | (Prop v) => (bLength targ <= bLength s) } @-}
 
 
@@ -169,22 +165,23 @@ myIndices alg t bs
 {- LAZYVAR right1 -}
 
 {-@ type OkPos Targ Str = {v:Nat | v <= bLength Str - bLength Targ} @-}
-{-@ type NatEq N        = {v:Nat | v == N} @-}
 {-@ type ByteStringNE   = {v:BS.ByteString | bLength v > 0 }   @-}
 {-@ type ByteStringN N  = {v:BS.ByteString | bLength v == N}   @-}
-{-@ type MatchIdxsT T   = {v:MatchIdxs | target v == T}        @-}
-{-@ assume BS.length :: b:BS.ByteString -> NatEq (bLength b)  @-}
+{-@ type MatchIdxsT T   = {v:MatchIdxs | targ v == T}          @-}
+
+{-@ assume BS.length :: b:BS.ByteString -> {v:Nat | v == bLength b}  @-}
 {-@ assume BS.empty  :: {v:BS.ByteString | bLength v == 0}    @-}
 {-@ assume BS.take   :: n:Nat -> b:BS.ByteString -> ByteStringN {min n (bLength b)} @-}
 {-@ assume BS.drop   :: n:Nat -> b:{BS.ByteString | n <= bLength b} -> ByteStringN {bLength b - n} @-}
 {-@ assume BS.inits  :: b:BS.ByteString -> [{v:BS.ByteString | bLength v <= bLength b}] @-}
 {-@ assume BS.append :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
+{-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | Prop v <=> (bLength b == 0)} @-}
+{-@ assume BS.splitAt :: n:Nat -> b:BS.ByteString -> (ByteStringN {min n (bLength b)}, ByteStringN {max 0 (bLength b - n)}) @-}
 
 {-@ measure target @-}
 target :: MatchIdxs -> BS.ByteString
 target (Small t _)           = t
 target (MatchIdxs t _ _ _ _) = t
-
 
 {-@ inline min @-}
 min :: Int -> Int -> Int
@@ -195,24 +192,13 @@ max :: Int -> Int -> Int
 max x y = if x <= y then y else x
 
 -- RJ instance (KnownSymbol t, StringMatch alg) => Monoid (MatchIdxs alg t) where
-{-@ mmempty :: ByteStringNE -> MatchIdxs @-}
-mmempty t = Small t BS.empty -- mempty
+{-@ mmempty :: t:ByteStringNE -> MatchIdxsT t @-}
+mmempty t = Small t BS.empty
 
-mmconcat :: Alg -> BS.ByteString -> [MatchIdxs] -> MatchIdxs
-mmconcat alg t mxs = undefined
-
--- qualifier help
-{- qualif LESum(v:Int, x:Int, y:Int): (v <= x + y) @-}
+{-@ mmconcat :: (Foldable t) => Alg -> tg:ByteStringNE -> t (MatchIdxsT tg) -> (MatchIdxsT tg) @-}
+mmconcat alg t = foldr (mmappend alg t) (mmempty t)
 
 {-@ qualif BB(v:Int, n:Int, d:Int, b:BS.ByteString): v <= (n + d) - bLength b @-}
-
-{-@ bump1 :: b:BS.ByteString -> n:Int -> d:Nat -> BNat {n - (bLength b)} -> BNat {n + d - (bLength b)} @-}
-bump1 :: BS.ByteString -> Int -> Int -> Int -> Int
-bump1 _ _ d x =  x + d
-
-{-@ bump :: b:BS.ByteString -> n:Int -> d:Nat -> [BNat {n - (bLength b)}] -> [BNat {n + d - (bLength b)}] @-}
-bump :: BS.ByteString -> Int -> Int -> [Int] -> [Int]
-bump _ _ d = map (+ d)
 
 {-@ mmappend :: Alg -> t:ByteStringNE -> MatchIdxsT t -> MatchIdxsT t -> MatchIdxsT t @-}
 mmappend alg t mx my =
