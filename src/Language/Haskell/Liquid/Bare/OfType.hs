@@ -19,11 +19,11 @@ import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
 
-import Control.Applicative
+
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
 import Data.Maybe (fromMaybe)
-import Data.Monoid
+
 import Data.Traversable (forM)
 import Text.Parsec.Pos
 import Text.Printf
@@ -82,16 +82,16 @@ mkSpecType' l πs t
   = ofBRType expandRTAliasApp resolveReft t
   where
     resolveReft
-      = (resolve l <=< expandReft) . txParam subvUReft (uPVar <$> πs) t
+      = (resolve l <=< expandReft) . txParam l subvUReft (uPVar <$> πs) t
 
 
-txParam f πs t = f (txPvar (predMap πs t))
+txParam l f πs t = f (txPvar l (predMap πs t))
 
-txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
-txPvar m π = π { pargs = args' }
+txPvar :: SourcePos -> M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
+txPvar l m π = π { pargs = args' }
   where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
               | otherwise            = pargs π'
-        π'    = fromMaybe (panic Nothing err) $ M.lookup (pname π) m
+        π'    = fromMaybe (panic (Just $ sourcePosSrcSpan l) err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
@@ -100,7 +100,7 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 
-ofBRType :: (PPrint r, UReftable r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy Symbol (RType (Located Symbol) Symbol ()) r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -240,5 +240,5 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r) => RRType r -> RRType r
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

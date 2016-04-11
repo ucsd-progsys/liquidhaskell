@@ -1,6 +1,7 @@
-{-# LANGUAGE ParallelListComp #-}
+{-# LANGUAGE ParallelListComp    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TupleSections       #-}
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
@@ -16,11 +17,12 @@ import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
+import Id
 import Var
 
 import Control.Applicative ((<|>))
 import Control.Arrow ((&&&))
-import Control.Monad.Writer
+
 import Data.Maybe
 import Data.Function (on)
 import Text.PrettyPrint.HughesPJ
@@ -40,7 +42,7 @@ import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTy
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Haskell.Liquid.UX.Errors
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -62,9 +64,11 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
+                     ++ mapMaybe (checkBind "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
+                     ++ checkClassMeasures (measures sp)
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
                      ++ checkQualifiers env                        (qualifiers sp)
@@ -86,6 +90,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
+    clsSigs sp       =  [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             =  tySigs sp ++ asmSigs sp
 
 
@@ -233,7 +238,7 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
+checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
 checkRType emb env t   =  checkAppTys t
@@ -354,7 +359,7 @@ checkAbstractRefs t = go t
 
 
 
-checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> (UReft r) -> Maybe Doc
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> (UReft r) -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
   where
@@ -384,7 +389,7 @@ checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType Da
 checkMeasure emb γ (M name@(Loc src _ n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where
-    txerror = ErrMeas (sourcePosSrcSpan src) n
+    txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
   where
@@ -410,3 +415,18 @@ checkMBody' emb sort γ body = case body of
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = ty_res $ toRTypeRep sort
+
+checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
+checkClassMeasures ms = mapMaybe checkOne byTyCon
+  where
+  byName = L.groupBy ((==) `on` (val.name)) ms
+
+  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
+                      byName
+
+  checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
+  checkOne [_]    = Nothing
+  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
+                                     (pprint (val (name m)))
+                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))

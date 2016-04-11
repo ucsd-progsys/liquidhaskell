@@ -29,7 +29,7 @@ import            Prelude                       hiding (error)
 import            Data.Aeson
 import qualified  Data.Text as T
 import            Data.Algorithm.Diff
-import            Data.Monoid                   (mempty)
+
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
 import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM
@@ -43,7 +43,7 @@ import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Types   (ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GHC.Misc
 import            Language.Haskell.Liquid.Types.Visitors
@@ -445,7 +445,9 @@ instance FromJSON SourcePos where
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
 
-instance ToJSON   ErrorResult
+instance ToJSON ErrorResult where
+  toJSON = genericToJSON defaultOptions
+  toEncoding = genericToEncoding defaultOptions
 instance FromJSON ErrorResult
 
 instance ToJSON Doc where
@@ -461,10 +463,14 @@ instance (ToJSON k, ToJSON v) => ToJSON (M.HashMap k v) where
 instance (Eq k, Hashable k, FromJSON k, FromJSON v) => FromJSON (M.HashMap k v) where
   parseJSON = fmap M.fromList . parseJSON
 
-instance ToJSON a => ToJSON (AnnInfo a)
+instance ToJSON a => ToJSON (AnnInfo a) where
+  toJSON = genericToJSON defaultOptions
+  toEncoding = genericToEncoding defaultOptions
 instance FromJSON a => FromJSON (AnnInfo a)
 
-instance ToJSON (Output Doc)
+instance ToJSON (Output Doc) where
+  toJSON = genericToJSON defaultOptions
+  toEncoding = genericToEncoding defaultOptions
 instance FromJSON (Output Doc)
 
 

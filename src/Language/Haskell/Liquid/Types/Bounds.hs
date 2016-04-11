@@ -67,11 +67,12 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
       ppBsyms _ [] = ""
       ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
 
+
 instance Bifunctor Bound where
   first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
   second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
-makeBound :: (PPrint r, UReftable r)
+makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
 makeBound (Bound _  vs ps xs p) ts qs t
   = RRTy cts mempty OCons t

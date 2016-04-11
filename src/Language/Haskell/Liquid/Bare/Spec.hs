@@ -28,10 +28,10 @@ import TyCon
 import Var
 
 
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.State
 import Data.Maybe
-import Data.Monoid
+
 
 import qualified Data.List           as L
 import qualified Data.HashSet        as S

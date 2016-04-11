@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-import           Type
+
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
 import           GHC.Generics
@@ -57,13 +57,12 @@ import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
-import qualified Control.Monad.Error as Ex
-import qualified Outputable as Out
-import           DynFlags (unsafeGlobalDynFlags)
+import           System.Directory
+import           System.FilePath
 import Data.List    (intersperse )
-import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
+import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
-import           GHC.Stack
+
 
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
@@ -111,7 +110,11 @@ srcSpanInfo (RealSrcSpan s)
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = getNth (i - 1) . lines <$> readFile f
+getFileLine f i = do
+  b <- doesFileExist f
+  if b
+    then getNth (i - 1) . lines <$> readFile f
+    else return Nothing
 
 getNth :: Int -> [a] -> Maybe a
 getNth i xs
@@ -179,7 +182,7 @@ data TError t =
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
-               , cond :: !Reft
+               , cond :: t
                } -- ^ condition failure error
 
   | ErrParse    { pos  :: !SrcSpan
@@ -210,6 +213,13 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
+  | ErrDupMeas  { pos :: !SrcSpan
+                , var :: !Doc
+                , tycon :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple definitions of the same measure
+
+
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
@@ -237,12 +247,12 @@ data TError t =
                 } -- ^ Incompatible using error
 
   | ErrMeas     { pos :: !SrcSpan
-                , ms  :: !Symbol
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
   | ErrHMeas    { pos :: !SrcSpan
-                , ms  :: !Symbol
+                , ms  :: !Doc
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 
@@ -326,29 +336,48 @@ instance Ord (TError a) where
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
 
-showSpan' :: (Show a) => a -> SrcSpan
-showSpan' = mkGeneralSrcSpan . fsLit . show
-
-instance Ex.Error (TError a) where
-   strMsg = ErrOther (showSpan' "Yikes! Exception!") . text
-
-
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
 --------------------------------------------------------------------------------
 type UserError  = TError Doc
 
 instance PPrint SrcSpan where
-  pprintTidy _ = text . showSDoc . Out.ppr
-     where
-        showSDoc sdoc = Out.renderWithStyle
-                        unsafeGlobalDynFlags
-                        sdoc (Out.mkUserStyle
-                              Out.alwaysQualify
-                              Out.AllTheWay)
+  pprintTidy _ = pprSrcSpan
+
+pprSrcSpan :: SrcSpan -> Doc
+pprSrcSpan (UnhelpfulSpan s) = text $ unpackFS s
+pprSrcSpan (RealSrcSpan s)   = pprRealSrcSpan s
+
+pprRealSrcSpan :: RealSrcSpan -> Doc
+pprRealSrcSpan span
+  | sline == eline && scol == ecol =
+    hcat [ pathDoc <> colon
+         , int sline <> colon
+         , int scol
+         ]
+  | sline == eline =
+    hcat $ [ pathDoc <> colon
+           , int sline <> colon
+           , int scol
+           ] ++ if ecol - scol <= 1 then [] else [char '-' <> int (ecol - 1)]
+  | otherwise =
+    hcat [ pathDoc <> colon
+         , parens (int sline <> comma <> int scol)
+         , char '-'
+         , parens (int eline <> comma <> int ecol')
+         ]
+ where
+   path  = srcSpanFile      span
+   sline = srcSpanStartLine span
+   eline = srcSpanEndLine   span
+   scol  = srcSpanStartCol  span
+   ecol  = srcSpanEndCol    span
+
+   pathDoc = text $ normalise $ unpackFS path
+   ecol'   = if ecol == 0 then ecol else ecol - 1
 
 instance PPrint UserError where
-  pprintTidy k = ppError k empty . fmap (pprintTidy Lossy)
+  pprintTidy k = ppError k empty . fmap pprint
 
 instance Show UserError where
   show = showpp
@@ -429,11 +458,11 @@ ppPropInContext _ p c
                 , pprintTidy Lossy c                 ]]
 
 instance ToJSON RealSrcSpan where
-  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
-                     , "startLine" .= l1 -- srcSpanStartLine sp
-                     , "startCol"  .= c1 -- srcSpanStartCol  sp
-                     , "endLine"   .= l2 -- srcSpanEndLine   sp
-                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+  toJSON sp = object [ "filename"  .= f
+                     , "startLine" .= l1
+                     , "startCol"  .= c1
+                     , "endLine"   .= l2
+                     , "endCol"    .= c2
                      ]
     where
       (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
@@ -554,6 +583,12 @@ ppError' _ dSp _ (ErrHMeas _ t s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
+        $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp _ (ErrDupMeas _ v t ls)
+  = dSp <+> text "Multiple Instance Measures for" <+> pprint v
+        <+> text "and" <+> pprint t
+        <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)

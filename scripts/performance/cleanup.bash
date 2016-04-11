@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR=`dirname $0`;
-GIPEDA_DIR="$SCRIPT_DIR/gipeda";
+SCRIPT_LOGS="$SCRIPT_DIR/logs";
 FAILURES_OCCURRED=false;
 
 function notify_if_failed {
@@ -14,9 +14,9 @@ function notify_if_failed {
     fi
 }
 
-echo "Deleting $GIPEDA_DIR...";
-rm -rf $GIPEDA_DIR;
-notify_if_failed "Failed to delete $GIPEDA_DIR...";
+echo "Deleting $SCRIPT_LOGS...";
+rm -rf $SCRIPT_LOGS;
+notify_if_failed "Failed to delete $SCRIPT_LOGS...";
 
 if [ $FAILURES_OCCURRED = true ]
 then

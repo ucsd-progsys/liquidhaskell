@@ -1,4 +1,4 @@
--- module Issue595 where
+module Issue595 where
 
 import Data.Vector
 
@@ -16,12 +16,13 @@ data Test = Test
     }
 @-}
 
-{-@ vec  :: t:Test -> {r:Thing | r = vec t } @-}
-{-@ x0   :: t:Test -> {r:Bool  | r = x0 t } @-}
+-- The above data declaration should give us the following refined types
+-- for the record selectors
+
+{- vec :: x:Test -> {v:Thing | v = vec x} -}
+{- x0  :: x:Test -> {v:Bool  | v = x0 x  && ((len (vec x) < 1) => Prop v) } -}
 
 example :: Test -> ()
--- NOTE: this works 
--- example t@(Test _ _) =
 example t =
     if x0 t
     then ()

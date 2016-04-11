@@ -25,12 +25,12 @@ import Var
 import Prelude hiding (mapM, error)
 import Control.Arrow ((&&&))
 import Control.Monad hiding (forM, mapM)
-import Control.Monad.Error hiding (Error, forM, mapM)
+import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
-import Data.Monoid
+
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
@@ -103,7 +103,7 @@ makeMeasureInline tce lmap cbs  x
     fromLR (Right r) = r
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
 updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
@@ -126,7 +126,7 @@ makeMeasureDefinition tce lmap cbs x
                            Right e -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
@@ -235,7 +235,7 @@ makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs 
                            Right e      -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)

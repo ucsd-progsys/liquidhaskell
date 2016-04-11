@@ -42,7 +42,6 @@ import PrelNames
 import VarSet
 import DynFlags
 import Outputable
-import Util
 
 import Data.Maybe
 

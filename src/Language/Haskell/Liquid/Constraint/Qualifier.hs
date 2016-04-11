@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ViewPatterns          #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE FlexibleContexts      #-}
 
 module Language.Haskell.Liquid.Constraint.Qualifier (
   specificationQualifiers
@@ -16,7 +17,7 @@ import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc
+
 
 
 -- import Control.Applicative      ((<$>))
@@ -30,7 +31,7 @@ import Debug.Trace
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (ctors $ spec info)
+  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (inSigs $ spec info) ++ (ctors $ spec info)
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it

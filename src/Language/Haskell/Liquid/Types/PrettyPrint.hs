@@ -28,8 +28,6 @@ import           SrcLoc
 import           GHC                              (Name, Class)
 import           Var              (Var)
 import           TyCon            (TyCon)
-import           Data.Maybe
-import           Data.Hashable (Hashable)
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
 import           Text.PrettyPrint.HughesPJ
@@ -128,9 +126,15 @@ type OkRT c tv r = ( TyConable c
                    , Reftable r
                    , Reftable (RTProp c tv ())
                    , Reftable (RTProp c tv r)
+-- HEAD
                    , Eq c
                    , Eq tv
                    , Hashable tv
+-- DEVELOP?
+                   , RefTypable c tv ()
+                   , RefTypable c tv r
+                   , PPrint (RType c tv r)
+                   , PPrint (RType c tv ())
                    )
 
 --------------------------------------------------------------------------------
@@ -318,8 +322,8 @@ ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
 ppr_pvar_sort bb p t = ppr_rtype bb p t
 
 ppr_ref :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
-ppr_ref  (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+-- ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty
@@ -332,8 +336,8 @@ dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprintTidy k (MkUReft r p _)
-    | isTauto r  = pprintTidy k p
-    | isTauto p  = pprintTidy k r
+    --- | isTauto r  = pprintTidy k p
+    --- | isTauto p  = pprintTidy k r
     | otherwise  = pprintTidy k p <> text " & " <> pprintTidy k r
 
 --------------------------------------------------------------------------------
