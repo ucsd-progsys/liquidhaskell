@@ -1,10 +1,11 @@
 -- | This module contains a single function that converts a RType -> Doc
 --   without using *any* simplifications.
 
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ConstraintKinds   #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
@@ -28,7 +29,7 @@ import           SrcLoc
 import           GHC                              (Name, Class)
 import           Var              (Var)
 import           TyCon            (TyCon)
-import           Data.Maybe
+-- import           Data.Maybe
 import           Data.Hashable (Hashable)
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
@@ -114,6 +115,7 @@ pprAnnInfoBind _ (_, _)
 pprXOT k (x, v) = (xd, pprintTidy k v)
   where
     xd = maybe (text "unknown") (pprintTidy k) x
+
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -132,6 +134,11 @@ type OkRT c tv r = ( TyConable c
                    , Eq tv
                    , Hashable tv
                    )
+
+instance (OkRT c tv r) => PPrint (RType c tv r) where
+  -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
+  pprintTidy _ = rtypeDoc Lossy
+  -- pprintTidy _ = ppRType TopPrec
 
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc

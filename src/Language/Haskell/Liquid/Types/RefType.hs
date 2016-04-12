@@ -1165,11 +1165,6 @@ instance Show RTyVar where
 instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
-instance (OkRT c tv r) => PPrint (RType c tv r) where
-  -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
-  pprintTidy _ = rtypeDoc Lossy
-  -- pprintTidy _ = ppRType TopPrec
-
 -- ppHack :: (?callStack :: CallStack) => a -> b
 -- ppHack _ = errorstar "OOPS"
 

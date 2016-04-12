@@ -52,7 +52,7 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, Reft)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)

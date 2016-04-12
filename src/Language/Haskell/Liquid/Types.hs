@@ -1644,8 +1644,7 @@ instance PPrint RTyVar where
 --  pprintTidy k (RProp ss s)         = ppRefArgs k (fst <$> ss) <+> pprintTidy k (fromMaybe mempty (stripRTypeBase s))
 
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprintTidy k (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprintTidy k s
-
+  pprintTidy k (RProp ss s) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
 
 ppRefArgs :: Tidy -> [Symbol] -> Doc
 ppRefArgs _ [] = empty
