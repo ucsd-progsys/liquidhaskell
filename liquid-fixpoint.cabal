@@ -34,6 +34,11 @@ Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquid-fixpoint/
 
+Flag devel
+  Description: turn on stricter error reporting for development
+  Default:     False
+  Manual:      True
+
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
