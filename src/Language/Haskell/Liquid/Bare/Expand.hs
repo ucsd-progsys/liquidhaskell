@@ -6,16 +6,16 @@ module Language.Haskell.Liquid.Bare.Expand (
   ) where
 
 import Prelude hiding (error)
-import Control.Monad.Reader hiding (forM)
+
 import Control.Monad.State hiding (forM)
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, mkEApp, eApps, splitEApp)
+import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Errors
+
 
 import Language.Haskell.Liquid.Bare.Env
 

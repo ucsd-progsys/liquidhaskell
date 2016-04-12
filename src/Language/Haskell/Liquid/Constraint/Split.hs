@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.Constraint.Split (
 
 import           Prelude hiding (error)
 
-import           GHC.Stack
+
 
 import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified TyCon  as TC
@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
-import           Language.Haskell.Liquid.Types.Errors
+
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
@@ -307,8 +307,8 @@ splitC (SubC γ t1 (RAllP p t))
     t' = fmap (replacePredsWithRefs su) t
     su = (uPVar p, pVartoRConc p)
 
-splitC (SubC _ t1@(RAllP _ _) t2)
-  = panic Nothing $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitC (SubC γ t1@(RAllP _ _) t2)
+  = panic (Just $ getLocation γ) $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
@@ -351,11 +351,15 @@ splitC (SubR γ o r)
     r2  = F.RR F.boolSort $ F.Reft (vv, F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err
-    err = Just $ ErrAssType src o (text $ show o ++ "type error") g rr -- (F.toReft r)
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") g (rHole rr)
     rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ
+
+rHole :: F.Reft -> SpecType
+rHole = RHole . uTop
+
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -408,7 +412,8 @@ bsplitC' γ t1 t2 pflag isHO
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ ErrSubType src "subtype" g t1 t2
+    -- err = Just $ ErrSubType src "subtype" g t1 t2
+    err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
 

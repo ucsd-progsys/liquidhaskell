@@ -24,7 +24,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Monoid
 
-import Control.Applicative ((<$>), (<*), (<*>))
+
 import Data.Char (isSpace, isAlpha, isUpper, isAlphaNum)
 import Data.List (foldl', partition)
 
@@ -33,7 +33,7 @@ import Text.PrettyPrint.HughesPJ    (text)
 
 import Language.Preprocessor.Unlit (unlit)
 
-import Language.Fixpoint.Types hiding (Error, Def, R)
+import Language.Fixpoint.Types hiding (Error, R)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types hiding (Axiom)
@@ -43,8 +43,10 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Types.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
+
 import Language.Fixpoint.Parse hiding (angles, refBindP, refP, refDefP)
+
+-- import Debug.Trace
 
 ----------------------------------------------------------------------------
 -- Top Level Parsing API ---------------------------------------------------
@@ -751,17 +753,23 @@ instanceP
 
 classP :: Parser (RClass BareType)
 classP
-  = do sups <- superP
+  = do sups <- supersP
        c <- locUpperIdP
        spaces
        tvs <- manyTill tyVarIdP (try $ reserved "where")
        ms <- grabs tyBindP
        spaces
-       return $ RClass (fmap symbol c) (mb sups) tvs ms
+       return $ RClass (fmap symbol c) sups tvs ms
   where
-    mb Nothing   = []
-    mb (Just xs) = xs
-    superP = maybeP (parens ( liftM (toRCls <$>)  (bareTypeP `sepBy1` comma)) <* reserved "=>")
+    superP =  toRCls <$> bareAtomP (refBindP bindP)
+      -- c <- locUpperIdP
+      -- spaces
+      -- tvs <- many1 bareAtomNoAppP
+      -- return (RApp c tvs [] mempty)
+
+    supersP = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                      <* reserved "=>")
+              <|> return []
     toRCls x = x
 --     toRCls (RApp c ts rs r) = RCls c ts
 --     toRCls t@(RCls _ _)     = t

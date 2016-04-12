@@ -30,7 +30,7 @@ import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
-import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFileName_maybe)
+import           SrcLoc                       hiding (L)
 import           Bag
 import           ErrUtils
 import           CoreLint
@@ -59,7 +59,7 @@ import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe                   (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
-import           Data.Aeson
+
 import qualified Data.Text.Encoding           as T
 import qualified Data.Text                    as T
 import           Control.Arrow                (second)
@@ -103,6 +103,8 @@ miModGuts cls mg  = MI {
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
+
+mgi_namestring = moduleNameString . moduleName . mgi_module
 
 --------------------------------------------------------------------------------
 -- | Encoding and Decoding Location --------------------------------------------
@@ -351,8 +353,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
-
-addContext m = getContext >>= setContext . (m:)
 
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 

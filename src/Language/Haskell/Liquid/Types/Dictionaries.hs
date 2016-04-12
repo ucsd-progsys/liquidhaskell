@@ -15,7 +15,7 @@ import Prelude hiding (error)
 import Var
 
 
-import Language.Fixpoint.Types.Names      (symbolString)
+
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames)

@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -126,7 +125,7 @@ module Language.Haskell.Liquid.Types (
   , stripRTypeBase
 
   -- * Class for values that can be pretty printed
-  , PPrint (..)
+  , PPrint (..), pprint
   , showpp
 
   -- * Printer Configuration
@@ -194,7 +193,7 @@ module Language.Haskell.Liquid.Types (
   where
 
 import Prelude                          hiding  (error)
-import SrcLoc                                   (noSrcSpan, SrcSpan)
+import SrcLoc                                   (SrcSpan)
 import TyCon
 import DataCon
 import NameSet
@@ -203,44 +202,46 @@ import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import Var
 import GHC                                      (HscEnv, ModuleName, moduleNameString)
 import GHC.Generics
+import Class
 import CoreSyn (CoreBind, CoreExpr)
 import PrelInfo         (isNumericClass)
+import Type             (getClassPredTys_maybe)
 import TysPrim          (eqPrimTyCon)
 import TysWiredIn                               (listTyCon)
 
-import            Control.Arrow                            (second)
+
 import            Control.Monad                            (liftM, liftM2, liftM3, liftM4)
-import qualified  Control.Exception
-import qualified  Control.Monad.Error as Ex
+
+
 import            Control.DeepSeq
-import            Control.Applicative                      ((<$>))
+
 import            Data.Bifunctor
 import            Data.Bifunctor.TH
 import            Data.Typeable                            (Typeable)
 import            Data.Generics                            (Data)
 
-import            Data.Monoid                              hiding ((<>))
+
 
 
 import qualified  Data.Foldable as F
 import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
 import qualified  Data.HashSet as S
-import            Data.Maybe                   (fromMaybe)
-import            Data.Traversable             hiding (mapM)
+import            Data.Maybe                   (fromMaybe, mapMaybe)
+
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
 import qualified  Data.Text                    as T
-import            Text.Parsec.Pos              (SourcePos)
-import            Text.Parsec.Error            (ParseError)
+
+
 import            Text.PrettyPrint.HughesPJ    hiding (first)
 import            Text.Printf
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
-import           Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.Types.PrettyPrint as F
-import           Language.Fixpoint.Types.Config     hiding (Config)
+import           Language.Fixpoint.Types      hiding (Error, SrcSpan, Result, Predicate, R)
+
+
+
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
@@ -261,9 +262,9 @@ data PPEnv
        }
     deriving (Show)
 
-ppEnv           = ppEnvPrintPreds
-_ppEnvCurrent   = PP False False False False
-ppEnvPrintPreds = PP False False False False
+ppEnv           = ppEnvCurrent
+ppEnvCurrent    = PP False False False False
+_ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
@@ -297,6 +298,7 @@ data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
                                                  -- eg.  see include/Prelude.spec
   , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
+  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types
@@ -473,10 +475,6 @@ instance Subable Qualifier where
 mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r)
-
-instance NFData Strata
-
-instance NFData PrType
 
 instance NFData RTyVar
 
@@ -697,7 +695,7 @@ type Strata = [Stratum]
 isSVar (SVar _) = True
 isSVar _        = False
 
-instance Monoid Strata where
+instance {-# OVERLAPPING #-} Monoid Strata where
   mempty        = []
   mappend s1 s2 = nub $ s1 ++ s2
 
@@ -733,8 +731,14 @@ instance TyConable RTyCon where
   isEqual    = (eqPrimTyCon ==) . rtc_tc
   ppTycon    = toFix
 
-  isNumCls c  = maybe False isNumericClass    (tyConClass_maybe $ rtc_tc c)
-  isFracCls c = maybe False isFractionalClass (tyConClass_maybe $ rtc_tc c)
+  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
+                (tyConClass_maybe $ rtc_tc c)
+  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
+                (tyConClass_maybe $ rtc_tc c)
+
+isClassOrSubClass p cls
+  = p cls || any (isClassOrSubClass p . fst)
+                 (mapMaybe getClassPredTys_maybe (classSCTheta cls))
 
 -- MOVE TO TYPES
 instance TyConable Symbol where
@@ -786,6 +790,7 @@ type RDEnv = DEnv Var SpecType
 --------------------------------------------------------------------------
 
 data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
+                         , rname  :: Maybe b
                          , abinds :: [b]
                          , atypes :: [s]
                          , alhs   :: e
@@ -796,13 +801,14 @@ type LAxiom = Axiom Symbol Sort Expr
 
 
 instance Show (Axiom Var Type CoreExpr) where
-  show (Axiom (n, c) bs _ts lhs rhs) = "Axiom : " ++
-                                       "\nFun Name: " ++ (showPpr n) ++
-                                       "\nData Con: " ++ (showPpr c) ++
-                                       "\nArguments:" ++ (showPpr bs)  ++
-                                       -- "\nTypes    :" ++ (showPpr ts)  ++
-                                       "\nLHS      :" ++ (showPpr lhs) ++
-                                       "\nRHS      :" ++ (showPpr rhs)
+  show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
+                                         "\nFun Name: " ++ (showPpr n) ++
+                                         "\nReal Name: " ++ (showPpr v) ++
+                                         "\nData Con: " ++ (showPpr c) ++
+                                         "\nArguments:" ++ (showPpr bs)  ++
+                                         -- "\nTypes    :" ++ (showPpr ts)  ++
+                                         "\nLHS      :" ++ (showPpr lhs) ++
+                                         "\nRHS      :" ++ (showPpr rhs)
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -944,12 +950,6 @@ instance Subable Stratum where
   substf _ s        = s
   substa f (SVar s) = SVar $ substa f s
   substa _ s        = s
-
-instance Subable Strata where
-  syms s     = concatMap syms s
-  subst su   = (subst su <$>)
-  substf f   = (substf f <$>)
-  substa f   = (substa f <$>)
 
 instance Reftable Strata where
   isTauto []         = True
@@ -1278,7 +1278,7 @@ instance Show Stratum where
 instance PPrint Stratum where
   pprintTidy _ = text . show
 
-instance PPrint Strata where
+instance {-# OVERLAPPING #-} PPrint Strata where
   pprintTidy _ [] = empty
   pprintTidy k ss = hsep (pprintTidy k <$> nub ss)
 
@@ -1423,6 +1423,7 @@ instance (PPrint t, PPrint a) => PPrint (Measure t a) where
   pprintTidy k (M n s eqs) =  pprintTidy k n <+> "::" <+> pprintTidy k s
                               $$ vcat (pprintTidy k `fmap` eqs)
 
+
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
 
@@ -1553,7 +1554,7 @@ instance PPrint KVKind where
   pprintTidy _ = text . show
 
 instance PPrint KVProf where
-  pprintTidy _ (KVP m) = pprint $ M.toList m
+  pprintTidy k (KVP m) = pprintTidy k $ M.toList m
 
 instance NFData KVProf
 
@@ -1638,9 +1639,12 @@ instance PPrint RTyVar where
     ppr_tyvar       = text . tvId
     ppr_tyvar_short = text . showPpr
 
+-- instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
+--  pprintTidy k (RProp ss (RHole s)) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
+--  pprintTidy k (RProp ss s)         = ppRefArgs k (fst <$> ss) <+> pprintTidy k (fromMaybe mempty (stripRTypeBase s))
+
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprintTidy k (RProp ss (RHole s)) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
-  pprintTidy k (RProp ss s)         = ppRefArgs k (fst <$> ss) <+> pprintTidy k (fromMaybe mempty (stripRTypeBase s))
+  pprintTidy k (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprintTidy k s
 
 
 ppRefArgs :: Tidy -> [Symbol] -> Doc

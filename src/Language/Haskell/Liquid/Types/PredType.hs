@@ -36,9 +36,9 @@ import           TypeRep
 
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
-import           Data.Monoid                     (mappend, mconcat, mempty)
+
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types.Names   (suffixSymbol, symbolString)
+
 import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GHC.Misc
@@ -46,9 +46,9 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types
 
-import           Control.Applicative             ((<$>))
+
 import           Data.List                       (nub)
-import           Language.Haskell.Liquid.Types.Errors
+
 
 import           Data.Default
 
@@ -245,7 +245,7 @@ pad msg _ xs ys
     nys         = length ys
 
 substPredP _ su p@(RProp _ (RHole _))
-  = panic Nothing ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
+  = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where

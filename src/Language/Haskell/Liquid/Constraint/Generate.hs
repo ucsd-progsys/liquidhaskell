@@ -21,7 +21,7 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
 import Prelude hiding (error, undefined)
-import GHC.Err.Located hiding (error)
+
 import GHC.Stack
 import CoreUtils     (exprType)
 import MkCore
@@ -34,7 +34,7 @@ import Type
 import TyCon
 import PrelNames
 import TypeRep
-import Class            (Class, className)
+import Class            (className)
 import Var
 import Kind
 import Id
@@ -54,21 +54,21 @@ import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import Data.Bifunctor
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
-import qualified Control.Exception as Ex
 
-import Text.Printf
 
-import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
+
+
+
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
-import           Language.Haskell.Liquid.UX.Errors
-import           Language.Haskell.Liquid.UX.Tidy (panicError)
-import Language.Fixpoint.SortCheck (pruneUnsortedReft)
+
+
+
 import Language.Fixpoint.Types.Visitor
-import Language.Fixpoint.Types.Names (symbolString)
+
 import Language.Haskell.Liquid.Constraint.Fresh
 import Language.Haskell.Liquid.Constraint.Env
 import Language.Haskell.Liquid.Constraint.Monad
@@ -78,19 +78,18 @@ import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.Types.Variance
+
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Types.Names
-import Language.Haskell.Liquid.Types.Bounds
+
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                 , symbolFastString, stringVar, stringTyVar)
+                                                 , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
@@ -138,8 +137,8 @@ consAct info
     fixEnv           = feEnv . fenv
     mkSigs γ         = toListREnv (renv  γ) ++
                        toListREnv (assms γ) ++
+                       toListREnv (intys γ) ++
                        toListREnv (grtys γ)
-
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -168,16 +167,17 @@ initEnv info
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
+       f5       <- refreshArgs' $ vals inSigs sp             -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
        let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (invs1 ++ invs2)
        globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
@@ -260,7 +260,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-measEnv sp xts cbs lts asms hs autosizes
+measEnv sp xts cbs lts asms itys hs autosizes
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
@@ -271,6 +271,7 @@ measEnv sp xts cbs lts asms hs autosizes
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
         , assms = fromListREnv asms []
+        , intys = fromListREnv itys []
         , emb   = tce
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
@@ -279,6 +280,7 @@ measEnv sp xts cbs lts asms hs autosizes
         , holes = fromListHEnv hs
         , lcs   = mempty
         , aenv  = axiom_map $ logicMap sp
+        , cerr  = Nothing 
         }
     where
       tce = tcEmbeds sp
@@ -296,7 +298,7 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
     topVs        = filter isTop $ defVars info
     isTop v      = isExportedId v && not (v `S.member` sigVs)
     isExportedId = flip elemNameSet (exports $ spec info) . getName
-    sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info)]
+    sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
 
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
@@ -735,6 +737,10 @@ consBind :: Bool
          -> (Var, CoreExpr ,Template SpecType)
          -> CG (Template SpecType)
 --------------------------------------------------------------------------------
+consBind _ _ (x, _, t)
+  | RecSelId {} <- idDetails x -- don't check record selectors
+  = return t
+
 consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
            (_,πs,_,_) = bkUniv spect
@@ -745,6 +751,21 @@ consBind isRec γ (x, e, Asserted spect)
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
+
+consBind isRec γ (x, e, Internal spect)
+  = do let γ'         = γ `setBind` x
+           (_,πs,_,_) = bkUniv spect
+       γπ    <- foldM addPToEnv γ' πs
+       let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
+       cconsE γπ' e spect
+       when (F.symbol x `elemHEnv` holes γ) $
+         -- have to add the wf constraint here for HOLEs so we have the proper env
+         addW $ WfC γπ $ fmap killSubst spect
+       addIdA x (defAnn isRec spect)
+       return $ Internal spect -- Nothing
+  where
+    explanation = "Cannot give singleton type to the function definition."
+
 
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
@@ -792,16 +813,18 @@ extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
 extender γ _               = return γ
 
 
-data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
+data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
 
 unTemplate (Asserted t) = t
-unTemplate (Assumed t) = t
+unTemplate (Assumed t)  = t
+unTemplate (Internal t) = t 
 unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
+addPostTemplate γ (Internal t) = Internal  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown
 
 safeFromAsserted _ (Asserted t) = t
@@ -811,13 +834,14 @@ safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 -- corresponds to the body of a @Rec@ binder.
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo)
-  = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ)) of
-      (_, Just t, _) -> Asserted <$> refreshArgsTop (x, t)
-      (_, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
-                           addW (WfC γ t)
-                           Asserted <$> refreshArgsTop (x, t)
-      (_,      _, _) -> return Unknown
+  = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
+      (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
+      (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
+      (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
+      (Just e, _, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
+                              addW (WfC γ t)
+                              Asserted <$> refreshArgsTop (x, t)
+      (_,      _, _, _) -> return Unknown
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Checking -------------------------------------------

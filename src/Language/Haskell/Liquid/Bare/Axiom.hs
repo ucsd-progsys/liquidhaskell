@@ -7,8 +7,8 @@ module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 
 import Prelude hiding (error)
 import CoreSyn
-import DataCon
 import TyCon
+import DataCon
 import Id
 import Name
 import Type hiding (isFunTy)
@@ -17,69 +17,59 @@ import Var
 import TypeRep
 
 import Prelude hiding (mapM)
-import Control.Arrow ((&&&))
+
 
 import Control.Monad hiding (forM, mapM)
-import Control.Monad.Error hiding (Error, forM, mapM)
+import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
-import Data.Maybe
-import Data.Char (toUpper)
-import Data.Monoid
-import Data.Traversable (forM, mapM)
+
+
+
+
 import Text.PrettyPrint.HughesPJ (text)
-import Text.Parsec.Pos (SourcePos)
+
 
 import qualified Data.List as L
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow, fst3)
+import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
-import Language.Fixpoint.SortCheck (isFirstOrder)
+
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
+
+import Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
 -- import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 
 import Language.Haskell.Liquid.Types hiding (binders)
-import Language.Haskell.Liquid.Types.Bounds
-import Language.Haskell.Liquid.WiredIn
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult)
-import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.RefToLogic
 
-import Language.Haskell.Liquid.UX.Errors
-
-import Debug.Trace (trace)
 
 makeAxiom :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
 makeAxiom tce lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-        (NonRec v def:_)   -> do vts <- zipWithM (makeAxiomType tce lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+        (NonRec v def:_)   -> do let anames = findAxiomNames x cbs 
+                                 vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
                                  insertAxiom v (val x)
                                  updateLMap lmap x x v
                                  updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
                                  return ((val x, makeType v),
-                                         (v, makeAssumeType v):vts, defAxioms v def)
-        (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType tce lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                                         (v, makeAssumeType v):vts, defAxioms anames v def)
+        (Rec [(v, def)]:_) -> do let anames = findAxiomNames x cbs 
+                                 vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
                                  insertAxiom v (val x)
                                  updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
                                  updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
                                  return ((val x, makeType v),
                                          ((v, makeAssumeType v): vts),
-                                         defAxioms v def)
+                                         defAxioms anames v def)
         _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
 
@@ -88,7 +78,7 @@ makeAxiom tce lmap cbs _ _ x
     --                        Right _ -> error $ "ERROR" -- throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
     makeType v       = x{val = ufType    $ varType v}
     makeAssumeType v = x{val = axiomType x $ varType v}
@@ -114,7 +104,7 @@ updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
-makeAxiomType tce lmap x v (Axiom _ xs _ lhs rhs)
+makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
   = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
@@ -136,7 +126,7 @@ makeAxiomType tce lmap x v (Axiom _ xs _ lhs rhs)
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
 
-    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
+    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
     --mkBinds (_:xs) (v:vs) = v:mkBinds xs vs
     --mkBinds _ _ = []
@@ -154,22 +144,32 @@ findAxiomNames _ [] = []
 isAxiomName x v =
   (("axiom_" ++ symbolString (val x)) `L.isPrefixOf`) (symbolString $ dropModuleNames $ simplesymbol v)
 
-defAxioms :: Var -> CoreExpr -> [Axiom Var Kind (Expr Var)]
-defAxioms v e = go [] $ simplify e
+defAxioms :: [Var] -> Var -> CoreExpr -> [Axiom Var Kind (Expr Var)]
+defAxioms vs v e = go [] $ simplify e
   where
      go bs (Tick _ e) = go bs e
      go bs (Lam x e) | isTyVar x               = go bs e
      go bs (Lam x e) | isClassPred (varType x) = go bs e
      go bs (Lam x e) = go (bs++[x]) e
      go bs (Case  (Var x) _ _ alts)  = goalt x bs  <$> alts
-     go bs e          = [Axiom (v, Nothing) bs (varType <$> bs) (foldl App (Var v) (Var <$> bs)) e]
+     go bs e         = [Axiom (v, Nothing) (getSimpleName v) bs (varType <$> bs) (foldl App (Var v) (Var <$> bs)) e]
 
      goalt x bs (DataAlt c, ys, e) = let vs = [b | b<- bs , b /= x] ++ ys in
-        Axiom (v, Just c) vs (varType <$> vs) (mkApp bs x c ys) $ simplify e
+        Axiom (v, Just c) (getConName v c)  vs (varType <$> vs) (mkApp bs x c ys) $ simplify e
      goalt _ _  (LitAlt _,  _,  _) = todo Nothing "defAxioms: goalt Lit"
      goalt _ _  (DEFAULT,   _,  _) = todo Nothing "defAxioms: goalt Def"
 
      mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
+
+
+     getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of 
+                        [x] -> Just x 
+                        _   -> Nothing
+     getConName v c  = case filter (\n -> let aname = symbolString $ dropModuleNames $ simplesymbol n 
+                                              dname = "axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v) ++ "_" ++ (symbolString $ dropModuleNames $ simplesymbol $ dataConWorkId c) 
+                                          in (aname == dname)) vs of 
+                        [x] -> Just x 
+                        _   -> Nothing
 
 
 class Simplifiable a where

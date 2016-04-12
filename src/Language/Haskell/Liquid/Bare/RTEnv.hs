@@ -19,7 +19,7 @@ import Language.Fixpoint.Types (pprint, Expr(..), Symbol)
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Errors (panic)
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 

@@ -318,8 +318,8 @@ ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
 ppr_pvar_sort bb p t = ppr_rtype bb p t
 
 ppr_ref :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
-ppr_ref  (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+-- ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty

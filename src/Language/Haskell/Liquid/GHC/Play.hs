@@ -10,7 +10,7 @@ import GHC
 import CoreSyn
 import Var
 import TypeRep
-import TcRnMonad
+
 import Coercion
 
 import           Control.Arrow       ((***))

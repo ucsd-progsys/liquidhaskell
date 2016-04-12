@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+  {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
@@ -10,7 +10,7 @@ import qualified CoreSyn as H
 import Language.Haskell.Liquid.Types.Errors
 
 import Var hiding (Var)
-import qualified Var as V
+
 import CoreUtils
 
 import Type hiding (Var)
@@ -19,7 +19,7 @@ import TypeRep
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Fixpoint.Misc
+
 
 import Prover.Types
 import Language.Haskell.Liquid.Transforms.CoreToLogic ()
@@ -60,6 +60,17 @@ instance ToCore HCtor where
 
 instance ToCore HVar where
   toCore _ _ v = H.Var $ var_info v
+
+
+
+-------------------------------------------------------------------------------
+----------------  Combining Rewrite Rules  ------------------------------------
+-------------------------------------------------------------------------------
+
+rewriteToCore :: CmbExpr -> CoreExpr -> [(Id, [CoreExpr])] -> CoreExpr
+rewriteToCore c def apps = combineProofs c def (go <$> apps)
+  where
+    go (x, es) = makeApp (H.Var x) es  
 
 
 -------------------------------------------------------------------------------
