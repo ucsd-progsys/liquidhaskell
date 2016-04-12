@@ -67,7 +67,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   ) where
 
-import           GHC.Stack
+-- import           GHC.Stack
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
@@ -159,6 +159,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , OkRT c tv r
          , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
          )
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
