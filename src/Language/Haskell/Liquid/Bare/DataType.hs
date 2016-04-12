@@ -23,7 +23,7 @@ import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (meet, pprint, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
+import Language.Fixpoint.Types (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
 import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)

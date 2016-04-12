@@ -14,7 +14,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import Language.Fixpoint.Misc (fst3)
-import Language.Fixpoint.Types (pprint, Expr(..), Symbol)
+import Language.Fixpoint.Types (Expr(..), Symbol)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)

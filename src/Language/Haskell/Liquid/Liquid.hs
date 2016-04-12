@@ -166,7 +166,7 @@ prune cfg cbinds tgt info
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
-  = do finfo        <- cgInfoFInfo info cgi tgt
+  = do finfo          <- cgInfoFInfo info cgi tgt
        F.Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi

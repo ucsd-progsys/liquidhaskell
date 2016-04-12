@@ -22,7 +22,7 @@ import GHC hiding (Target, desugarModule)
 -- (graphs) import Text.PrettyPrint.HughesPJ
 -- (graphs) import HscTypes hiding (Target)
 -- (graphs) import CoreSyn
--- (graphs) import qualified Outputable as O
+import qualified Outputable as O
 import GHC.Paths (libdir)
 
 import Bag
@@ -373,7 +373,7 @@ instance PPrint GhcSpec where
     , pprintLongList k (meas spec)                   ]
 
 instance PPrint GhcInfo where
-  pprintTidy _ info = vcat
+  pprintTidy k info = vcat
     [ "*************** Imports *********************"
     , intersperse comma $ text <$> imports info
     , "*************** Includes ********************"

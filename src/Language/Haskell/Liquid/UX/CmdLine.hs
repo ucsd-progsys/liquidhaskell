@@ -56,6 +56,7 @@ import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
@@ -445,5 +446,5 @@ addErrors F.Safe errs        = F.Unsafe errs
 addErrors (F.Unsafe xs) errs = F.Unsafe (xs ++ errs)
 addErrors r  _               = r
 
-instance F.Fixpoint (F.FixResult CError) where
+instance Fixpoint (F.FixResult CError) where
   toFix = vcat . resDocs F.Full
