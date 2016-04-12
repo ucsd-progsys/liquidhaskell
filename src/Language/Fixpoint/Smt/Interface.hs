@@ -98,9 +98,9 @@ runCommands cmds
 
 
 -- TODO take makeContext's Bool from caller instead of always using False?
-makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context f xts
-  = do me <- makeContextWithSEnv False Z3 f $ fromListSEnv xts
+makeZ3Context :: Bool -> FilePath -> [(Symbol, Sort)] -> IO Context
+makeZ3Context ho f xts
+  = do me <- makeContextWithSEnv ho False Z3 f $ fromListSEnv xts
        smtDecls me (toListSEnv initSMTEnv)
        smtDecls me xts
        return me
@@ -114,9 +114,9 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValid u f xts p q
-  = do me <- makeContext u Z3 f
+checkValid :: Bool -> Bool -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid ho u f xts p q
+  = do me <- makeContext ho u Z3 f
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
@@ -125,9 +125,9 @@ checkValid u f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
-checkValids u f xts ps
-  = do me <- makeContext u Z3 f
+checkValids :: Bool -> Bool -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
+checkValids ho u f xts ps
+  = do me <- makeContext ho u Z3 f
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
@@ -218,11 +218,11 @@ hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: Bool -> SMTSolver -> FilePath -> IO Context
+makeContext   :: Bool -> Bool -> SMTSolver -> FilePath -> IO Context
 --------------------------------------------------------------------------
-makeContext u s f
+makeContext ho u s f
   = do me   <- makeProcess s
-       pre  <- smtPreamble u s me
+       pre  <- smtPreamble ho u s me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
        let me' = me { cLog = Just hLog }
@@ -231,14 +231,14 @@ makeContext u s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context
-makeContextWithSEnv u s f env
-  = (\cxt -> cxt {smtenv = env}) <$> makeContext u s f
+makeContextWithSEnv :: Bool -> Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context
+makeContextWithSEnv ho u s f env
+  = (\cxt -> cxt {smtenv = env}) <$> makeContext ho u s f
 
-makeContextNoLog :: Bool -> SMTSolver -> IO Context
-makeContextNoLog u s
+makeContextNoLog :: Bool -> Bool -> SMTSolver -> IO Context
+makeContextNoLog ho u s
   = do me  <- makeProcess s
-       pre <- smtPreamble u s me
+       pre <- smtPreamble ho u s me
        mapM_ (smtWrite me) pre
        return me
 
@@ -272,13 +272,13 @@ smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
-smtPreamble u Z3 me
+smtPreamble ho u Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        if T.splitOn "." v `versionGreater` ["4", "3", "2"]
-         then return $ z3_432_options ++ preamble u Z3
-         else return $ z3_options     ++ preamble u Z3
-smtPreamble u s _
+         then return $ z3_432_options ++ makeMbqi ho ++ preamble u Z3
+         else return $ z3_options     ++ makeMbqi ho ++ preamble u Z3
+smtPreamble _ u s _
   = return $ preamble u s
 
 versionGreater (x:xs) (y:ys)
@@ -341,15 +341,17 @@ respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ sho
 
 interact' me cmd  = void $ command me cmd
 
+makeMbqi ho 
+  | ho = [""]
+  | otherwise = ["\n(set-option :smt.mbqi false)"]
+
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
-    , "(set-option :model.partial false)"
-    , "(set-option :smt.mbqi false)" ]
+    , "(set-option :model.partial false)"]
 
 z3_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
-    , "(set-option :model-partial false)"
-    , "(set-option :mbqi false)" ]
+    , "(set-option :model-partial false)"]

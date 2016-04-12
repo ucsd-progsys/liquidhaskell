@@ -21,6 +21,7 @@ module Language.Fixpoint.Solver (
 import           Control.Concurrent
 import           Data.Binary
 import           System.Exit                        (ExitCode (..))
+import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
@@ -51,7 +52,7 @@ solveFQ cfg = do
     let stat = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
-    colorStrLn (colorResult stat) (statStr $!! stat)
+    whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
     return $ eCode r
   where
     file    = inFile       cfg

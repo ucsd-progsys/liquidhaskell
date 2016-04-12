@@ -22,10 +22,9 @@ import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
-
 -- DEBUG
 import           Text.Printf
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
 import           Data.List  (sort)
 import           Data.Maybe (catMaybes)
@@ -148,7 +147,7 @@ result _ wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
-  lift $ print (F.sid <$> stat)
+  lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   return   $ F.Result (ci <$> stat) (F.solResult s)
   where
     ci c = (F.subcId c, F.sinfo c)

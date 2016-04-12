@@ -116,9 +116,9 @@ z3Preamble u
 uifDef u f op | u         = format "(declare-fun {} (Int Int) Int)" (Only f)
               | otherwise = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
-smtlibPreamble :: Bool -> [T.Text]
-smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
-  = [        "(set-logic QF_UFLIA)"
+cvc4Preamble :: Bool -> [T.Text]
+cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
+  = [        "(set-logic ALL_SUPPORTED)"
     , format "(define-sort {} () Int)"       (Only elt)
     , format "(define-sort {} () Int)"       (Only set)
     , format "(declare-fun {} () {})"        (emp, set)
@@ -128,6 +128,27 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) {})"   (dif, set, set, set)
     , format "(declare-fun {} ({} {}) Bool)" (sub, set, set)
     , format "(declare-fun {} ({} {}) Bool)" (mem, elt, set)
+    , format "(define-sort {} () (Array {} {}))"
+        (map, elt, elt)
+    , format "(define-fun {} ((m {}) (k {})) {} (select m k))"
+        (sel, map, elt, elt)
+    , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
+        (sto, map, elt, elt, map)
+    ]
+
+smtlibPreamble :: Bool -> [T.Text]
+smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
+  = [       --  "(set-logic QF_AUFRIA)",
+      format "(define-sort {} () Int)"       (Only elt)
+    , format "(define-sort {} () Int)"       (Only set)
+    , format "(declare-fun {} () {})"        (emp, set)
+    , format "(declare-fun {} ({} {}) {})"   (add, set, elt, set)
+    , format "(declare-fun {} ({} {}) {})"   (cup, set, set, set)
+    , format "(declare-fun {} ({} {}) {})"   (cap, set, set, set)
+    , format "(declare-fun {} ({} {}) {})"   (dif, set, set, set)
+    , format "(declare-fun {} ({} {}) Bool)" (sub, set, set)
+    , format "(declare-fun {} ({} {}) Bool)" (mem, elt, set)
+    , format "(define-sort {} () Int)"       (Only map)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     ]
@@ -227,5 +248,6 @@ smt2App _ _           = Nothing
 
 
 preamble :: Bool -> SMTSolver -> [T.Text]
-preamble u Z3 = z3Preamble u
-preamble u _  = smtlibPreamble u
+preamble u Z3   = z3Preamble u
+preamble u Cvc4 = cvc4Preamble u
+preamble u _    = smtlibPreamble u

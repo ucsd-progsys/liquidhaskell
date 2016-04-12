@@ -501,7 +501,7 @@ size32Name   = "Size32"
 size64Name   = "Size64"
 bitVecName   = "BitVec"
 bvOrName     = "bvor"
-bvAndName    = "bvAnd"
+bvAndName    = "bvand"
 
 mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"

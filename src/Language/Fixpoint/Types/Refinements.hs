@@ -203,7 +203,6 @@ data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
 data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
-          -- NV TODO: change this to `EApp !Expr !Expr`
           | EApp !Expr !Expr
           | ENeg !Expr
           | EBin !Bop !Expr !Expr

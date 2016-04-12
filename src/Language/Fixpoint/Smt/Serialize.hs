@@ -206,10 +206,28 @@ defuncApp' f es = makeApplication f es
 
 
 
-mkRel Ne  e1 e2         = mkNe e1 e2
-mkRel Une e1 e2         = mkNe e1 e2
-mkRel r   e1 e2         = format "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
-mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
+mkRel Ne  e1 e2          = mkNe e1 e2
+mkRel Une e1 e2          = mkNe e1 e2
+mkRel Eq  e1 e2 
+  | isFun e1 && isFun e2 = mkFunEq e1 e2 
+mkRel r   e1 e2          = format "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
+mkNe  e1 e2              = format "(not (= {} {}))" (smt2 e1, smt2 e2)
+
+isFun e | FFunc _ _ <- exprSort e = True 
+        | otherwise               = False 
+
+mkFunEq e1 e2 = smt2 $ PAll (zip xs ss) (PAtom Eq 
+                          (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
+  where
+    es      = zipWith (\x s -> ECst (EVar x) s) xs ss 
+    xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss] 
+    (s, ss) = go [] $ exprSort e1 
+
+    go acc (FFunc s ss) = go (s:acc) ss
+    go acc s            = (s, reverse acc) 
+
+    f  = makeFunSymbol e1 $ length xs
+
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
@@ -217,7 +235,10 @@ instance SMTLIB2 Command where
   smt2 (Define t)          = format "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = format "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
-  smt2 (Distinct az)       = format "(assert (distinct {}))"       (Only $ smt2s az)
+  smt2 (Distinct az)
+    -- Distinct must have at least 2 arguments
+    | length az < 2        = ""
+    | otherwise            = format "(assert (distinct {}))"       (Only $ smt2s az)
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
@@ -315,7 +336,7 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 grapLambdas e = go [] e 
   where
     go acc e@(ELam _ _) = do f <- freshSym 
-                             return (EVar f, (f, e):acc)
+                             return (ECst (EVar f) (exprSort e), (f, e):acc)
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
@@ -467,5 +488,6 @@ makeApplies i =
 
 
 exprSort :: Expr -> Sort
-exprSort (ECst _ s) = s
-exprSort e          = errorstar ("\nexprSort on unexpected expressions" ++ show e)
+exprSort (ECst _ s)     = s
+exprSort (ELam (_,s) e) = FFunc s $ exprSort e      
+exprSort e              = errorstar ("\nexprSort on unexpected expressions" ++ show e)
