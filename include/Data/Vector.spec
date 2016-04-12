@@ -2,7 +2,7 @@ module spec Data.Vector where
 
 import GHC.Base
 
-data variance Vector covariant
+data variance Data.Vector.Vector covariant
 
 
 measure vlen    :: forall a. (Data.Vector.Vector a) -> Int
