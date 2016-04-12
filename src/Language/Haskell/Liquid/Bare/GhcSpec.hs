@@ -99,17 +99,23 @@ listLMap = toLogicMap [(nilName, [], hNil),
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts', invariants = invs', meas = meas', inSigs = inSigs' }
+  = sp { tySigs     = tySigs'
+       , texprs     = ts
+       , asmSigs    = asmSigs'
+       , dicts      = dicts'
+       , invariants = invs'
+       , meas       = meas'
+       , inSigs     = inSigs' }
   where
-    (sigs, ts')   = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    (assms, ts'') = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
-    (insigs, ts)  = replaceLocalBinds tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
-    tySigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
-    asmSigs'    = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
-    inSigs'     = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
-    dicts'      = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
-    invs'       = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
-    meas'       = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
+    (sigs, ts')     = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
+    (assms, ts'')   = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (insigs, ts)    = replaceLocalBinds tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
+    tySigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    asmSigs'        = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
+    inSigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
+    dicts'          = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
+    invs'           = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
+    meas'           = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -162,10 +168,10 @@ addProofType spec
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons n flag vs spec
-  | flag      = return $ spec {tySigs = (tySigs spec) ++ xts}
+  | flag      = return $ spec {tySigs = tySigs spec ++ xts}
   | otherwise = return spec
   where
-    xts = makeExact <$> (filter isDataConId $ filter (varInModule n) vs)
+    xts       = makeExact <$> filter isDataConId (filter (varInModule n) vs)
 
 varInModule n v = L.isPrefixOf (show n) $ show v
 
@@ -236,7 +242,7 @@ makeGhcSpec2 invs ialias measures su sp
 
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(t, Var)] -> GhcSpec -> BareM GhcSpec
 makeGhcSpec3 datacons tycons embs syms sp
-  = do tcEnv       <- tcEnv    <$> get 
+  = do tcEnv       <- tcEnv    <$> get
        lmap        <- logicEnv <$> get
        inlmap      <- inlines  <$> get
        let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
@@ -265,10 +271,10 @@ makeGhcSpec4 defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
-                     , tySigs     = tx  <$> tySigs  sp 
+                     , tySigs     = tx  <$> tySigs  sp
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
-                     , inSigs     = tx  <$> msgs 
+                     , inSigs     = tx  <$> msgs
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
