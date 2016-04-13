@@ -63,19 +63,19 @@ data Spec ty bndr  = Spec
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
   , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
-  , lvars      :: ![LocSymbol]                  -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into axiomatized functions
-  , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
-  , autosize   :: !(S.HashSet LocSymbol)        -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
-  , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions
+  , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
+  , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
+  , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
+  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
+  , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
+  , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
+  , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
+  , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
+  , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
+  , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)

@@ -782,9 +782,9 @@ rawBodyP
       p <- predP <* spaces
       return $ R v p
 
-tyBodyP :: BareType -> Parser Body
+tyBodyP :: Located BareType -> Parser Body
 tyBodyP ty
-  = case outTy ty of
+  = case outTy (val ty) of
       Just bt | isPropBareType bt
                 -> P <$> predP
       _         -> E <$> exprP
