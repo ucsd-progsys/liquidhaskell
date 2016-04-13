@@ -160,9 +160,9 @@ makeGhcSpec' cfg cbs vars defVars exports specs
 
 
 addProofType :: GhcSpec -> BareM GhcSpec
-addProofType spec
-  = do tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
-       return $ spec {proofType = (`TyConApp` []) <$> tycon}
+addProofType spec = do
+  tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
+  return $ spec { proofType = (`TyConApp` []) <$> tycon }
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
@@ -174,7 +174,7 @@ makeExactDataCons n flag vs spec
 
 varInModule n v = L.isPrefixOf (show n) $ show v
 
-makeExact :: Var -> (Var, Located SpecType)
+makeExact :: Var -> (Var, LocSpecType)
 makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
@@ -289,6 +289,13 @@ makeGhcSpecCHOP1 specs
        recSels         <- makeRecordSelectorSigs datacons
        return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, embs)
 
+makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
+                 -> ModName -> [(ModName, Var, LocSpecType)]
+                 -> TCEmb TyCon
+                 -> BareM ( [LocSpecType]
+                          , [(LocSpecType, LocSpecType)]
+                          , [(Var, LocSpecType)]
+                          , [(Var, LocSpecType)] )
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
        asms'   <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
@@ -309,7 +316,7 @@ makeGhcSpecCHOP2 :: [CoreBind]
                  -> BareM ( MSpec SpecType DataCon
                           , [(Symbol, Located (RRType Reft))]
                           , [(Symbol, Located (RRType Reft))]
-                          , [(Var,    Located SpecType)]
+                          , [(Var,    LocSpecType)]
                           , [Symbol] )
 makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
   = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
@@ -336,25 +343,25 @@ data ReplaceEnv = RE { _re_env  :: M.HashMap Symbol Symbol
                      , _re_tyi  :: M.HashMap TyCon RTyCon
                      }
 
-type ReplaceState = ( M.HashMap Var (Located SpecType)
-                    , M.HashMap Var [Expr]
+type ReplaceState = ( M.HashMap Var LocSpecType
+                    , M.HashMap Var [Located Expr]
                     )
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
 replaceLocalBinds :: TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
-                  -> [(Var, Located SpecType)]
-                  -> [(Var, [Expr])]
+                  -> [(Var, LocSpecType)]
+                  -> [(Var, [Located Expr])]
                   -> SEnv SortedReft
                   -> CoreProgram
-                  -> ([(Var, Located SpecType)], [(Var, [Expr])])
+                  -> ([(Var, LocSpecType)], [(Var, [Located Expr])])
 replaceLocalBinds emb tyi sigs texprs senv cbs
   = (M.toList s, M.toList t)
   where
-    (s,t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
-                                  (RE M.empty senv emb tyi))
-                      (M.fromList sigs, M.fromList texprs)
+    (s, t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
+                                   (RE M.empty senv emb tyi))
+                       (M.fromList sigs, M.fromList texprs)
 
 traverseExprs (Let b e)
   = traverseBinds b (traverseExprs e)

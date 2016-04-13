@@ -70,7 +70,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
                  let (dc:_) = tyConDataCons tc
                  let αs  = map symbolRTyVar as
                  let as' = [rVar $ symbolTyVar a | a <- as ]
-                 let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) (val t)) | (s, t) <- ms]
+                 let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
                  vts <- makeSpec (noCheckUnknown cfg || cmod /= mod) vs ms'
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
@@ -123,18 +123,21 @@ makeTargetVars name vs ss
     where
        prefix s = qualifySymbol (F.symbol name) (F.symbol s)
 
-
-makeAssertSpec cmod cfg vs lvs (mod,spec)
+makeAssertSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
+               -> BareM [(ModName, Var, LocSpecType)]
+makeAssertSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
   = inModule mod $ makeSpec True vs $ Ms.sigs spec
 
-makeAssumeSpec cmod cfg vs lvs (mod,spec)
+makeAssumeSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
+               -> BareM [(ModName, Var, LocSpecType)]
+makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
+  = inModule mod $ makeSpec True vs  $ Ms.asmSigs spec
 
 grepClassAsserts  = concatMap go
    where
@@ -156,15 +159,17 @@ makeDefaultMethods defVs sigs
     , let Just (m,_,t) = mb
     ]
 
-makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)] -> [(LocSymbol, BareType)]
-                    -> BareM [(ModName, Var, Located SpecType)]
+makeLocalSpec :: Config -> ModName -> [Var] -> [Var]
+              -> [(LocSymbol, Located BareType)]
+              -> [(LocSymbol, Located BareType)]
+              -> BareM [(ModName, Var, Located SpecType)]
 makeLocalSpec cfg mod vs lvs cbs xbs
   = do vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2  <- makeSpec (noCheckUnknown cfg) vs xbs2
        return $ vts1 ++ vts2
   where
-    xbs1 = xbs1' ++ cbs
+    xbs1                = xbs1' ++ cbs
     (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
     dupSnd (x, y)       = (dropMod x, (x, y))
     expand3 (x, (y, w)) = (x, y, w)
@@ -172,8 +177,8 @@ makeLocalSpec cfg mod vs lvs cbs xbs
     fchoose ls          = maybe ls (:[]) $ L.find (`elem` vs) ls
     modElem n x         = takeModuleNames (val x) == F.symbol n
 
-makeSpec :: Bool -> [Var] -> [(LocSymbol, BareType)]
-                 -> BareM [(ModName, Var, Located SpecType)]
+makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
+         -> BareM [(ModName, Var, LocSpecType)]
 makeSpec ignoreUnknown vs xbs
   = do vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
        (BE { modName = mod}) <- get
@@ -191,10 +196,10 @@ lookupIds ignoreUnknown
     handleError err
       = throwError err
 
-mkVarSpec :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, x, b) = tx <$> mkLSpecType (F.atLoc x b)
+mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
+mkVarSpec (v, _, b) = tx <$> mkLSpecType b
   where
-    tx = (v,) . fmap generalize
+    tx              = (v,) . fmap generalize
 
 makeIAliases (mod, spec)
   = inModule mod $ makeIAliases' $ Ms.ialiases spec
@@ -213,24 +218,28 @@ makeInvariants' = mapM mkI
   where
     mkI t       = fmap generalize <$> mkLSpecType t
 
-
+makeSpecDictionaries :: F.TCEmb TyCon -> [Var] -> [(a, Ms.BareSpec)] -> GhcSpec
+                     -> BareM GhcSpec
 makeSpecDictionaries embs vars specs sp
   = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
-       return $ sp {dicts = ds}
+       return $ sp { dicts = ds }
 
+makeSpecDictionary :: F.TCEmb TyCon -> [Var] -> (a, Ms.BareSpec)
+                   -> BareM [(Var, M.HashMap F.Symbol SpecType)]
 makeSpecDictionary embs vars (_, spec)
   = catMaybes <$> mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
 
+makeSpecDictionaryOne :: F.TCEmb TyCon -> [Var] -> RInstance (Located BareType)
+                      -> BareM (Maybe (Var, M.HashMap F.Symbol SpecType))
 makeSpecDictionaryOne embs vars (RI x t xts)
-  = do t'  <-  mkTy t
+  = do t'  <- mkLSpecType t
        tyi <- gets tcEnv
        ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x (val t') $ zip xs ts'
        let v = lookupName d
        return ((, dts) <$> v)
   where
-    mkTy  t  = mkLSpecType (F.atLoc x t)
-    mkTy' t  = fmap generalize <$> mkTy t
+    mkTy' t  = fmap generalize <$> mkLSpecType t
     (xs, ts) = unzip xts
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of

@@ -172,7 +172,7 @@ instance ( SubsTy tv (RType c tv ()) c
          , RefTypable c tv r
          , RefTypable c tv ()
          , FreeVar c tv
-         , SubsTy tv (RType c tv ()) r 
+         , SubsTy tv (RType c tv ()) r
          , SubsTy tv (RType c tv ()) (RType c tv ()))
          => Monoid (RTProp c tv r) where
   mempty         = panic Nothing "mempty: RTProp"
@@ -701,7 +701,7 @@ instance (SubsTy tv ty Expr) => SubsTy tv ty Reft where
 
 
 instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
-  subt su (ELam (x, s) e) = ELam (x, subt su s) $ subt su e 
+  subt su (ELam (x, s) e) = ELam (x, subt su s) $ subt su e
   subt su (EApp e1 e2)    = EApp (subt su e1) (subt su e2)
   subt su (ENeg e)        = ENeg (subt su e)
   subt su (PNot e)        = PNot (subt su e)
@@ -717,30 +717,30 @@ instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
   subt su (PAtom b e1 e2) = PAtom b (subt su e1) (subt su e2)
   subt su (PAll xes e)    = PAll (subt su <$> xes) (subt su e)
   subt su (PExist xes e)  = PExist (subt su <$> xes) (subt su e)
-  subt _ e                = e  
+  subt _ e                = e
 
 instance (SubsTy tv ty a, SubsTy tv ty b) => SubsTy tv ty (a, b) where
   subt su (x, y) = (subt su x, subt su y)
 
 instance SubsTy Symbol (RType (Located Symbol) Symbol ()) Sort where
-  subt (v, RVar α _) (FObj s) 
+  subt (v, RVar α _) (FObj s)
     | symbol v == s = FObj α
-    | otherwise     = FObj s    
-  subt _ s          = s  
+    | otherwise     = FObj s
+  subt _ s          = s
 
 
 instance SubsTy Symbol RSort Sort where
-  subt (v, RVar α _) (FObj s) 
+  subt (v, RVar α _) (FObj s)
     | symbol v == s = FObj $ rTyVarSymbol α
-    | otherwise     = FObj s    
-  subt _ s          = s  
+    | otherwise     = FObj s
+  subt _ s          = s
 
 
 instance SubsTy RTyVar RSort Sort where
-  subt (v, RVar α _) (FObj s) 
+  subt (v, RVar α _) (FObj s)
     | symbol v == s = FObj $ rTyVarSymbol α
-    | otherwise     = FObj s    
-  subt _ s          = s  
+    | otherwise     = FObj s
+  subt _ s          = s
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
   subt su (PVProp t) = PVProp (subt su t)
@@ -774,7 +774,7 @@ instance SubsTy tv RSort Predicate where
   subt _ = id -- NV TODO
 
 instance (SubsTy tv ty r) => SubsTy tv ty (UReft r) where
-  subt su r = r {ur_reft = subt su $ ur_reft r} 
+  subt su r = r {ur_reft = subt su $ ur_reft r}
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype
 instance SubsTy Symbol BSort LocSymbol where
@@ -1093,7 +1093,7 @@ cmpLexRef vxs (v, x, g)
 
 makeLexRefa es' es = uTop $ Reft (vv, PIff (EVar vv) $ pOr rs)
   where
-    rs = makeLexReft [] [] es es'
+    rs = makeLexReft [] [] (val <$> es) (val <$> es')
     vv = "vvRec"
 
 makeLexReft _ acc [] []

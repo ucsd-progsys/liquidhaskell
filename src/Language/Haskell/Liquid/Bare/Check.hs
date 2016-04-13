@@ -168,13 +168,15 @@ checkBind s emb tcEnv env (v, t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error
-checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' <$> go' es)
+checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr])-> Maybe Error
+checkTerminationExpr emb env (v, Loc l _ t, les)
+            = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where
+    es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
     mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
-    go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
-    go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
+    go      = foldl (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
+    go'     = foldl (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
