@@ -449,8 +449,7 @@ ppReqInContext tA tE c m
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprint tE]
       , nests 2 [ text "In Context"
-                , pprint c
-                , pprint m ]]
+                , pprint c $+$ pprint m ]]
 
 
 ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc

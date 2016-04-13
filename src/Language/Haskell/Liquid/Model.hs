@@ -128,21 +128,18 @@ import           Debug.Trace
 
 getModels :: GhcInfo -> Config -> FixResult Cinfo -> IO (FixResult Cinfo)
 getModels info cfg fi = case fi of
-  Unsafe cs -> fmap Unsafe . GHC.runGhc (Just libdir) $ do
-    setSession (env info)
+  Unsafe cs -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
     imps <- getContext
-    setContext (IIModule (mkModuleName "ListElem") -- FIXME
-               : IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
+    setContext (-- IIModule (targetMod info)
+               -- :
+                -- needed to expose packaged Generic and Targetable instances
+                IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                            { ideclQualified = True })
                : imps)
-    --             -- needed for defaulted tyvars
-    --             -- : IIDecl ((simpleImportDecl (mkModuleName "GHC.Integer.Type"))
-    --             --                           { ideclQualified = True })
-    --             : imps)
     mapM (getModel info cfg) cs
   _         -> return fi
   where
-  mbenv = Nothing -- Just (env info)
+  mbenv = Just (env info)
 
 
 getModel :: GhcInfo -> Config -> Cinfo -> Ghc Cinfo
@@ -193,7 +190,6 @@ x `asTypeOfDict` Dict = x
 
 data Dict :: Constraint -> * where
   Dict :: a => Dict a
-  deriving Typeable
 
 data TargetDict = forall t. TargetDict (Dict (Targetable t))
 

@@ -148,7 +148,7 @@ runLiquidGhc hscEnv cfg act =
                        `xopt_set` Opt_StandaloneDeriving
                        `gopt_set` Opt_ImplicitImportQualified
                        `gopt_set` Opt_PIC
-      setSessionDynFlags df''
+      _ <- setSessionDynFlags df''
       defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------
