@@ -751,8 +751,8 @@ iMeasureP = measureP
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
   = do c  <- locUpperIdP
+       lt <- locParserP (rit <$> locUpperIdP <*> classParams)
        ts <- sepBy tyBindP semi
-       lt <- locParserP $ rit <$> locUpperIdP <*> classParams
        return $ RI c lt ts
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
