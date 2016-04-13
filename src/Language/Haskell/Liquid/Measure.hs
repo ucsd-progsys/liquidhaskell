@@ -84,7 +84,6 @@ data Spec ty bndr  = Spec
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
---                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
     tx = fmap (qualifySymbol name)
@@ -104,6 +103,7 @@ mkMSpec' ms = MSpec cm mm M.empty []
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
     mm     = M.fromList [(name m, m) | m <- ms ]
 
+mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol 
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where
     cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
@@ -111,16 +111,6 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     cmm    = M.fromList [(name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
-
---checkFail ::  [Char] -> (a -> Bool) -> a -> a
---checkFail msg f x
---  | f x
---  = x
---  | otherwise
---  = errorstar $ "Check-Failure: " ++ msg
-
---distinct ::  Ord a => [a] -> Bool
---distinct xs = length xs == length (sortNub xs)
 
 
 checkDuplicateMeasure ms

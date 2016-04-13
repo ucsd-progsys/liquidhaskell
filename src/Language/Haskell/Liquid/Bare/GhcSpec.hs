@@ -48,7 +48,6 @@ import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
 
 
-
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Check
@@ -162,7 +161,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
 
 addProofType :: GhcSpec -> BareM GhcSpec
 addProofType spec
-  = do tycon <- (Just <$> (lookupGhcTyCon $ dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
+  = do tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
        return $ spec {proofType = (`TyConApp` []) <$> tycon}
 
 
@@ -301,7 +300,17 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        let asms = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
 
-
+makeGhcSpecCHOP2 :: [CoreBind]
+                 -> [(ModName, Ms.BareSpec)]
+                 -> [Measure SpecType DataCon]
+                 -> [(DataCon, DataConP)]
+                 -> [(DataCon, DataConP)]
+                 -> TCEmb TyCon
+                 -> BareM ( MSpec SpecType DataCon
+                          , [(Symbol, Located (RRType Reft))]
+                          , [(Symbol, Located (RRType Reft))]
+                          , [(Var,    Located SpecType)]
+                          , [Symbol] )
 makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
   = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
        tyi         <- gets tcEnv

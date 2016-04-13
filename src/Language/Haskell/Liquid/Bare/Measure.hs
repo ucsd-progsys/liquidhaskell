@@ -99,7 +99,7 @@ makeMeasureInline tce lmap cbs  x
                            Left (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
                            Right e -> throwError e
 
-    fromLR (Left l)  = l 
+    fromLR (Left l)  = l
     fromLR (Right r) = r
 
     mkError :: String -> Error
@@ -151,10 +151,10 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
         mkx j = symbol ("xx" ++ show j)
 
 
-makeMeasureSpec :: (ModName, Ms.Spec BareType LocSymbol) -> BareM (Ms.MSpec SpecType DataCon)
-makeMeasureSpec (mod,spec) = inModule mod mkSpec
+makeMeasureSpec :: (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
+makeMeasureSpec (mod, spec) = inModule mod mkSpec
   where
-    mkSpec = mkMeasureDCon =<< mkMeasureSort =<< m
+    mkSpec = mkMeasureDCon =<< mkMeasureSort =<< first val <$> m
     m      = Ms.mkMSpec <$> mapM expandMeasure (Ms.measures spec)
                         <*> return (Ms.cmeasures spec)
                         <*> mapM expandMeasure (Ms.imeasures spec)
@@ -258,11 +258,13 @@ capitalizeBound = fmap (symbol . toUpperHead . symbolString)
 --------------------------------------------------------------------------------
 -- | Expand Measures -----------------------------------------------------------
 --------------------------------------------------------------------------------
+type BareMeasure = Measure (Located BareType) LocSymbol
 
-expandMeasure m
-  = do eqns <- sequence $ expandMeasureDef <$> eqns m
-       return $ m { sort = generalize (sort m)
-                  , eqns = eqns }
+expandMeasure :: BareMeasure -> BareM BareMeasure
+expandMeasure m = do
+  eqns <- sequence $ expandMeasureDef <$> eqns m
+  return $ m { sort = generalize <$> sort m
+             , eqns = eqns }
 
 expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
 expandMeasureDef d

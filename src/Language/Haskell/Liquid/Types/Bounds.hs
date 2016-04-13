@@ -48,7 +48,7 @@ type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
 
 
 instance Hashable (Bound t e) where
-        hashWithSalt i = hashWithSalt i . bname
+  hashWithSalt i = hashWithSalt i . bname
 
 instance Eq (Bound t e) where
   b1 == b2 = (bname b1) == (bname b2)
@@ -120,7 +120,7 @@ partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
 isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
-isPApp penv (EApp e _)         = isPApp penv e 
+isPApp penv (EApp e _)         = isPApp penv e
 isPApp _    _                  = False
 
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
@@ -141,7 +141,7 @@ toUsedPVar penv ee@(EApp _ _)
      EVar e = unProp $ last es
      es'    = init es
      Just q = lookup p penv
-     (EVar p, es) = splitEApp ee 
+     (EVar p, es) = splitEApp ee
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 
