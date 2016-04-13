@@ -47,15 +47,15 @@ import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type BareSpec      = Spec BareType LocSymbol
+type BareSpec      = Spec (Located BareType) LocSymbol
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
-  , invariants :: ![Located ty]                 -- ^ Data type invariants
-  , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
+  , invariants :: ![ty]                         -- ^ Data type invariants
+  , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
