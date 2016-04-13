@@ -45,7 +45,7 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
 -- import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import            Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GHC.Misc
 import            Language.Haskell.Liquid.Types.Visitors
@@ -136,7 +136,7 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
 
 -- Add the specified signatures for vars-with-preserved-sigs,
 -- whose bodies have been pruned from [CoreBind] into the "assumes"
-assumeSpec :: M.HashMap Var (Located SpecType) -> GhcSpec -> GhcSpec
+assumeSpec :: M.HashMap Var LocSpecType -> GhcSpec -> GhcSpec
 assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
   where
     assm           = M.fromList $ asmSigs sp
@@ -155,7 +155,7 @@ diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " d
       | i > end d    = go (i:is) ds
       | otherwise    = binder d : go (i:is) ds
 
-sigVars :: FilePath -> [Int] -> GhcSpec -> M.HashMap Var (Located SpecType)
+sigVars :: FilePath -> [Int] -> GhcSpec -> M.HashMap Var LocSpecType
 sigVars srcF ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
   where
     ok             = not . isDiff srcF ls
@@ -236,7 +236,7 @@ specDefs srcF  = map def . filter sameFile . specSigs
     def (x, t) = D (line t) (lineE t) x
     sameFile   = (srcF ==) . file . snd
 
-specSigs :: GhcSpec -> [(Var, Located SpecType)]
+specSigs :: GhcSpec -> [(Var, LocSpecType)]
 specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
 
 -------------------------------------------------------------------------
