@@ -45,7 +45,7 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
 -- import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import            Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GHC.Misc
 import            Language.Haskell.Liquid.Types.Visitors
