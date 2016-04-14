@@ -252,13 +252,23 @@ getSpecs cfg paths target names exts = do
 
 -- showTable = render . pprintKVs Full . sortBy (compare `on` fst)
 
+getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
+getSpecs' cfg paths target names exts = do
+  fs'     <- sortNub <$> moduleImports exts paths names
+  patSpec <- getPatSpec paths $ totality cfg
+  rlSpec  <- getRealSpec paths $ not $ linear cfg
+  let fs   = patSpec ++ rlSpec ++ fs'
+  transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs]
+  -- return fSpecs
+  -- where
+  --   showTable = render . pprintKVs Full . sortBy (compare `on` fst)
+
 normalizeFileSpec :: [FileSpec] -> [FileSpec]
 normalizeFileSpec = concat
                   . M.elems
                   . fmap partSpecs
                   . groupMap (show . snd3)
-    --  m    = groupMap (show . snd3) fs
-    -- take1 = minimumBy (compare `on` (filePos . fst3))
 
 partSpecs :: [FileSpec] -> [FileSpec]
 partSpecs fs = case partition isSpecFile fs of
@@ -269,14 +279,6 @@ isSpecFile :: FileSpec -> Bool
 isSpecFile (f, _, _)
   | isExtFile Spec f = True
   | otherwise        = False
-
-getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
-getSpecs' cfg paths target names exts = do
-  fs'     <- sortNub <$> moduleImports exts paths names
-  patSpec <- getPatSpec paths $ totality cfg
-  rlSpec  <- getRealSpec paths $ not $ linear cfg
-  let fs   = patSpec ++ rlSpec ++ fs'
-  transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
 
 getPatSpec paths totalitycheck
  | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec

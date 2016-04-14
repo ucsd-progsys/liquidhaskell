@@ -21,7 +21,7 @@ import           System.Exit
 -- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
-import           Var
+-- import           Var
 import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
@@ -144,13 +144,6 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ pprint x $+$ text " " | x <- xs ]
 
-checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
-checkedNames dc          = concatMap names . DC.newBinds <$> dc
-   where
-     names (NonRec v _ ) = [render . text $ shvar v]
-     names (Rec xs)      = map (shvar . fst) xs
-     shvar               = showpp . varName
-
 prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
 prune cfg cbinds tgt info
   | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
@@ -161,12 +154,11 @@ prune cfg cbinds tgt info
     sp            = spec info
 
 
-
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
   = do finfo        <- cgInfoFInfo info cgi tgt
        F.Result r sol <- solve fx finfo
-       let names = checkedNames dc
+       let names = map show . DC.checkedVars <$> dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res   = ferr sol r
