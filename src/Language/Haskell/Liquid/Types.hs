@@ -298,7 +298,7 @@ data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
                                                  -- eg.  see include/Prelude.spec
   , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
-  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures 
+  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types
@@ -357,19 +357,19 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es 
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es
   = subst (mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e  
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = def
 
-dropApp e i | i <= 0 = e 
+dropApp e i | i <= 0 = e
 dropApp (EApp e _) i = dropApp e (i-1)
 dropApp _ _          = errorstar "impossible"
- 
-isApp (EApp (EVar _) (EVar _)) = True 
-isApp (EApp e (EVar _))        = isApp e 
+
+isApp (EApp (EVar _) (EVar _)) = True
+isApp (EApp e (EVar _))        = isApp e
 isApp _                        = False
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
@@ -801,7 +801,7 @@ type RDEnv = DEnv Var SpecType
 --------------------------------------------------------------------------
 
 data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
-                         , rname  :: Maybe b 
+                         , rname  :: Maybe b
                          , abinds :: [b]
                          , atypes :: [s]
                          , alhs   :: e
@@ -1247,7 +1247,7 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 rTypeReft :: (Reftable r) => RType c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase
 
-  
+
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)
   = Just x
@@ -1350,6 +1350,9 @@ instance NFData Cinfo
 --------------------------------------------------------------------------------
 
 data ModName = ModName !ModType !ModuleName deriving (Eq,Ord)
+
+instance PPrint ModName where
+  pprintTidy _ = text . show
 
 instance Show ModName where
   show = getModString
