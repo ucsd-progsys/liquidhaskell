@@ -168,7 +168,7 @@ initState fp sp ctx df = TargetState
     sigs  = subst su $ tidyF $ map (symbol *** val) $ tySigs sp
 
     tyi   = makeTyConInfo (tconsP sp)
-    free  = traceShowId $ tidyS $ map (second symbol)
+    free  = tidyS $ map (second symbol)
           $ freeSyms sp ++ map (\(c,_) -> (symbol c, c)) (ctors sp)
     meas  = measures sp
     tidyF = map (first tidySymbol)
@@ -249,7 +249,6 @@ fresh sort
        let sorts' = sortTys sort
        modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
        let x = symbol $ ST.unpack (ST.intercalate "->" $ map (symbolText.unObj) sorts') ++ show n
-       traceShowM ("fresh", x)
        modify $ \s@(TargetState {..}) -> s { variables = (x,sort) : variables }
        return x
 
@@ -277,7 +276,6 @@ freshChoice cn
        modify $ \s@(TargetState {..}) -> s { sorts = S.insert choicesort sorts }
        let x = symbol $ T.unpack (smt2 choicesort) ++ "-" ++ cn ++ "-" ++ show n
        modify $ \s@(TargetState {..}) -> s { variables = (x,choicesort) : variables }
-       traceShowM ("freshChoice", x)
        return x
 
 -- | Ask the SMT solver for the 'Value' of the given variable.

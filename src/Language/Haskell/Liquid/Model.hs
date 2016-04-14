@@ -94,9 +94,8 @@ getModel :: GhcInfo -> Config -> Error -> Ghc Error
 getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   let vv  = (symbol "VV", tact `strengthen` (fmap (mapPredReft PNot) (rt_reft texp)))
   let vts = vv : HM.toList ctx
-  liftIO $ print $ map fst vts
+
   vtds <- addDicts vts
-  liftIO $ print $ map (\(x,_,_) -> x) vtds
 
   hsc_env <- getSession
   df <- getDynFlags

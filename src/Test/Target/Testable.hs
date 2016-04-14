@@ -175,23 +175,17 @@ setup = {-# SCC "setup" #-} do
          -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
      s        -> defSort (smt2 s) ("Int" :: T.Text)
    defSort ("GHC.Types.Bool" :: T.Text) ("Int" :: T.Text)
-   traceM "DONE SORTS"
    -- declare constructors
    cts <- gets constructors
    mapM_ (\ (c,t) -> do
-             traceShowM (symbol c)
-             traceShowM t
              io $ smtWrite ctx $ T.toStrict $ makeDecl (symbol c) t) cts
    let nullary = [var c | (c,t) <- cts, not (func t)]
    unless (null nullary) $
      void $ io $ smtWrite ctx $ T.toStrict $ smt2 $ Distinct nullary
    -- declare variables
-   traceM "DONE CTORS"
    vs <- gets variables
-   traceShowM ("setup.variables", [(x, smt2 x) | (x, _) <- vs ])
    let defVar (x,t) = io $ smtWrite ctx $ T.toStrict (makeDecl x (arrowize t))
    mapM_ defVar vs
-   traceM "DONE VARS"
    -- declare measures
    ms <- gets measEnv
    let defFun x t = io $ smtWrite ctx $ T.toStrict (makeDecl x t)
@@ -199,14 +193,12 @@ setup = {-# SCC "setup" #-} do
      let x = val (name m)
      unless (x `M.member` theorySymbols) $
        defFun x (rTypeSort emb (sort m))
-   traceM "DONE MEASURES"
    -- assert constraints
    cs <- gets constraints
    --mapM_ (\c -> do {i <- gets seed; modify $ \s@(GS {..}) -> s { seed = seed + 1 };
    --                 io . command ctx $ Assert (Just i) c})
    --  cs
    mapM_ (io . smtWrite ctx . T.toStrict . smt2 . Assert Nothing) cs
-   traceM "DONE CONSTRAINTS"
    -- deps <- V.fromList . map (symbol *** symbol) <$> gets deps
    -- io $ generateDepGraph "deps" deps cs
    -- return (ctx,vs,deps)
