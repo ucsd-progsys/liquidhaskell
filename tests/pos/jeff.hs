@@ -39,7 +39,7 @@ comments/explanation.
 -}
 
 
-{-@ LIQUID "--diff" @-}
+{- LIQUID "--diff" @-}
 {-@ LIQUID "--scrape-used-imports" @-}
 {-@ LIQUID "--short-names" @-}
 
@@ -63,12 +63,16 @@ import GHC.TypeLits
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Prelude hiding (max)
 
+
+junk = BS.head
+
+
 traceMsg msg x = trace (msg ++ show x) x
 
 {-@ chunksBS :: Int -> b:BS.ByteString -> [BS.ByteString] / [(bLength b)] @-}
 chunksBS n' xs | BS.null xs = []
                | otherwise = x : chunksBS n xs'
-    where (x,xs') = BS.splitAt (liquidAssert (n > 0) n) xs
+    where (x,xs') = BS.splitAt  (liquidAssert (n > 0) n) xs
           n       = max 1 n'
 
 bsToString :: BS.ByteString -> String
@@ -93,7 +97,7 @@ indicesSpec targ s = [ BS.length s' - BS.length targ | s' <- BS.inits s
                                                      , targ `BS.isSuffixOf` s' ]
 
 indicesSpec :: BS.ByteString -> BS.ByteString -> [Int]
-{-@ BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | (Prop v) => (bLength targ <= bLength s) } @-}
+
 
 
 -- | Datatype to name string matching algorithms; will use it's lifted
@@ -169,14 +173,16 @@ myIndices alg t bs
 {-@ type ByteStringN N  = {v:BS.ByteString | bLength v == N}   @-}
 {-@ type MatchIdxsT T   = {v:MatchIdxs | targ v == T}          @-}
 
-{-@ assume BS.length :: b:BS.ByteString -> {v:Nat | v == bLength b}  @-}
-{-@ assume BS.empty  :: {v:BS.ByteString | bLength v == 0}    @-}
-{-@ assume BS.take   :: n:Nat -> b:BS.ByteString -> ByteStringN {min n (bLength b)} @-}
-{-@ assume BS.drop   :: n:Nat -> b:{BS.ByteString | n <= bLength b} -> ByteStringN {bLength b - n} @-}
-{-@ assume BS.inits  :: b:BS.ByteString -> [{v:BS.ByteString | bLength v <= bLength b}] @-}
-{-@ assume BS.append :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
+{-@ assume BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | (Prop v) => (bLength targ <= bLength s) } @-}
+{-@ assume BS.length  :: b:BS.ByteString -> {v:Nat | v == bLength b}  @-}
+{-@ assume BS.empty   :: {v:BS.ByteString | bLength v == 0}    @-}
+{-@ assume BS.take    :: n:Nat -> b:BS.ByteString -> ByteStringN {min n (bLength b)} @-}
+{-@ assume BS.drop    :: n:Nat -> b:{BS.ByteString | n <= bLength b} -> ByteStringN {bLength b - n} @-}
+{-@ assume BS.inits   :: b:BS.ByteString -> [{v:BS.ByteString | bLength v <= bLength b}] @-}
+{-@ assume BS.append  :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
 {-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | Prop v <=> (bLength b == 0)} @-}
 {-@ assume BS.splitAt :: n:Nat -> b:BS.ByteString -> (ByteStringN {min n (bLength b)}, ByteStringN {max 0 (bLength b - n)}) @-}
+{-@ assume BS.head    :: BS.ByteString -> Data.Word.Word8 @-}
 
 {-@ measure target @-}
 target :: MatchIdxs -> BS.ByteString

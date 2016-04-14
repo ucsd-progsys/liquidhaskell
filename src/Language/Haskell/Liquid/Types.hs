@@ -1349,7 +1349,7 @@ instance NFData Cinfo
 --- Module Names
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName deriving (Eq,Ord)
+data ModName = ModName !ModType !ModuleName deriving (Eq, Ord)
 
 instance PPrint ModName where
   pprintTidy _ = text . show

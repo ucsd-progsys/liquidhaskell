@@ -1,6 +1,9 @@
 TODO
 ====
 
+Data.Text.Fusion := /Users/rjhala/research/stack/lh-develop/.stack-work/install/x86_64-osx/lts-5.9/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Data/Text/Fusion.spec
+
+Data.Text.Fusion.Common := /Users/rjhala/research/stack/lh-develop/.stack-work/install/x86_64-osx/lts-5.9/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Data/Text/Fusion/Common.spec
 
 
 Check Covariance
