@@ -77,16 +77,15 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (dconsP sp)
-                     ++ checkRefinedClasses                        (concatMap (Ms.classes . snd) specs) (concatMap (Ms.rinstance . snd) specs)
-
-
+                     ++ checkRefinedClasses                        rClasses rInsts
+    rClasses         = concatMap (Ms.classes   . snd) specs
+    rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         =  concat [Ms.ealiases sp | (_, sp) <- specs]
     dcons spec       =  [(v, Loc l l' t) | (v, t)   <- dataConSpec (dconsP spec)
                                          | (_, dcp) <- dconsP spec
                                          , let l     = dc_loc  dcp
-                                         , let l'    = dc_locE dcp
-                                         ]
+                                         , let l'    = dc_locE dcp ]
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
@@ -102,7 +101,7 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
   where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
 
-checkRefinedClasses :: [RClass BareType] -> [RInstance BareType] -> [Error]
+checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 checkRefinedClasses definitions instances
   = mkError <$> duplicates
   where
@@ -110,10 +109,8 @@ checkRefinedClasses definitions instances
       = mapMaybe checkCls (rcName <$> definitions)
     checkCls cls
       = case findConflicts cls of
-          [] ->
-            Nothing
-          conflicts ->
-            Just (cls, conflicts)
+          []        -> Nothing
+          conflicts -> Just (cls, conflicts)
     findConflicts cls
       = filter ((== cls) . riclass) instances
 
@@ -171,13 +168,15 @@ checkBind s emb tcEnv env (v, t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error
-checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' <$> go' es)
+checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr])-> Maybe Error
+checkTerminationExpr emb env (v, Loc l _ t, les)
+            = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where
+    es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
     mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
-    go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
-    go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
+    go      = foldl (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
+    go'     = foldl (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
@@ -278,7 +277,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   where
     expectedArity = realTcArity tc
 
-{- 
+{-
 checkFunRefs t = go t
   where
     go (RAllT _ t)      = go t
@@ -295,7 +294,7 @@ checkFunRefs t = go t
     go (RFun _ t1 t2 r)
       | isTauto r       = go t1 <|> go t2
       | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
--} 
+-}
 
 checkAbstractRefs t = go t
   where
@@ -359,7 +358,7 @@ checkAbstractRefs t = go t
 
 
 
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> (UReft r) -> Maybe Doc
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
   where

@@ -104,7 +104,7 @@ data CGEnv
         , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
-        , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user 
+        , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
         } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
@@ -181,7 +181,7 @@ data CGInfo = CGInfo {
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
-  , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
+  , termExprs  :: !(M.HashMap Var [F.Located F.Expr])    -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
@@ -196,7 +196,7 @@ data CGInfo = CGInfo {
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
-  , allowHO    :: !Bool  
+  , allowHO    :: !Bool
   }
 
 instance PPrint CGInfo where

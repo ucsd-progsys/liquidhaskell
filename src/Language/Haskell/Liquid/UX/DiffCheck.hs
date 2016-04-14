@@ -21,6 +21,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    -- * Save current information for next time
    , saveResult
 
+   -- * Names of top-level binders that are rechecked
+   , checkedVars
    )
    where
 
@@ -29,21 +31,21 @@ import            Prelude                       hiding (error)
 import            Data.Aeson
 import qualified  Data.Text as T
 import            Data.Algorithm.Diff
-
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
 import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM
 import            CoreSyn                       hiding (sourceName)
-import            Name
+import            Name (getSrcSpan)
 import            SrcLoc hiding (Located)
 import            Var
 import qualified  Data.HashSet                  as S
 import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
-import            Language.Fixpoint.Types         (FixResult (..), Located (..))
+import            Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
+-- import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import            Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GHC.Misc
 import            Language.Haskell.Liquid.Types.Visitors
@@ -66,6 +68,9 @@ data DiffCheck = DC { newBinds  :: [CoreBind]
                     , newSpec   :: !GhcSpec
                     }
 
+instance PPrint DiffCheck where
+  pprintTidy k = pprintTidy k . checkedVars
+
 -- | Variable definitions
 data Def  = D { start  :: Int -- ^ line at which binder definition starts
               , end    :: Int -- ^ line at which binder definition ends
@@ -85,7 +90,14 @@ type ChkItv = IM.IntervalMap Int ()
 instance Show Def where
   show (D i j x) = showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
 
-
+--------------------------------------------------------------------------------
+-- | `checkedNames` returns the names of the top-level binders that will be checked
+--------------------------------------------------------------------------------
+checkedVars              ::  DiffCheck -> [Var]
+checkedVars              = concatMap names . newBinds
+   where
+     names (NonRec v _ ) = [v]
+     names (Rec xs)      = fst <$> xs
 
 -------------------------------------------------------------------------
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target`
@@ -105,25 +117,26 @@ sliceSaved :: FilePath -> FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffChe
 sliceSaved target savedFile coreBinds spec
   = do (is, lm) <- lineDiff target savedFile
        result   <- loadResult target
-       return    $ sliceSaved' is lm (DC coreBinds result spec)
+       return    $ sliceSaved' target is lm (DC coreBinds result spec)
 
-sliceSaved' :: [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
-sliceSaved' is lm (DC coreBinds result spec)
-  | globalDiff is spec = Nothing
-  | otherwise          = Just $ DC cbs' res' sp'
+sliceSaved' :: FilePath -> [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
+sliceSaved' srcF is lm (DC coreBinds result spec)
+  | gDiff     = Nothing
+  | otherwise = Just $ DC cbs' res' sp'
   where
-    cbs'             = thinWith sigs coreBinds $ diffVars is dfs
-    sigs             = S.fromList $ M.keys sigm
-    sigm             = sigVars is spec
-    res'             = adjustOutput lm cm result
-    cm               = checkedItv chDfs
-    dfs              = coreDefs coreBinds ++ specDefs spec
-    chDfs            = coreDefs cbs'
-    sp'              = assumeSpec sigm spec
+    gDiff     = globalDiff srcF is spec
+    cbs'      = thinWith sigs coreBinds $ diffVars is dfs
+    sigs      = S.fromList $ M.keys sigm
+    sigm      = sigVars srcF is spec
+    res'      = adjustOutput lm cm result
+    cm        = checkedItv chDfs
+    dfs       = coreDefs coreBinds ++ specDefs srcF spec
+    chDfs     = coreDefs cbs'
+    sp'       = assumeSpec sigm spec
 
 -- Add the specified signatures for vars-with-preserved-sigs,
 -- whose bodies have been pruned from [CoreBind] into the "assumes"
-assumeSpec :: M.HashMap Var (Located SpecType) -> GhcSpec -> GhcSpec
+assumeSpec :: M.HashMap Var LocSpecType -> GhcSpec -> GhcSpec
 assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
   where
     assm           = M.fromList $ asmSigs sp
@@ -131,8 +144,8 @@ assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
     -- zs          = M.keys sigm
 
 diffVars :: [Int] -> [Def] -> [Var]
-diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
-                       go (L.sort ls) defs
+diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
+                         go (L.sort ls) defs
   where
     defs             = L.sort defs'
     go _      []     = []
@@ -142,23 +155,23 @@ diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ 
       | i > end d    = go (i:is) ds
       | otherwise    = binder d : go (i:is) ds
 
-sigVars :: [Int] -> GhcSpec -> M.HashMap Var (Located SpecType)
-sigVars ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
+sigVars :: FilePath -> [Int] -> GhcSpec -> M.HashMap Var LocSpecType
+sigVars srcF ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
   where
-    ok        = not . isDiff ls
+    ok             = not . isDiff srcF ls
 
-globalDiff :: [Int] -> GhcSpec -> Bool
-globalDiff lines spec = measDiff || invsDiff || dconsDiff
+globalDiff :: FilePath -> [Int] -> GhcSpec -> Bool
+globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
   where
-    measDiff  = any (isDiff lines) (snd <$> meas spec)
-    invsDiff  = any (isDiff lines) (invariants spec)
-    dconsDiff = any (isDiff lines) (dloc . snd <$> dconsP spec)
+    measDiff  = tracepp "measDiff"  $ any (isDiff srcF ls) (snd <$> meas spec)
+    invsDiff  = tracepp "invsDiff"  $ any (isDiff srcF ls) (invariants spec)
+    dconsDiff = tracepp "dconsDiff" $ any (isDiff srcF ls) (dloc . snd <$> dconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
-isDiff :: [Int] -> Located a -> Bool
-isDiff lines x = any hits lines
+isDiff :: FilePath -> [Int] -> Located a -> Bool
+isDiff srcF ls x = file x == srcF && any hits ls
   where
-    hits i = line x <= i && i <= lineE x
+    hits i       = line x <= i && i <= lineE x
 
 -------------------------------------------------------------------------
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
@@ -193,7 +206,7 @@ dependsOn cg vars = S.fromList results
       results = map fst $ M.toList $ M.unions filteredMaps
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
-txClosure d sigs xs = go S.empty xs
+txClosure d sigs   = go S.empty
   where
     next           = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
@@ -216,13 +229,14 @@ filterBinds cbs ys = filter f cbs
 
 
 -------------------------------------------------------------------------
-specDefs :: GhcSpec -> [Def]
+specDefs :: FilePath -> GhcSpec -> [Def]
 -------------------------------------------------------------------------
-specDefs       = map def . specSigs
+specDefs srcF  = map def . filter sameFile . specSigs
   where
     def (x, t) = D (line t) (lineE t) x
+    sameFile   = (srcF ==) . file . snd
 
-specSigs :: GhcSpec -> [(Var, Located SpecType)]
+specSigs :: GhcSpec -> [(Var, LocSpecType)]
 specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
 
 -------------------------------------------------------------------------
@@ -407,7 +421,7 @@ adjustReal lm rsp
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp
-    
+
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
 -- in the diff and returns @Nothing@ otherwise.
@@ -473,6 +487,9 @@ instance ToJSON (Output Doc) where
   toEncoding = genericToEncoding defaultOptions
 instance FromJSON (Output Doc)
 
+
+file :: Located a -> FilePath
+file = sourceName . loc
 
 line :: Located a -> Int
 line  = sourceLine . loc

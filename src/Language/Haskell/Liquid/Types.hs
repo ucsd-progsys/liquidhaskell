@@ -80,6 +80,7 @@ module Language.Haskell.Liquid.Types (
   -- * Instantiated RType
   , BareType, PrType
   , SpecType, SpecProp
+  , LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
   , REnv (..)
@@ -295,17 +296,15 @@ instance HasConfig GhcInfo where
 -- parsing the target source and dependent libraries
 
 data GhcSpec = SP {
-    tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
-                                                 -- eg.  see include/Prelude.spec
-  , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
-  , inSigs     :: ![(Var, Located SpecType)]     -- ^ Auto generated Signatures
-  , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
-                                                 -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
-  , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types
+    tySigs     :: ![(Var, LocSpecType)]     -- ^ Asserted Reftypes
+  , asmSigs    :: ![(Var, LocSpecType)]     -- ^ Assumed Reftypes
+  , inSigs     :: ![(Var, LocSpecType)]     -- ^ Auto generated Signatures
+  , ctors      :: ![(Var, LocSpecType)]     -- ^ Data Constructor Measure Sigs
+  , meas       :: ![(Symbol, LocSpecType)]  -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
-  , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
+  , invariants :: ![LocSpecType]                 -- ^ Data Type Invariants
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
-  , ialiases   :: ![(Located SpecType, Located SpecType)] -- ^ Data Type Invariant Aliases
+  , ialiases   :: ![(LocSpecType, LocSpecType)]  -- ^ Data Type Invariant Aliases
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
   , tconsP     :: ![(TyCon, TyConP)]             -- ^ Predicated Type-Constructors
@@ -318,9 +317,9 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
-  , texprs     :: ![(Var, [Expr])]               -- ^ Lexicographically ordered expressions for termination
+  , texprs     :: ![(Var, [Located Expr])]       -- ^ Lexicographically ordered expressions for termination
   , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
+  , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , autosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
@@ -678,13 +677,14 @@ type RSort      = RRType    ()
 type BPVar      = PVar      BSort
 type RPVar      = PVar      RSort
 
-type RReft      = UReft     Reft
-type PrType     = RRType    Predicate
-type BareType   = BRType    RReft
-type SpecType   = RRType    RReft
-type SpecProp   = RRProp    RReft
-type RRProp r   = Ref       RSort (RRType r)
+type RReft       = UReft     Reft
+type PrType      = RRType    Predicate
+type BareType    = BRType    RReft
+type SpecType    = RRType    RReft
+type SpecProp    = RRProp    RReft
+type RRProp r    = Ref       RSort (RRType r)
 
+type LocSpecType = Located SpecType
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
                   deriving (Generic, Data, Typeable, Eq)
