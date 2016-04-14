@@ -193,11 +193,14 @@ checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located 
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (val $ txRefSort tcEnv emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
-checkDupIntersect xts mxts = concatMap mkWrn dups
+checkDupIntersect xts asmSigs = concatMap mkWrn $ trace msg dups
   where
     mkWrn (x, t)     = pprWrn x (sourcePosSrcSpan $ loc t)
-    dups             = L.intersectBy ((==) `on` fst) mxts xts
+    dups             = L.intersectBy ((==) `on` fst) asmSigs xts
     pprWrn v l       = trace ("WARNING: Assume Overwrites Specifications for "++ show v ++ " : " ++ showPpr l) []
+    msg              = "CHECKDUPINTERSECT:" ++ msg1 ++ msg2
+    msg1             = "\nCheckd-SIGS:\n" ++ showpp (M.fromList xts)
+    msg2             = "\nAssume-SIGS:\n" ++ showpp (M.fromList asmSigs)
 
 checkDuplicate        :: [(Var, Located SpecType)] -> [Error]
 checkDuplicate xts = mkErr <$> dups
@@ -278,7 +281,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   where
     expectedArity = realTcArity tc
 
-{- 
+{-
 checkFunRefs t = go t
   where
     go (RAllT _ t)      = go t
@@ -295,7 +298,7 @@ checkFunRefs t = go t
     go (RFun _ t1 t2 r)
       | isTauto r       = go t1 <|> go t2
       | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
--} 
+-}
 
 checkAbstractRefs t = go t
   where
