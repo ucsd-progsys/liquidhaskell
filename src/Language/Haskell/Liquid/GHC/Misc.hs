@@ -121,11 +121,13 @@ tickSrcSpan _                 = noSrcSpan
 --------------- Generic Helpers for Accessing GHC Innards -------------
 -----------------------------------------------------------------------
 
+-- FIXME: reusing uniques like this is really dangerous
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
         occ  = mkTyVarOcc s
 
+-- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
 stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
    where
@@ -135,6 +137,7 @@ stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind superKind
 
+-- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
 stringTyConWithKind k c n s = TC.mkKindTyCon name k
   where

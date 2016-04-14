@@ -315,10 +315,14 @@ eqpd (Pr vs) (Pr ws)
 
 
 instance Eq RTyVar where
-  RTV α == RTV α' = α == α'
+  -- FIXME: need to compare unique and string because we reuse
+  -- uniques in stringTyVar and co.
+  RTV α == RTV α' = α == α' && getOccName α == getOccName α'
 
 instance Ord RTyVar where
-  compare (RTV α) (RTV α') = compare α α'
+  compare (RTV α) (RTV α') = case compare α α' of
+    EQ -> compare (getOccName α) (getOccName α')
+    o  -> o
 
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
