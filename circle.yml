@@ -27,7 +27,7 @@ test:
     - mkdir -p $CIRCLE_TEST_REPORTS/tasty
   override:
     - cabal build
-    - cabal install
+    - cabal copy && cabal register
     - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
         timeout: 1800
   post:
