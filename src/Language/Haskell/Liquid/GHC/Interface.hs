@@ -190,7 +190,7 @@ makeMGIModGuts f = do
       let deriv = Just $ instEnvElts $ mg_inst_env modGuts
       return $! miModGuts deriv modGuts
     Nothing ->
-      panic Nothing $ "Ghc Interface: Unable to get GhcModGuts"
+      panic Nothing "Ghc Interface: Unable to get GhcModGuts"
 
 makeLogicMap :: IO (Either Error LogicMap)
 makeLogicMap = do
@@ -250,20 +250,32 @@ getSpecs cfg paths target names exts = do
   liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs']
   return fSpecs'
 
-showTable = render . pprintKVs Full
+showTable = render . pprintKVs Full . sortBy (compare `on` fst)
 
 normalizeFileSpec :: [FileSpec] -> [FileSpec]
-normalizeFileSpec fs = M.elems (take1 <$> m)
-  where
-    m     = groupMap (show . snd3) fs
-    take1 = minimumBy (compare `on` (filePos . fst3))
+normalizeFileSpec = concat
+                  . M.elems
+                  . fmap partSpecs
+                  . groupMap (show . snd3)
+    --  m    = groupMap (show . snd3) fs
+    -- take1 = minimumBy (compare `on` (filePos . fst3))
 
-filePos :: FilePath -> Int
-filePos f
-  | isExtFile Hs   f = 0
-  | isExtFile LHs  f = 1
-  | isExtFile Spec f = 2
-  | otherwise        = 3
+partSpecs :: [FileSpec] -> [FileSpec]
+partSpecs fs = case partition isSpecFile fs of
+                 (sFs, [] ) -> sFs
+                 (_  , cFs) -> cFs
+
+isSpecFile :: FileSpec -> Bool
+isSpecFile (f, _, _)
+  | isExtFile Spec f = True
+  | otherwise        = False
+
+-- filePos :: FilePath -> Int
+-- filePos f
+  -- | isExtFile Hs   f = 0
+  -- | isExtFile LHs  f = 1
+  -- | isExtFile Spec f = 2
+  -- | otherwise        = 3
 
 getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs' cfg paths target names exts = do
