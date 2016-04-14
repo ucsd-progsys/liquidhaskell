@@ -56,7 +56,7 @@ import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 newtype Target a = Target (StateT TargetState (ReaderT TargetOpts IO) a)

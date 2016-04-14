@@ -42,7 +42,7 @@ import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
-import Debug.Trace
+-- import Debug.Trace
 
 -- | Test that a function inhabits the given refinement type by enumerating
 -- valid inputs and calling the function on the inputs.
