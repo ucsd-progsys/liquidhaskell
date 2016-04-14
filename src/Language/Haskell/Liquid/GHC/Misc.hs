@@ -415,7 +415,7 @@ instance Symbolic Class where
   symbol = symbol . qualifiedNameSymbol . getName
 
 instance Symbolic Name where
-  symbol = symbol . qualifiedNameSymbol
+  symbol = symbol . showPpr -- qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol
@@ -462,6 +462,11 @@ instance NFData Type where
 instance NFData Var where
   rnf t = seq t ()
 
+-- showPprSafe x
+--   | showPpr x == symbolString (symbol $ getName x)
+--   = showPpr x
+--   | otherwise
+--   = impossible Nothing $ showPpr x ++ " vs " ++ symbolString (symbol $ getName x)
 
 ----------------------------------------------------------------------
 -- GHC Compatibility Layer
