@@ -5,7 +5,7 @@
 module Test.Target.Eval ( eval, evalWith, evalExpr ) where
 
 
-import           Control.Arrow                   (second)
+
 import           Control.Monad.Catch
 import           Control.Monad.State
 import qualified Data.HashMap.Strict             as M

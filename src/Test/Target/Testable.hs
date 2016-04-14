@@ -13,7 +13,7 @@
 {-# LANGUAGE ViewPatterns         #-}
 module Test.Target.Testable (test, Testable, setup) where
 
-import           Control.Applicative
+
 import           Control.Exception               (AsyncException, evaluate)
 import           Control.Monad
 import           Control.Monad.Catch

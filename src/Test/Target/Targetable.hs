@@ -19,7 +19,7 @@ module Test.Target.Targetable
 
 import           Control.Applicative
 import           Control.Arrow                   (second)
-import qualified Control.Monad.Catch           as Ex
+
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Char
@@ -41,10 +41,10 @@ import           Test.Target.Expr
 import           Test.Target.Eval
 import           Test.Target.Monad
 
-import           Test.Target.Types
+
 import           Test.Target.Util
 
-import Debug.Trace
+-- import Debug.Trace
 
 --------------------------------------------------------------------------------
 --- Constrainable Data

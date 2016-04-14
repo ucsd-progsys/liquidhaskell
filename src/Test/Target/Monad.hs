@@ -50,7 +50,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types    hiding (var, Target)
 
 import qualified GHC
-import qualified Outputable as GHC
+
 
 import           Test.Target.Serialize
 import           Test.Target.Types
