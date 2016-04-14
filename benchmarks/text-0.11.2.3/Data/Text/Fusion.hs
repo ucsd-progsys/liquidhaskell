@@ -96,17 +96,20 @@ q_lteplus = undefined
 
 qFoo1 :: Num b => A.MArray a -> (Int, b)
 {-@ qFoo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= malen a} @-}
-qFoo1 = undefined 
+qFoo1 = undefined
 
 qFoo2 :: Num b => A.Array -> (Int, b)
 {-@ qFoo2 :: Num b => a:A.Array -> {v:(Int, b) | snd v <= alen a} @-}
-qFoo2 = undefined 
+qFoo2 = undefined
 
 
 {-@ qualif Foo(v:int): v >= -1 @-}
 {-@ qualif Foo(v:int): v >=  4 @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
+{-@ assume stream  :: t:Data.Text.Internal.Text
+                   -> {v:Data.Text.Fusion.Internal.Stream Char | slen v = tlength t }
+  @-}
 stream :: Text -> Stream Char
 stream (Text arr off len) = Stream next off (maxSize len)
     where
@@ -128,6 +131,11 @@ stream (Text arr off len) = Stream next off (maxSize len)
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char', but iterate
 -- backwards.
+
+{-@ assume reverseStream :: t:Data.Text.Internal.Text
+                  -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (tlength t)}
+  @-}
+
 reverseStream :: Text -> Stream Char
 reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
     where
@@ -151,6 +159,11 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
 --LIQUID FIXME: we should be able to prove these streaming functions terminating
 --              but that requires giving a refined Stream type, which requires
 --              handling existential types.
+
+{-@ assume unstream :: s:Data.Text.Fusion.Internal.Stream Char
+                    -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
+  @-}
+
 {-@ Lazy unstream @-}
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
@@ -179,12 +192,18 @@ unstream (Stream next0 s0 len) = runText $ \done -> do
 
 -- ----------------------------------------------------------------------------
 -- * Basic stream functions
-
+{-@ assume length  :: s:Data.Text.Fusion.Internal.Stream Char
+            -> {v:GHC.Types.Int | v = (slen s)}
+  @-}
 length :: Stream Char -> Int
 length = S.lengthI
 {-# INLINE[0] length #-}
 
 -- | /O(n)/ Reverse the characters of a string.
+{-@ assume reverse :: s:Data.Text.Fusion.Internal.Stream Char
+                   -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
+  @-}
+
 {-@ Lazy reverse @-}
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
@@ -259,6 +278,12 @@ index = S.indexI
 -- | The 'findIndex' function takes a predicate and a stream and
 -- returns the index of the first element in the stream
 -- satisfying the predicate.
+
+{-@ assume findIndex :: (GHC.Types.Char -> GHC.Types.Bool)
+                     -> s:Data.Text.Fusion.Internal.Stream Char
+                     -> (Data.Maybe.Maybe {v:Nat | v < (slen s)})
+  @-}
+
 findIndex :: (Char -> Bool) -> Stream Char -> Maybe Int
 findIndex = S.findIndexI
 {-# INLINE [0] findIndex #-}
@@ -272,6 +297,14 @@ countChar = S.countCharI
 -- | /O(n)/ Like a combination of 'map' and 'foldl''. Applies a
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.
+
+{-@ assume mapAccumL
+      :: (a -> GHC.Types.Char -> (a,GHC.Types.Char))
+      -> a
+      -> s:Data.Text.Fusion.Internal.Stream Char
+      -> (a, {v:Data.Text.Internal.Text | (tlength v) = (slen s)})
+  @-}
+
 {-@ Lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
