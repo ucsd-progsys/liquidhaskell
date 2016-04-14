@@ -37,7 +37,7 @@ tidyError sol
 
 tidyErrContext :: FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
-  = e { ctx = c', tact = fmap (subst θ) tA, texp = fmap (subst θ) tE }
+  = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
       (θ, c') = tidyCtx xs $ ctx e
       xs      = syms tA ++ syms tE
