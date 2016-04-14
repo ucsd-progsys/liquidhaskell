@@ -120,8 +120,6 @@ runLiquidGhc hscEnv cfg act =
                      , includePaths = nub $ idirs cfg ++ includePaths df'
                      , packageFlags = ExposePackage (PackageArg "ghc-prim")
                                                     (ModRenaming True [])
-                                    : ExposePackage (PackageArg "liquidhaskell")
-                                                    (ModRenaming True [])
                                     : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory

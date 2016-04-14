@@ -74,6 +74,12 @@ import Util
 getModels :: GhcInfo -> Config -> FixResult Error -> IO (FixResult Error)
 getModels info cfg fi = case fi of
   Unsafe cs -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
+    df <- getSessionDynFlags
+    let df' = df { packageFlags = ExposePackage (PackageArg "liquidhaskell")
+                                  (ModRenaming True [])
+                                : packageFlags df
+                 }
+    _ <- setSessionDynFlags df'
     imps <- getContext
     setContext (IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                            { ideclQualified = True })
