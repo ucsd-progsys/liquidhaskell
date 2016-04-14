@@ -19,7 +19,8 @@ dependencies:
     - cabal sandbox add-source ./prover
     - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
     # - cabal install hpc-coveralls
-    - cabal configure --enable-tests --enable-library-coverage -finclude -fdevel
+    # - cabal configure --enable-tests --enable-library-coverage -finclude -fdevel
+    - cabal configure --enable-tests -finclude -fdevel
 
 test:
   pre:
