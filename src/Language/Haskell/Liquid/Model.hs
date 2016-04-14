@@ -153,7 +153,9 @@ addDict (v, t) = do
   let mt = monomorphize (toType t)
   case tyConAppTyCon_maybe mt of
     Nothing -> return Nothing
-    Just tc | isClassTyCon tc  -> return Nothing
+    Just tc | isClassTyCon tc || isFunTyCon tc || isPrimTyCon tc
+              || isPromotedDataCon tc || isPromotedTyCon tc
+              -> return Nothing
     Just tc -> do
       getInfo False (getName tc) >>= \case
         Nothing -> return Nothing
@@ -173,11 +175,12 @@ addDict (v, t) = do
           unless ("Test.Target.Targetable.Targetable"
                   `elem` map (showpp.is_cls_nm) cis) $ do
 
+            let tvs =  map (getRdrName) (tyConTyVars tc)
+            let tvbnds = userHsTyVarBndrs noSrcSpan tvs
+
             -- maybe derive a Generic instance
             unless ("GHC.Generics.Generic"
                     `elem` map (showpp.is_cls_nm) cis) $ do
-              let tvs = map (getRdrName) (tyConTyVars tc)
-              let tvbnds = userHsTyVarBndrs noSrcSpan tvs
               let genericInst = nlHsTyConApp genericClsName
                                [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
               let instType = noLoc $ HsForAllTy Implicit Nothing
@@ -189,8 +192,6 @@ addDict (v, t) = do
               (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc derivDecl]
               setSession $ hsc_env { hsc_IC = ic }
 
-            let tvs = map (getRdrName) (tyConTyVars tc)
-            let tvbnds = userHsTyVarBndrs noSrcSpan tvs
             let targetInst = nlHsTyConApp targetableClsName
                              [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
             let instType = noLoc $ HsForAllTy Implicit Nothing

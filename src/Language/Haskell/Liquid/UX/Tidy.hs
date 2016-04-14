@@ -83,7 +83,7 @@ cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
-isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds#"]
+isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
@@ -122,7 +122,7 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     txStrata (MkUReft r p l)      = MkUReft r p (txStr l)
     txReft u                      = u { ur_reft = mapPredReft dropLocals $ ur_reft u }
     dropLocals                    = pAnd . filter (not . any isTmp . syms) . conjuncts
-    isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds#"]
+    isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
     txStr                         = filter (not . isSVar)
 
 tidyDSymbols :: SpecType -> SpecType
