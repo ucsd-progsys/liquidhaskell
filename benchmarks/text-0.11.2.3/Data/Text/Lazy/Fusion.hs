@@ -126,7 +126,7 @@ unstream = unstreamChunks defaultChunkSize
 
 -- | /O(n)/ Returns the number of characters in a text.
 {-@ assume length :: s:Data.Text.Fusion.Internal.Stream Char
-                  -> {v:GHC.Int.Int64 | v = (slen s)}
+                  -> {v:Int64 | v = (slen s)}
   @-}
 length :: Stream Char -> Int64
 length = S.lengthI

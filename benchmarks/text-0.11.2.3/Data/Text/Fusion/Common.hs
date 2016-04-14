@@ -336,8 +336,8 @@ lengthI (Stream next s0 _len) = loop_length 0 s0
 
 {-@ assume compareLengthI
       :: s:Data.Text.Fusion.Internal.Stream Char
-      -> l:GHC.Types.Int
-      -> {v:GHC.Types.Ordering | ((v = GHC.Types.EQ) <=> ((slen s) = l))}
+      -> l:Int
+      -> {v:Ordering | ((v = EQ) <=> ((slen s) = l))}
   @-}
 
 compareLengthI :: Stream Char -> Int -> Ordering
@@ -354,7 +354,7 @@ compareLengthI (Stream next s0 len) n =
 {-# INLINE[0] compareLengthI #-}
 
 {-@ assume isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
-                       -> {v:GHC.Types.Bool | (Prop v) <=> (slen s = 1)}
+                       -> {v:Bool | (Prop v) <=> (slen s = 1)}
   @-}
 -- | /O(n)/ Indicate whether a string contains exactly one element.
 isSingleton :: Stream Char -> Bool

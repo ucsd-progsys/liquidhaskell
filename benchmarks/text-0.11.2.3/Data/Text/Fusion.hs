@@ -281,7 +281,7 @@ index = S.indexI
 
 {-@ assume findIndex :: (GHC.Types.Char -> GHC.Types.Bool)
                      -> s:Data.Text.Fusion.Internal.Stream Char
-                     -> (Data.Maybe.Maybe {v:Nat | v < (slen s)})
+                     -> Maybe {v:Nat | v < slen s}
   @-}
 
 findIndex :: (Char -> Bool) -> Stream Char -> Maybe Int
