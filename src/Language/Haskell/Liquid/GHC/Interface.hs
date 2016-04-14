@@ -37,7 +37,7 @@ import Control.Monad
 
 import Data.List hiding (intersperse)
 import Data.Maybe
-import Data.Function (on)
+-- import Data.Function (on)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
@@ -247,10 +247,10 @@ getSpecs cfg paths target names exts = do
   fSpecs <- getSpecs' cfg paths target names exts
   -- liftIO $ putStrLn $ "getSpecs    [RAW]: " ++ show [(f, n) | (f, n, _) <- fSpecs]
   let fSpecs' = normalizeFileSpec fSpecs
-  liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs']
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs']
   return fSpecs'
 
-showTable = render . pprintKVs Full . sortBy (compare `on` fst)
+-- showTable = render . pprintKVs Full . sortBy (compare `on` fst)
 
 normalizeFileSpec :: [FileSpec] -> [FileSpec]
 normalizeFileSpec = concat
