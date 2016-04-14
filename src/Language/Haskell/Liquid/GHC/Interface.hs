@@ -249,7 +249,7 @@ definedVars = concatMap defs
 -- Find & Parse Specs ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-
+type FileSpec = (FilePath, ModName, Ms.BareSpec)
 
 getSpecs :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs cfg paths target names exts = do
@@ -257,11 +257,10 @@ getSpecs cfg paths target names exts = do
   patSpec <- getPatSpec paths $ totality cfg
   rlSpec <- getRealSpec paths $ not $ linear cfg
   let fs = patSpec ++ rlSpec ++ fs'
-  fSpecs <- transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
-  liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs]
-  return fSpecs
-
-showTable = render . pprintKVs Full
+  transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs]
+  -- return fSpecs
+  -- showTable = render . pprintKVs Full
 
 getPatSpec paths totalitycheck
  | totalitycheck = (map (patErrorName,)) . maybeToList <$> moduleFile paths patErrorName Spec
