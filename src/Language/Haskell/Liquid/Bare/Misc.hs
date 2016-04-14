@@ -46,7 +46,7 @@ import Language.Haskell.Liquid.Bare.Env
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
 -- WTF does this function do?
-makeSymbols f vs xs' xts yts ivs qs
+makeSymbols f vs xs' xts yts ivs
   = do svs <- gets varEnv
        return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
                        ++  [ (symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])

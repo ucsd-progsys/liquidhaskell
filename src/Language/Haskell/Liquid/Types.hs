@@ -147,6 +147,7 @@ module Language.Haskell.Liquid.Types (
   , module Language.Haskell.Liquid.Types.Errors
   , Error
   , ErrorResult
+  , ErrorWithModel
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -1327,8 +1328,10 @@ instance NFData REnv where
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
-type ErrorResult = FixResult UserError
-type Error       = TError SpecType
+type ErrorResult    = FixResult UserError
+type Error          = TError SpecType
+type ErrorWithModel = TError (WithModel SpecType)
+
 
 instance NFData a => NFData (TError a)
 
@@ -1472,7 +1475,15 @@ instance Subable Body where
   subst su (P e)   = P $ subst su e
   subst su (R s e) = R s $ subst su e
 
+instance Subable t => Subable (WithModel t) where
+  syms (NoModel t)     = syms t
+  syms (WithModel _ t) = syms t
 
+  substa f = fmap (substa f)
+
+  substf f = fmap (substf f)
+
+  subst su = fmap (subst su)
 
 data RClass ty
   = RClass { rcName    :: LocSymbol

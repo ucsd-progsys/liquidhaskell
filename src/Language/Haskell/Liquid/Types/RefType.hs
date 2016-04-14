@@ -103,11 +103,11 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
 
 import Data.List (sort, foldl')
 
-import Debug.Trace
+-- -- import Debug.Trace
 
 strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
     where

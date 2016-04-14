@@ -217,19 +217,12 @@ making ty act
 lookupCtor :: Symbol -> Target SpecType
 lookupCtor c
   = do mt <- lookup c <$> gets ctorEnv
-       cs <- gets ctorEnv
-       -- traceShowM ("lookupCtor.constructors", cs)
-
        case mt of
          Just t -> do
-           -- traceShowM ("lookupCtor.lh", c)
-           df <- gets dynFlags
-           -- traceShowM ("lookupCtor.lh", GHC.showPpr df (toType t))
            return t
          Nothing -> do
            m  <- gets filePath
            o  <- asks ghcOpts
-           -- traceShowM ("lookupCtor.ghc", c)
            t <- io $ runGhc o $ do
                   _ <- loadModule m
                   t <- GHC.exprType (printf "(%s)" (symbolString c))

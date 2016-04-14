@@ -32,7 +32,7 @@ import           Language.Fixpoint.Smt.Interface hiding (SMTLIB2(..))
 import           Language.Fixpoint.Smt.Theories  (theorySymbols)
 import           Language.Fixpoint.Types         hiding (Result)
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types   hiding (Result (..), env, var, Only)
+import           Language.Haskell.Liquid.Types   hiding (env, var, Only)
 
 import           Test.Target.Targetable          hiding (apply)
 -- import           Test.Target.Eval

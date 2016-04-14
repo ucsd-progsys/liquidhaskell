@@ -22,6 +22,9 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Subtyping Obligation Type
   , Oblig (..)
 
+  -- * Adding a Model of the context
+  , WithModel (..), dropModel
+
   -- * Panic (unexpected failures)
   , UserError
   --, HiddenType (..)
@@ -169,8 +172,15 @@ data TError t =
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
-               , model:: !(M.HashMap Symbol Doc)
                } -- ^ liquid type error
+
+  | ErrSubTypeModel
+               { pos  :: !SrcSpan
+               , msg  :: !Doc
+               , ctxM  :: !(M.HashMap Symbol (WithModel t))
+               , tactM :: !(WithModel t)
+               , texp :: !t
+               } -- ^ liquid type error with a counter-example
 
   | ErrFCrash  { pos  :: !SrcSpan
                , msg  :: !Doc
@@ -342,6 +352,26 @@ errSpan =  pos
 --------------------------------------------------------------------------------
 type UserError  = TError Doc
 
+data WithModel t
+  = NoModel t
+  | WithModel !Doc t
+  deriving (Functor, Show, Eq, Generic)
+
+instance NFData t => NFData (WithModel t)
+
+dropModel :: WithModel t -> t
+dropModel m = case m of
+  NoModel t     -> t
+  WithModel _ t -> t
+
+-- instance PPrint t => PPrint (WithModel t) where
+--   pprintTidy env (NoModel v t)
+--     = v <+> char ':' <+> pprintTidy env t
+--   pprintTidy env (WithModel v m t)
+--     = v <+> char ':' <+> pprintTidy env t $+$
+--       v <+> char '=' <+> m
+
+
 instance PPrint SrcSpan where
   pprintTidy _ = pprSrcSpan
 
@@ -440,17 +470,42 @@ ppFull Full  d = d
 ppFull Lossy _ = empty
 
 ppReqInContext :: (PPrint t) => t -> t -> (M.HashMap Symbol t)
-               -> (M.HashMap Symbol Doc)
                -> Doc
-ppReqInContext tA tE c m
+ppReqInContext tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV :" <+> pprint tA]
+                , text "VV" <+> pprint tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV :" <+> pprint tE]
+                , text "VV" <+> pprint tE]
       , nests 2 [ text "In Context"
-                , pprint c $+$ pprint m ]]
+                , pprint c
+                ]
+      ]
 
+ppReqModelInContext
+  :: (PPrint t) => WithModel t -> t -> (M.HashMap Symbol (WithModel t))
+  -> Doc
+ppReqModelInContext tA tE c
+  = sepVcat blankLine
+      [ nests 2 [ text "Inferred type"
+                , pprintModel "VV" tA]
+      , nests 2 [ text "not a subtype of Required type"
+                , pprintModel "VV" (NoModel tE)]
+      , nests 2 [ text "In Context"
+                , vsep (map (uncurry pprintModel) (M.toList c))
+                ]
+      ]
+
+vsep :: [Doc] -> Doc
+vsep = vcat . intersperse (char ' ')
+
+pprintModel :: PPrint t => Symbol -> WithModel t -> Doc
+pprintModel v wm = case wm of
+  NoModel t
+    -> pprint v <+> char ':' <+> pprint t
+  WithModel m t
+    -> pprint v <+> char ':' <+> pprint t $+$
+       pprint v <+> char '=' <+> pprint m
 
 ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc
 ppPropInContext p c
@@ -525,15 +580,20 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext p c)
 
-ppError' td dSp dCtx (ErrSubType _ _ c tA tE model)
+ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c model)
+        $+$ (ppFull td $ ppReqInContext tA tE c)
+
+ppError' td dSp dCtx (ErrSubTypeModel _ _ c tA tE)
+  = dSp <+> text "Liquid Type Mismatch"
+        $+$ dCtx
+        $+$ (ppFull td $ ppReqModelInContext tA tE c)
 
 ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c mempty)
+        $+$ (ppFull td $ ppReqInContext tA tE c)
 
 ppError' _ dSp dCtx (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"

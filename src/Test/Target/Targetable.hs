@@ -126,7 +126,7 @@ unfold cn t = do
   -- traceShowM ("unfold.t.r", reft t)
   tyi <- gets tyconInfo
   emb <- gets embEnv
-  let ts = applyPreds t dcp -- (addTyConInfo emb tyi t) dcp
+  let ts = applyPreds (addTyConInfo emb tyi t) dcp
   -- traceM "unfold.ts.rs"
   -- mapM_ (traceShowM . rt_reft . snd) ts
   return ts

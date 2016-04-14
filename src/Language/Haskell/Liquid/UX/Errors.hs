@@ -23,7 +23,10 @@ import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc        (single)
 
+-- import Debug.Trace
+
 type Ctx = M.HashMap Symbol SpecType
+type CtxM = M.HashMap Symbol (WithModel SpecType)
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
@@ -31,15 +34,22 @@ tidyError :: FixSolution -> Error -> Error
 tidyError sol
   = fmap (tidySpecType Full)
   . tidyErrContext sol
-  . applySolution sol
 
 tidyErrContext :: FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
-  = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
+  = e { ctx = c', tact = fmap (subst θ) tA, texp = fmap (subst θ) tE }
     where
       (θ, c') = tidyCtx xs $ ctx e
       xs      = syms tA ++ syms tE
       tA      = tact e
+      tE      = texp e
+
+tidyErrContext _ e@(ErrSubTypeModel {})
+  = e { ctxM = c', tactM = fmap (subst θ) tA, texp = fmap (subst θ) tE }
+    where
+      (θ, c') = tidyCtxM xs $ ctxM e
+      xs      = syms tA ++ syms tE
+      tA      = tactM e
       tE      = texp e
 
 tidyErrContext _ e@(ErrAssType {})
@@ -62,6 +72,13 @@ tidyCtx xs m  = (θ, M.fromList yts)
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
 
+tidyCtxM       :: [Symbol] -> CtxM -> (Subst, CtxM)
+tidyCtxM xs m  = (θ, M.fromList yts)
+  where
+    yts       = [tBind x t | (x, t) <- xts]
+    (θ, xts)  = tidyTemps $ second (fmap stripReft) <$> tidyREnvM xs m
+    tBind x t = (x', fmap (\t -> shiftVV t x') t) where x' = tidySymbol x
+
 
 stripReft     :: SpecType -> SpecType
 stripReft t   = maybe t' (strengthen t') ro
@@ -81,6 +98,13 @@ tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
     xs'       = expandFix deps xs
     deps y    = maybe [] (syms . rTypeReft) (M.lookup y m)
     ok        = not . isFunTy
+
+tidyREnvM      :: [Symbol] -> CtxM -> [(Symbol, WithModel SpecType)]
+tidyREnvM xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
+  where
+    xs'       = expandFix deps xs
+    deps y    = maybe [] (syms . rTypeReft . dropModel) (M.lookup y m)
+    ok        = not . isFunTy . dropModel
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
 expandFix f               = S.toList . go S.empty

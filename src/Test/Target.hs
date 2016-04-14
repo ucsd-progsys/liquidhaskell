@@ -12,8 +12,6 @@ module Test.Target
   ) where
 
 
-import           Control.Applicative
-import           Control.Arrow
 import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.State

@@ -18,26 +18,27 @@ import           Data.Bifunctor
 import qualified Data.HashMap.Strict                   as HM
 import           Data.Maybe
 import           Data.Proxy
-import           Data.Typeable
+
 import           GHC.Prim
 import           Text.PrettyPrint.HughesPJ
 import           Unsafe.Coerce
 
-import           Language.Fixpoint.Types (FixResult(..), Symbol, symbol, Sort(..), Expr(..), mkSubst,
-                                          subst)
+import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
+                                          mkSubst, subst)
 import           Language.Fixpoint.Smt.Interface
 import           Language.Haskell.Liquid.GHC.Interface
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types         hiding (var)
 import           Language.Haskell.Liquid.Types.RefType
-import           Test.Target.Expr
+import           Language.Haskell.Liquid.UX.Tidy
+
 import           Test.Target.Monad
 import           Test.Target.Targetable
 import           Test.Target.Testable
-import           Test.Target.Util
+
 
 import           Bag
 import           GHC hiding (obtainTermFromVal)
-import           GHC.Paths
 import qualified Outputable as GHC
 import           DynFlags
 import           HscMain
@@ -49,84 +50,28 @@ import           TysWiredIn
 import           InteractiveEval
 
 import Id
-import ByteCodeGen      ( byteCodeGen, coreExprToBCOs )
+import ByteCodeGen      ( byteCodeGen )
 import Linker
-import CoreTidy         ( tidyExpr )
-import Type             ( Type )
-import {- Kind parts of -} Type         ( Kind )
 import CoreLint         ( lintInteractiveExpr )
-import VarEnv           ( emptyTidyEnv )
 import Panic
 import ConLike
-import Control.Concurrent
-import Module
-import Packages
-import RdrName
-import HsSyn
 import CoreSyn
-import StringBuffer
-import Parser
-import Lexer
 import SrcLoc
 import TcRnDriver
-import TcIface          ( typecheckIface )
 import TcRnMonad
-import IfaceEnv         ( initNameCache )
-import LoadIface        ( ifaceStats, initExternalPackageState )
-import PrelInfo
-import MkIface
 import Desugar
-import SimplCore
 import TidyPgm
 import CorePrep
-import CoreToStg        ( coreToStg )
-import qualified StgCmm ( codeGen )
-import StgSyn
-import CostCentre
-import ProfInit
 import TyCon
-import Name
-import SimplStg         ( stg2stg )
-import Cmm
-import CmmParse         ( parseCmmFile )
-import CmmBuildInfoTables
-import CmmPipeline
-import CmmInfo
-import CodeOutput
-import NameEnv          ( emptyNameEnv )
-import InstEnv
-import FamInstEnv
-import Fingerprint      ( Fingerprint )
-import Hooks
-import Maybes
-
-import DynFlags
 import ErrUtils
-
-import UniqFM
-import NameEnv
-import HscStats         ( ppSourceStats )
 import HscTypes
 import FastString
-import UniqSupply
-import Bag
 import Exception
-import qualified Stream
-import Stream (Stream)
-
 import Util
-
-import Data.List
-import Control.Monad
-import Data.IORef
-import System.FilePath as FilePath
-import System.Directory
-import qualified Data.Map as Map
-
 
 import           Debug.Trace
 
-getModels :: GhcInfo -> Config -> FixResult Cinfo -> IO (FixResult Cinfo)
+getModels :: GhcInfo -> Config -> FixResult Error -> IO (FixResult Error)
 getModels info cfg fi = case fi of
   Unsafe cs -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
     imps <- getContext
@@ -137,14 +82,17 @@ getModels info cfg fi = case fi of
                                            { ideclQualified = True })
                : imps)
     mapM (getModel info cfg) cs
-  _         -> return fi
+  _         -> return fi -- (fmap e2ewm fi)
   where
   mbenv = Just (env info)
 
+-- e2ewm :: Error -> ErrorWithModel
+-- e2ewm = fmap NoModel
 
-getModel :: GhcInfo -> Config -> Cinfo -> Ghc Cinfo
-getModel info cfg ci@(Ci { ci_err = Just err@(ErrSubType { ctx, tact, texp }) }) = do
-  let vts = HM.toList ctx
+getModel :: GhcInfo -> Config -> Error -> Ghc Error
+getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
+  let vv  = (symbol "VV", tact `strengthen` (fmap (mapPredReft PNot) (rt_reft texp)))
+  let vts = vv : HM.toList ctx
   liftIO $ print $ map fst vts
   vtds <- addDicts vts
   liftIO $ print $ map (\(x,_,_) -> x) vtds
@@ -154,33 +102,40 @@ getModel info cfg ci@(Ci { ci_err = Just err@(ErrSubType { ctx, tact, texp }) })
   let opts = defaultOpts
   smt <- liftIO $ makeContext False (solver opts) (target info)
   model <- liftIO $ runTarget opts (initState (target info) (spec info) smt df) $ do
-    cs <- gets constructors
-    traceShowM ("constructors", cs)
-    su <- mkSubst . map (second EVar) <$> gets freesyms
-    traceShowM ("su", su)
+    free <- gets freesyms
+    let dcs = [ (v, tidySymbol v)
+              | iv <- impVars info
+              , isDataConId iv
+              , let v = symbol iv
+              ]
+    let su  = mkSubst $ map (second EVar) (free ++ dcs)
     n <- asks depth
     vs <- forM vtds $ \(v, t, TargetDict d@Dict) -> do
-      traceShowM ("QUERY", v, t)
       modify $ \s@(TargetState {..}) -> s { variables = (v,getType (dictProxy d)) : variables }
       query (dictProxy d) n v (subst su t)
-    traceM "DONE QUERY"
     setup
-    traceM "DONE SETUP"
     _ <- liftIO $ command smt CheckSat
-    traceM "DONE CHECKSAT"
     forM (zip vs vtds) $ \(sv, (v, t, TargetDict d@Dict)) -> do
       x <- decode sv t
-      n <- asks depth
       xt <- liftIO $ obtainTermFromVal hsc_env 100 True (toType t) (x `asTypeOfDict` d)
-      return (v, text (GHC.showPpr df xt)) -- (toExpr (x `asTypeOfDict` d))))
-  traceM "DONE DECODE"
-  traceShowM model
+      return (v, WithModel (text (GHC.showPpr df xt)) t) -- (toExpr (x `asTypeOfDict` d))))
+
+  mapM_ traceShowM model
   -- let model = mempty
 
   _ <- liftIO $ cleanupContext smt
-  return (ci { ci_err = Just (err { model = HM.fromList model })})
 
-getModel _ _ ci = return ci
+  let (_, WithModel vv_model _) : ctx_model = model
+  return (ErrSubTypeModel
+          { pos  = pos
+          , msg  = msg
+          , ctxM  = HM.fromList ctx_model `HM.union` fmap NoModel ctx
+                   -- HM.union is *left-biased*
+          , tactM = WithModel vv_model tact
+          , texp = texp
+          })
+
+getModel _ _ err = return err -- (e2ewm err)
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t
 dictProxy Dict = Proxy
@@ -206,8 +161,6 @@ addDict (v, t) = do
       getInfo False (getName tc) >>= \case
         Nothing -> return Nothing
         Just (ATyCon tc, _, cis, _) -> do
-          df <- getDynFlags
-
           genericsMod   <- lookupModule (mkModuleName "GHC.Generics") Nothing
           targetableMod <- lookupModule (mkModuleName "Test.Target.Targetable") Nothing
           modelMod      <- lookupModule (mkModuleName "Language.Haskell.Liquid.Model") Nothing
@@ -235,7 +188,6 @@ addDict (v, t) = do
                              (noLoc []) -- (noLoc (map (nlHsTyConApp genericClsName . pure . nlHsTyVar) tvs))
                              genericInst
               let derivDecl = DerivD $ DerivDecl instType Nothing
-              traceShowM (GHC.showPpr df derivDecl)
               hsc_env <- getSession
               (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc derivDecl]
               setSession $ hsc_env { hsc_IC = ic }
@@ -250,7 +202,6 @@ addDict (v, t) = do
                            targetInst
             let instDecl = InstD $ ClsInstD $ ClsInstDecl
                            instType emptyBag [] [] [] Nothing
-            traceShowM (GHC.showPpr df instDecl)
             hsc_env <- getSession
             (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc instDecl]
             setSession $ hsc_env { hsc_IC = ic }
@@ -272,17 +223,16 @@ addDict (v, t) = do
                                      mkFunBind (noLoc $ mkVarUnqual $ fsLit "_compile")
                                      [mkSimpleMatch [] (noLoc dictExpr)]])
                          []
-          traceShowM (GHC.showPpr df dictStmt)
           x <- liftIO $ hscParsedStmt hsc_env dictStmt
           case x of
             Nothing -> return Nothing
             Just (_, hvals_io, _) -> do
               [hv] <- liftIO hvals_io
-              traceShowM ("addDict", showpp mt)
               let d = TargetDict $ unsafeCoerce hv
               -- let d = TargetDict (Dict :: Dict (Targetable [Int]))
               return (Just (v, t, d))
 
+        _ -> return Nothing
 
 monomorphize :: Type -> Type
 monomorphize t = substTyWith tvs (replicate (length tvs) intTy) t

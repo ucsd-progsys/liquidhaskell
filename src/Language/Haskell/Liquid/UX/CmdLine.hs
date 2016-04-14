@@ -414,10 +414,10 @@ resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 
 errToFCrash :: CtxError a -> CtxError a
-errToFCrash ce = ce { ctErr      = tx $ ctErr ce}
+errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
   where
-    tx (ErrSubType l m g t t' _) = ErrFCrash l m g t t'
-    tx e                         = e
+    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx e                       = e
 
 {-
    TODO: Never used, do I need to exist?

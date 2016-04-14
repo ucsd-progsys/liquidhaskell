@@ -7,7 +7,6 @@
 
 module Test.Target.Targetable.Function () where
 
-import           Control.Applicative
 import           Control.Arrow                   (second)
 import           Control.Monad
 import qualified Control.Monad.Catch             as Ex
@@ -16,14 +15,13 @@ import           Control.Monad.State
 import           Data.Char
 import qualified Data.HashMap.Strict             as M
 import           Data.IORef
-import           Data.Monoid
 import           Data.Proxy
 import qualified Data.Text                       as ST
 import qualified Data.Text.Lazy                  as T
 import           System.IO.Unsafe
 
 import qualified GHC
-import           Language.Fixpoint.Smt.Interface hiding (format, SMTLIB2(..))
+import           Language.Fixpoint.Smt.Interface hiding (SMTLIB2(..))
 import           Language.Fixpoint.Types         hiding (ofReft, reft)
 import           Language.Haskell.Liquid.GHC.Misc (qualifiedNameSymbol)
 import           Language.Haskell.Liquid.Types.RefType (addTyConInfo, rTypeSort)
@@ -49,7 +47,7 @@ dataConSymbol_noUnique :: GHC.DataCon -> Symbol
 dataConSymbol_noUnique = qualifiedNameSymbol . GHC.getName
 
 genFun :: Targetable a => Proxy a -> t -> Symbol -> SpecType -> Target Symbol
-genFun p _ x (stripQuals -> t)
+genFun _p _ x (stripQuals -> t)
   = do forM_ (getCtors t) $ \dc -> do
          let c = dataConSymbol_noUnique dc
          t <- lookupCtor c
