@@ -37,7 +37,9 @@ import Control.Monad
 
 import Data.List hiding (intersperse)
 import Data.Maybe
-import qualified Data.HashSet as S
+import Data.Function (on)
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
@@ -77,23 +79,17 @@ getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, Hsc
 getGhcInfo' cfg target name tgtSpec = do
   paths <- importPaths <$> getSessionDynFlags
   liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
-
-  impSpecs <- findAndLoadTargets cfg paths target
-
-  modGuts <- makeMGIModGuts target
-  hscEnv <- getSession
+  impSpecs  <- findAndLoadTargets cfg paths target
+  modGuts   <- makeMGIModGuts target
+  hscEnv    <- getSession
   coreBinds <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modGuts
-
-  logicMap <- liftIO makeLogicMap
-
+  logicMap  <- liftIO makeLogicMap
   let dataCons = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-
   let impVs = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   let defVs = definedVars coreBinds
   let useVs = readVars coreBinds
   let letVs = letVars coreBinds
   let derVs = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
-
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
@@ -151,20 +147,16 @@ parseRootTarget cfg0 target = do
 findAndLoadTargets :: Config -> [FilePath] -> FilePath -> Ghc [(ModName, Ms.BareSpec)]
 findAndLoadTargets cfg paths target = do
   setTargets . return =<< guessTarget target Nothing
-
   impNames <- allDepNames <$> depanal [] False
   impSpecs <- getSpecs cfg paths target impNames [Spec, Hs, LHs]
   liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
-
   compileCFiles =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
-
   impSpecs' <- forM impSpecs $ \(f, n, s) -> do
                  unless (isSpecImport n) $
                    addTarget =<< guessTarget f Nothing
                  return (n, s)
   load LoadAllTargets
   liftIO $ whenNormal $ donePhase Loud "Loaded Targets"
-
   return impSpecs'
 
 allDepNames :: [ModSummary] -> [String]
@@ -248,33 +240,57 @@ definedVars = concatMap defs
 --------------------------------------------------------------------------------
 -- Find & Parse Specs ----------------------------------------------------------
 --------------------------------------------------------------------------------
+type FileSpec = (FilePath, ModName, Ms.BareSpec)
 
+getSpecs :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs cfg paths target names exts = do
-  fs' <- sortNub <$> moduleImports exts paths names
+  fSpecs <- getSpecs' cfg paths target names exts
+  -- liftIO $ putStrLn $ "getSpecs    [RAW]: " ++ show [(f, n) | (f, n, _) <- fSpecs]
+  let fSpecs' = normalizeFileSpec fSpecs
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ show [(f, n) | (f, n, _) <- fSpecs']
+  return fSpecs'
+
+normalizeFileSpec :: [FileSpec] -> [FileSpec]
+normalizeFileSpec fs = M.elems (take1 <$> m)
+  where
+    m     = groupMap (show . snd3) fs
+    take1 = minimumBy (compare `on` (filePos . fst3))
+
+filePos :: FilePath -> Int
+filePos f
+  | isExtFile Hs   f = 0
+  | isExtFile LHs  f = 1
+  | isExtFile Spec f = 2
+  | otherwise        = 3
+
+getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
+getSpecs' cfg paths target names exts = do
+  fs'     <- sortNub <$> moduleImports exts paths names
   patSpec <- getPatSpec paths $ totality cfg
-  rlSpec <- getRealSpec paths $ not $ linear cfg
-  let fs = patSpec ++ rlSpec ++ fs'
+  rlSpec  <- getRealSpec paths $ not $ linear cfg
+  let fs   = patSpec ++ rlSpec ++ fs'
   transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
 
 getPatSpec paths totalitycheck
- | totalitycheck = (map (patErrorName,)) . maybeToList <$> moduleFile paths patErrorName Spec
+ | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec
  | otherwise     = return []
  where
   patErrorName = "PatErr"
 
 getRealSpec paths freal
-  | freal     = (map (realSpecName,))    . maybeToList <$> moduleFile paths realSpecName    Spec
-  | otherwise = (map (notRealSpecName,)) . maybeToList <$> moduleFile paths notRealSpecName Spec
+  | freal     = map (realSpecName,)    . maybeToList <$> moduleFile paths realSpecName    Spec
+  | otherwise = map (notRealSpecName,) . maybeToList <$> moduleFile paths notRealSpecName Spec
   where
     realSpecName    = "Real"
     notRealSpecName = "NotReal"
 
-
+transParseSpecs :: [Ext] -> [FilePath] -> S.HashSet FilePath -> [FileSpec] -> [FilePath]
+                -> Ghc [FileSpec]
 transParseSpecs _ _ _ specs [] = return specs
 transParseSpecs exts paths seenFiles specs newFiles = do
-  newSpecs <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
-  impFiles <- moduleImports exts paths $ specsImports newSpecs
-  let seenFiles' = seenFiles `S.union` (S.fromList newFiles)
+  newSpecs      <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
+  impFiles      <- moduleImports exts paths $ specsImports newSpecs
+  let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (third3 noTerm) newSpecs
   let newFiles'  = [f | (_, f) <- impFiles, not (f `S.member` seenFiles')]
   transParseSpecs exts paths seenFiles' specs' newFiles'
@@ -297,18 +313,11 @@ moduleSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let tgtCxt = IIModule $ getModName tgtMod
   let impCxt = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   setContext (tgtCxt : impCxt)
-
-  hsc <-getSession
-
+  hsc <- getSession
   let impNames = map (getModString . fst) impSpecs
   let exports  = mgi_exports mgi
-
   let specs = (tgtMod, tgtSpec) : impSpecs
-  let imps  = sortNub $ impNames ++ [ symbolString x
-                                    | (_, sp) <- specs
-                                    , x <- Ms.imports sp
-                                    ]
-
+  let imps  = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
   ghcSpec <- liftIO $ makeGhcSpec cfg tgtMod cbs vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
@@ -399,4 +408,3 @@ instance Result SourceError where
          . srcErrorMessages
 
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
-
