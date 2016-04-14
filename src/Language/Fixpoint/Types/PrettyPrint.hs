@@ -84,6 +84,9 @@ pprint = pprintPrec 0 Full
 showpp :: (PPrint a) => a -> String
 showpp = render . pprint
 
+showTable :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> String 
+showTable = render . pprintKVs Full
+
 tracepp :: (PPrint a) => String -> a -> a
 tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
@@ -102,21 +105,10 @@ instance PPrint a => PPrint (S.HashSet a) where
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprintTidy k = pprintKVs k . M.toList
 
--- pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
--- pprintKVs = pprintKVsTidy Full
-
--- vcat . punctuate (text "\n") . map pp1
---   where
---     pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
-
 pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
 pprintKVs t = vcat . punctuate (text "\n") . map pp1
   where
     pp1 (x,y) = pprintTidy t x <+> text ":=" <+> pprintTidy t y
-
-
-
-
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
   pprintTidy k (x, y, z)  = parens $ pprintTidy k x <> "," <+>
