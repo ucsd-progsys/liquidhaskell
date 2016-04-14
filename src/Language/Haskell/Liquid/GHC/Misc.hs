@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
-{-# LANGUAGE ImplicitParams              #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -76,7 +75,6 @@ import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
-import GHC.Stack
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -157,7 +155,7 @@ validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
 
-tvId :: (?loc :: CallStack) => TyVar -> String
+tvId :: TyVar -> String
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
@@ -218,9 +216,8 @@ sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
-showPpr :: (?loc :: CallStack) => Outputable a => a -> String
-showPpr       = -- trace (showCallStack ?loc) .
-                showSDoc . ppr
+showPpr :: Outputable a => a -> String
+showPpr = showSDoc . ppr
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...

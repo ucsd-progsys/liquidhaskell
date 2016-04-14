@@ -364,13 +364,6 @@ dropModel m = case m of
   NoModel t     -> t
   WithModel _ t -> t
 
--- instance PPrint t => PPrint (WithModel t) where
---   pprintTidy env (NoModel v t)
---     = v <+> char ':' <+> pprintTidy env t
---   pprintTidy env (WithModel v m t)
---     = v <+> char ':' <+> pprintTidy env t $+$
---       v <+> char '=' <+> m
-
 
 instance PPrint SrcSpan where
   pprintTidy _ = pprSrcSpan

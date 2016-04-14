@@ -147,7 +147,6 @@ module Language.Haskell.Liquid.Types (
   , module Language.Haskell.Liquid.Types.Errors
   , Error
   , ErrorResult
-  , ErrorWithModel
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -1330,7 +1329,6 @@ instance NFData REnv where
 
 type ErrorResult    = FixResult UserError
 type Error          = TError SpecType
-type ErrorWithModel = TError (WithModel SpecType)
 
 
 instance NFData a => NFData (TError a)

@@ -69,25 +69,20 @@ import FastString
 import Exception
 import Util
 
-import           Debug.Trace
+-- import           Debug.Trace
 
 getModels :: GhcInfo -> Config -> FixResult Error -> IO (FixResult Error)
 getModels info cfg fi = case fi of
   Unsafe cs -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
     imps <- getContext
-    setContext (-- IIModule (targetMod info)
-               -- :
-                -- needed to expose packaged Generic and Targetable instances
-                IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
+    setContext (IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                            { ideclQualified = True })
                : imps)
     mapM (getModel info cfg) cs
-  _         -> return fi -- (fmap e2ewm fi)
+  _         -> return fi
   where
   mbenv = Just (env info)
 
--- e2ewm :: Error -> ErrorWithModel
--- e2ewm = fmap NoModel
 
 getModel :: GhcInfo -> Config -> Error -> Ghc Error
 getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
@@ -118,10 +113,7 @@ getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
     forM (zip vs vtds) $ \(sv, (v, t, TargetDict d@Dict)) -> do
       x <- decode sv t
       xt <- liftIO $ obtainTermFromVal hsc_env 100 True (toType t) (x `asTypeOfDict` d)
-      return (v, WithModel (text (GHC.showPpr df xt)) t) -- (toExpr (x `asTypeOfDict` d))))
-
-  mapM_ traceShowM model
-  -- let model = mempty
+      return (v, WithModel (text (GHC.showPpr df xt)) t)
 
   _ <- liftIO $ cleanupContext smt
 
@@ -135,7 +127,7 @@ getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
           , texp = texp
           })
 
-getModel _ _ err = return err -- (e2ewm err)
+getModel _ _ err = return err
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t
 dictProxy Dict = Proxy
@@ -206,11 +198,6 @@ addDict (v, t) = do
             (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc instDecl]
             setSession $ hsc_env { hsc_IC = ic }
 
-          -- FIXME: HOW THE HELL DOES THIS BREAK THE PRINTER??!?!??!?!
-          -- try using HscMain.hscCompileCoreExpr instead, the Core is easy to produce
-          -- in this case, and avoids stupid name resolution crap
-          -- hv <- compileExpr $ traceShowId
-          --       ("Language.Haskell.Liquid.Model.Dict :: Language.Haskell.Liquid.Model.Dict (Test.Target.Targetable.Targetable ("++ showpp mt ++"))")
           hsc_env <- getSession
 
           let targetType = nlHsTyConApp targetableClsName [toHsType mt]
@@ -229,29 +216,15 @@ addDict (v, t) = do
             Just (_, hvals_io, _) -> do
               [hv] <- liftIO hvals_io
               let d = TargetDict $ unsafeCoerce hv
-              -- let d = TargetDict (Dict :: Dict (Targetable [Int]))
               return (Just (v, t, d))
 
         _ -> return Nothing
 
+-- FIXME: can't instantiate higher-kinded tvs with 'Int'
 monomorphize :: Type -> Type
 monomorphize t = substTyWith tvs (replicate (length tvs) intTy) t
   where
   tvs = varSetElemsKvsFirst (tyVarsOfType t)
-
--- query :: Int -> SpecType -> Target Symbol
--- query d t = {- inModule mod . -} making sort $ do
---     xs <- queryCtors d t
---     x  <- fresh sort
---     oneOf x xs
---     constrain $ ofReft (reft t) (var x)
---     return x
---    where
---      -- mod  = symbol $ GHC.Generics.moduleName (undefined :: D1 c f a)
---      sort = FObj . symbol . showpp $ toType t
-
--- queryCtors :: Int -> SpecType -> Target [(Expr, Expr)]
--- queryCtors d t = undefined
 
 
 hscParsedStmt :: HscEnv
@@ -280,22 +253,6 @@ hscParsedStmt hsc_env parsed_stmt = runInteractiveHsc hsc_env $ do
 
   return $ Just (ids, hval_io, fix_env)
 
-  -- -- Rename and typecheck it
-  -- (ids, tc_expr, fix_env) <- ioMsgMaybe $ tcRnStmt hsc_env stmt
-
-  -- -- Desugar it
-  -- ds_expr <- ioMsgMaybe $ deSugarExpr hsc_env tc_expr
-  -- liftIO (lintInteractiveExpr "desugar expression" hsc_env ds_expr)
-  -- handleWarnings
-
-  -- -- Then code-gen, and link it
-  -- -- It's important NOT to have package 'interactive' as thisUnitId
-  -- -- for linking, else we try to link 'main' and can't find it.
-  -- -- Whereas the linker already knows to ignore 'interactive'
-  -- let src_span = srcLocSpan interactiveSrcLoc
-  -- hval <- liftIO $ hscCompileCoreExpr hsc_env src_span ds_expr
-
-  -- return $ Just (ids, hval, fix_env)
 handleWarnings :: Hsc ()
 handleWarnings = do
     dflags <- getDynFlags
@@ -391,38 +348,3 @@ hscParsedDecls hsc_env0 decls =
         ictxt    = extendInteractiveContext icontext ext_ids tcs
                                             cls_insts fam_insts defaults patsyns
     return (tythings, ictxt)
-
--- rttiEnvironment :: HscEnv -> IO HscEnv
--- rttiEnvironment hsc_env@HscEnv{hsc_IC=ic} = do
---    let tmp_ids = [id | AnId id <- ic_tythings ic]
---        incompletelyTypedIds =
---            [id | id <- tmp_ids
---                , not $ noSkolems id
---                , (occNameFS.nameOccName.idName) id /= result_fs]
---    hsc_env' <- foldM improveTypes hsc_env (map idName incompletelyTypedIds)
---    return hsc_env'
---     where
---      noSkolems = isEmptyVarSet . tyVarsOfType . idType
---      improveTypes hsc_env@HscEnv{hsc_IC=ic} name = do
---       let tmp_ids = [id | AnId id <- ic_tythings ic]
---           Just id = find (\i -> idName i == name) tmp_ids
---       if noSkolems id
---          then return hsc_env
---          else do
---            mb_new_ty <- reconstructType hsc_env 10 id
---            let old_ty = idType id
---            case mb_new_ty of
---              Nothing -> return hsc_env
---              Just new_ty -> do
---               case improveRTTIType hsc_env old_ty new_ty of
---                Nothing -> return $
---                         WARN(True, text (":print failed to calculate the "
---                                            ++ "improvement for a type")) hsc_env
---                Just subst -> do
---                  let dflags = hsc_dflags hsc_env
---                  when (dopt Opt_D_dump_rtti dflags) $
---                       printInfoForUser dflags alwaysQualify $
---                       fsep [text "RTTI Improvement for", ppr id, equals, ppr subst]
-
---                  let ic' = substInteractiveContext ic subst
---                  return hsc_env{hsc_IC=ic'}

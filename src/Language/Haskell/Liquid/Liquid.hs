@@ -175,7 +175,6 @@ solveCs cfg tgt cgi info dc
        let res_err = fmap (applySolution sol . cinfoError . snd) r
        res_model  <- fmap (fmap pprint . tidyError sol)
                      <$> getModels info cfg res_err
-       -- let res   = ferr sol r
        let out0  = mkOutput cfg res_model sol annm
 
        return    $ out0 { o_vars    = names             }
@@ -195,9 +194,6 @@ solveCs cfg tgt cgi info dc
                        , FC.elimStats   = elimStats   cfg
                        -- , FC.stats   = True
                        }
-
--- cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
--- cinfoUserError s =  e2u s . cinfoError
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap pprint . tidyError s

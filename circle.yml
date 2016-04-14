@@ -18,7 +18,7 @@ dependencies:
     - cabal sandbox add-source ./liquid-fixpoint
     - cabal sandbox add-source ./prover
     - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
-    - cabal install hpc-coveralls
+    # - cabal install hpc-coveralls
     - cabal configure --enable-tests --enable-library-coverage -finclude -fdevel
 
 test:
@@ -32,4 +32,4 @@ test:
     - cabal haddock --haddock-options="--no-print-missing-docs"
     - cp -r dist/doc $CIRCLE_ARTIFACTS
     - cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
-    - hpc-coveralls --exclude-dir=tests --repo-token=$COVERALLS_REPO_TOKEN
+    # - hpc-coveralls --exclude-dir=tests --repo-token=$COVERALLS_REPO_TOKEN
