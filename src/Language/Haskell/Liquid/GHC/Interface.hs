@@ -37,6 +37,7 @@ import Control.Monad
 
 import Data.List hiding (intersperse)
 import Data.Maybe
+-- import Data.Function (on)
 import qualified Data.HashSet as S
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
@@ -253,14 +254,16 @@ type FileSpec = (FilePath, ModName, Ms.BareSpec)
 
 getSpecs :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs cfg paths target names exts = do
-  fs' <- sortNub <$> moduleImports exts paths names
-  patSpec <- getPatSpec paths $ totality cfg
-  rlSpec <- getRealSpec paths $ not $ linear cfg
-  let fs = patSpec ++ rlSpec ++ fs'
+  fs'     <- sortNub <$> moduleImports exts paths names
+  patSpec <- getPatSpec  paths $ totality cfg
+  rlSpec  <- getRealSpec paths $ not $ linear cfg
+  let fs   = patSpec ++ rlSpec ++ fs'
+  -- fSpecs <-
   transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
   -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs]
   -- return fSpecs
-  -- showTable = render . pprintKVs Full
+  -- where
+  --   showTable = render . pprintKVs Full . sortBy (compare `on` fst)
 
 getPatSpec paths totalitycheck
  | totalitycheck = (map (patErrorName,)) . maybeToList <$> moduleFile paths patErrorName Spec
