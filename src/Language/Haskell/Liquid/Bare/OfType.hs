@@ -5,10 +5,8 @@ module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
   , ofMeaSort
   , ofBSort
-
   , ofBPVar
-
-  , mkSpecType
+  , mkLSpecType
   , mkSpecType'
   ) where
 
@@ -31,7 +29,7 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
+import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -72,10 +70,11 @@ mapMPvar f (PV x t v txys)
        return $ PV x t' v txys'
 
 --------------------------------------------------------------------------------
+mkLSpecType :: Located BareType -> BareM (Located SpecType)
+mkLSpecType t = atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
-mkSpecType l t
-  = mkSpecType' l (ty_preds $ toRTypeRep t) t
+mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs t

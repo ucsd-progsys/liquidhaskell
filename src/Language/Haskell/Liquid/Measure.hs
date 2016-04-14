@@ -47,15 +47,15 @@ import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type BareSpec      = Spec BareType LocSymbol
+type BareSpec      = Spec (Located BareType) LocSymbol
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
-  , invariants :: ![Located ty]                 -- ^ Data type invariants
-  , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
+  , invariants :: ![ty]                         -- ^ Data type invariants
+  , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
@@ -63,19 +63,19 @@ data Spec ty bndr  = Spec
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
   , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
-  , lvars      :: ![LocSymbol]                  -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into axiomatized functions
-  , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
-  , autosize   :: !(S.HashSet LocSymbol)        -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
-  , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions
+  , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
+  , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
+  , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
+  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
+  , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
+  , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
+  , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
+  , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
+  , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
+  , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
@@ -84,7 +84,6 @@ data Spec ty bndr  = Spec
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
---                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
     tx = fmap (qualifySymbol name)
@@ -104,6 +103,7 @@ mkMSpec' ms = MSpec cm mm M.empty []
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
     mm     = M.fromList [(name m, m) | m <- ms ]
 
+mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol 
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where
     cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
@@ -111,16 +111,6 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     cmm    = M.fromList [(name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
-
---checkFail ::  [Char] -> (a -> Bool) -> a -> a
---checkFail msg f x
---  | f x
---  = x
---  | otherwise
---  = errorstar $ "Check-Failure: " ++ msg
-
---distinct ::  Ord a => [a] -> Bool
---distinct xs = length xs == length (sortNub xs)
 
 
 checkDuplicateMeasure ms
