@@ -270,13 +270,6 @@ isSpecFile (f, _, _)
   | isExtFile Spec f = True
   | otherwise        = False
 
--- filePos :: FilePath -> Int
--- filePos f
-  -- | isExtFile Hs   f = 0
-  -- | isExtFile LHs  f = 1
-  -- | isExtFile Spec f = 2
-  -- | otherwise        = 3
-
 getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs' cfg paths target names exts = do
   fs'     <- sortNub <$> moduleImports exts paths names
