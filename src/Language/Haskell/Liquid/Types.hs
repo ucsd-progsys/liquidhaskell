@@ -1351,6 +1351,9 @@ instance NFData Cinfo
 
 data ModName = ModName !ModType !ModuleName deriving (Eq, Ord)
 
+instance PPrint ModName where
+  pprintTidy _ = text . show
+  
 instance Show ModName where
   show = getModString
 

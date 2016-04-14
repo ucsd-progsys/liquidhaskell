@@ -247,8 +247,10 @@ getSpecs cfg paths target names exts = do
   fSpecs <- getSpecs' cfg paths target names exts
   -- liftIO $ putStrLn $ "getSpecs    [RAW]: " ++ show [(f, n) | (f, n, _) <- fSpecs]
   let fSpecs' = normalizeFileSpec fSpecs
-  liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ show [(f, n) | (f, n, _) <- fSpecs']
+  liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs']
   return fSpecs'
+
+showTable = render . pprintKVs Full
 
 normalizeFileSpec :: [FileSpec] -> [FileSpec]
 normalizeFileSpec fs = M.elems (take1 <$> m)
