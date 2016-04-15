@@ -415,7 +415,8 @@ instance Symbolic Class where
   symbol = symbol . getName
 
 instance Symbolic Name where
-  symbol = qualifiedNameSymbol
+  -- FIXME: sigh, using qualifiedNameSymbol breaks tests/eq_pos/ConcatMap.hs...
+  symbol = symbol . showPpr --  qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol

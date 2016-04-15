@@ -166,15 +166,16 @@ setup = {-# SCC "setup" #-} do
    let defSort b e = io $ smtWrite ctx (T.toStrict $ format "(define-sort {} () {})" (b,e))
    -- -- FIXME: combine this with the code in `fresh`
    forM_ ss $ \case
-     FObj "Int" -> return ()
-     FInt       -> return ()
+     -- FObj "Int" -> return ()
+     -- FInt       -> return ()
      -- s | smt2 s ==  "GHC.Types.Bool"
      --     -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
      -- FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
      s | smt2 s == "CHOICE"
          -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
      s        -> defSort (smt2 s) ("Int" :: T.Text)
-   defSort ("GHC.Types.Int"  :: T.Text) ("Int" :: T.Text)
+   -- defSort ("GHC.Types.Int"  :: T.Text) ("Int" :: T.Text)
+   -- FIXME: why do i need this??
    defSort ("GHC.Types.Bool" :: T.Text) ("Int" :: T.Text)
    -- declare constructors
    cts <- gets constructors
