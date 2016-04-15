@@ -1,8 +1,8 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint (
 
-        cgInfoFInfo
+  cgInfoFInfo
 
-        ) where
+  ) where
 import Prelude hiding (error)
 import qualified Language.Fixpoint.Types        as F
 import Language.Haskell.Liquid.Constraint.Types

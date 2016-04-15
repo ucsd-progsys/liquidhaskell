@@ -4,19 +4,22 @@ module Language.Haskell.Liquid.Bare.SymSort (
     txRefSort
   ) where
 
-import Prelude hiding (error)
+import qualified Data.HashMap.Strict                   as M
+import           Prelude                               hiding (error)
+import qualified GHC
 
-import qualified Data.List as L
-import Data.Maybe              (fromMaybe)
-import TyCon            (TyCon)
-import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (atLoc, meet, TCEmb)
+import qualified Data.List                             as L
+import           Data.Maybe                            (fromMaybe)
+import           TyCon                                 (TyCon)
+import           Language.Fixpoint.Misc                (fst3, snd3)
+import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types               (atLoc, meet, Reftable)
 
-import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
-import Language.Haskell.Liquid.Misc (safeZipWithError)
-import Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.GHC.Misc      (fSrcSpan)
+import           Language.Haskell.Liquid.Misc          (safeZipWithError)
+import           Language.Haskell.Liquid.Bare.Env
 
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
@@ -27,6 +30,12 @@ import Language.Haskell.Liquid.Bare.Env
 txRefSort :: TCEnv -> TCEmb TyCon -> Located SpecType -> Located SpecType
 txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (fSrcSpan t) tce tyi) (val t)
 
+addSymSort :: (PPrint t, Reftable t)
+           => GHC.SrcSpan
+           -> M.HashMap TyCon FTycon
+           -> M.HashMap TyCon RTyCon
+           -> RType RTyCon RTyVar (UReft t)
+           -> RType RTyCon RTyVar (UReft t)
 addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where

@@ -21,24 +21,25 @@ module Language.Haskell.Liquid.Bare.Env (
   , insertAxiom
   ) where
 
-import Prelude hiding (error)
-import HscTypes
-import TyCon
-import Var
+import           HscTypes
+import           Prelude                              hiding (error)
+import           Text.Parsec.Pos
+import           TyCon
+import           Var
 
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Writer
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Control.Monad.Writer
 
-import qualified Control.Exception   as Ex
-import qualified Data.HashMap.Strict as M
+import qualified Control.Exception                    as Ex
+import qualified Data.HashMap.Strict                  as M
 
 
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol)
 
-import Language.Haskell.Liquid.UX.Errors ()
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.UX.Errors    ()
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Bounds
 
 
 -----------------------------------------------------------------------------------
@@ -71,15 +72,19 @@ data BareEnv = BE { modName  :: !ModName
                   }
 
 
-
+insertLogicEnv
+  :: MonadState BareEnv m => Symbol -> [Symbol] -> Expr -> m ()
 insertLogicEnv x ys e
   = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ logicEnv be}}
 
+insertAxiom :: MonadState BareEnv m => Var -> Symbol -> m ()
 insertAxiom x s
   = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
 
+setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }
 
+inModule :: MonadState BareEnv m => ModName -> m b -> m b
 inModule m act = do
   old <- gets modName
   modify $ setModule m
@@ -87,6 +92,12 @@ inModule m act = do
   modify $ setModule old
   return res
 
+withVArgs :: (Foldable t,PPrint a,MonadState BareEnv m)
+          => SourcePos
+          -> SourcePos
+          -> t a
+          -> m b
+          -> m b
 withVArgs l l' vs act = do
   old <- gets rtEnv
   mapM_ (mkExprAlias l l' . symbol . showpp) vs
@@ -94,13 +105,22 @@ withVArgs l l' vs act = do
   modify $ \be -> be { rtEnv = old }
   return res
 
+mkExprAlias
+  :: MonadState BareEnv m
+  => SourcePos -> SourcePos -> Symbol -> m ()
 mkExprAlias l l' v
   = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ symbol v)) l l')
 
+setRTAlias
+  :: MonadState BareEnv m
+  => Symbol -> RTAlias RTyVar SpecType -> m ()
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
 
 
+setREAlias
+  :: MonadState BareEnv m
+  => Symbol -> RTAlias Symbol Expr -> m ()
 setREAlias s a =
   modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }
 

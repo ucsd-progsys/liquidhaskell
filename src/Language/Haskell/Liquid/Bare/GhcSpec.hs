@@ -9,60 +9,61 @@ module Language.Haskell.Liquid.Bare.GhcSpec (
   ) where
 
 -- import Debug.Trace (trace)
-import Prelude hiding (error)
-import CoreSyn hiding (Expr)
-import HscTypes
-import Id
-import NameSet
-import Name
-import TyCon
-import Var
-import TysWiredIn
+import           Prelude                                    hiding (error)
+import           CoreSyn                                    hiding (Expr)
+import qualified CoreSyn
+import           HscTypes
+import           Id
+import           NameSet
+import           Name
+import           TyCon
+import           Var
+import           TysWiredIn
 
-import DataCon (DataCon)
+import           DataCon                                    (DataCon)
 
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Bifunctor
-import Data.Maybe
-
-
-import Control.Monad.Except (catchError)
-import TypeRep (Type(TyConApp))
-
-import qualified Control.Exception   as Ex
-import qualified Data.List           as L
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-
-import Language.Fixpoint.Misc (thd3)
-
-import Language.Fixpoint.Types hiding (Error)
-
-import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
-import Language.Haskell.Liquid.Types.PredType (makeTyConInfo)
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.WiredIn
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Bifunctor
+import           Data.Maybe
 
 
-import qualified Language.Haskell.Liquid.Measure as Ms
+import           Control.Monad.Except                       (catchError)
+import           TypeRep                                    (Type(TyConApp))
 
-import Language.Haskell.Liquid.Bare.Check
-import Language.Haskell.Liquid.Bare.DataType
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Existential
-import Language.Haskell.Liquid.Bare.Measure
-import Language.Haskell.Liquid.Bare.Axiom
-import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
-import Language.Haskell.Liquid.Bare.Plugged
-import Language.Haskell.Liquid.Bare.RTEnv
-import Language.Haskell.Liquid.Bare.Spec
-import Language.Haskell.Liquid.Bare.SymSort
-import Language.Haskell.Liquid.Bare.RefToLogic
-import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
+import qualified Control.Exception                          as Ex
+import qualified Data.List                                  as L
+import qualified Data.HashMap.Strict                        as M
+import qualified Data.HashSet                               as S
+
+import           Language.Fixpoint.Misc                     (thd3)
+
+import           Language.Fixpoint.Types                    hiding (Error)
+
+import           Language.Haskell.Liquid.Types.Dictionaries
+import           Language.Haskell.Liquid.GHC.Misc           (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
+import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Misc               (mapSnd)
+import           Language.Haskell.Liquid.WiredIn
+
+
+import qualified Language.Haskell.Liquid.Measure            as Ms
+
+import           Language.Haskell.Liquid.Bare.Check
+import           Language.Haskell.Liquid.Bare.DataType
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Existential
+import           Language.Haskell.Liquid.Bare.Measure
+import           Language.Haskell.Liquid.Bare.Axiom
+import           Language.Haskell.Liquid.Bare.Misc          (makeSymbols, mkVarExpr)
+import           Language.Haskell.Liquid.Bare.Plugged
+import           Language.Haskell.Liquid.Bare.RTEnv
+import           Language.Haskell.Liquid.Bare.Spec
+import           Language.Haskell.Liquid.Bare.SymSort
+import           Language.Haskell.Liquid.Bare.RefToLogic
+import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
@@ -87,6 +88,7 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of {Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
+listLMap :: LogicMap
 listLMap = toLogicMap [(nilName, [], hNil),
                        (consName, [x, xs], hCons (EVar <$> [x,xs]))
                       ]
@@ -172,6 +174,7 @@ makeExactDataCons n flag vs spec
   where
     xts       = makeExact <$> filter isDataConId (filter (varInModule n) vs)
 
+varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, LocSpecType)
@@ -209,12 +212,32 @@ emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 
 
+makeGhcSpec0 :: Config
+             -> [Var]
+             -> NameSet
+             -> ModName
+             -> GhcSpec
+             -> BareM GhcSpec
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
        return      $ sp { config = cfg
                         , exports = exports
                         , tgtVars = targetVars }
 
+makeGhcSpec1 :: [Var]
+             -> [Var]
+             -> TCEmb TyCon
+             -> M.HashMap TyCon RTyCon
+             -> NameSet
+             -> ModName
+             -> [(Var,Located (RRType RReft))]
+             -> [(Var,Located (RRType RReft))]
+             -> [(Var,Located (RRType RReft))]
+             -> [(Symbol,Located (RRType Reft))]
+             -> [(Symbol,Located (RRType Reft))]
+             -> Subst
+             -> GhcSpec
+             -> BareM GhcSpec
 makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
@@ -231,6 +254,13 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
       tx'  = fmap (mapSnd $ fmap uRType)
       vs   = vars ++ defVars
 
+makeGhcSpec2 :: Monad m
+             => [LocSpecType]
+             -> [(LocSpecType,LocSpecType)]
+             -> MSpec SpecType DataCon
+             -> Subst
+             -> GhcSpec
+             -> m GhcSpec
 makeGhcSpec2 invs ialias measures su sp
   = return $ sp { invariants = subst su invs
                 , ialiases   = subst su ialias
@@ -251,6 +281,12 @@ makeGhcSpec3 datacons tycons embs syms sp
                     , tcEmbeds   = embs
                     , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
 
+makeGhcSpec4 :: [Var]
+             -> [(ModName,Ms.Spec ty bndr)]
+             -> ModName
+             -> Subst
+             -> GhcSpec
+             -> BareM GhcSpec
 makeGhcSpec4 defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
@@ -279,6 +315,9 @@ makeGhcSpec4 defVars specs name su sp
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
        makeASize  = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
+makeGhcSpecCHOP1
+  :: [(ModName,Ms.Spec ty bndr)]
+  -> BareM ([(TyCon,TyConP)],[(DataCon,DataConP)],[Measure SpecType DataCon],[(Var,Located SpecType)],M.HashMap TyCon RTyCon,TCEmb TyCon)
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let tycons       = tcs        ++ wiredTyCons
@@ -333,8 +372,12 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        let xs'      = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
 
+txRefSort'
+  :: NamedThing a
+  => a -> TCEnv -> TCEmb TyCon -> SpecType -> Located SpecType
 txRefSort' v tyi embs t = txRefSort tyi embs (atLoc' v t)
 
+atLoc' :: NamedThing a1 => a1 -> a -> Located a
 atLoc' v = Loc (getSourcePos v) (getSourcePosE v)
 
 data ReplaceEnv = RE { _re_env  :: M.HashMap Symbol Symbol
@@ -363,6 +406,8 @@ replaceLocalBinds emb tyi sigs texprs senv cbs
                                    (RE M.empty senv emb tyi))
                        (M.fromList sigs, M.fromList texprs)
 
+traverseExprs
+  :: CoreSyn.Expr Var -> ReaderT ReplaceEnv (State ReplaceState) ()
 traverseExprs (Let b e)
   = traverseBinds b (traverseExprs e)
 traverseExprs (Lam b e)
@@ -378,11 +423,20 @@ traverseExprs (Tick _ e)
 traverseExprs _
   = return ()
 
+traverseBinds
+  :: Bind Var
+  -> ReaderT ReplaceEnv (State ReplaceState) b
+  -> ReaderT ReplaceEnv (State ReplaceState) b
 traverseBinds b k = withExtendedEnv (bindersOf b) $ do
   mapM_ traverseExprs (rhssOfBind b)
   k
 
 -- RJ: this function is incomprehensible, what does it do?!
+withExtendedEnv
+  :: Foldable t
+  => t Var
+  -> ReaderT ReplaceEnv (State ReplaceState) b
+  -> ReaderT ReplaceEnv (State ReplaceState) b
 withExtendedEnv vs k
   = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs

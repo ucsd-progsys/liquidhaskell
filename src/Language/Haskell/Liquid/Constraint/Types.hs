@@ -1,4 +1,3 @@
-
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -202,6 +201,7 @@ data CGInfo = CGInfo {
 instance PPrint CGInfo where
   pprintTidy _ cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
 
+pprCGInfo :: t -> Doc
 pprCGInfo _cgi
   =  text "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
@@ -227,7 +227,10 @@ pprCGInfo _cgi
 
 newtype HEnv = HEnv (S.HashSet F.Symbol)
 
+fromListHEnv :: [F.Symbol] -> HEnv
 fromListHEnv = HEnv . S.fromList
+
+elemHEnv :: F.Symbol -> HEnv -> Bool
 elemHEnv x (HEnv s) = x `S.member` s
 
 --------------------------------------------------------------------------------
@@ -244,6 +247,7 @@ mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where
     strip      = fourth4 . bkUniv . val
 
+mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
 mkRTyConIAl    = mkRTyConInv . fmap snd
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
@@ -266,6 +270,7 @@ addRInv m (x, t)
                , id <- DC.dataConImplicitIds dc]
      res = ty_res . toRTypeRep
 
+conjoinInvariantShift :: RType RTyCon tv RReft -> SpecType -> RType RTyCon tv RReft
 conjoinInvariantShift t1 t2
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1))
 
@@ -290,12 +295,14 @@ data FEnv = FE { feBinds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Envi
                , feEnv   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
                }
 
+insertFEnv :: FEnv -> ((F.Symbol, F.Sort), F.BindId) -> FEnv
 insertFEnv (FE benv env) ((x, t), i)
   = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
 
 insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
+initFEnv :: [(F.Symbol, F.Sort)] -> FEnv
 initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 
 --------------------------------------------------------------------------------

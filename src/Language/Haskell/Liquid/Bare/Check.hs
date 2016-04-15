@@ -10,45 +10,46 @@ module Language.Haskell.Liquid.Bare.Check (
   , checkTy
   ) where
 
-import Debug.Trace
+import           BasicTypes
+import           DataCon
+import           Id
+import           Name                                      (getSrcSpan)
+import           Prelude                                   hiding (error)
+import           TyCon
+import           Var
 
+import           Control.Applicative                       ((<|>))
+import           Control.Arrow                             ((&&&))
 
-import Prelude hiding (error)
-import DataCon
-import Name (getSrcSpan)
-import TyCon
-import Id
-import Var
+import           Data.Maybe
+import           Data.Function                             (on)
+import           Text.PrettyPrint.HughesPJ
 
-import Control.Applicative ((<|>))
-import Control.Arrow ((&&&))
+import qualified Data.List                                 as L
+import qualified Data.HashMap.Strict                       as M
 
-import Data.Maybe
-import Data.Function (on)
-import Text.PrettyPrint.HughesPJ
+import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead)
+import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
+import           Language.Fixpoint.Types                   hiding (Error, R)
 
-import qualified Data.List           as L
-import qualified Data.HashMap.Strict as M
-
-import Language.Fixpoint.Misc (applyNonNull, group, safeHead)
-import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
-import Language.Fixpoint.Types      hiding (Error, R)
-
-import Language.Haskell.Liquid.GHC.Misc (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
-import Language.Haskell.Liquid.Misc (snd4, mapSnd)
-import Language.Haskell.Liquid.Types.PredType (pvarRType)
-import Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
-import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
+import           Language.Haskell.Liquid.Misc              (snd4, mapSnd)
+import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
+import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
+import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.WiredIn
 
 
 
-import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.Measure           as Ms
 
-import Language.Haskell.Liquid.Bare.DataType (dataConSpec)
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.SymSort (txRefSort)
+import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
+
+import           Debug.Trace
+
 
 ----------------------------------------------------------------------------------------------
 ----- Checking GhcSpec -----------------------------------------------------------------------
@@ -144,6 +145,11 @@ checkInv emb tcEnv env t   = checkTy err emb tcEnv env t
 checkIAl :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
 checkIAl emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne emb tcEnv env) ials
 
+checkIAlOne :: TCEmb TyCon
+            -> TCEnv
+            -> SEnv SortedReft
+            -> (Located SpecType, Located SpecType)
+            -> [Maybe (TError SpecType)]
 checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where
     tcheck t = checkTy (err t) emb tcEnv env t
@@ -158,6 +164,7 @@ checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
 
 
 -- FIXME: Should _ be removed if it isn't used?
+checkRTAliases :: String -> t -> [RTAlias s a] -> [Error]
 checkRTAliases msg _ as = err1s
   where
     err1s                  = checkDuplicateRTAlias msg as
@@ -224,6 +231,7 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     ok               = tyCompat x (val t)
     err              = errTypeMismatch x t
 
+tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
 tyCompat x t         = lhs == rhs
   where
     lhs :: RSort     = toRSort t
@@ -252,6 +260,7 @@ checkRType emb env t   =  checkAppTys t
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
+checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go
   where
     go (RAllT _ t)      = go t
@@ -269,6 +278,7 @@ checkAppTys = go
     go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
     go (RHole _)        = Nothing
 
+checkTcArity :: RTyCon -> Arity -> Maybe Doc
 checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   | expectedArity < givenArity
     = Just $ text "Type constructor" <+> pprint tc
@@ -299,6 +309,9 @@ checkFunRefs t = go t
       | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
 -}
 
+checkAbstractRefs
+  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t) =>
+     RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs t = go t
   where
     penv = mkPEnv t
@@ -393,6 +406,13 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
+checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+           => SEnv SortedReft
+           -> TCEmb TyCon
+           -> t
+           -> SpecType
+           -> Def (RRType r) DataCon
+           -> Maybe Doc
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
   where
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
@@ -403,12 +423,20 @@ checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
     txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 
+checkMBodyUnify
+  :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
 checkMBodyUnify                 = go
   where
     go (RVar tv _) t            = [(tv, toRSort t, t)]
     go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                      = []
 
+checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+            => TCEmb TyCon
+            -> RType RTyCon RTyVar r
+            -> SEnv SortedReft
+            -> Body
+            -> Maybe Doc
 checkMBody' emb sort γ body = case body of
     E e   -> checkSortFull γ (rTypeSort emb sort') e
     P p   -> checkSortFull γ boolSort  p

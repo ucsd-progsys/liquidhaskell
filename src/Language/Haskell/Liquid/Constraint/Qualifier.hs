@@ -88,6 +88,14 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     goRef g (RProp s t)  _    = go (insertsSEnv g s) t
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
+refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
+            => SEnv Sort
+            -> SourcePos
+            -> TCEmb TyCon
+            -> RType RTyCon RTyVar r
+            -> SEnv Sort
+            -> RRType (UReft t)
+            -> [Qualifier]
 refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                                   , pa                        <- conjuncts ra
@@ -103,6 +111,15 @@ refTopQuals lEnv l tce t0 γ t
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
 
+mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
+        => SEnv Sort
+        -> SourcePos
+        -> TCEmb TyCon
+        -> t
+        -> SEnv Sort
+        -> RRType r
+        -> Expr
+        -> Qualifier
 mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
   where
     v                  = "vv"
@@ -110,8 +127,24 @@ mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
     γ'                 = insertSEnv v so γ
     pa                 = PAtom Eq (EVar v) e
 
+mkQual :: SEnv Sort
+       -> SourcePos
+       -> t
+       -> SEnv Sort
+       -> Symbol
+       -> Sort
+       -> Expr
+       -> Qualifier
 mkQual = mkQualNEW
 
+mkQualNEW :: SEnv Sort
+          -> SourcePos
+          -> t
+          -> SEnv Sort
+          -> Symbol
+          -> Sort
+          -> Expr
+          -> Qualifier
 mkQualNEW lEnv l _ γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
     xs   = delete v $ nub $ syms p
