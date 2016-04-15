@@ -409,13 +409,13 @@ tyConTyVarsDef c = TC.tyConTyVars c
 ----------------------------------------------------------------------
 
 instance Symbolic TyCon where
-  symbol = symbol . qualifiedNameSymbol . getName
+  symbol = symbol . getName
 
 instance Symbolic Class where
-  symbol = symbol . qualifiedNameSymbol . getName
+  symbol = symbol . getName
 
 instance Symbolic Name where
-  symbol = symbol . showPpr -- qualifiedNameSymbol
+  symbol = qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol
@@ -439,13 +439,13 @@ instance Show Name where
   show = symbolString . symbol
 
 instance Show Var where
-  show = symbolString . symbol
+  show = show . getName
 
 instance Show Class where
-  show = symbolString . symbol
+  show = show . getName
 
 instance Show TyCon where
-  show = symbolString . symbol
+  show = show . getName
 
 instance NFData Class where
   rnf t = seq t ()
@@ -462,11 +462,11 @@ instance NFData Type where
 instance NFData Var where
   rnf t = seq t ()
 
--- showPprSafe x
---   | showPpr x == symbolString (symbol $ getName x)
---   = showPpr x
---   | otherwise
---   = impossible Nothing $ showPpr x ++ " vs " ++ symbolString (symbol $ getName x)
+showPprSafe x
+  | showPpr x == symbolString (symbol $ getName x)
+  = showPpr x
+  | otherwise
+  = impossible Nothing $ showPpr x ++ " vs " ++ symbolString (symbol $ getName x)
 
 ----------------------------------------------------------------------
 -- GHC Compatibility Layer

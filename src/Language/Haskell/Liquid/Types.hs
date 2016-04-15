@@ -197,6 +197,7 @@ import Prelude                          hiding  (error)
 import SrcLoc                                   (SrcSpan)
 import TyCon
 import DataCon
+import Name
 import NameSet
 import Module                                   (moduleNameFS)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
@@ -232,7 +233,6 @@ import            Data.Maybe                   (fromMaybe, mapMaybe)
 
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
-import qualified  Data.Text                    as T
 
 
 import            Text.PrettyPrint.HughesPJ    hiding (first)
@@ -483,7 +483,7 @@ instance NFData RTyVar
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol . T.pack . showPpr $ tv
+  symbol (RTV tv) = symbol . getName $ tv
 
 
 data RTyCon = RTyCon
