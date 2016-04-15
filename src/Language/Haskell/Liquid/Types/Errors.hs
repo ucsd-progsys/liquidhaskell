@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Types.Errors (
 
 import           Prelude                      hiding (error)
 
+import           Data.Bifunctor
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
 import           GHC.Generics
@@ -467,11 +468,11 @@ ppReqInContext :: (PPrint t) => t -> t -> (M.HashMap Symbol t)
 ppReqInContext tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV" <+> pprint tA]
+                , text "VV :" <+> pprint tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV" <+> pprint tE]
+                , text "VV :" <+> pprint tE]
       , nests 2 [ text "In Context"
-                , pprint c
+                , vsep (map (uncurry pprintModel . second NoModel) (M.toList c))
                 ]
       ]
 
