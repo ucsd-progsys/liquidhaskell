@@ -52,7 +52,7 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
+import           Language.Fixpoint.Types      (tracepp, showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
@@ -92,22 +92,22 @@ errorWithContext e = CtxError e <$> srcSpanContext (pos e)
 
 srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext sp
-  | Just (f, l, c, c') <- srcSpanInfo sp
+  | Just (f, l, c, c') <- srcSpanInfo (tracepp "SRCSPANCONTEXT" sp)
   = maybe empty (makeContext l c c') <$> getFileLine f l
   | otherwise
   = return empty
 
 srcSpanInfo :: SrcSpan -> Maybe (FilePath, Int, Int, Int)
 srcSpanInfo (RealSrcSpan s)
-  | l == l'           = Just (f, l, c, c')
-  | otherwise         = Nothing
+  | l == l'   = Just (f, l, c, c')
+  | otherwise = Nothing
   where
-     f  = unpackFS $ srcSpanFile s
-     l  = srcSpanStartLine s
-     c  = srcSpanStartCol  s
-     l' = srcSpanEndLine   s
-     c' = srcSpanEndCol    s
-srcSpanInfo _         = Nothing
+     f        = unpackFS $ srcSpanFile s
+     l        = srcSpanStartLine s
+     c        = srcSpanStartCol  s
+     l'       = srcSpanEndLine   s
+     c'       = srcSpanEndCol    s
+srcSpanInfo _ = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
 getFileLine f i = do

@@ -3,9 +3,9 @@
 --   modified since it was last checked, as determined by a diff against
 --   a saved version of the file.
 
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Language.Haskell.Liquid.UX.DiffCheck (
 
@@ -26,41 +26,37 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    )
    where
 
-import            Prelude                       hiding (error)
+import           Prelude                       hiding (error)
+import           Data.Aeson
+import qualified Data.Text as T
+import           Data.Algorithm.Diff
+import           Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
+import           Data.Hashable
+import qualified Data.IntervalMap.FingerTree as IM
+import           CoreSyn                       hiding (sourceName)
+import           Name (getSrcSpan)
+import           SrcLoc hiding (Located)
+import           Var
+import qualified Data.HashSet                  as S
+import qualified Data.HashMap.Strict           as M
+import qualified Data.List                     as L
+import           System.Directory                (copyFile, doesFileExist)
+import           Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
+import           Language.Fixpoint.Utils.Files
+import           Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import           Language.Haskell.Liquid.Misc    (mkGraph)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types.Visitors
+import           Language.Haskell.Liquid.UX.Errors   ()
+import           Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import           Text.PrettyPrint.HughesPJ        (text, render, Doc)
+import           Language.Haskell.Liquid.Types.Errors
+import qualified Data.ByteString               as B
+import qualified Data.ByteString.Lazy          as LB
 
-import            Data.Aeson
-import qualified  Data.Text as T
-import            Data.Algorithm.Diff
-import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
-import            Data.Hashable
-import qualified  Data.IntervalMap.FingerTree as IM
-import            CoreSyn                       hiding (sourceName)
-import            Name (getSrcSpan)
-import            SrcLoc hiding (Located)
-import            Var
-import qualified  Data.HashSet                  as S
-import qualified  Data.HashMap.Strict           as M
-import qualified  Data.List                     as L
-import            System.Directory                (copyFile, doesFileExist)
-import            Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
--- import            Language.Fixpoint.Misc          (traceShow)
-import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
-import            Language.Haskell.Liquid.Misc    (mkGraph)
-import            Language.Haskell.Liquid.GHC.Misc
-import            Language.Haskell.Liquid.Types.Visitors
-import            Language.Haskell.Liquid.UX.Errors   ()
-import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
-import            Language.Haskell.Liquid.Types.Errors
-
-import qualified  Data.ByteString               as B
-import qualified  Data.ByteString.Lazy          as LB
-
-
--------------------------------------------------------------------------
--- Data Types -----------------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Data Types ----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Main type of value returned for diff-check.
 data DiffCheck = DC { newBinds  :: [CoreBind]
@@ -99,13 +95,13 @@ checkedVars              = concatMap names . newBinds
      names (NonRec v _ ) = [v]
      names (Rec xs)      = fst <$> xs
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target`
 --    file which correspond to top-level binders whose code has changed
 --    and their transitive dependencies.
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice target cbs sp = ifM (doesFileExist savedFile)
                           doDiffCheck
                           (return Nothing)
@@ -114,10 +110,10 @@ slice target cbs sp = ifM (doesFileExist savedFile)
     doDiffCheck     = sliceSaved target savedFile cbs sp
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
-sliceSaved target savedFile coreBinds spec
-  = do (is, lm) <- lineDiff target savedFile
-       result   <- loadResult target
-       return    $ sliceSaved' target is lm (DC coreBinds result spec)
+sliceSaved target savedFile coreBinds spec = do
+  (is, lm) <- lineDiff target savedFile
+  result   <- loadResult target
+  return    $ sliceSaved' target is lm (DC coreBinds result spec)
 
 sliceSaved' :: FilePath -> [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
 sliceSaved' srcF is lm (DC coreBinds result spec)
@@ -219,18 +215,18 @@ txClosure d sigs   = go S.empty
 
 
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 filterBinds cbs ys = filter f cbs
   where
     f (NonRec x _) = x `S.member` ys
     f (Rec xes)    = any (`S.member` ys) $ fst <$> xes
 
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 specDefs :: FilePath -> GhcSpec -> [Def]
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 specDefs srcF  = map def . filter sameFile . specSigs
   where
     def (x, t) = D (line t) (lineE t) x
@@ -239,9 +235,9 @@ specDefs srcF  = map def . filter sameFile . specSigs
 specSigs :: GhcSpec -> [(Var, LocSpecType)]
 specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 coreDefs cbs = L.sort [D l l' x | b <- cbs
                                 , x <- bindersOf b
                                 , isGoodSrcSpan (getSrcSpan x)
@@ -252,7 +248,7 @@ coreDef b    = meetSpans b eSp vSp
     vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
 
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | `meetSpans` cuts off the start-line to be no less than the line at which
 --   the binder is defined. Without this, i.e. if we ONLY use the ticks and
 --   spans appearing inside the definition of the binder (i.e. just `eSp`)
@@ -308,16 +304,14 @@ altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 isJunkSpan (RealSrcSpan _) = False
 isJunkSpan _               = True
 
--------------------------------------------------------------------------
--- | Diff Interface -----------------------------------------------------
--------------------------------------------------------------------------
-
-
+--------------------------------------------------------------------------------
+-- | Diff Interface ------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | `lineDiff new old` compares the contents of `src` with `dst`
 --   and returns the lines of `src` that are different.
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 lineDiff new old  = lineDiff' <$> getLines new <*> getLines old
   where
     getLines      = fmap lines . readFile
@@ -357,9 +351,9 @@ instance Functor Diff where
 
 -- | @save@ creates an .saved version of the @target@ file, which will be
 --    used to find what has changed the /next time/ @target@ is checked.
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 saveResult :: FilePath -> Output Doc -> IO ()
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 saveResult target res
   = do copyFile target saveF
        B.writeFile errF $ LB.toStrict $ encode res
@@ -367,17 +361,17 @@ saveResult target res
        saveF = extFileName Saved  target
        errF  = extFileName Cache  target
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 loadResult   :: FilePath -> IO (Output Doc)
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 loadResult f = ifM (doesFileExist jsonF) out (return mempty)
   where
     jsonF    = extFileName Cache f
     out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 adjustOutput :: LMap -> ChkItv -> Output Doc -> Output Doc
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 adjustOutput lm cm o  = mempty { o_types  = adjustTypes  lm cm (o_types  o) }
                                { o_result = adjustResult lm cm (o_result o) }
 
@@ -401,9 +395,9 @@ adjustErrors lm cm                = mapMaybe adjustError
     adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$> adjustSrcSpan lm cm sp
     adjustError e                 = Just e
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 adjustSrcSpan lm cm sp
   = do sp' <- adjustSpan lm sp
        if isCheckedSpan cm sp'
@@ -439,9 +433,9 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
     is            = [IM.Interval l1 l2 | D l1 l2 _ <- chDefs]
 
 
--------------------------------------------------------------------------
--- | Aeson instances ----------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Aeson instances -----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 instance ToJSON SourcePos where
   toJSON p = object [   "sourceName"   .= f
@@ -497,9 +491,9 @@ line  = sourceLine . loc
 lineE :: Located a -> Int
 lineE = sourceLine . locE
 
--------------------------------------------------------------------------
----- Helper functions ---------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Helper functions ----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 ifM :: (Monad m) => m Bool -> m b -> m b -> m b
 ifM b x y = b >>= \z -> if z then x else y

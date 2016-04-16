@@ -375,7 +375,6 @@ defConfig = Config { files          = def
                    , json           = False
                    }
 
-
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
@@ -390,6 +389,7 @@ exitWithResult cfg target out = do
   consoleResult cfg out r annm
   return $ out { o_result = r }
 
+consoleResult :: Config -> Output Doc -> Int
 consoleResult cfg
   | json cfg  = consoleResultJson cfg
   | otherwise = consoleResultFull cfg
