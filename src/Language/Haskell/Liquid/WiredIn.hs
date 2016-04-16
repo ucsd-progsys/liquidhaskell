@@ -13,10 +13,11 @@ module Language.Haskell.Liquid.WiredIn
        , proofTyConName, combineProofsName
        ) where
 
-import Prelude hiding (error)
+import Prelude                                hiding (error)
+import Var
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (mapSnd)
+import Language.Haskell.Liquid.Misc           (mapSnd)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
@@ -25,6 +26,7 @@ import Language.Haskell.Liquid.Types.PredType
 
 
 import Language.Fixpoint.Types
+import qualified Language.Fixpoint.Types as F
 
 import BasicTypes
 import DataCon
@@ -36,14 +38,20 @@ import CoreSyn
 
 
 
+wiredSortedSyms :: [(Symbol, Sort)]
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
+dictionaryVar :: Var
 dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar)
+
+dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"
+
+dictionaryBind :: Bind Var
 dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
   where
    v = dictionaryVar
@@ -87,7 +95,10 @@ propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 maxArity :: Arity
 maxArity = 7
 
+wiredTyCons :: [(TyCon, TyConP)]
 wiredTyCons     = fst wiredTyDataCons
+
+wiredDataCons :: [(DataCon, Located DataConP)]
 wiredDataCons   = snd wiredTyDataCons
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
@@ -140,11 +151,20 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
+pdVarReft :: PVar t -> UReft Reft
 pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
+mkps :: [Symbol]
+     -> [t] -> [(Symbol, F.Expr)] -> [PVar t]
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
 mkps _  _      _           = panic Nothing "Bare : mkps"
 
+mkps_ :: [Symbol]
+      -> [t]
+      -> [(Symbol, F.Expr)]
+      -> [(t, Symbol, F.Expr)]
+      -> [PVar t]
+      -> [PVar t]
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
   where

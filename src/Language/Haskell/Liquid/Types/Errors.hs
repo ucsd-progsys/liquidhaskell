@@ -430,8 +430,13 @@ ppError k dCtx e = ppError' k dSp dCtx e
   where
     dSp          = pprint (pos e) <> text ": Error:"
 
+nests :: Foldable t => Int -> t Doc -> Doc
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
+
+sepVcat :: Doc -> [Doc] -> Doc
 sepVcat d ds = vcat $ intersperse d ds
+
+blankLine :: Doc
 blankLine    = sizedText 5 " "
 
 ppFull :: Tidy -> Doc -> Doc
@@ -467,6 +472,7 @@ instance ToJSON RealSrcSpan where
     where
       (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
 
+unpackRealSrcSpan :: RealSrcSpan -> (String, Int, Int, Int, Int)
 unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
   where
     f                 = unpackFS $ srcSpanFile rsp
@@ -671,4 +677,5 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       =   text "Refined instance for:" <+> t
       $+$ text "Defined at:" <+> pprint p
 
+ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "'"

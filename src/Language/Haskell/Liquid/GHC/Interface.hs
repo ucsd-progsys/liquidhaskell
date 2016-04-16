@@ -16,7 +16,8 @@ module Language.Haskell.Liquid.GHC.Interface (
 
 import Prelude hiding (error)
 
-import GHC hiding (Target, desugarModule)
+import GHC hiding (Target, desugarModule, Located)
+import qualified GHC
 import GHC.Paths (libdir)
 
 import Bag
@@ -280,12 +281,14 @@ isSpecFile (f, _, _)
   | isExtFile Spec f = True
   | otherwise        = False
 
+getPatSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
 getPatSpec paths totalitycheck
  | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec
  | otherwise     = return []
  where
   patErrorName = "PatErr"
 
+getRealSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
 getRealSpec paths freal
   | freal     = map (realSpecName,)    . maybeToList <$> moduleFile paths realSpecName    Spec
   | otherwise = map (notRealSpecName,) . maybeToList <$> moduleFile paths notRealSpecName Spec
@@ -310,6 +313,7 @@ transParseSpecs exts paths seenFiles specs newFiles = do
 parseSpec :: FilePath -> IO (ModName, Ms.BareSpec)
 parseSpec file = either throw return . specParser file =<< readFile file
 
+specParser :: FilePath -> String -> Either Error (ModName, Ms.BareSpec)
 specParser f str
   | isExtFile Spec   f = specSpecificationP f str
   | isExtFile Hs     f = hsSpecificationP   f str
@@ -318,6 +322,17 @@ specParser f str
   | otherwise          = panic Nothing $ "SpecParser: Cannot Parse File " ++ f
 
 
+moduleSpec :: GhcMonad m
+           => Config
+           -> [CoreBind]
+           -> [Var]
+           -> [Var]
+           -> ModName
+           -> MGIModGuts
+           -> Ms.Spec (Located BareType) LocSymbol
+           -> Either Error LogicMap
+           -> [(ModName, Ms.BareSpec)]
+           -> m (GhcSpec, [String], [FilePath])
 moduleSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let tgtCxt = IIModule $ getModName tgtMod
   let impCxt = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
@@ -330,6 +345,12 @@ moduleSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   ghcSpec <- liftIO $ makeGhcSpec cfg tgtMod cbs vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
+moduleHquals :: MGIModGuts
+             -> [FilePath]
+             -> FilePath
+             -> [String]
+             -> [FilePath]
+             -> Ghc [FilePath]
 moduleHquals mgi paths target imps incs = do
   hqs   <- specIncludes Hquals paths incs
   hqs'  <- moduleImports [Hquals] paths (mgi_namestring mgi : imps)
@@ -420,4 +441,5 @@ instance Result SourceError where
          . bagToList
          . srcErrorMessages
 
+errMsgErrors :: ErrMsg -> [TError t]
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]

@@ -94,6 +94,8 @@ trueRefType (RRTy e o r t)
 trueRefType t
   = return t
 
+trueRef :: (RefTypable RTyCon RTyVar r, Freshable f r, Freshable f Integer)
+        => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
 trueRef (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
 trueRef (RProp s t) = RProp s <$> trueRefType t
 
@@ -136,7 +138,10 @@ refreshRefType (RRTy e o r t)
 refreshRefType t
   = return t
 
+refreshRef :: (RefTypable RTyCon RTyVar r, Freshable f r, Freshable f Integer)
+           => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
 refreshRef (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
 
+freshSym :: Freshable f a => (t, t1) -> f (a, t1)
 freshSym (_, t)        = (, t) <$> fresh

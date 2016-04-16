@@ -15,62 +15,63 @@
 
 module Language.Haskell.Liquid.GHC.Misc where
 
-import PrelNames (fractionalClassKeys)
-import Class     (classKey)
+import           Class                                      (classKey)
+import           Data.String
+import           PrelNames                                  (fractionalClassKeys)
 
 import           Debug.Trace
 
-import           Prelude                      hiding (error)
-import           Avail                        (availsToNameSet)
-import           BasicTypes                   (Arity)
-import           CoreSyn                      hiding (Expr, sourceName)
-import qualified CoreSyn as Core
+import           Prelude                                    hiding (error)
+import           Avail                                      (availsToNameSet)
+import           BasicTypes                                 (Arity)
+import           CoreSyn                                    hiding (Expr, sourceName)
+import qualified CoreSyn                                    as Core
 import           CostCentre
-import           GHC                          hiding (L)
-import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
-import           Kind                         (superKind)
-import           NameSet                      (NameSet)
-import           SrcLoc                       hiding (L)
+import           GHC                                        hiding (L)
+import           HscTypes                                   (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
+import           Kind                                       (superKind)
+import           NameSet                                    (NameSet)
+import           SrcLoc                                     hiding (L)
 import           Bag
 import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, newPos)
+import           Text.Parsec.Pos                            (sourceName, sourceLine, sourceColumn, newPos)
 
-import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
-import           Module                       (moduleNameFS)
-import           OccName                      (mkTyVarOcc, mkVarOcc, mkTcOcc, occNameFS)
+import           Name                                       (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Module                                     (moduleNameFS)
+import           OccName                                    (mkTyVarOcc, mkVarOcc, mkTcOcc, occNameFS)
 import           Unique
-import           Finder                       (findImportedModule, cannotFindModule)
-import           Panic                        (throwGhcException)
+import           Finder                                     (findImportedModule, cannotFindModule)
+import           Panic                                      (throwGhcException)
 import           FastString
 import           TcRnDriver
 -- import           TcRnTypes
 
 
 import           RdrName
-import           Type                         (liftedTypeKind)
+import           Type                                       (liftedTypeKind)
 import           TypeRep
 import           Var
 import           IdInfo
-import qualified TyCon                        as TC
-import           Data.Char                    (isLower, isSpace)
-import           Data.Maybe                   (fromMaybe)
+import qualified TyCon                                      as TC
+import           Data.Char                                  (isLower, isSpace)
+import           Data.Maybe                                 (fromMaybe)
 import           Data.Hashable
-import qualified Data.HashSet                 as S
+import qualified Data.HashSet                               as S
 
-import qualified Data.Text.Encoding           as T
-import qualified Data.Text                    as T
-import           Control.Arrow                (second)
-import           Control.Monad                ((>=>))
-import           Outputable                   (Outputable (..), text, ppr)
-import qualified Outputable                   as Out
+import qualified Data.Text.Encoding                         as T
+import qualified Data.Text                                  as T
+import           Control.Arrow                              (second)
+import           Control.Monad                              ((>=>))
+import           Outputable                                 (Outputable (..), text, ppr)
+import qualified Outputable                                 as Out
 import           DynFlags
-import qualified Text.PrettyPrint.HughesPJ    as PJ
-import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
-import qualified Language.Fixpoint.Types      as F
-import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
+import qualified Text.PrettyPrint.HughesPJ                  as PJ
+import           Language.Fixpoint.Types                    hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
+import qualified Language.Fixpoint.Types                    as F
+import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
@@ -92,6 +93,7 @@ data MGIModGuts = MI {
   , mgi_cls_inst  :: !(Maybe [ClsInst])
   }
 
+miModGuts :: Maybe [ClsInst] -> ModGuts -> MGIModGuts
 miModGuts cls mg  = MI {
     mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
@@ -104,6 +106,7 @@ miModGuts cls mg  = MI {
   , mgi_cls_inst  = cls
   }
 
+mgi_namestring :: MGIModGuts -> String
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
 --------------------------------------------------------------------------------
@@ -141,9 +144,11 @@ stringTyConWithKind k c n s = TC.mkKindTyCon name k
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
 
+hasBaseTypeVar :: Var -> Bool
 hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
+isBaseType :: Type -> Bool
 isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
@@ -155,18 +160,24 @@ validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
 
+tvId :: Var -> [Char]
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
+tracePpr :: Outputable a => [Char] -> a -> a
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
+pprShow :: Show a => a -> Out.SDoc
 pprShow = text . show
 
 
+tidyCBs :: [CoreBind] -> [CoreBind]
 tidyCBs = map unTick
 
+unTick :: CoreBind -> CoreBind
 unTick (NonRec b e) = NonRec b (unTickExpr e)
 unTick (Rec bs)     = Rec $ map (second unTickExpr) bs
 
+unTickExpr :: CoreExpr -> CoreExpr
 unTickExpr (App e a)          = App (unTickExpr e) (unTickExpr a)
 unTickExpr (Lam b e)          = Lam b (unTickExpr e)
 unTickExpr (Let b e)          = Let (unTick b) (unTickExpr e)
@@ -176,17 +187,20 @@ unTickExpr (Cast e c)         = Cast (unTickExpr e) c
 unTickExpr (Tick _ e)         = unTickExpr e
 unTickExpr x                  = x
 
+isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
 -----------------------------------------------------------------------
 ------------------ Generic Helpers for DataConstructors ---------------
 -----------------------------------------------------------------------
 
+isDataConId :: Id -> Bool
 isDataConId id = case idDetails id of
                   DataConWorkId _ -> True
                   DataConWrapId _ -> True
                   _               -> False
 
+getDataConVarUnique :: Var -> Unique
 getDataConVarUnique v
   | isId v && isDataConId v = getUnique $ idDataCon v
   | otherwise               = getUnique v
@@ -210,18 +224,28 @@ instance Outputable a => Outputable (S.HashSet a) where
 
 -------------------------------------------------------
 
+toFixSDoc :: Fixpoint a => a -> PJ.Doc
 toFixSDoc = PJ.text . PJ.render . toFix
+
+sDocDoc :: Out.SDoc -> PJ.Doc
 sDocDoc   = PJ.text . showSDoc
+
+pprDoc :: Outputable a => a -> PJ.Doc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
+showPpr :: Outputable a => a -> String
 showPpr       = showSDoc . ppr
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
+showSDoc :: Out.SDoc -> String
 showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+
+showSDocDump :: Out.SDoc -> String
 showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
+typeUniqueString :: Outputable a => a -> String
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
@@ -262,10 +286,19 @@ srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
 
 
 
+srcSpanFilename :: SrcSpan -> String
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
+
+srcSpanStartLoc :: RealSrcSpan -> Loc
 srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
+
+srcSpanEndLoc :: RealSrcSpan -> Loc
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
+
+oneLine :: RealSrcSpan -> Bool
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
+
+lineCol :: RealSrcSpan -> (Int, Int)
 lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 
 realSrcSpanSourcePos :: RealSrcSpan -> SourcePos
@@ -284,14 +317,19 @@ realSrcSpanSourcePosE s = newPos file line col
     col                 = srcSpanEndCol        s
 
 
+getSourcePos :: NamedThing a => a -> SourcePos
 getSourcePos           = srcSpanSourcePos  . getSrcSpan
+
+getSourcePosE :: NamedThing a => a -> SourcePos
 getSourcePosE          = srcSpanSourcePosE . getSrcSpan
 
+collectArguments :: Int -> CoreExpr -> [Var]
 collectArguments n e = if length xs > n then take n xs else xs
   where (vs', e') = collectValBinders' $ snd $ collectTyBinders e
         vs        = fst $ collectValBinders $ ignoreLetBinds e'
         xs        = vs' ++ vs
 
+collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
 collectValBinders' = go []
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
@@ -299,6 +337,7 @@ collectValBinders' = go []
     go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
+ignoreLetBinds :: Core.Expr t -> Core.Expr t
 ignoreLetBinds (Let (NonRec _ _) e')
   = ignoreLetBinds e'
 ignoreLetBinds e
@@ -323,6 +362,7 @@ kindArity _
   = 0
 
 
+uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
 -- slightly modified version of DynamicLoading.lookupRdrNameInModule
@@ -354,15 +394,22 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineError = throwGhcException . CmdLineError
 
 
+qualImportDecl :: ModuleName -> ImportDecl name
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
+ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
   where go  x = x {hsmodDecls = filter go' $ hsmodDecls x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
+symbolTyConWithKind :: Kind -> Char -> Int -> Symbol -> TyCon
 symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
+
+symbolTyCon :: Char -> Int -> Symbol -> TyCon
 symbolTyCon x i n = stringTyCon x i (symbolString n)
+
+symbolTyVar :: Symbol -> TyVar
 symbolTyVar n = stringTyVar (symbolString n)
 
 
@@ -375,6 +422,7 @@ varSymbol v
     us                    = symbol $ showPpr $ getDataConVarUnique v
     vs                    = symbol $ getName v
 
+qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $
   case nameModule_maybe n of
     Nothing -> occNameFS (getOccName n)
@@ -383,8 +431,10 @@ qualifiedNameSymbol n = symbol $
 instance Symbolic FastString where
   symbol = symbol . fastStringText
 
+fastStringText :: FastString -> T.Text
 fastStringText = T.decodeUtf8 . fastStringToByteString
 
+tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
 tyConTyVarsDef c | TC.isPromotedTyCon   c = panic Nothing ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
 tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
@@ -498,8 +548,11 @@ dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
     headName msg = symbol . safeHead msg
 
 
+sepModNames :: T.Text
 sepModNames = "."
-sepUnique   = "#"
+
+sepUnique :: T.Text
+sepUnique = "#"
 
 
 -- safeHead :: String -> [T.Text] -> Symbol
@@ -522,11 +575,19 @@ qualifySymbol (symbolText -> m) x'@(symbolText -> x)
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
 
+isQualified :: T.Text -> Bool
 isQualified y = "." `T.isInfixOf` y
+
+wrapParens :: (IsString a, Monoid a) => a -> a
 wrapParens x  = "(" `mappend` x `mappend` ")"
+
+isParened :: T.Text -> Bool
 isParened xs  = xs /= stripParens xs
 
+isDictionary :: Symbolic a => a -> Bool
 isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
+
+isInternal :: Symbolic a => a -> Bool
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
 
 stripParens :: T.Text -> T.Text

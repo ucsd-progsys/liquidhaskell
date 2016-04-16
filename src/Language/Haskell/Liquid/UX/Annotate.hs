@@ -17,47 +17,50 @@
 
 module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate) where
 
-import           Prelude                  hiding (error)
-import           GHC                      ( SrcSpan (..)
+import           Data.Hashable
+import           Data.String
+import           GHC                                          ( SrcSpan (..)
                                           , srcSpanStartCol
                                           , srcSpanEndCol
                                           , srcSpanStartLine
                                           , srcSpanEndLine)
-import           Text.PrettyPrint.HughesPJ hiding (first)
-import           GHC.Exts                 (groupWith, sortWith)
+import           GHC.Exts                                     (groupWith, sortWith)
+import           Prelude                                      hiding (error)
+import qualified SrcLoc
+import           Text.PrettyPrint.HughesPJ                    hiding (first)
+import           Text.Printf
 
-import           Data.Char                (isSpace)
-import           Data.Function            (on)
-import           Data.List                (sortBy)
-import           Data.Maybe               (mapMaybe)
+import           Data.Char                                    (isSpace)
+import           Data.Function                                (on)
+import           Data.List                                    (sortBy)
+import           Data.Maybe                                   (mapMaybe)
 
 import           Data.Aeson
-import           Control.Arrow            hiding ((<+>))
+import           Control.Arrow                                hiding ((<+>))
 -- import           Control.Applicative      ((<$>))
-import           Control.Monad            (when, forM_)
+import           Control.Monad                                (when, forM_)
 
-import           System.Exit                      (ExitCode (..))
-import           System.FilePath          (takeFileName, dropFileName, (</>))
-import           System.Directory         (findExecutable, copyFile)
-import           Text.Printf              (printf)
-import qualified Data.List              as L
-import qualified Data.Vector            as V
-import qualified Data.ByteString.Lazy   as B
-import qualified Data.Text              as T
-import qualified Data.HashMap.Strict    as M
-import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
+import           System.Exit                                  (ExitCode (..))
+import           System.FilePath                              (takeFileName, dropFileName, (</>))
+import           System.Directory                             (findExecutable, copyFile)
+import qualified Data.List                                    as L
+import qualified Data.Vector                                  as V
+import qualified Data.ByteString.Lazy                         as B
+import qualified Data.Text                                    as T
+import qualified Data.HashMap.Strict                          as M
+import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Fixpoint.Types hiding (Error, Loc, Constant (..), Located (..))
+import           Language.Fixpoint.Types                      hiding (Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 
-import           Language.Haskell.Liquid.UX.Errors ()
+import           Language.Haskell.Liquid.UX.Errors            ()
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
+import           Language.Haskell.Liquid.Types                hiding (Located(..), Def(..))
 import           Language.Haskell.Liquid.Types.Specifications
 
 
@@ -105,12 +108,14 @@ annotate cfg srcF out
        vimF       = extFileName Vim   srcF
        showWarns  = not $ nowarnings cfg
 
+mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`)
 
+generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
 generateHtml srcF htmlF annm
   = do src     <- readFile srcF
        let lhs  = isExtFile LHs srcF
@@ -119,6 +124,7 @@ generateHtml srcF htmlF annm
        copyFile cssFile (dropFileName htmlF </> takeFileName cssFile)
        renderHtml lhs htmlF srcF (takeFileName cssFile) body
 
+renderHtml :: Bool -> FilePath -> [Char] -> [Char] -> [Char] -> IO ()
 renderHtml True  = renderPandoc
 renderHtml False = renderDirect
 
@@ -126,10 +132,13 @@ renderHtml False = renderDirect
 -- | Pandoc HTML Rendering (for lhs + markdown source) ------------------
 -------------------------------------------------------------------------
 
+renderPandoc :: FilePath -> [Char] -> [Char] -> [Char] -> IO ()
 renderPandoc htmlFile srcFile css body
   = do renderFn <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"
        renderFn htmlFile srcFile css body
 
+renderPandoc' :: PrintfArg t
+              => t -> FilePath -> FilePath -> [Char] -> String -> IO ()
 renderPandoc' pandocPath htmlFile srcFile css body
   = do _  <- writeFile mdFile $ pandocPreProc body
        ec <- executeShellCommand "pandoc" cmd
@@ -138,12 +147,16 @@ renderPandoc' pandocPath htmlFile srcFile css body
     where mdFile = extFileName Mkdn srcFile
           cmd    = pandocCmd pandocPath mdFile htmlFile
 
+checkExitCode :: Monad m => [Char] -> ExitCode -> m ()
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = panic Nothing $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
+pandocCmd :: (PrintfArg t1, PrintfArg t2, PrintfArg t3, PrintfType t)
+          => t1 -> t2 -> t3 -> t
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile
 
+pandocPreProc :: String -> String
 pandocPreProc  = T.unpack
                . strip beg code
                . strip end code
@@ -171,6 +184,7 @@ pandocPreProc  = T.unpack
 
 -- More or less taken from hscolour
 
+renderDirect :: FilePath -> [Char] -> [Char] -> [Char] -> IO ()
 renderDirect htmlFile srcFile css body
   = writeFile htmlFile $! (top'n'tail full srcFile css $! body)
     where full = True -- False  -- TODO: command-line-option
@@ -178,11 +192,13 @@ renderDirect htmlFile srcFile css body
 -- | @top'n'tail True@ is used for standalone HTML,
 --   @top'n'tail False@ for embedded HTML
 
+top'n'tail :: Bool -> [Char] -> [Char] -> [Char] -> [Char]
 top'n'tail True  title css = (htmlHeader title css ++) . (++ htmlClose)
 top'n'tail False _    _    = id
 
 -- Use this for standalone HTML
 
+htmlHeader :: [Char] -> [Char] -> String
 htmlHeader title css = unlines
   [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">"
   , "<html>"
@@ -195,8 +211,10 @@ htmlHeader title css = unlines
   , "Put mouse over identifiers to see inferred types"
   ]
 
+htmlClose :: IsString a => a
 htmlClose  = "\n</body>\n</html>"
 
+cssHTML :: [Char] -> String
 cssHTML css = unlines
   [ "<head>"
   , "<link type='text/css' rel='stylesheet' href='"++ css ++ "' />"
@@ -214,24 +232,31 @@ cssHTML css = unlines
 mkAnnMap :: Config -> ErrorResult -> AnnInfo Doc -> ACSS.AnnMap
 mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
 
+mkStatus :: FixResult t -> ACSS.Status
 mkStatus (Safe)          = ACSS.Safe
 mkStatus (Unsafe _)      = ACSS.Unsafe
 mkStatus (Crash _ _)     = ACSS.Error
 
 
 
+mkAnnMapErr :: PPrint (TError t)
+            => FixResult (TError t) -> [(Loc, Loc, String)]
 mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
 mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls
 mkAnnMapErr _            = []
 
+cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
 cinfoErr e = case pos e of
                RealSrcSpan l -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
                _             -> Nothing
 
 
 -- mkAnnMapTyp :: (RefTypable a c tv r, RefTypable a c tv (), PPrint tv, PPrint a) =>Config-> AnnInfo (RType a c tv r) -> M.HashMap Loc (String, String)
+mkAnnMapTyp :: Config -> AnnInfo Doc -> M.HashMap Loc (String, String)
 mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders cfg z
 
+mkAnnMapBinders :: Config
+                -> AnnInfo Doc -> [(SrcLoc.RealSrcSpan, (String, String))]
 mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst) locBinds
@@ -243,6 +268,7 @@ mkAnnMapBinders cfg (AI m)
 closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType
 closeAnnots = closeA . filterA . collapseA
 
+closeA :: AnnInfo (Annot b) -> AnnInfo b
 closeA a@(AI m)   = cf <$> a
   where
     cf (AnnLoc l)  = case m `mlookup` l of
@@ -254,13 +280,16 @@ closeA a@(AI m)   = cf <$> a
     cf (AnnDef t) = t
     cf (AnnRDf t) = t
 
+filterA :: AnnInfo (Annot t) -> AnnInfo (Annot t)
 filterA (AI m) = AI (M.filter ff m)
   where
     ff [(_, AnnLoc l)] = l `M.member` m
     ff _               = True
 
+collapseA :: AnnInfo (Annot t) -> AnnInfo (Annot t)
 collapseA (AI m) = AI (fmap pickOneA m)
 
+pickOneA :: [(t, Annot t1)] -> [(t, Annot t1)]
 pickOneA xas = case (rs, ds, ls, us) of
                  (x:_, _, _, _) -> [x]
                  (_, x:_, _, _) -> [x]
@@ -278,21 +307,25 @@ pickOneA xas = case (rs, ds, ls, us) of
 ------------------------------------------------------------------------------
 
 -- | The token used for refinement symbols inside the highlighted types in @-blocks.
+refToken :: TokenType
 refToken = Keyword
 
 -- | The top-level function for tokenizing @-block annotations. Used to
 -- tokenize comments by ACSS.
+tokAnnot :: [Char] -> [(TokenType, String)]
 tokAnnot s
   = case trimLiquidAnnot s of
       Just (l, body, r) -> [(refToken, l)] ++ tokBody body ++ [(refToken, r)]
       Nothing           -> [(Comment, s)]
 
+trimLiquidAnnot :: [Char] -> Maybe (String, [Char], String)
 trimLiquidAnnot ('{':'-':'@':ss)
   | drop (length ss - 3) ss == "@-}"
   = Just (liquidBegin, take (length ss - 3) ss, liquidEnd)
 trimLiquidAnnot _
   = Nothing
 
+tokBody :: String -> [(TokenType, String)]
 tokBody s
   | isData s  = tokenise s
   | isType s  = tokenise s
@@ -300,9 +333,16 @@ tokBody s
   | isMeas s  = tokenise s
   | otherwise = tokeniseSpec s
 
+isMeas :: String -> Bool
 isMeas = spacePrefix "measure"
+
+isData :: String -> Bool
 isData = spacePrefix "data"
+
+isType :: String -> Bool
 isType = spacePrefix "type"
+
+isIncl :: String -> Bool
 isIncl = spacePrefix "include"
 
 {-@ spacePrefix :: String -> s:String -> Bool / [len s] @-}
@@ -316,6 +356,7 @@ spacePrefix _ _ = False
 tokeniseSpec       ::  String -> [(TokenType, String)]
 tokeniseSpec str   = {- traceShow ("tokeniseSpec: " ++ str) $ -} tokeniseSpec' str
 
+tokeniseSpec' :: String -> [(TokenType, String)]
 tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
   where
     tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
@@ -323,6 +364,7 @@ tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
     tokAlt' (s:ss) = (refToken, s) : tokAlt ss
     tokAlt' _      = []
 
+chopAltDBG :: String -> [[Char]]
 chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -}
   filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
   $ chopAlts [("<{", "}>"), ("{", "}")] y
@@ -350,6 +392,7 @@ data Annot1    = A1  { ident :: String
 vimAnnot     :: Config -> AnnInfo Doc -> String
 vimAnnot cfg = L.intercalate "\n" . map vimBind . mkAnnMapBinders cfg
 
+vimBind :: (Show a, PrintfType t) => (SrcLoc.RealSrcSpan, ([Char], a)) -> t
 vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann)
   where
     l1  = srcSpanStartLine sp
@@ -403,6 +446,8 @@ annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
     binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
 
+ins :: (Eq k, Eq k1, Hashable k, Hashable k1)
+    => k -> k1 -> a -> Assoc k (Assoc k1 a) -> Assoc k (Assoc k1 a)
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where
     Asc rm         = M.lookupDefault (Asc M.empty) r m
@@ -449,4 +494,5 @@ _anns = i [(5,   i [( 14, A1 { ident = "foo"
                   ])
          ]
 
+i :: (Eq k, Hashable k) => [(k, a)] -> Assoc k a
 i = Asc . M.fromList

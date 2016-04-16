@@ -66,6 +66,8 @@ litSpans :: [Lit] -> [(Lit, Loc)]
 litSpans lits = zip lits $ spans lits
   where spans = tokenSpans Nothing . map unL
 
+hsannot' :: Maybe Loc
+         -> Bool -> CommentTransform -> (String, AnnMap) -> String
 hsannot' baseLoc anchor tx =
     CSS.pre
     . (if anchor then concatMap (renderAnchors renderAnnotToken)
@@ -83,16 +85,19 @@ annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots
     annots     = fmap (spanAnnot linWidth annm) spans
     linWidth   = length $ show $ length $ lines src
 
+spanAnnot :: Int -> AnnMap -> Loc -> Annotation
 spanAnnot w (Ann ts es _) span = A t e b
   where
     t = fmap snd (M.lookup span ts)
     e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
     b = spanLine w span
 
+spanLine :: t -> Loc -> Maybe (Int, t)
 spanLine w (L (l, c))
   | c == 1    = Just (l, w)
   | otherwise = Nothing
 
+inRange :: Loc -> (Loc, Loc) -> Bool
 inRange (L (l0, c0)) (L (l, c), L (l', c'))
   = l <= l0 && c <= c0 && l0 <= l' && c0 < c'
 
@@ -120,15 +125,20 @@ renderAnnotToken (x, y, a)  = renderLinAnnot (lin a)
 
 
 
+renderTypAnnot :: (PrintfArg t, PrintfType t) => Maybe String -> t -> t
 renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
 renderTypAnnot Nothing    s = s
 
+renderErrAnnot :: (PrintfArg t1, PrintfType t1) => Maybe t -> t1 -> t1
 renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s
 renderErrAnnot Nothing  s   = s
 
+renderLinAnnot :: (Show t, PrintfArg t1, PrintfType t1)
+               => Maybe (t, Int) -> t1 -> t1
 renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lineString d) s
 renderLinAnnot Nothing  s   = s
 
+lineString :: Show t => (t, Int) -> [Char]
 lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
   where is        = show i
 
@@ -169,6 +179,7 @@ splitSrcAndAnns s =
 srcModuleName :: String -> String
 srcModuleName = fromMaybe "Main" . tokenModule . tokenise
 
+tokenModule :: [(TokenType, [Char])] -> Maybe [Char]
 tokenModule toks
   = do i <- findIndex ((Keyword, "module") ==) toks
        let (_, toks')  = splitAt (i+2) toks
@@ -176,6 +187,7 @@ tokenModule toks
        let (toks'', _) = splitAt j toks'
        return $ concatMap snd toks''
 
+breakS :: [Char]
 breakS = "MOUSEOVER ANNOTATIONS"
 
 annotParse :: String -> String -> AnnMap
@@ -184,6 +196,10 @@ annotParse mname s = Ann (M.fromList ts) [(x,y,"") | (x,y) <- es] Safe
     (ts, es)       = partitionEithers $ parseLines mname 0 $ lines s
 
 
+parseLines :: [Char]
+           -> Int
+           -> [[Char]]
+           -> [Either (Loc, ([Char], [Char])) (Loc, Loc)]
 parseLines _ _ []
   = []
 
@@ -215,7 +231,10 @@ instance Show AnnMap where
   show (Ann ts es _ ) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
                                 ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
 
+ppAnnotTyp :: (PrintfArg t, PrintfType t1) => (Loc, (t, String)) -> t1
 ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s
+
+ppAnnotErr :: PrintfType t => (Loc, Loc) -> t
 ppAnnotErr (L (l, c), L (l', c')) = printf " \n%d\n%d\n0\n%d\n%d\n\n\n\n" l c l' c'
 
 
@@ -249,6 +268,7 @@ classify (('>':x):xs)   = Code ('>':x) : classify xs
 classify (x:xs)         = Lit x: classify xs
 
 
+allProg :: [Char] -> [[Char]] -> [Lit]
 allProg name  = go
   where
     end       = "\\end{" ++ name ++ "}"

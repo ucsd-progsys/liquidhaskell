@@ -1,30 +1,31 @@
-  {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
 module Language.Haskell.Liquid.Constraint.ProofToCore where
 
-import Prelude hiding (error)
-import CoreSyn hiding (Expr, Var)
-import qualified CoreSyn as H
-import Language.Haskell.Liquid.Types.Errors
+import qualified CoreSyn                                        as H
+import           CoreSyn                                        hiding (Expr, Var)
+import           Language.Haskell.Liquid.Types.Errors
+import           Prelude                                        hiding (error)
+import qualified Var                                            as H
 
-import Var hiding (Var)
+import           Var                                            hiding (Var)
 
-import CoreUtils
+import           CoreUtils
 
-import Type hiding (Var)
-import TypeRep
+import           Type                                           hiding (Var)
+import           TypeRep
 
-import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.WiredIn
 
 
 
-import Prover.Types
-import Language.Haskell.Liquid.Transforms.CoreToLogic ()
-import qualified Data.List as L
-import Data.Maybe (fromMaybe)
+import           Prover.Types
+import           Language.Haskell.Liquid.Transforms.CoreToLogic ()
+import qualified Data.List                                      as L
+import           Data.Maybe                                     (fromMaybe)
 
 type HId       = Id
 type HVar      = Var      HId
@@ -87,6 +88,12 @@ combineProofs c _ es = foldl (flip Let) (combine [1..] c (H.Var v) (H.Var <$> vs
       (v:vs, bs) = unzip [let v = (varANF i (exprType e)) in (v, NonRec v e)
                               | (e, i) <- zip es [1..] ]
 
+combine :: Show t1
+        => [t1]
+        -> (H.Expr H.Var -> t -> H.Expr H.Var)
+        -> H.Expr H.Var
+        -> [t]
+        -> H.Expr H.Var
 combine _ _ e []             = e
 combine _ c e' [e]           = c e' e
 combine (i:uniq) c e' (e:es) = Let (NonRec v (c e' e)) (combine uniq c (H.Var v) es)
@@ -132,15 +139,18 @@ anf (bs, es, i:uniq) (App f e) = ((NonRec v (App f e')):(bs++bs'), H.Var v:es, u
 anf (bs, es, uniq) e = (bs, e:es, uniq)
 
 -- | Filling up dictionaries
+makeDictionaries :: Id -> CoreExpr -> [H.Expr b]
 makeDictionaries dname e = go (exprType e)
   where
     go (ForAllTy _ t) = go t
     go (FunTy tx t  ) | isClassPred tx = (makeDictionary dname tx):go t
     go _              = []
 
+makeDictionary :: Id -> Type -> H.Expr b
 makeDictionary dname t = App (H.Var dname) (Type t)
 
 -- | Filling up types
+instantiateVars :: [(H.Var, Type)] -> H.Expr CoreBndr -> H.Expr CoreBndr
 instantiateVars vts e = go e (exprType e)
   where
     go e (ForAllTy a t) = go (App e (Type $ fromMaybe (TyVarTy a) $ L.lookup a vts)) t
@@ -161,6 +171,7 @@ resolveVs as  ts = go as ts
     go fvs ((LitTy _, LitTy _):ts)                = go fvs ts
     go _   (tt:_)                                 = panic Nothing $ ("cannot resolve " ++ show tt ++ (" for ") ++ show ts)
 
+resolveVar :: H.Var -> Type -> [(H.Var, Type)] -> Type
 resolveVar _ t [] = t
 resolveVar a t ((a', t'):ats)
   | a == a'           = resolveVar a' t' ats
@@ -185,10 +196,16 @@ substTyV (a, at) (t1, t2) = (go t1, go t2)
 -------------------------  HELPERS --------------------------------------------
 -------------------------------------------------------------------------------
 
+varCombine :: Show a => a -> Type -> H.Var
 varCombine i = stringVar ("proof_anf_cmb"  ++ show i)
+
+varANF :: Show a => a -> Type -> H.Var
 varANF     i = stringVar ("proof_anf_bind" ++ show i)
+
+varANFPr :: Show a => a -> Type -> H.Var
 varANFPr   i = stringVar ("proof_anf_bind_pr" ++ show i)
 
+bkArrow :: Type -> ([H.Var], [Type])
 bkArrow = go [] []
   where
     go vs ts (ForAllTy v t) = go (v:vs) ts t

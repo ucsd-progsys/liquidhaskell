@@ -64,6 +64,7 @@ instance Subable Var where
            | otherwise    = v
  subTy s v = setVarType v (subTy s (varType v))
 
+subVar :: Expr t -> Id
 subVar (Var x) = x
 subVar  _      = panic Nothing "sub Var"
 
@@ -78,6 +79,7 @@ instance Subable Type where
  sub _ e   = e
  subTy     = substTysWith
 
+substTysWith :: M.HashMap Var Type -> Type -> Type
 substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
 substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
 substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)

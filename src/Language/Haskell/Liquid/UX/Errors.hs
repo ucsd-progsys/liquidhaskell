@@ -23,6 +23,7 @@ import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc        (single)
 
+
 type Ctx = M.HashMap Symbol SpecType
 
 ------------------------------------------------------------------------

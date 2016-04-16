@@ -26,33 +26,37 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    )
    where
 
-import           Prelude                       hiding (error)
+
+import           FastString                             (FastString)
+import           Prelude                                hiding (error)
 import           Data.Aeson
-import qualified Data.Text as T
+import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
-import           Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
+import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
 import           Data.Hashable
-import qualified Data.IntervalMap.FingerTree as IM
-import           CoreSyn                       hiding (sourceName)
-import           Name (getSrcSpan)
-import           SrcLoc hiding (Located)
+import qualified Data.IntervalMap.FingerTree            as IM
+import           CoreSyn                                hiding (sourceName)
+import           Name                                   (getSrcSpan, NamedThing)
+import           Outputable                             (Outputable, OutputableBndr)
+import           SrcLoc                                 hiding (Located)
 import           Var
-import qualified Data.HashSet                  as S
-import qualified Data.HashMap.Strict           as M
-import qualified Data.List                     as L
-import           System.Directory                (copyFile, doesFileExist)
-import           Language.Fixpoint.Types         (tracepp, PPrint (..), FixResult (..), Located (..))
+import qualified Data.HashSet                           as S
+import qualified Data.HashMap.Strict                    as M
+import qualified Data.List                              as L
+import           System.Directory                       (copyFile, doesFileExist)
+import           Language.Fixpoint.Types                (tracepp, PPrint (..), FixResult (..), Located (..))
+-- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
-import           Language.Haskell.Liquid.Types   (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
-import           Language.Haskell.Liquid.Misc    (mkGraph)
+import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import           Language.Haskell.Liquid.Misc           (mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Visitors
-import           Language.Haskell.Liquid.UX.Errors   ()
-import           Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import           Text.PrettyPrint.HughesPJ        (text, render, Doc)
+import           Language.Haskell.Liquid.UX.Errors      ()
+import           Text.Parsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 import           Language.Haskell.Liquid.Types.Errors
-import qualified Data.ByteString               as B
-import qualified Data.ByteString.Lazy          as LB
+import qualified Data.ByteString                        as B
+import qualified Data.ByteString.Lazy                   as LB
 
 --------------------------------------------------------------------------------
 -- | Data Types ----------------------------------------------------------------
@@ -242,6 +246,9 @@ coreDefs cbs = L.sort [D l l' x | b <- cbs
                                 , x <- bindersOf b
                                 , isGoodSrcSpan (getSrcSpan x)
                                 , (l, l') <- coreDef b]
+
+coreDef :: (NamedThing a, OutputableBndr a)
+        => Bind a -> [(Int, Int)]
 coreDef b    = meetSpans b eSp vSp
   where
     eSp      = lineSpan b $ catSpans b $ bindSpans b
@@ -259,6 +266,7 @@ coreDef b    = meetSpans b eSp vSp
 --   where `spanEnd` is a single line function around 1092 but where
 --   the generated span starts mysteriously at 222 where Data.List is imported.
 
+meetSpans :: Ord t1 => t -> Maybe (t1, t2) -> Maybe (t1, t3) -> [(t1, t2)]
 meetSpans _ Nothing       _
   = []
 meetSpans _ (Just (l,l')) Nothing
@@ -266,25 +274,34 @@ meetSpans _ (Just (l,l')) Nothing
 meetSpans _ (Just (l,l')) (Just (m,_))
   = [(max l m, l')]
 
+lineSpan :: t -> SrcSpan -> Maybe (Int, Int)
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan _ _                = Nothing
 
+catSpans :: (NamedThing r, OutputableBndr r)
+         => Bind r -> [SrcSpan] -> SrcSpan
 catSpans b []               = panic Nothing $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
 
+bindFile
+  :: (Outputable r, NamedThing r) =>
+     Bind r -> FastString
 bindFile (NonRec x _) = varFile x
 bindFile (Rec xes)    = varFile $ fst $ head xes
 
+varFile :: (Outputable a, NamedThing a) => a -> FastString
 varFile b = case getSrcSpan b of
               RealSrcSpan z -> srcSpanFile z
               _             -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
 
 
+bindSpans :: NamedThing a => Bind a -> [SrcSpan]
 bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e
 bindSpans (Rec    xes)    = map getSrcSpan xs ++ concatMap exprSpans es
   where
     (xs, es)              = unzip xes
 
+exprSpans :: NamedThing a => Expr a -> [SrcSpan]
 exprSpans (Tick t e)
   | isJunkSpan sp         = exprSpans e
   | otherwise             = [sp]
@@ -299,8 +316,10 @@ exprSpans (Cast e _)      = exprSpans e
 exprSpans (Case e x _ cs) = getSrcSpan x : exprSpans e ++ concatMap altSpans cs
 exprSpans _               = []
 
+altSpans :: (NamedThing a, NamedThing a1) => (t, [a], Expr a1) -> [SrcSpan]
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 
+isJunkSpan :: SrcSpan -> Bool
 isJunkSpan (RealSrcSpan _) = False
 isJunkSpan _               = True
 
@@ -404,12 +423,18 @@ adjustSrcSpan lm cm sp
          then Nothing
          else Just sp'
 
+isCheckedSpan :: IM.IntervalMap Int a -> SrcSpan -> Bool
 isCheckedSpan cm (RealSrcSpan sp) = isCheckedRealSpan cm sp
 isCheckedSpan _  _                = False
+
+isCheckedRealSpan :: IM.IntervalMap Int a -> RealSrcSpan -> Bool
 isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine
 
+adjustSpan :: LMap -> SrcSpan -> Maybe SrcSpan
 adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp
 adjustSpan _  sp                  = Just sp
+
+adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan
 adjustReal lm rsp
   | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                     = Nothing

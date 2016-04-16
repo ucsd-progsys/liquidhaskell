@@ -13,7 +13,7 @@ import Module
 import Name
 import NameSet
 import TyCon
-import Type (expandTypeSynonyms)
+import Type (expandTypeSynonyms, Type)
 import Var
 
 
@@ -37,18 +37,35 @@ import Language.Haskell.Liquid.Misc (zipWithDefM)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
 
+makePluggedSigs :: Traversable t
+                => ModName
+                -> TCEmb TyCon
+                -> M.HashMap TyCon RTyCon
+                -> NameSet
+                -> t (Var, Located (RRType RReft))
+                -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
 makePluggedSigs name embs tcEnv exports sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = maybeTrue x name exports
       (x,) <$> plugHoles embs tcEnv x r τ t
 
+makePluggedAsmSigs :: Traversable t
+                   => TCEmb TyCon
+                   -> M.HashMap TyCon RTyCon
+                   -> t (Var, Located (RRType RReft))
+                   -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
 makePluggedAsmSigs embs tcEnv sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = const killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
 
+makePluggedDataCons :: Traversable t
+                    => TCEmb TyCon
+                    -> M.HashMap TyCon RTyCon
+                    -> t (DataCon, Located DataConP)
+                    -> BareM (t (DataCon, Located DataConP))
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
@@ -61,6 +78,14 @@ makePluggedDataCons embs tcEnv dcs
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
 
+plugHoles :: (NamedThing a, PPrint a)
+          => TCEmb TyCon
+          -> M.HashMap TyCon RTyCon
+          -> a
+          -> (SpecType -> RReft -> RReft)
+          -> Type
+          -> Located SpecType
+          -> BareM (Located SpecType)
 plugHoles tce tyi x f t (Loc l l' st)
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
@@ -135,6 +160,7 @@ maybeTrue x target exports t r
 
 -- killHoles r@(U (Reft (v, rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
+killHoles :: RReft -> RReft
 killHoles ur = ur { ur_reft = tx $ ur_reft ur }
   where
     tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} mapPredReft dropHoles r

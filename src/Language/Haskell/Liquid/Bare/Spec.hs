@@ -22,42 +22,48 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHBounds
   ) where
 
-import Prelude hiding (error)
-import MonadUtils (mapMaybeM)
-import TyCon
-import Var
-import CoreSyn (CoreBind)
+import           CoreSyn                                    (CoreBind)
+import           DataCon
+import           MonadUtils                                 (mapMaybeM)
+import           Prelude                                    hiding (error)
+import           TyCon
+import           Var
 
 
-import Control.Monad.Except
-import Control.Monad.State
-import Data.Maybe
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Maybe
 
 
-import qualified Data.List           as L
-import qualified Data.HashSet        as S
-import qualified Data.HashMap.Strict as M
+import qualified Data.List                                  as L
+import qualified Data.HashSet                               as S
+import qualified Data.HashMap.Strict                        as M
 
-import           Language.Fixpoint.Misc (group, snd3)
-import qualified Language.Fixpoint.Types as F
+import           Language.Fixpoint.Misc                     (group, snd3)
+import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.GHC.Misc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
-import           Language.Haskell.Liquid.Misc (addFst3, fourth4, mapFst, concatMapM)
-import           Language.Haskell.Liquid.Types.RefType (generalize, rVar, symbolRTyVar)
+import           Language.Haskell.Liquid.GHC.Misc           ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
+import           Language.Haskell.Liquid.Misc               (addFst3, fourth4, mapFst, concatMapM)
+import           Language.Haskell.Liquid.Types.RefType      (generalize, rVar, symbolRTyVar)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
-import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.Measure            as Ms
 
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Existential
-import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.Misc (joinVar)
-import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.SymSort
-import Language.Haskell.Liquid.Bare.Measure
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Existential
+import           Language.Haskell.Liquid.Bare.Lookup
+import           Language.Haskell.Liquid.Bare.Misc          (joinVar)
+import           Language.Haskell.Liquid.Bare.OfType
+import           Language.Haskell.Liquid.Bare.Resolve
+import           Language.Haskell.Liquid.Bare.SymSort
+import           Language.Haskell.Liquid.Bare.Measure
 
+makeClasses :: ModName
+            -> Config
+            -> [Var]
+            -> (ModName, Ms.Spec (Located BareType) bndr)
+            -> BareM [((DataCon, DataConP), [(ModName, Var, LocSpecType)])]
 makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
     --FIXME: cleanup this code
@@ -78,15 +84,34 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
                  let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t l'
                  return ((dc,dcp),vts)
 
+makeQualifiers :: (ModName, Ms.Spec ty bndr)
+               -> BareM [F.Qualifier]
 makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM (\q -> resolve (F.q_pos q) q) $ Ms.qualifiers spec
 
+makeHints :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Int])]
 makeHints   vs spec = varSymbols id vs $ Ms.decr spec
+
+makeLVar :: [Var]
+         -> Ms.Spec ty bndr
+         -> BareM [Var]
 makeLVar    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- Ms.lvars spec]
+
+makeLazy :: [Var]
+         -> Ms.Spec ty bndr
+         -> BareM [Var]
 makeLazy    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- S.toList $ Ms.lazy spec]
+
+makeHBounds :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, LocSymbol)]
 makeHBounds vs spec = varSymbols id vs [(v, v ) | v <- S.toList $ Ms.hbounds spec]
+
+makeTExpr :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Located F.Expr])]
 makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
+
+makeHIMeas :: [Var]
+           -> Ms.Spec ty bndr
+           -> BareM [Located Var]
 makeHIMeas  vs spec = fmap tx <$> varSymbols id vs [(v, (loc v, locE v)) | v <- S.toList (Ms.hmeas spec) ++ S.toList (Ms.inlines spec)]
   where
     tx (x,(l, l'))  = Loc l l' x
@@ -100,6 +125,7 @@ varSymbols f vs  = concatMapM go
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
                      Nothing  -> ((:[]).(,ns)) <$> lookupGhcVar s
 
+varsAfter :: ([b] -> [b]) -> Located a -> [(F.SourcePos, b)] -> [b]
 varsAfter f s lvs
   | eqList (fst <$> lvs)    = f (snd <$> lvs)
   | otherwise               = map snd $ takeEqLoc $ dropLeLoc lvs
@@ -139,6 +165,7 @@ makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | otherwise
   = inModule mod $ makeSpec True vs  $ Ms.asmSigs spec
 
+grepClassAsserts :: [RInstance t2] -> [(Located F.Symbol, t2)]
 grepClassAsserts  = concatMap go
    where
     go    = map goOne . risigs
@@ -185,6 +212,10 @@ makeSpec ignoreUnknown vs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
 
 
+lookupIds :: GhcLookup a
+          => Bool
+          -> [(a, t)]
+          -> BareM [(Var, a, t)]
 lookupIds ignoreUnknown
   = mapMaybeM lookup
   where
@@ -201,6 +232,8 @@ mkVarSpec (v, _, b) = tx <$> mkLSpecType b
   where
     tx              = (v,) . fmap generalize
 
+makeIAliases :: (ModName, Ms.Spec (Located BareType) bndr)
+             -> BareM [(Located SpecType, Located SpecType)]
 makeIAliases (mod, spec)
   = inModule mod $ makeIAliases' $ Ms.ialiases spec
 
@@ -210,6 +243,8 @@ makeIAliases'     = mapM mkIA
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
     mkI t         = fmap generalize <$> mkLSpecType t
 
+makeInvariants :: (ModName, Ms.Spec (Located BareType) bndr)
+               -> BareM [Located SpecType]
 makeInvariants (mod,spec)
   = inModule mod $ makeInvariants' $ Ms.invariants spec
 
