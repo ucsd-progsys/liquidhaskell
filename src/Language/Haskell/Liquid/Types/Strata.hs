@@ -13,10 +13,12 @@ import Prelude hiding (error)
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)
 
+(<:=) :: (Foldable t, Foldable t1) => t Stratum -> t1 Stratum -> Bool
 s1 <:= s2
   | any (==SDiv) s1 && any (==SFin) s2 = False
   | otherwise                          = True
 
+solveStrata :: [([Stratum], [Stratum])] -> [(Symbol, Stratum)]
 solveStrata = go True [] []
   where go False solved _   [] = solved
         go True  solved acc [] = go False solved [] $ {-traceShow ("OLD \n" ++ showMap solved acc ) $ -} subsS solved <$> acc
@@ -28,13 +30,22 @@ solveStrata = go True [] []
                                    | otherwise   = go True (solve l ++ solved) (l:acc) ls
 
 
+allSVars :: ([Stratum], [Stratum]) -> Bool
 allSVars (xs, ys) = all isSVar $ xs ++ ys
+
+noSVar :: ([Stratum], [Stratum]) -> Bool
 noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
+
+noUpdate :: (Foldable t, Foldable t1) => (t1 Stratum, t Stratum) -> Bool
 noUpdate (xs, ys) = (not $ updateFin(xs, ys)) && (not $ updateDiv (xs, ys))
 
+updateFin :: (Foldable t, Foldable t1) => (t1 Stratum, t Stratum) -> Bool
 updateFin (xs, ys) = any (==SFin) ys && any isSVar   xs
+
+updateDiv :: (Foldable t, Foldable t1) => (t1 Stratum, t Stratum) -> Bool
 updateDiv (xs, ys) = any isSVar   ys && any (==SDiv) xs
 
+solve :: ([Stratum], [Stratum]) -> [(Symbol, Stratum)]
 solve (xs, ys)
   | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys]
   | any (== SFin) ys = [(l, SFin) | SVar l <- xs]

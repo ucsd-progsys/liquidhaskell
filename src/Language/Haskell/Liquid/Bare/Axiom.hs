@@ -85,6 +85,7 @@ makeAxiom tce lmap cbs _ _ x
 
 
 
+binders :: Bind t -> [t]
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
 
@@ -136,11 +137,13 @@ makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
 
 
 
+findAxiomNames :: Located Symbol -> [Bind CoreBndr] -> [CoreBndr]
 findAxiomNames x (NonRec v _ :cbs) | isAxiomName x v = v:findAxiomNames x cbs
 findAxiomNames x (Rec [(v,_)]:cbs) | isAxiomName x v = v:findAxiomNames x cbs
 findAxiomNames x (_:cbs) = findAxiomNames x cbs
 findAxiomNames _ [] = []
 
+isAxiomName :: Located Symbol -> CoreBndr -> Bool
 isAxiomName x v =
   (("axiom_" ++ symbolString (val x)) `L.isPrefixOf`) (symbolString $ dropModuleNames $ simplesymbol v)
 
@@ -189,6 +192,7 @@ instance Simplifiable CoreExpr where
   simplify e@(Var _) = e
   simplify e = todo Nothing ("simplify" ++ showPpr e)
 
+unANF :: Bind Var -> Expr Var -> Expr Var
 unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
   = subst (x, ex) e
 unANF b e = Let b e

@@ -27,6 +27,7 @@ import qualified Data.Text as T
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
 
+makeRTypeBase :: Monoid r => Type -> r -> RType RTyCon RTyVar r
 makeRTypeBase (TyVarTy α)    x
   = RVar (rTyVar α) x
 makeRTypeBase (TyConApp c ts) x
@@ -34,11 +35,14 @@ makeRTypeBase (TyConApp c ts) x
 makeRTypeBase _              _
   = panic Nothing "RefType : makeRTypeBase"
 
+literalFRefType :: Literal -> RType RTyCon RTyVar F.Reft
 literalFRefType l
   = makeRTypeBase (literalType l) (literalFReft l)
 
+literalFReft :: Literal -> F.Reft
 literalFReft l = maybe mempty mkReft $ mkLit l
 
+mkReft :: F.Expr -> F.Reft
 mkReft e = case e of
             F.ESym (F.SL str) ->
               -- FIXME: unsorted equality is shady, better to not embed Add# as int..

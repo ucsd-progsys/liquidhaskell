@@ -297,6 +297,7 @@ canonicalize tgt isdir f
 fixDiffCheck :: Config -> Config
 fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
+envCfg :: IO Config
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
               Nothing -> return defConfig
@@ -305,6 +306,7 @@ envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             envLoc  = Loc l l
             l       = newPos "ENVIRONMENT" 0 0
 
+copyright :: [Char]
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
@@ -390,16 +392,19 @@ exitWithResult cfg target out = do
   consoleResult cfg out r annm
   return $ out { o_result = r }
 
+consoleResult :: Config -> Output a -> ErrorResult -> ACSS.AnnMap -> IO ()
 consoleResult cfg
   | json cfg  = consoleResultJson cfg
   | otherwise = consoleResultFull cfg
 
+consoleResultFull :: Config -> Output a -> ErrorResult -> t -> IO ()
 consoleResultFull cfg out r _ = do
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
    writeResult cfg (colorResult r) cr
    -- writeFile   (extFileName Result target) (showFix cr)
 
+consoleResultJson :: t -> t1 -> t2 -> ACSS.AnnMap -> IO ()
 consoleResultJson _ _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . ACSS.errors $ annm
@@ -408,6 +413,7 @@ resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
 
+writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
@@ -440,6 +446,7 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
+addErrors :: FixResult t -> [t] -> FixResult t
 addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
