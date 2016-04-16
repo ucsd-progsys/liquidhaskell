@@ -411,8 +411,12 @@ errorsResult f es                 = f es
 adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
-    adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$> adjustSrcSpan lm cm sp
-    adjustError e                 = Just e
+    adjustError e                 = case adjustSrcSpan lm cm (pos e) of
+                                      Just sp' -> Just (e {pos = sp'})
+                                      Nothing  -> Nothing
+                                      
+    -- adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$>
+    -- adjustError e                 = Just e
 
 --------------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan

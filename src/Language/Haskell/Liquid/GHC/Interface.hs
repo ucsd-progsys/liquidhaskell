@@ -281,14 +281,14 @@ isSpecFile (f, _, _)
   | isExtFile Spec f = True
   | otherwise        = False
 
-getPatSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
+getPatSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getPatSpec paths totalitycheck
  | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec
  | otherwise     = return []
  where
   patErrorName = "PatErr"
 
-getRealSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
+getRealSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getRealSpec paths freal
   | freal     = map (realSpecName,)    . maybeToList <$> moduleFile paths realSpecName    Spec
   | otherwise = map (notRealSpecName,) . maybeToList <$> moduleFile paths notRealSpecName Spec

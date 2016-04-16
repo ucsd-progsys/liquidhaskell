@@ -52,8 +52,8 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (tracepp, showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
-import           Language.Fixpoint.Misc (dcolon)
+import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
+import           Language.Fixpoint.Misc       ({- traceShow, -} dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
@@ -86,13 +86,16 @@ instance Ord (CtxError t) where
   e1 <= e2 = ctErr e1 <= ctErr e2
 
 --------------------------------------------------------------------------------
-errorWithContext :: TError t -> IO (CtxError t)
+errorWithContext :: TError Doc -> IO (CtxError Doc)
 --------------------------------------------------------------------------------
 errorWithContext e = CtxError e <$> srcSpanContext (pos e)
+  -- where
+    -- e               = tracepp "EWC 1:" e'
+    -- l               = tracepp "EWC 2:" (pos e)
 
 srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext sp
-  | Just (f, l, c, c') <- srcSpanInfo (tracepp "SRCSPANCONTEXT" sp)
+  | Just (f, l, c, c') <- srcSpanInfo sp
   = maybe empty (makeContext l c c') <$> getFileLine f l
   | otherwise
   = return empty
@@ -295,10 +298,6 @@ data TError t =
                 , dargs :: !Int
                 }
 
-  | ErrSaved    { pos :: !SrcSpan
-                , msg :: !Doc
-                } -- ^ Previously saved error, that carries over after DiffCheck
-
   | ErrTermin   { pos  :: !SrcSpan
                 , bind :: ![Doc]
                 , msg  :: !Doc
@@ -313,6 +312,11 @@ data TError t =
                 , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
+
+  | ErrSaved    { pos :: !SrcSpan
+                , nam :: !Doc
+                , msg :: !Doc
+                } -- ^ Previously saved error, that carries over after DiffCheck
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -518,7 +522,9 @@ instance FromJSON (TError a) where
   parseJSON _          = mempty
 
 errSaved :: SrcSpan -> String -> TError a
-errSaved x = ErrSaved x . text
+errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
+  where
+    n : m        = lines body
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
@@ -654,8 +660,10 @@ ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
         $+$ text "Defined at:" <+> pprint dl
         $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
 
-ppError' _ dSp _ (ErrSaved _ s)
-  = dSp <+> s
+ppError' _ dSp dCtx (ErrSaved _ name s)
+  = dSp <+> name -- <+> "(saved)"
+        $+$ dCtx
+        $+$ {- nest 4 -} s
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."

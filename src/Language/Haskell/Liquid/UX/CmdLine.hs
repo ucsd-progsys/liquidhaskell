@@ -408,7 +408,7 @@ consoleResultJson _ _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . ACSS.errors $ annm
 
-resultWithContext :: ErrorResult -> IO (FixResult CError)
+resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
 
@@ -417,7 +417,7 @@ writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
-type CError = CtxError Doc -- SpecType
+type CError = CtxError Doc
 
 writeResult :: Config -> Moods -> FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
