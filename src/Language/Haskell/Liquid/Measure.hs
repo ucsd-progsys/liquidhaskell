@@ -15,36 +15,37 @@ module Language.Haskell.Liquid.Measure (
   , wiredInMeasures
   ) where
 
-import Prelude hiding (error)
-import GHC hiding (Located)
-import Var
-import Type
-import TysPrim
-import TysWiredIn
-import Text.PrettyPrint.HughesPJ hiding (first)
-import Text.Printf (printf)
-import DataCon
-import Language.Haskell.Liquid.Types.Errors
+import           DataCon
+import           GHC                                    hiding (Located)
+import           Language.Haskell.Liquid.Types.Errors
+import           Outputable                             (Outputable)
+import           Prelude                                hiding (error)
+import           Text.PrettyPrint.HughesPJ              hiding (first)
+import           Text.Printf                            (printf)
+import           Type
+import           TysPrim
+import           TysWiredIn
+import           Var
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import Data.List (foldl', partition)
-
-
-
+import qualified Data.HashMap.Strict                    as M
+import qualified Data.HashSet                           as S
+import           Data.List                              (foldl', partition)
 
 
-import Data.Maybe (fromMaybe, isNothing)
 
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (R, SrcSpan)
-import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types.Variance
-import Language.Haskell.Liquid.Types.Bounds
-import Language.Haskell.Liquid.UX.Tidy
+
+import           Data.Maybe                             (fromMaybe, isNothing)
+
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types                hiding (R, SrcSpan)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
+
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
 type BareSpec      = Spec (Located BareType) LocSymbol
@@ -82,6 +83,7 @@ data Spec ty bndr  = Spec
   }
 
 
+qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
                          }
@@ -98,6 +100,7 @@ mkM name typ eqns
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
 
+mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
 mkMSpec' ms = MSpec cm mm M.empty []
   where
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
@@ -113,6 +116,7 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 
+checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
 checkDuplicateMeasure ms
   = case M.toList dups of
       []         -> ms
@@ -236,6 +240,10 @@ makeDataConType ds
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
+extend :: SourcePos
+       -> RType RTyCon RTyVar Reft
+       -> RRType Reft
+       -> RType RTyCon RTyVar Reft
 extend lc t1' t2
   | Just su <- mapArgumens lc t1 t2
   = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
@@ -245,13 +253,16 @@ extend lc t1' t2
     t1 = noDummySyms t1'
 
 
+resultTy :: RType c tv r -> RType c tv r
 resultTy = ty_res . toRTypeRep
 
+strengthenResult :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
   where
     rep = toRTypeRep t
 
 
+noDummySyms :: RefTypable c tv r => RType c tv r -> RType c tv r
 noDummySyms t
   | any isDummy (ty_binds rep)
   = subst su $ fromRTypeRep $ rep{ty_binds = xs'}
@@ -262,6 +273,8 @@ noDummySyms t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
+combineDCTypes :: (Foldable t, PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+               => Type -> t (RType RTyCon RTyVar r) -> RType RTyCon RTyVar r
 combineDCTypes t = foldl' strengthenRefTypeGen (ofType t)
 
 mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
@@ -295,6 +308,12 @@ defRefType tdc (Def f args dc mt xs body)
     (ts, tr)         = splitFunTys $ snd $ splitForAllTys tdc
 
 
+stitchArgs :: (Monoid t1, Monoid r, PPrint a)
+           => SrcSpan
+           -> a
+           -> [(t, Maybe (RType RTyCon RTyVar r))]
+           -> [Type]
+           -> [(t, RType RTyCon RTyVar r, t1)]
 stitchArgs sp dc xs ts
   | nXs == nTs         = zipWith g xs $ ofType `fmap` ts
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
@@ -320,6 +339,8 @@ stitchArgs sp dc xs ts
     -- s  = traceShow "sort1" $ toRSort t
     -- s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
 
+panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
+                      => SrcSpan -> a3 -> a1 -> a -> a2
 panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
@@ -328,9 +349,17 @@ panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   -- where
     -- msg = "Field type mismatch for" <+> pprint x
 
+panicDataCon :: PPrint a1 => SrcSpan -> a1 -> Doc -> a
 panicDataCon sp dc d
   = panicError $ ErrDataCon sp (pprint dc) d
 
+refineWithCtorBody :: Outputable a
+                   => a
+                   -> LocSymbol
+                   -> [Symbol]
+                   -> Body
+                   -> RType c tv Reft
+                   -> RType c tv Reft
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->

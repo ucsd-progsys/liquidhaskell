@@ -1331,6 +1331,9 @@ refreshVV (RApp c ts rs r)
 refreshVV t
   = return t
 
+refreshVVRef :: Freshable m Integer
+             => Ref b (RType RTyCon RTyVar RReft)
+             -> m (Ref b (RType RTyCon RTyVar RReft))
 refreshVVRef (RProp ss (RHole r))
   = return $ RProp ss (RHole r)
 
@@ -1543,7 +1546,9 @@ bindRefType_ γ (NonRec x e)
   = extendγ γ [(x, exprRefType_ γ e)]
 
 extendγ :: (Eq k, Foldable t, Hashable k)
-        => M.HashMap k v -> t (k, v) -> M.HashMap k v
+        => M.HashMap k v
+        -> t (k, v)
+        -> M.HashMap k v
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 

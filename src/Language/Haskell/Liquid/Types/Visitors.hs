@@ -14,18 +14,19 @@ module Language.Haskell.Liquid.Types.Visitors (
 
   ) where
 
-import Prelude hiding (error)
-import DataCon
-import Literal
-import CoreSyn
+import           CoreSyn
+import           Data.Hashable
+import           DataCon
+import           Literal
+import           Prelude                          hiding (error)
 
-import Var
+import           Var
 
-import Data.List (foldl', (\\), delete)
+import           Data.List                        (foldl', (\\), delete)
 
-import qualified Data.HashSet        as S
-import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc ()
+import qualified Data.HashSet                     as S
+import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.GHC.Misc ()
 
 
 ------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ instance CBVisitable (Expr Var) where
   letVars  = exprLetVars
   literals = exprLiterals
 
+exprFreeVars :: S.HashSet Id -> Expr Id -> [Id]
 exprFreeVars = go
   where
     go env (Var x)         = if x `S.member` env then [] else [x]
@@ -84,6 +86,7 @@ exprFreeVars = go
     go env (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs)
     go _   _               = []
 
+exprReadVars :: (CBVisitable (Alt t), CBVisitable (Bind t)) => Expr t -> [Id]
 exprReadVars = go
   where
     go (Var x)             = [x]
@@ -95,6 +98,7 @@ exprReadVars = go
     go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs)
     go _                   = []
 
+exprLetVars :: Expr Var -> [Var]
 exprLetVars = go
   where
     go (Var _)             = []
@@ -106,6 +110,8 @@ exprLetVars = go
     go (Case e x _ cs)     = x : go e ++ concatMap letVars cs
     go _                   = []
 
+exprLiterals :: (CBVisitable (Alt t), CBVisitable (Bind t))
+             => Expr t -> [Literal]
 exprLiterals = go
   where
     go (Lit l)             = [l]
@@ -135,8 +141,11 @@ instance CBVisitable AltCon where
 
 
 
+extendEnv :: (Eq a, Foldable t, Hashable a)
+          => S.HashSet a -> t a -> S.HashSet a
 extendEnv = foldl' (flip S.insert)
 
+bindings :: Bind t -> [t]
 bindings (NonRec x _)
   = [x]
 bindings (Rec  xes  )

@@ -270,10 +270,11 @@ addRInv m (x, t)
                , id <- DC.dataConImplicitIds dc]
      res = ty_res . toRTypeRep
 
-conjoinInvariantShift :: RType RTyCon tv RReft -> SpecType -> RType RTyCon tv RReft
+conjoinInvariantShift :: SpecType -> SpecType -> SpecType
 conjoinInvariantShift t1 t2
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1))
 
+conjoinInvariant :: SpecType -> SpecType -> SpecType
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir)
   | c == ic && length ts == length its
   = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
