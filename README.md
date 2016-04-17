@@ -46,43 +46,53 @@ You can directly extend and run the tests by modifying
 
 To run the regression test *and* the benchmarks run
 
-     $ make all-test
+    $ make all-test
 
 How to Profile
 --------------
 
 1. Build with profiling on
-
+   
+    ```
     $ make pdeps && make prof
+    ```
 
 2. Run with profiling
-
+   
+    ```
     $ time liquid range.hs +RTS -hc -p
-
     $ time liquid range.hs +RTS -hy -p
-
-   Followed by this which shows the stats file
-
+    ```
+   
+    Followed by this which shows the stats file
+   
+    ```
     $ more liquid.prof
-
-   or by this to see the graph
-
+    ```
+   
+    or by this to see the graph
+   
+    ```
     $ hp2ps -e8in -c liquid.hp
-
     $ gv liquid.ps
-
-   etc.
+    ```
+    
+    etc.
 
 How to Get Stack Traces On Exceptions
 -------------------------------------
 
 1. Build with profiling on
-
+    
+    ```
     $ make pdeps && make prof
+    ```
 
 2. Run with backtraces
 
+    ```
     $ liquid +RTS -xc -RTS foo.hs
+    ```
 
 Working With Submodules
 -----------------------
@@ -140,6 +150,8 @@ Working With Submodules
     git checkout local/<branch>
     cd ..
     ```
+
+ - Updating `prover` submodule follows similarly
 
 Command Line Options
 ====================
@@ -276,13 +288,13 @@ Use the `totality` flag to prove that all defined functions are total.
 
 For example, the definition
 
-     fromJust :: Maybe a -> a
-     fromJust (Just a) = a
+    fromJust :: Maybe a -> a
+    fromJust (Just a) = a
 
 is not total and it will create an error message.
 If we exclude `Nothing` from its domain, for example using the following specification
 
-     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+    {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
 
 `fromJust` will be safe.
 
@@ -320,18 +332,18 @@ tells LiquidHaskell to instead use the *third* argument.
 Apart from specifying a specific decreasing measure for an Algebraic Data Type,
 the user can specify that the ADT follows the expected decreasing measure by
 
-  {-@ autosize L @-}
+    {-@ autosize L @-}
 
 Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`.
 
 For example, `autosize L` will refine the data constroctors of `L a` with the `autosize :: a -> Int` information, such that
 
-   Nil  :: {v:L a | autosize v = 0}
-   Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
+    Nil  :: {v:L a | autosize v = 0}
+    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
 
 Also, an invariant that `autosize` is non negative will be generated
 
-  invariant  {v:L a| autosize v >= 0 }
+    invariant  {v:L a| autosize v >= 0 }
 
 This information is all LiquidHaskell needs to prove termination on functions that recurse on `L a` (on ADTs in general.)
 
@@ -452,7 +464,6 @@ and multiplication as unintepreted functions use the `linear` flag
     liquid --linear test.hs
 
 
-
 Writing Specifications
 ======================
 
@@ -507,8 +518,8 @@ For example [see](tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
 
-   data Foo a b c d
-   {-@ data variance Foo invariant bivariant covariant contravariant @-}
+    data Foo a b c d
+    {-@ data variance Foo invariant bivariant covariant contravariant @-}
 
 
 Modules WITH code: Functions
@@ -631,8 +642,6 @@ and:
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
-
-
 Specifying Measures
 -------------------
 
@@ -643,7 +652,6 @@ Value measures (include/GHC/Base.spec)
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
     len (y:ys)   = 1 + len(ys)
-
 
 Propositional measures (tests/pos/LambdaEval.hs)
 
@@ -665,7 +673,6 @@ Raw measures (tests/pos/meas8.hs)
     rlen ([])   = {v | v = 0}
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
-
 
 Generic measures (tests/pos/Class.hs)
 
@@ -740,7 +747,6 @@ See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
 
 Invariants
 ==========
-
 
 **WARNING:** Do not use this mechanism -- it is *unsound* and about to be
 replaced with something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
@@ -824,8 +830,6 @@ Formal Grammar of Refinement Predicates
        | false
 
 
-
-
 Specifying Qualifiers
 =====================
 
@@ -871,7 +875,6 @@ the specifications you write i.e.
 3. data constructor definitions.
 
 
-
 Generating HTML Output
 ======================
 
@@ -894,7 +897,6 @@ verification attempts.
 
 Editor Integration
 ==================
-
 
 + [Emacs/Flycheck](https://github.com/ucsd-progsys/liquid-types.el)
 + [Vim/Syntastic](https://github.com/ucsd-progsys/liquid-types.vim)
@@ -921,9 +923,9 @@ To see all options, run `liquid --help`. Here are some common options:
 **Pragmas** are useful for embedding options directly within the source file,
 that is, somewhere in the file (perhaps at the top) put in:
 
-   {-@ LIQUID "--diff"        @-}
-   {-@ LIQUID "--short-names" @-}
-   {-@ LIQUID "--cabaldir"    @-}
+    {-@ LIQUID "--diff"        @-}
+    {-@ LIQUID "--short-names" @-}
+    {-@ LIQUID "--cabaldir"    @-}
 
 to have the relevant option be used for that file.
 
@@ -945,10 +947,8 @@ following dependencies available:
 After ensuring all dependencies are available, from the Liquid Haskell
 directory, execute:
 
-```
-cd scripts/performance
-./deploy-gipeda.bash
-```
+    cd scripts/performance
+    ./deploy-gipeda.bash
 
 This will download and install all the relevant repositories and files. Next, to
 generate the performance report, use the `generate-site.bash` script. This script
@@ -967,25 +967,19 @@ You should expect this process to take a very long time. `generate-site.bash`
 will compile each commit, then run the entire test suite and benchmark suite
 for each commit. It is suggested to provide a managable range to `generate-site.bash`:
 
-```
-./generate-site.bash -s [starting hash] -e [ending hash]
-```
+    ./generate-site.bash -s [starting hash] -e [ending hash]
 
 ...will generate reports for all commits between (inclusive) [starting hash]
 and [ending hash].
 
-```
-./generate-site.bash -s [starting hash]
-```
+    ./generate-site.bash -s [starting hash]
 
 ... will generate reports for all commits newer than [starting hash]. This command
 can be the basis for some automated report generation process (i.e. a cron job).
 
 Finally, to remove the Gipeda infrastructure from your computer, you may execute:
 
-```
-./cleanup-gipeda.bash
-```
+    ./cleanup-gipeda.bash
 
 ...which will remove any files created by `deploy-gipeda.bash` and `generate-site.bash`
 from your computer.
