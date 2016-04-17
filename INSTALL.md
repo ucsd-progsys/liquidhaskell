@@ -19,9 +19,7 @@ Download and install *at least one* of
 
 Simply do:
 
-   ```
-   cabal install liquidhaskell
-   ```
+    cabal install liquidhaskell
 
 We are working to put `liquid` on `stackage`.
 
@@ -35,42 +33,37 @@ clone the repo and then build:
 
 This requires that you have installed [stack][stack] (which we strongly recommend!)
 
-    ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     stack install
-    ```
 
 ## Build with `cabal`
 
-    ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
 
     cabal sandbox init
     cabal sandbox add-source ./liquid-fixpoint
     cabal install
-    ```
 
 ## Troubleshooting
 
 
 1. If you're on Windows, please make sure the SMT solver is installed
-in the **same** directory as LiquidHaskell itself (i.e. wherever
-`cabal` or `stack` puts your binaries). That is, do:
+    in the **same** directory as LiquidHaskell itself (i.e. wherever
+    `cabal` or `stack` puts your binaries). That is, do:
 
     ```
     which liquid
     ```
 
-and make sure that `z3` or `cvc4` or `mathsat` are in the `PATH`
-returned by the above.
+    and make sure that `z3` or `cvc4` or `mathsat` are in the `PATH`
+    returned by the above.
 
 2. If you installed via `stack` and are experiencing path related woes, try:
 
     ```
     stack exec -- liquid path/to/file.hs
     ```
-    
 
 [stack]: https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md
