@@ -403,7 +403,7 @@ In this case, you can introduce a ghost parameter that orders the *functions*
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
 termination annotation `{-@ Decrease even 1 2 @-}` (see
-tests/pos/mutrec.hs for the full example).
+[tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
 
 Lazy Variables
 --------------
@@ -491,7 +491,7 @@ Modules WITH code: Data
 -----------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the data definition. See, for example, `tests/pos/Map.hs`
+above the data definition. See, for example, [tests/pos/Map.hs](tests/pos/Map.hs)
 
     {-@
     data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
@@ -506,7 +506,7 @@ above the data definition. See, for example, `tests/pos/Map.hs`
                  | Bin Size k a (Map k a) (Map k a)
 
 You can also write invariants for data type definitions
-together with the types. For example see (tests/pos/record0.hs)
+together with the types. For example, see [tests/pos/record0.hs](tests/pos/record0.hs)
 
     {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
                          , elems :: {v: [a] | (len v) = size }
@@ -514,7 +514,7 @@ together with the types. For example see (tests/pos/record0.hs)
     @-}
 
 Finally you can specify the variance of type variables for data types.
-For example [see](tests/pos/Variance.hs), where data type `Foo` has four
+For example, see [tests/pos/Variance.hs](tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
 
@@ -526,7 +526,7 @@ Modules WITH code: Functions
 ----------------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the function definition. For example (tests/pos/spec0.hs)
+above the function definition. [For example](tests/pos/spec0.hs)
 
     {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
     incr   :: Int -> Int
@@ -536,7 +536,7 @@ Modules WITH code: Type Classes
 ---------------------------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the type class definition. For example (tests/pos/Class.hs)
+above the type class definition. [For example](tests/pos/Class.hs)
 
     {-@ class Sized s where
           size :: forall a. x:s a -> {v:Int | v = (size x)}
@@ -549,7 +549,7 @@ Any measures used in the refined class definition will need to be
 
 
 As an alternative, you can refine class instances.
-For example (tests/pos/LiquidClass.hs)
+[For example](tests/pos/LiquidClass.hs)
 
 ~~~~
 instance Compare Int where
@@ -558,7 +558,7 @@ instance Compare Int where
     cmax :: Odd -> Odd -> Odd
   @-}
 
-    cmax y x = if x >= y then x else y
+cmax y x = if x >= y then x else y
 ~~~~
 
 When `cmax` method is used on `Int`, liquidHaskell will give it
@@ -620,7 +620,7 @@ and then use the above in signatures like:
 
     {-@ incr: x: Int -> GeNum Int x @-}
 
-    or
+or
 
     {-@ incr: x: Int -> Gt x @-}
 
@@ -628,13 +628,13 @@ and:
 
     {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
 
-    [see](tests/pos/ListSort.hs)
+see [tests/pos/ListSort.hs](tests/pos/ListSort.hs)
 
 and:
 
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-    [see](tests/pos/Map.hs)
+see [tests/pos/Map.hs](tests/pos/Map.hs)
 
 **Syntax:** The key requirements for type aliases are:
 
@@ -645,15 +645,15 @@ and:
 Specifying Measures
 -------------------
 
-Can be placed in .spec file or in .hs/.lhs file wrapped around {-@ @-}
+Can be placed in .spec file or in .hs/.lhs file wrapped around `{-@ @-}`
 
-Value measures (include/GHC/Base.spec)
+Value measures: [include/GHC/Base.spec](include/GHC/Base.spec)
 
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
     len (y:ys)   = 1 + len(ys)
 
-Propositional measures (tests/pos/LambdaEval.hs)
+Propositional measures: [tests/pos/LambdaEval.hs](tests/pos/LambdaEval.hs)
 
     {-@
     measure isValue      :: Expr -> Bool
@@ -667,14 +667,14 @@ Propositional measures (tests/pos/LambdaEval.hs)
     isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
     @-}
 
-Raw measures (tests/pos/meas8.hs)
+Raw measures: [tests/pos/meas8.hs](tests/pos/meas8.hs)
 
     {-@ measure rlen :: [a] -> Int
     rlen ([])   = {v | v = 0}
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
 
-Generic measures (tests/pos/Class.hs)
+Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
 
     {-@ class measure size :: a -> Int @-}
     {-@ instance measure size :: [a] -> Int
@@ -687,11 +687,11 @@ Generic measures (tests/pos/Class.hs)
     @-}
 
 
-Haskell Functions as Measures (beta) (tests/pos/HaskellMeasure.hs)
+Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/HaskellMeasure.hs)
 
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
-    {-@ measure llen @-}
 
+    {-@ measure llen @-}
     llen        :: [a] -> Int
     llen []     = 0
     llen (x:xs) = 1 + llen xs
@@ -699,9 +699,9 @@ Inductive Haskell Functions from Data Types to some type can be lifted to logic
 The above definition 
   - refines list's data constructors types with the llen information, and 
   - specifies a singleton type for the haskell function 
-         `llen :: xs:[a] -> {v:Int | v == llen xs}`
+        `llen :: xs:[a] -> {v:Int | v == llen xs}`
     If the user specifies another type for llen, say 
-         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
+        `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
     then the auto generated singleton type is overwriten.
 
 Self-Invariants
@@ -763,7 +763,7 @@ Then, LiquidHaskell assumes that each list element that is created satisfies
 this invariant.
 
 Second, there are *local* invariants that one may use. For
-example, in [test/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
 list is treated as a Stream. To establish this local invariant one can use the
 `using` declaration
 
@@ -778,7 +778,7 @@ this invariant.
 
 With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
-But, at [test/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
+But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 Formal Grammar of Refinement Predicates
