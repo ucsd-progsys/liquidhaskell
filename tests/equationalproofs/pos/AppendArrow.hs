@@ -16,6 +16,7 @@
 module Append where
 
 import Axiomatize
+import Equational
 
 data L a = N |  C a (L a)
 
@@ -31,6 +32,19 @@ $(axiomatize
       append (C y ys) xs = C y (append ys xs)
     |])
 
+
+
+{-
+axiom_append_N :: xs: L a -> {v:Proof  |  append N xs == xs }
+axiom_append_N xs = Proof  
+
+axiom_append_C :: xs: L a -> y:a > ys: L a 
+                -> {v:Proof  |  append (C y ys) xs == C y (append ys xs) }
+axiom_append_C xs y ys  = Proof 
+-}
+
+
+
 -- | Proof 1: N is neutral element
 
 
@@ -42,9 +56,7 @@ $(axiomatize
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil :: (Eq a) => L a -> Proof
-prop_app_nil N        = auto 1 (append N N        == N     ) -- axiom_append_N N
-prop_app_nil (C x xs) = auto 1 (append (C x xs) N == C x xs)
-{-
+prop_app_nil N        = axiom_append_N N
 prop_app_nil (C x xs)
     = 
                                       -- (C x xs) ++ N
@@ -52,7 +64,7 @@ prop_app_nil (C x xs)
                                       -- == C x (xs ++ N)
       `by` (prop_app_nil xs)
                                       -- == C x xs
--}
+
 
 
 

@@ -48,7 +48,7 @@ type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
 
 
 instance Hashable (Bound t e) where
-        hashWithSalt i = hashWithSalt i . bname
+  hashWithSalt i = hashWithSalt i . bname
 
 instance Eq (Bound t e) where
   b1 == b2 = (bname b1) == (bname b2)
@@ -63,6 +63,7 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
                                         pprintTidy k (fst <$> ps) <+> text "=" <+>
                                         pprint_bsyms k (fst <$> xs) <+> pprintTidy k e
 
+pprint_bsyms :: PPrint [t] => Tidy -> [t] -> Doc
 pprint_bsyms _ [] = text ""
 pprint_bsyms k xs = text "\\" <+> pprintTidy k xs <+> text "->"
 
@@ -71,7 +72,7 @@ instance Bifunctor Bound where
         second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 
-makeBound :: (PPrint r, UReftable r)
+makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
 makeBound (Bound _  vs ps xs p) ts qs t
   = RRTy cts mempty OCons t
@@ -119,29 +120,33 @@ partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
+isPApp :: [(Symbol, a)] -> Expr -> Bool
 isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
-isPApp penv (EApp e _)         = isPApp penv e 
+isPApp penv (EApp e _)         = isPApp penv e
 isPApp _    _                  = False
 
+toUsedPVars :: [(Symbol, Symbol)] -> Expr -> (Symbol, [PVar ()])
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
     x = case unProp e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
+unProp :: Expr -> Expr
 unProp (EApp (EVar f) e)
   | f == propConName
   = e
 unProp e
   = e
 
+toUsedPVar :: [(Symbol, Symbol)] -> Expr -> PVar ()
 toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
      EVar e = unProp $ last es
      es'    = init es
      Just q = lookup p penv
-     (EVar p, es) = splitEApp ee 
+     (EVar p, es) = splitEApp ee
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 

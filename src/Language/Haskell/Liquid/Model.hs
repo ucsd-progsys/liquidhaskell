@@ -110,7 +110,7 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   hsc_env <- getSession
   df <- getDynFlags
   let opts = defaultOpts
-  smt <- liftIO $ makeContext False (solver opts) (target info)
+  smt <- liftIO $ makeContext False False (solver opts) (target info)
   model <- liftIO $ runTarget opts (initState (target info) (spec info) smt df) $ do
     free <- gets freesyms
     let dcs = [ (v, tidySymbol v)
@@ -243,6 +243,10 @@ monomorphize t = substTyWith tvs (replicate (length tvs) intTy) t
   tvs = varSetElemsKvsFirst (tyVarsOfType t)
 
 
+----------------------------------------------------------------------
+-- Slightly altered from GHC
+----------------------------------------------------------------------
+
 hscParsedStmt :: HscEnv
               -> GhciLStmt RdrName  -- ^ The parsed statement
               -> IO ( Maybe ([Id]
@@ -296,6 +300,8 @@ logWarnings w = Hsc $ \_ w0 -> return ((), w0 `unionBags` w)
 --                      -> String -- ^ The source
 --                      -> Int    -- ^ Starting line
 --                      -> IO ([TyThing], InteractiveContext)
+hscParsedDecls :: HscEnv
+               -> [LHsDecl RdrName] -> IO ([TyThing], InteractiveContext)
 hscParsedDecls hsc_env0 decls =
  runInteractiveHsc hsc_env0 $ do
 

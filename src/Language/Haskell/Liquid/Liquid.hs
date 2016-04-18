@@ -1,5 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -19,10 +18,10 @@ module Language.Haskell.Liquid.Liquid (
 import           Prelude hiding (error)
 import           Data.Maybe
 import           System.Exit
-import           Control.DeepSeq
+-- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
-import           Var
+-- import           Var
 import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
@@ -123,11 +122,11 @@ liquidOne tgt info = do
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ render $ pprintCBs cbs'
                  putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
-  dc <- prune cfg cbs' tgt info
+  dc       <- prune cfg cbs' tgt info
   let cbs'' = maybe cbs' DC.newBinds dc
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
-  cgi `deepseq` donePhase Loud "generateConstraints"
+  -- cgi `deepseq` whenLoud (donePhase Loud "generateConstraints")
   whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
   whenNormal $ donePhase Loud "solve"
@@ -147,13 +146,6 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ pprint x $+$ text " " | x <- xs ]
 
-checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
-checkedNames dc          = concatMap names . DC.newBinds <$> dc
-   where
-     names (NonRec v _ ) = [render . text $ shvar v]
-     names (Rec xs)      = map (shvar . fst) xs
-     shvar               = showpp . varName
-
 prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
 prune cfg cbinds tgt info
   | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
@@ -164,12 +156,11 @@ prune cfg cbinds tgt info
     sp            = spec info
 
 
-
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
   = do finfo        <- cgInfoFInfo info cgi tgt
        F.Result r sol <- solve fx finfo
-       let names = checkedNames dc
+       let names = map show . DC.checkedVars <$> dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res_err = fmap (applySolution sol . cinfoError . snd) r

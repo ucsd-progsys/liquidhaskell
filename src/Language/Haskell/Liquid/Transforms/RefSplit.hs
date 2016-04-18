@@ -15,7 +15,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 
 splitXRelatedRefs :: Symbol -> SpecType -> (SpecType, SpecType)
@@ -23,6 +23,9 @@ splitXRelatedRefs x t = splitRType x t
 
 
 
+splitRType :: Symbol
+           -> RType c tv (UReft Reft)
+           -> (RType c tv (UReft Reft), RType c tv (UReft Reft))
 splitRType f (RVar a r) = (RVar a r1, RVar a r2)
   where
         (r1, r2) = splitRef f r
@@ -79,10 +82,13 @@ splitUReft x (RProp xs t) = (RProp xs t1, RProp xs t2)
   where
         (t1, t2) = splitRType x t
 
+splitRef :: Symbol -> UReft Reft -> (UReft Reft, UReft Reft)
 splitRef f (MkUReft r p s) = (MkUReft r1 p1 s, MkUReft r2 p2 s)
         where
                 (r1, r2) = splitReft f r
                 (p1, p2) = splitPred f p
+
+splitReft :: Symbol -> Reft -> (Reft, Reft)
 splitReft f (Reft (v, xs)) = (Reft (v, pAnd xs1), Reft (v, pAnd xs2))
   where
     (xs1, xs2)       = partition (isFree f) (unPAnd xs)
@@ -91,6 +97,7 @@ splitReft f (Reft (v, xs)) = (Reft (v, pAnd xs1), Reft (v, pAnd xs2))
     unPAnd p         = [p]
 
 
+splitPred :: Symbol -> Predicate -> (Predicate, Predicate)
 splitPred f (Pr ps) = (Pr ps1, Pr ps2)
   where
     (ps1, ps2) = partition g ps

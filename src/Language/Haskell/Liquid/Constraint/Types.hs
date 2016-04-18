@@ -1,4 +1,3 @@
-
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -104,7 +103,7 @@ data CGEnv
         , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
-        , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user 
+        , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
         } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
@@ -181,7 +180,7 @@ data CGInfo = CGInfo {
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
-  , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
+  , termExprs  :: !(M.HashMap Var [F.Located F.Expr])    -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
@@ -196,12 +195,13 @@ data CGInfo = CGInfo {
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
-  , allowHO    :: !Bool  
+  , allowHO    :: !Bool
   }
 
 instance PPrint CGInfo where
   pprintTidy _ cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
 
+pprCGInfo :: t -> Doc
 pprCGInfo _cgi
   =  text "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
@@ -227,7 +227,10 @@ pprCGInfo _cgi
 
 newtype HEnv = HEnv (S.HashSet F.Symbol)
 
+fromListHEnv :: [F.Symbol] -> HEnv
 fromListHEnv = HEnv . S.fromList
+
+elemHEnv :: F.Symbol -> HEnv -> Bool
 elemHEnv x (HEnv s) = x `S.member` s
 
 --------------------------------------------------------------------------------
@@ -244,6 +247,7 @@ mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where
     strip      = fourth4 . bkUniv . val
 
+mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
 mkRTyConIAl    = mkRTyConInv . fmap snd
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
@@ -266,9 +270,11 @@ addRInv m (x, t)
                , id <- DC.dataConImplicitIds dc]
      res = ty_res . toRTypeRep
 
+conjoinInvariantShift :: SpecType -> SpecType -> SpecType
 conjoinInvariantShift t1 t2
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1))
 
+conjoinInvariant :: SpecType -> SpecType -> SpecType
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir)
   | c == ic && length ts == length its
   = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
@@ -290,12 +296,14 @@ data FEnv = FE { feBinds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Envi
                , feEnv   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
                }
 
+insertFEnv :: FEnv -> ((F.Symbol, F.Sort), F.BindId) -> FEnv
 insertFEnv (FE benv env) ((x, t), i)
   = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
 
 insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
+initFEnv :: [(F.Symbol, F.Sort)] -> FEnv
 initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 
 --------------------------------------------------------------------------------

@@ -27,6 +27,7 @@ import qualified Data.HashMap.Strict as M
 txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'
 
+
 class Transformable a where
   tx  :: Symbol -> Either LMap TInline -> a -> a
 
@@ -68,6 +69,8 @@ instance (Transformable a, Transformable b) => Transformable (Either a b) where
   tx s m (Right x) = Right (tx s m x)
 
 
+txQuant :: (Functor t, Foldable t, Transformable a)
+        => t (Symbol, b) -> Symbol -> Either LMap TInline -> a -> a
 txQuant xss s m p
   | s `elem` (fst <$> xss) = impossible Nothing "Transformable.tx on Pred"
   | otherwise              = tx s m p
@@ -116,17 +119,20 @@ instance Transformable Body where
   tx s m (P p)   = P $ tx s m p
   tx s m (R v p) = R v $ tx s m p
 
+mexpr :: Symbol -> Either LMap TInline -> Expr
 mexpr _ (Left  (LMap _ [] e)) = e
 mexpr s (Left  (LMap _ _  _)) = EVar s
 mexpr _ (Right (TI _ e)) = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
+txEApp :: (Symbol, Either LMap TInline) -> Expr -> Expr
 txEApp (s,m) e = go f
   where
     (f, es) = splitEApp e 
     go (EVar x) = txEApp' (s,m) x  (tx s m <$> es) 
     go f        = eApps (tx s m f) (tx s m <$> es)
 
+txEApp' :: (Symbol, Either LMap TInline) -> Symbol -> [Expr] -> Expr
 txEApp' (s, (Left (LMap _ xs e))) f es
   | cmpSymbol s f && length xs == length es   
   = subst (mkSubst $ zip xs es) e
@@ -150,8 +156,10 @@ txPApp (s, (Right (TI xs e))) f es
 txPApp (s, m) f es = txEApp (s, m) f es
 -}
 
+cmpSymbol :: Symbol -> Symbol -> Bool
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
   = dropModuleNamesAndUnique s1 == dropModuleNamesAndUnique s2
 
 
+dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique {- . dropModuleNames -}

@@ -22,8 +22,13 @@ assume GHC.Base.. :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a ->
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
                                 -> { v:GHC.Integer.Type.Integer |
                                      v = (x :: int) }
-assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
-assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
+
+assume GHC.Num.+ :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
+assume GHC.Num.- :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
+
+
+
+
 
 embed GHC.Types.Double          as real
 embed GHC.Integer.Type.Integer  as int

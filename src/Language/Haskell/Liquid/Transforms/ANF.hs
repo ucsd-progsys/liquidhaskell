@@ -1,4 +1,3 @@
-
 --------------------------------------------------------------------------------
 -- | Convert GHC Core into Administrative Normal Form (ANF) --------------------
 --------------------------------------------------------------------------------
@@ -63,6 +62,7 @@ anormalize expandFlag hscEnv modGuts
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
 
+modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
   where
     ids            = bindersOfBinds (mgi_binds mg)
@@ -168,6 +168,7 @@ normalizeName γ e
        add [NonRec x e']
        return $ Var x
 
+shouldNormalize :: Literal -> Bool
 shouldNormalize l = case l of
   LitInteger _ _ -> True
   MachStr _ -> True
@@ -264,6 +265,7 @@ expandDefaultCase γ _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
 expandDefaultCase _ _ _ z
    = return z
 
+expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
@@ -274,10 +276,12 @@ expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
 expandDefaultCase' _ _ z
    = return z
 
+cloneCase :: AnfEnv -> [Type] -> t -> DataCon -> DsM (AltCon, [Id], t)
 cloneCase γ argτs e d
   = do xs  <- mapM (freshNormalVar γ) $ dataConInstArgTys d argτs
        return (DataAlt d, xs, e)
 
+sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
 
 

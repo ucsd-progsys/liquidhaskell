@@ -73,8 +73,10 @@ getBinds
        modify $ \st -> st{emap = M.empty}
        return bds
 
+addExists :: SpecType -> State ExSt SpecType
 addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
+addExist :: SpecType -> Symbol -> (RSort, Expr) -> SpecType
 addExist t x (tx, e) = REx x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
         r  = exprReft e

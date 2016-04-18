@@ -53,6 +53,9 @@ infixl 2 :*
   @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
+{-@ assume stream :: t:Data.Text.Lazy.Internal.Text
+                  -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (ltlength t)}
+  @-}
 stream :: Text -> Stream Char
 stream text = Stream next (text :* 0) unknownSize
   where
@@ -112,11 +115,19 @@ unstreamChunks chunkSize (Stream next s0 len0)
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using
 -- 'defaultChunkSize'.
+
+{-@ assume unstream :: s:Data.Text.Fusion.Internal.Stream Char
+                    -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (slen s)}
+  @-}
+
 unstream :: Stream Char -> Text
 unstream = unstreamChunks defaultChunkSize
 {-# INLINE [0] unstream #-}
 
 -- | /O(n)/ Returns the number of characters in a text.
+{-@ assume length :: s:Data.Text.Fusion.Internal.Stream Char
+                  -> {v:Int64 | v = (slen s)}
+  @-}
 length :: Stream Char -> Int64
 length = S.lengthI
 {-# INLINE[0] length #-}

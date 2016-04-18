@@ -113,18 +113,31 @@ import Data.Text.Fusion.Size
 import GHC.Prim (Addr#, chr#, indexCharOffAddr#, ord#)
 import GHC.Types (Char(..), Int(..))
 
+
+{-@ measure slen :: Data.Text.Fusion.Internal.Stream a -> GHC.Types.Int @-}
+
+{-@ assume singleton :: GHC.Types.Char
+                     -> {v:Data.Text.Fusion.Internal.Stream Char | slen v == 1}
+  @-}
 singleton :: Char -> Stream Char
 singleton c = Stream next False 1
     where next False = Yield c True
           next True  = Done
 {-# INLINE singleton #-}
 
+{-@ assume streamList
+       :: l:[a]
+       -> {v:Data.Text.Fusion.Internal.Stream a | slen v == len l}
+  @-}
 streamList :: [a] -> Stream a
 {-# INLINE [0] streamList #-}
 streamList s  = Stream next s unknownSize
     where next []       = Done
           next (x:xs)   = Yield x xs
 
+{-@ assume unstreamList :: s:Data.Text.Fusion.Internal.Stream a
+                        -> {v:[a] | (len v) = (slen s)}
+  @-}
 unstreamList :: Stream a -> [a]
 unstreamList (Stream next s0 _len) = unfold s0
     where unfold !s = case next s of
@@ -171,6 +184,12 @@ data C s = C0 !s
          | C1 !s
 
 -- | /O(n)/ Adds a character to the front of a Stream Char.
+{-@ assume cons
+      :: GHC.Types.Char
+      -> s:Data.Text.Fusion.Internal.Stream Char
+      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (1 + (slen s))}
+  @-}
+
 cons :: Char -> Stream Char -> Stream Char
 cons w (Stream next0 s0 len) = Stream next (C1 s0) (len+1)
     where
@@ -182,6 +201,13 @@ cons w (Stream next0 s0 len) = Stream next (C1 s0) (len+1)
 {-# INLINE [0] cons #-}
 
 -- | /O(n)/ Adds a character to the end of a stream.
+
+{-@ assume snoc
+      :: s:Data.Text.Fusion.Internal.Stream Char
+      -> GHC.Types.Char
+      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (1 + (slen s))}
+  @-}
+
 snoc :: Stream Char -> Char -> Stream Char
 snoc (Stream next0 xs0 len) w = Stream next (J xs0) (len+1)
   where
@@ -307,6 +333,13 @@ lengthI (Stream next s0 _len) = loop_length 0 s0
 -- of 'lengthI', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 --LIQUID compareLengthI :: Integral a => Stream Char -> a -> Ordering
+
+{-@ assume compareLengthI
+      :: s:Data.Text.Fusion.Internal.Stream Char
+      -> l:Int
+      -> {v:Ordering | ((v = EQ) <=> ((slen s) = l))}
+  @-}
+
 compareLengthI :: Stream Char -> Int -> Ordering
 compareLengthI (Stream next s0 len) n =
     case exactly len of
@@ -320,6 +353,9 @@ compareLengthI (Stream next s0 len) n =
                                     | otherwise -> loop_cmp (z + 1) s'
 {-# INLINE[0] compareLengthI #-}
 
+{-@ assume isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
+                       -> {v:Bool | (Prop v) <=> (slen s = 1)}
+  @-}
 -- | /O(n)/ Indicate whether a string contains exactly one element.
 isSingleton :: Stream Char -> Bool
 isSingleton (Stream next s0 _len) = loop 0 s0
@@ -337,6 +373,11 @@ isSingleton (Stream next s0 _len) = loop 0 s0
 
 -- | /O(n)/ 'map' @f @xs is the Stream Char obtained by applying @f@
 -- to each element of @xs@.
+
+{-@ assume map :: (GHC.Types.Char -> GHC.Types.Char)
+        -> s:Data.Text.Fusion.Internal.Stream Char
+        -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (slen s)}
+  @-}
 map :: (Char -> Char) -> Stream Char -> Stream Char
 map f (Stream next0 s0 len) = Stream next s0 len
     where
@@ -357,6 +398,12 @@ data I s = I1 !s
 
 -- | /O(n)/ Take a character and place it between each of the
 -- characters of a 'Stream Char'.
+
+{-@ assume intersperse
+      :: GHC.Types.Char
+      -> s:Data.Text.Fusion.Internal.Stream Char
+      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) > (slen s)}
+  @-}
 intersperse :: Char -> Stream Char -> Stream Char
 intersperse c (Stream next0 s0 len) = Stream next (I1 s0) len
     where
@@ -408,6 +455,9 @@ caseConvert remap (Stream next0 s0 len) = Stream next (CC s0 '\0' '\0') len
 -- bigram men now (U+0574 U+0576), while the micro sign (U+00B5) is
 -- case folded to the Greek small letter letter mu (U+03BC) instead of
 -- itself.
+{-@ assume toCaseFold :: s:Data.Text.Fusion.Internal.Stream Char
+                      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) >= (slen s)}
+  @-}
 toCaseFold :: Stream Char -> Stream Char
 toCaseFold = caseConvert foldMapping
 {-# INLINE [0] toCaseFold #-}
@@ -416,6 +466,9 @@ toCaseFold = caseConvert foldMapping
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German eszett (U+00DF) maps to the two-letter
 -- sequence SS.
+{-@ assume toUpper :: s:Data.Text.Fusion.Internal.Stream Char
+                   -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) >= (slen s)}
+  @-}
 toUpper :: Stream Char -> Stream Char
 toUpper = caseConvert upperMapping
 {-# INLINE [0] toUpper #-}
@@ -425,6 +478,9 @@ toUpper = caseConvert upperMapping
 -- For instance, the Latin capital letter I with dot above (U+0130)
 -- maps to the sequence Latin small letter i (U+0069) followed by
 -- combining dot above (U+0307).
+{-@ assume toLower :: s:Data.Text.Fusion.Internal.Stream Char
+            -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) >= (slen s)}
+  @-}
 toLower :: Stream Char -> Stream Char
 toLower = caseConvert lowerMapping
 {-# INLINE [0] toLower #-}
@@ -645,6 +701,11 @@ mapAccumL f z0 (Stream next0 s0 len) = Stream next (s0 :*: z0) len -- HINT depen
 -- ** Generating and unfolding streams
 
 --LIQUID replicateCharI :: Integral a => a -> Char -> Stream Char
+{-@ assume replicateCharI
+      :: l:GHC.Types.Int
+      -> GHC.Types.Char
+      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = l}
+  @-}
 replicateCharI :: Int -> Char -> Stream Char
 replicateCharI n c
     | n < 0     = empty
@@ -829,6 +890,11 @@ indexI (Stream next s0 _len) n0
 -- | /O(n)/ 'filter', applied to a predicate and a stream,
 -- returns a stream containing those characters that satisfy the
 -- predicate.
+
+{-@ assume filter :: (GHC.Types.Char -> GHC.Types.Bool)
+                  -> s:Data.Text.Fusion.Internal.Stream Char
+                  -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) <= (slen s)}
+  @-}
 filter :: (Char -> Bool) -> Stream Char -> Stream Char
 filter p (Stream next0 s0 len) = Stream next s0 len -- HINT maybe too high
   where

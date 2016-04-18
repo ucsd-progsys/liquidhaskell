@@ -5,19 +5,19 @@ module Language.Haskell.Liquid.Bare.Expand (
   , expandExpr
   ) where
 
-import Prelude hiding (error)
+import           Prelude                          hiding (error)
 
-import Control.Monad.State hiding (forM)
+import           Control.Monad.State              hiding (forM)
 
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict              as M
 
-import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp)
+import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
 
-import Language.Haskell.Liquid.Misc (safeZipWithError)
-import Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Misc     (safeZipWithError)
+import           Language.Haskell.Liquid.Types
 
 
-import Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Env
 
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------
@@ -91,6 +91,7 @@ expandExpr (PExist s e)
   = PExist s <$> expandExpr e 
 
 
+expandEApp :: (Expr,[Expr]) -> BareM Expr
 expandEApp (EVar f, es)
   = do env <- gets (exprAliases.rtEnv)
        case M.lookup f env of
@@ -105,6 +106,9 @@ expandEApp (f, es)
 -- Expand Alias Application ----------------------------------------------------
 --------------------------------------------------------------------------------
 
+expandApp
+  :: Subable ty =>
+     RTAlias Symbol ty -> [Expr] -> ty
 expandApp re es
   = subst su $ rtBody re
   where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es

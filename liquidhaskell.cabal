@@ -251,7 +251,8 @@ Library
                     Test.Target.Testable,
                     Test.Target.Types,
                     Test.Target.Util
-   ghc-options: -W
+
+   ghc-options: -W -fwarn-missing-signatures
    if flag(include)
      hs-source-dirs: devel
    if flag(devel)

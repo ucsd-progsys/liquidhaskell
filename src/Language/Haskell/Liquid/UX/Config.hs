@@ -59,6 +59,7 @@ data Config = Config {
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   , elimStats      :: Bool       -- ^ print eliminate stats
+  , json           :: Bool       -- ^ print results (safe/errors) as JSON
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

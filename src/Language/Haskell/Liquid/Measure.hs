@@ -15,47 +15,48 @@ module Language.Haskell.Liquid.Measure (
   , wiredInMeasures
   ) where
 
-import Prelude hiding (error)
-import GHC hiding (Located)
-import Var
-import Type
-import TysPrim
-import TysWiredIn
-import Text.PrettyPrint.HughesPJ hiding (first)
-import Text.Printf (printf)
-import DataCon
-import Language.Haskell.Liquid.Types.Errors
+import           DataCon
+import           GHC                                    hiding (Located)
+import           Language.Haskell.Liquid.Types.Errors
+import           Outputable                             (Outputable)
+import           Prelude                                hiding (error)
+import           Text.PrettyPrint.HughesPJ              hiding (first)
+import           Text.Printf                            (printf)
+import           Type
+import           TysPrim
+import           TysWiredIn
+import           Var
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import Data.List (foldl', partition)
-
-
-
+import qualified Data.HashMap.Strict                    as M
+import qualified Data.HashSet                           as S
+import           Data.List                              (foldl', partition)
 
 
-import Data.Maybe (fromMaybe, isNothing)
 
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (R, SrcSpan)
-import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types.Variance
-import Language.Haskell.Liquid.Types.Bounds
-import Language.Haskell.Liquid.UX.Tidy
+
+import           Data.Maybe                             (fromMaybe, isNothing)
+
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types                hiding (R, SrcSpan)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
+
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type BareSpec      = Spec BareType LocSymbol
+type BareSpec      = Spec (Located BareType) LocSymbol
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
-  , invariants :: ![Located ty]                 -- ^ Data type invariants
-  , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
+  , invariants :: ![ty]                         -- ^ Data type invariants
+  , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
@@ -63,28 +64,28 @@ data Spec ty bndr  = Spec
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
   , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
-  , lvars      :: ![LocSymbol]                  -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into axiomatized functions
-  , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
-  , autosize   :: !(S.HashSet LocSymbol)        -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
-  , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions
+  , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
+  , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
+  , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
+  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
+  , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
+  , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
+  , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
+  , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
+  , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
+  , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
   }
 
 
+qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
---                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
     tx = fmap (qualifySymbol name)
@@ -99,11 +100,13 @@ mkM name typ eqns
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
 
+mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
 mkMSpec' ms = MSpec cm mm M.empty []
   where
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
     mm     = M.fromList [(name m, m) | m <- ms ]
 
+mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol 
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where
     cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
@@ -112,17 +115,8 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
---checkFail ::  [Char] -> (a -> Bool) -> a -> a
---checkFail msg f x
---  | f x
---  = x
---  | otherwise
---  = errorstar $ "Check-Failure: " ++ msg
 
---distinct ::  Ord a => [a] -> Bool
---distinct xs = length xs == length (sortNub xs)
-
-
+checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
 checkDuplicateMeasure ms
   = case M.toList dups of
       []         -> ms
@@ -246,6 +240,10 @@ makeDataConType ds
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
+extend :: SourcePos
+       -> RType RTyCon RTyVar Reft
+       -> RRType Reft
+       -> RType RTyCon RTyVar Reft
 extend lc t1' t2
   | Just su <- mapArgumens lc t1 t2
   = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
@@ -255,13 +253,16 @@ extend lc t1' t2
     t1 = noDummySyms t1'
 
 
+resultTy :: RType c tv r -> RType c tv r
 resultTy = ty_res . toRTypeRep
 
+strengthenResult :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
   where
     rep = toRTypeRep t
 
 
+noDummySyms :: RefTypable c tv r => RType c tv r -> RType c tv r
 noDummySyms t
   | any isDummy (ty_binds rep)
   = subst su $ fromRTypeRep $ rep{ty_binds = xs'}
@@ -272,6 +273,8 @@ noDummySyms t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
+combineDCTypes :: (Foldable t, PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+               => Type -> t (RType RTyCon RTyVar r) -> RType RTyCon RTyVar r
 combineDCTypes t = foldl' strengthenRefTypeGen (ofType t)
 
 mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
@@ -305,6 +308,12 @@ defRefType tdc (Def f args dc mt xs body)
     (ts, tr)         = splitFunTys $ snd $ splitForAllTys tdc
 
 
+stitchArgs :: (Monoid t1, Monoid r, PPrint a)
+           => SrcSpan
+           -> a
+           -> [(t, Maybe (RType RTyCon RTyVar r))]
+           -> [Type]
+           -> [(t, RType RTyCon RTyVar r, t1)]
 stitchArgs sp dc xs ts
   | nXs == nTs         = zipWith g xs $ ofType `fmap` ts
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
@@ -330,6 +339,8 @@ stitchArgs sp dc xs ts
     -- s  = traceShow "sort1" $ toRSort t
     -- s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
 
+panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
+                      => SrcSpan -> a3 -> a1 -> a -> a2
 panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
@@ -338,9 +349,17 @@ panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   -- where
     -- msg = "Field type mismatch for" <+> pprint x
 
+panicDataCon :: PPrint a1 => SrcSpan -> a1 -> Doc -> a
 panicDataCon sp dc d
   = panicError $ ErrDataCon sp (pprint dc) d
 
+refineWithCtorBody :: Outputable a
+                   => a
+                   -> LocSymbol
+                   -> [Symbol]
+                   -> Body
+                   -> RType c tv Reft
+                   -> RType c tv Reft
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->

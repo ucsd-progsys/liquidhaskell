@@ -1,4 +1,3 @@
-
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
@@ -96,6 +95,9 @@ instance Freshable CG Integer where
 --------------------------------------------------------------------------------
 
 -- updREnvLocal :: REnv -> (_ -> _) -> REnv
+updREnvLocal :: REnv
+             -> (M.HashMap F.Symbol SpecType -> M.HashMap F.Symbol SpecType)
+             -> REnv
 updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
 
 -- RJ: REnv-Split-Bug?
@@ -126,6 +128,7 @@ globalREnv (REnv gM lM) = REnv gM' M.empty
   where
     gM'  = M.unionWith (\_ t -> t) gM lM
 
+renvMaps :: REnv -> [M.HashMap F.Symbol SpecType]
 renvMaps rE = [reLocal rE, reGlobal rE]
 
 --------------------------------------------------------------------------------
@@ -193,14 +196,18 @@ addCGEnv tx γ (_, x, t') = do
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
+rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+                 => Bool -> CGEnv -> RRType r -> F.SortedReft
 rTypeSortedReft' pflag γ
   | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f
   | otherwise = f
   where
     f         = rTypeSortedReft (emb γ)
 
+normalize :: Integer -> SpecType -> SpecType
 normalize idx = normalizeVV idx . normalizePds
 
+normalizeVV :: Integer -> SpecType -> SpecType
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
   = shiftVV t (F.vv $ Just idx)
@@ -246,6 +253,7 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 (γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }, "+++=") += (x, t)
 
+(-=) :: CGEnv -> F.Symbol -> CGEnv
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
 (?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType

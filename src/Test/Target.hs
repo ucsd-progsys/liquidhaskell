@@ -83,8 +83,8 @@ targetResultWith f name path opts
         `onException` terminateProcess (pId ctx)
   where
     mkContext = if logging opts
-                then flip (makeContext False) (".target/" ++ name)
-                else makeContextNoLog False
+                then flip (makeContext False False) (".target/" ++ name)
+                else makeContextNoLog False False
 
 targetResultWithTH :: TH.Name -> FilePath -> TargetOpts -> TH.ExpQ
 targetResultWithTH f m opts = [| targetResultWith $(monomorphic f) $(TH.stringE $ show f) m opts |]

@@ -72,7 +72,7 @@ map f (x:xs) =
   in  y >>= (h xs y ys)
 
 
-{-@ g :: xs:[a] -> y:Count b -> {v:Count [b] | count v == len xs * count y} -> b -> [b] -> {v:Count [b] | count v == 0 } @-}
+{-@ g :: xs:[a] -> y:Count b -> {v:Count [b] | count v == len xs * count y} -> z:b -> zs:[b] -> {v:Count {v:[b] | len v == len zs + 1} | count v == 0 } @-}
 g :: [a] -> Count b -> Count [b] -> b -> [b] -> Count [b]
 g _ _ _ y ys = return (y:ys)
 

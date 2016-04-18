@@ -30,9 +30,11 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 import Prelude hiding (error)
 
+
 import Control.Monad
 import Data.Maybe
-
+import Data.Aeson (encode)
+import qualified Data.ByteString.Lazy.Char8 as B
 import System.Directory
 import System.Exit
 import System.Environment
@@ -50,7 +52,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
-import Language.Fixpoint.Utils.Files
+-- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
@@ -59,7 +61,7 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-
+import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
 import Text.Parsec.Pos                     (newPos)
@@ -217,6 +219,9 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , json
+    = False &= name "json"
+            &= help "Print results in JSON (for editor integration)"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -237,6 +242,7 @@ getOpts as = do
                          config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
                          as
   cfg    <- fixConfig cfg1
+  when (json cfg) $ setVerbosity Quiet
   whenNormal $ putStrLn copyright
   withSmtSolver cfg
 
@@ -291,6 +297,7 @@ canonicalize tgt isdir f
 fixDiffCheck :: Config -> Config
 fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
+envCfg :: IO Config
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
               Nothing -> return defConfig
@@ -299,6 +306,7 @@ envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             envLoc  = Loc l l
             l       = newPos "ENVIRONMENT" 0 0
 
+copyright :: String
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
@@ -366,8 +374,8 @@ defConfig = Config { files          = def
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
                    , elimStats      = False
+                   , json           = False
                    }
-
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
@@ -376,27 +384,40 @@ defConfig = Config { files          = def
 ------------------------------------------------------------------------
 exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out
-  = do {-# SCC "annotate" #-} annotate cfg target out
-       donePhase Loud "annotate"
-       writeCheckVars $ o_vars  out
-       cr <- resultWithContext r
-       writeResult cfg (colorResult r) cr
-       writeFile   (extFileName Result target) (showFix cr)
-       return $ out { o_result = r }
-    where
-       r         = o_result out `addErrors` o_errors out
+exitWithResult cfg target out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg target out
+  whenNormal $ donePhase Loud "annotate"
+  let r = o_result out `addErrors` o_errors out
+  consoleResult cfg out r annm
+  return $ out { o_result = r }
 
+consoleResult :: Config -> Output a -> ErrorResult -> ACSS.AnnMap -> IO ()
+consoleResult cfg
+  | json cfg  = consoleResultJson cfg
+  | otherwise = consoleResultFull cfg
 
-resultWithContext :: ErrorResult -> IO (FixResult CError)
+consoleResultFull :: Config -> Output a -> ErrorResult -> t -> IO ()
+consoleResultFull cfg out r _ = do
+   writeCheckVars $ o_vars out
+   cr <- resultWithContext r
+   writeResult cfg (colorResult r) cr
+   -- writeFile   (extFileName Result target) (showFix cr)
+
+consoleResultJson :: t -> t1 -> t2 -> ACSS.AnnMap -> IO ()
+consoleResultJson _ _ _ annm = do
+  putStrLn "RESULT"
+  B.putStrLn . encode . ACSS.errors $ annm
+
+resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
 
+writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
-type CError = CtxError Doc -- SpecType
+type CError = CtxError Doc
 
 writeResult :: Config -> Moods -> FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
@@ -424,6 +445,7 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
+addErrors :: FixResult t -> [t] -> FixResult t
 addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)

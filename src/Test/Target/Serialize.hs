@@ -100,9 +100,12 @@ smt2App e = fromMaybe (format "({} {})" (smt2 f, smt2many (smt2 <$> es)))
 
 
 
+mkRel :: (SMTLIB2 a, SMTLIB2 a1) => Brel -> a -> a1 -> Text
 mkRel Ne  e1 e2         = mkNe e1 e2
 mkRel Une e1 e2         = mkNe e1 e2
 mkRel r   e1 e2         = format "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
+
+mkNe :: (SMTLIB2 a, SMTLIB2 a1) => a -> a1 -> Text
 mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where

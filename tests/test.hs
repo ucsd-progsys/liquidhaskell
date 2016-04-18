@@ -155,10 +155,12 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/neg/maps.hs"
                    , "tests/pos/Product.hs"
                    , "tests/pos/Gradual.hs"
+                   , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
 knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/pos/Gradual.hs"
+                   , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
 ---------------------------------------------------------------------------
