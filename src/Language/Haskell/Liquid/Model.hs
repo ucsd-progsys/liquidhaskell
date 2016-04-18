@@ -75,7 +75,9 @@ import Util
 
 getModels :: GhcInfo -> Config -> FixResult Error -> IO (FixResult Error)
 getModels info cfg fi = case fi of
-  Unsafe cs -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
+  Unsafe cs
+    | cfg `hasOpt` counterExamples
+    -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
     df <- getSessionDynFlags
     let df' = df { packageFlags = ExposePackage (PackageArg "liquidhaskell")
                                   (ModRenaming True [])

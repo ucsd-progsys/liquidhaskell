@@ -222,7 +222,11 @@ config = cmdArgsMode $ Config {
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
- } &= verbosity
+
+ , counterExamples
+    = False &= name "counter-examples"
+            &= help "Attempt to generate counter-examples to type errors (experimental!)"
+} &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
    &= summary copyright
@@ -375,6 +379,7 @@ defConfig = Config { files          = def
                    , scrapeUsedImports  = False
                    , elimStats      = False
                    , json           = False
+                   , counterExamples= False
                    }
 
 ------------------------------------------------------------------------
