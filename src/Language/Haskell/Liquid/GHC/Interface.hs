@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -78,8 +79,8 @@ getGhcInfo hscEnv cfg0 target = do
 
 getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
 getGhcInfo' cfg target name tgtSpec = do
-  paths <- importPaths <$> getSessionDynFlags
-  liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
+  paths     <- importPaths <$> getSessionDynFlags
+  liftIO     $ whenLoud $ putStrLn $ "paths = " ++ show paths
   impSpecs  <- findAndLoadTargets cfg paths target
   modGuts   <- makeMGIModGuts target
   hscEnv    <- getSession
@@ -94,9 +95,8 @@ getGhcInfo' cfg target name tgtSpec = do
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
-
-  let info = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
-  hscEnv' <- getSession
+  let info    = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  hscEnv'    <- getSession
   return (info, hscEnv')
 
 --------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ runLiquidGhc hscEnv cfg act =
                      , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
-                     --FIXME: this *should* be HscNothing, but that prevents us from
+                     -- FIXME: this *should* be HscNothing, but that prevents us from
                      -- looking up *unexported* names in another source module..
                      , hscTarget    = HscInterpreted -- HscNothing
                      , ghcMode      = CompManager
@@ -186,8 +186,8 @@ makeMGIModGuts f = do
   modGraph <- getModuleGraph
   case find (\m -> not (isBootSummary m) && f == msHsFilePath m) modGraph of
     Just modSummary -> do
-      parsed <- parseModule modSummary
-      modGuts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
+      parsed   <- parseModule modSummary
+      modGuts  <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
       let deriv = Just $ instEnvElts $ mg_inst_env modGuts
       return $! miModGuts deriv modGuts
     Nothing ->
@@ -281,14 +281,14 @@ isSpecFile (f, _, _)
   | isExtFile Spec f = True
   | otherwise        = False
 
-getPatSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
+getPatSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getPatSpec paths totalitycheck
  | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec
  | otherwise     = return []
  where
   patErrorName = "PatErr"
 
-getRealSpec :: [FilePath] -> Bool -> Ghc [([Char], FilePath)]
+getRealSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getRealSpec paths freal
   | freal     = map (realSpecName,)    . maybeToList <$> moduleFile paths realSpecName    Spec
   | otherwise = map (notRealSpecName,) . maybeToList <$> moduleFile paths notRealSpecName Spec
@@ -392,30 +392,34 @@ reqFile ext s
 --------------------------------------------------------------------------------
 
 instance PPrint GhcSpec where
-  pprintTidy k spec =  (text "******* Target Variables ********************")
-              $$ (pprintTidy k $ tgtVars spec)
-              $$ (text "******* Type Signatures *********************")
-              $$ (pprintLongList $ tySigs spec)
-              $$ (text "******* Assumed Type Signatures *************")
-              $$ (pprintLongList $ asmSigs spec)
-              $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctors spec)
-              $$ (text "******* Measure Specifications **************")
-              $$ (pprintLongList $ meas spec)
+  pprintTidy k spec = vcat [
+      "******* Target Variables ********************"
+    , pprintTidy k (tgtVars spec)
+    , "******* Type Signatures *********************"
+    , pprintLongList (tySigs spec)
+    , "******* Assumed Type Signatures *************"
+    , pprintLongList (asmSigs spec)
+    , "******* DataCon Specifications (Measure) ****"
+    , pprintLongList (ctors spec)
+    , "******* Measure Specifications **************"
+    , pprintLongList (meas spec)
+    ]
 
 instance PPrint GhcInfo where
-  pprintTidy k info =   (text "*************** Imports *********************")
-              $+$ (intersperse comma $ text <$> imports info)
-              $+$ (text "*************** Includes ********************")
-              $+$ (intersperse comma $ text <$> includes info)
-              $+$ (text "*************** Imported Variables **********")
-              $+$ (pprDoc $ impVars info)
-              $+$ (text "*************** Defined Variables ***********")
-              $+$ (pprDoc $ defVars info)
-              $+$ (text "*************** Specification ***************")
-              $+$ (pprintTidy k $ spec info)
-              $+$ (text "*************** Core Bindings ***************")
-              $+$ (pprintCBs $ cbs info)
+  pprintTidy k info =  vcat [
+      "*************** Imports *********************"
+    , intersperse comma (text <$> imports info)
+    , "*************** Includes ********************"
+    , intersperse comma (text <$> includes info)
+    , "*************** Imported Variables **********"
+    , pprDoc (impVars info)
+    , "*************** Defined Variables ***********"
+    , pprDoc (defVars info)
+    , "*************** Specification ***************"
+    , pprintTidy k (spec info)
+    , "*************** Core Bindings ***************"
+    , pprintCBs (cbs info)
+    ]
 
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs = pprDoc . tidyCBs

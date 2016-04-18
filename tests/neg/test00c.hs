@@ -2,8 +2,13 @@
 
 module Test (ok, inc) where
 
+
+
+
+
+
 {-@ ok
-    ::    Int -> Nat
+    :: Int -> Nat
   @-}
 ok :: Int -> Int
 ok x = x + 120

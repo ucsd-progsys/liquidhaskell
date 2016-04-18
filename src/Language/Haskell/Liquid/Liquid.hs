@@ -120,7 +120,7 @@ liquidOne tgt info = do
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ render $ pprintCBs cbs'
                  putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
-  dc <- prune cfg cbs' tgt info
+  dc       <- prune cfg cbs' tgt info
   let cbs'' = maybe cbs' DC.newBinds dc
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
