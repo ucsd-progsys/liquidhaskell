@@ -8,6 +8,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Language.Haskell.Liquid.Model where
 
 import           Control.Monad
@@ -18,9 +19,10 @@ import           Data.Bifunctor
 import qualified Data.HashMap.Strict                   as HM
 import           Data.Maybe
 import           Data.Proxy
-
 import           GHC.Prim
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Text.PrettyPrint.HughesPJ
+import           Text.Printf
 import           Unsafe.Coerce
 
 import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
@@ -89,9 +91,17 @@ getModels info cfg fi = case fi of
   where
   mbenv = Just (env info)
 
-
 getModel :: GhcInfo -> Config -> Error -> Ghc Error
-getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
+getModel info cfg err
+  = getModel' info cfg err
+    `gcatch`
+    \(e :: SomeException) -> do
+      liftIO $ whenLoud $
+        printf "WARNING: could not generate counter-example: %s\n" (show e)
+      return err
+
+getModel' :: GhcInfo -> Config -> Error -> Ghc Error
+getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   let vv  = (symbol "VV", tact `strengthen` (fmap (mapPredReft PNot) (rt_reft texp)))
   let vts = vv : HM.toList ctx
 
@@ -132,7 +142,7 @@ getModel info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
           , texp = texp
           })
 
-getModel _ _ err = return err
+getModel' _ _ err = return err
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t
 dictProxy Dict = Proxy
