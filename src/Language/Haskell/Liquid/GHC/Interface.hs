@@ -96,7 +96,7 @@ getGhcInfo' cfg target name tgtSpec = do
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
-  let info    = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  let info    = GI target (getModName name) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
   hscEnv'    <- getSession
   return (info, hscEnv')
 

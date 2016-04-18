@@ -83,7 +83,8 @@ getModels info cfg fi = case fi of
                  }
     _ <- setSessionDynFlags df'
     imps <- getContext
-    setContext (IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
+    setContext ( IIModule (targetMod info)
+               : IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                            { ideclQualified = True })
                : imps)
     mapM (getModel info cfg) cs
