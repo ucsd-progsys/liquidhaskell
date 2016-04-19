@@ -471,30 +471,22 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-<<<<<<< HEAD
 ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
 ppReqInContext _ tA tE c
-=======
-ppReqInContext :: (PPrint t) => t -> t -> (M.HashMap Symbol t)
-               -> Doc
-ppReqInContext tA tE c
->>>>>>> develop
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
                 , text "VV :" <+> pprintTidy Lossy tA]
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprintTidy Lossy tE]
       , nests 2 [ text "In Context"
-<<<<<<< HEAD
                 , pprintTidy Lossy c                 ]]
-=======
-                , vsep (map (uncurry pprintModel . second NoModel) (M.toList c))
-                ]
-      ]
+
+                -- , vsep (map (uncurry pprintModel . second NoModel) (M.toList c))
+                --  ]
+               ---  ]
 
 ppReqModelInContext
-  :: (PPrint t) => WithModel t -> t -> (M.HashMap Symbol (WithModel t))
-  -> Doc
+  :: (PPrint t) => WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
 ppReqModelInContext tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
@@ -508,15 +500,13 @@ ppReqModelInContext tA tE c
 
 vsep :: [Doc] -> Doc
 vsep = vcat . intersperse (char ' ')
->>>>>>> develop
 
 pprintModel :: PPrint t => Symbol -> WithModel t -> Doc
 pprintModel v wm = case wm of
-  NoModel t
-    -> pprint v <+> char ':' <+> pprint t
-  WithModel m t
-    -> pprint v <+> char ':' <+> pprint t $+$
-       pprint v <+> char '=' <+> pprint m
+  NoModel t     -> pprint v <+> char ':' <+> pprint t
+  WithModel m t -> pprint v <+> char ':' <+> pprint t
+                   $+$
+                   pprint v <+> char '=' <+> pprint m
 
 ppPropInContext :: (PPrint p, PPrint c) => Tidy -> p -> c -> Doc
 ppPropInContext _ p c

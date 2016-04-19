@@ -26,10 +26,10 @@ import qualified Data.List                        as L                          
 import           Data.String
 import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
+import           Data.Hashable (Hashable)
 -- import           Var              (Var)
 -- import           TyCon            (TyCon)
 -- -- import           Data.Maybe
--- import           Data.Hashable (Hashable)
 -- import qualified Data.List    as L -- (sort)
 -- import qualified Data.HashMap.Strict as M
 -- import           Text.PrettyPrint.HughesPJ
@@ -133,14 +133,9 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
 -- to figure out all the constraints.
 
 type OkRT c tv r = ( TyConable c
-                   , PPrint tv
-                   , PPrint c
-                   , PPrint r
-                   , Reftable r
-                   , Reftable (RTProp c tv ())
-                   , Reftable (RTProp c tv r)
-                   , Eq c
-                   , Eq tv
+                   , PPrint tv, PPrint c, PPrint r
+                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
+                   , Eq c, Eq tv
                    , Hashable tv
                    )
 
@@ -218,10 +213,7 @@ shortModules :: Doc -> Doc
 shortModules = text . symbolString . dropModuleNames . symbol . render
 
 ppr_rsubtype
-  :: (PPrint a, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: (OkRT c tv r, PPrint a, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> [(a, RType c tv r)] -> Doc
 ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
@@ -256,10 +248,9 @@ maybeParen ctxt_prec inner_prec pretty
   | otherwise                  = parens pretty
 
 ppExists
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+  :: (OkRT c tv r, PPrint c, PPrint tv, PPrint (RType c tv r),
       PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+      Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
@@ -268,10 +259,7 @@ ppExists bb p t
           split zs t                = (reverse zs, t)
 
 ppAllExpr
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
@@ -280,11 +268,8 @@ ppAllExpr bb p t
           split zs t                = (reverse zs, t)
 
 ppReftPs
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()),
-      Reftable (Ref (RType c tv ()) (RType c tv r)),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()),
+      Reftable (Ref (RType c tv ()) (RType c tv r)))
   => t -> t1 -> [Ref (RType c tv ()) (RType c tv r)] -> Doc
 ppReftPs _ _ rs
   | all isTauto rs   = empty
@@ -292,10 +277,7 @@ ppReftPs _ _ rs
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
 ppr_dbind
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> Symbol -> RType c tv r -> Doc
 ppr_dbind bb p x t
   | isNonSymbol x || (x == dummySymbol)
@@ -305,19 +287,13 @@ ppr_dbind bb p x t
 
 
 ppr_rty_fun
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Doc -> RType c tv r -> Doc
 ppr_rty_fun bb prefix t
   = prefix <+> ppr_rty_fun' bb t
 
 ppr_rty_fun'
-  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
 ppr_rty_fun' bb (RFun b t t' _)
   = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
@@ -353,10 +329,8 @@ ppr_symbols [] = empty
 ppr_symbols ss = angleBrackets $ intersperse comma $ pprint <$> ss
 
 ppr_cls
-  :: (PPrint a, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()), RefTypable c tv r,
-      RefTypable c tv ())
+  :: (OkRT c tv r, PPrint a, PPrint (RType c tv r),
+      PPrint (RType c tv ()))
   => PPEnv -> Prec -> a -> [RType c tv r] -> Doc
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)

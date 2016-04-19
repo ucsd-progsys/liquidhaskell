@@ -15,8 +15,8 @@
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
-
 -- TODO: Desperately needs re-organization.
+
 module Language.Haskell.Liquid.Types.RefType (
 
   -- * Functions for lifting Reft-values to Spec-values
