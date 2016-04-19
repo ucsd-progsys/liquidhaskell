@@ -509,7 +509,7 @@ data Cube = Cube
   , cuSubst :: Subst
   }
 
-type Hyp  = ListNE Cube
+type Hyp      = ListNE Cube
 
 type QBind    = [EQual]
 

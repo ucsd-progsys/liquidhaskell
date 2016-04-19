@@ -176,11 +176,11 @@ lhsPred be s c = {- F.tracepp msg $ -} apply g s bs
     -- msg        = "LhsPred for id = " ++ show (sid c)
 
 type Cid = Maybe Integer
+
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
 apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
-
 
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
 apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
