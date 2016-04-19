@@ -85,7 +85,7 @@ showpp :: (PPrint a) => a -> String
 showpp = render . pprint
 
 showTable :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> String 
-showTable = render . pprintKVs Full
+showTable k = render . pprintKVs k
 
 tracepp :: (PPrint a) => String -> a -> a
 tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
