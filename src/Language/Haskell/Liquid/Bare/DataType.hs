@@ -24,19 +24,7 @@ import           Data.Maybe
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-<<<<<<< HEAD
-import Language.Fixpoint.Types (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
-import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
-import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Meet
-import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.Types.Variance
-import Language.Haskell.Liquid.WiredIn
-=======
 import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
-
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
@@ -45,7 +33,6 @@ import           Language.Haskell.Liquid.Types.Meet
 import           Language.Haskell.Liquid.Misc           (mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
->>>>>>> develop
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
