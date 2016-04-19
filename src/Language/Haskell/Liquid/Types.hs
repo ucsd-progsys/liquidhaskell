@@ -1525,14 +1525,14 @@ instance Monoid (Output a) where
 --------------------------------------------------------------------------------
 
 data KVKind
-  = RecBindE
-  | NonRecBindE
+  = RecBindE    Var
+  | NonRecBindE Var
   | TypeInstE
   | PredInstE
   | LamE
   | CaseE
   | LetE
-  deriving (Generic, Eq, Ord, Show, Enum, Data, Typeable)
+  deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind
 

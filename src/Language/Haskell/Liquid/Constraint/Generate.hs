@@ -280,7 +280,7 @@ measEnv sp xts cbs lts asms itys hs autosizes
         , holes = fromListHEnv hs
         , lcs   = mempty
         , aenv  = axiom_map $ logicMap sp
-        , cerr  = Nothing 
+        , cerr  = Nothing
         }
     where
       tce = tcEmbeds sp
@@ -364,21 +364,22 @@ freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
 freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype _ t = (fixTy t >>= refresh) {- =>> addKVars k
+freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
+                     when (isKut k) $ addKuts k t -- ks
+                     -- modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
   where
      ks         = F.KS $ S.fromList $ specTypeKVars t
 
-isKut          :: KVKind -> Bool
-isKut RecBindE = True
-isKut _        = False
+isKut              :: KVKind -> Bool
+isKut (RecBindE _) = True
+isKut _            = False
 
--}
+{- -}
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
@@ -734,7 +735,7 @@ consCB _ _ γ (NonRec x e)
 --------------------------------------------------------------------------------
 consBind :: Bool
          -> CGEnv
-         -> (Var, CoreExpr ,Template SpecType)
+         -> (Var, CoreExpr, Template SpecType)
          -> CG (Template SpecType)
 --------------------------------------------------------------------------------
 consBind _ _ (x, _, t)
@@ -780,10 +781,6 @@ consBind isRec γ (x, e, Unknown)
        addIdA x (defAnn isRec t)
        when (isExportedId x) (addKuts x t)
        return $ Asserted t
-    -- where
-      -- x   = F.tracepp msg x_
-      -- msg = "isGlobal: " ++ show (isExportedId x_)
-      -- tpl = isExportedId x
 
 noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
 
@@ -819,7 +816,7 @@ deriving instance (Show a) => (Show (Template a))
 
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
-unTemplate (Internal t) = t 
+unTemplate (Internal t) = t
 unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
@@ -838,7 +835,7 @@ varTemplate γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
+      (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown

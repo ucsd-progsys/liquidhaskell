@@ -194,6 +194,8 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
+              
+              , "Data/Text/Fusion.hs" -- eliminate 
               ]
 
 
