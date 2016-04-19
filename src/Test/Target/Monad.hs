@@ -40,7 +40,7 @@ import qualified Data.Text                        as ST
 import qualified Data.Text.Lazy                   as T
 import           Language.Haskell.TH.Lift
 import           System.IO.Unsafe
-import           Text.Printf
+-- import           Text.Printf
 
 import           Language.Fixpoint.Smt.Interface  hiding (verbose, SMTLIB2(..))
 import           Language.Fixpoint.Types
@@ -222,8 +222,8 @@ lookupCtor c (toType -> t)
          Just t -> do
            return t
          Nothing -> do
-           m  <- gets filePath
-           o  <- asks ghcOpts
+           -- m  <- gets filePath
+           -- o  <- asks ghcOpts
            let tc = GHC.tyConAppTyCon t
            let dcs = GHC.tyConDataCons tc
            let Just dc = find (\d -> c == symbol (GHC.getName d)) dcs
