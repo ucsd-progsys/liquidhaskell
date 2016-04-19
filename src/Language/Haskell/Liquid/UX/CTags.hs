@@ -69,5 +69,6 @@ makeCallGraph cbs = mapSnd calls `fmap` xes
         xs        = S.fromList $ map fst xes
         calls     = filter (`S.member` xs) . freeVars S.empty
 
+bindEqns :: Bind t -> [(t, Expr t)]
 bindEqns (NonRec x e) = [(x, e)]
 bindEqns (Rec xes)    = xes

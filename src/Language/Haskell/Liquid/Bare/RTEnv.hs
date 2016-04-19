@@ -30,6 +30,8 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 
+makeRTEnv :: [(ModName, Ms.Spec ty bndr)]
+          -> BareM ()
 makeRTEnv specs
   = do makeREAliases ets
        makeRTAliases rts
@@ -38,6 +40,8 @@ makeRTEnv specs
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
 
 
+makeRTAliases :: [(ModName, RTAlias Symbol BareType)]
+              -> BareM ()
 makeRTAliases
   = graphExpand buildTypeEdges expBody
   where
@@ -48,6 +52,8 @@ makeRTAliases
              body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
 
+makeREAliases :: [(ModName, RTAlias Symbol Expr)]
+              -> BareM ()
 makeREAliases
   = graphExpand buildExprEdges expBody
   where
@@ -59,6 +65,10 @@ makeREAliases
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 
+graphExpand :: (AliasTable t -> t -> [Symbol])
+            -> ((ModName, RTAlias Symbol t) -> BareM b)
+            -> [(ModName, RTAlias Symbol t)]
+            -> BareM ()
 graphExpand buildEdges expBody xts
   = do let table = buildAliasTable xts
            graph = buildAliasGraph (buildEdges table) (map snd xts)
@@ -159,6 +169,7 @@ buildTypeEdges table = ordNub . go
     go_ref (RProp  _ t) = Just t
 
 
+buildExprEdges :: M.HashMap Symbol a -> Expr -> [Symbol]
 buildExprEdges table  = ordNub . go
   where
     go :: Expr -> [Symbol]

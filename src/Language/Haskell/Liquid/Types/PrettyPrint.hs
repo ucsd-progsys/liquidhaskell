@@ -21,24 +21,30 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
-import           Prelude hiding (error)
-import           TypeRep hiding (maybeParen)
+import qualified Data.HashMap.Strict              as M
+import qualified Data.List                        as L                               -- (sort)
+import           Data.String
 import           ErrUtils                         (ErrMsg)
-import           HscTypes                         (SourceError)
-import           SrcLoc
 import           GHC                              (Name, Class)
-import           Var              (Var)
-import           TyCon            (TyCon)
--- import           Data.Maybe
-import           Data.Hashable (Hashable)
-import qualified Data.List    as L -- (sort)
-import qualified Data.HashMap.Strict as M
-import           Text.PrettyPrint.HughesPJ
+-- import           Var              (Var)
+-- import           TyCon            (TyCon)
+-- -- import           Data.Maybe
+-- import           Data.Hashable (Hashable)
+-- import qualified Data.List    as L -- (sort)
+-- import qualified Data.HashMap.Strict as M
+-- import           Text.PrettyPrint.HughesPJ
+import           HscTypes                         (SourceError)
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.Misc
+import           Language.Fixpoint.Types          hiding (Error, SrcSpan, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Fixpoint.Types       hiding (Error, SrcSpan, Predicate)
-import           Language.Haskell.Liquid.Types hiding (sort)
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types    hiding (sort)
+import           Prelude                          hiding (error)
+import           SrcLoc
+import           Text.PrettyPrint.HughesPJ
+import           TyCon                            (TyCon)
+import           TypeRep                          hiding (maybeParen)
+import           Var                              (Var)
 
 --------------------------------------------------------------------------------
 pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
@@ -98,9 +104,11 @@ instance PPrint a => PPrint (AnnInfo a) where
 instance PPrint a => Show (AnnInfo a) where
   show = showpp
 
+pprAnnInfoBinds :: (PPrint a, PPrint b) => Tidy -> (SrcSpan, [(Maybe a, b)]) -> Doc
 pprAnnInfoBinds k (l, xvs)
   = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
 
+pprAnnInfoBind :: (PPrint a, PPrint b) => Tidy -> (SrcSpan, (Maybe a, b)) -> Doc
 pprAnnInfoBind k (RealSrcSpan sp, xv)
   = xd $$ pprDoc l $$ pprDoc c $$ pprintTidy k n $$ vd $$ text "\n\n\n"
     where
@@ -112,9 +120,10 @@ pprAnnInfoBind k (RealSrcSpan sp, xv)
 pprAnnInfoBind _ (_, _)
   = empty
 
+pprXOT :: (PPrint a, PPrint a1) => Tidy -> (Maybe a, a1) -> (Doc, Doc)
 pprXOT k (x, v) = (xd, pprintTidy k v)
   where
-    xd = maybe (text "unknown") (pprintTidy k) x
+    xd          = maybe "unknown" (pprintTidy k) x
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
@@ -200,6 +209,7 @@ ppr_rtype bb p (RRTy e r o t)
 ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
+ppTyConB :: TyConable c => PPEnv -> c -> Doc
 ppTyConB bb
   | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
@@ -207,6 +217,12 @@ ppTyConB bb
 shortModules :: Doc -> Doc
 shortModules = text . symbolString . dropModuleNames . symbol . render
 
+ppr_rsubtype
+  :: (PPrint a, PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Prec -> [(a, RType c tv r)] -> Doc
 ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
   where
@@ -239,26 +255,48 @@ maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
   | otherwise                  = parens pretty
 
--- ppExists :: Bool -> Prec -> RType p c tv r -> Doc
+ppExists
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
--- ppAllExpr ::  Bool -> Prec -> RType p c tv r -> Doc
+ppAllExpr
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (RAllE x t t') = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
+ppReftPs
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()),
+      Reftable (Ref (RType c tv ()) (RType c tv r)),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => t -> t1 -> [Ref (RType c tv ()) (RType c tv r)] -> Doc
 ppReftPs _ _ rs
   | all isTauto rs   = empty
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
--- ppr_dbind :: Bool -> Prec -> Symbol -> RType p c tv r -> Doc
+ppr_dbind
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Prec -> Symbol -> RType c tv r -> Doc
 ppr_dbind bb p x t
   | isNonSymbol x || (x == dummySymbol)
   = ppr_rtype bb p t
@@ -266,9 +304,21 @@ ppr_dbind bb p x t
   = pprint x <> colon <> ppr_rtype bb p t
 
 
+ppr_rty_fun
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Doc -> RType c tv r -> Doc
 ppr_rty_fun bb prefix t
   = prefix <+> ppr_rty_fun' bb t
 
+ppr_rty_fun'
+  :: (PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> RType c tv r -> Doc
 ppr_rty_fun' bb (RFun b t t' _)
   = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
@@ -302,6 +352,12 @@ ppr_symbols :: [Symbol] -> Doc
 ppr_symbols [] = empty
 ppr_symbols ss = angleBrackets $ intersperse comma $ pprint <$> ss
 
+ppr_cls
+  :: (PPrint a, PPrint c, PPrint tv, PPrint (RType c tv r),
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()), RefTypable c tv r,
+      RefTypable c tv ())
+  => PPEnv -> Prec -> a -> [RType c tv r] -> Doc
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)
   where
@@ -319,6 +375,8 @@ ppr_pvar_def bb p (PV s t _ xts)
 ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
 ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name propConName
 ppr_pvar_kind _ _ (PVHProp)   = ppr_name hpropConName
+
+ppr_name :: Symbol -> Doc
 ppr_name                      = text . symbolString
 
 ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
@@ -332,9 +390,11 @@ ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty
 ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
 
+ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
 ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
+dot :: Doc
 dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where

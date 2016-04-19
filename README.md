@@ -451,6 +451,42 @@ and multiplication as unintepreted functions use the `linear` flag
 
     liquid --linear test.hs
 
+Counter examples (Experimental!)
+--------------------------------
+When given the `--counter-examples` flag, LiquidHaskell will attempt to produce
+counter-examples for the type errors it discovers. For example, see
+[tests/neg/ListElem.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/neg/ListElem.hs)
+
+```
+% liquid --counter-examples tests/neg/ListElem.hs
+
+...
+
+tests/neg/ListElem.hs:12:1-8: Error: Liquid Type Mismatch
+
+ 12 | listElem _ []      = False
+      ^^^^^^^^
+
+   Inferred type
+     VV : {VV : Bool | VV == True}
+     VV = True
+
+   not a subtype of Required type
+     VV : {VV : Bool | Prop VV <=> Set_mem ?b (listElts ?a)}
+
+   In Context
+     ?a : {?a : [a] | len ?a >= 0}
+     ?a = [1]
+
+     ?b : a
+     ?b = 0
+```
+
+The `--counter-examples` flag requires that each type in the context be
+an instance of `GHC.Generics.Generic` or `Test.Targetable.Targetable`
+(provided as part of LiquidHaskell).  LiquidHaskell cannot generate
+counter-examples for polymorphic types, but will try (naively) to
+instantiate type variables with `Int` (as seen in the example above).
 
 
 Writing Specifications

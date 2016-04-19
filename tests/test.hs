@@ -145,7 +145,7 @@ mkTest code dir file
 
 binPath pkgName = do
   testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
+  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/RealProps.hs"
@@ -156,10 +156,12 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/neg/maps.hs"
                    , "tests/pos/Product.hs"
                    , "tests/pos/Gradual.hs"
+                   , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
 knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/pos/Gradual.hs"
+                   , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
 ---------------------------------------------------------------------------
@@ -194,8 +196,8 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-              
-              , "Data/Text/Fusion.hs" -- eliminate 
+
+              , "Data/Text/Fusion.hs" -- eliminate
               ]
 
 
@@ -237,7 +239,7 @@ notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
 
 headerDelim :: String
-headerDelim = take 80 $ repeat '-'
+headerDelim = replicate 80 '-'
 
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]

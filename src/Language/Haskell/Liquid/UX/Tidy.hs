@@ -28,29 +28,30 @@ module Language.Haskell.Liquid.UX.Tidy (
   , cinfoError
   ) where
 
-import           Prelude             hiding (error)
+import           Data.Hashable
+import           Prelude                                   hiding (error)
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import qualified Data.List           as L
-import qualified Data.Text           as T
-
-
-import qualified Control.Exception  as Ex
-
-import Language.Haskell.Liquid.GHC.Misc      (showPpr, stringTyVar)
-
-import Language.Fixpoint.Types      hiding (Result, SrcSpan, Error)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
-import Language.Haskell.Liquid.Types.PrettyPrint
+import qualified Data.HashMap.Strict                       as M
+import qualified Data.HashSet                              as S
+import qualified Data.List                                 as L
+import qualified Data.Text                                 as T
 
 
+import qualified Control.Exception                         as Ex
+
+import           Language.Haskell.Liquid.GHC.Misc          (showPpr, stringTyVar)
+
+import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
+import           Language.Haskell.Liquid.Types.PrettyPrint
 
 
 
-import Data.Generics                       (everywhere, mkT)
-import Text.PrettyPrint.HughesPJ
+
+
+import           Data.Generics                             (everywhere, mkT)
+import           Text.PrettyPrint.HughesPJ
 
 
 ------------------------------------------------------------------------
@@ -98,6 +99,7 @@ tidySpecType k = tidyValueVars
 tidyValueVars :: SpecType -> SpecType
 tidyValueVars = mapReft $ \u -> u { ur_reft = tidyVV $ ur_reft u }
 
+tidyVV :: Reft -> Reft
 tidyVV r@(Reft (va,_))
   | isJunk va = shiftVV r v'
   | otherwise = r
@@ -145,12 +147,14 @@ tidyTyVars t = subsTyVarsAll αβs t
     pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
 
+bindersTx :: [Symbol] -> Symbol -> Symbol
 bindersTx ds   = \y -> M.lookupDefault y y m
   where
     m          = M.fromList $ zip ds $ var <$> [1..]
     var        = symbol . ('x' :) . show
 
 
+tyVars :: RType t a t1 -> [a]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllS _ t)     = tyVars t
 tyVars (RAllT α t)     = α : tyVars t
@@ -164,6 +168,12 @@ tyVars (RExprArg _)    = []
 tyVars (RRTy _ _ _ t)  = tyVars t
 tyVars (RHole _)       = []
 
+subsTyVarsAll
+  :: (Eq k, Hashable k,
+      Reftable r, TyConable c, SubsTy k (RType c k ()) c,
+      SubsTy k (RType c k ()) r, SubsTy k (RType c k ()) (RType c k ()),
+      FreeVar c k)
+   => [(k, RType c k (), RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
@@ -171,6 +181,7 @@ subsTyVarsAll ats = go
     go t           = subsTyVars_meet ats t
 
 
+funBinds :: RType t t1 t2 -> [Symbol]
 funBinds (RAllT _ t)      = funBinds t
 funBinds (RAllP _ t)      = funBinds t
 funBinds (RAllS _ t)      = funBinds t

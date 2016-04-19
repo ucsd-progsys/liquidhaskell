@@ -99,13 +99,14 @@ makeMeasureInline tce lmap cbs  x
                            Left (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
                            Right e -> throwError e
 
-    fromLR (Left l)  = l 
+    fromLR (Left l)  = l
     fromLR (Right r) = r
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
+updateInlines :: MonadState BareEnv m => Located Symbol -> TInline -> m ()
 updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
                                    s{inlines = M.map (f iold) iold }
   where
@@ -146,21 +147,27 @@ makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
     n             = length xts
 
+makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
+                    => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
         mkx j = symbol ("xx" ++ show j)
 
 
-makeMeasureSpec :: (ModName, Ms.Spec BareType LocSymbol) -> BareM (Ms.MSpec SpecType DataCon)
-makeMeasureSpec (mod,spec) = inModule mod mkSpec
+makeMeasureSpec :: (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
+makeMeasureSpec (mod, spec) = inModule mod mkSpec
   where
-    mkSpec = mkMeasureDCon =<< mkMeasureSort =<< m
+    mkSpec = mkMeasureDCon =<< mkMeasureSort =<< first val <$> m
     m      = Ms.mkMSpec <$> mapM expandMeasure (Ms.measures spec)
                         <*> return (Ms.cmeasures spec)
                         <*> mapM expandMeasure (Ms.imeasures spec)
 
+makeMeasureSpec' :: MSpec SpecType DataCon
+                 -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
 makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
+makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
+                     -> [(LocSymbol, CMeasure (RType c tv r2))]
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
     tx (M n s _) = (n, CM n (mapReft ur_reft s) -- [(t,m) | (IM n' t m) <- imeas, n == n']
@@ -221,6 +228,12 @@ makeHaskellBounds tce cbs xs
        M.fromList <$> mapM (makeHaskellBound tce lmap cbs) (S.toList xs)
 
 
+makeHaskellBound :: MonadError Error m
+                 => F.TCEmb TyCon
+                 -> LogicMap
+                 -> [Bind Var]
+                 -> (Var, Located Symbol)
+                 -> m (LocSymbol, RBound)
 makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
     (NonRec v def:_)   -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
     (Rec [(v, def)]:_) -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
@@ -250,6 +263,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
 
 toBound v x (vs, Right e) = toBound v x (vs, Left e)
 
+capitalizeBound :: Located Symbol -> Located Symbol
 capitalizeBound = fmap (symbol . toUpperHead . symbolString)
   where
     toUpperHead []     = []
@@ -258,11 +272,13 @@ capitalizeBound = fmap (symbol . toUpperHead . symbolString)
 --------------------------------------------------------------------------------
 -- | Expand Measures -----------------------------------------------------------
 --------------------------------------------------------------------------------
+type BareMeasure = Measure (Located BareType) LocSymbol
 
-expandMeasure m
-  = do eqns <- sequence $ expandMeasureDef <$> eqns m
-       return $ m { sort = generalize (sort m)
-                  , eqns = eqns }
+expandMeasure :: BareMeasure -> BareM BareMeasure
+expandMeasure m = do
+  eqns <- sequence $ expandMeasureDef <$> eqns m
+  return $ m { sort = generalize <$> sort m
+             , eqns = eqns }
 
 expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
 expandMeasureDef d

@@ -1,6 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -23,7 +21,7 @@ import           System.Exit
 -- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
-import           Var
+-- import           Var
 import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
@@ -36,6 +34,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
@@ -43,6 +42,7 @@ import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Model
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
@@ -122,7 +122,7 @@ liquidOne tgt info = do
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ render $ pprintCBs cbs'
                  putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
-  dc <- prune cfg cbs' tgt info
+  dc       <- prune cfg cbs' tgt info
   let cbs'' = maybe cbs' DC.newBinds dc
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
@@ -146,13 +146,6 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
-checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
-checkedNames dc          = concatMap names . DC.newBinds <$> dc
-   where
-     names (NonRec v _ ) = [render . text $ shvar v]
-     names (Rec xs)      = map (shvar . fst) xs
-     shvar               = showpp . varName
-
 prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
 prune cfg cbinds tgt info
   | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
@@ -163,19 +156,21 @@ prune cfg cbinds tgt info
     sp            = spec info
 
 
-
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
   = do finfo          <- cgInfoFInfo info cgi tgt
        F.Result r sol <- solve fx finfo
-       let names = checkedNames dc
+       let names = map show . DC.checkedVars <$> dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
-       let res   = ferr sol r
-       let out0  = mkOutput cfg res sol annm
+       let res_err = fmap (applySolution sol . cinfoError . snd) r
+       res_model  <- fmap (fmap pprint . tidyError sol)
+                     <$> getModels info cfg res_err
+       let out0  = mkOutput cfg res_model sol annm
+
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
-                        { o_result  = res               }
+                        { o_result  = res_model         }
     where
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.linear      = linear      cfg
@@ -192,9 +187,9 @@ solveCs cfg tgt cgi info dc
                        }
        ferr s  = fmap (cinfoUserError s . snd)
 
-
 cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
 cinfoUserError s =  e2u s . cinfoError -- . snd
+
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

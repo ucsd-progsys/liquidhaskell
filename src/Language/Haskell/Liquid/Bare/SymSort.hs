@@ -4,8 +4,11 @@ module Language.Haskell.Liquid.Bare.SymSort (
     txRefSort
   ) where
 
-import Prelude hiding (error)
+import qualified Data.HashMap.Strict                   as M
+import           Prelude                               hiding (error)
+import qualified GHC
 
+<<<<<<< HEAD
 import qualified Data.List as L
 import Data.Maybe              (fromMaybe)
 import TyCon            (TyCon)
@@ -16,6 +19,20 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Bare.Env
+=======
+import qualified Data.List                             as L
+import           Data.Maybe                            (fromMaybe)
+import           TyCon                                 (TyCon)
+import           Language.Fixpoint.Misc                (fst3, snd3)
+import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types               (atLoc, meet, Reftable, Symbolic, Symbol)
+
+import           Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.GHC.Misc      (fSrcSpan)
+import           Language.Haskell.Liquid.Misc          (safeZipWithError)
+import           Language.Haskell.Liquid.Bare.Env
+>>>>>>> develop
 
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
@@ -26,6 +43,12 @@ import Language.Haskell.Liquid.Bare.Env
 txRefSort :: TCEnv -> TCEmb TyCon -> Located SpecType -> Located SpecType
 txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (fSrcSpan t) tce tyi) (val t)
 
+addSymSort :: (PPrint t, Reftable t)
+           => GHC.SrcSpan
+           -> M.HashMap TyCon FTycon
+           -> M.HashMap TyCon RTyCon
+           -> RType RTyCon RTyVar (UReft t)
+           -> RType RTyCon RTyVar (UReft t)
 addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
@@ -39,12 +62,26 @@ addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
 addSymSort _ _ _ t
   = t
 
+addSymSortRef :: (PPrint t, PPrint a, Symbolic tv, Reftable t)
+              => GHC.SrcSpan
+              -> a
+              -> PVar (RType c tv ())
+              -> Ref (RType c tv ()) (RType c tv (UReft t))
+              -> Int
+              -> Ref (RType c tv ()) (RType c tv (UReft t))
 addSymSortRef sp rc p r i
   | isPropPV p
   = addSymSortRef' sp rc i p r
   | otherwise
   = panic Nothing "addSymSortRef: malformed ref application"
 
+addSymSortRef' :: (PPrint t, PPrint a, Symbolic tv, Reftable t)
+               => GHC.SrcSpan
+               -> a
+               -> Int
+               -> PVar (RType c tv ())
+               -> Ref (RType c tv ()) (RType c tv (UReft t))
+               -> Ref (RType c tv ()) (RType c tv (UReft t))
 addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
@@ -69,6 +106,10 @@ addSymSortRef' _ _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
+spliceArgs :: [Char]
+           -> [(Symbol, b)]
+           -> PVar t
+           -> [(Symbol, t)]
 spliceArgs msg s p = go (fst <$> s) (pargs p)
   where
     go []     []           = []

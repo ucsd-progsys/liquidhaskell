@@ -41,6 +41,9 @@ constraintToLogicOne γ binds
    r        = snd $ last binds
    xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
+subConstraintToLogicOne :: (Foldable t, Reftable r, Reftable r1)
+                        => t (Symbol, (Symbol, RType t1 t2 r))
+                        -> (Symbol, (Symbol, RType t3 t4 r1)) -> Expr
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where
         (rs , su) = foldl go ([], []) xts
