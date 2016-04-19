@@ -168,7 +168,7 @@ instance Hashable (Description Symbol) where
   hashWithSalt s (DT t) = hashWithSalt s t
 
 instance Hashable Symbol where
-  hashWithSalt _ (S i _ _) = i
+  hashWithSalt s (S i _ _) = hashWithSalt s i
 
 instance NFData Symbol where
   rnf (S {}) = ()
