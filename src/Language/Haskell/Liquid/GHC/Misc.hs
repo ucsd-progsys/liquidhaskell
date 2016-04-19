@@ -39,9 +39,8 @@ import           CoreMonad
 
 import           Text.Parsec.Pos                            (sourceName, sourceLine, sourceColumn, newPos)
 
-import           Name                                       (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Name
 import           Module                                     (moduleNameFS)
-import           OccName                                    (mkTyVarOcc, mkVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
@@ -426,10 +425,17 @@ varSymbol v
     vs                    = symbol $ getName v
 
 qualifiedNameSymbol :: Name -> Symbol
-qualifiedNameSymbol n = symbol $
-  case nameModule_maybe n of
-    Nothing -> occNameFS (getOccName n)
-    Just m  -> concatFS [moduleNameFS (moduleName m), fsLit ".", occNameFS (getOccName n)]
+qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
+  where
+  modFS = case nameModule_maybe n of
+            Nothing -> fsLit ""
+            Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
+  occFS = occNameFS (getOccName n)
+  uniqFS
+    | isSystemName n
+    = concatFS [fsLit "_",  fsLit (showPpr (getUnique n))]
+    | otherwise
+    = fsLit ""
 
 instance Symbolic FastString where
   symbol = symbol . fastStringText
@@ -454,8 +460,7 @@ instance Symbolic Class where
   symbol = symbol . getName
 
 instance Symbolic Name where
-  -- FIXME: sigh, using qualifiedNameSymbol breaks tests/eq_pos/ConcatMap.hs...
-  symbol = symbol . showPpr --  qualifiedNameSymbol
+  symbol = symbol . qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol
@@ -502,11 +507,6 @@ instance NFData Type where
 instance NFData Var where
   rnf t = seq t ()
 
--- showPprSafe x
---   | showPpr x == symbolString (symbol $ getName x)
---   = showPpr x
---   | otherwise
---   = impossible Nothing $ showPpr x ++ " vs " ++ symbolString (symbol $ getName x)
 
 ----------------------------------------------------------------------
 -- GHC Compatibility Layer
