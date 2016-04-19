@@ -134,11 +134,10 @@ data TargetState = TargetState
   , filePath     :: !FilePath
   , makingTy     :: !Sort
   , smtContext   :: !Context
-  , dynFlags     :: !GHC.DynFlags
   }
 
-initState :: FilePath -> GhcSpec -> Context -> GHC.DynFlags -> TargetState
-initState fp sp ctx df = TargetState
+initState :: FilePath -> GhcSpec -> Context -> TargetState
+initState fp sp ctx = TargetState
   { variables    = []
   , choices      = []
   , constraints  = []
@@ -158,7 +157,6 @@ initState fp sp ctx df = TargetState
   , filePath     = fp
   , makingTy     = FObj ""
   , smtContext   = ctx
-  , dynFlags     = df
   }
   where
     -- FIXME: can we NOT tidy???

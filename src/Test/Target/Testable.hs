@@ -14,6 +14,8 @@
 module Test.Target.Testable (test, Testable, setup) where
 
 
+import Prelude hiding (error, undefined)
+
 import           Control.Exception               (AsyncException, evaluate)
 import           Control.Monad
 import           Control.Monad.Catch
@@ -41,6 +43,8 @@ import           Test.Target.Monad
 import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
+
+import GHC.Err.Located
 
 -- import Debug.Trace
 
@@ -129,7 +133,7 @@ class (AllHave Targetable (Args f), Targetable (Res f)
   apply      :: f -> HList (Args f) -> Res f
   mkExprs    :: f -> [Symbol] -> HList (Args f) -> [(Symbol,Expr)]
 
-instance (Show a, Targetable a, Testable b) => Testable (a -> b) where
+instance {-# OVERLAPPING #-} (Show a, Targetable a, Testable b) => Testable (a -> b) where
   queryArgs f d (stripQuals -> (RFun x i o _))
     = do v  <- qquery (Proxy :: Proxy a) d i
          vs <- queryArgs (f undefined) d (subst (mkSubst [(x,var v)]) o)
@@ -145,7 +149,9 @@ instance (Show a, Targetable a, Testable b) => Testable (a -> b) where
     = (v, toExpr x) : mkExprs (f undefined) vs xs
   mkExprs _ _ _ = error "mkExprs called with empty list"
 
-instance (Targetable a, Args a ~ '[], Res a ~ a) => Testable a where
+instance {-# OVERLAPPING #-}
+  (Targetable a, Args a ~ '[], Res a ~ a) => Testable a
+  where
   queryArgs _ _ _  = return []
   decodeArgs _ _ _ = return Nil
   apply f _        = f

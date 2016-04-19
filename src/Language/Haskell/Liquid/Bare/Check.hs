@@ -199,7 +199,7 @@ checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located 
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (val $ txRefSort tcEnv emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
-checkDupIntersect xts asmSigs = concatMap mkWrn {- $ trace msg -} dups
+checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
   where
     mkWrn (x, t)     = pprWrn x (sourcePosSrcSpan $ loc t)
     dups             = L.intersectBy ((==) `on` fst) asmSigs xts

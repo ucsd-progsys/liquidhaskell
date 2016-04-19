@@ -114,7 +114,7 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   df <- getDynFlags
   let opts = defaultOpts
   smt <- liftIO $ makeContext False False (solver opts) (target info)
-  model <- liftIO $ runTarget opts (initState (target info) (spec info) smt df) $ do
+  model <- liftIO $ runTarget opts (initState (target info) (spec info) smt) $ do
     free <- gets freesyms
     let dcs = [ (v, tidySymbol v)
               | iv <- impVars info
