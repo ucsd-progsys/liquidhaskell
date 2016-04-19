@@ -50,7 +50,7 @@ genFun :: Targetable a => Proxy a -> t -> Symbol -> SpecType -> Target Symbol
 genFun _p _ x (stripQuals -> t)
   = do forM_ (getCtors t) $ \dc -> do
          let c = dataConSymbol_noUnique dc
-         t <- lookupCtor c
+         t <- lookupCtor c t
          addConstructor (c, rTypeSort mempty t)
        return x -- fresh (getType p)
 
@@ -78,7 +78,7 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                True  -> do
                  ctx <- gets smtContext
                  _ <- io $ command ctx Push
-                 xes <- mapM genExpr es
+                 xes <- zipWithM genExpr es tis
                  let su = mkSubst $ zipWith (\v e -> (v, var e)) vs xes
                  xo <- qquery (Proxy :: Proxy (Res f)) d (subst su to)
                  vs <- gets variables
@@ -95,29 +95,30 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                  _ <- io $ command ctx Pop
                  return o
     
-genExpr :: Expr -> Target Symbol
-genExpr (splitEApp_maybe -> Just (c, es))
-  = do xes <- mapM genExpr es
-       (xs, _, _, to) <- bkArrowDeep . stripQuals <$> lookupCtor c
+genExpr :: Expr -> SpecType -> Target Symbol
+genExpr (splitEApp_maybe -> Just (c, es)) t
+  = do let ts = rt_args t
+       xes <- zipWithM genExpr es ts
+       (xs, _, _, to) <- bkArrowDeep . stripQuals <$> lookupCtor c t
        let su  = mkSubst $ zip xs $ map var xes
            to' = subst su to
        x <- fresh $ FObj $ symbol $ rtc_tc $ rt_tycon to'
        addConstraint $ ofReft (reft to') (var x)
        return x
-genExpr (ECon (I i))
+genExpr (ECon (I i)) _t
   = do x <- fresh FInt
        addConstraint $ var x `eq` expr i
        return x
-genExpr (ESym (SL s)) | ST.length s == 1
+genExpr (ESym (SL s)) _t | ST.length s == 1
   -- This is a Char, so encode it as an Int
   = do x <- fresh FInt
        addConstraint $ var x `eq` expr (ord $ ST.head s)
        return x
-genExpr e = error $ "genExpr: " ++ show e
+genExpr e _t = error $ "genExpr: " ++ show e
 
 evalType :: M.HashMap Symbol Val -> SpecType -> Expr -> Target Bool
 evalType m t e@(splitEApp_maybe -> Just (c, xs))
-  = do dcp <- lookupCtor c
+  = do dcp <- lookupCtor c t
        tyi <- gets tyconInfo
        vts <- freshen $ applyPreds (addTyConInfo M.empty tyi t) dcp
        liftM2 (&&) (evalWith m (toReft $ rt_reft t) e) (evalTypes m vts xs)

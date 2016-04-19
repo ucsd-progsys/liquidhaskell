@@ -168,11 +168,13 @@ setup = {-# SCC "setup" #-} do
    -- FIXME: why do i need this??
    defSort ("GHC.Types.Bool" :: T.Text) ("Int" :: T.Text)
    defSort ("GHC.Types.Int" :: T.Text) ("Int" :: T.Text)
+   defSort ("GHC.Tuple.$40$$44$$41$" :: T.Text) ("Int" :: T.Text)
    -- -- FIXME: combine this with the code in `fresh`
    forM_ ss $ \case
      -- FObj "Int" -> return ()
      -- FInt       -> return ()
      s | smt2 s == "GHC.Types.Bool" || smt2 s == "GHC.Types.Int"
+       || smt2 s == "GHC.Tuple.$40$$44$$41$"
          -> return ()
      --     -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
      -- FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)

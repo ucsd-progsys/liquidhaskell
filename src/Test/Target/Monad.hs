@@ -3,6 +3,7 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE ViewPatterns               #-}
 module Test.Target.Monad
   ( whenVerbose
   , noteUsed
@@ -214,8 +215,8 @@ making ty act
        return r
 
 -- | Find the refined type of a data constructor.
-lookupCtor :: Symbol -> Target SpecType
-lookupCtor c
+lookupCtor :: Symbol -> SpecType -> Target SpecType
+lookupCtor c (toType -> t)
   = do mt <- lookup c <$> gets ctorEnv
        case mt of
          Just t -> do
@@ -223,10 +224,15 @@ lookupCtor c
          Nothing -> do
            m  <- gets filePath
            o  <- asks ghcOpts
-           t <- io $ runGhc o $ do
-                  _ <- loadModule m
-                  t <- GHC.exprType (printf "(%s)" (symbolString c))
-                  return (ofType t)
+           let tc = GHC.tyConAppTyCon t
+           let dcs = GHC.tyConDataCons tc
+           let Just dc = find (\d -> c == symbol (GHC.getName d)) dcs
+           let t = ofType (GHC.dataConUserType dc)
+           -- t <- io $ runGhc o $ do
+           --        _ <- loadModule m
+           --        traceShowM c
+           --        t <- GHC.exprType (printf "(%s)" (symbolString c))
+           --        return (ofType t)
            modify $ \s@(TargetState {..}) -> s { ctorEnv = (c,t) : ctorEnv }
            return t
 

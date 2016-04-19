@@ -121,7 +121,7 @@ reproxy _ = Proxy
 unfold :: Symbol -> SpecType -> Target [(Symbol, SpecType)]
 unfold cn t = do
   -- traceShowM ("unfold.cn", cn)
-  dcp <- lookupCtor cn
+  dcp <- lookupCtor cn t
   -- traceShowM ("unfold.dcp")
   -- traceShowM ("unfold.t.r", reft t)
   tyi <- gets tyconInfo
@@ -133,8 +133,8 @@ unfold cn t = do
 
 -- | Given a data constructor @d@ and a list of expressions @xs@, construct a
 -- new expression corresponding to @d xs@.
-apply :: Symbol -> [Expr] -> Target Expr
-apply c vs = do
+apply :: Symbol -> SpecType -> [Expr] -> Target Expr
+apply c t vs = do
   -- traceShowM ("apply")
   -- traceShowM ("apply", c, vs)
   mc <- gets chosen
@@ -142,7 +142,7 @@ apply c vs = do
     Just ch -> mapM_ (addDep ch) vs
     Nothing -> return ()
   let x = app c vs
-  t <- lookupCtor c
+  t <- lookupCtor c t
   -- traceShowM ("apply.ctor", c, t)
   let (xs, _, _, rt) = bkArrowDeep t
       su             = mkSubst $ zip (map symbol xs) vs
@@ -178,7 +178,9 @@ whichOf :: Symbol -> Target Symbol
 whichOf v = do
   deps <- gets deps
   let Just cs = M.lookup v deps
-  [c]  <- catMaybes <$> forM cs (\c -> do
+  -- traceShowM (v, cs)
+  -- FIXME: should be a singleton list...
+  c:_  <- catMaybes <$> forM cs (\c -> do
     val <- getValue c
     if val == "true"
       then return (Just c)
@@ -485,7 +487,7 @@ gqueryCtor (p :: Proxy (C1 c f a)) d t
       mod <- symbolString <$> gets modName
       ts  <- unfold (symbol $ qualify mod cn) t
       xs  <- gqueryFields (reproxyGElem p) d ts
-      apply (symbol $ qualify mod cn) xs
+      apply (symbol $ qualify mod cn) t xs
   where
     cn = conName (undefined :: C1 c f a)
 
