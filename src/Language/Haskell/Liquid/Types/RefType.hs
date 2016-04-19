@@ -346,9 +346,10 @@ rTyVar      = RTV
 symbolRTyVar :: Symbol -> RTyVar
 symbolRTyVar = rTyVar . stringTyVar . symbolString
 
-normalizePds :: RefTypable c tv r => RType c tv r -> RType c tv r
+normalizePds :: (OkRT c tv r) => RType c tv r -> RType c tv r
 normalizePds t = addPds ps t'
-  where (t', ps) = nlzP [] t
+  where
+    (t', ps)   = nlzP [] t
 
 rPred :: PVar (RType c tv ()) -> RType c tv r -> RType c tv r
 rPred     = RAllP
@@ -371,9 +372,7 @@ addPds :: Foldable t
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
 addPds ps t           = foldl' (flip rPred) t ps
 
-nlzP :: RefTypable t t1 t2
-     => [PVar (RType t t1 ())]
-     -> RType t t1 t2 -> (RType t t1 t2, [PVar (RType t t1 ())])
+nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
  = (t, ps)
 nlzP ps (RFun b t1 t2 r)
@@ -556,7 +555,7 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
 expandRApp _ _ t               = t
 
 rtPropTop
-  :: (PPrint c, PPrint tv, RefTypable c tv r, RefTypable c tv (),
+  :: (OkRT c tv r,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv)
    => PVar (RType c tv ()) -> Ref (RType c tv ()) (RType c tv r)
@@ -637,8 +636,7 @@ freeTyVars (RHole _)       = []
 freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 
 
-tyClasses :: RefTypable RTyCon t t1
-          => RType RTyCon t t1 -> [(Class, [RType RTyCon t t1])]
+tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon tv r])]
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllS _ t)     = tyClasses t
 tyClasses (RAllT _ t)     = tyClasses t

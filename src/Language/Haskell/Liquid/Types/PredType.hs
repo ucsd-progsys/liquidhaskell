@@ -33,7 +33,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
 import           Type
 import           TypeRep
-
+import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
 
@@ -230,16 +230,16 @@ substPred _   _  t              = t
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
 substRCon
-  :: (Foldable t1, PPrint t, PPrint t2, PPrint tv,
-      Reftable (RType RTyCon tv r), RefTypable RTyCon tv r,
-      RefTypable RTyCon tv (), SubsTy tv (RType RTyCon tv ()) r,
+  :: (PPrint t, PPrint t2, Eq tv, Reftable r, Hashable tv, PPrint tv, PPrint r,
+      SubsTy tv (RType RTyCon tv ()) r,
       SubsTy tv (RType RTyCon tv ()) (RType RTyCon tv ()),
       SubsTy tv (RType RTyCon tv ()) RTyCon,
+      Reftable (RType RTyCon tv r),
       FreeVar RTyCon tv)
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))
   -> RType RTyCon tv r
-  -> t1 (PVar t2)
+  -> [PVar t2]
   -> r
   -> RType RTyCon tv r
 substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r2'
@@ -324,7 +324,7 @@ meetListWithPSubs :: (Foldable t, PPrint t1, Reftable b)
                   => t (PVar t1) -> [(Symbol, RSort)] -> b -> b -> b
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 
-meetListWithPSubsRef :: (Foldable t, Reftable (RType t1 t2 t3), RefTypable t1 t2 t3)
+meetListWithPSubsRef :: (Foldable t, Reftable (RType t1 t2 t3))
                      => t (PVar t4)
                      -> [(Symbol, b)]
                      -> Ref τ (RType t1 t2 t3)
@@ -343,7 +343,7 @@ meetListWithPSub ss r1 r2 π
   where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
-meetListWithPSubRef :: (Reftable (RType t t1 t2), RefTypable t t1 t2)
+meetListWithPSubRef :: (Reftable (RType t t1 t2))
                     => [(Symbol, b)]
                     -> Ref τ (RType t t1 t2)
                     -> Ref τ (RType t t1 t2)

@@ -190,15 +190,11 @@ initEnv info
     mapSndM f (x,y) = (x,) <$> f y
     makedcs      = map strengthenDataConType
 
-makeDataConTypes :: Var
-                 -> State CGInfo (Var, SpecType)
+makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
 
-makeAutoDecrDataCons :: RefTypable c tv ()
-                     => [(Id, RType c tv RReft)]
-                     -> S.HashSet TyCon
-                     -> [Id]
-                     -> ([Located (RType c tv RReft)], [(Id, RType c tv RReft)])
+makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
+
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where
@@ -217,11 +213,7 @@ makeAutoDecrDataCons dcts specenv dcs
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 
-makeSizedDataCons :: RefTypable c tv ()
-                  => [(Id, RType c tv RReft)]
-                  -> DataCon
-                  -> Integer
-                  -> (RType c tv (), (Id, RType c tv RReft))
+makeSizedDataCons :: [(Id, SpecType)] -> DataCon -> Integer -> (RSort, (Id, SpecType))
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
       x      = dataConWorkId x'
@@ -490,10 +482,7 @@ makeDecrIndex (x, Asserted t)
          Right i  -> return i
 makeDecrIndex _ = return []
 
-makeDecrIndexTy :: RefTypable RTyCon tv r
-                => Var
-                -> RType RTyCon tv r
-                -> State CGInfo (Either (TError t) [Int])
+makeDecrIndexTy :: Var -> SpecType -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
@@ -1411,22 +1400,19 @@ instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
-checkTyCon :: (Outputable a1, RefTypable t t1 t2)
-           => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkTyCon :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t
 
-checkFun :: (Outputable a1, RefTypable t t1 t2)
-         => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkFun :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
 
-checkAll :: (Outputable a1, RefTypable t t1 t2)
-         => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkAll :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr :: (Outputable a1, PPrint a2) => ([Char], a1) -> a2 -> a
+checkErr :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
 
 varAnn :: CGEnv -> Var -> t -> Annot t

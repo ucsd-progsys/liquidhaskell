@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE ConstraintKinds            #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -50,6 +51,7 @@ module Language.Haskell.Liquid.Types (
   , RType (..), Ref(..), RTProp, rPropP
   , RTyVar (..)
   , RTAlias (..)
+  , OkRT
 
   -- * Worlds
   , HSeg (..)
@@ -752,6 +754,17 @@ class (Eq c) => TyConable c where
   isEqual   = const False
   isNumCls  = const False
   isFracCls = const False
+
+
+-- Should just make this a @Pretty@ instance but its too damn tedious
+-- to figure out all the constraints.
+
+type OkRT c tv r = ( TyConable c
+                   , PPrint tv, PPrint c, PPrint r
+                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
+                   , Eq c, Eq tv
+                   , Hashable tv
+                   )
 
 -------------------------------------------------------------------------------
 -- | TyConable Instances -------------------------------------------------------

@@ -197,7 +197,7 @@ data CGInfo = CGInfo {
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo
 
-pprCGInfo :: Tidy -> CGInfo -> Doc
+pprCGInfo :: a -> CGInfo -> Doc
 pprCGInfo _ _cgi
   =  text "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")

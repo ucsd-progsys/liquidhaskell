@@ -206,8 +206,7 @@ expandRTAliasApp l rta args r
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
 -- e.g. type Matrix a Row Col = List (List a Row) Col
 
-exprArg :: (PrintfArg t1, Symbolic a, Symbolic a1, RefTypable (Located a) a1 t)
-        => t1 -> RType (Located a) a1 t -> Expr
+exprArg :: (PrintfArg t1)  => t1 -> BareType -> Expr
 exprArg _   (RExprArg e)
   = val e
 exprArg _   (RVar x _)

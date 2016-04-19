@@ -129,15 +129,6 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
 
--- Should just make this a @Pretty@ instance but its too damn tedious
--- to figure out all the constraints.
-
-type OkRT c tv r = ( TyConable c
-                   , PPrint tv, PPrint c, PPrint r
-                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
-                   , Eq c, Eq tv
-                   , Hashable tv
-                   )
 
 instance (OkRT c tv r) => PPrint (RType c tv r) where
   -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.

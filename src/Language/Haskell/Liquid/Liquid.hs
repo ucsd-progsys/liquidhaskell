@@ -34,7 +34,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
@@ -163,11 +163,12 @@ solveCs cfg tgt cgi info dc
        let names = map show . DC.checkedVars <$> dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
+-- ORIG let res   = ferr sol r
+-- ORIG let out0  = mkOutput cfg res sol annm
        let res_err = fmap (applySolution sol . cinfoError . snd) r
        res_model  <- fmap (fmap pprint . tidyError sol)
-                     <$> getModels info cfg res_err
+                      <$> getModels info cfg res_err
        let out0  = mkOutput cfg res_model sol annm
-
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
                         { o_result  = res_model         }
@@ -185,11 +186,10 @@ solveCs cfg tgt cgi info dc
                        , FC.elimStats   = elimStats   cfg
                        -- , FC.stats   = True
                        }
-       ferr s  = fmap (cinfoUserError s . snd)
+-- ORIG ferr s    = fmap (cinfoUserError s . snd)
 
-cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
-cinfoUserError s =  e2u s . cinfoError -- . snd
-
+-- ORIG cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
+-- ORIG cinfoUserError s =  e2u s . cinfoError -- . snd
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

@@ -431,13 +431,9 @@ pprintCBs :: [CoreBind] -> Doc
 pprintCBs
   | True      = pprintCBsTidy
   | otherwise = pprintCBsVerbose
-
-pprintCBsTidy    = pprDoc . tidyCBs
-pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
-
--- pprintCBs = showSDocDebug . tidyCBs
--- showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
--- showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
+  where
+    pprintCBsTidy    = pprDoc . tidyCBs
+    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show GhcInfo where
   show = showpp
