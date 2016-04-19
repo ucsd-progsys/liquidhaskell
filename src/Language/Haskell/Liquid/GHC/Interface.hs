@@ -8,10 +8,11 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo
+    getGhcInfo,
+    runLiquidGhc,
 
   -- * printer
-  , pprintCBs
+    pprintCBs
   ) where
 
 import Prelude hiding (error)
@@ -95,7 +96,7 @@ getGhcInfo' cfg target name tgtSpec = do
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
-  let info    = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  let info    = GI target (getModName name) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
   hscEnv'    <- getSession
   return (info, hscEnv')
 
@@ -105,7 +106,7 @@ getGhcInfo' cfg target name tgtSpec = do
 
 runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
 runLiquidGhc hscEnv cfg act =
-  withSystemTempDirectory "liquid" $ \tmp ->
+  withSystemTempDirectory "liquid" $ \tmp -> do
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- getSessionDynFlags
@@ -114,7 +115,9 @@ runLiquidGhc hscEnv cfg act =
       let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                      , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                      , includePaths = nub $ idirs cfg ++ includePaths df'
-                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
+                     , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                                                    (ModRenaming True [])
+                                    : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
                      -- FIXME: this *should* be HscNothing, but that prevents us from
@@ -130,9 +133,11 @@ runLiquidGhc hscEnv cfg act =
                      , hiDir        = Just tmp
                      , stubDir      = Just tmp
                      } `xopt_set` Opt_MagicHash
+                       `xopt_set` Opt_DeriveGeneric
+                       `xopt_set` Opt_StandaloneDeriving
                        `gopt_set` Opt_ImplicitImportQualified
                        `gopt_set` Opt_PIC
-      setSessionDynFlags df''
+      _ <- setSessionDynFlags df''
       defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------

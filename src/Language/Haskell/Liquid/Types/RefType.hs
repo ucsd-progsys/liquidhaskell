@@ -69,6 +69,7 @@ module Language.Haskell.Liquid.Types.RefType (
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
+import Name
 import Var
 import Kind
 import GHC              hiding (Located)
@@ -102,10 +103,11 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
 
 import Data.List (sort, foldl')
 
+-- -- import Debug.Trace
 
 strengthenDataConType :: Symbolic t
                       => (t, RType c tv (UReft Reft)) -> (t, RType c tv (UReft Reft))
@@ -322,10 +324,14 @@ eqpd (Pr vs) (Pr ws)
 
 
 instance Eq RTyVar where
-  RTV α == RTV α' = tvId α == tvId α'
+  -- FIXME: need to compare unique and string because we reuse
+  -- uniques in stringTyVar and co.
+  RTV α == RTV α' = α == α' && getOccName α == getOccName α'
 
 instance Ord RTyVar where
-  compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
+  compare (RTV α) (RTV α') = case compare α α' of
+    EQ -> compare (getOccName α) (getOccName α')
+    o  -> o
 
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
@@ -1119,6 +1125,9 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
 
+tyVarUniqueSymbol :: TyVar -> Symbol
+tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)
   = typeSortForAll tce τ
@@ -1128,6 +1137,9 @@ typeSort tce (TyConApp c τs)
   = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
   = fApp (typeSort tce t1) [typeSort tce t2]
+typeSort _tce (TyVarTy tv)
+  = let x = FObj $ tyVarUniqueSymbol tv
+    in x
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
@@ -1140,14 +1152,15 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        sas                 = tyVarUniqueSymbol <$> as
         n                   = length as
 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = symbol c
+  | otherwise         = let x = symbol c -- . getOccString $ c
+                        in x
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
 typeSortFun tce t -- τ1 τ2

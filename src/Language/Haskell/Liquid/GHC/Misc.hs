@@ -39,9 +39,8 @@ import           CoreMonad
 
 import           Text.Parsec.Pos                            (sourceName, sourceLine, sourceColumn, newPos)
 
-import           Name                                       (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Name
 import           Module                                     (moduleNameFS)
-import           OccName                                    (mkTyVarOcc, mkVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
@@ -124,11 +123,13 @@ tickSrcSpan _                 = noSrcSpan
 --------------- Generic Helpers for Accessing GHC Innards -------------
 -----------------------------------------------------------------------
 
+-- FIXME: reusing uniques like this is really dangerous
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
         occ  = mkTyVarOcc s
 
+-- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
 stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
    where
@@ -138,6 +139,7 @@ stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind superKind
 
+-- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
 stringTyConWithKind k c n s = TC.mkKindTyCon name k
   where
@@ -160,7 +162,7 @@ validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
 
-tvId :: Var -> [Char]
+tvId :: TyVar -> String
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
 tracePpr :: Outputable a => [Char] -> a -> a
@@ -423,10 +425,17 @@ varSymbol v
     vs                    = symbol $ getName v
 
 qualifiedNameSymbol :: Name -> Symbol
-qualifiedNameSymbol n = symbol $
-  case nameModule_maybe n of
-    Nothing -> occNameFS (getOccName n)
-    Just m  -> concatFS [moduleNameFS (moduleName m), fsLit ".", occNameFS (getOccName n)]
+qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
+  where
+  modFS = case nameModule_maybe n of
+            Nothing -> fsLit ""
+            Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
+  occFS = occNameFS (getOccName n)
+  uniqFS
+    | isSystemName n
+    = concatFS [fsLit "_",  fsLit (showPpr (getUnique n))]
+    | otherwise
+    = fsLit ""
 
 instance Symbolic FastString where
   symbol = symbol . fastStringText
@@ -445,10 +454,13 @@ tyConTyVarsDef c = TC.tyConTyVars c
 ----------------------------------------------------------------------
 
 instance Symbolic TyCon where
-  symbol = symbol . qualifiedNameSymbol . getName
+  symbol = symbol . getName
+
+instance Symbolic Class where
+  symbol = symbol . getName
 
 instance Symbolic Name where
-  symbol = symbol . showPpr
+  symbol = symbol . qualifiedNameSymbol
 
 instance Symbolic Var where
   symbol = varSymbol
@@ -469,16 +481,16 @@ instance Fixpoint Type where
   toFix = pprDoc
 
 instance Show Name where
-  show = showPpr
+  show = symbolString . symbol
 
 instance Show Var where
-  show = showPpr
+  show = show . getName
 
 instance Show Class where
-  show = showPpr
+  show = show . getName
 
 instance Show TyCon where
-  show = showPpr
+  show = show . getName
 
 instance NFData Class where
   rnf t = seq t ()

@@ -198,7 +198,7 @@ import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
 import           DataCon
-import           GHC                                    (HscEnv, ModuleName, moduleNameString)
+import           GHC                                    (HscEnv, ModuleName, moduleNameString, getName)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
@@ -234,7 +234,7 @@ import           Data.Maybe                             (fromMaybe, mapMaybe)
 
 import           Data.List                              (nub)
 import           Data.Text                              (Text)
-import qualified Data.Text                              as T
+
 
 
 import           Text.PrettyPrint.HughesPJ              hiding (first)
@@ -284,6 +284,7 @@ ppEnvShort pp   = pp { ppShort = True }
 
 data GhcInfo = GI {
     target   :: !FilePath
+  , targetMod:: !ModuleName
   , env      :: !HscEnv
   , cbs      :: ![CoreBind]
   , derVars  :: ![Var]
@@ -333,8 +334,10 @@ data GhcSpec = SP {
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
-  , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
+  , dicts      :: DEnv Var SpecType
+    -- ^ Dictionary Environment
+  , axioms     :: [HAxiom]
+    -- ^ Axioms from axiomatized functions
   , logicMap   :: LogicMap
   , proofType  :: Maybe Type
   }
@@ -500,7 +503,7 @@ instance NFData RTyVar
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol . T.pack . showPpr $ tv
+  symbol (RTV tv) = symbol . getName $ tv
 
 
 data RTyCon = RTyCon
@@ -1423,8 +1426,9 @@ instance NFData REnv where
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
-type ErrorResult = FixResult UserError
-type Error       = TError SpecType
+type ErrorResult    = FixResult UserError
+type Error          = TError SpecType
+
 
 instance NFData a => NFData (TError a)
 
@@ -1582,7 +1586,15 @@ instance Subable Body where
   subst su (P e)   = P $ subst su e
   subst su (R s e) = R s $ subst su e
 
+instance Subable t => Subable (WithModel t) where
+  syms (NoModel t)     = syms t
+  syms (WithModel _ t) = syms t
 
+  substa f = fmap (substa f)
+
+  substf f = fmap (substf f)
+
+  subst su = fmap (subst su)
 
 data RClass ty
   = RClass { rcName    :: LocSymbol
