@@ -425,6 +425,7 @@ instance PPrint GhcInfo where
     , "*************** Core Bindings ***************"
     , pprintCBs $ cbs info                          ]
 
+
 -- RJ: the silly guards below are to silence the unused-var checker
 
 pprintCBs :: [CoreBind] -> Doc
