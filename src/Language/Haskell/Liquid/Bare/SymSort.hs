@@ -7,32 +7,17 @@ module Language.Haskell.Liquid.Bare.SymSort (
 import qualified Data.HashMap.Strict                   as M
 import           Prelude                               hiding (error)
 import qualified GHC
-
-<<<<<<< HEAD
-import qualified Data.List as L
-import Data.Maybe              (fromMaybe)
-import TyCon            (TyCon)
-import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (atLoc, meet, TCEmb)
-import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
-import Language.Haskell.Liquid.Misc (safeZipWithError)
-import Language.Haskell.Liquid.Bare.Env
-=======
 import qualified Data.List                             as L
 import           Data.Maybe                            (fromMaybe)
 import           TyCon                                 (TyCon)
 import           Language.Fixpoint.Misc                (fst3, snd3)
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Types               (atLoc, meet, Reftable, Symbolic, Symbol)
-
+import           Language.Fixpoint.Types               (atLoc, meet, TCEmb, Reftable, Symbolic, Symbol)
 import           Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.GHC.Misc      (fSrcSpan)
 import           Language.Haskell.Liquid.Misc          (safeZipWithError)
 import           Language.Haskell.Liquid.Bare.Env
->>>>>>> develop
 
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
@@ -49,7 +34,7 @@ addSymSort :: (PPrint t, Reftable t)
            -> M.HashMap TyCon RTyCon
            -> RType RTyCon RTyVar (UReft t)
            -> RType RTyCon RTyVar (UReft t)
-addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
+addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
     rc'                = appRTyCon tce tyi rc ts
@@ -106,10 +91,7 @@ addSymSortRef' _ _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
-spliceArgs :: [Char]
-           -> [(Symbol, b)]
-           -> PVar t
-           -> [(Symbol, t)]
+spliceArgs :: String  -> [(Symbol, b)] -> PVar t -> [(Symbol, t)]
 spliceArgs msg s p = go (fst <$> s) (pargs p)
   where
     go []     []           = []
