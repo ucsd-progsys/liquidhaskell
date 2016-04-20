@@ -97,10 +97,11 @@ benchTests
     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         ["HsColour.hs"]           ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                ["RIO.hs", "DataBase.hs"] ExitSuccess
-    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
+    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
     ]
+
 
 selfTests
   = group "Self" [
@@ -170,6 +171,16 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
+icfpIgnored = ["RIO.hs", "DataBase.hs"
+
+              , "CopyRec.hs"                                -- eliminate 
+              ] 
+
+hscIgnored = [ "HsColour.hs"
+             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+
+             ]
 
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
@@ -197,7 +208,7 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
 
-             --  , "Data/Text/Fusion.hs" -- eliminate
+              , "Data/Text/Fusion.hs"                           -- eliminate
               ]
 
 
