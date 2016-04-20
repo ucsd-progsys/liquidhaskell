@@ -27,7 +27,6 @@ import           TysPrim
 import           TysWiredIn
 import           Var
 
-import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.List                              (foldl', partition)
@@ -200,7 +199,7 @@ dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbo
 dataConTypes  s = (ctorTys, measTys)
   where
     measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap makeDataConType (snd <$> (M.toList $ ctorMap s))
+    ctorTys     = concatMap makeDataConType (snd <$> M.toList (ctorMap s))
 
 
 

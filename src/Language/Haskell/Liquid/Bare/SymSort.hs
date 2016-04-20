@@ -12,7 +12,7 @@ import           Data.Maybe                            (fromMaybe)
 import           TyCon                                 (TyCon)
 import           Language.Fixpoint.Misc                (fst3, snd3)
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Types               (atLoc, meet, TCEmb, Reftable, Symbolic, Symbol)
+import           Language.Fixpoint.Types               (atLoc, meet, Reftable, Symbolic, Symbol)
 import           Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.GHC.Misc      (fSrcSpan)

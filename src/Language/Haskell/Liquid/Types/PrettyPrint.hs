@@ -26,7 +26,6 @@ import qualified Data.List                        as L                          
 import           Data.String
 import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
-import           Data.Hashable (Hashable)
 -- import           Var              (Var)
 -- import           TyCon            (TyCon)
 -- -- import           Data.Maybe

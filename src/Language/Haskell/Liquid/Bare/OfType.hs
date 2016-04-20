@@ -29,7 +29,7 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, Symbolic, meet, mkSubst,
+import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
                                 subst, symbol, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
