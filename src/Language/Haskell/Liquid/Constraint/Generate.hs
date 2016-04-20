@@ -20,83 +20,85 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-import Prelude hiding (error, undefined)
+import           Data.Hashable
+import           Outputable                                    (Outputable)
+import           Prelude                                       hiding (error, undefined)
 
-import GHC.Stack
-import CoreUtils     (exprType)
-import MkCore
-import Coercion
-import DataCon
-import Pair
-import CoreSyn
-import SrcLoc
-import Type
-import TyCon
-import PrelNames
-import TypeRep
-import Class            (className)
-import Var
-import Kind
-import Id
-import IdInfo
-import Name
-import NameSet
-import Unify
-import VarSet
+import           GHC.Stack
+import           CoreUtils                                     (exprType)
+import           MkCore
+import           Coercion
+import           DataCon
+import           Pair
+import           CoreSyn
+import           SrcLoc                                        hiding (Located)
+import           Type
+import           TyCon
+import           PrelNames
+import           TypeRep
+import           Class                                         (className)
+import           Var
+import           Kind
+import           Id
+import           IdInfo
+import           Name
+import           NameSet
+import           Unify
+import           VarSet
 -- import Unique
 
 
-import Text.PrettyPrint.HughesPJ hiding (first)
-import Control.Monad.State
+import           Text.PrettyPrint.HughesPJ                     hiding (first)
+import           Control.Monad.State
 -- import Control.Applicative      ((<$>), (<*>), Applicative)
 -- import Data.Monoid              (mconcat, mempty, mappend)
-import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import qualified Data.List           as L
+import           Data.Maybe                                    (fromMaybe, catMaybes, fromJust, isJust)
+import qualified Data.HashMap.Strict                           as M
+import qualified Data.HashSet                                  as S
+import qualified Data.List                                     as L
 
-import Data.Bifunctor
-import qualified Data.Foldable    as F
-import qualified Data.Traversable as T
-
-
+import           Data.Bifunctor
+import qualified Data.Foldable                                 as F
+import qualified Data.Traversable                              as T
 
 
 
-import qualified Language.Haskell.Liquid.UX.CTags       as Tg
+
+
+import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 
 
 
-import Language.Fixpoint.Types.Visitor
+import           Language.Fixpoint.Types.Visitor
 
-import Language.Haskell.Liquid.Constraint.Fresh
-import Language.Haskell.Liquid.Constraint.Env
-import Language.Haskell.Liquid.Constraint.Monad
-import Language.Haskell.Liquid.Constraint.Split
+import           Language.Haskell.Liquid.Constraint.Fresh
+import           Language.Haskell.Liquid.Constraint.Env
+import           Language.Haskell.Liquid.Constraint.Monad
+import           Language.Haskell.Liquid.Constraint.Split
 
-import qualified Language.Fixpoint.Types            as F
+import qualified Language.Fixpoint.Types                       as F
 
-import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
-import Language.Haskell.Liquid.Types.Dictionaries
+import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
+import           Language.Haskell.Liquid.Types.Dictionaries
 
-import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
-import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
-import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Types.Names
+import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
+import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Types.Strata
+import           Language.Haskell.Liquid.Types.Names
 
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
-import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
-import Language.Haskell.Liquid.Types.Meet
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
+import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
+import           Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
                                                  , hasBaseTypeVar, showPpr, isDataConId)
-import Language.Haskell.Liquid.Misc
-import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Types.Literals
+import           Language.Haskell.Liquid.Misc
+import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.Types.Literals
 
-import Language.Haskell.Liquid.Constraint.Axioms
-import Language.Haskell.Liquid.Constraint.Types
-import Language.Haskell.Liquid.Constraint.Constraint
+import           Language.Haskell.Liquid.Constraint.Axioms
+import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.Constraint
 
 -- import Debug.Trace (trace)
 
@@ -140,6 +142,8 @@ consAct info
                        toListREnv (intys γ) ++
                        toListREnv (grtys γ)
 
+addCombine :: Maybe Type
+           -> CGEnv -> State CGInfo CGEnv
 addCombine τ γ
   = do t <- trueTy combineType
        γ ++= ("combineProofs", combineSymbol, t)
@@ -186,7 +190,10 @@ initEnv info
     mapSndM f (x,y) = (x,) <$> f y
     makedcs      = map strengthenDataConType
 
+makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+
+makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
@@ -203,8 +210,10 @@ makeAutoDecrDataCons dcts specenv dcs
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
+lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 
+makeSizedDataCons :: [(Id, SpecType)] -> DataCon -> Integer -> (RSort, (Id, SpecType))
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
       x      = dataConWorkId x'
@@ -225,17 +234,27 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
       | x == y    = (x, mXY x tx y ty) : merge xs ys
       | x <  y    = xt : merge xs (yt : ys)
       | otherwise = yt : merge (xt : xs) ys
-    mXY x tx y ty = meetVarTypes (pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
+    mXY x tx y ty = meetVarTypes (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
+refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)
+             => [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
+
+refreshHoles' :: (F.Symbolic a, F.Reftable r, TyConable c, Freshable m r)
+              => (a, RType c tv r) -> m (Maybe F.Symbol, a, RType c tv r)
 refreshHoles' (x,t)
   | noHoles t = return (Nothing, x, t)
   | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
   where
     tx r | hasHole r = refresh r
          | otherwise = return r
+
+extract :: (t, t1, t2) -> (t, (t1, t2))
 extract (a,b,c) = (a,(b,c))
 
+refreshArgs' :: Traversable t
+             => t (a, SpecType)
+             -> State CGInfo (t (a, SpecType))
 refreshArgs' = mapM (mapSndM refreshArgs)
 
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
@@ -260,6 +279,15 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+measEnv :: GhcSpec
+        -> [(F.Symbol, SpecType)]
+        -> [CoreBind]
+        -> [(F.Symbol, F.Sort)]
+        -> [(F.Symbol, SpecType)]
+        -> [(F.Symbol, SpecType)]
+        -> [F.Symbol]
+        -> [Located SpecType]
+        -> CGEnv
 measEnv sp xts cbs lts asms itys hs autosizes
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
@@ -280,19 +308,25 @@ measEnv sp xts cbs lts asms itys hs autosizes
         , holes = fromListHEnv hs
         , lcs   = mempty
         , aenv  = axiom_map $ logicMap sp
-        , cerr  = Nothing 
+        , cerr  = Nothing
         }
     where
       tce = tcEmbeds sp
 
+assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars
+
+grty :: GhcInfo -> [(Var, SpecType)]
 grty = assmGrty defVars
 
+assmGrty :: (GhcInfo -> [Var]) -> GhcInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
   where
     xs          = S.fromList $ f info
     sigs        = tySigs     $ spec info
 
+grtyTop :: GhcInfo
+        -> State CGInfo [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ defVars info
@@ -300,6 +334,7 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
     isExportedId = flip elemNameSet (exports $ spec info) . getName
     sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
 
+initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
   , hsCs       = []
@@ -328,7 +363,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
-  , allowHO    = higherorder cfg   
+  , allowHO    = higherorder cfg
   }
   where
     tce        = tcEmbeds spc
@@ -369,14 +404,25 @@ freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   kvars   (kuts s)   }
+addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+                     when (isKut k) $ addKuts k t -- ks
+                     -- modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
   where
-     kvars      = F.KS $ S.fromList $ specTypeKVars t
+     ks         = F.KS $ S.fromList $ specTypeKVars t
 
-isKut          :: KVKind -> Bool
-isKut RecBindE = True
-isKut _        = False
+isKut              :: KVKind -> Bool
+isKut (RecBindE _) = True
+isKut _            = False
+
+{- -}
+
+addKuts :: (PPrint a) => a -> SpecType -> CG ()
+addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
+  where
+     ks'     = S.fromList $ specTypeKVars t
+     ks
+       | S.null ks' = ks'
+       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
@@ -436,6 +482,7 @@ makeDecrIndex (x, Asserted t)
          Right i  -> return i
 makeDecrIndex _ = return []
 
+makeDecrIndexTy :: Var -> SpecType -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
@@ -447,11 +494,15 @@ makeDecrIndexTy x t
        ts         = ty_args trep
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
-       msg        = ErrTermin (getSrcSpan x) [pprint x] (text "No decreasing parameter")
+       msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
 
+recType :: F.Symbolic a
+        => S.HashSet TyCon
+        -> (([a], [Int]), (t, [Int], SpecType))
+        -> SpecType
 recType _ ((_, []), (_, [], t))
   = t
 
@@ -463,16 +514,26 @@ recType autoenv ((vs, indexc), (_, index, t))
         trep = toRTypeRep $ unOCons t
 
 -- checkIndex :: (Var, _, _ , _) -> _
+checkIndex :: (Traversable t1, NamedThing t, PPrint t, PPrint (t1 Int), PPrint [a])
+           => (t, [a], Template (RType c tv r), t1 Int)
+           -> State CGInfo (t1 (Maybe (RType c tv r)))
 checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg1 vs) index
        mapM  (safeLogIndex msg2 ts) index
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg1  = ErrTermin loc [xd] ("No decreasing" <+>  pprint index <> "-th argument on" <+> xd <+> "with" <+> (pprint vs))
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
        msg2  = ErrTermin loc [xd] "No decreasing parameter"
-       xd    = pprint x
+       xd    = F.pprint x
 
+makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
+            => S.HashSet TyCon
+            -> SpecType
+            -> [a]
+            -> [(F.Symbol, SpecType)]
+            -> [a1]
+            -> SpecType
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
@@ -481,6 +542,7 @@ makeRecType autoenv t vs dxs is
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
 
+unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t)        = RAllT v $ unOCons t
 unOCons (RAllP p t)        = RAllP p $ unOCons t
 unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r
@@ -488,6 +550,7 @@ unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
 
+mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
 mergecondition (RAllT _ t1) (RAllT v t2)
   = RAllT v $ mergecondition t1 t2
 mergecondition (RAllP _ t1) (RAllP p t2)
@@ -499,10 +562,20 @@ mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2)
 mergecondition _ t
   = t
 
+safeLogIndex :: Error
+             -> [a]
+             -> Int
+             -> State CGInfo (Maybe a)
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
   | otherwise      = return $ Just $ ls !! n
 
+checkHint :: (NamedThing a, PPrint a, PPrint [a1])
+          => a
+          -> [a1]
+          -> (a1 -> Bool)
+          -> Maybe [Int]
+          -> State CGInfo (Maybe [Int])
 checkHint _ _ _ Nothing
   = return Nothing
 
@@ -510,21 +583,27 @@ checkHint x _ _ (Just ns) | L.sort ns /= ns
   = addWarning (ErrTermin loc [dx] (text "The hints should be increasing")) >> return Nothing
   where
     loc = getSrcSpan x
-    dx  = pprint x
+    dx  = F.pprint x
 
 checkHint x ts f (Just ns)
   = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
 
+checkValidHint :: (NamedThing a, PPrint a, PPrint [a1])
+               => a
+               -> [a1]
+               -> (a1 -> Bool)
+               -> Int
+               -> State CGInfo (Maybe Int)
 checkValidHint x ts f n
   | n < 0 || n >= length ts = addWarning err >> return Nothing
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
   where
-    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> pprint (n+1) <+> "for" <+> xd
+    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> F.pprint (n+1) <+> "for" <+> xd
                                    , "in"
-                                   , pprint ts ])
+                                   , F.pprint ts ])
     loc = getSrcSpan x
-    xd  = pprint x
+    xd  = F.pprint x
 
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
@@ -562,6 +641,7 @@ consCBTop _ γ cb
        modify $ \s -> s { tcheck = oldtcheck}
        return γ'
 
+tcond :: Bind Var -> S.HashSet Var -> Bool
 tcond cb strict
   = not $ any (\x -> S.member x strict || isInternal x) (binds cb)
   where
@@ -573,6 +653,9 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
+consCBSizedTys :: CGEnv
+               -> [(Var, CoreExpr)]
+               -> State CGInfo CGEnv
 consCBSizedTys γ xes
   = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        sflag     <- scheck <$> get
@@ -595,7 +678,7 @@ consCBSizedTys γ xes
        return γ'
   where
        (xs, es)       = unzip xes
-       dxs            = pprint <$> xs
+       dxs            = F.pprint <$> xs
        collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
@@ -609,10 +692,13 @@ consCBSizedTys γ xes
          | all (==(f x)) (f <$> xs) = return (x:xs)
          | otherwise                = addWarning err >> return []
 
+consCBWithExprs :: CGEnv
+                -> [(Var, CoreExpr)]
+                -> State CGInfo CGEnv
 consCBWithExprs γ xes
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       texprs <- termExprs <$> get
-       let xtes = catMaybes $ (`lookup` texprs) <$> xs
+       texprs    <- termExprs <$> get
+       let xtes   = catMaybes $ (`lookup` texprs) <$> xs
        sflag     <- scheck <$> get
        let cmakeFinType = if sflag then makeFinType else id
        let xets  = mapThd3 (fmap cmakeFinType) <$> xets'
@@ -629,6 +715,9 @@ consCBWithExprs γ xes
                    | otherwise              = Nothing
         err      = "Constant: consCBWithExprs"
 
+makeFinTy :: (Eq a, Functor f, Num a, Foldable t)
+          => (t a, f SpecType)
+          -> f SpecType
 makeFinTy (ns, t) = fmap go t
   where
     go t = fromRTypeRep $ trep {ty_args = args'}
@@ -636,6 +725,9 @@ makeFinTy (ns, t) = fmap go t
         trep = toRTypeRep t
         args' = mapNs ns makeFinType $ ty_args trep
 
+makeTermEnvs :: CGEnv -> [(Var, [F.Located F.Expr])] -> [(Var, CoreExpr)]
+             -> [SpecType] -> [SpecType]
+             -> [CGEnv]
 makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
   where
     vs   = zipWith collectArgs ts es
@@ -678,7 +770,7 @@ consCB tflag _ γ (Rec xes) | tflag
 
 consCB _ str γ (Rec xes) | not str
   = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       sflag     <- scheck <$> get
+       sflag   <- scheck <$> get
        let cmakeDivType = if sflag then makeDivType else id
        let xets = mapThd3 (fmap cmakeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -724,7 +816,7 @@ consCB _ _ γ (NonRec x e)
 --------------------------------------------------------------------------------
 consBind :: Bool
          -> CGEnv
-         -> (Var, CoreExpr ,Template SpecType)
+         -> (Var, CoreExpr, Template SpecType)
          -> CG (Template SpecType)
 --------------------------------------------------------------------------------
 consBind _ _ (x, _, t)
@@ -740,7 +832,7 @@ consBind isRec γ (x, e, Asserted spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
+       return $ Asserted spect
 
 consBind isRec γ (x, e, Internal spect)
   = do let γ'         = γ `setBind` x
@@ -762,15 +854,17 @@ consBind isRec γ (x, e, Assumed spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
-  where πs   = ty_preds $ toRTypeRep spect
+       return $ Asserted spect
+    where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
+       when (isExportedId x) (addKuts x t)
        return $ Asserted t
 
 
+noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
 noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
 
 killSubst :: RReft -> RReft
@@ -787,13 +881,17 @@ killSubstReft = trans kv () ()
     -- f (F.RKvar k _)     = F.RKvar k mempty
     -- f (F.RConc p)       = F.RConc p
 
+defAnn :: Bool -> t -> Annot t
 defAnn True  = AnnRDf
 defAnn False = AnnDef
 
+addPToEnv :: CGEnv
+          -> PVar RSort -> State CGInfo CGEnv
 addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, pvarRType π)
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
+extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
 extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
 extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
 extender γ _               = return γ
@@ -803,16 +901,21 @@ data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functo
 
 deriving instance (Show a) => (Show (Template a))
 
+unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
-unTemplate (Internal t) = t 
+unTemplate (Internal t) = t
 unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
+addPostTemplate :: CGEnv
+                -> Template SpecType
+                -> State CGInfo (Template SpecType)
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
 addPostTemplate γ (Internal t) = Internal  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown
 
+safeFromAsserted :: [Char] -> Template t -> t
 safeFromAsserted _ (Asserted t) = t
 safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 
@@ -824,7 +927,7 @@ varTemplate γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
+      (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
@@ -897,6 +1000,8 @@ cconsE' γ e t
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
 
+splitConstraints :: TyConable c
+                 => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
 splitConstraints (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints t in (cs:css, t')
 splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
@@ -909,6 +1014,10 @@ splitConstraints t
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
 --   in the body.
 -------------------------------------------------------------------
+instantiatePreds :: CGEnv
+                 -> CoreExpr
+                 -> SpecType
+                 -> State CGInfo SpecType
 instantiatePreds γ e (RAllP π t)
   = do r     <- freshPredRef γ e π
        instantiatePreds γ e $ replacePreds "consE" t [(π, r)]
@@ -921,14 +1030,20 @@ instantiatePreds _ _ t0
 --   them inside the body of the type.
 -------------------------------------------------------------------
 
+instantiateStrata :: (F.Subable b, Freshable f Integer) => [F.Symbol] -> b -> f b
 instantiateStrata ls t = substStrata t ls <$> mapM (\_ -> fresh) ls
 
+substStrata :: F.Subable a => a -> [F.Symbol] -> [F.Symbol] -> a
 substStrata t ls ls'   = F.substa f t
   where
     f x                = fromMaybe x $ L.lookup x su
     su                 = zip ls ls'
 
 -------------------------------------------------------------------
+cconsLazyLet :: CGEnv
+             -> Expr Var
+             -> SpecType
+             -> State CGInfo ()
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
@@ -946,7 +1061,7 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 --------------------------------------------------------------------------------
 
 -- NV this is a hack to type polymorphic axiomatized functions
--- no need to check this code with flag, the axioms environment withh 
+-- no need to check this code with flag, the axioms environment withh
 -- be empty if there is no axiomatization
 
 consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
@@ -958,16 +1073,16 @@ consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
        return $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
 
 {-
-consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β 
+consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt  <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       return $ RAllT (rTyVar β) 
+       return $ RAllT (rTyVar β)
                   $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
 -}
--- NV END HACK 
+-- NV END HACK
 
 consE γ (Var x)
   = do t <- varRefType γ x
@@ -1025,12 +1140,12 @@ consE γ e'@(App e a)
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-       {- 
+       {-
        tt <- addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-       let rr = case (argExpr γ e, argExpr γ a) of 
+       let rr = case (argExpr γ e, argExpr γ a) of
                  (Just e', Just a') -> uTop $ F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) (F.EApp e' a'))
                  _                  -> mempty
-       return $ tt `strengthen` rr 
+       return $ tt `strengthen` rr
        -}
 
 
@@ -1072,6 +1187,10 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
+castTy :: t
+       -> Type
+       -> Expr Var
+       -> State CGInfo SpecType
 castTy _ τ (Var x)
   = do t <- trueTy τ
        return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
@@ -1138,12 +1257,15 @@ isClassConCo co
 -- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
 --   the above existential elimination is not easy (e.g. at joins, recursive binders)
 
-cconsFreshE kvkind γ e
-  = do t   <- freshTy_type kvkind e $ exprType e
-       addW $ WfC γ t
-       cconsE γ e t
-       return t
+cconsFreshE :: KVKind -> CGEnv -> Expr Var -> CG SpecType
+cconsFreshE kvkind γ e = do
+  t   <- freshTy_type kvkind e $ exprType e
+  addW $ WfC γ t
+  cconsE γ e t
+  return t
 
+checkUnbound :: (Show a, Show a2, F.Subable a)
+             => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
 checkUnbound γ e x t a
   | x `notElem` (F.syms t) = t
   | otherwise              = panic (Just $ getLocation γ) msg
@@ -1152,6 +1274,9 @@ checkUnbound γ e x t a
                          , "In", showPpr e, "Arg = " , show a ]
 
 
+dropExists :: CGEnv
+           -> SpecType
+           -> State CGInfo (CGEnv, SpecType)
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
 
@@ -1179,6 +1304,8 @@ refreshTy :: SpecType -> CG SpecType
 --------------------------------------------------------------------------------
 refreshTy t = refreshVV t >>= refreshArgs
 
+refreshVV :: Freshable m Integer
+          => SpecType -> m SpecType
 refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
 refreshVV (RAllP p t) = liftM (RAllP p) (refreshVV t)
 
@@ -1202,6 +1329,9 @@ refreshVV (RApp c ts rs r)
 refreshVV t
   = return t
 
+refreshVVRef :: Freshable m Integer
+             => Ref b (RType RTyCon RTyVar RReft)
+             -> m (Ref b (RType RTyCon RTyVar RReft))
 refreshVVRef (RProp ss (RHole r))
   = return $ RProp ss (RHole r)
 
@@ -1236,11 +1366,16 @@ caseEnv γ x acs a _
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
 
+altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = panic Nothing "Constraint : altReft"
 
+unfoldR :: SpecType
+        -> SpecType
+        -> [Var]
+        -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) $ reverse rs
@@ -1254,25 +1389,33 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
 
 unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 
+instantiateTys :: (Foldable t)
+               => SpecType -> t (SpecType) -> SpecType
 instantiateTys = L.foldl' go
   where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
         go _ _               = panic Nothing "Constraint.instanctiateTy"
 
+instantiatePvs :: Foldable t => SpecType -> t SpecProp -> SpecType
 instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
+checkTyCon :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t
 
+checkFun :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
 
+checkAll :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
+checkErr :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
 
+varAnn :: CGEnv -> Var -> t -> Annot t
 varAnn γ x t
   | x `S.member` recs γ      = AnnLoc (getSrcSpan x)
   | otherwise                = AnnUse t
@@ -1333,6 +1476,7 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
 
@@ -1362,6 +1506,7 @@ exprLoc (Tick tt _)             = Just $ tickSrcSpan tt
 exprLoc (App e a) | isType a    = exprLoc e
 exprLoc _                       = Nothing
 
+isType :: Expr CoreBndr -> Bool
 isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
 
@@ -1388,12 +1533,17 @@ exprRefType_ γ (Var x)
 exprRefType_ _ e
   = ofType $ exprType e
 
+bindRefType_ :: M.HashMap Var SpecType -> Bind Var -> M.HashMap Var SpecType
 bindRefType_ γ (Rec xes)
   = extendγ γ [(x, exprRefType_ γ e) | (x,e) <- xes]
 
 bindRefType_ γ (NonRec x e)
   = extendγ γ [(x, exprRefType_ γ e)]
 
+extendγ :: (Eq k, Foldable t, Hashable k)
+        => M.HashMap k v
+        -> t (k, v)
+        -> M.HashMap k v
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 

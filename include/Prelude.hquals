@@ -1,19 +1,19 @@
 //BOT: Do not delete EVER!
 
-qualif Bot(v:@(0))    : (0 = 1) 
-qualif Bot(v:obj)     : (0 = 1) 
-qualif Bot(v:a)       : (0 = 1) 
-qualif Bot(v:bool)    : (0 = 1) 
-qualif Bot(v:int)     : (0 = 1) 
+qualif Bot(v:@(0))    : (0 = 1)
+qualif Bot(v:obj)     : (0 = 1)
+qualif Bot(v:a)       : (0 = 1)
+qualif Bot(v:bool)    : (0 = 1)
+qualif Bot(v:int)     : (0 = 1)
 
-qualif CmpZ(v:a)      : (v <  0) 
+qualif CmpZ(v:a)      : (v <  0)
 qualif CmpZ(v:a)      : (v <= 0)
 qualif CmpZ(v:a)      : (v >  0)
 qualif CmpZ(v:a)      : (v >= 0)
 qualif CmpZ(v:a)      : (v  = 0)
 qualif CmpZ(v:a)      : (v != 0)
 
-qualif Cmp(v:a, x:a)  : (v <  x) 
+qualif Cmp(v:a, x:a)  : (v <  x)
 qualif Cmp(v:a, x:a)  : (v <= x)
 qualif Cmp(v:a, x:a)  : (v >  x)
 qualif Cmp(v:a, x:a)  : (v >= x)
@@ -26,8 +26,6 @@ qualif Cmp(v:a, x:a)  : (v != x)
 
 
 qualif One(v:int)     : v = 1
-qualif True(v:bool)   : (? v) 
-qualif False(v:bool)  : ~ (? v) 
 qualif True1(v:GHC.Types.Bool)   : (Prop(v))
 qualif False1(v:GHC.Types.Bool)  : (~ Prop(v))
 
@@ -47,6 +45,3 @@ constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool
 
 constant Prop : func(0, [GHC.Types.Bool; bool])
 constant runFun : func(2, [Arrow @(0) @(1); @(0); @(1)])
-
-
-

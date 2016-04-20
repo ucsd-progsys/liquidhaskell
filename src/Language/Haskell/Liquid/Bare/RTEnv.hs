@@ -30,6 +30,8 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 
+makeRTEnv :: [(ModName, Ms.Spec ty bndr)]
+          -> BareM ()
 makeRTEnv specs
   = do makeREAliases ets
        makeRTAliases rts
@@ -38,6 +40,8 @@ makeRTEnv specs
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
 
 
+makeRTAliases :: [(ModName, RTAlias Symbol BareType)]
+              -> BareM ()
 makeRTAliases
   = graphExpand buildTypeEdges expBody
   where
@@ -48,6 +52,8 @@ makeRTAliases
              body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
 
+makeREAliases :: [(ModName, RTAlias Symbol Expr)]
+              -> BareM ()
 makeREAliases
   = graphExpand buildExprEdges expBody
   where
@@ -59,6 +65,10 @@ makeREAliases
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 
+graphExpand :: (AliasTable t -> t -> [Symbol])
+            -> ((ModName, RTAlias Symbol t) -> BareM b)
+            -> [(ModName, RTAlias Symbol t)]
+            -> BareM ()
 graphExpand buildEdges expBody xts
   = do let table = buildAliasTable xts
            graph = buildAliasGraph (buildEdges table) (map snd xts)
@@ -159,6 +169,7 @@ buildTypeEdges table = ordNub . go
     go_ref (RProp  _ t) = Just t
 
 
+buildExprEdges :: M.HashMap Symbol a -> Expr -> [Symbol]
 buildExprEdges table  = ordNub . go
   where
     go :: Expr -> [Symbol]
@@ -170,7 +181,7 @@ buildExprEdges table  = ordNub . go
 
     go (ESym _)       = []
     go (ECon _)       = []
-    go (EVar v)       = go_alias v 
+    go (EVar v)       = go_alias v
 
     go (PAnd ps)           = concatMap go ps
     go (POr ps)            = concatMap go ps
@@ -178,14 +189,14 @@ buildExprEdges table  = ordNub . go
     go (PImp p q)          = go p ++ go q
     go (PIff p q)          = go p ++ go q
     go (PAll _ p)          = go p
-    go (ELam _ e)          = go e 
+    go (ELam _ e)          = go e
 
-    go (PAtom _ e1 e2)     = go e1 ++ go e2 
+    go (PAtom _ e1 e2)     = go e1 ++ go e2
 
-    go (ETApp e _)         = go e 
-    go (ETAbs e _)         = go e 
+    go (ETApp e _)         = go e
+    go (ETAbs e _)         = go e
     go (PKVar _ _)         = []
-    go (PExist _ e)        = go e 
-    go PGrad               = [] 
+    go (PExist _ e)        = go e
+    go PGrad               = []
 
     go_alias f           = [f | M.member f table ]

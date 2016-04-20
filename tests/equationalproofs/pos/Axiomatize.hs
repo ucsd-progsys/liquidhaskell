@@ -20,6 +20,11 @@ data Proof = Proof
 auto :: Int -> Bool -> Proof
 auto _ _ = Proof
 
+
+{-@ rewrite :: Int -> b:{v:Bool |Prop v} -> Proof @-}
+rewrite :: Int -> Bool -> Proof
+rewrite _ _ = Proof
+
 {-@ cases :: Int -> b:{v:Bool |Prop v} -> Proof @-}
 cases :: Int -> Bool -> Proof
 cases _ _ = Proof

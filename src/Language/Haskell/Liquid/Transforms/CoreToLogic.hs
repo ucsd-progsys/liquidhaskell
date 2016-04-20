@@ -14,35 +14,36 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   ) where
 
-import Prelude hiding (error)
-import GHC hiding (Located)
-import Var
-import Type
-import TypeRep
+import           Data.ByteString                       (ByteString)
+import           GHC                                   hiding (Located)
+import           Prelude                               hiding (error)
+import           Type
+import           TypeRep
+import           Var
 
-import qualified CoreSyn   as C
-import Literal
-import IdInfo
+import qualified CoreSyn                               as C
+import           Literal
+import           IdInfo
 
-import Data.Text.Encoding
+import           Data.Text.Encoding
 
-import TysWiredIn
-
-
-
-import Language.Fixpoint.Misc (snd3)
-
-import Language.Fixpoint.Types hiding (Error, R, simplify)
-import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.GHC.Play
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..), LM)
-import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.WiredIn
-import Language.Haskell.Liquid.Types.RefType
+import           TysWiredIn
 
 
-import qualified Data.HashMap.Strict as M
+
+import           Language.Fixpoint.Misc                (snd3)
+
+import           Language.Fixpoint.Types               hiding (Error, R, simplify)
+import qualified Language.Fixpoint.Types               as F
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Play
+import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
+import           Language.Haskell.Liquid.Misc          (mapSnd)
+import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.Types.RefType
+
+
+import qualified Data.HashMap.Strict                   as M
 
 
 
@@ -59,6 +60,8 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
      | isBool t   = propType
      | otherwise  = t
 
+
+isBool :: RType RTyCon t t1 -> Bool
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
 
@@ -88,6 +91,7 @@ strengthenResult v
         mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
+simplesymbol :: Var -> Symbol
 simplesymbol = symbol . getName
 
 newtype LogicM a = LM {runM :: LState -> Either a Error}
@@ -125,6 +129,8 @@ throw str = LM $ \s -> Right $ (mkError s) str
 getState :: LogicM LState
 getState = LM $ Left
 
+runToLogic :: TCEmb TyCon
+           -> LogicMap -> (String -> Error) -> LogicM t -> Either t Error
 runToLogic tce lmap ferror  (LM m)
   = m $ LState {symbolMap = lmap, mkError = ferror, ltce = tce }
 
@@ -234,6 +240,7 @@ checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
 checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
 
+coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
   = do p  <- coreToPd e
        e1 <- coreToLg efalse
@@ -322,6 +329,7 @@ bops = M.fromList [ (numSymbol "+", Plus)
     numSymbol :: String -> Symbol
     numSymbol =  symbol . (++) "GHC.Num."
 
+splitArgs :: C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs e = (f, reverse es)
  where
     (f, es) = go e
@@ -331,18 +339,22 @@ splitArgs e = (f, reverse es)
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
+tomaybesymbol :: C.CoreExpr -> Maybe Symbol
 tomaybesymbol (C.Var c) | isDataConId  c = Just $ symbol c
 tomaybesymbol (C.Var x) = Just $ simpleSymbolVar x
 tomaybesymbol _         = Nothing 
 
+tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
 tosymbol e         
  = case tomaybesymbol e of 
     Just x -> return $ dummyLoc x 
     _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
+tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
 tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
 tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
+makesub :: C.CoreBind -> LogicM (Symbol, Expr)
 makesub (C.NonRec x e) =  (symbol x,) <$> coreToLg e
 makesub  _             = throw "Cannot make Logical Substitution of Recursive Definitions"
 
@@ -357,19 +369,32 @@ mkLit (LitInteger n _) = mkI n
 mkLit (MachStr s)      = mkS s
 mkLit _                = Nothing -- ELit sym sort
 
+mkI :: Integer -> Maybe Expr
 mkI                    = Just . ECon . I
+
+mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
+
+mkS :: ByteString -> Maybe Expr
 mkS                    = Just . ESym . SL  . decodeUtf8
 
+ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 
+simpleSymbolVar :: Id -> Symbol
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
+
+simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = symbol . showPpr . getName
 
+isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
+
+isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 
+isDead :: Id -> Bool
 isDead     = isDeadOcc . occInfo . idInfo
 
 class Simplify a where
@@ -432,6 +457,7 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
+isUndefined :: (t, t1, C.Expr t2) -> Bool
 isUndefined (_, _, e) = isUndefinedExpr e
   where
    -- auto generated undefined case: (\_ -> (patError @type "error message")) void

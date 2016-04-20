@@ -3,19 +3,23 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo
+    getGhcInfo,
+    runLiquidGhc,
 
   -- * printer
-  , pprintCBs
+    pprintCBs
   ) where
 
 import Prelude hiding (error)
 
-import GHC hiding (Target, desugarModule)
+import qualified Outputable as O
+import GHC hiding (Target, desugarModule, Located)
+import qualified GHC
 import GHC.Paths (libdir)
 
 import Bag
@@ -37,7 +41,9 @@ import Control.Monad
 
 import Data.List hiding (intersperse)
 import Data.Maybe
-import qualified Data.HashSet as S
+-- import Data.Function (on)
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
@@ -75,31 +81,24 @@ getGhcInfo hscEnv cfg0 target = do
 
 getGhcInfo' :: Config -> FilePath -> ModName -> Ms.BareSpec -> Ghc (GhcInfo, HscEnv)
 getGhcInfo' cfg target name tgtSpec = do
-  paths <- importPaths <$> getSessionDynFlags
-  liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
-
-  impSpecs <- findAndLoadTargets cfg paths target
-
-  modGuts <- makeMGIModGuts target
-  hscEnv <- getSession
+  paths     <- importPaths <$> getSessionDynFlags
+  liftIO     $ whenLoud $ putStrLn $ "paths = " ++ show paths
+  impSpecs  <- findAndLoadTargets cfg paths target
+  modGuts   <- makeMGIModGuts target
+  hscEnv    <- getSession
   coreBinds <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modGuts
-
-  logicMap <- liftIO makeLogicMap
-
+  logicMap  <- liftIO makeLogicMap
   let dataCons = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-
   let impVs = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   let defVs = definedVars coreBinds
   let useVs = readVars coreBinds
   let letVs = letVars coreBinds
   let derVs = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
-
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
-
-  let info = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
-  hscEnv' <- getSession
+  let info    = GI target (getModName name) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  hscEnv'    <- getSession
   return (info, hscEnv')
 
 --------------------------------------------------------------------------------
@@ -117,10 +116,12 @@ runLiquidGhc hscEnv cfg act =
       let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                      , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                      , includePaths = nub $ idirs cfg ++ includePaths df'
-                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
+                     , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                                                    (ModRenaming True [])
+                                    : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
-                     --FIXME: this *should* be HscNothing, but that prevents us from
+                     -- FIXME: this *should* be HscNothing, but that prevents us from
                      -- looking up *unexported* names in another source module..
                      , hscTarget    = HscInterpreted -- HscNothing
                      , ghcMode      = CompManager
@@ -133,9 +134,11 @@ runLiquidGhc hscEnv cfg act =
                      , hiDir        = Just tmp
                      , stubDir      = Just tmp
                      } `xopt_set` Opt_MagicHash
+                       `xopt_set` Opt_DeriveGeneric
+                       `xopt_set` Opt_StandaloneDeriving
                        `gopt_set` Opt_ImplicitImportQualified
                        `gopt_set` Opt_PIC
-      setSessionDynFlags df''
+      _ <- setSessionDynFlags df''
       defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------
@@ -151,20 +154,16 @@ parseRootTarget cfg0 target = do
 findAndLoadTargets :: Config -> [FilePath] -> FilePath -> Ghc [(ModName, Ms.BareSpec)]
 findAndLoadTargets cfg paths target = do
   setTargets . return =<< guessTarget target Nothing
-
   impNames <- allDepNames <$> depanal [] False
   impSpecs <- getSpecs cfg paths target impNames [Spec, Hs, LHs]
   liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
-
   compileCFiles =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
-
   impSpecs' <- forM impSpecs $ \(f, n, s) -> do
                  unless (isSpecImport n) $
                    addTarget =<< guessTarget f Nothing
                  return (n, s)
   load LoadAllTargets
   liftIO $ whenNormal $ donePhase Loud "Loaded Targets"
-
   return impSpecs'
 
 allDepNames :: [ModSummary] -> [String]
@@ -193,12 +192,12 @@ makeMGIModGuts f = do
   modGraph <- getModuleGraph
   case find (\m -> not (isBootSummary m) && f == msHsFilePath m) modGraph of
     Just modSummary -> do
-      parsed <- parseModule modSummary
-      modGuts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
+      parsed   <- parseModule modSummary
+      modGuts  <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
       let deriv = Just $ instEnvElts $ mg_inst_env modGuts
       return $! miModGuts deriv modGuts
     Nothing ->
-      panic Nothing $ "Ghc Interface: Unable to get GhcModGuts"
+      panic Nothing "Ghc Interface: Unable to get GhcModGuts"
 
 makeLogicMap :: IO (Either Error LogicMap)
 makeLogicMap = do
@@ -248,33 +247,68 @@ definedVars = concatMap defs
 --------------------------------------------------------------------------------
 -- Find & Parse Specs ----------------------------------------------------------
 --------------------------------------------------------------------------------
+type FileSpec = (FilePath, ModName, Ms.BareSpec)
 
+getSpecs :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
 getSpecs cfg paths target names exts = do
-  fs' <- sortNub <$> moduleImports exts paths names
-  patSpec <- getPatSpec paths $ totality cfg
-  rlSpec <- getRealSpec paths $ not $ linear cfg
-  let fs = patSpec ++ rlSpec ++ fs'
-  transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
+  fSpecs <- getSpecs' cfg paths target names exts
+  -- liftIO $ putStrLn $ "getSpecs    [RAW]: " ++ show [(f, n) | (f, n, _) <- fSpecs]
+  let fSpecs' = normalizeFileSpec fSpecs
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs']
+  return fSpecs'
 
+-- showTable = render . pprintKVs Full . sortBy (compare `on` fst)
+
+getSpecs' :: Config -> [FilePath] -> FilePath -> [String] -> [Ext] -> Ghc [FileSpec]
+getSpecs' cfg paths target names exts = do
+  fs'     <- sortNub <$> moduleImports exts paths names
+  patSpec <- getPatSpec paths $ totality cfg
+  rlSpec  <- getRealSpec paths $ not $ linear cfg
+  let fs   = patSpec ++ rlSpec ++ fs'
+  transParseSpecs exts paths (S.singleton target) mempty (map snd fs \\ [target])
+  -- liftIO $ putStrLn $ "getSpecs [NORMAL]: " ++ showTable [(n, text f) | (f, n, _) <- fSpecs]
+  -- return fSpecs
+  -- where
+  --   showTable = render . pprintKVs Full . sortBy (compare `on` fst)
+
+normalizeFileSpec :: [FileSpec] -> [FileSpec]
+normalizeFileSpec = concat
+                  . M.elems
+                  . fmap partSpecs
+                  . groupMap (show . snd3)
+
+partSpecs :: [FileSpec] -> [FileSpec]
+partSpecs fs = case partition isSpecFile fs of
+                 (sFs, [] ) -> sFs
+                 (_  , cFs) -> cFs
+
+isSpecFile :: FileSpec -> Bool
+isSpecFile (f, _, _)
+  | isExtFile Spec f = True
+  | otherwise        = False
+
+getPatSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getPatSpec paths totalitycheck
- | totalitycheck = (map (patErrorName,)) . maybeToList <$> moduleFile paths patErrorName Spec
+ | totalitycheck = map (patErrorName,) . maybeToList <$> moduleFile paths patErrorName Spec
  | otherwise     = return []
  where
   patErrorName = "PatErr"
 
+getRealSpec :: [FilePath] -> Bool -> Ghc [(String, FilePath)]
 getRealSpec paths freal
-  | freal     = (map (realSpecName,))    . maybeToList <$> moduleFile paths realSpecName    Spec
-  | otherwise = (map (notRealSpecName,)) . maybeToList <$> moduleFile paths notRealSpecName Spec
+  | freal     = map (realSpecName,)    . maybeToList <$> moduleFile paths realSpecName    Spec
+  | otherwise = map (notRealSpecName,) . maybeToList <$> moduleFile paths notRealSpecName Spec
   where
     realSpecName    = "Real"
     notRealSpecName = "NotReal"
 
-
+transParseSpecs :: [Ext] -> [FilePath] -> S.HashSet FilePath -> [FileSpec] -> [FilePath]
+                -> Ghc [FileSpec]
 transParseSpecs _ _ _ specs [] = return specs
 transParseSpecs exts paths seenFiles specs newFiles = do
-  newSpecs <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
-  impFiles <- moduleImports exts paths $ specsImports newSpecs
-  let seenFiles' = seenFiles `S.union` (S.fromList newFiles)
+  newSpecs      <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
+  impFiles      <- moduleImports exts paths $ specsImports newSpecs
+  let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (third3 noTerm) newSpecs
   let newFiles'  = [f | (_, f) <- impFiles, not (f `S.member` seenFiles')]
   transParseSpecs exts paths seenFiles' specs' newFiles'
@@ -285,6 +319,7 @@ transParseSpecs exts paths seenFiles specs newFiles = do
 parseSpec :: FilePath -> IO (ModName, Ms.BareSpec)
 parseSpec file = either throw return . specParser file =<< readFile file
 
+specParser :: FilePath -> String -> Either Error (ModName, Ms.BareSpec)
 specParser f str
   | isExtFile Spec   f = specSpecificationP f str
   | isExtFile Hs     f = hsSpecificationP   f str
@@ -293,25 +328,35 @@ specParser f str
   | otherwise          = panic Nothing $ "SpecParser: Cannot Parse File " ++ f
 
 
+moduleSpec :: GhcMonad m
+           => Config
+           -> [CoreBind]
+           -> [Var]
+           -> [Var]
+           -> ModName
+           -> MGIModGuts
+           -> Ms.Spec (Located BareType) LocSymbol
+           -> Either Error LogicMap
+           -> [(ModName, Ms.BareSpec)]
+           -> m (GhcSpec, [String], [FilePath])
 moduleSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let tgtCxt = IIModule $ getModName tgtMod
   let impCxt = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   setContext (tgtCxt : impCxt)
-
-  hsc <-getSession
-
+  hsc <- getSession
   let impNames = map (getModString . fst) impSpecs
   let exports  = mgi_exports mgi
-
   let specs = (tgtMod, tgtSpec) : impSpecs
-  let imps  = sortNub $ impNames ++ [ symbolString x
-                                    | (_, sp) <- specs
-                                    , x <- Ms.imports sp
-                                    ]
-
+  let imps  = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
   ghcSpec <- liftIO $ makeGhcSpec cfg tgtMod cbs vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
+moduleHquals :: MGIModGuts
+             -> [FilePath]
+             -> FilePath
+             -> [String]
+             -> [FilePath]
+             -> Ghc [FilePath]
 moduleHquals mgi paths target imps incs = do
   hqs   <- specIncludes Hquals paths incs
   hqs'  <- moduleImports [Hquals] paths (mgi_namestring mgi : imps)
@@ -353,33 +398,43 @@ reqFile ext s
 --------------------------------------------------------------------------------
 
 instance PPrint GhcSpec where
-  pprintTidy k spec =  (text "******* Target Variables ********************")
-              $$ (pprintTidy k $ tgtVars spec)
-              $$ (text "******* Type Signatures *********************")
-              $$ (pprintLongList $ tySigs spec)
-              $$ (text "******* Assumed Type Signatures *************")
-              $$ (pprintLongList $ asmSigs spec)
-              $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctors spec)
-              $$ (text "******* Measure Specifications **************")
-              $$ (pprintLongList $ meas spec)
+  pprintTidy k spec = vcat
+    [ "******* Target Variables ********************"
+    , pprintTidy k $ tgtVars spec
+    , "******* Type Signatures *********************"
+    , pprintLongList k (tySigs spec)
+    , "******* Assumed Type Signatures *************"
+    , pprintLongList k (asmSigs spec)
+    , "******* DataCon Specifications (Measure) ****"
+    , pprintLongList k (ctors spec)
+    , "******* Measure Specifications **************"
+    , pprintLongList k (meas spec)                   ]
 
 instance PPrint GhcInfo where
-  pprintTidy k info =   (text "*************** Imports *********************")
-              $+$ (intersperse comma $ text <$> imports info)
-              $+$ (text "*************** Includes ********************")
-              $+$ (intersperse comma $ text <$> includes info)
-              $+$ (text "*************** Imported Variables **********")
-              $+$ (pprDoc $ impVars info)
-              $+$ (text "*************** Defined Variables ***********")
-              $+$ (pprDoc $ defVars info)
-              $+$ (text "*************** Specification ***************")
-              $+$ (pprintTidy k $ spec info)
-              $+$ (text "*************** Core Bindings ***************")
-              $+$ (pprintCBs $ cbs info)
+  pprintTidy k info = vcat
+    [ "*************** Imports *********************"
+    , intersperse comma $ text <$> imports info
+    , "*************** Includes ********************"
+    , intersperse comma $ text <$> includes info
+    , "*************** Imported Variables **********"
+    , pprDoc $ impVars info
+    , "*************** Defined Variables ***********"
+    , pprDoc $ defVars info
+    , "*************** Specification ***************"
+    , pprintTidy k $ spec info
+    , "*************** Core Bindings ***************"
+    , pprintCBs $ cbs info                          ]
+
+
+-- RJ: the silly guards below are to silence the unused-var checker
 
 pprintCBs :: [CoreBind] -> Doc
-pprintCBs = pprDoc . tidyCBs
+pprintCBs
+  | True      = pprintCBsTidy
+  | otherwise = pprintCBsVerbose
+  where
+    pprintCBsTidy    = pprDoc . tidyCBs
+    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show GhcInfo where
   show = showpp
@@ -398,5 +453,5 @@ instance Result SourceError where
          . bagToList
          . srcErrorMessages
 
+errMsgErrors :: ErrMsg -> [TError t]
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
-

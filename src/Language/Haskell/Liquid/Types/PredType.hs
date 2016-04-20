@@ -33,7 +33,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
 import           Type
 import           TypeRep
-
+import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
 
@@ -52,6 +52,7 @@ import           Data.List                       (nub)
 
 import           Data.Default
 
+makeTyConInfo :: [(TC.TyCon, TyConP)] -> M.HashMap TC.TyCon RTyCon
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
@@ -77,25 +78,28 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
 
 instance PPrint TyConP where
   pprintTidy k (TyConP vs ps ls _ _ _)
-    = (parens $ hsep (punctuate comma (map (pprintTidy k) vs))) <+>
-      (parens $ hsep (punctuate comma (map (pprintTidy k) ps))) <+>
-      (parens $ hsep (punctuate comma (map (pprintTidy k) ls)))
+    = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
+      (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
+      (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
   pprintTidy k (DataConP _ vs ps ls cs yts t _)
-     = (parens $ hsep (punctuate comma (map (pprintTidy k) vs))) <+>
-       (parens $ hsep (punctuate comma (map (pprintTidy k) ps))) <+>
-       (parens $ hsep (punctuate comma (map (pprintTidy k) ls))) <+>
-       (parens $ hsep (punctuate comma (map (pprintTidy k) cs))) <+>
-       (parens $ hsep (punctuate comma (map (pprintTidy k) yts))) <+>
+     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> yts))) <+>
        pprintTidy k t
 
 instance Show DataConP where
   show = showpp
 
+dataConTy :: Monoid r
+          => M.HashMap RTyVar (RType RTyCon RTyVar r)
+          -> Type -> RType RTyCon RTyVar r
 dataConTy m (TyVarTy v)
   = M.lookupDefault (rVar v) (RTV v) m
 dataConTy m (FunTy t1 t2)
@@ -111,6 +115,8 @@ dataConTy _ _
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
+replacePredsWithRefs :: (UsedPVar, (Symbol, [((), Symbol, F.Expr)]) -> F.Expr)
+                     -> UReft Reft -> UReft Reft
 replacePredsWithRefs (p, r) (MkUReft (Reft(v, rs)) (Pr ps) s)
   = MkUReft (Reft (v, rs'')) (Pr ps2) s
   where
@@ -118,6 +124,7 @@ replacePredsWithRefs (p, r) (MkUReft (Reft(v, rs)) (Pr ps) s)
     rs'              = r . (v,) . pargs <$> ps1
     (ps1, ps2)       = partition (== p) ps
 
+pVartoRConc :: PVar t -> (Symbol, [(a, b, F.Expr)]) -> F.Expr
 pVartoRConc p (v, args) | length args == length (pargs p)
   = pApp (pname p) $ EVar v : (thd3 <$> args)
 
@@ -142,6 +149,9 @@ pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty
 
 
 -- rpredType    :: (PPrint r, Reftable r) => PVKind (RRType r) -> [RRType r] -> RRType r
+rpredType :: Reftable r
+          => PVKind (RType RTyCon tv a)
+          -> [RType RTyCon tv a] -> RType RTyCon tv r
 rpredType (PVProp t) ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
 rpredType PVHProp    ts = RApp wpredRTyCon (uRTypeGen <$>     ts) [] mempty
 
@@ -219,6 +229,19 @@ substPred _   _  t              = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
+substRCon
+  :: (PPrint t, PPrint t2, Eq tv, Reftable r, Hashable tv, PPrint tv, PPrint r,
+      SubsTy tv (RType RTyCon tv ()) r,
+      SubsTy tv (RType RTyCon tv ()) (RType RTyCon tv ()),
+      SubsTy tv (RType RTyCon tv ()) RTyCon,
+      Reftable (RType RTyCon tv r),
+      FreeVar RTyCon tv)
+  => [Char]
+  -> (t, Ref RSort (RType RTyCon tv r))
+  -> RType RTyCon tv r
+  -> [PVar t2]
+  -> r
+  -> RType RTyCon tv r
 substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
@@ -235,6 +258,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
 substRCon msg su t _ _        = panic Nothing $ msg ++ " substRCon " ++ showpp (su, t)
 
+pad :: [Char] -> (a -> a) -> [a] -> [a] -> ([a], [a])
 pad _ f [] ys   = (f <$> ys, ys)
 pad _ f xs []   = (xs, f <$> xs)
 pad msg _ xs ys
@@ -244,6 +268,10 @@ pad msg _ xs ys
     nxs         = length xs
     nys         = length ys
 
+substPredP :: [Char]
+           -> (RPVar, Ref RSort (RRType RReft))
+           -> Ref RSort (RType RTyCon RTyVar RReft)
+           -> Ref RSort SpecType
 substPredP _ su p@(RProp _ (RHole _))
   = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
@@ -253,11 +281,13 @@ substPredP msg su@(p, RProp ss _) (RProp s t)
    n   = length ss - length (freeArgsPs p t)
 
 
+splitRPvar :: PVar t -> UReft r -> (UReft r, [UsedPVar])
 splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
   where
     (epvs, pvs')               = partition (uPVar pv ==) pvs
 
 -- TODO: rewrite using foldReft
+freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
 freeArgsPs p (RFun _ t1 t2 r)
@@ -284,13 +314,22 @@ freeArgsPs p (RHole r)
 freeArgsPs p (RRTy env r _ t)
   = nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
+freeArgsPsRef :: PVar t1 -> UReft t -> [Symbol]
 freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
+meetListWithPSubs :: (Foldable t, PPrint t1, Reftable b)
+                  => t (PVar t1) -> [(Symbol, RSort)] -> b -> b -> b
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 
+meetListWithPSubsRef :: (Foldable t, Reftable (RType t1 t2 t3))
+                     => t (PVar t4)
+                     -> [(Symbol, b)]
+                     -> Ref τ (RType t1 t2 t3)
+                     -> Ref τ (RType t1 t2 t3)
+                     -> Ref τ (RType t1 t2 t3)
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
 meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
@@ -304,6 +343,12 @@ meetListWithPSub ss r1 r2 π
   where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
+meetListWithPSubRef :: (Reftable (RType t t1 t2))
+                    => [(Symbol, b)]
+                    -> Ref τ (RType t t1 t2)
+                    -> Ref τ (RType t t1 t2)
+                    -> PVar t3
+                    -> Ref τ (RType t t1 t2)
 meetListWithPSubRef _ (RProp _ (RHole _)) _ _ -- TODO: Is this correct?
   = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef _ _ (RProp _ (RHole _)) _
@@ -330,6 +375,7 @@ wpredName, predName   :: Symbol
 predName   = "Pred"
 wpredName  = "WPred"
 
+symbolType :: Symbol -> Type
 symbolType = TyVarTy . symbolTyVar
 
 
@@ -352,4 +398,5 @@ pappSort n = mkFFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
     args   = FVar <$> [n..(2*n-1)]
 
 
+predFTyCon :: FTycon
 predFTyCon = symbolFTycon $ dummyLoc predName

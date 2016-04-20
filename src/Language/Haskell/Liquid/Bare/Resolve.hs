@@ -8,17 +8,18 @@ module Language.Haskell.Liquid.Bare.Resolve (
   ) where
 
 
-import Prelude hiding (error)
+import           Prelude                             hiding (error)
+import           Var
 
-import Control.Monad.State
-import Data.Char (isUpper)
-import Text.Parsec.Pos
+import           Control.Monad.State
+import           Data.Char                           (isUpper)
+import           Text.Parsec.Pos
 
-import qualified Data.List           as L
+import qualified Data.List                           as L
 
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict                 as M
 
-import Language.Fixpoint.Types.Names (prims, unconsSym)
+import           Language.Fixpoint.Types.Names       (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Qualifier(..),
                                 Reft(..),
@@ -28,11 +29,11 @@ import Language.Fixpoint.Types (Expr(..),
                                 symbol,
                                 symbolFTycon)
 
-import Language.Haskell.Liquid.Misc (secondM, third3M)
-import Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Misc        (secondM, third3M)
+import           Language.Haskell.Liquid.Types
 
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Lookup
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Lookup
 
 class Resolvable a where
   resolve :: SourcePos -> a -> BareM a
@@ -80,8 +81,10 @@ instance Resolvable LocSymbol where
                                    return $ Loc l l' qs
            _                 -> return ls
 
+addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
 addSym x = modify $ \be -> be { varEnv = varEnv be `L.union` [x] }
 
+isCon :: Symbol -> Bool
 isCon s
   | Just (c,_) <- unconsSym s = isUpper c
   | otherwise                 = False

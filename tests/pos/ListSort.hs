@@ -1,7 +1,8 @@
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 
 
-{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
+{-@ type OList a    = [a]<{\fld v -> (v >= fld)}> @-}
+{-@ type OListN a N = {v:OList a | len v == N} @-}
 
 ------------------------------------------------------------------------------
 -- Insert Sort ---------------------------------------------------------------
@@ -24,35 +25,30 @@ insert y (x : xs) | y <= x    = y : x : xs
 -- Merge Sort ----------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-{-@ mergeSort :: (Ord a) => xs:[a] -> {v:OList a| (len v) = (len xs)} @-}
+{-@ mergeSort :: (Ord a) => xs:[a] -> OListN a {len xs} @-}
 mergeSort :: Ord a => [a] -> [a]
-mergeSort []  = []
-mergeSort [x] = [x]
-mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) d 
-  where (xs1, xs2) = split xs
-        d          = length xs
+mergeSort []   = []
+mergeSort [x]  = [x]
+mergeSort xs   = merge (mergeSort xs1) (mergeSort xs2) 
+  where 
+    (xs1, xs2) = split xs
 
-{-@ predicate Pr X Y = (((len Y) > 1) => ((len Y) < (len X))) @-}
+{-@ type Half a Xs  = {v:[a] | (len v > 1) => (len v < len Xs)} @-}
 
-{-@ split :: xs:[a] 
-          -> ({v:[a] | (Pr xs v)}, {v:[a]|(Pr xs v)})
-                 <{\x y -> ((len x) + (len y) = (len xs))}> 
-  @-}
-
+{-@ type Halves a Xs = {v: (Half a Xs, Half a Xs) | len (fst v) + len (snd v) == len Xs} @-}
+ 
+{-@ split :: xs:[a] -> Halves a xs @-}
 split :: [a] -> ([a], [a])
 split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
 split xs         = (xs, [])
 
-{-@ Decrease merge 4 @-}
-{-@ merge :: Ord a => xs:(OList a) -> ys:(OList a) -> d:{v:Int| v = (len xs) + (len ys)} -> {v:(OList a) | (len v) = d} @-}
-merge :: Ord a => [a] -> [a] -> Int -> [a]
-merge xs [] _ = xs
-merge [] ys _ = ys
-merge (x:xs) (y:ys) d
-  | x <= y
-  = x: merge xs (y:ys) (d-1)
-  | otherwise 
-  = y : merge (x:xs) ys (d-1)
+{-@ merge :: Ord a => xs:OList a -> ys:OList a -> OListN a {len xs + len ys} / [(len xs + len ys)] @-}
+merge :: Ord a => [a] -> [a] ->  [a]
+merge xs []         = xs
+merge [] ys         = ys
+merge (x:xs) (y:ys)
+  | x <= y          = x: merge xs (y:ys)
+  | otherwise       = y : merge (x:xs) ys
 
 ------------------------------------------------------------------------------
 -- Quick Sort ----------------------------------------------------------------

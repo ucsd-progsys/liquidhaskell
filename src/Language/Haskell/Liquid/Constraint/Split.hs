@@ -103,6 +103,9 @@ splitW (WfC γ (REx x tx t))
 splitW (WfC _ t)
   = panic Nothing $ "splitW cannot handle: " ++ showpp t
 
+rsplitW :: CGEnv
+        -> Ref RSort SpecType
+        -> CG [FixWfC]
 rsplitW _ (RProp _ (RHole _))
   = panic Nothing "Constrains: rsplitW for RProp _ (RHole _)"
 rsplitW γ (RProp ss t0)
@@ -115,6 +118,8 @@ bsplitW γ t =
      isHO  <- allowHO   <$> get
      return $ bsplitW' γ t pflag isHO
 
+bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+         => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t pflag isHO
   | isHO || F.isNonTrivial r'
   = F.wfC (feBinds $ fenv γ) r' ci
@@ -209,9 +214,20 @@ splitS (SubC _ t1 t2)
 splitS (SubR _ _ _)
   = return []
 
+splitsSWithVariance :: CGEnv
+                    -> [SpecType]
+                    -> [SpecType]
+                    -> [Variance]
+                    -> CG [([Stratum], [Stratum])]
 splitsSWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
+rsplitsSWithVariance :: Bool
+                     -> CGEnv
+                     -> [Ref t (RType RTyCon RTyVar RReft)]
+                     -> [Ref t (RType RTyCon RTyVar RReft)]
+                     -> [Variance]
+                     -> CG [([Stratum], [Stratum])]
 rsplitsSWithVariance False _ _ _ _
   = return []
 
@@ -222,6 +238,10 @@ bsplitS t1 t2
   = return $ [(s1, s2)]
   where [s1, s2]   = getStrata <$> [t1, t2]
 
+rsplitS :: CGEnv
+        -> Ref t (RType RTyCon RTyVar RReft)
+        -> Ref t1 (RType RTyCon RTyVar RReft)
+        -> CG [([Stratum], [Stratum])]
 rsplitS _ (RProp _ (RHole _)) _
    = panic Nothing "rsplitS RProp _ (RHole _)"
 
@@ -232,6 +252,8 @@ rsplitS γ (RProp s1 r1) (RProp s2 r2)
   = splitS (SubC γ (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
+splitfWithVariance :: Applicative f
+                   => (t -> t -> f [a]) -> t -> t -> Variance -> f [a]
 splitfWithVariance f t1 t2 Invariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
@@ -361,15 +383,30 @@ rHole :: F.Reft -> SpecType
 rHole = RHole . uTop
 
 
+splitsCWithVariance :: CGEnv
+                    -> [SpecType]
+                    -> [SpecType]
+                    -> [Variance]
+                    -> CG [FixSubC]
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
+rsplitsCWithVariance :: Bool
+                     -> CGEnv
+                     -> [SpecProp]
+                     -> [SpecProp]
+                     -> [Variance]
+                     -> CG [FixSubC]
 rsplitsCWithVariance False _ _ _ _
   = return []
 
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
+bsplitC :: CGEnv
+        -> SpecType
+        -> SpecType
+        -> CG [F.SubC Cinfo]
 bsplitC γ t1 t2 = do
   checkStratum γ t1 t2
   pflag  <- pruneRefs <$> get
@@ -390,6 +427,10 @@ addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
        -- let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
        -- let F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
+checkStratum :: CGEnv
+             -> RType t t1 (UReft r)
+             -> RType t t1 (UReft r)
+             -> CG ()
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
@@ -397,6 +438,7 @@ checkStratum γ t1 t2
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
+bsplitC' :: CGEnv -> SpecType -> SpecType -> Bool -> Bool -> [F.SubC Cinfo]
 bsplitC' γ t1 t2 pflag isHO
  | isHO
  = F.subC γ' r1'  r2' Nothing tag ci
@@ -412,6 +454,7 @@ bsplitC' γ t1 t2 pflag isHO
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
+    -- err = Just $ ErrSubType src "subtype" g t1 t2
     err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
@@ -424,6 +467,10 @@ unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
 unifyVV _ _
   = panic Nothing $ "Constraint.Generate.unifyVV called on invalid inputs"
 
+rsplitC :: CGEnv
+        -> SpecProp
+        -> SpecProp
+        -> CG [FixSubC]
 rsplitC _ _ (RProp _ (RHole _))
   = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
 
@@ -466,6 +513,9 @@ forallExprReft_ _ _
   = Nothing
 
 -- forallExprReftLookup :: CGEnv -> F.Symbol -> Int
+forallExprReftLookup :: CGEnv
+                     -> F.Symbol
+                     -> Maybe ([F.Symbol], [SpecType], [RReft], SpecType)
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
@@ -493,4 +543,4 @@ envToSub = go []
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
 panicUnbound :: (PPrint x) => CGEnv -> x -> a
-panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (pprint x) :: Error)
+panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (F.pprint x) :: Error)

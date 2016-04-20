@@ -1,4 +1,3 @@
-
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
@@ -33,7 +32,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , fromListREnv
   , toListREnv
   , insertREnv -- TODO: remove this ASAP
-    
+
   -- * Query
   , localBindsOfType
   , lookupREnv
@@ -96,6 +95,9 @@ instance Freshable CG Integer where
 --------------------------------------------------------------------------------
 
 -- updREnvLocal :: REnv -> (_ -> _) -> REnv
+updREnvLocal :: REnv
+             -> (M.HashMap F.Symbol SpecType -> M.HashMap F.Symbol SpecType)
+             -> REnv
 updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
 
 -- RJ: REnv-Split-Bug?
@@ -126,6 +128,7 @@ globalREnv (REnv gM lM) = REnv gM' M.empty
   where
     gM'  = M.unionWith (\_ t -> t) gM lM
 
+renvMaps :: REnv -> [M.HashMap F.Symbol SpecType]
 renvMaps rE = [reLocal rE, reGlobal rE]
 
 --------------------------------------------------------------------------------
@@ -162,8 +165,8 @@ addBind l x r = do
   st          <- get
   let (i, bs') = F.insertBindEnv x r (binds st)
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-  return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
-
+  return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
+  
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
@@ -183,24 +186,28 @@ addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
 
 addCGEnv tx γ (_, x, t') = do
   idx   <- fresh
-  allowHOBinders <- allowHO <$> get 
+  allowHOBinders <- allowHO <$> get
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
-  is    <- if allowHOBinders || isBase t 
-            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t    
+  is    <- if allowHOBinders || isBase t
+            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
+rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+                 => Bool -> CGEnv -> RRType r -> F.SortedReft
 rTypeSortedReft' pflag γ
   | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f
   | otherwise = f
   where
     f         = rTypeSortedReft (emb γ)
 
+normalize :: Integer -> SpecType -> SpecType
 normalize idx = normalizeVV idx . normalizePds
 
+normalizeVV :: Integer -> SpecType -> SpecType
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
   = shiftVV t (F.vv $ Just idx)
@@ -246,6 +253,7 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 (γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }, "+++=") += (x, t)
 
+(-=) :: CGEnv -> F.Symbol -> CGEnv
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
 (?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType

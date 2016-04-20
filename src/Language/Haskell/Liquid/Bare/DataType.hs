@@ -10,35 +10,35 @@ module Language.Haskell.Liquid.Bare.DataType (
   , meetDataConSpec
   ) where
 
-import Prelude hiding (error)
-import DataCon
-import TyCon
-import Var
-import SrcLoc (SrcSpan)
-import Name (getSrcSpan)
+import           DataCon
+import           Name                                   (getSrcSpan)
+import           Prelude                                hiding (error)
+import           SrcLoc                                 (SrcSpan)
+import           Text.Parsec
+import           TyCon
+import           Var
 
-import Data.Maybe
+import           Data.Maybe
 
 
-import qualified Data.List           as L
-import qualified Data.HashMap.Strict as M
+import qualified Data.List                              as L
+import qualified Data.HashMap.Strict                    as M
 
-import Language.Fixpoint.Types (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
+import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
+import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
+import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
+import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Meet
+import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.WiredIn
 
-import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
-import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Meet
-import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.Types.Variance
-import Language.Haskell.Liquid.WiredIn
+import qualified Language.Haskell.Liquid.Measure        as Ms
 
-import qualified Language.Haskell.Liquid.Measure as Ms
-
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.OfType
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Lookup
+import           Language.Haskell.Liquid.Bare.OfType
 
 -- import Debug.Trace
 
@@ -46,6 +46,9 @@ import Language.Haskell.Liquid.Bare.OfType
 -- Bare Predicate: DataCon Definitions --------------------------------
 -----------------------------------------------------------------------
 
+makeConTypes
+  :: (ModName,Ms.Spec ty bndr)
+  -> BareM ([(TyCon,TyConP)],[[(DataCon,Located DataConP)]])
 makeConTypes (name,spec) = inModule name $ makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
 
 makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
@@ -117,6 +120,7 @@ ofBDataDecl Nothing (Just (tc, is))
 ofBDataDecl Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
+getPsSig :: [(UsedPVar, a)] -> Bool -> SpecType -> [(a, Bool)]
 getPsSig m pos (RAllT _ t)
   = getPsSig m pos t
 getPsSig m pos (RApp _ ts rs r)
@@ -133,13 +137,24 @@ getPsSig m pos (RHole r)
 getPsSig _ _ z
   = panic Nothing $ "getPsSig" ++ show z
 
+getPsSigPs :: [(UsedPVar, a)] -> Bool -> SpecProp -> [(a, Bool)]
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
+addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
 addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon
+ofBDataCon :: SourcePos
+           -> SourcePos
+           -> TyCon
+           -> [RTyVar]
+           -> [PVar BSort]
+           -> [Symbol]
+           -> [PVar RSort]
+           -> (Located Symbol,[(Symbol,BareType)])
+           -> BareM (DataCon,DataConP)
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
@@ -151,6 +166,7 @@ ofBDataCon l l' tc αs ps ls πs (c, xts)
        rs       = [rVar α | RTV α <- αs]
 
 
+makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
 

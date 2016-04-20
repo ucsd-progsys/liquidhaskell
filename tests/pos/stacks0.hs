@@ -4,8 +4,8 @@ import Data.Set (Set(..))
 
 data LL a = Nil | Cons { head :: a, tail :: LL a }
 
-{-@ data LL a = Nil | Cons { head :: a 
-                           , tail :: {v: LL a | not (Set_mem head (elts v))  } } 
+{-@ data LL a = Nil | Cons { headC :: a
+                           , tailC :: {v: LL a | not (Set_mem headC (elts v))  } }
   @-}
 
 {-@ measure elts :: LL a -> (Set a) 

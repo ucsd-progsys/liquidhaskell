@@ -1,8 +1,4 @@
 {-# LANGUAGE MagicHash      #-}
-{-# LANGUAGE EmptyDataDecls #-}
-
-{- OPTIONS_GHC -cpp #-}
-{- OPTIONS_GHC -cpp -fglasgow-exts -}
 
 module Language.Haskell.Liquid.Prelude where
 
@@ -72,12 +68,12 @@ liquidAssertB b = b
 
 {-@ assume liquidAssert :: {v:Bool | (Prop v)} -> a -> a  @-}
 {-# NOINLINE liquidAssert #-}
-liquidAssert :: Bool -> a -> a 
+liquidAssert :: Bool -> a -> a
 liquidAssert _ x = x
 
 {-@ assume liquidAssume :: b:Bool -> a -> {v: a | (Prop b)}  @-}
 {-# NOINLINE liquidAssume #-}
-liquidAssume :: Bool -> a -> a 
+liquidAssume :: Bool -> a -> a
 liquidAssume _ x = x
 
 {-@ assume liquidAssumeB :: forall <p :: a -> Prop>. (a<p> -> {v:Bool| ((Prop v) <=> true)}) -> a -> a<p> @-}
@@ -90,19 +86,20 @@ liquidAssumeB p x | p x = x
 {-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}
 liquidError :: String -> a
-liquidError = error 
+liquidError = error
 
 {-@ assume crash  :: forall a . x:{v:Bool | (Prop v)} -> a @-}
 {-# NOINLINE crash #-}
-crash :: Bool -> a 
-crash = undefined 
+crash :: Bool -> a
+crash = undefined
 
 {-# NOINLINE force #-}
-force = True 
+force :: Bool
+force = True
 
 {-# NOINLINE choose #-}
 choose :: Int -> Int
-choose = undefined 
+choose = undefined
 
 -------------------------------------------------------------------
 ----------- Modular Arithmetic Wrappers ---------------------------
@@ -125,7 +122,7 @@ isOdd x = x `mod` 2 == 1
 safeZipWith :: (a->b->c) -> [a]->[b]->[c]
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ []     []     = []
-safeZipWith _ _ _ = error "safeZipWith: cannot happen!"      
+safeZipWith _ _ _ = error "safeZipWith: cannot happen!"
 
 
 

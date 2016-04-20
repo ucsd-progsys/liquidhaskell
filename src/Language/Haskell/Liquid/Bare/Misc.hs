@@ -17,35 +17,44 @@ module Language.Haskell.Liquid.Bare.Misc (
   , hasBoolResult
   ) where
 
-import Prelude hiding (error)
-import TysWiredIn
-import Name
+import           Name
+import           Prelude                               hiding (error)
+import           TysWiredIn
 
-import Id
-import Type
-import TypeRep
-import Var
+import           Id
+import           Type
+import           TypeRep
+import           Var
 
-import Control.Monad.Except (throwError)
-import Control.Monad.State
-import Data.Maybe (isNothing)
+import           Control.Monad.Except                  (MonadError, throwError)
+import           Control.Monad.State
+import           Data.Maybe                            (isNothing)
 
-import qualified Data.List as L
+import qualified Data.List                             as L
 
-import Language.Fixpoint.Misc  (sortNub)
-import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft)
+import           Language.Fixpoint.Misc                (sortNub)
+import           Language.Fixpoint.Types               (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft)
 
-import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (sortDiff)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Misc          (sortDiff)
 
-import Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Env
 
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
 -- WTF does this function do?
+makeSymbols :: (Functor t1, Functor t2, Foldable t, Foldable t1, Foldable t2, Reftable r,
+                Reftable r1, Reftable r2, TyConable c, TyConable c1, TyConable c2, MonadState BareEnv m)
+            => (Id -> Bool)
+            -> [Id]
+            -> [Symbol]
+            -> t2 (a1, Located (RType c2 tv2 r2))
+            -> t1 (a, Located (RType c1 tv1 r1))
+            -> t (Located (RType c tv r))
+            -> m [(Symbol, Var)]
 makeSymbols f vs xs' xts yts ivs
   = do svs <- gets varEnv
        return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
@@ -62,6 +71,7 @@ makeSymbols f vs xs' xts yts ivs
       hasBasicArgs _              = True
 
 
+freeSymbols :: (Reftable r, TyConable c) => Located (RType c tv r) -> [Symbol]
 freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (const ()) f (const id) emptySEnv [] (val ty)
   where
     f γ _ r xs = let Reft (v, _) = toReft r in
@@ -75,6 +85,7 @@ data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
                         , errmsg :: Error
                         }
 
+initMapSt :: Error -> MapTyVarST
 initMapSt = MTVST []
 
 -- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
@@ -115,6 +126,8 @@ mapTyVars _ (RHole _)
 mapTyVars _ _
   = throwError =<< errmsg <$> get
 
+mapTyRVar :: MonadError Error m
+          => Var -> RTyVar -> MapTyVarST -> m MapTyVarST
 mapTyRVar α a s@(MTVST αas err)
   = case lookup α αas of
       Just a' | a == a'   -> return s
@@ -124,12 +137,15 @@ mapTyRVar α a s@(MTVST αas err)
 
 
 
+mkVarExpr :: Id -> Expr
 mkVarExpr v
   | isFunVar v = mkEApp (varFunSymbol v) []
   | otherwise  = EVar (symbol v)
 
+varFunSymbol :: Id -> Located Symbol
 varFunSymbol = dummyLoc . symbol . idDataCon
 
+isFunVar :: Id -> Bool
 isFunVar v   = isDataConId v && not (null αs) && isNothing tf
   where
     (αs, t)  = splitForAllTys $ varType v
@@ -147,6 +163,7 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
 simpleSymbolVar :: Var -> Symbol
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 
+hasBoolResult :: Type -> Bool
 hasBoolResult (ForAllTy _ t) = hasBoolResult t
 hasBoolResult (FunTy _ t)    | eqType boolTy t = True
 hasBoolResult (FunTy _ t)    = hasBoolResult t

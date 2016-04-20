@@ -5,10 +5,8 @@ module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
   , ofMeaSort
   , ofBSort
-
   , ofBPVar
-
-  , mkSpecType
+  , mkLSpecType
   , mkSpecType'
   ) where
 
@@ -31,7 +29,8 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
+import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
+                                subst, symbol, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -72,10 +71,11 @@ mapMPvar f (PV x t v txys)
        return $ PV x t' v txys'
 
 --------------------------------------------------------------------------------
+mkLSpecType :: Located BareType -> BareM (Located SpecType)
+mkLSpecType t = atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
-mkSpecType l t
-  = mkSpecType' l (ty_preds $ toRTypeRep t) t
+mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs t
@@ -85,6 +85,8 @@ mkSpecType' l πs t
       = (resolve l <=< expandReft) . txParam l subvUReft (uPVar <$> πs) t
 
 
+txParam :: SourcePos
+        -> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
 txParam l f πs t = f (txPvar l (predMap πs t))
 
 txPvar :: SourcePos -> M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
@@ -94,13 +96,15 @@ txPvar l m π = π { pargs = args' }
         π'    = fromMaybe (panic (Just $ sourcePosSrcSpan l) err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
+predMap :: [UsedPVar] -> RType c tv r -> M.HashMap Symbol UsedPVar
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
+rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 
-ofBRType :: (PPrint r, UReftable r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy Symbol (RType (Located Symbol) Symbol ()) r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -202,6 +206,7 @@ expandRTAliasApp l rta args r
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
 -- e.g. type Matrix a Row Col = List (List a Row) Col
 
+exprArg :: (PrintfArg t1)  => t1 -> BareType -> Expr
 exprArg _   (RExprArg e)
   = val e
 exprArg _   (RVar x _)
@@ -217,6 +222,12 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
+bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r)
+          => r
+          -> Located TyCon
+          -> [RTProp RTyCon RTyVar r]
+          -> [RType RTyCon RTyVar r]
+          -> m (RType RTyCon RTyVar r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
@@ -236,9 +247,12 @@ bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
 bareTCApp r (Loc _ _ c) rs ts
   = return $ rApp c ts rs r
 
+tyApp :: Reftable r
+      => RType c tv r
+      -> [RType c tv r] -> [RTProp c tv r] -> r -> RType c tv r
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r) => RRType r -> RRType r
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

@@ -12,38 +12,38 @@ module Language.Haskell.Liquid.Bare.Lookup (
   , lookupGhcDataCon
   ) where
 
-import Prelude hiding (error)
-import BasicTypes
-import ConLike
-import DataCon
-import GHC (HscEnv)
-import HscMain
-import Name
-import PrelInfo                                 (wiredInThings)
-import PrelNames                                (fromIntegerName, smallIntegerName, integerTyConName)
-import RdrName (setRdrNameSpace)
-import SrcLoc (SrcSpan, GenLocated(L))
-import TcEnv
-import TyCon
-import TysWiredIn
-import Var
+import           BasicTypes
+import           ConLike
+import           DataCon
+import           GHC                              (HscEnv)
+import           HscMain
+import           Name
+import           PrelInfo                         (wiredInThings)
+import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName)
+import           Prelude                          hiding (error)
+import           RdrName                          (setRdrNameSpace)
+import           SrcLoc                           (SrcSpan, GenLocated(L))
+import           TcEnv
+import           TyCon
+import           TysWiredIn
+import           Var
 
-import Control.Monad.Except (catchError, throwError)
-import Control.Monad.State
-import Data.Maybe
-import Text.PrettyPrint.HughesPJ (text)
+import           Control.Monad.Except             (MonadError, catchError, throwError)
+import           Control.Monad.State
+import           Data.Maybe
+import           Text.PrettyPrint.HughesPJ        (text)
 
-import qualified Data.List           as L
-import qualified Data.HashMap.Strict as M
+import qualified Data.List                        as L
+import qualified Data.HashMap.Strict              as M
 
-import Language.Fixpoint.Types.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
-import Language.Fixpoint.Types (Symbol, Symbolic(..))
+import           Language.Fixpoint.Types.Names    (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
+import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 
-import Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.WiredIn
 
-import Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Env
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -64,6 +64,9 @@ instance GhcLookup Name where
 
 
 -- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
+lookupGhcThing
+  :: (MonadIO m,MonadError (TError t) m,MonadState BareEnv m,GhcLookup a)
+  => [Char] -> (TyThing -> Maybe b) -> a -> m b
 lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x
        case zs of
@@ -73,6 +76,9 @@ lookupGhcThing name f x
     msg = "Not in scope: " ++ name ++ " `" ++ symbolString (symbol x) ++ "'"
 
 -- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing'
+  :: (MonadIO m,MonadState BareEnv m,GhcLookup a)
+  => t -> (TyThing -> Maybe a1) -> a -> m (Maybe a1)
 lookupGhcThing' _    f x
   = do BE {modName = mod, hscEnv = env} <- get
        ns                 <- liftIO $ lookupName env mod x
@@ -88,6 +94,7 @@ symbolLookup env mod k
   | otherwise
   = symbolLookupEnv env mod k
 
+
 wiredIn      :: M.HashMap Symbol Name
 wiredIn      = M.fromList $ special ++ wiredIns
   where
@@ -96,6 +103,7 @@ wiredIn      = M.fromList $ special ++ wiredIns
                , ("GHC.Integer.Type.Integer", integerTyConName)
                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
+symbolLookupEnv :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnv env mod s
   | isSrcImport mod
   = do let modName = getModName mod
@@ -137,6 +145,7 @@ lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
     ftc (ATyCon x)   = Just x
     ftc _            = Nothing
 
+tryPropTyCon :: (Symbolic a, MonadError e m) => a -> e -> m TyCon
 tryPropTyCon s e
   | sx == propConName  = return propTyCon
   | sx == hpropConName = return hpropTyCon
@@ -144,6 +153,8 @@ tryPropTyCon s e
   where
     sx                 = symbol s
 
+lookupGhcDataCon :: (MonadIO m, MonadError (TError t) m, MonadState BareEnv m)
+                 => Located Symbol -> m DataCon
 lookupGhcDataCon dc
  | Just n <- isTupleDC (val dc)
  = return $ tupleCon BoxedTuple n
@@ -154,12 +165,15 @@ lookupGhcDataCon dc
  | otherwise
  = lookupGhcDataCon' dc
 
+isTupleDC :: Symbol -> Maybe Int
 isTupleDC zs
   | "(," `isPrefixOfSym` zs
   = Just $ lengthSym zs - 1
   | otherwise
   = Nothing
 
+lookupGhcDataCon' :: (MonadIO m, MonadError (TError t) m, MonadState BareEnv m, GhcLookup a)
+                  => a -> m DataCon
 lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
   where
     fdc (AConLike (RealDataCon x)) = Just x
