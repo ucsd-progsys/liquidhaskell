@@ -64,7 +64,6 @@ import           Language.Haskell.Liquid.Types                hiding (Located(..
 import           Language.Haskell.Liquid.Types.Specifications
 
 
-
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
 mkOutput :: Config -> ErrorResult -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc

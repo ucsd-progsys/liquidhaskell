@@ -32,7 +32,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , fromListREnv
   , toListREnv
   , insertREnv -- TODO: remove this ASAP
-    
+
   -- * Query
   , localBindsOfType
   , lookupREnv
@@ -165,8 +165,8 @@ addBind l x r = do
   st          <- get
   let (i, bs') = F.insertBindEnv x r (binds st)
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-  return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
-
+  return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
+  
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
@@ -186,13 +186,13 @@ addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
 
 addCGEnv tx γ (_, x, t') = do
   idx   <- fresh
-  allowHOBinders <- allowHO <$> get 
+  allowHOBinders <- allowHO <$> get
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
-  is    <- if allowHOBinders || isBase t 
-            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t    
+  is    <- if allowHOBinders || isBase t
+            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 

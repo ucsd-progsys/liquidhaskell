@@ -454,6 +454,7 @@ bsplitC' γ t1 t2 pflag isHO
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
+    -- err = Just $ ErrSubType src "subtype" g t1 t2
     err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
@@ -542,4 +543,4 @@ envToSub = go []
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
 panicUnbound :: (PPrint x) => CGEnv -> x -> a
-panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (pprint x) :: Error)
+panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (F.pprint x) :: Error)
