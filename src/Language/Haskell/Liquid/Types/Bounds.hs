@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 
@@ -51,31 +52,29 @@ instance Hashable (Bound t e) where
   hashWithSalt i = hashWithSalt i . bname
 
 instance Eq (Bound t e) where
-  b1 == b2 = (bname b1) == (bname b2)
+  b1 == b2 = bname b1 == bname b2
 
 instance (PPrint e, PPrint t) => (Show (Bound t e)) where
-        show = showpp
+  show = showpp
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-        pprintTidy k (Bound s vs ps xs e) =   text "bound" <+> pprintTidy k s <+>
-                                        text "forall" <+> pprintTidy k vs <+> text "." <+>
-                                        pprintTidy k (fst <$> ps) <+> text "=" <+>
-                                        pprint_bsyms k (fst <$> xs) <+> pprintTidy k e
-
-pprint_bsyms :: PPrint [t] => Tidy -> [t] -> Doc
-pprint_bsyms _ [] = text ""
-pprint_bsyms k xs = text "\\" <+> pprintTidy k xs <+> text "->"
+  pprintTidy k (Bound s vs ps xs e) = "bound" <+> pprintTidy k s <+>
+                                      "forall" <+> pprintTidy k vs <+> "." <+>
+                                      pprintTidy k (fst <$> ps) <+> "=" <+>
+                                      ppBsyms k (fst <$> xs) <+> pprintTidy k e
+    where
+      ppBsyms _ [] = ""
+      ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
 
 instance Bifunctor Bound where
-        first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
-        second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
-
+  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
+  second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
-          => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
-makeBound (Bound _  vs ps xs p) ts qs t
-  = RRTy cts mempty OCons t
+          => RRBound RSort -> [RRType r] -> [Symbol] -> RRType r -> RRType r
+makeBound (Bound _  vs ps xs p) ts qs
+         = RRTy cts mempty OCons
   where
     cts  = (\(x, t) -> (x, foldr subsTyVar_meet t su)) <$> cts'
 
@@ -100,7 +99,7 @@ makeBoundType penv (q:qs) xts = go xts
     go [] = panic Nothing "Bound with empty symbols"
 
     go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
-    go ((x, t):xtss) = (val x, mkt t x):(go xtss)
+    go ((x, t):xtss) = (val x, mkt t x) : go xtss
 
     mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (Reft (val x, mempty))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)

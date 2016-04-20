@@ -53,6 +53,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
     tests = group "Tests" [ unitTests, benchTests ]
+    -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
@@ -144,7 +145,7 @@ mkTest code dir file
 
 binPath pkgName = do
   testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
+  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/RealProps.hs"
@@ -195,6 +196,8 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
+
+             --  , "Data/Text/Fusion.hs" -- eliminate
               ]
 
 
@@ -236,7 +239,7 @@ notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
 
 headerDelim :: String
-headerDelim = take 80 $ repeat '-'
+headerDelim = replicate 80 '-'
 
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]

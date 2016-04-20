@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE ConstraintKinds            #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -50,6 +51,7 @@ module Language.Haskell.Liquid.Types (
   , RType (..), Ref(..), RTProp, rPropP
   , RTyVar (..)
   , RTAlias (..)
+  , OkRT
 
   -- * Worlds
   , HSeg (..)
@@ -57,7 +59,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Classes describing operations on `RTypes`
   , TyConable (..)
-  , RefTypable (..)
   , SubsTy (..)
 
   -- * Predicate Variables
@@ -263,6 +264,7 @@ data PPEnv
        , ppSs    :: Bool
        , ppShort :: Bool
        }
+    deriving (Show)
 
 ppEnv :: PPEnv
 ppEnv           = ppEnvCurrent
@@ -305,11 +307,11 @@ instance HasConfig GhcInfo where
 -- parsing the target source and dependent libraries
 
 data GhcSpec = SP {
-    tySigs     :: ![(Var, LocSpecType)]     -- ^ Asserted Reftypes
-  , asmSigs    :: ![(Var, LocSpecType)]     -- ^ Assumed Reftypes
-  , inSigs     :: ![(Var, LocSpecType)]     -- ^ Auto generated Signatures
-  , ctors      :: ![(Var, LocSpecType)]     -- ^ Data Constructor Measure Sigs
-  , meas       :: ![(Symbol, LocSpecType)]  -- ^ Measure Types
+    tySigs     :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
+  , asmSigs    :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
+  , inSigs     :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
+  , ctors      :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
+  , meas       :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
   , invariants :: ![LocSpecType]                 -- ^ Data Type Invariants
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
@@ -376,7 +378,7 @@ eAppWithMap lmap f es def
   | otherwise
   = def
 
-dropApp :: (Num a, Ord a) => Expr -> a -> Expr
+dropApp :: Expr -> Int -> Expr
 dropApp e i | i <= 0 = e
 dropApp (EApp e _) i = dropApp e (i-1)
 dropApp _ _          = errorstar "impossible"
@@ -753,16 +755,16 @@ class (Eq c) => TyConable c where
   isNumCls  = const False
   isFracCls = const False
 
-class ( TyConable c
-      , Eq c, Eq tv
-      , Hashable tv
-      , Reftable r
-      , PPrint r
-      ) => RefTypable c tv r
-  where
-    ppRType  :: Prec -> RType c tv r -> Doc
 
+-- Should just make this a @Pretty@ instance but its too damn tedious
+-- to figure out all the constraints.
 
+type OkRT c tv r = ( TyConable c
+                   , PPrint tv, PPrint c, PPrint r
+                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
+                   , Eq c, Eq tv
+                   , Hashable tv
+                   )
 
 -------------------------------------------------------------------------------
 -- | TyConable Instances -------------------------------------------------------
@@ -805,7 +807,7 @@ instance Eq RTyCon where
   x == y = rtc_tc x == rtc_tc y
 
 instance Fixpoint RTyCon where
-  toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
+  toFix (RTyCon c _ _) = text $ showPpr c
 
 instance Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
@@ -1081,7 +1083,7 @@ instance Subable r => Subable (UReft r) where
   substf f (MkUReft r z l) = MkUReft (substf f r) (substf f z) (substf f l)
   substa f (MkUReft r z l) = MkUReft (substa f r) (substa f z) (substa f l)
 
-instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
+instance (Reftable r, TyConable c) => Subable (RTProp c tv r) where
   syms (RProp  ss r)     = (fst <$> ss) ++ syms r
 
   subst su (RProp ss (RHole r)) = RProp ss (RHole (subst su r))
@@ -1094,15 +1096,12 @@ instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
   substa f (RProp  ss t) = RProp ss (substa f <$> t)
 
 
-instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
+instance (Subable r, Reftable r, TyConable c) => Subable (RType c tv r) where
   syms        = foldReft (\_ r acc -> syms r ++ acc) []
   substa f    = mapReft (substa f)
   substf f    = emapReft (substf . substfExcept f) []
   subst su    = emapReft (subst  . substExcept su) []
   subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
-
-
-
 
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
@@ -1403,8 +1402,8 @@ ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
 
 
 instance PPrint Predicate where
-  pprintTidy _ (Pr [])       = text "True"
-  pprintTidy k (Pr pvs)      = hsep $ punctuate (text "&") (map (pprintTidy k) pvs)
+  pprintTidy _ (Pr [])  = text "True"
+  pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (pprintTidy k <$> pvs)
 
 
 -- | The type used during constraint generation, used
@@ -1537,21 +1536,24 @@ data CMeasure ty = CM
 instance PPrint Body where
   pprintTidy k (E e)   = pprintTidy k e
   pprintTidy k (P p)   = pprintTidy k p
-  pprintTidy k (R v p) = braces (pprintTidy k v <+> text "|" <+> pprintTidy k p)
+  pprintTidy k (R v p) = braces (pprintTidy k v <+> "|" <+> pprintTidy k p)
 
 instance PPrint a => PPrint (Def t a) where
-  pprintTidy k (Def m p c _ bs body) = pprintTidy k m <+> pprintTidy k (fst <$> p) <+> cbsd <> text " = " <> pprintTidy k body
-    where cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
+  pprintTidy k (Def m p c _ bs body)
+           = pprintTidy k m <+> pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> pprintTidy k body
+    where
+      cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
 
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprintTidy k (M n s eqs) =  pprintTidy k n <> text " :: " <> pprintTidy k s
-                     $$ vcat (pprintTidy k `fmap` eqs)
+  pprintTidy k (M n s eqs) =  pprintTidy k n <+> "::" <+> pprintTidy k s
+                              $$ vcat (pprintTidy k `fmap` eqs)
+
 
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
 
 instance PPrint t => PPrint (CMeasure t) where
-  pprintTidy k (CM n s) =  pprintTidy k n <> text " :: " <> pprintTidy k s
+  pprintTidy k (CM n s) =  pprintTidy k n <+> "::" <+> pprintTidy k s
 
 instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp
@@ -1657,14 +1659,14 @@ instance Monoid (Output a) where
 --------------------------------------------------------------------------------
 
 data KVKind
-  = RecBindE
-  | NonRecBindE
+  = RecBindE    Var
+  | NonRecBindE Var
   | TypeInstE
   | PredInstE
   | LamE
   | CaseE
   | LetE
-  deriving (Generic, Eq, Ord, Show, Enum, Data, Typeable)
+  deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind
 
@@ -1764,26 +1766,23 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
 --------------------------------------------------------------------------------
 
 instance PPrint RTyVar where
-  pprintTidy _k (RTV α)
-   | ppTyVar ppEnv = ppr_tyvar α
-   | otherwise     = ppr_tyvar_short α
+  pprintTidy _ (RTV α)
+   | ppTyVar ppEnv  = ppr_tyvar α
+   | otherwise      = ppr_tyvar_short α
+   where
+     ppr_tyvar :: Var -> Doc
+     ppr_tyvar       = text . tvId
 
-ppr_tyvar :: Var -> Doc
-ppr_tyvar       = text . tvId
-
-ppr_tyvar_short :: TyVar -> Doc
-ppr_tyvar_short = text . showPpr
+     ppr_tyvar_short :: TyVar -> Doc
+     ppr_tyvar_short = text . showPpr
 
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprintTidy k (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprintTidy k s
-  -- pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-  -- pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprintTidy k (RProp ss s) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
 
+ppRefArgs :: Tidy -> [Symbol] -> Doc
+ppRefArgs _ [] = empty
+ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [vv Nothing]) <+> "->"
 
-ppRefArgs :: [Symbol] -> Doc
-ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
-
-ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
-ppRefSym "" = text "_"
-ppRefSym s  = pprint s
+ppRefSym :: (Eq a, IsString a, PPrint a) => Tidy -> a -> Doc
+ppRefSym _ "" = text "_"
+ppRefSym k s  = pprintTidy k s

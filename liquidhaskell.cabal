@@ -135,7 +135,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.5 && < 0.6
+                , liquid-fixpoint 
                 , located-base
                 , prover
                 , aeson >= 0.10

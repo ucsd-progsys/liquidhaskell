@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ConstraintKinds        #-}
 
 module Language.Haskell.Liquid.Measure (
     Spec (..)
@@ -17,7 +18,6 @@ module Language.Haskell.Liquid.Measure (
 
 import           DataCon
 import           GHC                                    hiding (Located)
-import           Language.Haskell.Liquid.Types.Errors
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding (first)
@@ -41,7 +41,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (R, SrcSpan)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
-
+-- import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
@@ -106,7 +106,7 @@ mkMSpec' ms = MSpec cm mm M.empty []
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
     mm     = M.fromList [(name m, m) | m <- ms ]
 
-mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol 
+mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where
     cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
@@ -199,7 +199,7 @@ dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbo
 dataConTypes  s = (ctorTys, measTys)
   where
     measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap makeDataConType (snd <$> (M.toList $ ctorMap s))
+    ctorTys     = concatMap makeDataConType (snd <$> M.toList (ctorMap s))
 
 
 
@@ -246,7 +246,7 @@ extend :: SourcePos
        -> RType RTyCon RTyVar Reft
 extend lc t1' t2
   | Just su <- mapArgumens lc t1 t2
-  = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
+  = t1 `strengthenResult` subst su (fromMaybe mempty (stripRTypeBase $ resultTy t2))
   | otherwise
   = t1
   where
@@ -262,7 +262,7 @@ strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
     rep = toRTypeRep t
 
 
-noDummySyms :: RefTypable c tv r => RType c tv r -> RType c tv r
+noDummySyms :: (OkRT c tv r) => RType c tv r -> RType c tv r
 noDummySyms t
   | any isDummy (ty_binds rep)
   = subst su $ fromRTypeRep $ rep{ty_binds = xs'}
