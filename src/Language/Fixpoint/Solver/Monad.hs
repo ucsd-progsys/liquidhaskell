@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE BangPatterns      #-}
 
 -- | This is a wrapper around IO that permits SMT queries
 
@@ -40,6 +39,7 @@ import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
+import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
 import           Text.PrettyPrint.HughesPJ (text)
@@ -82,24 +82,23 @@ instance F.PTable Stats where
                         ]
 
 ---------------------------------------------------------------------------
-runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi' _ act = do
+runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do
     res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
-
   where
     acquire = makeContextWithSEnv (C.allowHO cfg) lar (solver cfg) file env
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
-    env     = F.fromListSEnv ((F.toListSEnv $ F.lits fi) ++ binds)
+    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     lar     = linear cfg || Z3 /= solver cfg
-    fi      = fi' {F.allowHO = C.allowHO cfg}
+    fi      = (siQuery sI) {F.allowHO = C.allowHO cfg}
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv

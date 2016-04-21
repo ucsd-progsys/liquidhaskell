@@ -1,31 +1,53 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE BangPatterns         #-}
 
-module Language.Fixpoint.Solver.Eliminate (eliminate) where
+module Language.Fixpoint.Solver.Eliminate (solverInfo) where
 
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
+import           Language.Fixpoint.Types.Config    (Config)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
-import           Language.Fixpoint.Partition       (depCuts, depNonCuts, deps)
+import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 
 --------------------------------------------------------------------------------
-eliminate :: SInfo a -> (Solution, SInfo a)
+solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
-eliminate si  = ( sHyp, si' )
+solverInfo cfg sI = SI sHyp sI' cD
   where
-    sHyp      = solFromList [] kHyps
-    si'       = cutSInfo   kI cKs si
-    kHyps     = nonCutHyps kI nKs si
-    kI        = kIndex  si
-    (cKs,nKs) = kutVars si
+    cD             = elimDeps sI es nKs
+    sI'            = cutSInfo   kI cKs sI
+    sHyp           = solFromList [] kHyps
+    kHyps          = nonCutHyps kI nKs sI
+    kI             = kIndex  sI
+    (es, cKs, nKs) = kutVars cfg sI
 
-kutVars :: SInfo a -> (S.HashSet KVar, S.HashSet KVar)
-kutVars si   = (depCuts ds, depNonCuts ds)
+-- --------------------------------------------------------------------------------
+-- eliminate' :: Config -> SInfo a -> ([CEdge], Solution, SInfo a)
+-- --------------------------------------------------------------------------------
+-- eliminate' cfg sI  = (es, sHyp, sI')
+  -- where
+    -- sHyp           = solFromList [] kHyps
+    -- sI'            = cutSInfo   kI cKs sI
+    -- kHyps          = nonCutHyps kI nKs sI
+    -- kI             = kIndex  sI
+    -- (es, cKs, nKs) = kutVars cfg sI
+
+
+cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
+cutSInfo kI cKs si = si { ws = ws', cm = cm' }
   where
-    ds       = deps si
+    ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
+    cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
+    cs    = S.fromList      (concatMap kCs cKs)
+    kCs k = M.lookupDefault [] k kI
+
+kutVars :: Config -> SInfo a -> ([CEdge], S.HashSet KVar, S.HashSet KVar)
+kutVars cfg si   = (es, depCuts ds, depNonCuts ds)
+  where
+    (es, ds)     = elimVars cfg si
 
 --------------------------------------------------------------------------------
 -- | Map each `KVar` to the list of constraints on which it appears on RHS
@@ -39,14 +61,6 @@ kIndex si  = group [(k, i) | (i, c) <- iCs, k <- rkvars c]
   where
     iCs    = M.toList (cm si)
     rkvars = kvars . crhs
-
-cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
-cutSInfo kI cKs si = si { ws = ws', cm = cm' }
-  where
-    ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
-    cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
-    cs    = S.fromList      (concatMap kCs cKs)
-    kCs k = M.lookupDefault [] k kI
 
 nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Hyp)]
 nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]

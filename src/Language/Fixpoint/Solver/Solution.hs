@@ -11,6 +11,7 @@ module Language.Fixpoint.Solver.Solution
         , noKvars
 
           -- * Debug
+        , elimSolGraph
         , solutionGraph
         )
 where
@@ -22,13 +23,15 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
+import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types.Constraints hiding (ws, bs)
-import           Language.Fixpoint.Types.Graphs
+import           Language.Fixpoint.Graph
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
@@ -176,11 +179,11 @@ lhsPred be s c = {- F.tracepp msg $ -} apply g s bs
     -- msg        = "LhsPred for id = " ++ show (sid c)
 
 type Cid = Maybe Integer
+
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
 apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
-
 
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
 apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
@@ -194,15 +197,15 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     rs               = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
-applyExpr g s (F.PKVar k su) = applyKVar g s k su
+applyExpr g s (F.PKVar k su) = {- F.tracepp ("applyKVar: " ++ show k) $ -} applyKVar g s k su
 applyExpr _ _ p              = p
 
 applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar g s k su
-  | Just eqs <- M.lookup k (F.sMap s)
-  = qBindPred su eqs
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
+  | Just eqs <- M.lookup k (F.sMap s)
+  = qBindPred su eqs -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "Unknown kvar: " ++ show k
 
@@ -223,17 +226,45 @@ cubePred g s k su c = F.PExist xts
     (xts, psu)    = substElim g  k su
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
+
+-- | substElim returns the binders that must be existentially quantified,
+--   and the equality predicate relating the kvar-"parameters" and their
+--   actual values. i.e. given
+--
+--      K[x1 := e1]...[xn := en]
+--
+--   where e1 ... en have types t1 ... tn
+--   we want to quantify out
+--
+--     x1:t1 ... xn:tn
+--
+--   and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
+--   we use ~~ because the param and value may have different sorts, see:
+--
+--      tests/pos/kvar-param-poly-00.hs
+--
+--   Finally, we filter out binders if they are
+--   1. "free" in e1...en i.e. in the outer environment.
+--      (Hmm, that shouldn't happen...?)
+--   2. are binders corresponding to sorts (e.g. `a : num`, currently used
+--      to hack typeclasses current.)
+
 substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e, _) <- xets  ]
+    p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t) ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
     -- sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
+
+isClass :: F.Sort -> Bool
+isClass F.FNum  = True
+isClass F.FFrac = True
+isClass _       = False
 
 --badExpr :: CombinedEnv -> F.KVar -> F.Expr -> a
 --badExpr g@(i,_,_) k e
@@ -270,9 +301,18 @@ qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
 
 --------------------------------------------------------------------------------
+-- | Build and print the graph of post eliminate solution, which has an edge
+--   from k -> k' if k' appears directly inside the "solution" for k
+--------------------------------------------------------------------------------
+elimSolGraph :: Config -> F.Solution -> IO ()
+elimSolGraph cfg s = writeGraph f (solutionGraph s)
+  where
+    f              = queryFile Dot cfg
+
+--------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
 --------------------------------------------------------------------------------
-solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
+solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
      kEqs       = M.toList (F.sMap s)

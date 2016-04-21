@@ -32,7 +32,7 @@ type ValidateM a = Either E.Error a
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
-         >=> fM dropWfcFunctions
+         >=> fM sanitizeWfC
          >=> fM replaceDeadKvars
          >=> fM dropBogusSubstitutions
          >=>    banMixedRhs
@@ -54,17 +54,6 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
   where
     ks         = M.keys (F.ws si)
     dom        = S.fromList . F.kvarDomain si
-
----------------------------------------------------------------------------
--- filterBogusSubstitutions :: F.SInfo a -> F.SInfo a
--- ---------------------------------------------------------------------------
--- filterBogusSubstitutions fi = mapKVarSubsts (filterByDomain fi) fi
---
--- filterByDomain :: F.SInfo a -> F.KVar -> F.Subst -> F.Subst
--- filterByDomain si k su = F.filterSubst (go kDom) su
-  -- where
-    -- kDom = getDomain si k
-    -- go dom sym _ = sym `elem` dom
 
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
@@ -128,11 +117,6 @@ badRhs1 :: (Integer, F.SimpC a) -> E.Error
 badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+> pprint i
                                           , nest 4 (pprint (F.crhs c)) ]
 
--- | Conservative check that KVars appear at "top-level" in pred
--- isOkRhs :: F.Pred -> Bool
--- isOkRhs p = all isKvar ps  || all isConc ps
---  where
---     ps    = F.conjuncts p
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
@@ -208,17 +192,46 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
     defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
 --------------------------------------------------------------------------------
+-- | Drop irrelevant binders from WfC Environments
+--------------------------------------------------------------------------------
+sanitizeWfC :: F.SInfo a -> F.SInfo a
+sanitizeWfC si = si { F.ws = ws' }
+  where
+    keepF      = conjKF [nonConstantF si, nonFunctionF si]
+    (_, drops) = filterBindEnv keepF   $  F.bs si
+    ws'        = deleteWfCBinds drops <$> F.ws si
+
+conjKF :: [KeepBindF] -> KeepBindF
+conjKF fs x t = and [f x t | f <- fs]
+
+nonConstantF :: F.SInfo a -> KeepBindF
+nonConstantF si = \x _ -> not (x `F.memberSEnv` cEnv)
+  where
+    cEnv        = F.lits si
+
+nonFunctionF :: F.SInfo a -> KeepBindF
+nonFunctionF si
+  | F.allowHO si    = \_ _ -> True
+  | otherwise       = \_ t -> isNothing (F.functionSort t)
+
+--------------------------------------------------------------------------------
 -- | Drop functions from WfC environments
 --------------------------------------------------------------------------------
-dropWfcFunctions :: F.SInfo a -> F.SInfo a
---------------------------------------------------------------------------------
-dropWfcFunctions fi | F.allowHO fi = fi
-dropWfcFunctions fi = fi { F.ws = ws' }
-  where
-    nonFunction   = isNothing . F.functionSort
-    (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
-    ws'           = deleteWfCBinds discards          <$> F.ws fi
-
+-- dropWfcFunctions :: F.SInfo a -> F.SInfo a
+-- --------------------------------------------------------------------------------
+-- dropWfcFunctions fi | F.allowHO fi = fi
+-- dropWfcFunctions fi = fi { F.ws = ws' }
+  -- where
+    -- nonFunction   = isNothing . F.functionSort
+    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
+    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
+--
+-- dropWfcFunctions fi | F.allowHO fi = fi
+-- dropWfcFunctions fi = fi { F.ws = ws' }
+  -- where
+    -- nonFunction   = isNothing . F.functionSort
+    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
+    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
 
 --------------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
@@ -259,18 +272,3 @@ replaceDeadKvars fi = mapKVars go fi
   where
     go k | k `M.member` F.ws fi = Nothing
          | otherwise            = Just F.PFalse
-
----------------------------------------------------------------------------
--- | General helper functions
----------------------------------------------------------------------------
--- domain :: F.BindEnv -> F.WfC a -> [F.Symbol]
--- domain be wfc = Misc.fst3 (F.wrft wfc) : map fst (F.envCs be $ F.wenv wfc)
---
--- getDomain :: F.SInfo a -> F.KVar -> [F.Symbol]
--- getDomain si k = domain (F.bs si) (getWfC si k)
---
--- getWfC :: F.SInfo a -> F.KVar -> F.WfC a
--- getWfC si k = Misc.mlookup (F.ws si) k
---
--- freeVars :: F.Reft -> S.HashSet F.Symbol
--- freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft

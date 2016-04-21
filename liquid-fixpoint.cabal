@@ -11,6 +11,7 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
 
+
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types.
@@ -68,15 +69,19 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
-                   Language.Fixpoint.Types.Graphs,
                    Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,
+                   Language.Fixpoint.Graph.Types,
+                   Language.Fixpoint.Graph.Reducible,
+                   Language.Fixpoint.Graph.Indexed,
+                   Language.Fixpoint.Graph.Partition,
+                   Language.Fixpoint.Graph.Deps,
+                   Language.Fixpoint.Graph,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
-                   Language.Fixpoint.Partition,
                    Language.Fixpoint.Minimize,
                    Language.Fixpoint.Solver,
                    Language.Fixpoint.Parse,
@@ -84,8 +89,6 @@ Library
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
-                   Language.Fixpoint.Solver.Types,
-                   Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,

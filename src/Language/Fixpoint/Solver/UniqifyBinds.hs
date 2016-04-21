@@ -6,7 +6,7 @@
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Solver.Types  (CId)
+import           Language.Fixpoint.Graph (CId)
 import           Language.Fixpoint.Misc          (fst3, mlookup)
 
 import qualified Data.HashMap.Strict as M

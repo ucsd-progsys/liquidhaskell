@@ -113,6 +113,7 @@ sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
+
 functionSort :: Sort -> Maybe ([Int], [Sort], Sort)
 functionSort s
   | null is && null ss
@@ -154,9 +155,9 @@ mkFFunc i ss     = go [0..i-1] ss
    -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 bkFFunc :: Sort -> Maybe (Int, [Sort])
-bkFFunc t    = (maximum (0 : as),) <$> bkFun t' 
-  where 
-    (as, t') = bkAbs t 
+bkFFunc t    = (maximum (0 : as),) <$> bkFun t'
+  where
+    (as, t') = bkAbs t
 
 bkAbs :: Sort -> ([Int], Sort)
 bkAbs (FAbs i t) = (i:is, t') where (is, t') = bkAbs t
@@ -219,11 +220,12 @@ intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
 
-bitVecSort :: Sort 
+bitVecSort :: Sort
 mapSort :: Sort -> Sort -> Sort
 
-setSort :: Sort -> Sort 
+setSort :: Sort -> Sort
 setSort    = FApp (FTC $ symbolFTycon' "Set_Set")
+
 
 bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
 mapSort k v = FApp (FApp (FTC $ symbolFTycon' "Map_t") k) v

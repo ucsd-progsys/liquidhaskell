@@ -143,6 +143,9 @@ instance MonadError String CheckM where
                                       (j, Left s) -> runCM (f s) j
                                       (j, Right x) -> (j, Right x)
 
+withError :: CheckM a -> String -> CheckM a
+act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
+
 instance Functor CheckM where
   fmap f (CM m) = CM $ \i -> case m i of {(j, Left s) -> (j, Left s); (j, Right x) -> (j, Right $ f x)}
 
@@ -349,10 +352,10 @@ elab f (POr ps) = do
   ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f (PAtom Eq e1 e2) = do
+elab f e@(PAtom Eq e1 e2) = do
   t1        <- checkExpr f e1
   t2        <- checkExpr f e2
-  (t1',t2') <- unite f  t1 t2
+  (t1',t2') <- unite f  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
@@ -388,8 +391,8 @@ elabAppAs f t g es = do
   gT    <- generalize =<< checkExpr f g
   eTs   <- mapM (checkExpr f) es
   gTios <- sortFunction (length es) gT
-  su    <- unifys f (snd gTios:fst gTios) (t:eTs)
-  let tg = apply su gT 
+  su    <- unifys f (snd gTios : fst gTios) (t:eTs)
+  let tg = apply su gT
   g'    <- elabAs f tg g
   let ts = apply su <$> eTs
   es'   <- zipWithM (elabAs f) ts es
@@ -403,15 +406,10 @@ elabEApp f e1 e2 = do
   return (e1', s1, e2', s2, s)
 
 unite :: Env -> Sort -> Sort -> CheckM (Sort, Sort)
--- unite' f t1@(FObj l) t2@FInt = do
-  -- checkNumeric f l
-  -- return (t1, t2)
--- unite' f t1@FInt t2@(FObj l) = do
-  -- checkNumeric f l
-  -- return (t1, t2)
 unite f t1 t2 = do
   su <- unifys f [t1] [t2]
   return (apply su t1, apply su t2)
+
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
@@ -426,7 +424,7 @@ checkIte f p e1 e2
   = do checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
-       ((`apply` t1) <$> unifys f [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
+       ((`apply` t1) <$> unifys f [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -434,7 +432,7 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
+       ((`apply` t) <$> unifys f [t] [t']) `withError` (errCast e t' t)
 
 elabAppSort :: Env -> Sort -> Sort -> CheckM Sort
 elabAppSort f s1 s2 =
@@ -451,8 +449,8 @@ checkApp f to g es
 checkExprAs :: Env -> Sort -> Expr -> CheckM Sort
 checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
-checkExprAs f t e 
-  = do t' <- checkExpr f e 
+checkExprAs f t e
+  = do t' <- checkExpr f e
        θ  <- unifys f [t'] [t]
        return $ apply θ t
 
@@ -468,8 +466,8 @@ checkApp' f to g' e
        case to of
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ts = apply θ' <$> ets 
-                          _ <- zipWithM (checkExprAs f) ts es 
+                          let ts = apply θ' <$> ets
+                          _ <- zipWithM (checkExprAs f) ts es
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
@@ -490,6 +488,7 @@ checkOp f e1 o e2
   = do t1 <- checkExpr f e1
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
+
 
 checkOpTy :: PPrint a => Env -> a -> Sort -> Sort -> CheckM Sort
 checkOpTy _ _ FInt FInt
@@ -535,28 +534,31 @@ checkBoolSort e s
  | s == boolSort = return ()
  | otherwise     = throwError $ errBoolSort e s
 
+
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
-                                        su <- unifys f [t1] [t2]
-                                        checkExprAs f (apply su t1) e1 
-                                        checkExprAs f (apply su t2) e2
-                                        checkRelTy f (PAtom Eq e1 e2) Eq t1 t2
+                                        su <- (unifys f [t1] [t2]) `withError` (errRel e t1 t2)
+                                        _  <- checkExprAs f (apply su t1) e1
+                                        _  <- checkExprAs f (apply su t2) e2
+                                        checkRelTy f e Eq t1 t2
+                                     where
+                                        e = PAtom Eq e1 e2
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
-  = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l')
-checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
+  = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
+checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
+checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `withError` (errNonNumeric l)
 checkRelTy _ _ _ FReal FReal       = return ()
 checkRelTy _ _ _ FInt  FReal       = return ()
 checkRelTy _ _ _ FReal FInt        = return ()
-checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
-checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
+checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `withError` (errNonFractional l)
+checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `withError` (errNonFractional l)
 
 checkRelTy _ e Eq t1 t2
   | t1 == boolSort ||
@@ -564,8 +566,8 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy f _ Eq t1 t2            = void $ unifys f [t1] [t2]
-checkRelTy f _ Ne t1 t2            = void $ unifys f [t1] [t2]
+checkRelTy f e Eq t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f e Ne t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 
 checkRelTy _ _ Ueq _ _             = return ()
 checkRelTy _ _ Une _ _             = return ()
@@ -622,15 +624,16 @@ unify1 f θ t1 t2@(FAbs _ _) = do
   t2' <- generalize t2
   unifyMany f θ [t1] [t2']
 
-unify1 f θ (FObj l) FInt = do
-  checkNumeric f l
+unify1 f θ t@(FObj l) FInt = do
+  checkNumeric f l `withError` (errUnify t FInt)
   return θ
 
-unify1 f θ FInt (FObj l) = do
-  checkNumeric f l
+unify1 f θ FInt t@(FObj l) = do
+  checkNumeric f l `withError` (errUnify FInt t)
   return θ
 
 unify1 _ θ FInt  FReal = return θ
+
 unify1 _ θ FReal FInt  = return θ
 
 unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
@@ -701,9 +704,9 @@ sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
      Nothing          -> throwError $ errNonFunction i t
-     Just (_, ts, t') -> if length ts < i 
+     Just (_, ts, t') -> if length ts < i
                           then throwError $ errNonFunction i t
-                          else let (its, ots) = splitAt i ts 
+                          else let (its, ots) = splitAt i ts
                                in return (its, foldl FFunc t' ots)
 
 ------------------------------------------------------------------------
@@ -724,6 +727,8 @@ emptySubst = Th M.empty
 -------------------------------------------------------------------------
 -- | Error messages -----------------------------------------------------
 -------------------------------------------------------------------------
+
+errElabExpr e        = printf "Elaborate fails on %s" (showpp e)
 
 errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
 

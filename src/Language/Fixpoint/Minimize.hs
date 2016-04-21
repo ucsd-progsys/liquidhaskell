@@ -11,7 +11,7 @@ import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Config     (Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files      hiding (Result)
-import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
+import           Language.Fixpoint.Graph -- (mcInfo, partition, partition')
 import           Language.Fixpoint.Types
 import           Control.DeepSeq
 
@@ -23,11 +23,11 @@ minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
          -> IO (Result (Integer, a))
 ---------------------------------------------------------------------------
 minQuery cfg solve fi = do
-  let cfg'     = cfg { minimize = False }
-  let (_, fis) = partition' Nothing fi
-  failFis     <- filterM (fmap isUnsafe . solve cfg') fis
-  failCs      <- concatMapM (getMinFailingCons cfg' solve) failFis
-  let minFi    = fi { cm = M.fromList failCs, fileName = minFileName fi }
+  let cfg'  = cfg { minimize = False }
+  let fis   = partition' Nothing fi
+  failFis  <- filterM (fmap isUnsafe . solve cfg') fis
+  failCs   <- concatMapM (getMinFailingCons cfg' solve) failFis
+  let minFi = fi { cm = M.fromList failCs, fileName = minFileName fi }
   saveQuery cfg' minFi
   putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
   return mempty
