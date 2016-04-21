@@ -47,43 +47,53 @@ You can directly extend and run the tests by modifying
 
 To run the regression test *and* the benchmarks run
 
-     $ make all-test
+    $ make all-test
 
 How to Profile
 --------------
 
 1. Build with profiling on
-
+   
+    ```
     $ make pdeps && make prof
+    ```
 
 2. Run with profiling
-
+   
+    ```
     $ time liquid range.hs +RTS -hc -p
-
     $ time liquid range.hs +RTS -hy -p
-
-   Followed by this which shows the stats file
-
+    ```
+   
+    Followed by this which shows the stats file
+   
+    ```
     $ more liquid.prof
-
-   or by this to see the graph
-
+    ```
+   
+    or by this to see the graph
+   
+    ```
     $ hp2ps -e8in -c liquid.hp
-
     $ gv liquid.ps
-
-   etc.
+    ```
+    
+    etc.
 
 How to Get Stack Traces On Exceptions
 -------------------------------------
 
 1. Build with profiling on
-
+    
+    ```
     $ make pdeps && make prof
+    ```
 
 2. Run with backtraces
 
+    ```
     $ liquid +RTS -xc -RTS foo.hs
+    ```
 
 Working With Submodules
 -----------------------
@@ -141,6 +151,8 @@ Working With Submodules
     git checkout local/<branch>
     cd ..
     ```
+
+ - Updating `prover` submodule follows similarly
 
 Command Line Options
 ====================
@@ -277,13 +289,13 @@ Use the `totality` flag to prove that all defined functions are total.
 
 For example, the definition
 
-     fromJust :: Maybe a -> a
-     fromJust (Just a) = a
+    fromJust :: Maybe a -> a
+    fromJust (Just a) = a
 
 is not total and it will create an error message.
 If we exclude `Nothing` from its domain, for example using the following specification
 
-     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+    {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
 
 `fromJust` will be safe.
 
@@ -321,18 +333,18 @@ tells LiquidHaskell to instead use the *third* argument.
 Apart from specifying a specific decreasing measure for an Algebraic Data Type,
 the user can specify that the ADT follows the expected decreasing measure by
 
-  {-@ autosize L @-}
+    {-@ autosize L @-}
 
 Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`.
 
 For example, `autosize L` will refine the data constroctors of `L a` with the `autosize :: a -> Int` information, such that
 
-   Nil  :: {v:L a | autosize v = 0}
-   Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
+    Nil  :: {v:L a | autosize v = 0}
+    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
 
 Also, an invariant that `autosize` is non negative will be generated
 
-  invariant  {v:L a| autosize v >= 0 }
+    invariant  {v:L a| autosize v >= 0 }
 
 This information is all LiquidHaskell needs to prove termination on functions that recurse on `L a` (on ADTs in general.)
 
@@ -392,7 +404,7 @@ In this case, you can introduce a ghost parameter that orders the *functions*
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
 termination annotation `{-@ Decrease even 1 2 @-}` (see
-tests/pos/mutrec.hs for the full example).
+[tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
 
 Lazy Variables
 --------------
@@ -489,7 +501,6 @@ an instance of `GHC.Generics.Generic` or `Test.Targetable.Targetable`
 counter-examples for polymorphic types, but will try (naively) to
 instantiate type variables with `Int` (as seen in the example above).
 
-
 Writing Specifications
 ======================
 
@@ -517,7 +528,7 @@ Modules WITH code: Data
 -----------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the data definition. See, for example, `tests/pos/Map.hs`
+above the data definition. See, for example, [tests/pos/Map.hs](tests/pos/Map.hs)
 
     {-@
     data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
@@ -532,7 +543,7 @@ above the data definition. See, for example, `tests/pos/Map.hs`
                  | Bin Size k a (Map k a) (Map k a)
 
 You can also write invariants for data type definitions
-together with the types. For example see (tests/pos/record0.hs)
+together with the types. For example, see [tests/pos/record0.hs](tests/pos/record0.hs)
 
     {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
                          , elems :: {v: [a] | (len v) = size }
@@ -540,19 +551,19 @@ together with the types. For example see (tests/pos/record0.hs)
     @-}
 
 Finally you can specify the variance of type variables for data types.
-For example [see](tests/pos/Variance.hs), where data type `Foo` has four
+For example, see [tests/pos/Variance.hs](tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
 
-   data Foo a b c d
-   {-@ data variance Foo invariant bivariant covariant contravariant @-}
+    data Foo a b c d
+    {-@ data variance Foo invariant bivariant covariant contravariant @-}
 
 
 Modules WITH code: Functions
 ----------------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the function definition. For example (tests/pos/spec0.hs)
+above the function definition. [For example](tests/pos/spec0.hs)
 
     {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
     incr   :: Int -> Int
@@ -562,7 +573,7 @@ Modules WITH code: Type Classes
 ---------------------------------------
 
 Write the specification directly into the .hs or .lhs file,
-above the type class definition. For example (tests/pos/Class.hs)
+above the type class definition. [For example](tests/pos/Class.hs)
 
     {-@ class Sized s where
           size :: forall a. x:s a -> {v:Int | v = (size x)}
@@ -575,7 +586,7 @@ Any measures used in the refined class definition will need to be
 
 
 As an alternative, you can refine class instances.
-For example (tests/pos/LiquidClass.hs)
+[For example](tests/pos/LiquidClass.hs)
 
 ~~~~
 instance Compare Int where
@@ -584,7 +595,7 @@ instance Compare Int where
     cmax :: Odd -> Odd -> Odd
   @-}
 
-    cmax y x = if x >= y then x else y
+cmax y x = if x >= y then x else y
 ~~~~
 
 When `cmax` method is used on `Int`, liquidHaskell will give it
@@ -646,7 +657,7 @@ and then use the above in signatures like:
 
     {-@ incr: x: Int -> GeNum Int x @-}
 
-    or
+or
 
     {-@ incr: x: Int -> Gt x @-}
 
@@ -654,13 +665,13 @@ and:
 
     {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
 
-    [see](tests/pos/ListSort.hs)
+see [tests/pos/ListSort.hs](tests/pos/ListSort.hs)
 
 and:
 
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-    [see](tests/pos/Map.hs)
+see [tests/pos/Map.hs](tests/pos/Map.hs)
 
 **Syntax:** The key requirements for type aliases are:
 
@@ -668,21 +679,18 @@ and:
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
-
-
 Specifying Measures
 -------------------
 
-Can be placed in .spec file or in .hs/.lhs file wrapped around {-@ @-}
+Can be placed in .spec file or in .hs/.lhs file wrapped around `{-@ @-}`
 
-Value measures (include/GHC/Base.spec)
+Value measures: [include/GHC/Base.spec](include/GHC/Base.spec)
 
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
     len (y:ys)   = 1 + len(ys)
 
-
-Propositional measures (tests/pos/LambdaEval.hs)
+Propositional measures: [tests/pos/LambdaEval.hs](tests/pos/LambdaEval.hs)
 
     {-@
     measure isValue      :: Expr -> Bool
@@ -696,15 +704,14 @@ Propositional measures (tests/pos/LambdaEval.hs)
     isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
     @-}
 
-Raw measures (tests/pos/meas8.hs)
+Raw measures: [tests/pos/meas8.hs](tests/pos/meas8.hs)
 
     {-@ measure rlen :: [a] -> Int
     rlen ([])   = {v | v = 0}
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
 
-
-Generic measures (tests/pos/Class.hs)
+Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
 
     {-@ class measure size :: a -> Int @-}
     {-@ instance measure size :: [a] -> Int
@@ -717,11 +724,11 @@ Generic measures (tests/pos/Class.hs)
     @-}
 
 
-Haskell Functions as Measures (beta) (tests/pos/HaskellMeasure.hs)
+Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/HaskellMeasure.hs)
 
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
-    {-@ measure llen @-}
 
+    {-@ measure llen @-}
     llen        :: [a] -> Int
     llen []     = 0
     llen (x:xs) = 1 + llen xs
@@ -729,9 +736,9 @@ Inductive Haskell Functions from Data Types to some type can be lifted to logic
 The above definition 
   - refines list's data constructors types with the llen information, and 
   - specifies a singleton type for the haskell function 
-         `llen :: xs:[a] -> {v:Int | v == llen xs}`
+        `llen :: xs:[a] -> {v:Int | v == llen xs}`
     If the user specifies another type for llen, say 
-         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
+        `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
     then the auto generated singleton type is overwriten.
 
 Self-Invariants
@@ -778,7 +785,6 @@ See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
 Invariants
 ==========
 
-
 **WARNING:** Do not use this mechanism -- it is *unsound* and about to be
 replaced with something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
 
@@ -794,7 +800,7 @@ Then, LiquidHaskell assumes that each list element that is created satisfies
 this invariant.
 
 Second, there are *local* invariants that one may use. For
-example, in [test/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
 list is treated as a Stream. To establish this local invariant one can use the
 `using` declaration
 
@@ -809,7 +815,7 @@ this invariant.
 
 With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
-But, at [test/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
+But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 Formal Grammar of Refinement Predicates
@@ -861,8 +867,6 @@ Formal Grammar of Refinement Predicates
        | false
 
 
-
-
 Specifying Qualifiers
 =====================
 
@@ -908,7 +912,6 @@ the specifications you write i.e.
 3. data constructor definitions.
 
 
-
 Generating HTML Output
 ======================
 
@@ -931,7 +934,6 @@ verification attempts.
 
 Editor Integration
 ==================
-
 
 + [Emacs/Flycheck](https://github.com/ucsd-progsys/liquid-types.el)
 + [Vim/Syntastic](https://github.com/ucsd-progsys/liquid-types.vim)
@@ -958,9 +960,9 @@ To see all options, run `liquid --help`. Here are some common options:
 **Pragmas** are useful for embedding options directly within the source file,
 that is, somewhere in the file (perhaps at the top) put in:
 
-   {-@ LIQUID "--diff"        @-}
-   {-@ LIQUID "--short-names" @-}
-   {-@ LIQUID "--cabaldir"    @-}
+    {-@ LIQUID "--diff"        @-}
+    {-@ LIQUID "--short-names" @-}
+    {-@ LIQUID "--cabaldir"    @-}
 
 to have the relevant option be used for that file.
 
@@ -982,10 +984,8 @@ following dependencies available:
 After ensuring all dependencies are available, from the Liquid Haskell
 directory, execute:
 
-```
-cd scripts/performance
-./deploy-gipeda.bash
-```
+    cd scripts/performance
+    ./deploy-gipeda.bash
 
 This will download and install all the relevant repositories and files. Next, to
 generate the performance report, use the `generate-site.bash` script. This script
@@ -1004,25 +1004,19 @@ You should expect this process to take a very long time. `generate-site.bash`
 will compile each commit, then run the entire test suite and benchmark suite
 for each commit. It is suggested to provide a managable range to `generate-site.bash`:
 
-```
-./generate-site.bash -s [starting hash] -e [ending hash]
-```
+    ./generate-site.bash -s [starting hash] -e [ending hash]
 
 ...will generate reports for all commits between (inclusive) [starting hash]
 and [ending hash].
 
-```
-./generate-site.bash -s [starting hash]
-```
+    ./generate-site.bash -s [starting hash]
 
 ... will generate reports for all commits newer than [starting hash]. This command
 can be the basis for some automated report generation process (i.e. a cron job).
 
 Finally, to remove the Gipeda infrastructure from your computer, you may execute:
 
-```
-./cleanup-gipeda.bash
-```
+    ./cleanup-gipeda.bash
 
 ...which will remove any files created by `deploy-gipeda.bash` and `generate-site.bash`
 from your computer.

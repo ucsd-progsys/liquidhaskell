@@ -471,49 +471,51 @@ ppFull Full  d = d
 ppFull Lossy _ = empty
 
 ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
-ppReqInContext _ tA tE c
+ppReqInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV :" <+> pprintTidy Lossy tA]
+                , text "VV :" <+> pprintTidy td tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV :" <+> pprintTidy Lossy tE]
+                , text "VV :" <+> pprintTidy td tE]
       , nests 2 [ text "In Context"
-                , pprintTidy Lossy c                 ]]
+                , pprintTidy td c
+                ]
+      ]
 
-                -- , vsep (map (uncurry pprintModel . second NoModel) (M.toList c))
-                --  ]
-               ---  ]
 
 ppReqModelInContext
-  :: (PPrint t) => WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
-ppReqModelInContext tA tE c
+  :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
+ppReqModelInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , pprintModel "VV" tA]
+                , pprintModel td "VV" tA]
       , nests 2 [ text "not a subtype of Required type"
-                , pprintModel "VV" (NoModel tE)]
+                , pprintModel td "VV" (NoModel tE)]
       , nests 2 [ text "In Context"
-                , vsep (map (uncurry pprintModel) (M.toList c))
+                , vsep (map (uncurry (pprintModel td)) (M.toList c))
                 ]
       ]
 
 vsep :: [Doc] -> Doc
 vsep = vcat . intersperse (char ' ')
 
-pprintModel :: PPrint t => Symbol -> WithModel t -> Doc
-pprintModel v wm = case wm of
-  NoModel t     -> pprint v <+> char ':' <+> pprint t
-  WithModel m t -> pprint v <+> char ':' <+> pprint t
-                   $+$
-                   pprint v <+> char '=' <+> pprint m
+pprintModel :: PPrint t => Tidy -> Symbol -> WithModel t -> Doc
+pprintModel td v wm = case wm of
+  NoModel t
+    -> pprintTidy td v <+> char ':' <+> pprintTidy td t
+  WithModel m t
+    -> pprintTidy td v <+> char ':' <+> pprintTidy td t $+$
+       pprintTidy td v <+> char '=' <+> pprintTidy td m
 
 ppPropInContext :: (PPrint p, PPrint c) => Tidy -> p -> c -> Doc
-ppPropInContext _ p c
+ppPropInContext td p c
   = sepVcat blankLine
       [ nests 2 [ text "Property"
-                , pprintTidy Lossy p]
+                , pprintTidy td p]
       , nests 2 [ text "Not provable in context"
-                , pprintTidy Lossy c                 ]]
+                , pprintTidy td c
+                ]
+      ]
 
 instance ToJSON RealSrcSpan where
   toJSON sp = object [ "filename"  .= f
@@ -579,7 +581,7 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError' td dSp dCtx (ErrAssType _ o _ c p)
-  = dSp <+> pprint o
+  = dSp <+> pprintTidy td o
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext td p c)
 
@@ -591,7 +593,7 @@ ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
 ppError' td dSp dCtx (ErrSubTypeModel _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqModelInContext tA tE c)
+        $+$ (ppFull td $ ppReqModelInContext td tA tE c)
 
 ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"

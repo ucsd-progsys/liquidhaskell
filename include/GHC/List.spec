@@ -1,8 +1,8 @@
 module spec GHC.List where 
 
-head         :: xs:{v: [a] | len(v) > 0} -> a
+head         :: xs:{v: [a] | len(v) > 0} -> {v:a | v = head xs}
 
-tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1)}
+tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1) && v = tail xs}
 last         :: xs:{v: [a] | len(v) > 0} -> a
 
 init         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}
