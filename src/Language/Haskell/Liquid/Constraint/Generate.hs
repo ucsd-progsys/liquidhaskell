@@ -453,14 +453,23 @@ refreshArgsSub t
        xs'    <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus
-       let ts' = zipWith F.subst sus ts
-       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = F.subst su tbd}
+       ts'    <- mapM refreshPs $zipWith F.subst sus ts
+       tr     <- refreshPs $ F.subst su tbd
+       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr}
        return (t', su)
     where
        trep    = toRTypeRep t
        xs      = ty_binds trep
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
+
+refreshPs :: SpecType -> CG SpecType
+refreshPs = mapPropM go 
+  where
+    go (RProp s t) = do t'    <- refreshPs t 
+                        xs    <- mapM (\_ -> fresh) s
+                        let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
+                        return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t' 
 
 -------------------------------------------------------------------------------
 -- | TERMINATION TYPE --------------------------------------

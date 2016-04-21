@@ -101,7 +101,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
-  , mapReft, mapReftM
+  , mapReft, mapReftM, mapPropM
   , mapBot, mapBind
 
   -- * ???
@@ -582,7 +582,6 @@ instance Show TyConInfo where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
 data RType c tv r
   = RVar {
       rt_var    :: !tv
@@ -1200,6 +1199,20 @@ mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (
 
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
 mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
+
+mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
+mapPropM _ (RVar α r)         = return $ RVar  α r
+mapPropM f (RAllT α t)        = liftM   (RAllT α)   (mapPropM f t)
+mapPropM f (RAllP π t)        = liftM   (RAllP π)   (mapPropM f t)
+mapPropM f (RAllS s t)        = liftM   (RAllS s)   (mapPropM f t)
+mapPropM f (RFun x t t' r)    = liftM3  (RFun x)    (mapPropM f t)          (mapPropM f t') (return r)
+mapPropM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
+mapPropM f (RAllE z t t')     = liftM2  (RAllE z)   (mapPropM f t)          (mapPropM f t')
+mapPropM f (REx z t t')       = liftM2  (REx z)     (mapPropM f t)          (mapPropM f t')
+mapPropM _ (RExprArg e)       = return  $ RExprArg e
+mapPropM f (RAppTy t t' r)    = liftM3  RAppTy (mapPropM f t) (mapPropM f t') (return r)
+mapPropM _ (RHole r)          = return $ RHole r
+mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
 
 
 --------------------------------------------------------------------------------
