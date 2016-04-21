@@ -1174,6 +1174,7 @@ isBase (RFun _ _ _ _)   = False
 isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
 isBase (RRTy _ _ _ t)   = isBase t
 isBase (RAllE _ _ t)    = isBase t
+isBase (REx _ _ t)      = isBase t
 isBase _                = False
 
 isFunTy :: RType t t1 t2 -> Bool
