@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Constraint.Types
@@ -143,21 +142,18 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance PPrint SubC where
-  -- pprint c = pprint (senv c)
-  --           $+$ (text " |- " <+> (pprint (lhs c) $+$
-  --                                 text "<:"      $+$
-  --                                 pprint (rhs c)))
   pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
-                       $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
-                                           , "<:"
-                                           , pprintTidy k (rhs c) ] )
+                             $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
+                                                 , "<:"
+                                                 , pprintTidy k (rhs c) ] )
   pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
-                       $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
-                                           , parens (pprintTidy k (oblig c))])
+                             $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
+                                                 , parens (pprintTidy k (oblig c))])
 
 
 instance PPrint WfC where
   pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
+
 
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
@@ -199,10 +195,10 @@ data CGInfo = CGInfo {
   }
 
 instance PPrint CGInfo where
-  pprintTidy _ cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
+  pprintTidy = pprCGInfo
 
-pprCGInfo :: t -> Doc
-pprCGInfo _cgi
+pprCGInfo :: a -> CGInfo -> Doc
+pprCGInfo _ _cgi
   =  text "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)

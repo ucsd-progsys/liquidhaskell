@@ -25,7 +25,6 @@ import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
 import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
-
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
@@ -121,9 +120,7 @@ ofBDataDecl Nothing (Just (tc, is))
 ofBDataDecl Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
-getPsSig
-  :: RefTypable t t1 (UReft t2)
-  => [(UsedPVar,a)] -> Bool -> RType t t1 (UReft t2) -> [(a,Bool)]
+getPsSig :: [(UsedPVar, a)] -> Bool -> SpecType -> [(a, Bool)]
 getPsSig m pos (RAllT _ t)
   = getPsSig m pos t
 getPsSig m pos (RApp _ ts rs r)
@@ -140,11 +137,7 @@ getPsSig m pos (RHole r)
 getPsSig _ _ z
   = panic Nothing $ "getPsSig" ++ show z
 
-getPsSigPs :: RefTypable t1 t2 (UReft t3)
-           => [(UsedPVar,a)]
-           -> Bool
-           -> Ref t (RType t1 t2 (UReft t3))
-           -> [(a,Bool)]
+getPsSigPs :: [(UsedPVar, a)] -> Bool -> SpecProp -> [(a, Bool)]
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 

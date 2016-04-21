@@ -101,6 +101,13 @@ Executable lhi
     ghc-options: -Werror
   Default-Extensions: PatternGuards
 
+executable target
+  default-language: Haskell2010
+  main-is:        src/Target.hs
+  build-depends:  base,
+                  hint,
+                  liquidhaskell
+
 Library
    Default-Language: Haskell98
    Build-Depends: base >= 4 && < 5
@@ -128,7 +135,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.5 && < 0.6
+                , liquid-fixpoint 
                 , located-base
                 , prover
                 , aeson >= 0.10
@@ -138,6 +145,13 @@ Library
                 , bifunctors >= 5.1
                 , cereal
                 , temporary >= 1.2
+                , transformers >= 0.3
+                , text-format
+                , th-lift
+                , exceptions >= 0.6
+                , QuickCheck >= 2.7
+                , ghc-prim
+
 
    hs-source-dirs:  src, include
 
@@ -214,6 +228,7 @@ Library
                     Language.Haskell.Liquid.Bare.Spec,
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,
+                    Language.Haskell.Liquid.Model,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,
@@ -231,7 +246,19 @@ Library
                     Language.Haskell.Liquid.Desugar710.HscMain,
                     Language.Haskell.Liquid.Desugar710.Match,
                     Language.Haskell.Liquid.Desugar710.MatchCon,
-                    Language.Haskell.Liquid.Desugar710.MatchLit
+                    Language.Haskell.Liquid.Desugar710.MatchLit,
+
+                    Test.Target,
+                    Test.Target.Eval,
+                    Test.Target.Expr,
+                    Test.Target.Monad,
+                    Test.Target.Serialize,
+                    Test.Target.Targetable,
+                    Test.Target.Targetable.Function,
+                    Test.Target.Testable,
+                    Test.Target.Types,
+                    Test.Target.Util
+
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
      hs-source-dirs: devel

@@ -56,6 +56,7 @@ import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
@@ -222,7 +223,11 @@ config = cmdArgsMode $ Config {
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
- } &= verbosity
+
+ , counterExamples
+    = False &= name "counter-examples"
+            &= help "Attempt to generate counter-examples to type errors (experimental!)"
+} &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
    &= summary copyright
@@ -375,6 +380,7 @@ defConfig = Config { files          = def
                    , scrapeUsedImports  = False
                    , elimStats      = False
                    , json           = False
+                   , counterExamples= False
                    }
 
 ------------------------------------------------------------------------
@@ -419,20 +425,20 @@ writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns
 
 type CError = CtxError Doc
 
-writeResult :: Config -> Moods -> FixResult CError -> IO ()
+writeResult :: Config -> Moods -> F.FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
-    tidy                   = if shortErrors cfg then Lossy else Full
+    tidy                   = if shortErrors cfg then F.Lossy else F.Full
     writeDoc c (i, d)      = writeBlock c i $ lines $ render d
     writeBlock _ _ []      = return ()
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 
-resDocs :: Tidy -> FixResult CError -> [Doc]
-resDocs _ Safe             = [text "RESULT: SAFE"]
-resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
-resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
+resDocs :: F.Tidy -> F.FixResult CError -> [Doc]
+resDocs _ F.Safe           = [text "RESULT: SAFE"]
+resDocs k (F.Crash xs s)   = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
+resDocs k (F.Unsafe xs)    = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
@@ -451,5 +457,5 @@ addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 
-instance Fixpoint (FixResult CError) where
-  toFix = vcat . resDocs Full
+instance Fixpoint (F.FixResult CError) where
+  toFix = vcat . resDocs F.Full

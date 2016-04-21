@@ -367,9 +367,7 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = bareTypeP >>= either parserFail return . mkPredVarType
 
-mkPredVarType :: RefTypable (Located Symbol) tv r
-              => RType (Located Symbol) tv r
-              -> Either [Char] [(Symbol, RType (Located Symbol) tv ())]
+mkPredVarType :: BareType -> Either String [(Symbol, BSort)]
 mkPredVarType t
   | isOk      = Right $ zip xs ts
   | otherwise = Left err

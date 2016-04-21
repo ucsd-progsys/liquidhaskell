@@ -8,14 +8,16 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo
+    getGhcInfo,
+    runLiquidGhc,
 
   -- * printer
-  , pprintCBs
+    pprintCBs
   ) where
 
 import Prelude hiding (error)
 
+import qualified Outputable as O
 import GHC hiding (Target, desugarModule, Located)
 import qualified GHC
 import GHC.Paths (libdir)
@@ -95,7 +97,7 @@ getGhcInfo' cfg target name tgtSpec = do
   (spc, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name modGuts tgtSpec logicMap impSpecs
   liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualFiles <- moduleHquals modGuts paths target imps incs
-  let info    = GI target hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
+  let info    = GI target (getModName name) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualFiles imps incs spc
   hscEnv'    <- getSession
   return (info, hscEnv')
 
@@ -114,7 +116,9 @@ runLiquidGhc hscEnv cfg act =
       let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                      , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                      , includePaths = nub $ idirs cfg ++ includePaths df'
-                     , packageFlags = ExposePackage (PackageArg "ghc-prim") (ModRenaming True []) : packageFlags df'
+                     , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                                                    (ModRenaming True [])
+                                    : packageFlags df'
                      -- , profAuto     = ProfAutoCalls
                      , ghcLink      = LinkInMemory
                      -- FIXME: this *should* be HscNothing, but that prevents us from
@@ -130,9 +134,11 @@ runLiquidGhc hscEnv cfg act =
                      , hiDir        = Just tmp
                      , stubDir      = Just tmp
                      } `xopt_set` Opt_MagicHash
+                       `xopt_set` Opt_DeriveGeneric
+                       `xopt_set` Opt_StandaloneDeriving
                        `gopt_set` Opt_ImplicitImportQualified
                        `gopt_set` Opt_PIC
-      setSessionDynFlags df''
+      _ <- setSessionDynFlags df''
       defaultCleanupHandler df'' act
 
 --------------------------------------------------------------------------------
@@ -392,37 +398,43 @@ reqFile ext s
 --------------------------------------------------------------------------------
 
 instance PPrint GhcSpec where
-  pprintTidy k spec = vcat [
-      "******* Target Variables ********************"
-    , pprintTidy k (tgtVars spec)
+  pprintTidy k spec = vcat
+    [ "******* Target Variables ********************"
+    , pprintTidy k $ tgtVars spec
     , "******* Type Signatures *********************"
-    , pprintLongList (tySigs spec)
+    , pprintLongList k (tySigs spec)
     , "******* Assumed Type Signatures *************"
-    , pprintLongList (asmSigs spec)
+    , pprintLongList k (asmSigs spec)
     , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList (ctors spec)
+    , pprintLongList k (ctors spec)
     , "******* Measure Specifications **************"
-    , pprintLongList (meas spec)
-    ]
+    , pprintLongList k (meas spec)                   ]
 
 instance PPrint GhcInfo where
-  pprintTidy k info =  vcat [
-      "*************** Imports *********************"
-    , intersperse comma (text <$> imports info)
+  pprintTidy k info = vcat
+    [ "*************** Imports *********************"
+    , intersperse comma $ text <$> imports info
     , "*************** Includes ********************"
-    , intersperse comma (text <$> includes info)
+    , intersperse comma $ text <$> includes info
     , "*************** Imported Variables **********"
-    , pprDoc (impVars info)
+    , pprDoc $ impVars info
     , "*************** Defined Variables ***********"
-    , pprDoc (defVars info)
+    , pprDoc $ defVars info
     , "*************** Specification ***************"
-    , pprintTidy k (spec info)
+    , pprintTidy k $ spec info
     , "*************** Core Bindings ***************"
-    , pprintCBs (cbs info)
-    ]
+    , pprintCBs $ cbs info                          ]
+
+
+-- RJ: the silly guards below are to silence the unused-var checker
 
 pprintCBs :: [CoreBind] -> Doc
-pprintCBs = pprDoc . tidyCBs
+pprintCBs
+  | True      = pprintCBsTidy
+  | otherwise = pprintCBsVerbose
+  where
+    pprintCBsTidy    = pprDoc . tidyCBs
+    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show GhcInfo where
   show = showpp

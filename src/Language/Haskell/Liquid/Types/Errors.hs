@@ -22,6 +22,9 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Subtyping Obligation Type
   , Oblig (..)
 
+  -- * Adding a Model of the context
+  , WithModel (..), dropModel
+
   -- * Panic (unexpected failures)
   , UserError
   --, HiddenType (..)
@@ -41,7 +44,7 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-
+-- import           Data.Bifunctor
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
 import           GHC.Generics
@@ -52,7 +55,7 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), pprint, Symbol, Expr)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import           Language.Fixpoint.Misc       ({- traceShow, -} dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
@@ -65,11 +68,11 @@ import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
 
 instance PPrint ParseError where
-  pprintTidy _ e = vcat $ tail $ map text ls
+  pprintTidy _ e = vcat $ tail $ text <$> ls
     where
-      ls = lines $ showErrorMessages "or" "unknown parse error"
-                                     "expecting" "unexpected" "end of input"
-                                     (errorMessages e)
+      ls         = lines $ showErrorMessages "or" "unknown parse error"
+                               "expecting" "unexpected" "end of input"
+                               (errorMessages e)
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -173,6 +176,14 @@ data TError t =
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
+
+  | ErrSubTypeModel
+               { pos  :: !SrcSpan
+               , msg  :: !Doc
+               , ctxM  :: !(M.HashMap Symbol (WithModel t))
+               , tactM :: !(WithModel t)
+               , texp :: !t
+               } -- ^ liquid type error with a counter-example
 
   | ErrFCrash  { pos  :: !SrcSpan
                , msg  :: !Doc
@@ -322,7 +333,7 @@ data TError t =
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
 
-  deriving (Typeable, Generic, Functor)
+  deriving (Typeable, Generic , Functor )
 
 instance NFData ParseError where
   rnf t = seq t ()
@@ -344,6 +355,21 @@ errSpan =  pos
 -- | Simple unstructured type for panic ----------------------------------------
 --------------------------------------------------------------------------------
 type UserError  = TError Doc
+
+instance PPrint UserError where
+  pprintTidy k = ppError k empty . fmap (pprintTidy Lossy)
+
+data WithModel t
+  = NoModel t
+  | WithModel !Doc t
+  deriving (Functor, Show, Eq, Generic)
+
+instance NFData t => NFData (WithModel t)
+
+dropModel :: WithModel t -> t
+dropModel m = case m of
+  NoModel t     -> t
+  WithModel _ t -> t
 
 instance PPrint SrcSpan where
   pprintTidy _ = pprSrcSpan
@@ -379,9 +405,6 @@ pprRealSrcSpan span
 
    pathDoc = text $ normalise $ unpackFS path
    ecol'   = if ecol == 0 then ecol else ecol - 1
-
-instance PPrint UserError where
-  pprintTidy k = ppError k empty . fmap pprint
 
 instance Show UserError where
   show = showpp
@@ -447,24 +470,52 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-ppReqInContext :: (PPrint t, PPrint c) => t -> t -> c -> Doc
-ppReqInContext tA tE c
+ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
+ppReqInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV :" <+> pprint tA]
+                , text "VV :" <+> pprintTidy td tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV :" <+> pprint tE]
+                , text "VV :" <+> pprintTidy td tE]
       , nests 2 [ text "In Context"
-                , pprint c                 ]]
+                , pprintTidy td c
+                ]
+      ]
 
 
-ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc
-ppPropInContext p c
+ppReqModelInContext
+  :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
+ppReqModelInContext td tA tE c
+  = sepVcat blankLine
+      [ nests 2 [ text "Inferred type"
+                , pprintModel td "VV" tA]
+      , nests 2 [ text "not a subtype of Required type"
+                , pprintModel td "VV" (NoModel tE)]
+      , nests 2 [ text "In Context"
+                , vsep (map (uncurry (pprintModel td)) (M.toList c))
+                ]
+      ]
+
+vsep :: [Doc] -> Doc
+vsep = vcat . intersperse (char ' ')
+
+pprintModel :: PPrint t => Tidy -> Symbol -> WithModel t -> Doc
+pprintModel td v wm = case wm of
+  NoModel t
+    -> pprintTidy td v <+> char ':' <+> pprintTidy td t
+  WithModel m t
+    -> pprintTidy td v <+> char ':' <+> pprintTidy td t $+$
+       pprintTidy td v <+> char '=' <+> pprintTidy td m
+
+ppPropInContext :: (PPrint p, PPrint c) => Tidy -> p -> c -> Doc
+ppPropInContext td p c
   = sepVcat blankLine
       [ nests 2 [ text "Property"
-                , pprint p]
+                , pprintTidy td p]
       , nests 2 [ text "Not provable in context"
-                , pprint c                 ]]
+                , pprintTidy td c
+                ]
+      ]
 
 instance ToJSON RealSrcSpan where
   toJSON sp = object [ "filename"  .= f
@@ -530,19 +581,24 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError' td dSp dCtx (ErrAssType _ o _ c p)
-  = dSp <+> pprint o
+  = dSp <+> pprintTidy td o
         $+$ dCtx
-        $+$ (ppFull td $ ppPropInContext p c)
+        $+$ (ppFull td $ ppPropInContext td p c)
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext td tA tE c)
+
+ppError' td dSp dCtx (ErrSubTypeModel _ _ c tA tE)
+  = dSp <+> text "Liquid Type Mismatch"
+        $+$ dCtx
+        $+$ (ppFull td $ ppReqModelInContext td tA tE c)
 
 ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext td tA tE c)
 
 ppError' _ dSp dCtx (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"

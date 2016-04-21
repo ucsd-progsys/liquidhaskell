@@ -190,15 +190,11 @@ initEnv info
     mapSndM f (x,y) = (x,) <$> f y
     makedcs      = map strengthenDataConType
 
-makeDataConTypes :: Var
-                 -> State CGInfo (Var, SpecType)
+makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
 
-makeAutoDecrDataCons :: RefTypable c tv ()
-                     => [(Id, RType c tv RReft)]
-                     -> S.HashSet TyCon
-                     -> [Id]
-                     -> ([Located (RType c tv RReft)], [(Id, RType c tv RReft)])
+makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
+
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where
@@ -217,11 +213,7 @@ makeAutoDecrDataCons dcts specenv dcs
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 
-makeSizedDataCons :: RefTypable c tv ()
-                  => [(Id, RType c tv RReft)]
-                  -> DataCon
-                  -> Integer
-                  -> (RType c tv (), (Id, RType c tv RReft))
+makeSizedDataCons :: [(Id, SpecType)] -> DataCon -> Integer -> (RSort, (Id, SpecType))
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
       x      = dataConWorkId x'
@@ -242,7 +234,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
       | x == y    = (x, mXY x tx y ty) : merge xs ys
       | x <  y    = xt : merge xs (yt : ys)
       | otherwise = yt : merge (xt : xs) ys
-    mXY x tx y ty = meetVarTypes (pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
+    mXY x tx y ty = meetVarTypes (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)
              => [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
@@ -412,14 +404,25 @@ freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   kvars   (kuts s)   }
+addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+                     when (isKut k) $ addKuts k t -- ks
+                     -- modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
   where
-     kvars      = F.KS $ S.fromList $ specTypeKVars t
+     ks         = F.KS $ S.fromList $ specTypeKVars t
 
-isKut          :: KVKind -> Bool
-isKut RecBindE = True
-isKut _        = False
+isKut              :: KVKind -> Bool
+isKut (RecBindE _) = True
+isKut _            = False
+
+{- -}
+
+addKuts :: (PPrint a) => a -> SpecType -> CG ()
+addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
+  where
+     ks'     = S.fromList $ specTypeKVars t
+     ks
+       | S.null ks' = ks'
+       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
@@ -488,10 +491,7 @@ makeDecrIndex (x, Asserted t)
          Right i  -> return i
 makeDecrIndex _ = return []
 
-makeDecrIndexTy :: RefTypable RTyCon tv r
-                => Var
-                -> RType RTyCon tv r
-                -> State CGInfo (Either (TError t) [Int])
+makeDecrIndexTy :: Var -> SpecType -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
@@ -503,7 +503,7 @@ makeDecrIndexTy x t
        ts         = ty_args trep
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
-       msg        = ErrTermin (getSrcSpan x) [pprint x] (text "No decreasing parameter")
+       msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
@@ -532,9 +532,9 @@ checkIndex (x, vs, t, index)
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg1  = ErrTermin loc [xd] ("No decreasing" <+>  pprint index <> "-th argument on" <+> xd <+> "with" <+> (pprint vs))
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
        msg2  = ErrTermin loc [xd] "No decreasing parameter"
-       xd    = pprint x
+       xd    = F.pprint x
 
 makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
             => S.HashSet TyCon
@@ -592,7 +592,7 @@ checkHint x _ _ (Just ns) | L.sort ns /= ns
   = addWarning (ErrTermin loc [dx] (text "The hints should be increasing")) >> return Nothing
   where
     loc = getSrcSpan x
-    dx  = pprint x
+    dx  = F.pprint x
 
 checkHint x ts f (Just ns)
   = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
@@ -608,11 +608,11 @@ checkValidHint x ts f n
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
   where
-    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> pprint (n+1) <+> "for" <+> xd
+    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> F.pprint (n+1) <+> "for" <+> xd
                                    , "in"
-                                   , pprint ts ])
+                                   , F.pprint ts ])
     loc = getSrcSpan x
-    xd  = pprint x
+    xd  = F.pprint x
 
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
@@ -687,7 +687,7 @@ consCBSizedTys γ xes
        return γ'
   where
        (xs, es)       = unzip xes
-       dxs            = pprint <$> xs
+       dxs            = F.pprint <$> xs
        collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
@@ -779,7 +779,7 @@ consCB tflag _ γ (Rec xes) | tflag
 
 consCB _ str γ (Rec xes) | not str
   = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       sflag     <- scheck <$> get
+       sflag   <- scheck <$> get
        let cmakeDivType = if sflag then makeDivType else id
        let xets = mapThd3 (fmap cmakeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -825,7 +825,7 @@ consCB _ _ γ (NonRec x e)
 --------------------------------------------------------------------------------
 consBind :: Bool
          -> CGEnv
-         -> (Var, CoreExpr ,Template SpecType)
+         -> (Var, CoreExpr, Template SpecType)
          -> CG (Template SpecType)
 --------------------------------------------------------------------------------
 consBind _ _ (x, _, t)
@@ -841,7 +841,7 @@ consBind isRec γ (x, e, Asserted spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
+       return $ Asserted spect
 
 consBind isRec γ (x, e, Internal spect)
   = do let γ'         = γ `setBind` x
@@ -863,12 +863,13 @@ consBind isRec γ (x, e, Assumed spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
-  where πs   = ty_preds $ toRTypeRep spect
+       return $ Asserted spect
+    where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
+       when (isExportedId x) (addKuts x t)
        return $ Asserted t
 
 
@@ -935,7 +936,7 @@ varTemplate γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
+      (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
@@ -1265,15 +1266,12 @@ isClassConCo co
 -- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
 --   the above existential elimination is not easy (e.g. at joins, recursive binders)
 
-cconsFreshE :: KVKind
-            -> CGEnv
-            -> CoreExpr
-            -> State CGInfo SpecType
-cconsFreshE kvkind γ e
-  = do t   <- freshTy_type kvkind e $ exprType e
-       addW $ WfC γ t
-       cconsE γ e t
-       return t
+cconsFreshE :: KVKind -> CGEnv -> Expr Var -> CG SpecType
+cconsFreshE kvkind γ e = do
+  t   <- freshTy_type kvkind e $ exprType e
+  addW $ WfC γ t
+  cconsE γ e t
+  return t
 
 checkUnbound :: (Show a, Show a2, F.Subable a)
              => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
@@ -1411,22 +1409,19 @@ instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
-checkTyCon :: (Outputable a1, RefTypable t t1 t2)
-           => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkTyCon :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t
 
-checkFun :: (Outputable a1, RefTypable t t1 t2)
-         => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkFun :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
 
-checkAll :: (Outputable a1, RefTypable t t1 t2)
-         => ([Char], a1) -> RType t t1 t2 -> RType t t1 t2
+checkAll :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr :: (Outputable a1, PPrint a2) => ([Char], a1) -> a2 -> a
+checkErr :: (Outputable a) => (String, a) -> SpecType -> SpecType
 checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
 
 varAnn :: CGEnv -> Var -> t -> Annot t

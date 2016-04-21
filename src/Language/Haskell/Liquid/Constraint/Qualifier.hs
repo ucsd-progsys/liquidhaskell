@@ -66,7 +66,6 @@ specificationQualifiers k info lEnv
 
 
 -- TODO: rewrite using foldReft'
--- refTypeQuals :: SpecType -> [Qualifier]
 refTypeQuals :: SEnv Sort -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
 refTypeQuals lEnv l tce t0    = go emptySEnv t0
   where
@@ -88,6 +87,7 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     goRef g (RProp s t)  _    = go (insertsSEnv g s) t
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
+
 refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
             => SEnv Sort
             -> SourcePos
@@ -98,18 +98,19 @@ refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
             -> [Qualifier]
 refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
-                                  , pa                        <- conjuncts ra
-                                  , not $ isHole pa
+                   , pa                        <- conjuncts ra
+                   , not $ isHole pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
-                             , p <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
-                             , (s, _, e) <- pargs p
+              , p                        <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
+              , (s, _, e)                <- pargs p
     ]
     where
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
+
 
 mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
         => SEnv Sort
@@ -122,10 +123,10 @@ mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
         -> Qualifier
 mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
   where
-    v                  = "vv"
-    so                 = rTypeSort tce t
-    γ'                 = insertSEnv v so γ
-    pa                 = PAtom Eq (EVar v) e
+    v                      = "vv"
+    so                     = rTypeSort tce t
+    γ'                     = insertSEnv v so γ
+    pa                     = PAtom Eq (EVar v) e
 
 mkQual :: SEnv Sort
        -> SourcePos
@@ -135,45 +136,10 @@ mkQual :: SEnv Sort
        -> Sort
        -> Expr
        -> Qualifier
-mkQual = mkQualNEW
-
-mkQualNEW :: SEnv Sort
-          -> SourcePos
-          -> t
-          -> SEnv Sort
-          -> Symbol
-          -> Sort
-          -> Expr
-          -> Qualifier
-mkQualNEW lEnv l _ γ v so p   = Q "Auto" ((v, so) : xts) p l
+mkQual lEnv l _ γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
     xs   = delete v $ nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
-    -- xts  = Language.Fixpoint.Misc.traceShow msg $ xts'
-    -- msg  = "Free Vars in: " ++ showFix p ++ " in " ++ show t0
-
--- OLD
-{-
-  TODO: If it's so OLD, do we need to keep it? Never called, etc...
-mkQualOLD lEnv l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
-  where
-    yts                = [(y, lookupSort l γ i x) | (x, i, y) <- xys ]
-    p'                 = subst su p
-    su                 = mkSubst [(x, EVar y) | (x, _, y) <- xys]
-    xys                = zipWith (\x i -> (x, i, symbol ("~A" ++ show i))) xs [0..]
-    -- xs                 = delete v $ orderedFreeVars γ p
-    xs                 = {- Language.Fixpoint.Misc.traceShow msg $ -} delete v $ orderedFreeVarsOLD γ p
-    msg                = "Free Vars in: " ++ showFix p ++ " in " ++ show t0
-
-orderedFreeVarsOLD :: SEnv Sort -> Pred -> [Symbol]
-orderedFreeVarsOLD γ = nub . filter (`memberSEnv` γ) . syms
--}
-
-{-
-   TODO: Never used, do I need to exist?
-orderedFreeVars :: SEnv Sort -> Pred -> [Symbol]
-orderedFreeVars lEnv = nub . filter (not . (`memberSEnv` lEnv)) . syms
--}
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
@@ -183,11 +149,3 @@ envSort l lEnv tEnv x i
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
     msg            = "unknown symbol in qualifier: " ++ show x
-
-{-
-   TODO: Never used, do I need to exist?
-lookupSort l γ i x = fromMaybe ai $ lookupSEnv x γ
-  where
-    ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
-    msg            = "unknown symbol in qualifier: " ++ show x
--}

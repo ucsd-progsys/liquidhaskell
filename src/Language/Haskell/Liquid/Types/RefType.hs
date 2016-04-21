@@ -11,11 +11,12 @@
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE ImplicitParams            #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
-
 -- TODO: Desperately needs re-organization.
+
 module Language.Haskell.Liquid.Types.RefType (
 
   -- * Functions for lifting Reft-values to Spec-values
@@ -66,9 +67,11 @@ module Language.Haskell.Liquid.Types.RefType (
 
   ) where
 
+-- import           GHC.Stack
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
+import Name
 import Var
 import Kind
 import GHC              hiding (Located)
@@ -102,10 +105,11 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
 
 import Data.List (sort, foldl')
 
+-- -- import Debug.Trace
 
 strengthenDataConType :: Symbolic t
                       => (t, RType c tv (UReft Reft)) -> (t, RType c tv (UReft Reft))
@@ -124,10 +128,10 @@ pdVar :: PVar t -> Predicate
 pdVar v        = Pr [uPVar v]
 
 findPVar :: [PVar (RType c tv ())] -> UsedPVar -> PVar (RType c tv ())
-findPVar ps p
-  = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
-  where PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
-        msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
+findPVar ps p = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
+  where
+    PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
+    msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
@@ -158,11 +162,9 @@ uTop r          = MkUReft r mempty mempty
 
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
-         , SubsTy tv (RType c tv ()) r
-         , RefTypable c tv ()
-         , RefTypable c tv r
          , OkRT c tv r
          , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
          )
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
@@ -172,8 +174,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
          , OkRT c tv r
-         , RefTypable c tv r
-         , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) r
          , SubsTy tv (RType c tv ()) (RType c tv ()))
@@ -193,8 +193,6 @@ instance ( SubsTy tv (RType c tv ()) c
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
 instance ( OkRT c tv r
-         , RefTypable c tv r
-         , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) r
          , SubsTy tv (RType c tv ()) (RType c tv ())
@@ -244,11 +242,6 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Ref
   ofReft      = panic Nothing "ofReft on RType"
 
 
-
--------------------------------------------------------------------------------
--- | RefTypable Instances -----------------------------------------------------
--------------------------------------------------------------------------------
-
 -- MOVE TO TYPES
 instance Fixpoint String where
   toFix = text
@@ -272,7 +265,7 @@ instance FreeVar LocSymbol Symbol where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance (RefTypable c tv ()) => Eq (RType c tv ()) where
+instance (Eq c, Eq tv, Hashable tv) => Eq (RType c tv ()) where
   (==) = eqRSort M.empty
 
 eqRSort :: (Eq a, Eq k, Hashable k)
@@ -322,10 +315,14 @@ eqpd (Pr vs) (Pr ws)
 
 
 instance Eq RTyVar where
-  RTV α == RTV α' = tvId α == tvId α'
+  -- FIXME: need to compare unique and string because we reuse
+  -- uniques in stringTyVar and co.
+  RTV α == RTV α' = α == α' && getOccName α == getOccName α'
 
 instance Ord RTyVar where
-  compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
+  compare (RTV α) (RTV α') = case compare α α' of
+    EQ -> compare (getOccName α) (getOccName α')
+    o  -> o
 
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
@@ -349,9 +346,10 @@ rTyVar      = RTV
 symbolRTyVar :: Symbol -> RTyVar
 symbolRTyVar = rTyVar . stringTyVar . symbolString
 
-normalizePds :: RefTypable c tv r => RType c tv r -> RType c tv r
+normalizePds :: (OkRT c tv r) => RType c tv r -> RType c tv r
 normalizePds t = addPds ps t'
-  where (t', ps) = nlzP [] t
+  where
+    (t', ps)   = nlzP [] t
 
 rPred :: PVar (RType c tv ()) -> RType c tv r -> RType c tv r
 rPred     = RAllP
@@ -374,9 +372,7 @@ addPds :: Foldable t
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
 addPds ps t           = foldl' (flip rPred) t ps
 
-nlzP :: RefTypable t t1 t2
-     => [PVar (RType t t1 ())]
-     -> RType t t1 t2 -> (RType t t1 t2, [PVar (RType t t1 ())])
+nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
  = (t, ps)
 nlzP ps (RFun b t1 t2 r)
@@ -408,9 +404,7 @@ nlzP _ t
  = panic Nothing $ "RefType.nlzP: cannot handle " ++ show t
 
 strengthenRefTypeGen, strengthenRefType ::
-         ( RefTypable c tv ()
-         , RefTypable c tv r
-         , OkRT c tv r
+         (  OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -418,10 +412,7 @@ strengthenRefTypeGen, strengthenRefType ::
          ) => RType c tv r -> RType c tv r -> RType c tv r
 
 strengthenRefType_ ::
-         ( RefTypable c tv ()
-         , RefTypable c tv r
-         -- , PPrint (RType c tv r)
-         , OkRT c tv r
+         ( OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -564,7 +555,7 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
 expandRApp _ _ t               = t
 
 rtPropTop
-  :: (PPrint c, PPrint tv, RefTypable c tv r, RefTypable c tv (),
+  :: (OkRT c tv r,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv)
    => PVar (RType c tv ()) -> Ref (RType c tv ()) (RType c tv r)
@@ -627,7 +618,7 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 
-generalize :: (RefTypable c tv r) => RType c tv r -> RType c tv r
+generalize :: (Eq tv) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
 
 freeTyVars :: Eq a => RType t a t1 -> [a]
@@ -645,8 +636,7 @@ freeTyVars (RHole _)       = []
 freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 
 
-tyClasses :: RefTypable RTyCon t t1
-          => RType RTyCon t t1 -> [(Class, [RType RTyCon t t1])]
+tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon tv r])]
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllS _ t)     = tyClasses t
 tyClasses (RAllT _ t)     = tyClasses t
@@ -1119,6 +1109,9 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
 
+tyVarUniqueSymbol :: TyVar -> Symbol
+tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)
   = typeSortForAll tce τ
@@ -1128,6 +1121,9 @@ typeSort tce (TyConApp c τs)
   = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
   = fApp (typeSort tce t1) [typeSort tce t2]
+typeSort _tce (TyVarTy tv)
+  = let x = FObj $ tyVarUniqueSymbol tv
+    in x
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
@@ -1140,14 +1136,15 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        sas                 = tyVarUniqueSymbol <$> as
         n                   = length as
 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = symbol c
+  | otherwise         = let x = symbol c -- . getOccString $ c
+                        in x
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
 typeSortFun tce t -- τ1 τ2
@@ -1358,22 +1355,14 @@ dataConsOfTyCon c = mconcat $ go <$> [t | dc <- TC.tyConDataCons c, t <- DataCon
 -- | Printing Refinement Types -------------------------------------------------
 --------------------------------------------------------------------------------
 
--- MOVE TO TYPES
-instance (SubsTy Symbol (RType c Symbol ()) r, SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
-instance (Reftable r, PPrint r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RefTypable RTyCon RTyVar r where
-  ppRType = ppr_rtype ppEnv
-
 instance Show RTyVar where
   show = showpp
 
 instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
-instance (RefTypable c tv r) => PPrint (RType c tv r) where
-  pprintTidy _ = ppRType TopPrec
+-- ppHack :: (?callStack :: CallStack) => a -> b
+-- ppHack _ = errorstar "OOPS"
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
   show = showpp
@@ -1382,5 +1371,4 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprintTidy k re = text "RENV" $+$
-              pprintTidy k (reLocal re)
+  pprintTidy k re = "RENV" $+$ pprintTidy k (reLocal re)

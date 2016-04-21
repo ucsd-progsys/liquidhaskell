@@ -19,9 +19,9 @@ import           Language.Haskell.Liquid.Types
 class (Applicative m, Monad m) => Freshable m a where
   fresh   :: m a
   true    :: a -> m a
-  true    = return . id
+  true    = return
   refresh :: a -> m a
-  refresh = return . id
+  refresh = return
 
 instance Freshable m Integer => Freshable m Symbol where
   fresh = tempSymbol "x" <$> fresh
@@ -53,13 +53,13 @@ instance Freshable m Integer => Freshable m Strata where
   refresh [] = fresh
   refresh s  = return s
 
-instance (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => Freshable m (RRType r) where
+instance (Freshable m Integer, Freshable m r, Reftable r ) => Freshable m (RRType r) where
   fresh   = panic Nothing "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType
 
 -----------------------------------------------------------------------------------------------
-trueRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
+trueRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 trueRefType (RAllT α t)
   = RAllT α <$> true t
@@ -94,7 +94,7 @@ trueRefType (RRTy e o r t)
 trueRefType t
   = return t
 
-trueRef :: (RefTypable RTyCon RTyVar r, Freshable f r, Freshable f Integer)
+trueRef :: (Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
 trueRef (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
 trueRef (RProp s t) = RProp s <$> trueRefType t
@@ -102,7 +102,7 @@ trueRef (RProp s t) = RProp s <$> trueRefType t
 
 
 -----------------------------------------------------------------------------------------------
-refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
+refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 refreshRefType (RAllT α t)
   = RAllT α <$> refresh t
@@ -138,7 +138,7 @@ refreshRefType (RRTy e o r t)
 refreshRefType t
   = return t
 
-refreshRef :: (RefTypable RTyCon RTyVar r, Freshable f r, Freshable f Integer)
+refreshRef :: (Reftable r, Freshable f r, Freshable f Integer)
            => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
 refreshRef (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
