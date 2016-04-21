@@ -108,12 +108,6 @@ executable target
                   hint,
                   liquidhaskell
 
-executable analyzeLogs
-  default-language: Haskell98
-  Build-Depends: base >= 4 && < 5
-               , csv-table >= 0.1.0.1 
-  Main-is: scripts/analyze-logs/Main.hs 
-
 Library
    Default-Language: Haskell98
    Build-Depends: base >= 4 && < 5
