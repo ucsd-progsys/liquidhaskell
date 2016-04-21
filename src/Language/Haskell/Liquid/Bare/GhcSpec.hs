@@ -108,15 +108,16 @@ postProcess cbs specEnv sp@(SP {..})
        , meas       = meas'
        , inSigs     = inSigs' }
   where
-    (sigs, ts')     = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    (assms, ts'')   = replaceLocalBinds tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
-    (insigs, ts)    = replaceLocalBinds tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
+    (sigs, ts')     = replaceLocalBinds allowHO tcEmbeds tyconEnv tySigs texprs specEnv cbs
+    (assms, ts'')   = replaceLocalBinds allowHO tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
+    (insigs, ts)    = replaceLocalBinds allowHO tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
     tySigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs'        = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
     inSigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
     dicts'          = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'           = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
     meas'           = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
+    allowHO         = higherorder config  
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -393,65 +394,68 @@ type ReplaceState = ( M.HashMap Var LocSpecType
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
-replaceLocalBinds :: TCEmb TyCon
+replaceLocalBinds :: Bool
+                  -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
                   -> [(Var, LocSpecType)]
                   -> [(Var, [Located Expr])]
                   -> SEnv SortedReft
                   -> CoreProgram
                   -> ([(Var, LocSpecType)], [(Var, [Located Expr])])
-replaceLocalBinds emb tyi sigs texprs senv cbs
+replaceLocalBinds allowHO emb tyi sigs texprs senv cbs
   = (M.toList s, M.toList t)
   where
-    (s, t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
+    (s, t) = execState (runReaderT (mapM_ (\x -> traverseBinds allowHO x (return ())) cbs)
                                    (RE M.empty senv emb tyi))
                        (M.fromList sigs, M.fromList texprs)
 
 traverseExprs
-  :: CoreSyn.Expr Var -> ReaderT ReplaceEnv (State ReplaceState) ()
-traverseExprs (Let b e)
-  = traverseBinds b (traverseExprs e)
-traverseExprs (Lam b e)
-  = withExtendedEnv [b] (traverseExprs e)
-traverseExprs (App x y)
-  = traverseExprs x >> traverseExprs y
-traverseExprs (Case e _ _ as)
-  = traverseExprs e >> mapM_ (traverseExprs . thd3) as
-traverseExprs (Cast e _)
-  = traverseExprs e
-traverseExprs (Tick _ e)
-  = traverseExprs e
-traverseExprs _
+  :: Bool -> CoreSyn.Expr Var -> ReaderT ReplaceEnv (State ReplaceState) ()
+traverseExprs allowHO (Let b e)
+  = traverseBinds allowHO b (traverseExprs allowHO e)
+traverseExprs allowHO (Lam b e)
+  = withExtendedEnv allowHO [b] (traverseExprs allowHO e)
+traverseExprs allowHO (App x y)
+  = traverseExprs allowHO x >> traverseExprs allowHO y
+traverseExprs allowHO (Case e _ _ as)
+  = traverseExprs allowHO e >> mapM_ (traverseExprs allowHO . thd3) as
+traverseExprs allowHO (Cast e _)
+  = traverseExprs allowHO e
+traverseExprs allowHO (Tick _ e)
+  = traverseExprs allowHO e
+traverseExprs _ _
   = return ()
 
 traverseBinds
-  :: Bind Var
+  :: Bool 
+  -> Bind Var
   -> ReaderT ReplaceEnv (State ReplaceState) b
   -> ReaderT ReplaceEnv (State ReplaceState) b
-traverseBinds b k = withExtendedEnv (bindersOf b) $ do
-  mapM_ traverseExprs (rhssOfBind b)
+traverseBinds allowHO b k = withExtendedEnv allowHO (bindersOf b) $ do
+  mapM_ (traverseExprs allowHO) (rhssOfBind b)
   k
 
 -- RJ: this function is incomprehensible, what does it do?!
 withExtendedEnv
   :: Foldable t
-  => t Var
+  => Bool 
+  -> t Var
   -> ReaderT ReplaceEnv (State ReplaceState) b
   -> ReaderT ReplaceEnv (State ReplaceState) b
-withExtendedEnv vs k
+withExtendedEnv allowHO vs k
   = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
            fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
        withReaderT (const (RE env fenv emb tyi)) $ do
-         mapM_ replaceLocalBindsOne vs
+         mapM_ (replaceLocalBindsOne allowHO) vs
          k
 
 varShortSymbol :: Var -> Symbol
 varShortSymbol = symbol . takeWhile (/= '#') . showPpr . getName
 
 -- RJ: this function is incomprehensible
-replaceLocalBindsOne :: Var -> ReplaceM ()
-replaceLocalBindsOne v
+replaceLocalBindsOne :: Bool -> Var -> ReplaceM ()
+replaceLocalBindsOne allowHO v
   = do mt <- gets (M.lookup v . fst)
        case mt of
          Nothing -> return ()
@@ -463,7 +467,7 @@ replaceLocalBindsOne v
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
            let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
-           case checkTy msg emb tyi fenv (Loc l l' t') of
+           case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing -> modify (first $ M.insert v (Loc l l' t'))
            mes <- gets (M.lookup v . snd)
