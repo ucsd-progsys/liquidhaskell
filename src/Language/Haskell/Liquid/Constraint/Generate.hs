@@ -419,10 +419,10 @@ isKut _            = False
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
   where
-     ks'     = S.fromList $ specTypeKVars t
-     ks
-       | S.null ks' = ks'
-       | otherwise  = F.tracepp ("addKuts: " ++ showpp x) ks'
+     ks     = S.fromList $ specTypeKVars t
+     -- ks
+     --   S.null ks' = ks'
+     --   otherwise  = {- F.tracepp ("addKuts: " ++ showpp x) ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
