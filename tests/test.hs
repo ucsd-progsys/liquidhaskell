@@ -173,12 +173,12 @@ testCmd bin dir file smt (LO opts)
 
 icfpIgnored = ["RIO.hs", "DataBase.hs"
 
-              , "CopyRec.hs"                                -- eliminate 
+              -- , "CopyRec.hs"                                -- eliminate 
               ] 
 
 hscIgnored = [ "HsColour.hs"
-             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
-             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+             -- , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             -- , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
 
              ]
 
@@ -207,8 +207,7 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-
-              , "Data/Text/Fusion.hs"                           -- eliminate
+        --   , "Data/Text/Fusion.hs"                           -- eliminate
               ]
 
 
