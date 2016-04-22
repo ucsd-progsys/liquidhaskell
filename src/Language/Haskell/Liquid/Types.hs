@@ -45,7 +45,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
-  , isClassRTyCon, isClassType, isEqType
+  , isClassRTyCon, isClassType, isEqType, isRVar
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -519,6 +519,9 @@ instance NFData RTyCon
 
 -- | Accessors for @RTyCon@
 
+isRVar :: RType c tv r -> Bool 
+isRVar (RVar _ _) = True 
+isRVar _          = False 
 
 isClassRTyCon :: RTyCon -> Bool
 isClassRTyCon = isClassTyCon . rtc_tc

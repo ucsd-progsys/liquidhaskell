@@ -9,4 +9,3 @@ add x xs = x:xs
 
 bar xs = head xs
 foo xs = tail xs
-
