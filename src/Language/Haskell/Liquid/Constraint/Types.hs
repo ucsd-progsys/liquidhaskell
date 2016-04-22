@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Constraint.Types
 import Prelude hiding (error)
 import CoreSyn
 import SrcLoc
+import Unify (tcUnifyTy)
 
 import qualified TyCon   as TC
 import qualified DataCon as DC
@@ -58,7 +59,7 @@ import qualified Data.List           as L
 
 import Control.DeepSeq
 -- import Data.Monoid              (mconcat)
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isJust)
 import Control.Monad.State
 
 
@@ -72,7 +73,7 @@ import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
-import Language.Haskell.Liquid.Types.RefType  (shiftVV)
+import Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
@@ -274,11 +275,14 @@ goodInvs :: [SpecType] -> RInv -> Maybe SpecType
 goodInvs _ (RInv []  t) 
   = Just t 
 goodInvs ts (RInv ts' t)
-  | ts' == (toRSort <$> ts)
+  | and (zipWith unifiable ts' (toRSort <$> ts))
   = Just t
   | otherwise
   = Nothing
 
+
+unifiable :: RSort -> RSort -> Bool 
+unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
