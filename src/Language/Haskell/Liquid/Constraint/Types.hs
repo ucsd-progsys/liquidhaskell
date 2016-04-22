@@ -233,7 +233,8 @@ elemHEnv x (HEnv s) = x `S.member` s
 -- | Helper Types: Invariants --------------------------------------------------
 --------------------------------------------------------------------------------
 
-data RInv = RInv { _rinv_args :: [RSort]
+data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
+                                           -- for all type arguments
                  , _rinv_type :: SpecType
                  }
 
