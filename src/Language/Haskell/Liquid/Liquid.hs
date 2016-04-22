@@ -21,7 +21,7 @@ import           System.Exit
 -- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
--- import           Var
+import           Var
 import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
@@ -63,7 +63,6 @@ runLiquid mE cfg = do
   return      (ec d, mE')
   where
     ec     = resultExit . o_result
-
 
 ------------------------------------------------------------------------------
 checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
@@ -112,27 +111,62 @@ liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
 liquidOne tgt info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
-  whenLoud  $ do putStrLn "**** Config **************************************************"
-                 print cfg
-  whenLoud  $ do putStrLn $ showpp info
-                 putStrLn "*************** Original CoreBinds ***************************"
-                 putStrLn $ render $ pprintCBs (cbs info)
+  -- whenLoud  $ do putStrLn $ showpp info
+                 -- putStrLn "*************** Original CoreBinds ***************************"
+                 -- putStrLn $ render $ pprintCBs (cbs info)
   let cbs' = transformScope (cbs info)
-  whenLoud  $ do donePhase Loud "transformRecExpr"
-                 putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                 putStrLn $ render $ pprintCBs cbs'
-                 putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
-  dc       <- prune cfg cbs' tgt info
-  let cbs'' = maybe cbs' DC.newBinds dc
-  let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
-  let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
-  -- cgi `deepseq` whenLoud (donePhase Loud "generateConstraints")
-  whenLoud  $ dumpCs cgi
-  out      <- solveCs cfg tgt cgi info' dc
-  whenNormal $ donePhase Loud "solve"
-  let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
-  DC.saveResult tgt out'
+  -- whenLoud  $ do donePhase Loud "transformRecExpr"
+                 -- putStrLn "*************** Transform Rec Expr CoreBinds *****************"
+                 -- putStrLn $ render $ pprintCBs cbs'
+  edcs <- newPrune      cfg cbs' tgt info
+  out' <- liquidQueries cfg      tgt info edcs
+  DC.saveResult      tgt out'
   exitWithResult cfg tgt out'
+
+newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
+newPrune cfg cbs tgt info
+  | not (null vs) = return . Right $ [varsQuery cbs sp vs]
+  | timebinds cfg = return . Right $ [varsQuery cbs sp [x] | (x, _) <- tySigs sp ]
+  | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
+  | otherwise     = return  (Left cbs)
+  where
+    vs            = tgtVars sp
+    sp            = spec    info
+    xts           = tySigs  sp
+
+varsQuery :: [CoreBind] ->  GhcSpec -> [Var] ->DC.DiffCheck
+varsQuery cbs sp vs = DC.DC (DC.thin cbs vs) mempty sp
+
+maybeEither :: a -> Maybe b -> Either a [b]
+maybeEither d Nothing  = Left d
+maybeEither _ (Just x) = Right [x]
+
+prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
+prune cfg cbinds tgt info
+  | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
+  | diffcheck cfg = DC.slice tgt cbinds sp
+  | otherwise     = return Nothing
+  where
+    vs            = tgtVars sp
+    sp            = spec info
+
+liquidQueries :: Config -> FilePath -> GhcInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc)
+liquidQueries cfg tgt info (Left cbs')
+  = liquidQuery cfg tgt info (Left cbs')
+liquidQueries cfg tgt info (Right dcs)
+  = mconcat <$> mapM (liquidQuery cfg tgt info . Right) dcs
+
+liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
+liquidQuery cfg tgt info edc = do
+  whenLoud (dumpCs cgi)
+  out   <- solveCs cfg tgt cgi info' names
+  return $ mconcat [oldOut, out]
+  where
+    cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
+    cbs''  = either id              DC.newBinds                        edc
+    info'  = either (const info)    (\z -> info {spec = DC.newSpec z}) edc
+    names  = either (const Nothing) (Just . map show . DC.checkedVars) edc
+    oldOut = either (const mempty)  DC.oldOutput                       edc
 
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
@@ -146,25 +180,13 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
-prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
-prune cfg cbinds tgt info
-  | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
-  | diffcheck cfg = DC.slice tgt cbinds sp
-  | otherwise     = return Nothing
-  where
-    vs            = tgtVars sp
-    sp            = spec info
 
-
-solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
-solveCs cfg tgt cgi info dc
+solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
+solveCs cfg tgt cgi info names
   = do finfo          <- cgInfoFInfo info cgi tgt
        F.Result r sol <- solve fx finfo
-       let names = map show . DC.checkedVars <$> dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
--- ORIG let res   = ferr sol r
--- ORIG let out0  = mkOutput cfg res sol annm
        let res_err = fmap (applySolution sol . cinfoError . snd) r
        res_model  <- fmap (fmap pprint . tidyError sol)
                       <$> getModels info cfg res_err
@@ -176,7 +198,6 @@ solveCs cfg tgt cgi info dc
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
-                       -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
                        , FC.save        = saveQuery cfg
                        , FC.srcFile     = tgt
@@ -184,12 +205,8 @@ solveCs cfg tgt cgi info dc
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
                        , FC.elimStats   = elimStats   cfg
-                       -- , FC.stats   = True
                        }
--- ORIG ferr s    = fmap (cinfoUserError s . snd)
 
--- ORIG cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
--- ORIG cinfoUserError s =  e2u s . cinfoError -- . snd
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

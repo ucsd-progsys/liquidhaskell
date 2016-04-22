@@ -61,6 +61,7 @@ data Config = Config {
   , elimStats      :: Bool       -- ^ print eliminate stats
   , json           :: Bool       -- ^ print results (safe/errors) as JSON
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
+  , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
