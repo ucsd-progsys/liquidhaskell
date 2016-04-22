@@ -17,7 +17,6 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor
 import qualified Data.HashMap.Strict                   as HM
-import           Data.Maybe
 import           Data.Proxy
 import           GHC.Prim
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -28,6 +27,7 @@ import           Unsafe.Coerce
 import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
                                           mkSubst, subst)
 import           Language.Fixpoint.Smt.Interface
+import           Language.Fixpoint.Types.Config (SMTSolver)
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types         hiding (var)
@@ -49,6 +49,7 @@ import           OccName
 import           RdrName
 import           Type
 import           TysWiredIn
+import           Var
 import           InteractiveEval
 
 import Id
@@ -113,39 +114,50 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   hsc_env <- getSession
   df <- getDynFlags
   let opts = defaultOpts
-  smt <- liftIO $ makeContext False False (solver opts) (target info)
-  model <- liftIO $ runTarget opts (initState (target info) (spec info) smt) $ do
-    free <- gets freesyms
-    let dcs = [ (v, tidySymbol v)
-              | iv <- impVars info
-              , isDataConId iv
-              , let v = symbol iv
-              ]
-    let su  = mkSubst $ map (second EVar) (free ++ dcs)
-    n <- asks depth
-    vs <- forM vtds $ \(v, t, TargetDict d@Dict) -> do
-      modify $ \s@(TargetState {..}) -> s { variables = (v,getType (dictProxy d)) : variables }
-      query (dictProxy d) n v (subst su t)
-    setup
-    _ <- liftIO $ command smt CheckSat
-    forM (zip vs vtds) $ \(sv, (v, t, TargetDict d@Dict)) -> do
-      x <- decode sv t
-      xt <- liftIO $ obtainTermFromVal hsc_env 100 True (toType t) (x `asTypeOfDict` d)
-      return (v, WithModel (text (GHC.showPpr df xt)) t)
-
-  _ <- liftIO $ cleanupContext smt
+  model <- liftIO $ withContext False False (solver opts) (target info) $ \smt -> do
+    runTarget opts (initState (target info) (spec info) smt) $ do
+      free <- gets freesyms
+      let dcs = [ (v, tidySymbol v)
+                | iv <- impVars info
+                , isDataConId iv
+                , let v = symbol iv
+                ]
+      let su  = mkSubst $ map (second EVar) (free ++ dcs)
+      n <- asks depth
+      vs <- forM vtds $ \(v, t, md) -> case md of
+        Nothing -> do
+          -- if we don't have a Targetable instance, just encode it as an Int so
+          -- the name is available
+          addVariable (v, getType (Proxy :: Proxy Int))
+          return v
+        Just (TargetDict d@Dict)  -> do
+          addVariable (v, getType (dictProxy d))
+          query (dictProxy d) n v (subst su t)
+      setup
+      _ <- liftIO $ command smt CheckSat
+      forM (zip vs vtds) $ \(sv, (v, t, md)) -> case md of
+        Nothing -> do return (v, NoModel t)
+        Just (TargetDict d@Dict) -> do
+          x <- decode sv t
+          xt <- liftIO $ obtainTermFromVal hsc_env 100 True (toType t) (x `asTypeOfDict` d)
+          return (v, WithModel (text (GHC.showPpr df xt)) t)
 
   let (_, WithModel vv_model _) : ctx_model = model
   return (ErrSubTypeModel
           { pos  = pos
           , msg  = msg
-          , ctxM  = HM.fromList ctx_model `HM.union` fmap NoModel ctx
+          , ctxM  = HM.fromList ctx_model --  `HM.union` fmap NoModel ctx
                    -- HM.union is *left-biased*
           , tactM = WithModel vv_model tact
           , texp = texp
           })
 
 getModel' _ _ err = return err
+
+withContext :: Bool -> Bool -> SMTSolver -> FilePath -> (Context -> IO a) -> IO a
+withContext l ho smt t act = do
+  ctx <- makeContext l ho smt t
+  act ctx `finally` cleanupContext ctx
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t
 dictProxy Dict = Proxy
@@ -158,20 +170,33 @@ data Dict :: Constraint -> * where
 
 data TargetDict = forall t. TargetDict (Dict (Targetable t))
 
-addDicts :: [(Symbol, SpecType)] -> Ghc [(Symbol, SpecType, TargetDict)]
-addDicts bnds = catMaybes <$> mapM addDict bnds
+addDicts :: [(Symbol, SpecType)] -> Ghc [(Symbol, SpecType, Maybe TargetDict)]
+addDicts bnds = mapM addDict bnds
 
-addDict :: (Symbol, SpecType) -> Ghc (Maybe (Symbol, SpecType, TargetDict))
-addDict (v, t) = do
+-- TODO: instead of returning Maybe (Symbol, SpecType, TargetDict),
+-- return (Symbol, SpecType, Maybe TargetDict).
+-- if Nothing, generate a binder for the value, but no skeleton / model.
+-- this way we can possibly still generate models for other values in the context
+addDict :: (Symbol, SpecType) -> Ghc (Symbol, SpecType, Maybe TargetDict)
+addDict (v, t) = addDict' (v, t) `gcatch` \(_e :: SomeException) -> return (v, t, Nothing)
+
+addDict' :: (Symbol, SpecType) -> Ghc (Symbol, SpecType, Maybe TargetDict)
+addDict' (v, t) = do
   let mt = monomorphize (toType t)
+  -- traceShowM (v, t, showPpr mt)
   case tyConAppTyCon_maybe mt of
-    Nothing -> return Nothing
+    Nothing -> return (v, t, Nothing)
     Just tc | isClassTyCon tc || isFunTyCon tc || isPrimTyCon tc
               || isPromotedDataCon tc || isPromotedTyCon tc
-              -> return Nothing
+              -- FIXME: shouldn't be necessary..
+              -- why do we have binders for higher-kinded types??
+              || Type.isFunTy (Type.typeKind mt)
+              -- TODO: cannot handle `Targetable (Fix f)`, see higher-kinded classes e.g. Eq1, Ord1, etc...
+              || any Type.isFunTy (map Var.varType (tyConTyVars tc))
+              -> return (v, t, Nothing)
     Just tc -> do
       getInfo False (getName tc) >>= \case
-        Nothing -> return Nothing
+        Nothing -> return (v, t, Nothing)
         Just (ATyCon tc, _, cis, _) -> do
           genericsMod   <- lookupModule (mkModuleName "GHC.Generics") Nothing
           targetableMod <- lookupModule (mkModuleName "Test.Target.Targetable") Nothing
@@ -184,6 +209,7 @@ addDict (v, t) = do
 
           -- let mt = monomorphize (toType t)
 
+          -- liftIO $ putStrLn $ showPpr tc
           -- maybe add a Targetable instance
           unless ("Test.Target.Targetable.Targetable"
                   `elem` map (showpp.is_cls_nm) cis) $ do
@@ -201,6 +227,7 @@ addDict (v, t) = do
                              (noLoc []) -- (noLoc (map (nlHsTyConApp genericClsName . pure . nlHsTyVar) tvs))
                              genericInst
               let derivDecl = DerivD $ DerivDecl instType Nothing
+              -- liftIO $ putStrLn $ showPpr derivDecl
               hsc_env <- getSession
               (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc derivDecl]
               setSession $ hsc_env { hsc_IC = ic }
@@ -209,10 +236,12 @@ addDict (v, t) = do
                              [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
             let instType = noLoc $ HsForAllTy Implicit Nothing
                            (HsQTvs [] tvbnds)
+                           -- (noLoc [])
                            (noLoc (map (nlHsTyConApp targetableClsName . pure . nlHsTyVar) tvs))
                            targetInst
             let instDecl = InstD $ ClsInstD $ ClsInstDecl
                            instType emptyBag [] [] [] Nothing
+            -- liftIO $ putStrLn $ showPpr instDecl
             hsc_env <- getSession
             (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc instDecl]
             setSession $ hsc_env { hsc_IC = ic }
@@ -229,15 +258,16 @@ addDict (v, t) = do
                                      mkFunBind (noLoc $ mkVarUnqual $ fsLit "_compile")
                                      [mkSimpleMatch [] (noLoc dictExpr)]])
                          []
+          -- liftIO $ putStrLn $ showPpr dictStmt
           x <- liftIO $ hscParsedStmt hsc_env dictStmt
           case x of
-            Nothing -> return Nothing
+            Nothing -> return (v, t, Nothing)
             Just (_, hvals_io, _) -> do
               [hv] <- liftIO hvals_io
               let d = TargetDict $ unsafeCoerce hv
-              return (Just (v, t, d))
+              return (v, t, Just d)
 
-        _ -> return Nothing
+        _ -> return (v, t, Nothing)
 
 -- FIXME: can't instantiate higher-kinded tvs with 'Int'
 monomorphize :: Type -> Type

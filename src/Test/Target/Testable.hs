@@ -23,6 +23,7 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.HashMap.Strict             as M
 import qualified Data.HashSet                    as S
+import qualified Data.List                       as L
 import           Data.Proxy
 import qualified Data.Text                       as ST
 import qualified Data.Text.Lazy                  as T
@@ -171,22 +172,10 @@ setup = {-# SCC "setup" #-} do
    -- declare sorts
    ss  <- S.toList <$> gets sorts
    let defSort b e = io $ smtWrite ctx (T.toStrict $ format "(define-sort {} () {})" (b,e))
-   -- FIXME: why do i need this??
-   defSort ("GHC.Types.Bool" :: T.Text) ("Int" :: T.Text)
-   defSort ("GHC.Types.Int" :: T.Text) ("Int" :: T.Text)
-   defSort ("GHC.Tuple.$40$$44$$41$" :: T.Text) ("Int" :: T.Text)
-   -- -- FIXME: combine this with the code in `fresh`
-   forM_ ss $ \case
-     -- FObj "Int" -> return ()
-     -- FInt       -> return ()
-     s | smt2 s == "GHC.Types.Bool" || smt2 s == "GHC.Types.Int"
-       || smt2 s == "GHC.Tuple.$40$$44$$41$"
-         -> return ()
-     --     -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
-     -- FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
-     s | smt2 s == "CHOICE"
-         -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
-     s        -> defSort (smt2 s) ("Int" :: T.Text)
+   defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
+          -- FIXME: shouldn't need the nub, wtf?
+   forM_ (L.nub (map smt2 ss)) $ \s ->
+     defSort s ("Int" :: T.Text)
 
    -- declare constructors
    cts <- gets constructors
