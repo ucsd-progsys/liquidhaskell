@@ -227,7 +227,12 @@ config = cmdArgsMode $ Config {
  , counterExamples
     = False &= name "counter-examples"
             &= help "Attempt to generate counter-examples to type errors (experimental!)"
-} &= verbosity
+
+ , timeBinds
+    = False &= name "time-binds"
+            &= help "Solve each (top-level) asserted type signature separately & time solving."
+
+ } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
    &= summary copyright
@@ -378,9 +383,10 @@ defConfig = Config { files          = def
                    , port           = defaultPort
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
-                   , elimStats      = False
-                   , json           = False
-                   , counterExamples= False
+                   , elimStats          = False
+                   , json               = False
+                   , counterExamples    = False
+                   , timeBinds          = False
                    }
 
 ------------------------------------------------------------------------

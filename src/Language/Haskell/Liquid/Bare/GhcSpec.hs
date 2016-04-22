@@ -117,7 +117,7 @@ postProcess cbs specEnv sp@(SP {..})
     dicts'          = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'           = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
     meas'           = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
-    allowHO         = higherorder config  
+    allowHO         = higherorder config
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -427,7 +427,7 @@ traverseExprs _ _
   = return ()
 
 traverseBinds
-  :: Bool 
+  :: Bool
   -> Bind Var
   -> ReaderT ReplaceEnv (State ReplaceState) b
   -> ReaderT ReplaceEnv (State ReplaceState) b
@@ -438,7 +438,7 @@ traverseBinds allowHO b k = withExtendedEnv allowHO (bindersOf b) $ do
 -- RJ: this function is incomprehensible, what does it do?!
 withExtendedEnv
   :: Foldable t
-  => Bool 
+  => Bool
   -> t Var
   -> ReaderT ReplaceEnv (State ReplaceState) b
   -> ReaderT ReplaceEnv (State ReplaceState) b

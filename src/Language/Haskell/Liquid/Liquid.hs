@@ -30,6 +30,7 @@ import           GHC (HscEnv)
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
+import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
@@ -126,13 +127,12 @@ liquidOne tgt info = do
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [varsQuery cbs sp vs]
-  | timebinds cfg = return . Right $ [varsQuery cbs sp [x] | (x, _) <- tySigs sp ]
+  | timeBinds cfg = return . Right $ [varsQuery cbs sp [x] | (x, _) <- tySigs sp ]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return  (Left cbs)
   where
     vs            = tgtVars sp
     sp            = spec    info
-    xts           = tySigs  sp
 
 varsQuery :: [CoreBind] ->  GhcSpec -> [Var] ->DC.DiffCheck
 varsQuery cbs sp vs = DC.DC (DC.thin cbs vs) mempty sp
@@ -140,15 +140,6 @@ varsQuery cbs sp vs = DC.DC (DC.thin cbs vs) mempty sp
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
 maybeEither _ (Just x) = Right [x]
-
-prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
-prune cfg cbinds tgt info
-  | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
-  | diffcheck cfg = DC.slice tgt cbinds sp
-  | otherwise     = return Nothing
-  where
-    vs            = tgtVars sp
-    sp            = spec info
 
 liquidQueries :: Config -> FilePath -> GhcInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc)
 liquidQueries cfg tgt info (Left cbs')
@@ -159,7 +150,7 @@ liquidQueries cfg tgt info (Right dcs)
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   whenLoud (dumpCs cgi)
-  out   <- solveCs cfg tgt cgi info' names
+  out   <- timedAction (show names) $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
     cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
@@ -167,6 +158,7 @@ liquidQuery cfg tgt info edc = do
     info'  = either (const info)    (\z -> info {spec = DC.newSpec z}) edc
     names  = either (const Nothing) (Just . map show . DC.checkedVars) edc
     oldOut = either (const mempty)  DC.oldOutput                       edc
+
 
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
