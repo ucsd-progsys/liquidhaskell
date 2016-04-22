@@ -10,6 +10,8 @@ module Test.Target.Monad
   , addDep
   , addConstraint
   , addConstructor
+  , addSort
+  , addVariable
   , inModule
   , making
   , lookupCtor
@@ -251,10 +253,20 @@ fresh :: Sort -> Target Symbol
 fresh sort
   = do n <- freshInt
        let sorts' = sortTys sort
-       modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
        let x = symbol $ ST.unpack (ST.intercalate "->" $ map (symbolText.unObj) sorts') ++ show n
-       modify $ \s@(TargetState {..}) -> s { variables = (x,sort) : variables }
+       addVariable (x, sort)
        return x
+
+addSort :: Sort -> Target ()
+addSort sort = do
+  let sorts' = sortTys sort
+  modify $ \s@(TargetState {..}) -> s { sorts = S.union (S.fromList (arrowize sort : sorts')) sorts }
+
+addVariable :: Variable -> Target ()
+addVariable (v, sort) = do
+  addSort sort
+  modify $ \s@(TargetState {..}) -> s { variables = (v, sort) : variables }
+
 
 sortTys :: Sort -> [Sort]
 --sortTys (FFunc _ ts) = concatMap sortTys ts
@@ -277,7 +289,6 @@ unObj s        = error $ "unObj: " ++ show s
 freshChoice :: String -> Target Symbol
 freshChoice cn
   = do n <- freshInt
-       modify $ \s@(TargetState {..}) -> s { sorts = S.insert choicesort sorts }
        let x = symbol $ T.unpack (smt2 choicesort) ++ "-" ++ cn ++ "-" ++ show n
        modify $ \s@(TargetState {..}) -> s { variables = (x,choicesort) : variables }
        return x

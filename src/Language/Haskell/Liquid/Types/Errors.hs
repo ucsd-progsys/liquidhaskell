@@ -470,7 +470,7 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
+ppReqInContext :: PPrint t => Tidy -> t -> t -> M.HashMap Symbol t -> Doc
 ppReqInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
@@ -478,10 +478,12 @@ ppReqInContext td tA tE c
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprintTidy td tE]
       , nests 2 [ text "In Context"
-                , pprintTidy td c
+                , vsep (map (uncurry (pprintBind td)) (M.toList c))
                 ]
       ]
 
+pprintBind :: PPrint t => Tidy -> Symbol -> t -> Doc
+pprintBind td v t = pprintTidy td v <+> char ':' <+> pprintTidy td t
 
 ppReqModelInContext
   :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc

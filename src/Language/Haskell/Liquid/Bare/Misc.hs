@@ -72,7 +72,7 @@ makeSymbols f vs xs' xts yts ivs
 
 
 freeSymbols :: (Reftable r, TyConable c) => Located (RType c tv r) -> [Symbol]
-freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (const ()) f (const id) emptySEnv [] (val ty)
+freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (const ()) f (const id) emptySEnv [] (val ty)
   where
     f γ _ r xs = let Reft (v, _) = toReft r in
                  [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs

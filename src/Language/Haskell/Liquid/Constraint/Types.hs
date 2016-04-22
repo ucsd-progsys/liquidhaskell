@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE FlexibleContexts  #-}
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
     CG
@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Constraint.Types
 import Prelude hiding (error)
 import CoreSyn
 import SrcLoc
+import Unify (tcUnifyTy)
 
 import qualified TyCon   as TC
 import qualified DataCon as DC
@@ -58,7 +59,7 @@ import qualified Data.List           as L
 
 import Control.DeepSeq
 -- import Data.Monoid              (mconcat)
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isJust)
 import Control.Monad.State
 
 
@@ -72,7 +73,7 @@ import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
-import Language.Haskell.Liquid.Types.RefType  (shiftVV)
+import Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
@@ -233,30 +234,59 @@ elemHEnv x (HEnv s) = x `S.member` s
 -- | Helper Types: Invariants --------------------------------------------------
 --------------------------------------------------------------------------------
 
-type RTyConInv = M.HashMap RTyCon [SpecType]
-type RTyConIAl = M.HashMap RTyCon [SpecType]
+data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
+                                           -- for all type arguments
+                 , _rinv_type :: SpecType
+                 }
+
+type RTyConInv = M.HashMap RTyCon [RInv]
+type RTyConIAl = M.HashMap RTyCon [RInv]
 
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [F.Located SpecType] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+mkRTyConInv ts = group [ (c, RInv (go ts) t) | t@(RApp c ts _ _) <- strip <$> ts]
   where
-    strip      = fourth4 . bkUniv . val
+    strip = fourth4 . bkUniv . val
+    go ts | generic (toRSort <$> ts) = []
+          | otherwise                = toRSort <$> ts 
+
+    generic ts = let ts' = L.nub ts in
+                 all isRVar ts' && length ts' == length ts 
 
 mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
 mkRTyConIAl    = mkRTyConInv . fmap snd
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _)
-  = case M.lookup c m of
+addRTyConInv m t
+  = case lookupRInv t m of
       Nothing -> t
-      Just ts -> L.foldl' conjoinInvariantShift  t ts
-addRTyConInv _ t
-  = t
+      Just ts -> L.foldl' conjoinInvariantShift t ts
+
+lookupRInv :: SpecType -> RTyConInv -> Maybe [SpecType]
+lookupRInv (RApp c ts _ _) m 
+  = case M.lookup c m of
+      Nothing   -> Nothing
+      Just invs -> Just (catMaybes $ goodInvs ts <$> invs)
+lookupRInv _ _
+  = Nothing 
+
+goodInvs :: [SpecType] -> RInv -> Maybe SpecType
+goodInvs _ (RInv []  t) 
+  = Just t 
+goodInvs ts (RInv ts' t)
+  | and (zipWith unifiable ts' (toRSort <$> ts))
+  = Just t
+  | otherwise
+  = Nothing
+
+
+unifiable :: RSort -> RSort -> Bool 
+unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
-  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
+  | x `elem` ids , Just invs <- lookupRInv (res t) m
   = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs)))
   | otherwise
   = (x, t)
@@ -305,6 +335,9 @@ initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
+
+instance NFData RInv where
+  rnf (RInv x y) = rnf x `seq` rnf y  
 
 instance NFData CGEnv where
   rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _)
