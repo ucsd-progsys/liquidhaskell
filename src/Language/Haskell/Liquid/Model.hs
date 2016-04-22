@@ -142,13 +142,15 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
           xt <- liftIO $ obtainTermFromVal hsc_env 100 True (toType t) (x `asTypeOfDict` d)
           return (v, WithModel (text (GHC.showPpr df xt)) t)
 
-  let (_, WithModel vv_model _) : ctx_model = model
+  let (_, vv_wm) : ctx_model = model
   return (ErrSubTypeModel
           { pos  = pos
           , msg  = msg
           , ctxM  = HM.fromList ctx_model --  `HM.union` fmap NoModel ctx
                    -- HM.union is *left-biased*
-          , tactM = WithModel vv_model tact
+          , tactM = case vv_wm of
+                      WithModel vv_model _ -> WithModel vv_model tact
+                      NoModel _            -> NoModel tact
           , texp = texp
           })
 
