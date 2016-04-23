@@ -351,16 +351,17 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        return     (invs ++ minvs, ialias, removeMeasures sigs hms, asms)
 
 removeMeasures :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Var, LocSpecType)]
-removeMeasures sigs xs = filter (not . (`elem` (val <$> xs)) . symbol' . fst) sigs
+removeMeasures sigs xs = filter (not . isHaskellMeasure xs . fst) sigs
+
+
+isHaskellMeasure :: [LocSymbol] -> Var -> Bool 
+isHaskellMeasure xs = (`elem` (val <$> xs)) . symbol'
   where
     symbol' = dropModuleNames . symbol . getName
 
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [LocSpecType]
-makeMeasureInvariants sigs xs = measureTypeToInv <$> mss 
-  where
-    mss     = filter ((`elem` (val <$> xs)) . symbol' . fst) sigs
-    symbol' = dropModuleNames . symbol . getName
+makeMeasureInvariants sigs xs = measureTypeToInv <$> filter (isHaskellMeasure xs . fst) sigs
 
 measureTypeToInv :: (Var, LocSpecType) -> LocSpecType
 measureTypeToInv (_, t) = t {val = ty_res trep}
