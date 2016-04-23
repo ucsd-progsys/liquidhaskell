@@ -174,21 +174,24 @@ initEnv info
        f5       <- refreshArgs' $ vals inSigs sp             -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
-       let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
+       let f4    = traceShow ("Data Cons \n\nF2 = " ++ show f2 ++ "\n\nF4 = " ++ show (f40, f41, f42)) $ mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
+       let bs    = traceShow "INITS\n\n" ((tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5])
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (invs1 ++ invs2)
-       globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs 
+       γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       return γ{invs = is (invs1 ++ invs2)} 
   where
     sp           = spec info
-    ialias       = mkRTyConIAl $ ialiases sp
+    ialias       = traceShow "IALiases" $ mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
-    mapSndM f (x,y) = (x,) <$> f y
+    mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
+    is autoinv   = mkRTyConInv    $ (invariants sp ++ ((Nothing,) <$> autoinv))
+
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
@@ -286,16 +289,15 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
-        -> [Located SpecType]
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs autosizes
+measEnv sp xts cbs lts asms itys hs 
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mkRTyConInv    $ (invariants sp ++ ((Nothing,) <$> autosizes))
+        , invs  = mempty 
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
         , assms = fromListREnv asms []
@@ -646,9 +648,14 @@ consCBTop _ γ cb
        let tflag  = oldtcheck
        let isStr  = tcond cb strict
        modify $ \s -> s { tcheck = tflag && isStr}
-       γ' <- consCB (tflag && isStr) isStr γ cb
+
+       -- remove invariants that came from the cb definition 
+       let (γ', i) = removeInvariant γ cb 
+       
+       γ'' <- consCB (tflag && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return γ'
+       return $ restoreInvariant γ'' $ traceShow "RESTORE INVARIANTS" i  
+
 
 tcond :: Bind Var -> S.HashSet Var -> Bool
 tcond cb strict
@@ -793,7 +800,7 @@ consCB _ _ γ (Rec xes)
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts
-       mapM_ (consBind True γ') xets
+       mapM_ (consBind True γ') $ traceShow "TYPES " xets
        return γ'
 
 -- | NV: Dictionaries are not checked, because
@@ -1365,8 +1372,8 @@ caseEnv γ x _   (DataAlt c) ys
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
-       cγ'              <- addBinders γ x' cbs
-       cγ               <- addBinders cγ' x' [(x', xt)]
+       cγ'              <- addBinders γ (traceShow ("add binders1" ++ show (invs γ)) x') cbs
+       cγ               <- addBinders cγ' (traceShow ("add binders2" ++ show tdc ++ "\n\n" ++ show (invs cγ', xt, xt0, rtd)) x') [(x', xt)]
        return cγ
 
 caseEnv γ x acs a _

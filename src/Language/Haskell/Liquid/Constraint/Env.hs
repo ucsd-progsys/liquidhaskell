@@ -71,6 +71,7 @@ import qualified Language.Fixpoint.Types as F
 
 
 import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
+import           Language.Fixpoint.Misc (traceShow)
 
 
 
@@ -243,7 +244,7 @@ globalize γ = γ {renv = globalREnv (renv γ)}
 --------------------------------------------------------------------------------
 (++=) γ (eMsg, x, t)
   = -- trace ("++= " ++ show x) $
-    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
+    addCGEnv (traceShow (eMsg ++ "add type for " ++ show x) . addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv

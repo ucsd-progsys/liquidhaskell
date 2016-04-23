@@ -39,7 +39,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, traceShow)
+import Language.Fixpoint.Misc (mlookup, sortNub)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -135,7 +135,7 @@ strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy (\x y -> fst x == fst y) (sigs ++ hsigs))
   where
     hsigs = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
-    go xs = traceShow ("MERGE TYPES FOR " ++ show xs) $  L.foldl1' (\(v, t1) (_, t2) -> (v, t1 `meetRes` t2)) xs
+    go xs = L.foldl1' (\(v, t1) (_, t2) -> (v, t1 `meetRes` t2)) xs
 
 meetRes :: Located SpecType -> Located SpecType -> Located SpecType
 meetRes t1 t2 = t1{val = fromRTypeRep $ trep1 {ty_res = ty_res trep1 `meet` F.subst su (ty_res trep2)}}

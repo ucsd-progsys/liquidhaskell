@@ -42,6 +42,8 @@ module Language.Haskell.Liquid.Constraint.Types
   -- * Aliases?
   , RTyConIAl
   , mkRTyConIAl
+
+  , removeInvariant, restoreInvariant
   ) where
 
 import Prelude hiding (error)
@@ -240,7 +242,7 @@ data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invarian
                                            -- for all type arguments
                  , _rinv_type :: SpecType
                  , _rinv_name :: Maybe Var 
-                 }
+                 } deriving Show 
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
@@ -316,6 +318,23 @@ conjoinInvariant t@(RVar _ r) (RVar _ ir)
 
 conjoinInvariant t _
   = t
+
+
+removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
+removeInvariant γ cbs = (γ{invs = M.map (filter f) (invs γ)}, invs γ)
+  where
+    f i | Just v  <- _rinv_name i, v `elem` binds cbs 
+        = traceShow ("REMOVE FOR " ++ show (i, binds cbs)) False 
+        | otherwise
+        = traceShow ("KEEP FOR " ++ show (i, binds cbs)) True          
+
+    binds (NonRec x _) = [x]
+    binds (Rec xes)    = fst $ unzip xes
+
+restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
+restoreInvariant γ is = γ {invs = is}
+
+
 
 --------------------------------------------------------------------------------
 -- | Fixpoint Environment ------------------------------------------------------
