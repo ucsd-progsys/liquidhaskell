@@ -43,7 +43,7 @@ module Language.Haskell.Liquid.Constraint.Types
   , RTyConIAl
   , mkRTyConIAl
 
-  , removeInvariant, restoreInvariant
+  , removeInvariant, restoreInvariant, makeRecInvariants
   ) where
 
 import Prelude hiding (error)
@@ -95,6 +95,7 @@ data CGEnv
         , fenv  :: !FEnv              -- ^ Fixpoint Environment
         , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs  :: !RTyConInv         -- ^ Datatype invariants
+        , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
         , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
         , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
         , assms :: !REnv              -- ^ Top-level variables with assumed types
@@ -321,12 +322,14 @@ conjoinInvariant t _
 
 
 removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
-removeInvariant γ cbs = (γ{invs = M.map (filter f) (invs γ)}, invs γ)
+removeInvariant γ cbs 
+  = (γ{ invs  = M.map (filter f) (invs γ)
+      , rinvs = M.map (filter (\x -> not $ f x)) (invs γ)}, invs γ)
   where
     f i | Just v  <- _rinv_name i, v `elem` binds cbs 
-        = traceShow ("REMOVE FOR " ++ show (i, binds cbs)) False 
+        = False 
         | otherwise
-        = traceShow ("KEEP FOR " ++ show (i, binds cbs)) True          
+        = True          
 
     binds (NonRec x _) = [x]
     binds (Rec xes)    = fst $ unzip xes
@@ -334,6 +337,25 @@ removeInvariant γ cbs = (γ{invs = M.map (filter f) (invs γ)}, invs γ)
 restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
 restoreInvariant γ is = γ {invs = is}
 
+
+
+makeRecInvariants :: CGEnv -> [Var] -> CGEnv 
+makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
+  where
+    is = M.map (map f . filter (((varType x) == ) . toType . _rinv_type)) (rinvs γ)
+    f i = i{_rinv_type = guard $ _rinv_type i}
+
+    guard (RApp c ts rs r)
+      | Just f <- sizeFunction $ rtc_info c 
+      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty mempty)
+      | otherwise 
+      = RApp c ts rs mempty 
+    guard t
+      = t   
+
+    ref f (F.Reft(v, rr)) = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
+
+makeRecInvariants γ _ = γ
 
 
 --------------------------------------------------------------------------------
@@ -362,7 +384,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z  
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

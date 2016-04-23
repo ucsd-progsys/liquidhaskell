@@ -174,11 +174,11 @@ initEnv info
        f5       <- refreshArgs' $ vals inSigs sp             -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
-       let f4    = traceShow ("Data Cons \n\nF2 = " ++ show f2 ++ "\n\nF4 = " ++ show (f40, f41, f42)) $ mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
+       let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = traceShow "INITS\n\n" ((tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5])
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs 
@@ -186,7 +186,7 @@ initEnv info
        return γ{invs = is (invs1 ++ invs2)} 
   where
     sp           = spec info
-    ialias       = traceShow "IALiases" $ mkRTyConIAl $ ialiases sp
+    ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
@@ -298,6 +298,7 @@ measEnv sp xts cbs lts asms itys hs
         , denv  = dicts sp
         , recs  = S.empty
         , invs  = mempty 
+        , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
         , assms = fromListREnv asms []
@@ -650,11 +651,10 @@ consCBTop _ γ cb
        modify $ \s -> s { tcheck = tflag && isStr}
 
        -- remove invariants that came from the cb definition 
-       let (γ', i) = removeInvariant γ cb 
-       
+       let (γ',i) = removeInvariant γ cb 
        γ'' <- consCB (tflag && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return $ restoreInvariant γ'' $ traceShow "RESTORE INVARIANTS" i  
+       return $ restoreInvariant γ'' i  
 
 
 tcond :: Bind Var -> S.HashSet Var -> Bool
@@ -688,7 +688,7 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = [γ' `setTRec` (zip xs rts') | rts' <- rts]
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] vs
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
@@ -800,7 +800,7 @@ consCB _ _ γ (Rec xes)
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts
-       mapM_ (consBind True γ') $ traceShow "TYPES " xets
+       mapM_ (consBind True γ') xets
        return γ'
 
 -- | NV: Dictionaries are not checked, because
@@ -1372,8 +1372,8 @@ caseEnv γ x _   (DataAlt c) ys
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
-       cγ'              <- addBinders γ (traceShow ("add binders1" ++ show (invs γ)) x') cbs
-       cγ               <- addBinders cγ' (traceShow ("add binders2" ++ show tdc ++ "\n\n" ++ show (invs cγ', xt, xt0, rtd)) x') [(x', xt)]
+       cγ'              <- addBinders γ   x' cbs
+       cγ               <- addBinders cγ' x' [(x', xt)]
        return cγ
 
 caseEnv γ x acs a _
