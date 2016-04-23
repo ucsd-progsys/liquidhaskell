@@ -52,7 +52,7 @@ data Heap a   = Empty | Node { pri   :: a
   @-}
 
 {-@ measure rank @-}
-{-@ rank :: h:PHeap a -> {v:Nat | v = realRank h} @-}
+{-@ rank :: h:Heap a -> {v:Nat | v = realRank h} @-}
 rank Empty          = 0
 rank (Node _ r _ _) = r
 

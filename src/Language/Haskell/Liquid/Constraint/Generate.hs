@@ -688,7 +688,7 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] vs
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . isClassPred . varType) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'

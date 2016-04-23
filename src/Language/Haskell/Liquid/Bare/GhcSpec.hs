@@ -368,7 +368,7 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
       = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x) 
                           (text "Specification of boolean measures is not allowed")
       | [tx] <- ts, isTauto tx 
-      = mkInvariant tx $ ty_res trep
+      = mkInvariant (head $ ty_binds trep) tx  $ ty_res trep
       | [_] <- ts   
       = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x) 
                           (text "Measures' types cannot have preconditions")
@@ -377,11 +377,11 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
                           (text "Measures has more than one arguments")
 
 
-    mkInvariant :: SpecType -> SpecType -> SpecType
-    mkInvariant t tr = t `strengthen` MkUReft (Reft (v, subst1 p su)) mempty mempty
+    mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
+    mkInvariant z t tr = t `strengthen` MkUReft (Reft (v, subst su p )) mempty mempty
       where 
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
-        su = (v, mkEApp x [EVar v])  
+        su = mkSubst [(v, mkEApp x [EVar v]), (z, EVar v)]  
 
 
 makeGhcSpecCHOP2 :: [CoreBind]

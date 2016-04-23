@@ -342,7 +342,7 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv 
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is = M.map (map f . filter (((varType x) == ) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . ((varType x) `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)
