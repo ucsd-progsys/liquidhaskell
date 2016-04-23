@@ -244,14 +244,14 @@ makeIAliases'     = mapM mkIA
     mkI t         = fmap generalize <$> mkLSpecType t
 
 makeInvariants :: (ModName, Ms.Spec (Located BareType) bndr)
-               -> BareM [Located SpecType]
+               -> BareM [(Maybe Var, Located SpecType)]
 makeInvariants (mod,spec)
   = inModule mod $ makeInvariants' $ Ms.invariants spec
 
-makeInvariants' :: [Located BareType] -> BareM [Located SpecType]
+makeInvariants' :: [Located BareType] -> BareM [(Maybe Var, Located SpecType)]
 makeInvariants' = mapM mkI
   where
-    mkI t       = fmap generalize <$> mkLSpecType t
+    mkI t       = (Nothing,) . fmap generalize <$> mkLSpecType t
 
 makeSpecDictionaries :: F.TCEmb TyCon -> [Var] -> [(a, Ms.BareSpec)] -> GhcSpec
                      -> BareM GhcSpec

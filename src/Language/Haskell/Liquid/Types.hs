@@ -45,7 +45,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
-  , isClassRTyCon, isClassType, isEqType, isRVar
+  , isClassRTyCon, isClassType, isEqType, isRVar, isBool
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -210,7 +210,7 @@ import           TyCon
 import           Type                                   (getClassPredTys_maybe)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
 
@@ -313,7 +313,7 @@ data GhcSpec = SP {
   , ctors      :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
   , meas       :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
-  , invariants :: ![LocSpecType]                 -- ^ Data Type Invariants
+  , invariants :: ![(Maybe Var, LocSpecType)]    -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , ialiases   :: ![(LocSpecType, LocSpecType)]  -- ^ Data Type Invariant Aliases
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
@@ -518,6 +518,12 @@ data RTyCon = RTyCon
 instance NFData RTyCon
 
 -- | Accessors for @RTyCon@
+
+
+
+isBool :: RType RTyCon t t1 -> Bool
+isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
+isBool _ = False
 
 isRVar :: RType c tv r -> Bool 
 isRVar (RVar _ _) = True 

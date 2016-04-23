@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE TupleSections     #-}
+
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
     CG
@@ -72,7 +74,7 @@ import Var
 import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Misc           (fourth4)
+import Language.Haskell.Liquid.Misc           (fourth4, mapSnd)
 import Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
@@ -237,17 +239,18 @@ elemHEnv x (HEnv s) = x `S.member` s
 data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
                                            -- for all type arguments
                  , _rinv_type :: SpecType
+                 , _rinv_name :: Maybe Var 
                  }
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
 
 --------------------------------------------------------------------------------
-mkRTyConInv    :: [F.Located SpecType] -> RTyConInv
+mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, RInv (go ts) t) | t@(RApp c ts _ _) <- strip <$> ts]
+mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
   where
-    strip = fourth4 . bkUniv . val
+    strip = mapSnd (fourth4 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
           | otherwise                = toRSort <$> ts 
 
@@ -255,7 +258,7 @@ mkRTyConInv ts = group [ (c, RInv (go ts) t) | t@(RApp c ts _ _) <- strip <$> ts
                  all isRVar ts' && length ts' == length ts 
 
 mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
-mkRTyConIAl    = mkRTyConInv . fmap snd
+mkRTyConIAl    = mkRTyConInv . fmap ((Nothing,) . snd)
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t
@@ -272,9 +275,9 @@ lookupRInv _ _
   = Nothing 
 
 goodInvs :: [SpecType] -> RInv -> Maybe SpecType
-goodInvs _ (RInv []  t) 
+goodInvs _ (RInv []  t _) 
   = Just t 
-goodInvs ts (RInv ts' t)
+goodInvs ts (RInv ts' t _)
   | and (zipWith unifiable ts' (toRSort <$> ts))
   = Just t
   | otherwise
@@ -337,7 +340,7 @@ initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 --------------------------------------------------------------------------------
 
 instance NFData RInv where
-  rnf (RInv x y) = rnf x `seq` rnf y  
+  rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z  
 
 instance NFData CGEnv where
   rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _)

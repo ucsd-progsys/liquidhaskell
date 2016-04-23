@@ -295,7 +295,7 @@ measEnv sp xts cbs lts asms itys hs autosizes
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
+        , invs  = mkRTyConInv    $ (invariants sp ++ ((Nothing,) <$> autosizes))
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
         , assms = fromListREnv asms []

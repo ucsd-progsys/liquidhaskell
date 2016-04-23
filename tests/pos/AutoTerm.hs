@@ -1,4 +1,4 @@
-module Isort () where
+module Isort where
 
 data F = F | C Int F  
 
@@ -6,7 +6,9 @@ data F = F | C Int F
 
 {-@ measure lenF @-}
 lenF :: F -> Int
-{- lenF :: xs:F -> {v:Int | v >= 0 } @-}
+
+
+{-@ lenF :: xs:F -> {v:Int | v >= 0 } @-}
 lenF F = 0
 lenF (C _ x) = 1 + lenF x 
 
