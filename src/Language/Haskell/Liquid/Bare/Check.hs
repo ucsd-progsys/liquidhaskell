@@ -138,8 +138,8 @@ firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-checkInv :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkInv allowHO emb tcEnv env t   = checkTy allowHO err emb tcEnv env t
+checkInv :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (Maybe Var, Located SpecType) -> Maybe Error
+checkInv allowHO emb tcEnv env (_, t)   = checkTy allowHO err emb tcEnv env t
   where
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
 

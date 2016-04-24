@@ -23,7 +23,7 @@ ht (Tree _ l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
 
 
 {-@ measure bFac @-}
-{-@ bFac :: t:AVLTree a -> {v:Int | v = bFac t && 0 <= v + 1 && v <= 1} @-}
+{-@ bFac :: t:Tree a -> {v:Int | 0 <= v + 1 && v <= 1} @-}
 bFac Nil          = 0
 bFac (Tree _ l r) = ht l - ht r
 

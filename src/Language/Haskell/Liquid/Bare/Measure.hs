@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
@@ -23,7 +24,6 @@ import Type hiding (isFunTy)
 import Var
 
 import Prelude hiding (mapM, error)
-import Control.Arrow ((&&&))
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
@@ -41,7 +41,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (mlookup, sortNub)
-import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..))
+import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
@@ -132,9 +132,19 @@ makeMeasureDefinition tce lmap cbs x
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
-strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas
-  = (val &&& fmap strengthenResult) <$> S.toList hmeas
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy cmpFst ((L.nubBy cmpFst $ reverse sigs) ++ hsigs))
+  where
+    hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
+    go xs  = L.foldl1' (\(v, t1) (_, t2) -> (v, t1 `meetRes` t2)) xs
+    cmpFst = \x y -> fst x == fst y
+
+meetRes :: Located SpecType -> Located SpecType -> Located SpecType
+meetRes !t1 !t2 = t1{val = fromRTypeRep $ trep1 {ty_res = ty_res trep1 `meet` F.subst su (ty_res trep2)}}
+  where
+    [trep1, trep2] = toRTypeRep . val <$> [t1, t2]
+    su = F.mkSubst [(y, F.EVar x) | (x, y) <- zip (ty_binds trep1) (ty_binds trep2)]
+
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
