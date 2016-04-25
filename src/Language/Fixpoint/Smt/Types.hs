@@ -28,17 +28,12 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Theory Symbol
     , TheorySymbol (..)
-
-    -- * Strict Formatter
-    , format
-
     ) where
 
 import           Language.Fixpoint.Types
-import qualified Data.Text.Format         as DTF
-import           Data.Text.Format.Params  (Params)
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Builder   as LT
 import           System.IO                (Handle)
 import           System.Process
 import           Control.Monad.State
@@ -47,7 +42,7 @@ import           Control.Monad.State
 -- | Types ---------------------------------------------------------------
 --------------------------------------------------------------------------
 
-type Raw          = T.Text
+type Raw          = LT.Text
 
 -- | Commands issued to SMT engine
 data Command      = Push
@@ -66,8 +61,8 @@ data Response     = Ok
                   | Sat
                   | Unsat
                   | Unknown
-                  | Values [(Symbol, Raw)]
-                  | Error !Raw
+                  | Values [(Symbol, T.Text)]
+                  | Error !T.Text
                   deriving (Eq, Show)
 
 -- | Information about the external SMT process
@@ -90,10 +85,7 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 -- | AST Conversion: Types that can be serialized ---------------------
 -----------------------------------------------------------------------
 
-format :: Params ps => DTF.Format -> ps -> T.Text
-format f x = LT.toStrict $ DTF.format f x
-
-type SMTEnv = SEnv Sort 
+type SMTEnv = SEnv Sort
 data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv}
 
 type SMT2   = State SMTSt
@@ -118,7 +110,7 @@ class SMTLIB2 a where
   defunc :: a -> SMT2 a
   defunc = return 
 
-  smt2 :: a -> T.Text 
+  smt2 :: a -> LT.Builder
 
-  runSmt2 :: SMTEnv -> a -> T.Text 
+  runSmt2 :: SMTEnv -> a -> LT.Builder
   runSmt2 env a = smt2 $ evalState (defunc a) (SMTSt 0 env)
