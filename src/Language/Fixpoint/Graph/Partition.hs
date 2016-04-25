@@ -52,9 +52,9 @@ import           Data.List (sortBy)
 -- | Constraint Partition Container --------------------------------------------
 --------------------------------------------------------------------------------
 
-data CPart a = CPart { pws :: M.HashMap F.KVar (F.WfC a)
-                     , pcm :: M.HashMap Integer (F.SubC a)
-                     , cFileName :: FilePath
+data CPart a = CPart { pws :: !(M.HashMap F.KVar (F.WfC a))
+                     , pcm :: !(M.HashMap Integer (F.SubC a))
+                     , cFileName :: !FilePath
                      }
 
 instance Monoid (CPart a) where
@@ -68,9 +68,9 @@ instance Monoid (CPart a) where
 -- | Multicore info ------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data MCInfo = MCInfo { mcCores :: Int
-                     , mcMinPartSize :: Int
-                     , mcMaxPartSize :: Int
+data MCInfo = MCInfo { mcCores       :: !Int
+                     , mcMinPartSize :: !Int
+                     , mcMaxPartSize :: !Int
                      } deriving (Show)
 
 mcInfo :: Config -> IO MCInfo

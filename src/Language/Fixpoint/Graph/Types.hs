@@ -61,9 +61,9 @@ import qualified Data.HashMap.Strict       as M
 import GHC.Stack
 --------------------------------------------------------------------------------
 
-data CVertex = KVar  KVar    -- ^ real kvar vertex
-             | DKVar KVar    -- ^ dummy to ensure each kvar has a successor
-             | Cstr  Integer -- ^ constraint-id which creates a dependency
+data CVertex = KVar  !KVar    -- ^ real kvar vertex
+             | DKVar !KVar    -- ^ dummy to ensure each kvar has a successor
+             | Cstr  !Integer -- ^ constraint-id which creates a dependency
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
@@ -118,9 +118,9 @@ data Slice = Slice { slKVarCs :: [CId]     -- ^ CIds that transitively "reach" b
                    } deriving (Eq, Show)
 
 data CGraph = CGraph { gEdges :: [DepEdge]
-                     , gRanks :: CMap Int
-                     , gSucc  :: CSucc
-                     , gSccs  :: Int
+                     , gRanks :: !(CMap Int)
+                     , gSucc  :: !CSucc
+                     , gSccs  :: !Int
                      }
 
 ---------------------------------------------------------------------------
@@ -136,9 +136,9 @@ lookupCMap rm i = safeLookup err i rm
 -- | Constraint Dependencies ---------------------------------------------------
 --------------------------------------------------------------------------------
 
-data CDeps = CDs { cSucc   :: CSucc
-                 , cRank   :: CMap Rank
-                 , cNumScc :: Int
+data CDeps = CDs { cSucc   :: !CSucc
+                 , cRank   :: !(CMap Rank)
+                 , cNumScc :: !Int
                  }
 
 
@@ -157,7 +157,7 @@ instance PPrint Rank where
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
 data SolverInfo a = SI
-  { siSol   :: F.Solution
-  , siQuery :: F.SInfo a
-  , siDeps  :: CDeps
+  { siSol   :: !F.Solution
+  , siQuery :: !(F.SInfo a)
+  , siDeps  :: !CDeps
   }

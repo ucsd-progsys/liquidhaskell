@@ -66,8 +66,8 @@ ntEdges (nts, kvm) = es ++ [(v, u) | (u, v) <- es]
 type NTG = [(NTV, NTV, [NTV])]
 
 data NTV = NTV
-         | K KVar
-         | S Sort
+         | K !KVar
+         | S !Sort
          deriving (Eq, Ord, Show, Generic)
 
 instance Hashable NTV

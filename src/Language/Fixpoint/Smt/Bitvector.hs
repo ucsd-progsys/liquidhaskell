@@ -29,7 +29,7 @@ import           GHC.Generics            (Generic)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types
 
-data Bv     = Bv BvSize String
+data Bv     = Bv !BvSize !String
 
 data BvSize = S32   | S64
               deriving (Eq, Ord, Show, Data, Typeable, Generic)

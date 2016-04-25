@@ -39,7 +39,7 @@ import           Text.PrettyPrint.HughesPJ (text)
 
 data Worklist a = WL { wCs     :: !WorkSet
                      , wPend   :: !(CMap ())
-                     , wDeps   :: CSucc
+                     , wDeps   :: !CSucc
                      , wCm     :: !(CMap (F.SimpC a))
                      , wRankm  :: !(CMap Rank)
                      , wLast   :: !(Maybe CId)

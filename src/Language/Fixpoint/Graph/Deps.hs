@@ -459,7 +459,7 @@ data Stats = Stats {
   , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
   , stNumKVTotal  :: !Int   -- ^ number of kvars
   , stIsReducible :: !Bool  -- ^ is dep-graph reducible
-  , stSetKVNonLin :: S.HashSet F.KVar -- ^ set of non-linear kvars
+  , stSetKVNonLin :: !(S.HashSet F.KVar) -- ^ set of non-linear kvars
   }
 
 instance PTable Stats where

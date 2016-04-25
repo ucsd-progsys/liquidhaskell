@@ -29,7 +29,7 @@ renameAll fi2 = fi4
     idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 --------------------------------------------------------------
 
-data Ref = RB BindId | RI CId deriving (Eq, Generic)
+data Ref = RB !BindId | RI !CId deriving (Eq, Generic)
 
 instance NFData   Ref
 instance Hashable Ref

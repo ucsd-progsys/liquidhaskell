@@ -38,10 +38,10 @@ partitionStats fis = info
 
 data Stats = Stats { cSizes  :: [Float]
                    , cFreq   :: [(Float, Int)]
-                   , cTotal  :: Float
-                   , cMean   :: Float
-                   , cMax    :: Float
-                   , cSpeed  :: Float
+                   , cTotal  :: !Float
+                   , cMean   :: !Float
+                   , cMax    :: !Float
+                   , cSpeed  :: !Float
                    } deriving (Show, Generic)
 
 instance NFData Stats

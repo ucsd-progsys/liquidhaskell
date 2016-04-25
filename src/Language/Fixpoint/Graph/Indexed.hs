@@ -35,8 +35,8 @@ import qualified Data.List as L
 --------------------------------------------------------------------------------
 
 data IKVGraph = IKVGraph
-  { igSucc :: M.HashMap CVertex (S.HashSet CVertex)  -- ^ out-edges of a `CVertex`
-  , igPred :: M.HashMap CVertex (S.HashSet CVertex)  -- ^ in-edges  of a `CVertex`
+  { igSucc :: !(M.HashMap CVertex (S.HashSet CVertex))  -- ^ out-edges of a `CVertex`
+  , igPred :: !(M.HashMap CVertex (S.HashSet CVertex))  -- ^ in-edges  of a `CVertex`
   } deriving (Show)
 
 

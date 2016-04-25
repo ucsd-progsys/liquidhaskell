@@ -78,7 +78,7 @@ import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
 import           System.FilePath
-import           System.IO                (IOMode (..), hClose, hFlush, openFile)
+import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 import           Text.PrettyPrint.HughesPJ (text)
@@ -211,7 +211,8 @@ smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (cIn me)
 
-hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
+hPutStrLnNow     :: Handle -> T.Text -> IO ()
+hPutStrLnNow h !s = TIO.hPutStrLn h s >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------

@@ -53,9 +53,9 @@ type Raw          = T.Text
 data Command      = Push
                   | Pop
                   | CheckSat
-                  | Declare   Symbol [Sort] Sort
-                  | Define    Sort
-                  | Assert    (Maybe Int) Expr
+                  | Declare   !Symbol [Sort] !Sort
+                  | Define    !Sort
+                  | Assert    !(Maybe Int) !Expr
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   | CMany [Command]
@@ -67,22 +67,22 @@ data Response     = Ok
                   | Unsat
                   | Unknown
                   | Values [(Symbol, Raw)]
-                  | Error Raw
+                  | Error !Raw
                   deriving (Eq, Show)
 
 -- | Information about the external SMT process
-data Context      = Ctx { pId     :: ProcessHandle
-                        , cIn     :: Handle
-                        , cOut    :: Handle
-                        , cLog    :: Maybe Handle
-                        , verbose :: Bool
-                        , smtenv  :: SMTEnv
+data Context      = Ctx { pId     :: !ProcessHandle
+                        , cIn     :: !Handle
+                        , cOut    :: !Handle
+                        , cLog    :: !(Maybe Handle)
+                        , verbose :: !Bool
+                        , smtenv  :: !SMTEnv
                         }
 
 -- | Theory Symbol
-data TheorySymbol  = Thy { tsSym  :: Symbol
-                         , tsRaw  :: Raw
-                         , tsSort :: Sort
+data TheorySymbol  = Thy { tsSym  :: !Symbol
+                         , tsRaw  :: !Raw
+                         , tsSort :: !Sort
                          }
                      deriving (Eq, Ord, Show)
 
@@ -94,7 +94,7 @@ format :: Params ps => DTF.Format -> ps -> T.Text
 format f x = LT.toStrict $ DTF.format f x
 
 type SMTEnv = SEnv Sort 
-data SMTSt  = SMTSt {fresh :: Int , smt2env :: SMTEnv}
+data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv}
 
 type SMT2   = State SMTSt
 
