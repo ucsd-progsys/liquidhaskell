@@ -32,7 +32,7 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
-import qualified Data.List                as L
+import Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
@@ -243,9 +243,9 @@ smt2App (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
-smt2App (EVar f) ds
+smt2App (EVar f) (d:ds)
   | Just s <- M.lookup f theorySymbols
-  = Just $ build "({} {})" (tsRaw s, mconcat (L.intersperse " " ds))
+  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
 

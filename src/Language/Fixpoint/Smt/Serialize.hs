@@ -15,7 +15,7 @@ import           Language.Fixpoint.Types
 --import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import qualified Data.List                      as L
+import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
@@ -185,7 +185,8 @@ defuncBop o e1 e2
 
 
 smt2App :: Expr -> Builder.Builder
-smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2many (smt2 <$> es))) (Thy.smt2App (eliminate f) $ (smt2 <$> es))
+smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es))
+                      (Thy.smt2App (eliminate f) $ (map smt2 es))
   where
     (f, es) = splitEApp e
 
@@ -243,8 +244,7 @@ instance SMTLIB2 Command where
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = mconcat . L.intersperse " "
-                           $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+  smt2 (GetValue xs)       = "(get-value (" <> smt2s xs <> "))"
   smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
 
 
@@ -285,11 +285,14 @@ instance SMTLIB2 Command where
   defunc (CMany cmds)        = CMany <$> mapM defunc cmds 
 
 smt2s    :: SMTLIB2 a => [a] -> Builder.Builder
-smt2s as = smt2many (smt2 <$> as)
+smt2s as = smt2many (map smt2 as)
+{-# INLINE smt2s #-}
 
 smt2many :: [Builder.Builder] -> Builder.Builder
-smt2many = mconcat . L.intersperse " "
-
+smt2many []     = mempty
+smt2many [b]    = b
+smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+{-# INLINE smt2many #-}
 
 defineFun :: (Symbol, Expr) -> SMT2 [Command]
 defineFun (f, ELam (x, t) (ECst e tr))
