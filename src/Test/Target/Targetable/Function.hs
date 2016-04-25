@@ -17,7 +17,7 @@ import qualified Data.HashMap.Strict             as M
 import           Data.IORef
 import           Data.Proxy
 import qualified Data.Text                       as ST
-import qualified Data.Text.Lazy                  as T
+import qualified Data.Text.Lazy.Builder          as Builder
 import           System.IO.Unsafe
 
 import qualified GHC
@@ -82,9 +82,11 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                  let su = mkSubst $ zipWith (\v e -> (v, var e)) vs xes
                  xo <- qquery (Proxy :: Proxy (Res f)) d (subst su to)
                  vs <- gets variables
-                 mapM_ (\x -> io . smtWrite ctx $ T.toStrict $ makeDecl (symbol x) (snd x)) vs
+                 mapM_ (\x -> io . smtWrite ctx . Builder.toLazyText $
+                              makeDecl (symbol x) (snd x)) vs
                  cs <- gets constraints
-                 mapM_ (\c -> io . smtWrite ctx . T.toStrict $ smt2 $ Assert Nothing c) cs
+                 mapM_ (\c -> io . smtWrite ctx . Builder.toLazyText $
+                              smt2 $ Assert Nothing c) cs
 
                  resp <- io $ command ctx CheckSat
                  when (resp == Unsat) $ Ex.throwM SmtFailedToProduceOutput
