@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    , slice
 
    -- * Use target binders to generate DiffCheck target
+   , ThinDeps (..)
    , thin
 
    -- * Save current information for next time
@@ -23,6 +24,9 @@ module Language.Haskell.Liquid.UX.DiffCheck (
 
    -- * Names of top-level binders that are rechecked
    , checkedVars
+
+   -- * CoreBinds defining given set of Var
+   , filterBinds
    )
    where
 
@@ -44,7 +48,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (tracepp, PPrint (..), FixResult (..), Located (..))
+import           Language.Fixpoint.Types                ({- tracepp, -} PPrint (..), FixResult (..), Located (..))
 -- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
 import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
@@ -125,23 +129,21 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
   | otherwise = Just $ DC cbs' res' sp'
   where
     gDiff     = globalDiff srcF is spec
-    cbs'      = thinWith sigs coreBinds $ diffVars is dfs
+    sp'       = assumeSpec sigm spec
+    res'      = adjustOutput lm cm result
+    cm        = checkedItv (coreDefs cbs')
+    cbs'      = thinWith sigs coreBinds (diffVars is defs)
+    defs      = coreDefs coreBinds ++ specDefs srcF spec
     sigs      = S.fromList $ M.keys sigm
     sigm      = sigVars srcF is spec
-    res'      = adjustOutput lm cm result
-    cm        = checkedItv chDfs
-    dfs       = coreDefs coreBinds ++ specDefs srcF spec
-    chDfs     = coreDefs cbs'
-    sp'       = assumeSpec sigm spec
 
--- Add the specified signatures for vars-with-preserved-sigs,
--- whose bodies have been pruned from [CoreBind] into the "assumes"
+-- | Add the specified signatures for vars-with-preserved-sigs,
+--   whose bodies have been pruned from [CoreBind] into the "assumes"
+
 assumeSpec :: M.HashMap Var LocSpecType -> GhcSpec -> GhcSpec
 assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
   where
     assm           = M.fromList $ asmSigs sp
-    -- sigm'       = trace ("INCCHECK: sigm = " ++ show zs) sigm
-    -- zs          = M.keys sigm
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
@@ -163,9 +165,9 @@ sigVars srcF ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
 globalDiff :: FilePath -> [Int] -> GhcSpec -> Bool
 globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
   where
-    measDiff  = tracepp "measDiff"  $ any (isDiff srcF ls) (snd <$> meas spec)
-    invsDiff  = tracepp "invsDiff"  $ any (isDiff srcF ls) (invariants spec)
-    dconsDiff = tracepp "dconsDiff" $ any (isDiff srcF ls) (dloc . snd <$> dconsP spec)
+    measDiff  = {- tracepp "measDiff"  $ -} any (isDiff srcF ls) (snd <$> meas spec)
+    invsDiff  = {- tracepp "invsDiff"  $ -} any (isDiff srcF ls) (invariants spec)
+    dconsDiff = {- tracepp "dconsDiff" $ -} any (isDiff srcF ls) (dloc . snd <$> dconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
 isDiff :: FilePath -> [Int] -> Located a -> Bool
@@ -173,13 +175,26 @@ isDiff srcF ls x = file x == srcF && any hits ls
   where
     hits i       = line x <= i && i <= lineE x
 
--------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
--------------------------------------------------------------------------
-thin :: [CoreBind] -> [Var] -> [CoreBind]
--------------------------------------------------------------------------
-thin = thinWith S.empty
+--------------------------------------------------------------------------------
+
+data ThinDeps = Trans -- ^ Check all transitive dependencies
+              | None  -- ^ Check only the given binders
+
+--------------------------------------------------------------------------------
+thin :: ThinDeps -> [CoreBind] -> GhcSpec -> [Var] -> DiffCheck
+--------------------------------------------------------------------------------
+thin Trans cbs sp vs = DC (thinWith S.empty cbs vs) mempty sp
+thin None  cbs sp vs = DC (filterBinds cbs (S.fromList vs)) mempty sp'
+  where
+    sp'              = assumeSpec sigs' sp
+    sigs'            = L.foldr M.delete sigs vs
+    sigs             = M.fromList (specSigs sp)
+
 
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs ys
@@ -195,9 +210,12 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b]
--- Given a call graph, and a list of vars, this function checks all functions
--- to see if they call any of the functions in the vars list. If any do, then
--- they must also be rechecked.
+
+-- | Given a call graph, and a list of vars, `dependsOn`
+--   checks all functions to see if they call any of the
+--   functions in the vars list.
+--   If any do, then they must also be rechecked.
+
 dependsOn :: Deps -> [Var] -> S.HashSet Var
 dependsOn cg vars = S.fromList results
    where
@@ -414,7 +432,7 @@ adjustErrors lm cm                = mapMaybe adjustError
     adjustError e                 = case adjustSrcSpan lm cm (pos e) of
                                       Just sp' -> Just (e {pos = sp'})
                                       Nothing  -> Nothing
-                                      
+
     -- adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$>
     -- adjustError e                 = Just e
 

@@ -1,8 +1,9 @@
-{-# LANGUAGE TupleSections #-}
 -- | This module contains the code for generating "tags" for constraints
--- based on their source, i.e. the top-level binders under which the
--- constraint was generated. These tags are used by fixpoint to
--- prioritize constraints by the "source-level" function.
+--   based on their source, i.e. the top-level binders under which the
+--   constraint was generated. These tags are used by fixpoint to
+--   prioritize constraints by the "source-level" function.
+
+{-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.UX.CTags (
     -- * Type for constraint tags
@@ -15,7 +16,8 @@ module Language.Haskell.Liquid.UX.CTags (
   , makeTagEnv
 
     -- * Accessing @TagEnv@
-  , getTag, memTagEnv
+  , getTag
+  , memTagEnv
 
 ) where
 
@@ -27,8 +29,9 @@ import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
-import Language.Fixpoint.Types          (Tag)
+import Language.Fixpoint.Types          (Tag, tracepp)
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
+import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Misc     (mapSnd)
 
 -- | The @TagKey@ is the top-level binder, and @Tag@ is a singleton Int list
@@ -45,7 +48,7 @@ memTagEnv :: TagKey -> TagEnv -> Bool
 memTagEnv = M.member
 
 makeTagEnv :: [CoreBind] -> TagEnv
-makeTagEnv = M.map (:[]) . callGraphRanks . makeCallGraph
+makeTagEnv = tracepp "TAGENV" . M.map (:[]) . callGraphRanks . makeCallGraph
 
 -- makeTagEnv = M.fromList . (`zip` (map (:[]) [1..])). L.sort . map fst . concatMap bindEqns
 
