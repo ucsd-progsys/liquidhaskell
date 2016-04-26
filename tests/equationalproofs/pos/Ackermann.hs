@@ -106,6 +106,13 @@ lemma3' n x y
   = True
 
 
+lemma3'' :: Int -> Int -> Int -> Bool 
+{-@ lemma3'' :: n:Nat -> x:Nat -> y:{v:Nat | x <= v} -> {v:Bool | ack n x <= ack n y} / [y] @-}
+lemma3'' n x y 
+  | x == y 
+  = ack n x == ack n y 
+  | otherwise
+  = lemma3' n x y 
 
 
 -- Lemma 2.4 
@@ -119,6 +126,16 @@ lemma4 n x
       ack n x < ack n (ack (n+1) (x-1)) `with`
       ack (n+1) x == ack n (ack (n+1) (x-1)) `with`
       ack n x < ack (n+1) x 
+
+
+lemma4' :: Int -> Int -> Bool 
+{-@ lemma4' :: n:Nat -> x:Nat -> {v:Bool | ack n x <= ack (n+1) x } @-}
+lemma4' n x
+  | x == 0 
+  = ack n x     == 2 `with`
+    ack (n+1) x == 2  
+  | otherwise
+  = lemma4 n x 
 
 
 -- Lemma 2.5 
@@ -155,6 +172,41 @@ lemma6 h n x
     iack h n x < iack h n (x+1) `with` 
     iack h n x < iack h n (x+1)
 
+lemma7 :: Int -> Int -> Int -> Bool 
+{-@ lemma7 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Bool | iack h n x <= iack h (n+1) x } @-}
+lemma7 h n x 
+  | x == 0 , h == 0 
+  = iack 0 n 0 == ack n 0 `with` 
+    ack n 0 == 2 `with`
+    iack 0 (n+1) 0 == ack (n+1) 0 `with` 
+    ack (n+2) 0 == 2 
+
+  | h == 0
+  = iack 0 n x == ack n x `with` 
+    iack 0 (n+1) x == ack (n+1) x `with` 
+    lemma4 n x 
+
+  | h > 0 
+  = iack h n x == ack n (iack (h-1) n x) `with` 
+    lemma4' n (iack (h-1) n x) `with` 
+    ack n (iack (h-1) n x) <= ack (n+1) (iack (h-1) n x) `with`
+    lemma7 (h-1) n x `with`
+    iack (h-1) n x <= iack (h-1) (n+1) x `with` 
+    lemma3'' (n+1) (iack (h-1) n x) (iack (h-1) (n+1) x) `with` 
+    ack (n+1) (iack (h-1) n x) <= ack (n+1) (iack (h-1) (n+1) x) `with`
+    ack (n+1) (iack (h-1) (n+1) x) == iack h (n+1) x 
+
+
+{-  desired proof 
+       iack h n x 
+     === ack n (iack (h-1) n x) {- lemma4: ack n x < ack (n+1) x-}
+       < ack (n+1) (iack (h-1) n x) 
+       {- IH iack (h-1) n c <= iack (h-1) (n+1) x -}
+       {- lemma3' ack (n+1) (iack (h-1) n c) <= ack (n+1) (iack (h-1) (n+1) x) -}
+       <= ack (n+1) (iack (h-1) (n+1) x)
+     === iack h (n+1) x 
+-}
 
 
 infixr 2 `with`
