@@ -117,9 +117,9 @@ liquidOne tgt info = do
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
   let cbs' = transformScope (cbs info)
-  -- whenLoud  $ do donePhase Loud "transformRecExpr"
-                 -- putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                 -- putStrLn $ render $ pprintCBs cbs'
+  whenLoud  $ do donePhase Loud "transformRecExpr"
+                 putStrLn "*************** Transform Rec Expr CoreBinds *****************"
+                 putStrLn $ render $ pprintCBs cbs'
   edcs <- newPrune      cfg cbs' tgt info
   out' <- liquidQueries cfg      tgt info edcs
   DC.saveResult      tgt out'
