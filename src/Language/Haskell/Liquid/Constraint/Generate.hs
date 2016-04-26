@@ -908,10 +908,14 @@ addPToEnv γ π
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
-extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
-extender γ _               = return γ
-
+extender γ (x, Asserted t) 
+  = case lookupREnv (F.symbol x) (assms γ) of 
+      Just t' -> γ ++= ("extender", F.symbol x, t')
+      _       -> γ ++= ("extender", F.symbol x, t)
+extender γ (x, Assumed t)  
+  = γ ++= ("extender", F.symbol x, t)
+extender γ _               
+  = return γ
 
 data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
