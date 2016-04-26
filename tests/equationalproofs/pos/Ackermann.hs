@@ -8,9 +8,10 @@ Proving ackermann properties from http://www.cs.yorku.ca/~gt/papers/Ackermann-fu
 {-# LANGUAGE FlexibleContexts     #-}
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--autoproofs"      @-}
-{- LIQUID "--totality"        @-}
+{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--no-prune"        @-}
+{-@ LIQUID "--maxparams=5"     @-}
 
 
 module FunctionAbstraction where
@@ -130,16 +131,42 @@ lemma5 h n x
     iack h n x < ack n (iack h n x) `with`
     iack (h+1) n x == ack n (iack h n x)
 
+
+-- Lemma 2.6 
+lemma6 :: Int -> Int -> Int -> Bool 
+{-@ lemma6 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Bool | iack h n x < iack h n (x+1) } @-}
+
+lemma6 h n x
+   | h == 0 
+   = 
+    iack 0 n x     == ack n x `with` 
+    iack 0 n (x+1) == ack n (x+1) `with`
+    ack n x < ack n (x+1) `with` 
+    lemma3 n x `with`
+    iack h n x < iack h n (x+1) 
+  | h > 0 
+  = lemma6 (h-1) n x `with` 
+    iack (h-1) n x < iack (h-1) n (x+1) `with` 
+    lemma3' n (iack (h-1) n x) (iack (h-1) n (x+1)) `with`
+    ack n (iack (h-1) n x) < ack n (iack (h-1) n (x+1)) `with`
+    ack n (iack (h-1) n x) == iack h n x `with`
+    ack n (iack (h-1) n (x+1)) == iack h n (x+1) `with`
+    iack h n x < iack h n (x+1) `with` 
+    iack h n x < iack h n (x+1)
+
+
+
 infixr 2 `with`
 infixr 2 `proves`
 
-{-@ proves, with :: forall <p :: Bool -> Prop, q::Bool -> Prop, r :: Bool -> Prop>. 
-                     {vp::Bool<p> |- Bool<q> <: Bool<r> }
-                     Bool<p> -> Bool<q> -> Bool<r> @-}
 
+{-@ with, proves  :: p:Bool -> q:Bool -> {v:Bool | Prop v <=> Prop p && Prop q } @-}
 proves, with :: Bool -> Bool -> Bool
-with   _ r = r
-proves _ r = r
+with   p q = p && q 
+proves p q = p && q 
+
+
 
 
 
