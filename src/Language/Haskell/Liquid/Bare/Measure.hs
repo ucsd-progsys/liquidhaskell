@@ -133,6 +133,7 @@ simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+-- strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy cmpFst (sigs ++ hsigs))
 strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy cmpFst ((L.nubBy cmpFst $ reverse sigs) ++ hsigs))
   where
     hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
