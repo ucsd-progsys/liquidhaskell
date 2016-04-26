@@ -138,6 +138,17 @@ lemma4' n x
   = lemma4 n x 
 
 
+lemma4'' :: Int -> Int -> Int -> Bool 
+{-@ lemma4'' :: n:Nat -> m:{Nat | m < n}-> x:{Int | x > 0 } -> {v:Bool | ack m x < ack n x } @-}
+lemma4'' n m x
+  | n == m + 1 
+  =  lemma4 m x  `with` 
+     ack m x < ack n x 
+  | otherwise
+  = lemma4'' (n-1) m  x `with`
+    ack m x < ack (n-1) x `with`
+    lemma4' (n-1) x `with`
+    ack (n-1) x < ack n x 
 -- Lemma 2.5 
 
 lemma5 :: Int -> Int -> Int -> Bool 
@@ -207,6 +218,41 @@ lemma7 h n x
        <= ack (n+1) (iack (h-1) (n+1) x)
      === iack h (n+1) x 
 -}
+
+-- Lemma 9
+
+lemma9 :: Int -> Int -> Int -> Bool 
+{-@ lemma9 :: n:{Int | n > 0} -> x:Nat -> l:{Int | l < x + 2 } 
+            -> {v:Bool | x + l < ack n x } @-}
+lemma9 n x l 
+  | x == 0 
+  = ack n 0 == 2 
+  | n == 1 
+  = lemma90 x l `with` x+1 < ack 1 x 
+  | otherwise 
+  = ack 1 x < ack n x `with`
+    lemma4'' n 1 x `with` 
+    ack 1 x > x + l `with`
+    lemma90 x l  
+
+
+
+lemma90 :: Int -> Int -> Bool 
+{-@ lemma90 :: x:Nat -> l:{Int | l < x + 2 } 
+            -> {v:Bool | x + l < ack 1 x } @-}
+lemma90 x l
+  | x == 0
+  = ack 1 0 == 2
+  | x > 0 
+  = ack 1 x == ack 0 (ack 1 (x-1)) `with` 
+    ack 0 (ack 1 (x-1)) == ack 1 (x-1) + 2 `with` 
+    lemma90 (x-1) (l-1) `with` 
+    ack 1 (x-1) > x + l `with` 
+    ack 1 x > x + l   
+
+
+
+
 
 
 infixr 2 `with`
