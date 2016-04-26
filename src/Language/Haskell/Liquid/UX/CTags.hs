@@ -29,7 +29,7 @@ import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
-import Language.Fixpoint.Types          (Tag, tracepp)
+import Language.Fixpoint.Types          (Tag)
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Misc     (mapSnd)
@@ -48,7 +48,7 @@ memTagEnv :: TagKey -> TagEnv -> Bool
 memTagEnv = M.member
 
 makeTagEnv :: [CoreBind] -> TagEnv
-makeTagEnv = tracepp "TAGENV" . M.map (:[]) . callGraphRanks . makeCallGraph
+makeTagEnv = {- tracepp "TAGENV" . -} M.map (:[]) . callGraphRanks . makeCallGraph
 
 -- makeTagEnv = M.fromList . (`zip` (map (:[]) [1..])). L.sort . map fst . concatMap bindEqns
 

@@ -127,14 +127,13 @@ liquidOne tgt info = do
 
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
-  | not (null vs) = return . Right $ [DC.thin DC.Trans cbs sp vs]
-  | timeBinds cfg = return . Right $ [DC.thin DC.None  cbs sp [x] | (x, _) <- tySigs sp ]
+  | not (null vs) = return . Right $ [DC.thin cbs sp vs]
+  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | (v, _) <- tySigs sp ]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return  (Left cbs)
   where
     vs            = tgtVars sp
     sp            = spec    info
-
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d

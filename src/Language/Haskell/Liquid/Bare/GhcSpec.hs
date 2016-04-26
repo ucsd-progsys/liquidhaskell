@@ -221,7 +221,7 @@ makeGhcSpec0 :: Config
              -> GhcSpec
              -> BareM GhcSpec
 makeGhcSpec0 cfg defVars exports name sp
-  = do targetVars <- makeTargetVars name defVars $ binders cfg
+  = do targetVars <- makeTargetVars name defVars $ checks cfg
        return      $ sp { config = cfg
                         , exports = exports
                         , tgtVars = targetVars }

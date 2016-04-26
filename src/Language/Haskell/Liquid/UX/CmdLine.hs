@@ -110,8 +110,9 @@ config = cmdArgsMode $ Config {
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
 
- , binders
-    = def &= help "Check a specific set of binders"
+ , checks
+    = def &= help "Check a specific (top-level) binder"
+          &= name "check-var"
 
  , noPrune
     = def &= help "Disable prunning unsorted Predicates"
@@ -357,7 +358,7 @@ defConfig = Config { files          = def
                    , higherorder    = def
                    , diffcheck      = def
                    , saveQuery      = def
-                   , binders        = def
+                   , checks         = def
                    , noCheckUnknown = def
                    , notermination  = def
                    , autoproofs     = def

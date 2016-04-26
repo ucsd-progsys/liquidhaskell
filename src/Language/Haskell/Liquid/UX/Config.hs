@@ -32,7 +32,7 @@ data Config = Config {
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
-  , binders        :: [String]   -- ^ set of binders to check
+  , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
