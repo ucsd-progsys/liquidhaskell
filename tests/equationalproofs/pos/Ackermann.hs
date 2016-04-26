@@ -29,9 +29,12 @@ TODO
 
 {-@ measure ack :: Int -> Int -> Int @-}
 -- assumed specs cannot have termination expressions 
-{-@ Lazy ack @-}
+
+
 {-@ assume ack :: n:Nat -> x:Nat
       -> {v:Nat| v == ack n x && if n == 0 then v == x + 2 else (if x == 0 then v == 2 else v == (ack (n-1) (ack n (x-1))))}@-}
+
+{-@ ack :: n:Nat -> x:Nat -> Nat / [n, x] @-}
 ack :: Int -> Int -> Int 
 ack n x 
   | n == 0
@@ -40,9 +43,16 @@ ack n x
   = 2 
   | n > 0, x > 0 
   = ack (n-1) (ack n (x-1))
-  -- this cannot be proven, because assumed types ignore precondition specs 
-  | otherwise
-  = 0 
+
+
+{-@ Lazy iack @-}
+{-@ measure iack :: Int -> Int -> Int -> Int @-}
+{-@ iack :: Nat -> Nat -> Nat -> Int @-}
+{-@ assume iack :: h:Nat -> n:Nat -> x:Nat 
+                -> {v:Nat | v == iack h n x && if h == 0 then (v == ack n x) else (v == ack n (iack (h-1) n x) )} @-}
+iack :: Int -> Int -> Int -> Int 
+iack h n x = if h == 0 then ack n x else ack n (iack (h-1) n x)
+
 
 -- Lemma 2.2
 
@@ -96,15 +106,6 @@ lemma3' n x y
 
 
 
-{-@ liquidCheck :: b:{Bool | Prop b} -> {v:a | Prop b } @-}
-liquidCheck :: Bool -> a 
-liquidCheck p = undefined 
-
-
-
-{-@ liquidAssert :: {v:Bool | Prop v } -> a @-}
-liquidAssert :: Bool -> a 
-liquidAssert p = undefined 
 
 -- Lemma 2.4 
 
@@ -119,8 +120,15 @@ lemma4 n x
       ack n x < ack (n+1) x 
 
 
+-- Lemma 2.5 
 
-
+lemma5 :: Int -> Int -> Int -> Bool 
+{-@ lemma5 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Bool | iack h n x < iack (h+1) n x } @-}
+lemma5 h n x
+  = lemma2 n (iack h n x) `proves`
+    iack h n x < ack n (iack h n x) `with`
+    iack (h+1) n x == ack n (iack h n x)
 
 infixr 2 `with`
 infixr 2 `proves`
