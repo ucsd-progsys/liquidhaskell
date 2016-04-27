@@ -22,6 +22,9 @@ module Language.Haskell.Liquid.GHC.Resugar (
 
 import           CoreSyn
 import           Type
+import           PrelNames  (bindMName)
+import           Name       (getName)
+
 -- import           Debug.Trace
 -- import           Var
 -- import           Data.Maybe                                 (fromMaybe)
@@ -38,8 +41,23 @@ data Pattern
       , patM   :: Type
       , patMDi :: CoreExpr
       , patTyA :: Type
-      , patTB  :: Type
+      , patTyB :: Type
       }                      -- ^ e1 >>= \x -> e2
 
+--------------------------------------------------------------------------------
+-- | API for detecting special patterns ----------------------------------------
+--------------------------------------------------------------------------------
 resugar :: CoreExpr -> Maybe Pattern
-resugar _e = Nothing -- error "TODO:PATTERN"
+--------------------------------------------------------------------------------
+resugar e = resugarEArgs e (collectArgs e)
+
+
+resugarEArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
+resugarEArgs _e (Var ff, [Type m, d, Type a, Type b, e1, Lam x e2])
+  | isMonadicBind ff
+  = Just (PatBindApp e1 x e2 m d a b)
+resugarEArgs _ _
+  = Nothing
+
+isMonadicBind :: Var -> Bool
+isMonadicBind v = getName v == bindMName
