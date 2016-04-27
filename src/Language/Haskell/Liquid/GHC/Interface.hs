@@ -90,8 +90,8 @@ getGhcInfo' :: Config -> Either Error LogicMap
             -> [FilePath]
             -> Ghc ([GhcInfo], HscEnv)
 getGhcInfo' cfg logicMap tgtFiles = do
-  homeModules <- configureGhcTargets tgtFiles
   _           <- compileCFiles cfg
+  homeModules <- configureGhcTargets tgtFiles
   depGraph    <- buildDepGraph homeModules
   ghcInfo     <- processModules cfg logicMap tgtFiles depGraph homeModules
   hscEnv      <- getSession
@@ -143,7 +143,6 @@ configureDynFlags cfg tmp = do
                    `xopt_set` Opt_StandaloneDeriving
                    `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
-                   `gopt_set` Opt_KeepRawTokenStream
   _ <- setSessionDynFlags df''
   return df''
 
@@ -194,8 +193,8 @@ mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
 
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
-  moduleGraph <- hsc_mod_graph <$> getSession
-  return $ any ((== mod) . ms_mod) moduleGraph
+  homePkg <- thisPackage <$> getSessionDynFlags
+  return $ modulePackageKey mod == homePkg
 
 modSummaryImports :: ModSummary -> Ghc [Module]
 modSummaryImports modSummary =
@@ -238,7 +237,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- liftIO $ whenLoud $ putStrLn $ "Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   _                   <- load $ LoadDependenciesOf $ moduleName mod
-  parsed              <- parseModule $ modSummary
+  parsed              <- parseModule $ keepRawTokenStream modSummary
   typechecked         <- typecheckModule $ ignoreInline parsed
   _                   <- loadModule typechecked
   let specComments     = getSpecComments parsed
@@ -247,6 +246,10 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
     then return Nothing
     else Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+
+keepRawTokenStream :: ModSummary -> ModSummary
+keepRawTokenStream modSummary = modSummary
+  { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
 
 getSpecComments :: ParsedModule -> [(SourcePos, String)]
 getSpecComments parsed = mapMaybe getSpecComment comments
@@ -282,8 +285,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let derVs          = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
   let paths          = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSummary)
   _                 <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
-  specSpecs         <- findAndParseSpecFiles cfg paths modSummary
-  let homeSpecs      = reachableBareSpecs depGraph specEnv mod
+  let reachable      = reachableModules depGraph mod
+  specSpecs         <- findAndParseSpecFiles cfg paths modSummary reachable
+  let homeSpecs      = getCachedBareSpecs specEnv reachable
   let impSpecs       = specSpecs ++ homeSpecs
   (spc, imps, incs) <- toGhcSpec cfg coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
@@ -320,9 +324,8 @@ modSummaryHsFile modSummary =
     Nothing -> panic Nothing $
       "modSummaryHsFile: missing .hs file for " ++ showPpr (ms_mod modSummary)
 
-reachableBareSpecs :: DepGraph -> SpecEnv -> Module -> [(ModName, Ms.BareSpec)]
-reachableBareSpecs depGraph specEnv mod =
-  lookupBareSpec <$> reachableModules depGraph mod
+getCachedBareSpecs :: SpecEnv -> [Module] -> [(ModName, Ms.BareSpec)]
+getCachedBareSpecs specEnv mods = lookupBareSpec <$> mods
   where
     lookupBareSpec mod = case lookupModuleEnv specEnv mod of
       Just bareSpec -> bareSpec
@@ -335,10 +338,12 @@ reachableBareSpecs depGraph specEnv mod =
 
 -- Handle Spec Files -----------------------------------------------------------
 
-findAndParseSpecFiles :: Config -> [FilePath] -> ModSummary
+findAndParseSpecFiles :: Config -> [FilePath] -> ModSummary -> [Module]
                       -> Ghc [(ModName, Ms.BareSpec)]
-findAndParseSpecFiles cfg paths modSummary = do
-  imps'    <- filterM ((not <$>) . isHomeModule) =<< modSummaryImports modSummary
+findAndParseSpecFiles cfg paths modSummary reachable = do
+  impSumms <- mapM getModSummary (moduleName <$> reachable)
+  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
+  imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = moduleNameString . moduleName <$> imps'
   fs'      <- moduleFiles Spec paths imps
   patSpec  <- getPatSpec paths $ totality cfg
