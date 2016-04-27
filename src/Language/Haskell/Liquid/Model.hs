@@ -17,6 +17,8 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor
 import qualified Data.HashMap.Strict                   as HM
+import           Data.List                        (partition)
+import           Data.Maybe
 import           Data.Proxy
 import           GHC.Prim
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -49,7 +51,9 @@ import           OccName
 import           RdrName
 import           Type
 import           TysWiredIn
+import           UniqSet
 import           Var
+import           VarSet
 import           InteractiveEval
 
 import Id
@@ -109,7 +113,9 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   let vv  = (symbol "VV", tact `strengthen` (fmap (mapPredReft PNot) (rt_reft texp)))
   let vts = vv : HM.toList ctx
 
-  vtds <- addDicts vts
+  let (preds, vts') = partition (isPredTy . toType . snd) vts
+
+  vtds <- addDicts (map (toType.snd) preds) vts'
 
   hsc_env <- getSession
   df <- getDynFlags
@@ -172,111 +178,173 @@ data Dict :: Constraint -> * where
 
 data TargetDict = forall t. TargetDict (Dict (Targetable t))
 
-addDicts :: [(Symbol, SpecType)] -> Ghc [(Symbol, SpecType, Maybe TargetDict)]
-addDicts bnds = mapM addDict bnds
+addDicts :: [PredType] -> [(Symbol, SpecType)]
+         -> Ghc [(Symbol, SpecType, Maybe TargetDict)]
+addDicts preds bnds = mapM (addDict preds) bnds
 
 -- TODO: instead of returning Maybe (Symbol, SpecType, TargetDict),
 -- return (Symbol, SpecType, Maybe TargetDict).
 -- if Nothing, generate a binder for the value, but no skeleton / model.
 -- this way we can possibly still generate models for other values in the context
-addDict :: (Symbol, SpecType) -> Ghc (Symbol, SpecType, Maybe TargetDict)
-addDict (v, t) = addDict' (v, t) `gcatch` \(_e :: SomeException) -> return (v, t, Nothing)
+addDict :: [PredType] -> (Symbol, SpecType)
+        -> Ghc (Symbol, SpecType, Maybe TargetDict)
+addDict preds (v, t) = addDict' preds (v, t) `gcatch`
+                       \(_e :: SomeException) -> return (v, t, Nothing)
 
-addDict' :: (Symbol, SpecType) -> Ghc (Symbol, SpecType, Maybe TargetDict)
-addDict' (v, t) = do
-  let mt = monomorphize (toType t)
-  -- traceShowM (v, t, showPpr mt)
-  case tyConAppTyCon_maybe mt of
+addDict' :: [PredType] -> (Symbol, SpecType)
+         -> Ghc (Symbol, SpecType, Maybe TargetDict)
+addDict' _preds (v, t)
+  | Type.isFunTy (toType t)
+  = return (v, t, Nothing)
+addDict' preds (v, t) = do
+  -- liftIO $ putStrLn $ showPpr (toType t, preds)
+  msu <- monomorphize preds (toType t)
+  -- liftIO $ putStrLn $ showPpr msu
+  case msu of
     Nothing -> return (v, t, Nothing)
-    Just tc | isClassTyCon tc || isFunTyCon tc || isPrimTyCon tc
-              || isPromotedDataCon tc || isPromotedTyCon tc
-              -- FIXME: shouldn't be necessary..
-              -- why do we have binders for higher-kinded types??
-              || Type.isFunTy (Type.typeKind mt)
-              -- TODO: cannot handle `Targetable (Fix f)`, see higher-kinded classes e.g. Eq1, Ord1, etc...
-              || any Type.isFunTy (map Var.varType (tyConTyVars tc))
-              -> return (v, t, Nothing)
-    Just tc -> do
-      getInfo False (getName tc) >>= \case
+    Just su -> do
+      let (tvs, ts) = unzip su
+      let mt = substTyWith tvs ts (toType t)
+  -- traceShowM (v, t, showPpr mt)
+      case tyConAppTyCon_maybe mt of
         Nothing -> return (v, t, Nothing)
-        Just (ATyCon tc, _, cis, _) -> do
-          genericsMod   <- lookupModule (mkModuleName "GHC.Generics") Nothing
-          targetableMod <- lookupModule (mkModuleName "Test.Target.Targetable") Nothing
-          modelMod      <- lookupModule (mkModuleName "Language.Haskell.Liquid.Model") Nothing
-
-          let genericClsName    = mkOrig genericsMod (mkClsOcc "Generic")
-          let targetableClsName = mkOrig targetableMod (mkClsOcc "Targetable")
-          let dictTcName        = mkOrig modelMod (mkTcOcc "Dict")
-          let dictDataName      = mkOrig modelMod (mkDataOcc "Dict")
-
-          -- let mt = monomorphize (toType t)
-
-          -- liftIO $ putStrLn $ showPpr tc
-          -- maybe add a Targetable instance
-          unless ("Test.Target.Targetable.Targetable"
-                  `elem` map (showpp.is_cls_nm) cis) $ do
-
-            let tvs =  map (getRdrName) (tyConTyVars tc)
-            let tvbnds = userHsTyVarBndrs noSrcSpan tvs
-
-            -- maybe derive a Generic instance
-            unless ("GHC.Generics.Generic"
-                    `elem` map (showpp.is_cls_nm) cis) $ do
-              let genericInst = nlHsTyConApp genericClsName
-                               [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
-              let instType = noLoc $ HsForAllTy Implicit Nothing
-                             (HsQTvs [] tvbnds)
-                             (noLoc []) -- (noLoc (map (nlHsTyConApp genericClsName . pure . nlHsTyVar) tvs))
-                             genericInst
-              let derivDecl = DerivD $ DerivDecl instType Nothing
-              -- liftIO $ putStrLn $ showPpr derivDecl
-              hsc_env <- getSession
-              (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc derivDecl]
-              setSession $ hsc_env { hsc_IC = ic }
-
-            let targetInst = nlHsTyConApp targetableClsName
-                             [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
-            let instType = noLoc $ HsForAllTy Implicit Nothing
-                           (HsQTvs [] tvbnds)
-                           -- (noLoc [])
-                           (noLoc (map (nlHsTyConApp targetableClsName . pure . nlHsTyVar) tvs))
-                           targetInst
-            let instDecl = InstD $ ClsInstD $ ClsInstDecl
-                           instType emptyBag [] [] [] Nothing
-            -- liftIO $ putStrLn $ showPpr instDecl
-            hsc_env <- getSession
-            (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc instDecl]
-            setSession $ hsc_env { hsc_IC = ic }
-
-          hsc_env <- getSession
-
-          let targetType = nlHsTyConApp targetableClsName [toHsType mt]
-
-          let dictExpr = ExprWithTySig (nlHsVar dictDataName)
-                                       (nlHsTyConApp dictTcName [targetType])
-                                       PlaceHolder
-          let dictStmt = noLoc $ LetStmt $ HsValBinds $ ValBindsIn
-                         (listToBag [noLoc $
-                                     mkFunBind (noLoc $ mkVarUnqual $ fsLit "_compile")
-                                     [mkSimpleMatch [] (noLoc dictExpr)]])
-                         []
-          -- liftIO $ putStrLn $ showPpr dictStmt
-          x <- liftIO $ hscParsedStmt hsc_env dictStmt
-          case x of
+        Just tc | isClassTyCon tc || isFunTyCon tc || isPrimTyCon tc
+                  || isPromotedDataCon tc || isPromotedTyCon tc
+                  -- FIXME: shouldn't be necessary..
+                  -- why do we have binders for higher-kinded types??
+                  || Type.isFunTy (Type.typeKind mt)
+                  -- TODO: cannot handle `Targetable (Fix f)`, see higher-kinded classes e.g. Eq1, Ord1, etc...
+                  || any Type.isFunTy (map Var.varType (tyConTyVars tc))
+                  -> return (v, t, Nothing)
+        Just tc -> do
+          getInfo False (getName tc) >>= \case
             Nothing -> return (v, t, Nothing)
-            Just (_, hvals_io, _) -> do
-              [hv] <- liftIO hvals_io
-              let d = TargetDict $ unsafeCoerce hv
-              return (v, t, Just d)
+            Just (ATyCon tc, _, cis, _) -> do
+              genericsMod   <- lookupModule (mkModuleName "GHC.Generics") Nothing
+              targetableMod <- lookupModule (mkModuleName "Test.Target.Targetable") Nothing
+              modelMod      <- lookupModule (mkModuleName "Language.Haskell.Liquid.Model") Nothing
 
-        _ -> return (v, t, Nothing)
+              let genericClsName    = mkOrig genericsMod (mkClsOcc "Generic")
+              let targetableClsName = mkOrig targetableMod (mkClsOcc "Targetable")
+              let dictTcName        = mkOrig modelMod (mkTcOcc "Dict")
+              let dictDataName      = mkOrig modelMod (mkDataOcc "Dict")
+
+              -- let mt = monomorphize (toType t)
+
+              -- liftIO $ putStrLn $ showPpr tc
+              -- maybe add a Targetable instance
+              unless ("Test.Target.Targetable.Targetable"
+                      `elem` map (showpp.is_cls_nm) cis) $ do
+
+                let tvs =  map (getRdrName) (tyConTyVars tc)
+                let tvbnds = userHsTyVarBndrs noSrcSpan tvs
+
+                -- maybe derive a Generic instance
+                unless ("GHC.Generics.Generic"
+                        `elem` map (showpp.is_cls_nm) cis) $ do
+                  let genericInst = nlHsTyConApp genericClsName
+                                   [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
+                  let instType = noLoc $ HsForAllTy Implicit Nothing
+                                 (HsQTvs [] tvbnds)
+                                 (noLoc []) -- (noLoc (map (nlHsTyConApp genericClsName . pure . nlHsTyVar) tvs))
+                                 genericInst
+                  let derivDecl = DerivD $ DerivDecl instType Nothing
+                  -- liftIO $ putStrLn $ showPpr derivDecl
+                  hsc_env <- getSession
+                  (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc derivDecl]
+                  setSession $ hsc_env { hsc_IC = ic }
+
+                let targetInst = nlHsTyConApp targetableClsName
+                                 [nlHsTyConApp (getRdrName tc) (map nlHsTyVar tvs)]
+                let instType = noLoc $ HsForAllTy Implicit Nothing
+                               (HsQTvs [] tvbnds)
+                               -- (noLoc [])
+                               (noLoc (map (nlHsTyConApp targetableClsName . pure . nlHsTyVar) tvs))
+                               targetInst
+                let instDecl = InstD $ ClsInstD $ ClsInstDecl
+                               instType emptyBag [] [] [] Nothing
+                -- liftIO $ putStrLn $ showPpr instDecl
+                hsc_env <- getSession
+                (_, ic) <- liftIO $ hscParsedDecls hsc_env [noLoc instDecl]
+                setSession $ hsc_env { hsc_IC = ic }
+
+              hsc_env <- getSession
+
+              let targetType = nlHsTyConApp targetableClsName [toHsType mt]
+
+              let dictExpr = ExprWithTySig (nlHsVar dictDataName)
+                                           (nlHsTyConApp dictTcName [targetType])
+                                           PlaceHolder
+              let dictStmt = noLoc $ LetStmt $ HsValBinds $ ValBindsIn
+                             (listToBag [noLoc $
+                                         mkFunBind (noLoc $ mkVarUnqual $ fsLit "_compile")
+                                         [mkSimpleMatch [] (noLoc dictExpr)]])
+                             []
+              -- liftIO $ putStrLn $ showPpr dictStmt
+              x <- liftIO $ hscParsedStmt hsc_env dictStmt
+              case x of
+                Nothing -> return (v, t, Nothing)
+                Just (_, hvals_io, _) -> do
+                  [hv] <- liftIO hvals_io
+                  let d = TargetDict $ unsafeCoerce hv
+                  return (v, subts su t, Just d)
+
+            _ -> return (v, t, Nothing)
+
+type Su = [(TyVar, Type)]
 
 -- FIXME: can't instantiate higher-kinded tvs with 'Int'
-monomorphize :: Type -> Type
-monomorphize t = substTyWith tvs (replicate (length tvs) intTy) t
-  where
-  tvs = varSetElemsKvsFirst (tyVarsOfType t)
+-- | Attempt to monomorphize a 'Type' according to simple defaulting rules.
+monomorphize :: [PredType] -> Type -> Ghc (Maybe Su)
+monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
+                             (Just [])
+                             (varSetElemsKvsFirst $ tyVarsOfType t)
 
+monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
+monomorphizeOne _preds _tv Nothing = return Nothing
+monomorphizeOne preds tv (Just su)
+  | null clss
+  = return (monomorphizeFree tv su)
+
+  | otherwise
+  = do insts <- concatMapM (fmap (thd4 . fromJust)
+                            . getInfo False . getName)
+                           clss
+       if any (\ClsInst {..} -> length is_tys /= 1) insts
+         -- TODO: handle multi-param (/ nullary) classes
+         then return Nothing
+         else do
+         -- liftIO $ putStrLn $ showPpr insts
+         let tcs = map (mkUniqSet . map tyConAppTyCon . is_tys) insts
+         let common_tcs = uniqSetToList $ foldr1 intersectUniqSets tcs
+         -- liftIO $ putStrLn $ showPpr common_tcs
+         case common_tcs of
+           -- hopefully doesn't happen
+           [] -> return Nothing
+
+           tc:_ -> return (Just ((tv, (mkTyConApp tc [])) : su))
+  where
+
+  clss = map (fst.getClassPredTys)
+       . filter (\p -> tv `elemVarSet` tyVarsOfType p)
+       $ preds
+
+  thd4 (_,_,c,_) = c
+
+monomorphizeFree :: TyVar -> Su -> Maybe Su
+monomorphizeFree tv su
+  | tyVarKind tv == liftedTypeKind
+    -- replace (a :: *) with Int
+  = Just ((tv, intTy) : su)
+
+  | Just (_, b) <- splitFunTy_maybe (tyVarKind tv)
+  , b == liftedTypeKind
+    -- replace (a :: * -> *) with []
+  = Just ((tv, (mkTyConApp listTyCon [])) : su)
+
+  | otherwise
+    -- TODO: higher-kinded types
+  = Nothing
 
 ----------------------------------------------------------------------
 -- Slightly altered from GHC

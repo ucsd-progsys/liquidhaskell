@@ -394,11 +394,14 @@ arrowP
 
 bareFunP :: Parser (RType LocSymbol Symbol (UReft Reft))
 bareFunP
-  = do b  <- try (lowerIdP <* colon) <|> dummyBindP
+  = do b  <- try funBindP <|> dummyBindP
        t1 <- bareArgP b
        a  <- arrowP
        t2 <- bareTypeP
        return $ bareArrow b t1 a t2
+
+funBindP :: Parser Symbol
+funBindP = lowerIdP <* colon
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
@@ -424,8 +427,6 @@ isHPropBareType = isPrimBareType hpropConName
 isPrimBareType :: Eq a => a -> RType (Located a) t t1 -> Bool
 isPrimBareType n (RApp tc [] _ _) = val tc == n
 isPrimBareType _ _                = False
-
-
 
 getClasses :: TyConable c => RType c t t1 -> [RType c t t1]
 getClasses t@(RApp tc ts _ _)
@@ -754,7 +755,7 @@ asizeP :: Parser LocSymbol
 asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
+decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 

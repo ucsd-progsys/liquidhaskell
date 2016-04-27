@@ -32,7 +32,7 @@ data Config = Config {
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
-  , binders        :: [String]   -- ^ set of binders to check
+  , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
@@ -61,6 +61,8 @@ data Config = Config {
   , elimStats      :: Bool       -- ^ print eliminate stats
   , json           :: Bool       -- ^ print results (safe/errors) as JSON
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
+  , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
+  , inlineMonad    :: Bool       -- ^ inline applications of >>= and return to avoid KVars
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

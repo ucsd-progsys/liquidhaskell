@@ -430,8 +430,8 @@ instance PPrint GhcInfo where
 
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
-  | True      = pprintCBsTidy
   | otherwise = pprintCBsVerbose
+  | True      = pprintCBsTidy
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs

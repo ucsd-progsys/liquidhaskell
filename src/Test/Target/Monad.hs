@@ -40,6 +40,7 @@ import           Data.List                        hiding (sort)
 
 import qualified Data.Text                        as ST
 import qualified Data.Text.Lazy                   as T
+import qualified Data.Text.Lazy.Builder           as Builder
 import           Language.Haskell.TH.Lift
 import           System.IO.Unsafe
 -- import           Text.Printf
@@ -217,9 +218,12 @@ making ty act
 -- | Find the refined type of a data constructor.
 lookupCtor :: Symbol -> SpecType -> Target SpecType
 lookupCtor c (toType -> t)
-  = do mt <- lookup c <$> gets ctorEnv
+             -- FIXME: WTF, how do two symbols share a Text
+             -- without being equal??
+  = do mt <- find (\(c', _) -> symbolText c == symbolText c')
+               <$> gets ctorEnv
        case mt of
-         Just t -> do
+         Just (_, t) -> do
            return t
          Nothing -> do
            -- m  <- gets filePath
@@ -289,7 +293,8 @@ unObj s        = error $ "unObj: " ++ show s
 freshChoice :: String -> Target Symbol
 freshChoice cn
   = do n <- freshInt
-       let x = symbol $ T.unpack (smt2 choicesort) ++ "-" ++ cn ++ "-" ++ show n
+       let x = symbol $ T.unpack (Builder.toLazyText $ smt2 choicesort)
+                        ++ "-" ++ cn ++ "-" ++ show n
        modify $ \s@(TargetState {..}) -> s { variables = (x,choicesort) : variables }
        return x
 

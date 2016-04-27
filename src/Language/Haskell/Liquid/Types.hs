@@ -110,7 +110,6 @@ module Language.Haskell.Liquid.Types (
   , ignoreOblig
   , addInvCond
 
-
   -- * Inferred Annotations
   , AnnInfo (..)
   , Annot (..)
@@ -519,11 +518,9 @@ instance NFData RTyCon
 
 -- | Accessors for @RTyCon@
 
-
-
 isBool :: RType RTyCon t t1 -> Bool
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
-isBool _ = False
+isBool _                                 = False
 
 isRVar :: RType c tv r -> Bool 
 isRVar (RVar _ _) = True 
@@ -1239,7 +1236,7 @@ foldReft  f = foldReft' (\_ _ -> False) id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)  
+          => (Symbol -> RType c tv r -> Bool)
           -> (RType c tv r -> b)
           -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
@@ -1250,7 +1247,7 @@ foldReft' logicBind g f = efoldReft logicBind (\_ _ -> []) g (\γ t r z -> f γ 
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)  
+          => (Symbol -> RType c tv r -> Bool)
           -> (c -> [RType c tv r] -> [(Symbol, a)])
           -> (RType c tv r -> a)
           -> (SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
@@ -1268,7 +1265,7 @@ efoldReft logicBind cb g f fp = go
     go γ z (RAllS _ t)                  = go γ z t
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    go γ z me@(RFun x t t' r) 
+    go γ z me@(RFun x t t' r)
        | logicBind x t                  = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
