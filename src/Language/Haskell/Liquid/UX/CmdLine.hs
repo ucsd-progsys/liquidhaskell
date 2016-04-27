@@ -400,10 +400,10 @@ defConfig = Config { files             = def
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
-exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
+exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out = do
-  annm <- {-# SCC "annotate" #-} annotate cfg target out
+exitWithResult cfg targets out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
   let r = o_result out `addErrors` o_errors out
   consoleResult cfg out r annm

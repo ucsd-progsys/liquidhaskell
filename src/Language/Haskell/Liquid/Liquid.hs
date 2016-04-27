@@ -59,11 +59,16 @@ liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 ------------------------------------------------------------------------------
 runLiquid mE cfg = do
-  (gs, mE') <- second Just <$> getGhcInfo mE cfg (files cfg)
-  d         <- checkMany cfg mempty gs
-  return       (ec d, mE')
+  z <- actOrDie $ second Just <$> getGhcInfo mE cfg (files cfg)
+  case z of
+    Left e -> do
+      exitWithResult cfg (files cfg) $ mempty { o_result = e }
+      return (resultExit e, mE)
+    Right (gs, mE') -> do
+      d <- checkMany cfg mempty gs
+      return (ec d, mE')
   where
-    ec       = resultExit . o_result
+    ec = resultExit . o_result
 
 ------------------------------------------------------------------------------
 checkMany :: Config -> Output Doc -> [GhcInfo] -> IO (Output Doc)
@@ -82,7 +87,7 @@ checkOne cfg g = do
   z <- actOrDie $ liquidOne g
   case z of
     Left e -> do
-      d <- exitWithResult cfg (target g) $ mempty { o_result = e }
+      d <- exitWithResult cfg [target g] $ mempty { o_result = e }
       return d
     Right r ->
       return r
@@ -115,8 +120,8 @@ liquidOne info = do
                  putStrLn $ render $ pprintCBs cbs'
   edcs <- newPrune      cfg cbs' tgt info
   out' <- liquidQueries cfg      tgt info edcs
-  DC.saveResult      tgt out'
-  exitWithResult cfg tgt out'
+  DC.saveResult       tgt  out'
+  exitWithResult cfg [tgt] out'
 
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
