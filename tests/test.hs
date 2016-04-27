@@ -142,7 +142,7 @@ mkTest code dir file
         createDirectoryIfMissing True $ takeDirectory log
         bin <- binPath "liquid"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file smt $ mappend (extraOptions file) opts
+          let cmd     = testCmd bin dir file smt $ mappend (extraOptions test) opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
