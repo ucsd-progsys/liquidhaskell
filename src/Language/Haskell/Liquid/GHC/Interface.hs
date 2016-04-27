@@ -49,12 +49,14 @@ import Data.List hiding (intersperse)
 import Data.Maybe
 -- import Data.Function (on)
 import qualified Data.HashSet as S
+import qualified Data.Map as M
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
 import System.FilePath
 import System.IO.Temp
 
+import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Language.Fixpoint.Types hiding (Error, Result, Expr)
@@ -141,6 +143,7 @@ configureDynFlags cfg tmp = do
                    `xopt_set` Opt_StandaloneDeriving
                    `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
+                   `gopt_set` Opt_KeepRawTokenStream
   _ <- setSessionDynFlags df''
   return df''
 
@@ -238,11 +241,25 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   parsed              <- parseModule $ modSummary
   typechecked         <- typecheckModule $ ignoreInline parsed
   _                   <- loadModule typechecked
-  (modName, bareSpec) <- liftIO $ parseBareSpec file
+  let specComments     = getSpecComments parsed
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
   let specEnv'         = extendModuleEnv specEnv mod (modName, bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
     then return Nothing
     else Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+
+getSpecComments :: ParsedModule -> [(SourcePos, String)]
+getSpecComments parsed = mapMaybe getSpecComment comments
+  where
+    comments = concat $ M.elems $ snd $ pm_annotations parsed
+
+getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
+getSpecComment (GHC.L span (AnnBlockComment text))
+  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
+    Just (offsetPos, take (length text - 6) $ drop 3 text)
+  where
+    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+getSpecComment _ = Nothing
 
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
@@ -316,19 +333,6 @@ reachableBareSpecs depGraph specEnv mod =
 -- Finding & Parsing Files -----------------------------------------------------
 --------------------------------------------------------------------------------
 
--- Parse File to BareSpec ------------------------------------------------------
-
-parseBareSpec :: FilePath -> IO (ModName, Ms.BareSpec)
-parseBareSpec file = either throw return . specParser file =<< readFile file
-
-specParser :: FilePath -> String -> Either Error (ModName, Ms.BareSpec)
-specParser f str
-  | isExtFile Spec   f = specSpecificationP f str
-  | isExtFile Hs     f = hsSpecificationP   f str
-  | isExtFile HsBoot f = hsSpecificationP   f str
-  | isExtFile LHs    f = lhsSpecificationP  f str
-  | otherwise          = panic Nothing $ "specParser: unrecognized file extension " ++ f
-
 -- Handle Spec Files -----------------------------------------------------------
 
 findAndParseSpecFiles :: Config -> [FilePath] -> ModSummary
@@ -363,7 +367,7 @@ transParseSpecs :: [FilePath]
                 -> Ghc [(ModName, Ms.BareSpec)]
 transParseSpecs _ _ specs [] = return specs
 transParseSpecs paths seenFiles specs newFiles = do
-  newSpecs      <- liftIO $ mapM parseBareSpec newFiles
+  newSpecs      <- liftIO $ mapM parseSpecFile newFiles
   impFiles      <- moduleFiles Spec paths $specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (second noTerm) newSpecs
@@ -372,6 +376,9 @@ transParseSpecs paths seenFiles specs newFiles = do
   where
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
     noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
+
+parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
+parseSpecFile file = either throw return . specSpecificationP file =<< readFile file
 
 -- Find Hquals Files -----------------------------------------------------------
 
