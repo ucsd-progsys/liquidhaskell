@@ -298,34 +298,7 @@ type Su = [(TyVar, Type)]
 monomorphize :: [PredType] -> Type -> Ghc (Maybe Su)
 monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
                              (Just [])
-                             tvs
-  -- | null tvs''
-  --   --- if all tyvars have kind * or * -> *, we replace
-  --   --- * with int, and * -> * with []
-  -- = return $ Just $
-  --   substTyWith (intTvs ++ listTvs)
-  --               (replicate (length intTvs) intTy ++
-  --                replicate (length listTvs) listTy)
-  --               t
-  -- | otherwise
-  -- = return Nothing
-  -- cls_insts <- mapM (thd4 . getInfo False . getName . fst . getClassPredTys)
-  --                   preds
-
-  -- substTyWith tvs (replicate (length tvs) intTy) t
-
-  where
-
-  tvs = varSetElemsKvsFirst $ tyVarsOfType t
-
-  -- (tvs, _t') = splitForAllTys t
-
-  -- (intTvs, tvs')   = partition ((==liftedTypeKind).varType) tvs
-  -- (listTvs, tvs'') = partition ((==liftedTypeKind).snd.splitFunTy.varType) tvs'
-
-  -- preds     = filter isClassPred . fst . splitFunTys $ t'
-
-  -- thd4 (a,b,c,d) = c
+                             (varSetElemsKvsFirst $ tyVarsOfType t)
 
 monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
 monomorphizeOne _preds _tv Nothing = return Nothing
