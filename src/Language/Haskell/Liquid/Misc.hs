@@ -23,13 +23,15 @@ import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 
-timedAction :: String -> IO a -> IO a
-timedAction msg io = do
+timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
+timedAction label io = do
   t0 <- getCurrentTime
   a <- io
   t1 <- getCurrentTime
   let time = realToFrac (t1 `diffUTCTime` t0) :: Double
-  printf "Time (%.2fs) for action %s \n" time msg
+  case label of
+    Just x  -> printf "Time (%.2fs) for action %s \n" time (show x)
+    Nothing -> return ()
   return a
 
 (!?) :: [a] -> Int -> Maybe a

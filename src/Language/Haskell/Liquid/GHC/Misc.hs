@@ -119,9 +119,9 @@ tickSrcSpan (ProfNote cc _ _) = cc_loc cc
 tickSrcSpan (SourceNote ss _) = RealSrcSpan ss
 tickSrcSpan _                 = noSrcSpan
 
------------------------------------------------------------------------
---------------- Generic Helpers for Accessing GHC Innards -------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Generic Helpers for Accessing GHC Innards ---------------------------------
+--------------------------------------------------------------------------------
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyVar :: String -> TyVar
@@ -165,7 +165,7 @@ validTyVar _       = False
 tvId :: TyVar -> String
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
-tracePpr :: Outputable a => [Char] -> a -> a
+tracePpr :: Outputable a => String -> a -> a
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
 pprShow :: Show a => a -> Out.SDoc
@@ -192,9 +192,9 @@ unTickExpr x                  = x
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
------------------------------------------------------------------------
------------------- Generic Helpers for DataConstructors ---------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Generic Helpers for DataConstructors --------------------------------------
+--------------------------------------------------------------------------------
 
 isDataConId :: Id -> Bool
 isDataConId id = case idDetails id of
@@ -224,7 +224,7 @@ instance Outputable a => Outputable (S.HashSet a) where
 
 
 
--------------------------------------------------------
+--------------------------------------------------------------------------------
 
 toFixSDoc :: Fixpoint a => a -> PJ.Doc
 toFixSDoc = PJ.text . PJ.render . toFix
@@ -249,6 +249,10 @@ showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString :: Outputable a => a -> String
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
+
+--------------------------------------------------------------------------------
+-- | Manipulating SrcSpan ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
@@ -325,11 +329,17 @@ getSourcePos           = srcSpanSourcePos  . getSrcSpan
 getSourcePosE :: NamedThing a => a -> SourcePos
 getSourcePosE          = srcSpanSourcePosE . getSrcSpan
 
+
+--------------------------------------------------------------------------------
+-- | Manipulating CoreExpr -----------------------------------------------------
+--------------------------------------------------------------------------------
+
 collectArguments :: Int -> CoreExpr -> [Var]
 collectArguments n e = if length xs > n then take n xs else xs
-  where (vs', e') = collectValBinders' $ snd $ collectTyBinders e
-        vs        = fst $ collectValBinders $ ignoreLetBinds e'
-        xs        = vs' ++ vs
+  where
+    (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
+    vs               = fst $ collectValBinders $ ignoreLetBinds e'
+    xs               = vs' ++ vs
 
 collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
 collectValBinders' = go []
@@ -345,11 +355,14 @@ ignoreLetBinds (Let (NonRec _ _) e')
 ignoreLetBinds e
   = e
 
+--------------------------------------------------------------------------------
+-- | Predicates on CoreExpr ----------------------------------------------------
+--------------------------------------------------------------------------------
+
 isDictionaryExpression :: Core.Expr Id -> Maybe Id
 isDictionaryExpression (Tick _ e) = isDictionaryExpression e
 isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
-
 
 realTcArity :: TyCon -> Arity
 realTcArity
@@ -362,7 +375,6 @@ kindArity (ForAllTy _ res)
   = kindArity res
 kindArity _
   = 0
-
 
 uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
@@ -414,8 +426,6 @@ symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar :: Symbol -> TyVar
 symbolTyVar n = stringTyVar (symbolString n)
 
-
-
 varSymbol ::  Var -> Symbol
 varSymbol v
   | us `isSuffixOfSym` vs = vs
@@ -449,9 +459,9 @@ tyConTyVarsDef c | TC.isPromotedTyCon   c = panic Nothing ("TyVars on " ++ show 
 tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
 tyConTyVarsDef c = TC.tyConTyVars c
 
-----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Myriad Instances
-----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 instance Symbolic TyCon where
   symbol = symbol . getName
@@ -542,9 +552,9 @@ tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name]
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 
-------------------------------------------------------------------------
--- | Manipulating Symbols ----------------------------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Manipulating Symbols ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 dropModuleNames, takeModuleNames, dropModuleUnique :: Symbol -> Symbol
 dropModuleNames  = mungeNames lastName sepModNames "dropModuleNames: "
@@ -565,15 +575,6 @@ sepModNames = "."
 
 sepUnique :: T.Text
 sepUnique = "#"
-
-
--- safeHead :: String -> [T.Text] -> Symbol
--- safeHead msg []  = errorstar $ "safeHead with empty list" ++ msg
--- safeHead _ (x:_) = symbol x
-
--- safeInit :: String -> [T.Text] -> Symbol
--- safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
--- safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
 
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""

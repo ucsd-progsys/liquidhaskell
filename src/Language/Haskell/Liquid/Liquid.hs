@@ -18,15 +18,12 @@ module Language.Haskell.Liquid.Liquid (
 import           Prelude hiding (error)
 import           Data.Maybe
 import           System.Exit
--- import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
--- import           Var
 import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
 import           GHC (HscEnv)
--- import qualified Data.HashSet as S
 
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
@@ -148,7 +145,7 @@ liquidQueries cfg tgt info (Right dcs)
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   whenLoud (dumpCs cgi)
-  out   <- timedAction (show names) $ solveCs cfg tgt cgi info' names
+  out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
     cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}

@@ -62,6 +62,7 @@ data Config = Config {
   , json           :: Bool       -- ^ print results (safe/errors) as JSON
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
   , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
+  , inlineMonad    :: Bool       -- ^ inline applications of >>= and return to avoid KVars
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

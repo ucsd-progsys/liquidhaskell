@@ -425,8 +425,6 @@ isPrimBareType :: Eq a => a -> RType (Located a) t t1 -> Bool
 isPrimBareType n (RApp tc [] _ _) = val tc == n
 isPrimBareType _ _                = False
 
-
-
 getClasses :: TyConable c => RType c t t1 -> [RType c t t1]
 getClasses t@(RApp tc ts _ _)
   | isTuple tc
@@ -754,7 +752,7 @@ asizeP :: Parser LocSymbol
 asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
+decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 

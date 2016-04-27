@@ -233,6 +233,10 @@ config = cmdArgsMode $ Config {
     = False &= name "time-binds"
             &= help "Solve each (top-level) asserted type signature separately & time solving."
 
+ , inlineMonad
+    = False &= name "inline-monad"
+            &= help "Inline applications of `>>=` and `return` during constraint generation."
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -350,44 +354,45 @@ parsePragma = withPragma defConfig
    --withArgs [val s] $ cmdArgsRun config
 
 defConfig :: Config
-defConfig = Config { files          = def
-                   , idirs          = def
-                   , newcheck       = True
-                   , fullcheck      = def
-                   , linear         = def
-                   , higherorder    = def
-                   , diffcheck      = def
-                   , saveQuery      = def
-                   , checks         = def
-                   , noCheckUnknown = def
-                   , notermination  = def
-                   , autoproofs     = def
-                   , nowarnings     = def
-                   , trustinternals = def
-                   , nocaseexpand   = def
-                   , strata         = def
-                   , notruetypes    = def
-                   , totality       = def
-                   , noPrune        = def
-                   , exactDC        = def
-                   , cores          = def
-                   , minPartSize    = defaultMinPartSize
-                   , maxPartSize    = defaultMaxPartSize
-                   , maxParams      = defaultMaxParams
-                   , smtsolver      = def
-                   , shortNames     = def
-                   , shortErrors    = def
-                   , cabalDir       = def
-                   , ghcOptions     = def
-                   , cFiles         = def
-                   , eliminate      = def
-                   , port           = defaultPort
-                   , scrapeImports  = False
-                   , scrapeUsedImports  = False
-                   , elimStats          = False
-                   , json               = False
-                   , counterExamples    = False
-                   , timeBinds          = False
+defConfig = Config { files             = def
+                   , idirs             = def
+                   , newcheck          = True
+                   , fullcheck         = def
+                   , linear            = def
+                   , higherorder       = def
+                   , diffcheck         = def
+                   , saveQuery         = def
+                   , checks            = def
+                   , noCheckUnknown    = def
+                   , notermination     = def
+                   , autoproofs        = def
+                   , nowarnings        = def
+                   , trustinternals    = def
+                   , nocaseexpand      = def
+                   , strata            = def
+                   , notruetypes       = def
+                   , totality          = def
+                   , noPrune           = def
+                   , exactDC           = def
+                   , cores             = def
+                   , minPartSize       = defaultMinPartSize
+                   , maxPartSize       = defaultMaxPartSize
+                   , maxParams         = defaultMaxParams
+                   , smtsolver         = def
+                   , shortNames        = def
+                   , shortErrors       = def
+                   , cabalDir          = def
+                   , ghcOptions        = def
+                   , cFiles            = def
+                   , eliminate         = def
+                   , port              = defaultPort
+                   , scrapeImports     = False
+                   , scrapeUsedImports = False
+                   , elimStats         = False
+                   , json              = False
+                   , counterExamples   = False
+                   , timeBinds         = False
+                   , inlineMonad       = False
                    }
 
 ------------------------------------------------------------------------
