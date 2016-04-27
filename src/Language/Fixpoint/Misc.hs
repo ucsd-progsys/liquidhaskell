@@ -26,7 +26,8 @@ import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
-import           System.IO                       (stdout, hFlush )
+import           System.IO                        (stdout, hFlush )
+import           System.Exit                      (ExitCode)
 import Control.Concurrent.Async
 
 
@@ -75,35 +76,49 @@ editDistance xs ys = table ! (m, n)
 
 data Moods = Ok | Loud | Sad | Happy | Angry
 
+moodColor :: Moods -> Color
 moodColor Ok    = Black
 moodColor Loud  = Blue
 moodColor Sad   = Magenta
 moodColor Happy = Green
 moodColor Angry = Red
 
+wrapStars :: String -> String
 wrapStars msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
 
+withColor :: Color -> IO () -> IO ()
 -- withColor _ act = act
 withColor c act
    = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c]
         act
         setSGR [ Reset]
 
+colorStrLn :: Moods -> String -> IO ()
 colorStrLn c       = withColor (moodColor c) . putStrLn
+
+colorPhaseLn :: Moods -> String -> String -> IO ()
 colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
+
+startPhase :: Moods -> String -> IO ()
 startPhase c msg   = colorPhaseLn c "START: " msg >> colorStrLn Ok " "
+
+doneLine   :: Moods -> String -> IO ()
 doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok " "
 
+donePhase :: Moods -> String -> IO ()
 donePhase c str
   = case lines str of
       (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "") >> hFlush stdout
       _      -> return ()
 
+putBlankLn :: IO ()
 putBlankLn = putStrLn "" >> hFlush stdout
 
 -----------------------------------------------------------------------------------
+wrap :: [a] -> [a] -> [a] -> [a]
 wrap l r s = l ++ s ++ r
 
+repeats :: Int -> [a] -> [a]
 repeats n  = concat . replicate n
 
 #ifdef MIN_VERSION_located_base
@@ -141,29 +156,34 @@ safeLookup msg k m   = fromMaybe (errorstar msg) (M.lookup k m)
 mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
--- inserts    ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
+inserts ::  (Eq k, Hashable k) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
+
+removes ::  (Eq k, Hashable k, Eq v) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 removes k v m = M.insert k (L.delete v (M.lookupDefault [] k m)) m
 
 count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
 count = M.toList . fmap sum . group . fmap (, 1)
 
-group         :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k [v]
-group         = groupBase M.empty
+group :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k [v]
+group = groupBase M.empty
 
-groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
+groupBase :: (Eq k, Hashable k) => M.HashMap k [v] -> [(k, v)] -> M.HashMap k [v]
+groupBase = L.foldl' (\m (k, v) -> inserts k v m)
 
-groupList     = M.toList . group
+groupList :: (Eq k, Hashable k) => [(k, v)] -> [(k, [v])]
+groupList = M.toList . group
 
--- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
+groupMap   :: (Eq k, Hashable k) => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
-  where nubOrd (x:t@(y:_))
-          | x == y    = nubOrd t
-          | otherwise = x : nubOrd t
-        nubOrd xs = xs
+  where
+    nubOrd (x:t@(y:_))
+      | x == y    = nubOrd t
+      | otherwise = x : nubOrd t
+    nubOrd xs     = xs
 
 
 #ifdef MIN_VERSION_located_base
@@ -176,8 +196,9 @@ safeZip msg xs ys
   = zip xs ys
   | otherwise
   = errorstar $ "safeZip called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
-  where nxs = length xs
-        nys = length ys
+  where
+    nxs = length xs
+    nys = length ys
 
 safeZipWith msg f xs ys
   | nxs == nys
@@ -205,6 +226,7 @@ safeUncons :: String -> ListNE a -> (a, [a])
 safeUnsnoc :: String -> ListNE a -> ([a], a)
 #endif
 
+
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
@@ -219,25 +241,28 @@ safeUncons msg _    = errorstar $ "safeUncons with empty list " ++ msg
 
 safeUnsnoc msg = swap . second reverse . safeUncons msg . reverse
 
-
+executeShellCommand :: String -> String -> IO ExitCode
 executeShellCommand phase cmd
   = do writeLoud $ "EXEC: " ++ cmd
        bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
 
+applyNonNull :: b -> ([a] -> b) -> [a] -> b
 applyNonNull def _ [] = def
 applyNonNull _   f xs = f xs
 
-
+arrow, dcolon :: Doc
 arrow              = text "->"
 dcolon             = colon <> colon
+
+intersperse :: Doc -> [Doc] -> Doc
 intersperse d ds   = hsep $ punctuate d ds
 
+tshow :: (Show a) => a -> Doc
 tshow              = text . show
 
--- | if loud, write a string to stdout
+-- | If loud, write a string to stdout
 writeLoud :: String -> IO ()
 writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
-
 
 ensurePath :: FilePath -> IO ()
 ensurePath = createDirectoryIfMissing True . takeDirectory

@@ -48,7 +48,6 @@ import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
-
 -- import           Debug.Trace
 
 ---------------------------------------------------------------------------
@@ -223,10 +222,10 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si $ {- trace _msg -} es'
+elimDeps si es nonKutVs = graphDeps si {- $ trace msg -} es'
   where
     es'                 = graphElim es nonKutVs
-    _msg                 = "graphElim: " ++ show (length es')
+    _msg                = "graphElim: " ++ show (length es')
 
 {- | `graphElim` "eliminates" a kvar k by replacing every "path"
 

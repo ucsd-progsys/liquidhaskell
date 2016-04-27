@@ -71,7 +71,8 @@ nonCutHyp kI si k = nonCutCube <$> cs
     cs            = getSubC   si <$> M.lookupDefault [] k kI
 
 nonCutCube :: SimpC a -> Cube
-nonCutCube c = Cube (senv c) (rhsSubst c)
+nonCutCube c = Cube (senv c) (rhsSubst c) (subcId c) (stag c)
+
 
 rhsSubst :: SimpC a -> Subst
 rhsSubst             = rsu . crhs

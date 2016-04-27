@@ -91,6 +91,7 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
+
 type Parser = Parsec String Integer
 
 --------------------------------------------------------------------
@@ -575,7 +576,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty False 
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty False
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]

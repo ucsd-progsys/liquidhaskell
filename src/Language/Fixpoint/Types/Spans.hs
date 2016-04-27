@@ -80,6 +80,7 @@ ofSourcePos p = (f, l, c)
 toSourcePos :: (SourceName, Line, Column) -> SourcePos
 toSourcePos (f, l, c) = newPos f l c
 
+sourcePosElts :: SourcePos -> (SourceName, Line, Column)
 sourcePosElts s = (src, line, col)
   where
     src         = sourceName   s
@@ -154,7 +155,7 @@ instance PPrint SrcSpan where
 --     (f,l ,c )     = sourcePosElts $ sp_start z
 --     (_,l',c')     = sourcePosElts $ sp_stop  z
 
-
+ppSrcSpan :: SrcSpan -> Doc
 ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')
                 -- parens $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')
   where
@@ -165,6 +166,7 @@ ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')
 instance Hashable SrcSpan where
   hashWithSalt i z = hashWithSalt i (sp_start z, sp_stop z)
 
+dummySpan :: SrcSpan
 dummySpan = SS l l
   where l = initialPos ""
 

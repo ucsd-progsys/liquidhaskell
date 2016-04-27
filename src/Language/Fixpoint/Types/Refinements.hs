@@ -409,6 +409,7 @@ instance PPrint SymConst where
   pprintTidy _ (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
+parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens
 parensIf False = id
 
@@ -431,6 +432,7 @@ parensIf False = id
 -- sets the contextual precedence for recursive printer invocations to
 -- (prec p + 1).
 
+opPrec :: Bop -> Int
 opPrec Mod    = 5
 opPrec Plus   = 6
 opPrec Minus  = 6
@@ -496,18 +498,22 @@ instance PPrint Expr where
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec _ _ PGrad           = "?"
 
+pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
 
+trueD, falseD, andD, orD :: Doc
 trueD  = "true"
 falseD = "false"
 andD   = "&&"
 orD    = "||"
 
+pprintBin :: (PPrint a) => Int -> Tidy -> Doc -> Doc -> [a] -> Doc
 pprintBin _ _ b _ [] = b
 pprintBin z k _ o xs = vIntersperse o $ pprintPrec z k <$> xs
 
+vIntersperse :: Doc -> [Doc] -> Doc
 vIntersperse _ []     = empty
 vIntersperse _ [d]    = d
 vIntersperse s (d:ds) = vcat (d : ((s <+>) <$> ds))
@@ -580,9 +586,12 @@ isSingletonExpr _ _        = Nothing
 pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
-pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = EApp (EVar propConName)
 
+pIte :: Pred -> Expr -> Expr -> Expr
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+
+mkProp :: Expr -> Pred
+mkProp = EApp (EVar propConName)
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------

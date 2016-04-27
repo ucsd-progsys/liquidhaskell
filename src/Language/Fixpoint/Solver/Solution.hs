@@ -36,7 +36,7 @@ import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
--- import           Debug.Trace (trace)
+import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier ----------------------------------------
@@ -171,7 +171,7 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
-lhsPred be s c = {- F.tracepp msg $ -} apply g s bs
+lhsPred be s c = {- F.tracepp msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -182,13 +182,13 @@ type Cid = Maybe Integer
 
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 
-apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
-apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
+type ExprInfo = (F.Expr, KInfo)
 
-apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
-apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
-   -- where
-   --  msg   = "apply1 bind = " ++ show i
+apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
+apply g s bs = mrExprInfos (apply1 g s)    F.pAnd mconcat (F.elemsIBindEnv bs)
+
+apply1 :: CombinedEnv -> Solution -> F.BindId -> ExprInfo
+apply1 g s i = mrExprInfos (applyExpr g s) F.pAnd mconcat (bindExprs g i)
 
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
@@ -196,11 +196,17 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     (x, sr)          = F.lookupBindEnv i be
     rs               = F.reftConjuncts $ F.sr_reft sr
 
-applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
-applyExpr g s (F.PKVar k su) = {- F.tracepp ("applyKVar: " ++ show k) $ -} applyKVar g s k su
-applyExpr _ _ p              = p
+applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
+applyExpr g s (F.PKVar k su)
+  | kI == mempty =           (e, kI)
+  | otherwise    = trace msg (e, kI)
+  where
+    msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+    (e, kI) = applyKVar g s k su
 
-applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
+applyExpr _ _ p              = (p, mempty)
+
+applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> ExprInfo
 applyKVar g s k su
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
@@ -209,21 +215,24 @@ applyKVar g s k su
   | otherwise
   = errorstar $ "Unknown kvar: " ++ show k
 
-hypPred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Hyp  -> F.Expr
-hypPred g s k su = F.pOr . fmap (cubePred g s k su)
+hypPred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Hyp  -> ExprInfo
+hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
 
-cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.Expr
-cubePred g s k su c = F.PExist xts
+cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> ExprInfo
+cubePred g s k su c = (cubeP, extendKInfo kI (cuTag c))
+  where
+    cubeP           = F.PExist xts
                        $ F.pAnd [ psu
                                 , F.PExist yts' $ F.pAnd [p', psu'] ]
-  where
-    yts'          = symSorts g bs'
-    g'            = addCEnv g bs
-    p'            = apply g' s bs'
-    bs'           = delCEnv bs g
-    F.Cube bs su' = c
-    (_  , psu')   = substElim g' k su'
-    (xts, psu)    = substElim g  k su
+    yts'            = symSorts g bs'
+    g'              = addCEnv g bs
+    (p', kI)        = apply g' s bs'
+    bs'             = delCEnv bs g
+    bs              = F.cuBinds c
+    su'             = F.cuSubst c
+    -- F.Cube bs su'   = c
+    (_  , psu')     = substElim g' k su'
+    (xts, psu)      = substElim g  k su
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
@@ -295,10 +304,9 @@ noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars
 
 --------------------------------------------------------------------------------
-qBindPred :: F.Subst -> QBind -> F.Expr
+qBindPred :: F.Subst -> QBind -> ExprInfo
 --------------------------------------------------------------------------------
-qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
-
+qBindPred su eqs = (F.subst su $ F.pAnd $ F.eqPred <$> eqs, mempty)
 
 --------------------------------------------------------------------------------
 -- | Build and print the graph of post eliminate solution, which has an edge
@@ -316,3 +324,37 @@ solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <-
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
      kEqs       = M.toList (F.sMap s)
+
+--------------------------------------------------------------------------------
+-- | Information about size of formula corresponding to an "eliminated" KVar.
+--------------------------------------------------------------------------------
+data KInfo = KI { kiTags  :: [Tag]
+                , kiDepth :: !Int
+                , kiCubes :: !Int
+                } deriving (Eq, Ord, Show)
+
+instance Monoid KInfo where
+  mempty         = KI [] 0 1
+  mappend ki ki' = KI ts d s
+    where
+      ts         = appendTags (kiTags  ki) (kiTags  ki')
+      d          = max        (kiDepth ki) (kiDepth ki')
+      s          = (*)        (kiCubes ki) (kiCubes ki')
+
+mplus :: KInfo -> KInfo -> KInfo
+mplus ki ki' = (mappend ki ki') { kiCubes = kiCubes ki + kiCubes ki'}
+
+mconcatPlus :: [KInfo] -> KInfo
+mconcatPlus = foldr mplus mempty
+
+appendTags :: [Tag] -> [Tag] -> [Tag]
+appendTags ts ts' = sortNub (ts ++ ts')
+
+extendKInfo :: KInfo -> F.Tag -> KInfo
+extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
+                      , kiDepth = 1  +            kiDepth ki }
+
+mrExprInfos :: (a -> ExprInfo) -> ([F.Expr] -> F.Expr) -> ([KInfo] -> KInfo) -> [a] -> ExprInfo
+mrExprInfos mF erF irF xs = (erF es, irF is)
+  where
+    (es, is)              = unzip $ map mF xs

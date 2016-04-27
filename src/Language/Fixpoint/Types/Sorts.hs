@@ -193,7 +193,7 @@ toFixSort t@(FFunc _ _)= toFixAbsApp t
 toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
 
-
+toFixAbsApp :: Sort -> Doc
 toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)
   where
     Just (vs, ss, s) = functionSort t
@@ -220,18 +220,17 @@ intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
 
-bitVecSort :: Sort
-mapSort :: Sort -> Sort -> Sort
-
 setSort :: Sort -> Sort
 setSort    = FApp (FTC $ symbolFTycon' "Set_Set")
 
-
+bitVecSort :: Sort
 bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
+
+mapSort :: Sort -> Sort -> Sort
 mapSort k v = FApp (FApp (FTC $ symbolFTycon' "Map_t") k) v
 
+symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc
-
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c
