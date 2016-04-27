@@ -218,9 +218,12 @@ making ty act
 -- | Find the refined type of a data constructor.
 lookupCtor :: Symbol -> SpecType -> Target SpecType
 lookupCtor c (toType -> t)
-  = do mt <- lookup c <$> gets ctorEnv
+             -- FIXME: WTF, how do two symbols share a Text
+             -- without being equal??
+  = do mt <- find (\(c', _) -> symbolText c == symbolText c')
+               <$> gets ctorEnv
        case mt of
-         Just t -> do
+         Just (_, t) -> do
            return t
          Nothing -> do
            -- m  <- gets filePath
