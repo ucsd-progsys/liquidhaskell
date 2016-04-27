@@ -15,8 +15,6 @@ Proving ackermann properties from http://www.cs.yorku.ca/~gt/papers/Ackermann-fu
 
 
 module FunctionAbstraction where
-import Axiomatize
-import Equational 
 
 
 
@@ -50,9 +48,25 @@ ack n x
 {-@ measure iack :: Int -> Int -> Int -> Int @-}
 {-@ iack :: Nat -> Nat -> Nat -> Int @-}
 {-@ assume iack :: h:Nat -> n:Nat -> x:Nat 
-                -> {v:Nat | v == iack h n x && if h == 0 then (v == ack n x) else (v == ack n (iack (h-1) n x) )} @-}
+                -> {v:Nat | v == iack h n x && if h == 0 then (v == x) else (v == ack n (iack (h-1) n x) )} @-}
 iack :: Int -> Int -> Int -> Int 
-iack h n x = if h == 0 then ack n x else ack n (iack (h-1) n x)
+iack h n x = if h == 0 then x else ack n (iack (h-1) n x)
+
+
+-- Equivalence of definitions
+
+def_eq :: Int -> Int -> Bool 
+{-@ def_eq :: n:Nat -> x:Nat ->{v: Bool | ack (n+1) x == iack x n 2 } / [x]@-} 
+def_eq n x 
+  | x == 0 
+  = ack (n+1) 0 == 2 `with`
+    iack 0 n 2 == 2 
+  | otherwise
+  = ack (n+1) x == ack n (ack (n+1) (x-1)) `with` 
+    def_eq n (x-1) `with`
+    ack (n+1) (x-1) == iack (x-1) n 2 `with`
+    ack (n+1) x == iack x n 2 
+
 
 
 -- Lemma 2.2
@@ -166,13 +180,10 @@ lemma6 :: Int -> Int -> Int -> Bool
            -> {v:Bool | iack h n x < iack h n (x+1) } @-}
 
 lemma6 h n x
-   | h == 0 
-   = 
-    iack 0 n x     == ack n x `with` 
-    iack 0 n (x+1) == ack n (x+1) `with`
-    ack n x < ack n (x+1) `with` 
-    lemma3 n x `with`
-    iack h n x < iack h n (x+1) 
+  | h == 0 
+  = iack h n x == x `with`
+    x < x + 1 `with`
+    iack h n (x+1) == x + 1 
   | h > 0 
   = lemma6 (h-1) n x `with` 
     iack (h-1) n x < iack (h-1) n (x+1) `with` 
@@ -182,6 +193,21 @@ lemma6 h n x
     ack n (iack (h-1) n (x+1)) == iack h n (x+1) `with`
     iack h n x < iack h n (x+1) `with` 
     iack h n x < iack h n (x+1)
+
+lemma6' :: Int -> Int -> Int -> Int -> Bool 
+{-@ lemma6' :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
+           -> {v:Bool | iack h n x < iack h n y } /[y] @-}
+lemma6' h n x y 
+  | y == x + 1 
+  = lemma6 h n x `with`
+    iack h n x < iack h n y 
+  | otherwise
+  = lemma6' h n x (y-1) `with`
+    iack h n x < iack h n (y-1) `with`
+    lemma6 h n (y-1) `with`
+    iack h n (y-1) < iack h n y 
+
+
 
 lemma7 :: Int -> Int -> Int -> Bool 
 {-@ lemma7 :: h:Nat -> n:Nat -> x:Nat
@@ -250,7 +276,38 @@ lemma90 x l
     ack 1 (x-1) > x + l `with` 
     ack 1 x > x + l   
 
+-- Lemma 11 
 
+lemma11 :: Int -> Int -> Int -> Bool 
+{-@ lemma11 :: n:Nat -> x:Nat -> y:Nat -> {v:Bool | iack x n y < ack (n+1) (x+y) } @-}
+lemma11 n x y
+  = ack (n+1) (x+y) == iack (x+y) n 2 `with`
+    def_eq n (x+y) `with`
+    iack (x+y) n 2 == iack x n (iack y n 2) `with` 
+    lemma11' n x y 2 `with`
+    iack y n 2 == ack (n+1) y `with`
+    def_eq n y `with`
+    lemma2 (n+1) y `with`
+    y < ack (n+1) y `with`
+    -- I was here 
+    ack (n+1) (x+y) == iack x n (ack (n+1) y) `with` 
+    -- I want 
+    iack x n (ack (n+1) y) > iack x n y  `with` 
+    lemma6' x n y (ack (n+1) y)
+
+
+
+lemma11' :: Int -> Int -> Int -> Int -> Bool 
+{-@ lemma11' :: n:Nat -> x:Nat -> y:Nat -> z:Nat 
+             -> {v:Bool | iack (x+y) n z == iack x n (iack y n z) } / [x] @-}
+lemma11' n x y z
+  | x == 0 
+  = iack y n z == iack 0 n (iack y n z) 
+  | x>0
+  = lemma11' n (x-1) y z `with`
+    iack ((x-1)+y) n z == iack (x-1) n (iack y n z) `with` 
+    iack (x+y) n z == ack n (iack (x+y-1) n z) `with`
+    ack n (iack (x-1) n (iack y n z)) == iack x n (iack y n z)
 
 
 
@@ -265,6 +322,6 @@ with   p q = p && q
 proves p q = p && q 
 
 
-
+data Proof = Proof 
 
 
