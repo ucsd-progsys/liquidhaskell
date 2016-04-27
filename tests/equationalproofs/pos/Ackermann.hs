@@ -274,7 +274,143 @@ lemma90 x l
     ack 0 (ack 1 (x-1)) == ack 1 (x-1) + 2 `with` 
     lemma90 (x-1) (l-1) `with` 
     ack 1 (x-1) > x + l `with` 
-    ack 1 x > x + l   
+    ack 1 x > x + l 
+
+-- Lemma 10 
+
+
+lemma10 :: Int -> Int -> Int -> Bool
+{-@ lemma10 :: n:Nat -> x:{Int | 0 < x } -> l:{Nat | 2 * l < x} 
+            -> {v:Bool | iack l n x < ack (n+1) x } @-}
+lemma10 n x l 
+  | n == 0 
+  = iack l 0 x == x + 2 * (l + 1) `with`
+    lemma10' l x `with` 
+    ack 1 x == 2 + 2 * x `with`
+    lemma10'' x 
+  | l == 0 
+  = iack 0 n x == x `with`
+    lemma2 (n+1) x
+  | otherwise
+  = ack (n+1) x == iack x n 2     `with` def_eq n x
+                                  `with` iack x n 2 == ladder x n 2 `with` ladder_prop1 n x 2 
+                                  `with`
+    ack (n+1) x == ladder x n 2   `with` ladder x n 2 == ladder ((x-l) + l) n 2 
+                                  `with`
+    ack (n+1) x == ladder ((x-l) + l) n 2 
+                                  `with` ladder (l + (x-l)) n 2 == ladder l n (ladder (x-l) n 2)
+                                  `with` ladder_prop2 l (x-l) n 2 
+                                  `with`
+    ack (n+1) x == ladder l n (ladder (x-l) n 2) 
+                                  `with` lemma10_helper n x l  
+                                  `with` x < iack (x-l) n 2
+
+                                  `with` iack (x-l) n 2 == ladder (x-l) n 2
+                                  `with` ladder_prop1 n (x-l) 2
+
+                                  `with` x < ladder (x-l) n 2
+
+                                  `with` ladder_prop3 x (ladder (x-l) n 2) n l 
+                                  `with` ladder l n x < ladder l n (ladder (x-l) n 2)
+                                  `with`
+    ack (n+1) x >  ladder l n x   `with` ladder_prop1 n l x 
+                                  `with` ladder l n x == iack l n x 
+                                  `with` 
+    ack (n+1) x > iack l n x   
+
+
+
+{-@ lemma10' :: l:Nat -> x:Nat -> {v:Bool | iack l 0 x == x + 2 * l } @-}
+lemma10' :: Int -> Int -> Bool 
+lemma10' l x 
+  | l == 0 
+  = iack 0 0 x == x 
+  | l > 0 
+  = iack l 0 x == ack 0 (iack (l-1) 0 x) `with`
+    ack 0 (iack (l-1) 0 x) == (iack (l-1) 0 x) + 2 `with`
+    iack (l-1) 0 x == x + 2 * (l-1) `with`
+    lemma10' (l-1) x `with`
+    ack 0 (iack (l-1) 0 x) == x + 2 * (l-1) + 2  
+
+
+
+{-@ lemma10'' :: x:Nat -> {v:Bool | ack 1 x == 2 + 2 * x} @-}
+lemma10'' :: Int -> Bool 
+lemma10'' x
+  | x == 0 
+  = ack 1 0 == 2 
+  | otherwise
+  = ack 1 x == ack 0 (ack 1 (x-1)) `with`
+    ack 0 (ack 1 (x-1)) == 2 + (ack 1 (x-1)) `with` 
+    lemma10'' (x-1) `with`
+    ack 1 (x-1) == 2 + 2 * (x-1) `with`
+    ack 1 x == 2 + 2 * x
+
+
+
+lemma10_helper :: Int -> Int -> Int -> Bool
+{-@ lemma10_helper :: n:Nat -> x:{Int | 0 < x } -> l:{Nat | 2 * l < x && x-l >=0} 
+            -> {v:Bool | x < iack (x-l) n 2 } @-}
+lemma10_helper n x l 
+  = iack (x-l) n 2 == ack (n+1) (x-l) `with` def_eq n (x-l) `with` 
+    iack (x-l) n 2 > x `with` lemma9 (n+1) (x-l) l 
+
+{-@ measure ladder :: Int -> Int -> Int -> Int @-}
+{-@ assume ladder :: l:Nat -> n:{Int | 0 < n } -> b:Nat 
+    -> {v:Nat | v == ladder l n b && (if l == 0 then (v == b) else ( v == iack (ladder (l-1) n b) (n-1) 2)) } @-} 
+{-@ ladder :: Nat -> {n:Int | 0 < n } -> Nat -> Nat @-} 
+ladder :: Int -> Int -> Int -> Int 
+ladder l n b 
+  | l == 0 
+  = b 
+  | otherwise
+  = iack (ladder (l-1) n b) (n-1) 2
+
+
+
+{-@ ladder_prop3 :: x:Nat -> y:{Nat | x < y} -> n:{Int | 0 < n} -> l:Nat 
+   -> {v:Bool | ladder l n x < ladder l n y }  @-}
+ladder_prop3 :: Int -> Int -> Int -> Int -> Bool 
+ladder_prop3 x y n l
+  = ladder l n x == iack l n x `with` 
+    ladder_prop1 n l x `with` 
+    ladder l n y == iack l n y `with`
+    ladder_prop1 n l y `with`
+    iack l n x < iack l n y `with`
+    lemma6' l n x y 
+
+
+{-@ ladder_prop2 :: x:Nat -> y:Nat -> n:{Int | 0 < n} -> z:Nat 
+   -> {v:Bool | ladder (x + y) n z == ladder x n (ladder y n z)} / [x] @-}
+ladder_prop2 :: Int -> Int -> Int -> Int -> Bool 
+ladder_prop2 x y n z 
+  | x == 0 
+  = ladder 0 n (ladder y n z) == ladder y n z 
+  | otherwise
+  = ladder_prop2 (x-1) y n z `with`
+    ladder (x+y) n z == iack (ladder (x+y-1) n z) (n-1) 2 `with`
+    ladder (x+y) n z == iack (ladder (x-1) n (ladder y n z)) (n-1) 2 `with`
+    ladder (x+y) n z == ladder x n (ladder y n z)
+
+
+{-@ ladder_prop1 :: n:{Int | 0 < n} -> l:Nat -> x:Nat -> {v:Bool | iack l n x == ladder l n x} / [l] @-}
+ladder_prop1 :: Int -> Int -> Int -> Bool 
+ladder_prop1 n l x 
+  | l == 0 
+  = iack 0 n x == x `with` 
+    ladder 0 n x == x  
+  | otherwise
+  = iack l n x == ack n (iack (l-1) n x) `with`
+    ladder_prop1 n (l-1) x `with` 
+    iack (l-1) n x == ladder (l-1) n x `with` 
+    iack l n x == ack n (ladder (l-1) n x) `with`
+    def_eq (n-1) (ladder (l-1) n x) `with`
+    ack n (ladder (l-1) n x) == iack (ladder (l-1) n x) (n-1) x `with`
+    iack l n x == ladder l n x  
+
+
+
+
 
 -- Lemma 11 
 
