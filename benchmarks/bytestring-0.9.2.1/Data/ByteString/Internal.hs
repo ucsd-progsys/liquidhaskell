@@ -4,8 +4,6 @@
 {-# LANGUAGE UnliftedFFITypes, MagicHash,
             UnboxedTuples, DeriveDataTypeable #-}
 {-# OPTIONS_HADDOCK hide #-}
-{-@ LIQUID "--c-files=../../cbits/fpstring.c" @-}
-{-@ LIQUID "-i../../include" @-}
 -- |
 -- Module      : Data.ByteString.Internal
 -- License     : BSD-style
