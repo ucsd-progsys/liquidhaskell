@@ -2,7 +2,6 @@
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
-{-@ LIQUID "--c-files=../../cbits/cbits.c" @-}
 -- |
 -- Module      : Data.Text.Array
 -- Copyright   : (c) 2009, 2010, 2011 Bryan O'Sullivan

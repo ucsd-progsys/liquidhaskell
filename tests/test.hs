@@ -3,6 +3,8 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Control.Applicative
@@ -12,9 +14,11 @@ import Control.Monad.Trans.Class (lift)
 import Data.Char
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
+import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
+import Data.String
 import Data.Tagged
 import Data.Typeable
 import Options.Applicative
@@ -68,7 +72,12 @@ instance IsOption SmtSolver where
       <> help (untag (optionHelp :: Tagged SmtSolver String))
       )
 
-newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable)
+newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable, IsString)
+instance Monoid LiquidOpts where
+  mempty = LO ""
+  mappend (LO "") y = y
+  mappend x (LO "") = x
+  mappend (LO x) (LO y) = LO $ x ++ (' ' : y)
 instance IsOption LiquidOpts where
   defaultValue = LO ""
   parseValue = Just . LO
@@ -132,7 +141,7 @@ mkTest code dir file
         createDirectoryIfMissing True $ takeDirectory log
         bin <- binPath "liquid"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file smt opts
+          let cmd     = testCmd bin dir file smt $ mappend (extraOptions file) opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
@@ -163,6 +172,36 @@ knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/pos/Gradual.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
+
+--------------------------------------------------------------------------------
+extraOptions :: FilePath -> LiquidOpts
+--------------------------------------------------------------------------------
+extraOptions = flip (Map.findWithDefault mempty) $ Map.fromList
+  [ ( "tests/pos/Class2.hs"
+    , "-i../neg"
+    )
+  , ( "tests/pos/FFI.hs"
+    , "-i../ffi-include --c-files=../ffi-include/foo.c"
+    )
+  , ( "benchmarks/bytestring-0.9.2.1/Data/ByteString/Internal.hs"
+    , "-i../../include --c-files=../../cbits/fpstring.c"
+    )
+  , ( "benchmarks/text-0.11.2.3/Data/Text/Array.hs"
+    , "--c-files=../../cbits/cbits.c"
+    )
+  , ( "benchmarks/text-0.11.2.3/Data/Text/Encoding.hs"
+    , "-i../../../bytestring-0.9.2.1/ -i../../../../include/ --c-files=../../cbits/cbits.c"
+    )
+  , ( "benchmarks/text-0.11.2.3/Data/Text/Lazy/Encoding.hs"
+    , "-i../../../../bytestring-0.9.2.1/ -i../../../../../include/"
+    )
+  , ( "benchmarks/vector-0.10.0.1/Data/Vector/Fusion/Stream/Monadic.hs"
+    , "-i../../../../"
+    )
+  , ( "benchmarks/vector-0.10.0.1/Data/Vector/Fusion/Stream/Monadic.nocpp.hs"
+    , "-i../../../../"
+    )
+  ]
 
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
