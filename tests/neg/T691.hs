@@ -2,6 +2,6 @@
 
 module NoUpperCaseBinders where
 
-{-@ id :: foo: Int -> {v:Bool | v == foo}  @-}
+{-@ id :: Foo:Int -> Int  @-}
 id :: Int -> Int
 id x = x
