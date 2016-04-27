@@ -183,7 +183,7 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
         , "-iinclude --c-files=cbits/fpstring.c"
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "-i../bytestring-0.9.2.1 -i../../include --c-files=cbits/cbits.c"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."
