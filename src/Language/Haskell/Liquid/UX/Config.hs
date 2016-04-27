@@ -1,13 +1,11 @@
------------------------------------------------------------------------------
--- | Command Line Config Options --------------------------------------------
------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Command Line Config Options -----------------------------------------------
+--------------------------------------------------------------------------------
 
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.UX.Config (
-
    -- * Configuration Options
      Config (..)
    , HasConfig (..)
@@ -62,7 +60,7 @@ data Config = Config {
   , json           :: Bool       -- ^ print results (safe/errors) as JSON
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
   , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
-  , inlineMonad    :: Bool       -- ^ inline applications of >>= and return to avoid KVars
+  , patternInline  :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
