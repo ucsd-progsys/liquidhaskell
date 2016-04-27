@@ -94,7 +94,8 @@ parseWithError parser p s =
     Right (r, "", _)  -> Right r
     Right (_, rem, _) -> Left  $ parseErrorError $ remParseError p s rem
   where
-    doParse = (setPosition p >> remainderP (whiteSpace >> parser))
+    doParse =
+      setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
 
 
 ---------------------------------------------------------------------------
