@@ -165,7 +165,7 @@ globalDiff :: FilePath -> [Int] -> GhcSpec -> Bool
 globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
   where
     measDiff  = any (isDiff srcF ls) (snd <$> meas spec)
-    invsDiff  = any (isDiff srcF ls) (invariants spec)
+    invsDiff  = any (isDiff srcF ls) (snd <$> invariants spec)
     dconsDiff = any (isDiff srcF ls) (dloc . snd <$> dconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 

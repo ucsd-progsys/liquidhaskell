@@ -394,11 +394,14 @@ arrowP
 
 bareFunP :: Parser (RType LocSymbol Symbol (UReft Reft))
 bareFunP
-  = do b  <- try {- bindP -} lowerIdP <|> dummyBindP
+  = do b  <- try funBindP <|> dummyBindP
        t1 <- bareArgP b
        a  <- arrowP
        t2 <- bareTypeP
        return $ bareArrow b t1 a t2
+
+funBindP :: Parser Symbol
+funBindP = lowerIdP <* colon
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
