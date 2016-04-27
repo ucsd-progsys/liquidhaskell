@@ -506,14 +506,14 @@ sortVars = foldSort go []
 
 -- Entities in Query File
 data Def a
-  = Srt Sort
-  | Axm Expr
-  | Cst (SubC a)
-  | Wfc (WfC a)
-  | Con Symbol Sort
-  | Qul Qualifier
-  | Kut KVar
-  | IBind Int Symbol SortedReft
+  = Srt !Sort
+  | Axm !Expr
+  | Cst !(SubC a)
+  | Wfc !(WfC a)
+  | Con !Symbol !Sort
+  | Qul !Qualifier
+  | Kut !KVar
+  | IBind !Int !Symbol !SortedReft
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep

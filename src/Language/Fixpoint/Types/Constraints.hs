@@ -161,8 +161,8 @@ subcId = mfromJust "subCId" . sid
 
 type FixSolution = M.HashMap KVar Expr
 
-data Result a = Result { resStatus   :: FixResult a
-                       , resSolution :: FixSolution }
+data Result a = Result { resStatus   :: !(FixResult a)
+                       , resSolution :: !FixSolution }
                 deriving (Generic, Show)
 
 instance Monoid (Result a) where
@@ -293,9 +293,9 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data Qualifier = Q { q_name   :: Symbol           -- ^ Name
+data Qualifier = Q { q_name   :: !Symbol          -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
-                   , q_body   :: Expr             -- ^ Predicate
+                   , q_body   :: !Expr            -- ^ Predicate
                    , q_pos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
@@ -375,13 +375,13 @@ fi cs ws binds ls ks qs bi fn aHO
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 data GInfo c a =
-  FI { cm       :: M.HashMap Integer (c a)    -- ^ cst id |-> Horn Constraint
-     , ws       :: M.HashMap KVar (WfC a)     -- ^ Kvar   |-> WfC defining its scope/args
+  FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
+     , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
      , lits     :: !(SEnv Sort)               -- ^ Constant symbols
-     , kuts     :: Kuts                       -- ^ Set of KVars *not* to eliminate
+     , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
      , quals    :: ![Qualifier]               -- ^ Abstract domain
-     , bindInfo :: M.HashMap BindId a         -- ^ Metadata about binders
+     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , fileName :: FilePath                   -- ^ Source file name
      , allowHO  :: !Bool                      -- ^ Hmm. Move to Config?
      }
@@ -501,8 +501,8 @@ eQual q xs = EQL q p es
 
 type Solution = Sol QBind
 
-data Sol a = Sol { sMap :: M.HashMap KVar a
-                 , sHyp :: M.HashMap KVar Hyp
+data Sol a = Sol { sMap :: !(M.HashMap KVar a)
+                 , sHyp :: !(M.HashMap KVar Hyp)
                  }
 
 data Cube = Cube

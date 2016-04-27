@@ -134,12 +134,12 @@ data Sort = FInt
           | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
           | FFrac                -- ^ numeric kind for Fractional tyvars
-          | FObj  Symbol         -- ^ uninterpreted type
+          | FObj  !Symbol        -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Sort !Sort    -- ^ function
           | FAbs  !Int !Sort     -- ^ type-abstraction
-          | FTC   FTycon
-          | FApp  Sort Sort      -- ^ constructed type
+          | FTC   !FTycon
+          | FApp  !Sort !Sort    -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}

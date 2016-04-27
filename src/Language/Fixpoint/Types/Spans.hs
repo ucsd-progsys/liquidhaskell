@@ -93,7 +93,7 @@ instance Fixpoint SourcePos where
 
 data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , locE :: !SourcePos -- ^ End Position
-                     , val  :: a
+                     , val  :: !a
                      } deriving (Data, Typeable, Generic)
 
 instance Loc (Located a) where

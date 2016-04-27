@@ -57,6 +57,7 @@ Library
   ghc-options:     -W -fno-warn-missing-methods
   if flag(devel)
     ghc-options:   -Werror
+  ghc-prof-options: -fprof-auto
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,

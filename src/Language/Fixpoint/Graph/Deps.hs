@@ -225,7 +225,7 @@ elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
 elimDeps si es nonKutVs = graphDeps si {- $ trace msg -} es'
   where
     es'                 = graphElim es nonKutVs
-    -- msg                 = "graphElim: " ++ show (length es')
+    _msg                = "graphElim: " ++ show (length es')
 
 {- | `graphElim` "eliminates" a kvar k by replacing every "path"
 
@@ -459,7 +459,7 @@ data Stats = Stats {
   , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
   , stNumKVTotal  :: !Int   -- ^ number of kvars
   , stIsReducible :: !Bool  -- ^ is dep-graph reducible
-  , stSetKVNonLin :: S.HashSet F.KVar -- ^ set of non-linear kvars
+  , stSetKVNonLin :: !(S.HashSet F.KVar) -- ^ set of non-linear kvars
   }
 
 instance PTable Stats where

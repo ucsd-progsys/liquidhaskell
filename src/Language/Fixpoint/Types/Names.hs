@@ -168,7 +168,8 @@ instance Hashable (Description Symbol) where
   hashWithSalt s (DT t) = hashWithSalt s t
 
 instance Hashable Symbol where
-  hashWithSalt s (S i _ _) = hashWithSalt s i
+  -- NOTE: hash based on original text rather than id
+  hashWithSalt s (S _ t _) = hashWithSalt s t
 
 instance NFData Symbol where
   rnf (S {}) = ()

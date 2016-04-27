@@ -32,8 +32,10 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
-import qualified Data.Text                as T
-import           Data.Text.Format         hiding (format)
+import Data.Monoid
+import qualified Data.Text.Lazy           as T
+import qualified Data.Text.Lazy.Builder   as Builder
+import           Data.Text.Format
 
 
 --------------------------------------------------------------------------
@@ -223,27 +225,27 @@ sizeBv tc
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-smt2Symbol :: Symbol -> Maybe T.Text
-smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
+smt2Symbol :: Symbol -> Maybe Builder.Builder
+smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
 
-smt2Sort :: Sort -> Maybe T.Text
+smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
-  | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
+  | fTyconSymbol c == "Set_Set" = Just $ build "{}" (Only set)
 smt2Sort (FApp (FApp (FTC c) _) _)
-  | fTyconSymbol c == "Map_t"   = Just $ format "{}" (Only map)
+  | fTyconSymbol c == "Map_t"   = Just $ build "{}" (Only map)
 smt2Sort (FApp (FTC bv) (FTC s))
   | isBv bv
-  , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
+  , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-smt2App :: Expr -> [T.Text] -> Maybe T.Text
+smt2App :: Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App (EVar f) [d]
-  | f == setEmpty = Just $ format "{}"             (Only emp)
-  | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
-  | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
-smt2App (EVar f) ds
+  | f == setEmpty = Just $ build "{}"             (Only emp)
+  | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
+  | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
+smt2App (EVar f) (d:ds)
   | Just s <- M.lookup f theorySymbols
-  = Just $ format "({} {})" (tsRaw s, T.intercalate " " ds) 
+  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
 

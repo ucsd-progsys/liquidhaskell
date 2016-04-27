@@ -70,15 +70,16 @@ import           Control.Monad
 import           Data.Char
 import           Data.Monoid
 import qualified Data.Text                as T
-import           Data.Text.Format         hiding (format)
+import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
--- import qualified Data.Text.Lazy           as LT
--- import qualified Data.Text.Lazy.IO        as LTIO
+import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Builder   as Builder
+import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
 import           System.FilePath
-import           System.IO                (IOMode (..), hClose, hFlush, openFile)
+import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 import           Text.PrettyPrint.HughesPJ (text)
@@ -144,15 +145,15 @@ checkValids ho u f xts ps
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
+command me !cmd       = say cmd >> hear cmd
   where
-    say               = smtWrite me . runSmt2 (smtenv me)
+    say               = smtWrite me . Builder.toLazyText . runSmt2 (smtenv me)
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
 
 
-smtWrite :: Context -> T.Text -> IO ()
+smtWrite :: Context -> Raw -> IO ()
 smtWrite me !s = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
@@ -202,16 +203,17 @@ negativeP
 --              ([],_)      -> []
 --              ([x,y], zs) -> (x,y) : pairs zs
 
-smtWriteRaw      :: Context -> T.Text -> IO ()
+smtWriteRaw      :: Context -> Raw -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
   -- whenLoud $ TIO.appendFile debugFile (s <> "\n")
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
-smtReadRaw       :: Context -> IO Raw
+smtReadRaw       :: Context -> IO T.Text
 smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (cIn me)
 
-hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
+hPutStrLnNow     :: Handle -> LT.Text -> IO ()
+hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------
