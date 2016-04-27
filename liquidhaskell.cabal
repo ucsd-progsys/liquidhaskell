@@ -61,6 +61,7 @@ Executable liquid
   Build-Depends: base >= 4 && < 5
                , ghc
                , cmdargs
+               , time
                , deepseq
                , pretty
                , process
@@ -80,6 +81,7 @@ Executable lhi
   Build-Depends: base >= 4 && < 5
                , ghc
                , cmdargs
+               , time
                , deepseq
                , pretty
                , liquid-fixpoint
@@ -117,6 +119,7 @@ Library
                 , array >= 0.5
                 , hpc >= 0.6
                 , cmdargs >= 0.10
+                , time
                 , containers >= 0.5
                 , cpphs >= 1.19
                 , data-default >= 0.5
@@ -135,7 +138,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint 
+                , liquid-fixpoint
                 , located-base
                 , prover
                 , aeson >= 0.10
@@ -192,6 +195,7 @@ Library
                     Language.Haskell.Liquid.UX.CmdLine,
                     Language.Haskell.Liquid.GHC.Misc,
                     Language.Haskell.Liquid.GHC.Play,
+                    Language.Haskell.Liquid.GHC.Resugar,
                     Language.Haskell.Liquid.Misc,
                     Language.Haskell.Liquid.Types.Variance,
                     Language.Haskell.Liquid.Types.Bounds,

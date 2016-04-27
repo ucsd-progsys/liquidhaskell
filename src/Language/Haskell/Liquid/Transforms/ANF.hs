@@ -19,7 +19,6 @@ import qualified DsMonad
 import           DsMonad                          (initDs)
 import           GHC                              hiding (exprType)
 import           HscTypes
-
 import           OccName                          (mkVarOccFS)
 import           Id                               (mkUserLocalM)
 import           Literal
@@ -32,8 +31,10 @@ import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
-import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
+
+import           Control.Monad.State.Lazy
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (anfPrefix)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
@@ -41,6 +42,7 @@ import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, sy
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
+import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 
@@ -51,8 +53,8 @@ import           Data.List                        (sortBy, (\\))
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize expandFlag hscEnv modGuts
-  = do -- putStrLn "***************************** GHC CoreBinds ***************************"
-       -- putStrLn $ showPpr orig_cbs
+  = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
+                     putStrLn $ showPpr orig_cbs
        (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       m        = mgi_module modGuts
@@ -126,13 +128,14 @@ type DsMW = StateT DsST DsM
 normalizeBind :: AnfEnv -> CoreBind -> DsMW ()
 ------------------------------------------------------------------
 normalizeBind γ (NonRec x e)
-   = do e' <- normalize γ e
-        add [NonRec x e']
+  = do e' <- normalize γ e
+       add [NonRec x e']
 
 normalizeBind γ (Rec xes)
   = do es' <- mapM (stitch γ) es
        add [Rec (zip xs es')]
-    where (xs, es) = unzip xes
+    where
+       (xs, es) = unzip xes
 
 --------------------------------------------------------------------
 normalizeName :: AnfEnv -> CoreExpr -> DsMW CoreExpr
@@ -177,17 +180,20 @@ shouldNormalize l = case l of
 add :: [CoreBind] -> DsMW ()
 add w = modify $ \s -> s{st_binds = st_binds s++w}
 
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 normalizeLiteral :: AnfEnv -> CoreExpr -> DsMW CoreExpr
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 normalizeLiteral γ e =
   do x <- lift $ freshNormalVar γ $ exprType e
      add [NonRec x e]
      return $ Var x
 
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+normalize γ e
+  | Just p <- Rs.resugar e
+  = normalizePattern γ p
 
 normalize γ (Lam x e)
   = do e' <- stitch γ e
@@ -219,7 +225,7 @@ normalize _ e@(Type _)
   = return e
 
 normalize γ (Cast e τ)
-  = do e'    <- normalizeName γ e
+  = do e' <- normalizeName γ e
        return $ Cast e' τ
 
 normalize γ (App e1 e2)
@@ -234,7 +240,9 @@ normalize γ (Tick tt e)
 normalize _ (Coercion c)
   = return $ Coercion c
 
+--------------------------------------------------------------------------------
 stitch :: AnfEnv -> CoreExpr -> DsMW CoreExpr
+--------------------------------------------------------------------------------
 stitch γ e
   = do bs'   <- get
        modify $ \s -> s {st_binds = []}
@@ -242,6 +250,11 @@ stitch γ e
        bs    <- st_binds <$> get
        put bs'
        return $ mkCoreLets bs e'
+
+--------------------------------------------------------------------------------
+normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
+--------------------------------------------------------------------------------
+normalizePattern _γ _ = panic Nothing "TODO:PATTERN"
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
