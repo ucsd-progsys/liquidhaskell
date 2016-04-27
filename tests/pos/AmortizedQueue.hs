@@ -18,7 +18,7 @@ data SList a = SL { size  :: Int
 
 -- | Invariant: `size` is really the size:
 
-{-@ data SList a = SL { size  :: Int
+{-@ data SList a = SL { size  :: Nat
                       , elems :: {v:[a] | len v = size}
                       }
   @-}

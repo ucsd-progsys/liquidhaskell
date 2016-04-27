@@ -61,10 +61,6 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
      | otherwise  = t
 
 
-isBool :: RType RTyCon t t1 -> Bool
-isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
-isBool _ = False
-
 {- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
 
 CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
