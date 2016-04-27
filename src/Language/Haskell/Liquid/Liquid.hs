@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.Liquid (
   ) where
 
 import           Prelude hiding (error)
+import           Data.Bifunctor
 import           Data.Maybe
 import           System.Exit
 -- import           Control.DeepSeq
@@ -59,40 +60,34 @@ liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 ------------------------------------------------------------------------------
 runLiquid mE cfg = do
-  (d, mE') <- checkMany cfg mempty mE (files cfg)
-  return      (ec d, mE')
+  (gs, mE') <- second Just <$> getGhcInfo mE cfg (files cfg)
+  d         <- checkMany cfg mempty gs
+  return       (ec d, mE')
   where
-    ec     = resultExit . o_result
+    ec       = resultExit . o_result
 
 
 ------------------------------------------------------------------------------
-checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
+checkMany :: Config -> Output Doc -> [GhcInfo] -> IO (Output Doc)
 ------------------------------------------------------------------------------
-checkMany cfg d mE (f:fs) = do
-  (d', mE') <- checkOne mE cfg f
-  checkMany cfg (d `mappend` d') mE' fs
+checkMany cfg d (g:gs) = do
+  d' <- checkOne cfg g
+  checkMany cfg (d `mappend` d') gs
 
-checkMany _   d mE [] =
-  return (d, mE)
+checkMany _   d [] =
+  return d
 
 ------------------------------------------------------------------------------
-checkOne :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
+checkOne :: Config -> GhcInfo -> IO (Output Doc)
 ------------------------------------------------------------------------------
-checkOne mE cfg t = do
-  z <- actOrDie (checkOne' mE cfg t)
+checkOne cfg g = do
+  z <- actOrDie $ liquidOne g
   case z of
     Left e -> do
-      d <- exitWithResult cfg t $ mempty { o_result = e }
-      return (d, Nothing)
+      d <- exitWithResult cfg (target g) $ mempty { o_result = e }
+      return d
     Right r ->
       return r
-
-
-checkOne' :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
-checkOne' mE cfg t = do
-  (gInfo, hEnv) <- getGhcInfo mE cfg t
-  d <- liquidOne t gInfo
-  return (d, Just hEnv)
 
 
 actOrDie :: IO a -> IO (Either ErrorResult a)
@@ -107,11 +102,12 @@ handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
 
 ------------------------------------------------------------------------------
-liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
+liquidOne :: GhcInfo -> IO (Output Doc)
 ------------------------------------------------------------------------------
-liquidOne tgt info = do
+liquidOne info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
+  let tgt   = target info
   whenLoud  $ do putStrLn "**** Config **************************************************"
                  print cfg
   whenLoud  $ do putStrLn $ showpp info

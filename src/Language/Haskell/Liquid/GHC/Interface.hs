@@ -77,13 +77,12 @@ import Language.Fixpoint.Utils.Files
 -- GHC Interface Pipeline ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
-getGhcInfo hscEnv cfg tgtFile' = do
-  tgtFile  <- canonicalizePath tgtFile'
-  _        <- tryIgnore "create temp directory" $
-                createDirectoryIfMissing False $ tempDirectory tgtFile
+getGhcInfo :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
+getGhcInfo hscEnv cfg tgtFiles' = do
+  tgtFiles <- mapM canonicalizePath tgtFiles'
+  _        <- mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
-  first head <$> runLiquidGhc hscEnv cfg (getGhcInfo' cfg logicMap [tgtFile])
+  runLiquidGhc hscEnv cfg (getGhcInfo' cfg logicMap tgtFiles)
 
 getGhcInfo' :: Config -> Either Error LogicMap
             -> [FilePath]
@@ -95,6 +94,10 @@ getGhcInfo' cfg logicMap tgtFiles = do
   ghcInfo     <- processModules cfg logicMap tgtFiles depGraph homeModules
   hscEnv      <- getSession
   return (ghcInfo, hscEnv)
+
+createTempDirectoryIfMissing :: FilePath -> IO ()
+createTempDirectoryIfMissing tgtFile = tryIgnore "create temp directory" $
+  createDirectoryIfMissing False $ tempDirectory tgtFile
 
 --------------------------------------------------------------------------------
 -- GHC Configuration & Setup ---------------------------------------------------
