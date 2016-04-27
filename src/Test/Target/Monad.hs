@@ -40,6 +40,7 @@ import           Data.List                        hiding (sort)
 
 import qualified Data.Text                        as ST
 import qualified Data.Text.Lazy                   as T
+import qualified Data.Text.Lazy.Builder           as Builder
 import           Language.Haskell.TH.Lift
 import           System.IO.Unsafe
 -- import           Text.Printf
@@ -289,7 +290,8 @@ unObj s        = error $ "unObj: " ++ show s
 freshChoice :: String -> Target Symbol
 freshChoice cn
   = do n <- freshInt
-       let x = symbol $ T.unpack (smt2 choicesort) ++ "-" ++ cn ++ "-" ++ show n
+       let x = symbol $ T.unpack (Builder.toLazyText $ smt2 choicesort)
+                        ++ "-" ++ cn ++ "-" ++ show n
        modify $ \s@(TargetState {..}) -> s { variables = (x,choicesort) : variables }
        return x
 

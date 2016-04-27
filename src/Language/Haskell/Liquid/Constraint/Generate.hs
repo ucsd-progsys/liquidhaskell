@@ -181,14 +181,17 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (invs1 ++ invs2)
-       globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs 
+       γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       return γ{invs = is (invs1 ++ invs2)} 
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
-    mapSndM f (x,y) = (x,) <$> f y
+    mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
+    is autoinv   = mkRTyConInv    $ (invariants sp ++ ((Nothing,) <$> autoinv))
+
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
@@ -286,16 +289,16 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
-        -> [Located SpecType]
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs autosizes
+measEnv sp xts cbs lts asms itys hs 
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
+        , invs  = mempty 
+        , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
         , assms = fromListREnv asms []
@@ -646,9 +649,13 @@ consCBTop _ γ cb
        let tflag  = oldtcheck
        let isStr  = tcond cb strict
        modify $ \s -> s { tcheck = tflag && isStr}
-       γ' <- consCB (tflag && isStr) isStr γ cb
+
+       -- remove invariants that came from the cb definition 
+       let (γ',i) = removeInvariant γ cb 
+       γ'' <- consCB (tflag && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return γ'
+       return $ restoreInvariant γ'' i  
+
 
 tcond :: Bind Var -> S.HashSet Var -> Bool
 tcond cb strict
@@ -681,7 +688,7 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = [γ' `setTRec` (zip xs rts') | rts' <- rts]
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . isClassPred . varType) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
@@ -901,10 +908,14 @@ addPToEnv γ π
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
-extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
-extender γ _               = return γ
-
+extender γ (x, Asserted t) 
+  = case lookupREnv (F.symbol x) (assms γ) of 
+      Just t' -> γ ++= ("extender", F.symbol x, t')
+      _       -> γ ++= ("extender", F.symbol x, t)
+extender γ (x, Assumed t)  
+  = γ ++= ("extender", F.symbol x, t)
+extender γ _               
+  = return γ
 
 data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
@@ -1365,7 +1376,7 @@ caseEnv γ x _   (DataAlt c) ys
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
-       cγ'              <- addBinders γ x' cbs
+       cγ'              <- addBinders γ   x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
        return cγ
 
