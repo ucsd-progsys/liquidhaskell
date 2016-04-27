@@ -899,6 +899,9 @@ instance SubsTy RTyVar RSort PrType where
 instance SubsTy RTyVar RSort SpecType where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
+instance SubsTy TyVar Type SpecType where
+  subt (α, τ) = subsTyVar_meet (RTV α, ofType τ, ofType τ)
+
 instance SubsTy RTyVar RTyVar SpecType where
   subt (α, a) = subt (α, RVar a () :: RSort)
 
