@@ -96,7 +96,8 @@ import qualified Data.HashSet              as S
 -- | Constraints ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ type Tag = { v : [Int] | len(v) = 1 } @-}
+{-@ type Tag = { v : [Int] | len v == 1 } @-}
+
 type Tag           = [Int]
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
@@ -505,8 +506,10 @@ data Sol a = Sol { sMap :: M.HashMap KVar a
                  }
 
 data Cube = Cube
-  { cuBinds :: IBindEnv
-  , cuSubst :: Subst
+  { cuBinds :: IBindEnv  -- ^ Binders       from defining Env
+  , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
+  , cuId    :: Integer   -- ^ Id            of   defining Cstr (DEBUG)
+  , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
   }
 
 type Hyp      = ListNE Cube

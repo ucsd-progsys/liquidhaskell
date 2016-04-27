@@ -48,7 +48,7 @@ import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
-import           Debug.Trace
+-- import           Debug.Trace
 
 ---------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -222,10 +222,10 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si $ trace msg es'
+elimDeps si es nonKutVs = graphDeps si {- $ trace msg -} es'
   where
     es'                 = graphElim es nonKutVs
-    msg                 = "graphElim: " ++ show (length es')
+    -- msg                 = "graphElim: " ++ show (length es')
 
 {- | `graphElim` "eliminates" a kvar k by replacing every "path"
 
