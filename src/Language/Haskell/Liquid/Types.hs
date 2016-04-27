@@ -827,7 +827,7 @@ data RInstance t = RI
   { riclass :: LocSymbol
   , ritype  :: t
   , risigs  :: [(LocSymbol, t)]
-  } deriving Functor
+  } deriving (Functor, Data, Typeable)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid)
 
@@ -879,8 +879,7 @@ data DataDecl   = D { tycName   :: LocSymbol
                                 -- ^ Source Position
                     , tycSFun   :: (Maybe (Symbol -> Expr))
                                 -- ^ Measure that should decrease in recursive calls
-                    }
-     --              deriving (Show)
+                    } deriving (Data, Typeable)
 
 
 instance Eq DataDecl where
@@ -904,7 +903,7 @@ data RTAlias tv ty
         , rtBody  :: ty
         , rtPos   :: SourcePos
         , rtPosE  :: SourcePos
-        }
+        } deriving (Data, Typeable)
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
@@ -1603,7 +1602,7 @@ data RClass ty
            , rcSupers  :: [ty]
            , rcTyVars  :: [Symbol]
            , rcMethods :: [(LocSymbol,ty)]
-           } deriving (Show, Functor)
+           } deriving (Show, Functor, Data, Typeable)
 
 
 ------------------------------------------------------------------------

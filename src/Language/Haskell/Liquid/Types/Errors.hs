@@ -281,7 +281,7 @@ data TError t =
   | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
                 , var   :: !Doc
                 , hs    :: !Doc
-                , lq    :: !Doc
+                , lqTy  :: !Doc
                 , lqPos :: !SrcSpan -- ^ lq type location
                 } -- ^ Mismatch between Liquid and Haskell types
 

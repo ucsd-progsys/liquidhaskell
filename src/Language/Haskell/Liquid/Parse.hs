@@ -5,9 +5,11 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP, specSpecificationP
+  , singleSpecP, BPspec, Pspec(..)
   , parseSymbolToLogic
   )
   where
@@ -25,6 +27,7 @@ import qualified Data.Text                              as T
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Monoid
+import           Data.Data
 
 
 import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum)
@@ -57,14 +60,16 @@ import           Language.Fixpoint.Parse                hiding (angles, refBindP
 
 -------------------------------------------------------------------------------
 hsSpecificationP :: ModuleName
-                 -> [(SourcePos, String)]
+                 -> [(SourcePos, String)] -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
 
-hsSpecificationP modName specComments =
+hsSpecificationP modName specComments specQuotes =
   case partitionEithers $ parseComment <$> specComments of
-    ([], specs) -> Right $ mkSpec (ModName SrcImport modName) specs
-    (errs, _)   -> Left errs
+    ([], specs) ->
+      Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
+    (errs, _) ->
+      Left errs
   where
     parseComment (pos, specComment) =
       parseWithError specP pos specComment
@@ -84,6 +89,11 @@ specificationP
        reserved "where"
        xs     <- grabs (specP <* whiteSpace)
        return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
+
+-------------------------------------------------------------------------------
+singleSpecP :: SourcePos -> String -> Either Error BPspec
+-------------------------------------------------------------------------------
+singleSpecP = parseWithError specP
 
 ---------------------------------------------------------------------------
 parseWithError :: Parser a -> SourcePos -> String -> Either Error a
@@ -582,6 +592,8 @@ dummyTyId      = ""
 --------------------------- Measures -----------------------------
 ------------------------------------------------------------------
 
+type BPspec = Pspec (Located BareType) LocSymbol
+
 data Pspec ty ctor
   = Meas    (Measure ty ctor)
   | Assm    (LocSymbol, ty)
@@ -612,6 +624,7 @@ data Pspec ty ctor
   | Class   (RClass ty)
   | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
+  deriving (Data, Typeable)
 
 -- | For debugging
 instance Show (Pspec a b) where
@@ -645,7 +658,7 @@ instance Show (Pspec a b) where
   show (RInst  _) = "RInst"
   show (ASize  _) = "ASize"
 
-mkSpec :: ModName -> [Pspec (Located BareType) LocSymbol] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
+mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
 mkSpec name xs         = (name,)
                        $ Measure.qualifySpec (symbol name)
                        $ Measure.Spec
@@ -681,7 +694,7 @@ mkSpec name xs         = (name,)
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
-specP :: Parser (Pspec (Located BareType) LocSymbol)
+specP :: Parser BPspec
 specP
   = try (reservedToken "assume"       >> liftM Assm   tyBindP   )
     <|> (reservedToken "assert"       >> liftM Asrt   tyBindP   )

@@ -34,6 +34,10 @@ module Language.Haskell.Liquid.Types.RefType (
   , findPVar
   , FreeVar, freeTyVars, tyClasses, tyConName
 
+  -- * Quantifying RTypes
+  , quantifyRTy
+  , quantifyFreeRTy
+
   -- TODO: categorize these!
   , ofType, toType
   , rTyVar, rVar, rApp, rEx
@@ -518,6 +522,12 @@ strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t
 
+
+quantifyRTy :: [tv] -> RType c tv r -> RType c tv r
+quantifyRTy tvs ty = foldr RAllT ty tvs
+
+quantifyFreeRTy :: Eq tv => RType c tv r -> RType c tv r
+quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
 -------------------------------------------------------------------------
