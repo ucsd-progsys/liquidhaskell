@@ -242,7 +242,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- loadModule typechecked
   let specComments     = getSpecComments parsed
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
-  let specEnv'         = extendModuleEnv specEnv mod (modName, bareSpec)
+  let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
     then return Nothing
     else Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
@@ -380,7 +380,9 @@ transParseSpecs paths seenFiles specs newFiles = do
   transParseSpecs paths seenFiles' specs' newFiles'
   where
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
-    noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
+
+noTerm :: Ms.BareSpec -> Ms.BareSpec
+noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
 
 parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
 parseSpecFile file = either throw return . specSpecificationP file =<< readFile file
