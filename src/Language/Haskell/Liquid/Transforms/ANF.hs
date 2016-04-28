@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
@@ -22,7 +23,8 @@ import           HscTypes
 import           OccName                          (mkVarOccFS)
 import           Id                               (mkUserLocalM)
 import           Literal
-import           MkCore                           (mkCoreLets)
+import           MkCore                           (mkCoreApps, mkCoreLets)
+import           PrelNames
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
 import           TypeRep
@@ -123,6 +125,9 @@ data DsST = DsST { st_expandflag :: Bool
                  }
 
 type DsMW = StateT DsST DsM
+
+liftDsM :: DsMonad.DsM a -> DsMW a
+liftDsM x = StateT $ \st -> DsM $ x >>= \a -> return (a, st)
 
 ------------------------------------------------------------------
 normalizeBind :: AnfEnv -> CoreBind -> DsMW ()
@@ -254,7 +259,16 @@ stitch γ e
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
 --------------------------------------------------------------------------------
-normalizePattern _γ _ = panic Nothing "TODO:PATTERN"
+normalizePattern γ p = case p of
+  Rs.PatBindApp {..} -> do
+    -- don't normalize the >>= itself, we have a special typing rule for it
+    e1' <- normalize γ patE1
+    e2' <- stitch    γ patE2
+    bindMVar <- liftDsM $ DsMonad.dsLookupGlobalId bindMName
+    return $ mkCoreApps (Var bindMVar)
+                        [ Type patM, patMDi, Type patTyA, Type patTyB
+                        , e1', Lam patX e2'
+                        ]
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
