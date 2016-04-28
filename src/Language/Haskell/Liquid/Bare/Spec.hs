@@ -39,7 +39,7 @@ import qualified Data.List                                  as L
 import qualified Data.HashSet                               as S
 import qualified Data.HashMap.Strict                        as M
 
-import           Language.Fixpoint.Misc                     (group, snd3, traceShow)
+import           Language.Fixpoint.Misc                     (group, snd3)
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Misc           ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
@@ -121,7 +121,7 @@ varSymbols f vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
         sym        = dropModuleNames . F.symbol . showPpr
         locVar v   = (getSourcePos v, v)
-        go (s, ns) = case M.lookup (traceShow "looking up" $ val s) lvs of
+        go (s, ns) = case M.lookup (val s) lvs of
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
                      Nothing  -> ((:[]).(,ns)) <$> lookupGhcVar s
 
@@ -271,7 +271,7 @@ makeSpecDictionaryOne embs vars (RI x t xts)
        tyi <- gets tcEnv
        ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x (val <$> t') $ zip xs ts'
-       let v = lookupName (traceShow "\nTO LOOKUP\n" d)
+       let v = lookupName d
        return ((, dts) <$> v)
   where
     mkTy' t  = fmap generalize <$> mkLSpecType t

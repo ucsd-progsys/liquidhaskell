@@ -4,18 +4,29 @@
 
 module Proves where
 
-type Proof = Bool
 
--- proof operators requiring proof terms
+-- | proof operators requiring proof terms
 infixl 3 ==:, <=:, <:
 
--- proof operators with optional proof terms
+-- | proof operators with optional proof terms
 infixl 3 ==!, <=!, <!
 
 -- provide the proof terms after ? 
 infixl 3 ?
 
 
+type Proof = Bool
+
+
+(?) :: (Proof -> a) -> Proof -> a 
+f ? y = f y 
+
+-- | proof goes from Int to resolve types for the optional proof combinators
+proof :: Int -> Bool 
+proof _ = True 
+
+
+-- | Comparison operators requiring proof terms
 
 (<=:) :: Ord a => a -> a -> Proof -> a 
 {-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == x } @-} 
@@ -30,6 +41,9 @@ infixl 3 ?
 {-@ (==:) :: (Eq a) => x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x } @-} 
 (==:) x y _ = x 
 
+
+
+-- | Comparison operators requiring proof terms optionally 
 
 
 class OptEq a r where
@@ -79,12 +93,3 @@ instance OptLess a a where
   <! :: x:a -> y:{a| x < y} -> {v:a | v == x && v < y }
   @-}
   (<!) x y = (<!) x y True  
-
-
-
-
-(?) :: (Proof -> a) -> Proof -> a 
-f ? y = f y 
-
-proof :: Int -> Bool 
-proof _ = True 

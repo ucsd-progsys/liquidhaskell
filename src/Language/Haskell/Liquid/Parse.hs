@@ -845,15 +845,7 @@ cMeasureP
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
 
-{- 
-instanceP :: Parser (RInstance (Located BareType))
-instanceP
-  = do c  <- locUpperIdP
-       lt <- classArgsP 
-       ts <- sepBy tyBindP semi
-       return $ RI c lt $ traceShow ("TYs for " ++ show lt) ts
 
--}
 oneClassArg :: Parser [Located BareType]
 oneClassArg
   = sing <$> locParserP (rit <$> locUpperIdP <*> (map val <$> classParams))
@@ -879,8 +871,8 @@ instanceP
                <|> return []
     toRCls x = x
 
-    iargsP    =   (mkVar <$> tyVarIdP)
-              <|> (parens $ locParserP $ bareTypeP)
+    iargsP   =   (mkVar <$> tyVarIdP)
+            <|> (parens $ locParserP $ bareTypeP)
 
 
     mkVar v  = dummyLoc $ RVar v mempty

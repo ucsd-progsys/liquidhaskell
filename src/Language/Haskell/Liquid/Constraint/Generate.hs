@@ -1113,7 +1113,6 @@ consE γ e'@(App e (Type τ))
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
 
--- NV HERE HERE 
 consE γ e'@(App e a) | isDictionary a
   = if isJust tt
       then return $ fromJust tt
@@ -1136,9 +1135,9 @@ consE γ e'@(App e a) | isDictionary a
                                      App a (Type _) -> mdict a 
                                      _              -> Nothing
     isDictionary _               = isJust (mdict a)
-    d = fromJust (mdict a)
+    d     = fromJust (mdict a)
     dinfo = dlookup (denv γ) d
-    tt = traceShow ("IS Dictionary for " ++ show e') $ dhasinfo dinfo $ grepfunname e
+    tt    = dhasinfo dinfo $ grepfunname e
 
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
