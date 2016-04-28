@@ -29,7 +29,6 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text)
 import           Language.Preprocessor.Unlit            (unlit)
-import           Language.Fixpoint.Misc (traceShow)
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (Axiom)
@@ -846,6 +845,7 @@ cMeasureP
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
 
+{- 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
   = do c  <- locUpperIdP
@@ -853,17 +853,40 @@ instanceP
        ts <- sepBy tyBindP semi
        return $ RI c lt $ traceShow ("TYs for " ++ show lt) ts
 
-classArgsP :: Parser [Located BareType]
-classArgsP
-  = try (sing <$> locParserP (rit <$> locUpperIdP <*> (map val <$> classParams)))
-  <|> locRVars
+-}
+oneClassArg :: Parser [Located BareType]
+oneClassArg
+  = sing <$> locParserP (rit <$> locUpperIdP <*> (map val <$> classParams))
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
-    locRVars    = map mkRVar <$> classParams
     classParams =  (reserved "where" >> return [])
                <|> ((:) <$> locLowerIdP <*> classParams)
     sing x      = [x]
-    mkRVar v    =  traceShow "PARSED\n" $ Loc (loc v) (locE v) (RVar (val v) mempty)
+
+instanceP :: Parser (RInstance (Located BareType))
+instanceP
+  = do _    <- supersP
+       c    <- locUpperIdP
+       spaces
+       tvs  <- (try oneClassArg) <|> (manyTill iargsP (try $ reserved "where"))
+       ms   <- sepBy tyBindP semi
+       spaces
+       return $ RI c tvs ms 
+  where
+    superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
+    supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                       <* reserved "=>")
+               <|> return []
+    toRCls x = x
+
+    iargsP    =   (mkVar <$> tyVarIdP)
+              <|> (parens $ locParserP $ bareTypeP)
+
+
+    mkVar v  = dummyLoc $ RVar v mempty
+
+
+
 
 
 classP :: Parser (RClass (Located BareType))

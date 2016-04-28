@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
 module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
@@ -22,7 +23,7 @@ import           Var
 import           Language.Fixpoint.Types
 
 
--- import           Language.Fixpoint.Misc (traceShow)
+import           Language.Fixpoint.Misc (traceShow)
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
 
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames)
@@ -37,15 +38,33 @@ makeDictionaries = DEnv . M.fromList . map makeDictionary
 
 
 makeDictionary :: RInstance SpecType -> (Symbol, M.HashMap Symbol SpecType)
-makeDictionary (RI c ts xts) = (makeDictionaryName c ts, M.fromList (mapFst val <$> xts))
+makeDictionary (RI c ts xts) = traceShow "DICS " (makeDictionaryName c ts, M.fromList (mapFst val <$> xts))
 
 makeDictionaryName :: Located Symbol -> [SpecType] -> Symbol
-makeDictionaryName t [(RApp c _ _ _)] = symbol ("$f" ++ symbolString (val t) ++ c')
-  where
-        c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
-makeDictionaryName t ts             = panic Nothing ("makeDictionaryName: called with invalid type" ++ (show (pprint (t, ts))) )
+{- 
+makeDictionaryName t [(RApp c _ _ _)] 
+  = symbol ("$f" ++ symbolString (val t) ++ c')
+    where
+-}
 
+makeDicTypeName :: SpecType -> String 
+makeDicTypeName (RFun _ _ _ _)
+  = "(->)"
+makeDicTypeName (RApp c _ _ _)
+  = symbolString $ dropModuleNames $ symbol $ rtc_tc c
+makeDicTypeName (RVar a _)
+  = show a 
+makeDicTypeName t 
+  = panic Nothing ("makeDicTypeName: called with invalid type " ++ show t)
+
+makeDictionaryName t ts         
+  = traceShow ("IS THIS GOOD? for " ++ show (t,ts)) $
+     symbol ("$f" ++ symbolString (val t) ++ concatMap makeDicTypeName ts)
+{- 
+makeDictionaryName t ts 
+  = panic Nothing ("makeDictionaryName: called with invalid type" ++ (show (pprint (t, ts))) )
+-}
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------

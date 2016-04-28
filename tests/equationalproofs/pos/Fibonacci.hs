@@ -26,7 +26,7 @@ lemma_fib x
 
   | 2 < x 
   = proof $ 
-      0 <:  fib (x-1)            ? lemma_fib (x-1)
+      0 <: fib (x-1)             ? lemma_fib (x-1)
         <: fib (x-1) + fib (x-2) ? True 
         <: fib x                 ? True 
 
@@ -37,23 +37,23 @@ fib_increasing :: Int -> Int -> Bool
 fib_increasing x y 
   | x == 0, y == 1
   = proof $
-     fib 0 <=: fib 1                  ? True
+     fib 0 <=! fib 1
 
   | x == 0 
   = proof $ 
-      fib 0 <: fib y                  ? lemma_fib y
+      fib 0 <! fib y                  ? lemma_fib y
 
   | x == 1, y == 2
   = proof $ 
-      fib x <=: fib (y-1) + fib (y-2) ? True 
-            <=: fib y                 ? True   
+      fib x <=! fib (y-1) + fib (y-2)  
+            <=! fib y                    
 
 
   | x == 1, 2 < y
   = proof $ 
-      fib x ==: 1                     ? True 
-            <=: fib (y-1) + fib (y-2) ? fib_increasing 1 (y-1)
-            <=: fib y                 ? True   
+      fib x ==! 1                       
+            <=! fib (y-1) + fib (y-2) ? fib_increasing 1 (y-1)
+            <=! fib y                    
 
   | otherwise
   = proof $ 
