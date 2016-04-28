@@ -236,7 +236,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
   _                   <- liftIO $ whenLoud $ putStrLn $ "Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
-  _                   <- load $ LoadDependenciesOf $ moduleName mod
+  _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
   typechecked         <- typecheckModule $ ignoreInline parsed
   _                   <- loadModule typechecked
@@ -250,6 +250,12 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
+
+loadDependenciesOf :: ModuleName -> Ghc ()
+loadDependenciesOf modName = do
+  loadResult <- load $ LoadDependenciesOf modName
+  when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
+   "Failed to load dependencies of module " ++ showPpr modName
 
 getSpecComments :: ParsedModule -> [(SourcePos, String)]
 getSpecComments parsed = mapMaybe getSpecComment comments
