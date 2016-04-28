@@ -19,40 +19,31 @@ import           Prelude                                hiding (error)
 import           Text.Parsec
 import           Text.Parsec.Error                      (newErrorMessage, Message (..))
 import           Text.Parsec.Pos                        (newPos)
-
 import qualified Text.Parsec.Token                      as Token
 import qualified Data.Text                              as T
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Monoid
-
-
 import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum)
 import           Data.List                              (foldl', partition)
-
 import           GHC                                    (mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text)
-
 import           Language.Preprocessor.Unlit            (unlit)
-
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
-
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (Axiom)
 import           Language.Haskell.Liquid.Misc           (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
-
 import qualified Language.Haskell.Liquid.Measure        as Measure
-
 import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
+
 -- import Debug.Trace
 
-
-----------------------------------------------------------------------------
--- Top Level Parsing API ---------------------------------------------------
-----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Top Level Parsing API -----------------------------------------------------
+--------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 hsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
@@ -379,15 +370,12 @@ mkPredVarType t
     ts        = toRSort <$> ty_args trep
     err       = "Predicate Variable with non-Prop output sort: " ++ showpp t
 
-xyP :: Stream s m Char
-    => ParsecT s u m t
-    -> ParsecT s u m a -> ParsecT s u m t1 -> ParsecT s u m (t, t1)
-xyP lP sepP rP
-  = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
+xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
+xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
 data ArrowSym = ArrowFun | ArrowPred
 
-arrowP :: Parsec String u ArrowSym
+arrowP :: Parser ArrowSym
 arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
@@ -1062,39 +1050,35 @@ fTyConP
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
+--------------------------------------------------------------------------------
+-- | Interacting with Fixpoint -------------------------------------------------
+--------------------------------------------------------------------------------
 
----------------------------------------------------------------------
------------- Interacting with Fixpoint ------------------------------
----------------------------------------------------------------------
-
-grabUpto :: Stream s m Char => ParsecT s u m a -> ParsecT s u m (Maybe a)
+grabUpto :: Parser a -> Parser (Maybe a)
 grabUpto p
   =  try (Just <$> lookAhead p)
  <|> try (eof   >> return Nothing)
  <|> (anyChar   >> grabUpto p)
 
-betweenMany :: Stream s m Char
-            => ParsecT s u m open
-            -> ParsecT s u m close -> ParsecT s u m a -> ParsecT s u m [a]
+betweenMany :: Parser open -> Parser close -> Parser a -> Parser [a]
 betweenMany leftP rightP p
   = do z <- grabUpto leftP
        case z of
          Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
          Nothing -> return []
 
-specWraps :: Parsec String u a
-          -> Parsec String u [a]
+specWraps :: Parser a -> Parser [a]
 specWraps = betweenMany (liquidBeginP >> whiteSpace) (whiteSpace >> liquidEndP)
 
-liquidBeginP :: Stream s m Char => ParsecT s u m String
+liquidBeginP :: Parser String
 liquidBeginP = string liquidBegin
 
-liquidEndP :: Stream s m Char => ParsecT s u m String
+liquidEndP :: Parser String
 liquidEndP   = string liquidEnd
 
----------------------------------------------------------------
--- | Bundling Parsers into a Typeclass ------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Bundling Parsers into a Typeclass -----------------------------------------
+--------------------------------------------------------------------------------
 
 instance Inputable BareType where
   rr' = doParse' bareTypeP

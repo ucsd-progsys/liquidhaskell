@@ -233,8 +233,8 @@ config = cmdArgsMode $ Config {
     = False &= name "time-binds"
             &= help "Solve each (top-level) asserted type signature separately & time solving."
 
- , inlineMonad
-    = False &= name "inline-monad"
+ , patternInline
+    = False &= name "pattern-inline"
             &= help "Inline applications of `>>=` and `return` during constraint generation."
 
  } &= verbosity
@@ -392,7 +392,7 @@ defConfig = Config { files             = def
                    , json              = False
                    , counterExamples   = False
                    , timeBinds         = False
-                   , inlineMonad       = False
+                   , patternInline     = False
                    }
 
 ------------------------------------------------------------------------
