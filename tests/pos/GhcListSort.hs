@@ -11,7 +11,7 @@ import Language.Haskell.Liquid.Prelude
 ---------------------------  Official GHC Sort ----------------------------
 ---------------------------------------------------------------------------
 
-{-@ assert sort1 :: (Ord a) => [a] -> OList a  @-}
+{-@ sort1 :: (Ord a) => [a] -> OList a  @-}
 sort1 :: (Ord a) => [a] -> [a]
 sort1 = mergeAll . sequences
   where
@@ -49,7 +49,7 @@ merge1 as []            = as
 ------------------- Mergesort ---------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ assert sort2 :: (Ord a) => [a] -> OList a  @-}
+{-@ sort2 :: (Ord a) => [a] -> OList a  @-}
 sort2 :: (Ord a) => [a] -> [a]
 sort2 = mergesort
 
@@ -81,7 +81,7 @@ wrap x = [x]
 -------------------- QuickSort ---------------------------------------
 ----------------------------------------------------------------------
 
-{-@ assert sort3 :: (Ord a) => w:a -> [{v:a|v<=w}] -> OList a @-}
+{-@ sort3 :: (Ord a) => w:a -> [{v:a|v<=w}] -> OList a @-}
 sort3 :: (Ord a) => a -> [a] -> [a]
 sort3 w ls = qsort w ls []
 

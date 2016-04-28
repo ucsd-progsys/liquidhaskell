@@ -39,11 +39,8 @@ import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic
-
 import Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
--- import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
-
-import Language.Haskell.Liquid.Types hiding (binders)
+import Language.Haskell.Liquid.Types
 
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -55,14 +52,14 @@ makeAxiom :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
 makeAxiom tce lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-        (NonRec v def:_)   -> do let anames = findAxiomNames x cbs 
+        (NonRec v def:_)   -> do let anames = findAxiomNames x cbs
                                  vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
                                  insertAxiom v (val x)
                                  updateLMap lmap x x v
                                  updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
                                  return ((val x, makeType v),
                                          (v, makeAssumeType v):vts, defAxioms anames v def)
-        (Rec [(v, def)]:_) -> do let anames = findAxiomNames x cbs 
+        (Rec [(v, def)]:_) -> do let anames = findAxiomNames x cbs
                                  vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
                                  insertAxiom v (val x)
                                  updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
@@ -165,13 +162,13 @@ defAxioms vs v e = go [] $ simplify e
      mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
 
 
-     getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of 
-                        [x] -> Just x 
+     getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of
+                        [x] -> Just x
                         _   -> Nothing
-     getConName v c  = case filter (\n -> let aname = symbolString $ dropModuleNames $ simplesymbol n 
-                                              dname = "axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v) ++ "_" ++ (symbolString $ dropModuleNames $ simplesymbol $ dataConWorkId c) 
-                                          in (aname == dname)) vs of 
-                        [x] -> Just x 
+     getConName v c  = case filter (\n -> let aname = symbolString $ dropModuleNames $ simplesymbol n
+                                              dname = "axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v) ++ "_" ++ (symbolString $ dropModuleNames $ simplesymbol $ dataConWorkId c)
+                                          in (aname == dname)) vs of
+                        [x] -> Just x
                         _   -> Nothing
 
 

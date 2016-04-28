@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -40,11 +42,14 @@ module Language.Haskell.Liquid.Constraint.Types
   -- * Aliases?
   , RTyConIAl
   , mkRTyConIAl
+
+  , removeInvariant, restoreInvariant, makeRecInvariants
   ) where
 
 import Prelude hiding (error)
 import CoreSyn
 import SrcLoc
+import Unify (tcUnifyTy)
 
 import qualified TyCon   as TC
 import qualified DataCon as DC
@@ -58,7 +63,7 @@ import qualified Data.List           as L
 
 import Control.DeepSeq
 -- import Data.Monoid              (mconcat)
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isJust)
 import Control.Monad.State
 
 
@@ -71,8 +76,8 @@ import Var
 import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Misc           (fourth4)
-import Language.Haskell.Liquid.Types.RefType  (shiftVV)
+import Language.Haskell.Liquid.Misc           (fourth4, mapSnd)
+import Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
@@ -90,6 +95,7 @@ data CGEnv
         , fenv  :: !FEnv              -- ^ Fixpoint Environment
         , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs  :: !RTyConInv         -- ^ Datatype invariants
+        , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
         , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
         , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
         , assms :: !REnv              -- ^ Top-level variables with assumed types
@@ -233,30 +239,60 @@ elemHEnv x (HEnv s) = x `S.member` s
 -- | Helper Types: Invariants --------------------------------------------------
 --------------------------------------------------------------------------------
 
-type RTyConInv = M.HashMap RTyCon [SpecType]
-type RTyConIAl = M.HashMap RTyCon [SpecType]
+data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
+                                           -- for all type arguments
+                 , _rinv_type :: SpecType
+                 , _rinv_name :: Maybe Var 
+                 } deriving Show 
+
+type RTyConInv = M.HashMap RTyCon [RInv]
+type RTyConIAl = M.HashMap RTyCon [RInv]
 
 --------------------------------------------------------------------------------
-mkRTyConInv    :: [F.Located SpecType] -> RTyConInv
+mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
   where
-    strip      = fourth4 . bkUniv . val
+    strip = mapSnd (fourth4 . bkUniv . val)
+    go ts | generic (toRSort <$> ts) = []
+          | otherwise                = toRSort <$> ts 
+
+    generic ts = let ts' = L.nub ts in
+                 all isRVar ts' && length ts' == length ts 
 
 mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
-mkRTyConIAl    = mkRTyConInv . fmap snd
+mkRTyConIAl    = mkRTyConInv . fmap ((Nothing,) . snd)
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _)
-  = case M.lookup c m of
+addRTyConInv m t
+  = case lookupRInv t m of
       Nothing -> t
-      Just ts -> L.foldl' conjoinInvariantShift  t ts
-addRTyConInv _ t
-  = t
+      Just ts -> L.foldl' conjoinInvariantShift t ts
+
+lookupRInv :: SpecType -> RTyConInv -> Maybe [SpecType]
+lookupRInv (RApp c ts _ _) m 
+  = case M.lookup c m of
+      Nothing   -> Nothing
+      Just invs -> Just (catMaybes $ goodInvs ts <$> invs)
+lookupRInv _ _
+  = Nothing 
+
+goodInvs :: [SpecType] -> RInv -> Maybe SpecType
+goodInvs _ (RInv []  t _) 
+  = Just t 
+goodInvs ts (RInv ts' t _)
+  | and (zipWith unifiable ts' (toRSort <$> ts))
+  = Just t
+  | otherwise
+  = Nothing
+
+
+unifiable :: RSort -> RSort -> Bool 
+unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
-  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
+  | x `elem` ids , Just invs <- lookupRInv (res t) m
   = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs)))
   | otherwise
   = (x, t)
@@ -284,6 +320,44 @@ conjoinInvariant t@(RVar _ r) (RVar _ ir)
 conjoinInvariant t _
   = t
 
+
+removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
+removeInvariant γ cbs 
+  = (γ{ invs  = M.map (filter f) (invs γ)
+      , rinvs = M.map (filter (\x -> not $ f x)) (invs γ)}, invs γ)
+  where
+    f i | Just v  <- _rinv_name i, v `elem` binds cbs 
+        = False 
+        | otherwise
+        = True          
+
+    binds (NonRec x _) = [x]
+    binds (Rec xes)    = fst $ unzip xes
+
+restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
+restoreInvariant γ is = γ {invs = is}
+
+
+
+makeRecInvariants :: CGEnv -> [Var] -> CGEnv 
+makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
+  where
+    is  =  M.map (map f . filter (isJust . ((varType x) `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    f i = i{_rinv_type = guard $ _rinv_type i}
+
+    guard (RApp c ts rs r)
+      | Just f <- sizeFunction $ rtc_info c 
+      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty mempty)
+      | otherwise 
+      = RApp c ts rs mempty 
+    guard t
+      = t   
+
+    ref f (F.Reft(v, rr)) = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
+
+makeRecInvariants γ _ = γ
+
+
 --------------------------------------------------------------------------------
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -306,8 +380,11 @@ initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
 
+instance NFData RInv where
+  rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z  
+
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

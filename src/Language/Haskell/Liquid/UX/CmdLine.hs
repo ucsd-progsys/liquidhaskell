@@ -110,8 +110,9 @@ config = cmdArgsMode $ Config {
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
 
- , binders
-    = def &= help "Check a specific set of binders"
+ , checks
+    = def &= help "Check a specific (top-level) binder"
+          &= name "check-var"
 
  , noPrune
     = def &= help "Disable prunning unsorted Predicates"
@@ -227,7 +228,16 @@ config = cmdArgsMode $ Config {
  , counterExamples
     = False &= name "counter-examples"
             &= help "Attempt to generate counter-examples to type errors (experimental!)"
-} &= verbosity
+
+ , timeBinds
+    = False &= name "time-binds"
+            &= help "Solve each (top-level) asserted type signature separately & time solving."
+
+ , inlineMonad
+    = False &= name "inline-monad"
+            &= help "Inline applications of `>>=` and `return` during constraint generation."
+
+ } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
    &= summary copyright
@@ -344,43 +354,45 @@ parsePragma = withPragma defConfig
    --withArgs [val s] $ cmdArgsRun config
 
 defConfig :: Config
-defConfig = Config { files          = def
-                   , idirs          = def
-                   , newcheck       = True
-                   , fullcheck      = def
-                   , linear         = def
-                   , higherorder    = def
-                   , diffcheck      = def
-                   , saveQuery      = def
-                   , binders        = def
-                   , noCheckUnknown = def
-                   , notermination  = def
-                   , autoproofs     = def
-                   , nowarnings     = def
-                   , trustinternals = def
-                   , nocaseexpand   = def
-                   , strata         = def
-                   , notruetypes    = def
-                   , totality       = def
-                   , noPrune        = def
-                   , exactDC        = def
-                   , cores          = def
-                   , minPartSize    = defaultMinPartSize
-                   , maxPartSize    = defaultMaxPartSize
-                   , maxParams      = defaultMaxParams
-                   , smtsolver      = def
-                   , shortNames     = def
-                   , shortErrors    = def
-                   , cabalDir       = def
-                   , ghcOptions     = def
-                   , cFiles         = def
-                   , eliminate      = def
-                   , port           = defaultPort
-                   , scrapeImports  = False
-                   , scrapeUsedImports  = False
-                   , elimStats      = False
-                   , json           = False
-                   , counterExamples= False
+defConfig = Config { files             = def
+                   , idirs             = def
+                   , newcheck          = True
+                   , fullcheck         = def
+                   , linear            = def
+                   , higherorder       = def
+                   , diffcheck         = def
+                   , saveQuery         = def
+                   , checks            = def
+                   , noCheckUnknown    = def
+                   , notermination     = def
+                   , autoproofs        = def
+                   , nowarnings        = def
+                   , trustinternals    = def
+                   , nocaseexpand      = def
+                   , strata            = def
+                   , notruetypes       = def
+                   , totality          = def
+                   , noPrune           = def
+                   , exactDC           = def
+                   , cores             = def
+                   , minPartSize       = defaultMinPartSize
+                   , maxPartSize       = defaultMaxPartSize
+                   , maxParams         = defaultMaxParams
+                   , smtsolver         = def
+                   , shortNames        = def
+                   , shortErrors       = def
+                   , cabalDir          = def
+                   , ghcOptions        = def
+                   , cFiles            = def
+                   , eliminate         = def
+                   , port              = defaultPort
+                   , scrapeImports     = False
+                   , scrapeUsedImports = False
+                   , elimStats         = False
+                   , json              = False
+                   , counterExamples   = False
+                   , timeBinds         = False
+                   , inlineMonad       = False
                    }
 
 ------------------------------------------------------------------------

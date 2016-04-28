@@ -45,7 +45,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
-  , isClassRTyCon, isClassType, isEqType
+  , isClassRTyCon, isClassType, isEqType, isRVar, isBool
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -102,14 +102,13 @@ module Language.Haskell.Liquid.Types (
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
-  , mapReft, mapReftM
+  , mapReft, mapReftM, mapPropM
   , mapBot, mapBind
 
   -- * ???
   , Oblig(..)
   , ignoreOblig
   , addInvCond
-
 
   -- * Inferred Annotations
   , AnnInfo (..)
@@ -210,7 +209,7 @@ import           TyCon
 import           Type                                   (getClassPredTys_maybe)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
 
@@ -313,7 +312,7 @@ data GhcSpec = SP {
   , ctors      :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
   , meas       :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
-  , invariants :: ![LocSpecType]                 -- ^ Data Type Invariants
+  , invariants :: ![(Maybe Var, LocSpecType)]    -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , ialiases   :: ![(LocSpecType, LocSpecType)]  -- ^ Data Type Invariant Aliases
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
@@ -519,6 +518,13 @@ instance NFData RTyCon
 
 -- | Accessors for @RTyCon@
 
+isBool :: RType RTyCon t t1 -> Bool
+isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
+isBool _                                 = False
+
+isRVar :: RType c tv r -> Bool 
+isRVar (RVar _ _) = True 
+isRVar _          = False 
 
 isClassRTyCon :: RTyCon -> Bool
 isClassRTyCon = isClassTyCon . rtc_tc
@@ -587,7 +593,6 @@ instance Show TyConInfo where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
 data RType c tv r
   = RVar {
       rt_var    :: !tv
@@ -1175,6 +1180,7 @@ isBase (RFun _ _ _ _)   = False
 isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
 isBase (RRTy _ _ _ t)   = isBase t
 isBase (RAllE _ _ t)    = isBase t
+isBase (REx _ _ t)      = isBase t
 isBase _                = False
 
 isFunTy :: RType t t1 t2 -> Bool
@@ -1203,6 +1209,20 @@ mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
 mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
 
+mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
+mapPropM _ (RVar α r)         = return $ RVar  α r
+mapPropM f (RAllT α t)        = liftM   (RAllT α)   (mapPropM f t)
+mapPropM f (RAllP π t)        = liftM   (RAllP π)   (mapPropM f t)
+mapPropM f (RAllS s t)        = liftM   (RAllS s)   (mapPropM f t)
+mapPropM f (RFun x t t' r)    = liftM3  (RFun x)    (mapPropM f t)          (mapPropM f t') (return r)
+mapPropM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
+mapPropM f (RAllE z t t')     = liftM2  (RAllE z)   (mapPropM f t)          (mapPropM f t')
+mapPropM f (REx z t t')       = liftM2  (REx z)     (mapPropM f t)          (mapPropM f t')
+mapPropM _ (RExprArg e)       = return  $ RExprArg e
+mapPropM f (RAppTy t t' r)    = liftM3  RAppTy (mapPropM f t) (mapPropM f t') (return r)
+mapPropM _ (RHole r)          = return $ RHole r
+mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
+
 
 --------------------------------------------------------------------------------
 -- foldReft :: (Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
@@ -1212,21 +1232,23 @@ mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
 --------------------------------------------------------------------------------
 foldReft :: (Reftable r, TyConable c) => (SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft f = foldReft' id (\γ _ -> f γ)
+foldReft  f = foldReft' (\_ _ -> False) id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (Reftable r, TyConable c)
-          => (RType c tv r -> b)
+          => (Symbol -> RType c tv r -> Bool)
+          -> (RType c tv r -> b)
           -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' g f = efoldReft (\_ _ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
+foldReft' logicBind g f = efoldReft logicBind (\_ _ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
 
 
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (Reftable r, TyConable c)
-          => (c -> [RType c tv r] -> [(Symbol, a)])
+          => (Symbol -> RType c tv r -> Bool)
+          -> (c -> [RType c tv r] -> [(Symbol, a)])
           -> (RType c tv r -> a)
           -> (SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
           -> (PVar (RType c tv ()) -> SEnv a -> SEnv a)
@@ -1234,7 +1256,7 @@ efoldReft :: (Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft cb g f fp = go
+efoldReft logicBind cb g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -1243,8 +1265,9 @@ efoldReft cb g f fp = go
     go γ z (RAllS _ t)                  = go γ z t
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
---     go γ z me@(RFun _ t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
+    go γ z me@(RFun x t t' r)
+       | logicBind x t                  = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
+       | otherwise                      = f γ (Just me) r (go γ (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
