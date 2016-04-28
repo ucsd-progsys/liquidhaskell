@@ -2,28 +2,28 @@
 --   about 2x the number of calls to `incr`.
 module ElimMonad (prop) where
 
-{-@ prop :: x:Nat -> IO {v:Int | v = x + 3} @-}
+{-@ prop :: x:Nat -> IO {v:Int | v = x + 22} @-}
 prop :: Int -> IO Int
 prop x = do
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
-  -- x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
+  x <- incr x
   x <- incr x
   x <- incr x
   x <- incr x

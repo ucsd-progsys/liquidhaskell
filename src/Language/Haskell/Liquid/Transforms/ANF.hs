@@ -254,10 +254,14 @@ stitch γ e
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
 --------------------------------------------------------------------------------
-normalizePattern γ p@(Rs.PatBindApp {}) = do
+normalizePattern γ p@(Rs.PatBind {}) = do
   e1'   <- normalize γ (Rs.patE1 p)
   e2'   <- normalize γ (Rs.patE2 p)
   return $ Rs.lower p { Rs.patE1 = e1', Rs.patE2 = e2' }
+
+normalizePattern γ p@(Rs.PatReturn {}) = do
+  e'    <- normalize γ (Rs.patE p)
+  return $ Rs.lower p { Rs.patE = e' }
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv

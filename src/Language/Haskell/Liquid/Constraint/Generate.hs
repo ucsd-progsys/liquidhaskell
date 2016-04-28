@@ -1196,11 +1196,21 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
     -----------------------------------------
           G |- (e1 >>= \x -> e2) ~> m t
  -}
-consPattern γ (Rs.PatBindApp e1 x e2 _ _ _ _ _) = do
+consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
   tx    <- monadArg γ <$> consE γ e1
   γ'    <- ((γ, "consPattern") += (F.symbol x, tx))
   mt    <- consE γ' e2
   return mt
+
+{-
+           G |- e ~> t
+    ------------------------
+      G |- return e ~ m t
+ -}
+consPattern γ (Rs.PatReturn e m _ _ _) = do
+  t     <- consE γ e
+  mt    <- trueTy  m
+  return $ RAppTy mt t mempty
 
 
 monadArg :: CGEnv -> SpecType -> SpecType

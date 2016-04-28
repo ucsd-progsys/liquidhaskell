@@ -25,8 +25,8 @@ module Language.Haskell.Liquid.GHC.Resugar (
 
 import           CoreSyn
 import           Type
-import           PrelNames  (bindMName)
-import           Name       (getName)
+import qualified PrelNames as PN -- (bindMName)
+import           Name       (Name, getName)
 import qualified Data.List as L
 
 -- import           Debug.Trace
@@ -38,16 +38,24 @@ import qualified Data.List as L
 --------------------------------------------------------------------------------
 
 data Pattern
-  = PatBindApp
+  = PatBind
       { patE1  :: CoreExpr
       , patX   :: Var
       , patE2  :: CoreExpr
       , patM   :: Type
-      , patMDi :: CoreExpr
+      , patDct :: CoreExpr
       , patTyA :: Type
       , patTyB :: Type
       , patFF  :: Var
       }                      -- ^ e1 >>= \x -> e2
+
+  | PatReturn
+     { patE    :: CoreExpr
+     , patM    :: Type
+     , patDct  :: CoreExpr
+     , patTy   :: Type
+     , patRet  :: Var
+     }                       -- ^ return e
 
 --------------------------------------------------------------------------------
 -- | Lift expressions into High-level patterns ---------------------------------
@@ -56,22 +64,32 @@ lift :: CoreExpr -> Maybe Pattern
 --------------------------------------------------------------------------------
 lift e = exprArgs e (collectArgs e)
 
+exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
+exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
+  | op `is` PN.bindMName
+  = Just (PatBind e1 x e2 m d a b op)
+
+exprArgs _e (Var op, [Type m, d, Type t, e])
+  | op `is` PN.returnMName
+  = Just (PatReturn e m d t op)
+
+exprArgs _ _
+  = Nothing
+
+is :: Var -> Name -> Bool
+is v n = n == getName v
+
 --------------------------------------------------------------------------------
 -- | Lower patterns back into expressions --------------------------------------
 --------------------------------------------------------------------------------
 lower :: Pattern -> CoreExpr
-lower (PatBindApp e1 x e2 m d a b ff)
-  = argsExpr (Var ff) [Type m, d, Type a, Type b, e1, Lam x e2]
+--------------------------------------------------------------------------------
+
+lower (PatBind e1 x e2 m d a b op)
+  = argsExpr (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
+
+lower (PatReturn e m d t op)
+  = argsExpr (Var op) [Type m, d, Type t, e]
 
 argsExpr :: CoreExpr -> [CoreExpr] -> CoreExpr
 argsExpr = L.foldl' App
-
-exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
-exprArgs _e (Var ff, [Type m, d, Type a, Type b, e1, Lam x e2])
-  | isMonadicBind ff
-  = Just (PatBindApp e1 x e2 m d a b ff)
-exprArgs _ _
-  = Nothing
-
-isMonadicBind :: Var -> Bool
-isMonadicBind v = getName v == bindMName
