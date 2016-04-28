@@ -23,12 +23,13 @@ module Language.Haskell.Liquid.GHC.Resugar (
   , lower
   ) where
 
+import           MkCore                           (mkCoreApps)
 import           CoreSyn
 import           Type
 import qualified PrelNames as PN -- (bindMName)
 import           Name       (Name, getName)
-import qualified Data.List as L
 
+-- import qualified Data.List as L
 -- import           Debug.Trace
 -- import           Var
 -- import           Data.Maybe                                 (fromMaybe)
@@ -39,22 +40,22 @@ import qualified Data.List as L
 
 data Pattern
   = PatBind
-      { patE1  :: CoreExpr
-      , patX   :: Var
-      , patE2  :: CoreExpr
-      , patM   :: Type
-      , patDct :: CoreExpr
-      , patTyA :: Type
-      , patTyB :: Type
-      , patFF  :: Var
+      { patE1  :: !CoreExpr
+      , patX   :: !Var
+      , patE2  :: !CoreExpr
+      , patM   :: !Type
+      , patDct :: !CoreExpr
+      , patTyA :: !Type
+      , patTyB :: !Type
+      , patFF  :: !Var
       }                      -- ^ e1 >>= \x -> e2
 
   | PatReturn
-     { patE    :: CoreExpr
-     , patM    :: Type
-     , patDct  :: CoreExpr
-     , patTy   :: Type
-     , patRet  :: Var
+     { patE    :: !CoreExpr
+     , patM    :: !Type
+     , patDct  :: !CoreExpr
+     , patTy   :: !Type
+     , patRet  :: !Var
      }                       -- ^ return e
 
 --------------------------------------------------------------------------------
@@ -84,12 +85,12 @@ is v n = n == getName v
 --------------------------------------------------------------------------------
 lower :: Pattern -> CoreExpr
 --------------------------------------------------------------------------------
-
 lower (PatBind e1 x e2 m d a b op)
-  = argsExpr (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
+  = mkCoreApps (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
 
 lower (PatReturn e m d t op)
-  = argsExpr (Var op) [Type m, d, Type t, e]
+  = mkCoreApps (Var op) [Type m, d, Type t, e]
 
-argsExpr :: CoreExpr -> [CoreExpr] -> CoreExpr
-argsExpr = L.foldl' App
+-- argsExpr :: CoreExpr -> [CoreExpr] -> CoreExpr
+-- argsExpr = L.foldl' App
+-- mkCoreApps (Var bindMVar)

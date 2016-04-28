@@ -1072,7 +1072,7 @@ consE γ e
 -- be empty if there is no axiomatization
 
 consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
@@ -1104,7 +1104,7 @@ consE γ (App e (Type τ)) | isKind τ
 
 
 consE γ e'@(App e (Type τ))
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
@@ -1121,7 +1121,7 @@ consE γ e'@(App e a) | isDictionary a
               (γ', te''')      <- dropExists γ te'
               te''             <- dropConstraints γ te'''
               updateLocA {- πs -}  (exprLoc e) te''
-              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
               pushConsBind      $ cconsE γ' a tx
               addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
   where
@@ -1144,7 +1144,7 @@ consE γ e'@(App e a)
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
        updateLocA {- πs -}  (exprLoc e) te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
@@ -1196,10 +1196,12 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
     -----------------------------------------
           G |- (e1 >>= \x -> e2) ~> m t
  -}
+
 consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
-  tx    <- monadArg γ <$> consE γ e1
-  γ'    <- ((γ, "consPattern") += (F.symbol x, tx))
-  mt    <- consE γ' e2
+  tx <- checkMonad ("Non-monadic type", e1) γ <$> consE γ e1
+  γ' <- ((γ, "consPattern") += (F.symbol x, tx))
+  addIdA x (AnnDef tx)
+  mt <- consE γ' e2
   return mt
 
 {-
@@ -1212,14 +1214,11 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
   mt    <- trueTy  m
   return $ RAppTy mt t mempty
 
+checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkMonad _ _ (RApp _ [t] _ _) = t
+checkMonad _ _ (RAppTy _ t _)   = t
+checkMonad x g t                = checkErr x g t
 
-monadArg :: CGEnv -> SpecType -> SpecType
-monadArg _ (RAppTy _ t _)   = t
-monadArg _ (RApp _ [t] _ _) = t
-monadArg γ t                = panic (Just sp) msg
-  where
-    msg                     = "Unknown monad type parameter in: " ++ showpp t
-    sp                      = getLocation γ
 
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
@@ -1371,15 +1370,12 @@ refreshVVRef (RProp ss t)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
 
-
-
-
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
@@ -1431,20 +1427,22 @@ instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
-checkTyCon :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                = checkErr x t
+checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkTyCon _ _ t@(RApp _ _ _ _) = t
+checkTyCon x g t              = checkErr x g t
 
-checkFun :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkFun _ t@(RFun _ _ _ _)   = t
-checkFun x t                  = checkErr x t
+checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkFun _ _ t@(RFun _ _ _ _) = t
+checkFun x g t                = checkErr x g t
 
-checkAll :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkAll _ t@(RAllT _ _)      = t
-checkAll x t                  = checkErr x t
+checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkAll _ _ t@(RAllT _ _)    = t
+checkAll x g t                = checkErr x g t
 
-checkErr :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
+checkErr :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkErr (msg, e) γ t         = panic (Just sp) $ msg ++ showPpr e ++ ", type: " ++ showpp t
+  where
+    sp                        = getLocation γ
 
 varAnn :: CGEnv -> Var -> t -> Annot t
 varAnn γ x t
