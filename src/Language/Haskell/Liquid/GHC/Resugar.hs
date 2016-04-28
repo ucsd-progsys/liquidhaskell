@@ -16,14 +16,18 @@ module Language.Haskell.Liquid.GHC.Resugar (
   -- * High-level Source Patterns
     Pattern (..)
 
-  -- * Resugar function
-  , resugar
+  -- * Lift a CoreExpr into a Pattern
+  , lift
+
+  -- * Lower a pattern back into a CoreExpr
+  , lower
   ) where
 
 import           CoreSyn
 import           Type
 import           PrelNames  (bindMName)
 import           Name       (getName)
+import qualified Data.List as L
 
 -- import           Debug.Trace
 -- import           Var
@@ -42,21 +46,31 @@ data Pattern
       , patMDi :: CoreExpr
       , patTyA :: Type
       , patTyB :: Type
+      , patFF  :: Var
       }                      -- ^ e1 >>= \x -> e2
 
 --------------------------------------------------------------------------------
--- | API for detecting special patterns ----------------------------------------
+-- | Lift expressions into High-level patterns ---------------------------------
 --------------------------------------------------------------------------------
-resugar :: CoreExpr -> Maybe Pattern
+lift :: CoreExpr -> Maybe Pattern
 --------------------------------------------------------------------------------
-resugar e = resugarEArgs e (collectArgs e)
+lift e = exprArgs e (collectArgs e)
 
+--------------------------------------------------------------------------------
+-- | Lower patterns back into expressions --------------------------------------
+--------------------------------------------------------------------------------
+lower :: Pattern -> CoreExpr
+lower (PatBindApp e1 x e2 m d a b ff)
+  = argsExpr (Var ff) [Type m, d, Type a, Type b, e1, Lam x e2]
 
-resugarEArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
-resugarEArgs _e (Var ff, [Type m, d, Type a, Type b, e1, Lam x e2])
+argsExpr :: CoreExpr -> [CoreExpr] -> CoreExpr
+argsExpr = L.foldl' App
+
+exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
+exprArgs _e (Var ff, [Type m, d, Type a, Type b, e1, Lam x e2])
   | isMonadicBind ff
-  = Just (PatBindApp e1 x e2 m d a b)
-resugarEArgs _ _
+  = Just (PatBindApp e1 x e2 m d a b ff)
+exprArgs _ _
   = Nothing
 
 isMonadicBind :: Var -> Bool

@@ -192,7 +192,7 @@ normalizeLiteral γ e =
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 normalize γ e
-  | Just p <- Rs.resugar e
+  | Just p <- Rs.lift e
   = normalizePattern γ p
 
 normalize γ (Lam x e)
@@ -254,7 +254,10 @@ stitch γ e
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
 --------------------------------------------------------------------------------
-normalizePattern _γ _ = panic Nothing "TODO:PATTERN"
+normalizePattern γ p@(Rs.PatBindApp {}) = do
+  e1'   <- normalize γ (Rs.patE1 p)
+  e2'   <- normalize γ (Rs.patE2 p)
+  return $ Rs.lower p { Rs.patE1 = e1', Rs.patE2 = e2' }
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
@@ -310,7 +313,6 @@ freshNormalVar γ t = mkUserLocalM anfOcc t sp
   where
     anfOcc         = mkVarOccFS $ symbolFastString anfPrefix
     sp             = Sp.srcSpan (aeSrcSpan γ)
-
 
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
