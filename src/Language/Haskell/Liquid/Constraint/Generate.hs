@@ -1112,6 +1112,8 @@ consE γ e'@(App e (Type τ))
 
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
+
+-- NV HERE HERE 
 consE γ e'@(App e a) | isDictionary a
   = if isJust tt
       then return $ fromJust tt

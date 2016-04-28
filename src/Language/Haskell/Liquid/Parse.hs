@@ -29,6 +29,7 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text)
 import           Language.Preprocessor.Unlit            (unlit)
+import           Language.Fixpoint.Misc (traceShow)
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (Axiom)
@@ -848,13 +849,22 @@ iMeasureP = measureP
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
   = do c  <- locUpperIdP
-       lt <- locParserP (rit <$> locUpperIdP <*> classParams)
+       lt <- classArgsP 
        ts <- sepBy tyBindP semi
-       return $ RI c lt ts
+       return $ RI c lt $ traceShow ("TYs for " ++ show lt) ts
+
+classArgsP :: Parser [Located BareType]
+classArgsP
+  = try (sing <$> locParserP (rit <$> locUpperIdP <*> (map val <$> classParams)))
+  <|> locRVars
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
+    locRVars    = map mkRVar <$> classParams
     classParams =  (reserved "where" >> return [])
-               <|> ((:) <$> lowerIdP <*> classParams)
+               <|> ((:) <$> locLowerIdP <*> classParams)
+    sing x      = [x]
+    mkRVar v    =  traceShow "PARSED\n" $ Loc (loc v) (locE v) (RVar (val v) mempty)
+
 
 classP :: Parser (RClass (Located BareType))
 classP

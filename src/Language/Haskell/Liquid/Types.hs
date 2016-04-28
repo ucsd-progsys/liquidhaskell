@@ -830,11 +830,11 @@ instance Show RTyCon where
 
 data RInstance t = RI
   { riclass :: LocSymbol
-  , ritype  :: t
+  , ritype  :: [t]
   , risigs  :: [(LocSymbol, t)]
   } deriving Functor
 
-newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid)
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid, Show)
 
 type RDEnv = DEnv Var SpecType
 

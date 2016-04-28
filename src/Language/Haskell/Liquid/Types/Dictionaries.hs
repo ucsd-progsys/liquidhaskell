@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
   , makeDictionary
@@ -19,26 +21,31 @@ import           Var
 
 import           Language.Fixpoint.Types
 
+
+-- import           Language.Fixpoint.Misc (traceShow)
+import           Language.Haskell.Liquid.Types.PrettyPrint ()
+
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames)
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Haskell.Liquid.Misc              (mapFst)
 
 import qualified Data.HashMap.Strict                       as M
-import           Language.Haskell.Liquid.Types.PrettyPrint ()
 
 makeDictionaries :: [RInstance SpecType] -> DEnv Symbol SpecType
 makeDictionaries = DEnv . M.fromList . map makeDictionary
 
 
 makeDictionary :: RInstance SpecType -> (Symbol, M.HashMap Symbol SpecType)
-makeDictionary (RI c t xts) = (makeDictionaryName c t, M.fromList (mapFst val <$> xts))
+makeDictionary (RI c ts xts) = (makeDictionaryName c ts, M.fromList (mapFst val <$> xts))
 
-makeDictionaryName :: Located Symbol -> SpecType -> Symbol
-makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ symbolString (val t) ++ c')
+makeDictionaryName :: Located Symbol -> [SpecType] -> Symbol
+makeDictionaryName t [(RApp c _ _ _)] = symbol ("$f" ++ symbolString (val t) ++ c')
   where
         c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
-makeDictionaryName _ _              = panic Nothing "makeDictionaryName: called with invalid type"
+makeDictionaryName t ts             = panic Nothing ("makeDictionaryName: called with invalid type" ++ (show (pprint (t, ts))) )
+
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
