@@ -86,7 +86,7 @@ getGhcInfo' cfg target name tgtSpec = do
   impSpecs  <- findAndLoadTargets cfg paths target
   modGuts   <- makeMGIModGuts target
   hscEnv    <- getSession
-  coreBinds <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modGuts
+  coreBinds <- liftIO $ anormalize cfg hscEnv modGuts
   logicMap  <- liftIO makeLogicMap
   let dataCons = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)

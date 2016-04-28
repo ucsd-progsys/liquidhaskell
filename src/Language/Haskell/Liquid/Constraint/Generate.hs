@@ -108,8 +108,11 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct info
-    cfg                  = config $ spec info
+    act                  = consAct    info
+    cfg                  = infoConfig info
+
+infoConfig :: GhcInfo -> Config
+infoConfig = config . spec
 
 consAct :: GhcInfo -> CG ()
 consAct info
@@ -179,9 +182,9 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (infoConfig info)
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
-       return γ{invs = is (invs1 ++ invs2)}
+       return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -285,8 +288,9 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
+        -> Config
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs
+measEnv sp xts cbs lts asms itys hs cfg
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
@@ -308,6 +312,7 @@ measEnv sp xts cbs lts asms itys hs
         , lcs   = mempty
         , aenv  = axiom_map $ logicMap sp
         , cerr  = Nothing
+        , cgCfg = cfg
         }
     where
       tce = tcEmbeds sp
@@ -1061,13 +1066,12 @@ cconsLazyLet _ _ _
 --------------------------------------------------------------------------------
 consE :: CGEnv -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
-
 consE γ e
-  | Just p <- Rs.lift e
+  | patternFlag γ
+  , Just p <- Rs.lift e
   = consPattern γ p
-
-
--- NV this is a hack to type polymorphic axiomatized functions
+  
+-- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment withh
 -- be empty if there is no axiomatization
 
@@ -1189,6 +1193,9 @@ consE _ e@(Type t)
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
+patternFlag :: CGEnv -> Bool
+patternFlag = patternInline . cgCfg
+
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
 
 {-

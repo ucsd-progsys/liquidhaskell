@@ -109,6 +109,7 @@ data CGEnv
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
         , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
+        , cgCfg :: !Config                                -- ^ top-level config options
         } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
@@ -324,7 +325,7 @@ conjoinInvariant t _
 removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
 removeInvariant γ cbs
   = (γ{ invs  = M.map (filter f) (invs γ)
-      , rinvs = M.map (filter (\x -> not $ f x)) (invs γ)}, invs γ)
+      , rinvs = M.map (filter (not . f)) (invs γ)}, invs γ)
   where
     f i | Just v  <- _rinv_name i, v `elem` binds cbs
         = False
@@ -342,7 +343,7 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . ((varType x) `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)
@@ -384,7 +385,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

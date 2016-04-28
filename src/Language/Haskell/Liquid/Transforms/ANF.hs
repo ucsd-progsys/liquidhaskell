@@ -199,8 +199,8 @@ normalizeLiteral γ e =
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 normalize γ e
-  | Just p <- Rs.lift e
-  , patternFlag γ
+  | patternFlag γ
+  , Just p <- Rs.lift e
   = normalizePattern γ p
 
 normalize γ (Lam x e)
