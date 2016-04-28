@@ -36,6 +36,8 @@ lemma_fib :: Int -> Bool
 lemma_fib x 
   | x == 2
   = proof $ 
+  --  <! stands for logical < (also, <=, ==)
+  -- after ? user can provide boolean proof statements
       0 <! fib 2                 ? (fib 2 == fib 1 + fib 0)
 
   | 2 < x 
