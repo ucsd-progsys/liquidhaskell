@@ -2,20 +2,34 @@
 {-@ LIQUID "--totality"        @-}
 
 module FunctionAbstraction where
-
 import Proves 
 
-{-@ measure fib :: Int -> Int @-}
+
+-- | Proves that the fibonacci function is increasing
+
+
+-- | Definition of the function in Haskell 
+-- | the annotation axiomatize means that 
+-- | in the logic, the body of increase is known
+-- | (each time the function fib is applied, 
+-- | there is an unfold in the logic)
+
 {-@ fib :: n:Nat -> Nat @-}
-{-@ assume fib ::
-         n:Nat 
-      -> {v:Nat| v == fib n && if n == 0 then v == 0 else (if n == 1 then v == 1 else v == fib (n-1) + fib (n-2)) } @-}
+{-@ axiomatize fib @-}
+
 fib :: Int -> Int 
 fib n 
   | n == 0    = 0 
   | n == 1    = 1
   | otherwise = fib (n-1) + fib (n-2)
 
+
+-- | How to encode proofs:
+-- | ==!, <=!, and <! stand for the logical ==, <=, < resp.
+-- | If the proofs do not derive automatically, user can 
+-- | optionally provide the boolean statements, after `?`
+-- | Note, no inference occurs: logic only reasons about
+-- | linear arithmetic and equalities
 
 lemma_fib :: Int -> Bool
 {-@ lemma_fib :: x:{Nat | 1 < x } -> {v:Bool | 0 < fib x } @-}
@@ -58,3 +72,15 @@ fib_increasing x y
   | otherwise
   = proof $ 
       fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) && fib_increasing (x-1) (y-1))
+
+
+
+
+
+
+-- | The following should get auto generated
+
+{-@ measure fib :: Int -> Int @-}
+{-@ assume fib ::
+         n:Nat 
+      -> {v:Nat| v == fib n && if n == 0 then v == 0 else (if n == 1 then v == 1 else v == fib (n-1) + fib (n-2)) } @-}
