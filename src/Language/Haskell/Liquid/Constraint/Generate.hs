@@ -179,9 +179,9 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs 
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
-       return γ{invs = is (invs1 ++ invs2)} 
+       return γ{invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -286,14 +286,14 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs 
+measEnv sp xts cbs lts asms itys hs
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mempty 
+        , invs  = mempty
         , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
@@ -634,11 +634,11 @@ consCBTop _ γ cb
        let isStr  = tcond cb strict
        modify $ \s -> s { tcheck = tflag && isStr}
 
-       -- remove invariants that came from the cb definition 
-       let (γ',i) = removeInvariant γ cb 
+       -- remove invariants that came from the cb definition
+       let (γ',i) = removeInvariant γ cb
        γ'' <- consCB (tflag && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return $ restoreInvariant γ'' i  
+       return $ restoreInvariant γ'' i
 
 
 tcond :: Bind Var -> S.HashSet Var -> Bool
@@ -890,13 +890,13 @@ addPToEnv γ π
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extender γ (x, Asserted t) 
-  = case lookupREnv (F.symbol x) (assms γ) of 
+extender γ (x, Asserted t)
+  = case lookupREnv (F.symbol x) (assms γ) of
       Just t' -> γ ++= ("extender", F.symbol x, t')
       _       -> γ ++= ("extender", F.symbol x, t)
-extender γ (x, Assumed t)  
+extender γ (x, Assumed t)
   = γ ++= ("extender", F.symbol x, t)
-extender γ _               
+extender γ _
   = return γ
 
 data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
@@ -1063,7 +1063,7 @@ consE :: CGEnv -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
 
 consE γ e
-  | Just p <- Rs.resugar e
+  | Just p <- Rs.lift e
   = consPattern γ p
 
 
@@ -1190,8 +1190,26 @@ consE _ e@(Type t)
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
-consPattern _γ _p = panic Nothing "TODO:PATTERN"
 
+{-
+    G |- e1 ~> m tx     G, x:tx |- e2 ~> m t
+    -----------------------------------------
+          G |- (e1 >>= \x -> e2) ~> m t
+ -}
+consPattern γ (Rs.PatBindApp e1 x e2 _ _ _ _ _) = do
+  tx    <- monadArg γ <$> consE γ e1
+  γ'    <- ((γ, "consPattern") += (F.symbol x, tx))
+  mt    <- consE γ' e2
+  return mt
+
+
+monadArg :: CGEnv -> SpecType -> SpecType
+monadArg _ (RAppTy _ t _)   = t
+monadArg _ (RApp _ [t] _ _) = t
+monadArg γ t                = panic (Just sp) msg
+  where
+    msg                     = "Unknown monad type parameter in: " ++ showpp t
+    sp                      = getLocation γ
 
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
