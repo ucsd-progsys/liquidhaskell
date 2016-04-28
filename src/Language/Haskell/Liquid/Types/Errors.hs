@@ -329,6 +329,9 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
+  | ErrFilePragma { pos :: !SrcSpan
+                  }
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -722,6 +725,10 @@ ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"
         $+$ dCtx
         $+$ {- nest 4 -} s
+
+ppError' _ dSp dCtx (ErrFilePragma _)
+  = dSp <+> text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
+        $+$ dCtx
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."

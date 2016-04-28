@@ -204,7 +204,7 @@ modSummaryImports modSummary =
 importDeclModule :: Module -> ImportDecl a -> Ghc Module
 importDeclModule fromMod decl = do
   hscEnv <- getSession
-  let modName = (unLoc $ ideclName decl)
+  let modName = unLoc $ ideclName decl
   let pkgQual = ideclPkgQual decl
   result <- liftIO $ findImportedModule hscEnv modName pkgQual
   case result of
@@ -275,7 +275,7 @@ processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc GhcInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
-  cfg               <- liftIO $ withPragmas cfg0 file $ Ms.pragmas bareSpec
+  cfg               <- liftIO $ addFilePragmas cfg0 file $ Ms.pragmas bareSpec
   let modSummary     = pm_mod_summary $ tm_parsed_module typechecked
   let mod            = ms_mod modSummary
   let modName        = ModName Target $ moduleName mod
@@ -325,18 +325,36 @@ toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
-  case ml_hs_file $ ms_location modSummary of
-    Just file -> file
-    Nothing -> panic Nothing $
-      "modSummaryHsFile: missing .hs file for " ++ showPpr (ms_mod modSummary)
+  fromMaybe
+    (panic Nothing $
+      "modSummaryHsFile: missing .hs file for " ++
+      showPpr (ms_mod modSummary))
+    (ml_hs_file $ ms_location modSummary)
 
 getCachedBareSpecs :: SpecEnv -> [Module] -> [(ModName, Ms.BareSpec)]
 getCachedBareSpecs specEnv mods = lookupBareSpec <$> mods
   where
-    lookupBareSpec mod = case lookupModuleEnv specEnv mod of
-      Just bareSpec -> bareSpec
-      Nothing -> impossible Nothing $
-        "lookupBareSpec: missing module " ++ showPpr mod
+    lookupBareSpec mod =
+      fromMaybe
+        (impossible Nothing $
+           "lookupBareSpec: missing module " ++ showPpr mod)
+        (lookupModuleEnv specEnv mod)
+
+addFilePragmas :: Config -> FilePath -> [Located String] -> IO Config
+addFilePragmas cfg0 fp ps = foldM addFilePragma cfg0 ps >>= canonicalizePaths fp
+
+addFilePragma :: Config -> Located String -> IO Config
+addFilePragma cfg0 p = do
+  cfg <- withPragma cfg0 p
+  if checkFilePragmaChange cfg0 cfg
+    then return cfg
+    else throw (ErrFilePragma $ fSrcSpan p :: Error)
+
+checkFilePragmaChange :: Config -> Config -> Bool
+checkFilePragmaChange cfg0 cfg =
+  idirs      cfg0 == idirs      cfg &&
+  cFiles     cfg0 == cFiles     cfg &&
+  ghcOptions cfg0 == ghcOptions cfg
 
 --------------------------------------------------------------------------------
 -- Finding & Parsing Files -----------------------------------------------------
@@ -476,9 +494,9 @@ derivedVs cbs fd = concatMap bindersOf cbs' ++ deps
     unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
 
 unfoldDep :: Unfolding -> [Id]
-unfoldDep (DFunUnfolding _ _ e)         = concatMap exprDep e
-unfoldDep (CoreUnfolding {uf_tmpl = e}) = exprDep e
-unfoldDep _                             = []
+unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
+unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
+unfoldDep _                           = []
 
 exprDep :: CoreExpr -> [Id]
 exprDep = freeVars S.empty
@@ -534,7 +552,7 @@ instance PPrint GhcInfo where
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
   | otherwise = pprintCBsVerbose
-  | True      = pprintCBsTidy
+  | otherwise = pprintCBsTidy
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs

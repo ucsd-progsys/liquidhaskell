@@ -86,11 +86,8 @@ checkOne :: Config -> GhcInfo -> IO (Output Doc)
 checkOne cfg g = do
   z <- actOrDie $ liquidOne g
   case z of
-    Left e -> do
-      d <- exitWithResult cfg [target g] $ mempty { o_result = e }
-      return d
-    Right r ->
-      return r
+    Left  e -> exitWithResult cfg [target g] $ mempty { o_result = e }
+    Right r -> return r
 
 
 actOrDie :: IO a -> IO (Either ErrorResult a)
