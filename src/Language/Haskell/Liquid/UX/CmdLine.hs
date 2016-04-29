@@ -103,6 +103,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
+ , higherorderqs
+    = def
+          &= help "Allow higher order qualifiers to get automatically instantiated"
+
  , linear
     = def
           &= help "Use uninterpreted integer multiplication and division"
@@ -214,7 +218,7 @@ config = cmdArgsMode $ Config {
 
  , scrapeInternals
     = False &= help "Scrape qualifiers from auto generated specifications"
-            &= name "scrape-assumed"
+            &= name "scrape-internals"
             &= explicit
 
  , scrapeUsedImports
@@ -365,6 +369,7 @@ defConfig = Config { files             = def
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
+                   , higherorderqs     = def 
                    , diffcheck         = def
                    , saveQuery         = def
                    , checks            = def

@@ -6,7 +6,7 @@ module Proves where
 
 
 -- | proof operators requiring proof terms
-infixl 3 ==:, <=:, <:
+infixl 3 ==:, <=:, <:, >:
 
 -- | proof operators with optional proof terms
 infixl 3 ==!, <=!, <!, >!
@@ -28,13 +28,18 @@ proof _ = True
 
 -- | Comparison operators requiring proof terms
 
-(<=:) :: Ord a => a -> a -> Proof -> a
+(<=:) :: a -> a -> Proof -> a
 {-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == x } @-}
 (<=:) x _ _ = x
 
-(<:) :: Ord a => a -> a -> Proof -> a
+(<:) :: a -> a -> Proof -> a
 {-@ (<:) :: x:a -> y:a -> {v:Proof | x < y } -> {v:a | v == x } @-}
 (<:) x _ _ = x
+
+(>:) :: a -> a -> Proof -> a
+{-@ (>:) :: x:a -> y:a -> {v:Proof | x >y } -> {v:a | v == x } @-}
+(>:) x _ _ = x
+
 
 (==:) :: a -> a -> Proof -> a
 {-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x } @-}

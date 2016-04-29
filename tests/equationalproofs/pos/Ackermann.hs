@@ -8,7 +8,7 @@
 {- LIQUID "--maxparams=5"     @-}
 
 
-module FunctionAbstraction where
+module Ackermann where
 
 import Proves
 
@@ -76,18 +76,16 @@ lemma3 n x
   | x == 0
   = proof $
      ack n 0 <! ack n 1 ? lemma2 n 1
-  | otherwise
-  = undefined 
-{-
-
-      `with`
-    ack n 0 == 2      `with`
-    lemma2 n 1        `with`
-    2 < ack n 1
   | n == 0
-  = ack n x < ack n (x + 1)
+  = proof $
+    ack n x <! ack n (x + 1)
   | otherwise
-  = ack n (x+1)  == ack (n-1) (ack n x) `with`
-    lemma2 (n-1) (ack n x)              `with`
-    ack n x < ack n (x+1)
--}
+  = proof $
+      ack n x  <! ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
+               <! ack n (x+1)
+
+
+lemma3_gen :: Int -> Int -> Int -> Bool
+{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
+lemma3_gen n x y
+  = undefined 
