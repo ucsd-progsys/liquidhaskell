@@ -1215,6 +1215,7 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
+
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
@@ -1574,6 +1575,16 @@ simplify (App e1 e2)      = App (simplify e1) (simplify e2)
 simplify e                = e
 
 
+
+makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
+makeSingleton γ e t allowHO
+  | allowHO, App f x <- e 
+  = case (argExpr γ f, argExpr γ x) of 
+      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
+      _ -> t  
+  | otherwise
+  = t 
+
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
@@ -1598,7 +1609,7 @@ strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
 strengthenMeet t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
   -- where
     -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 

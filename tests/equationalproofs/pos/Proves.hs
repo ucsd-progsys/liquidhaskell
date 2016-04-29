@@ -46,6 +46,11 @@ toProof _ = True
 {-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == x } @-} 
 (>:) x y _ = x
 
+(>:) :: a -> a -> Proof -> a
+{-@ (>:) :: x:a -> y:a -> {v:Proof | x >y } -> {v:a | v == x } @-}
+(>:) x _ _ = x
+
+
 (==:) :: a -> a -> Proof -> a
 {-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x && v == y } @-}
 (==:) x _ _ = x

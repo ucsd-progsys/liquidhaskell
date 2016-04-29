@@ -14,7 +14,7 @@ Proving ackermann properties from http://www.cs.yorku.ca/~gt/papers/Ackermann-fu
 {-@ LIQUID "--eliminate"       @-}
 
 
-module FunctionAbstraction where
+module Ackermann where
 
 
 
