@@ -266,7 +266,7 @@ getSpecComments parsed = mapMaybe getSpecComment comments
 
 getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
 getSpecComment (GHC.L span (AnnBlockComment text))
-  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
+  | isPrefixOf "{-@" text && isSuffixOf "@-}" text =
     Just (offsetPos, take (length text - 6) $ drop 3 text)
   where
     offsetPos = incSourceColumn (srcSpanSourcePos span) 3
