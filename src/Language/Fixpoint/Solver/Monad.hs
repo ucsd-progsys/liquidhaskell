@@ -98,7 +98,7 @@ runSolverM cfg sI _ act =
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.allowHO = C.allowHO cfg}
+    fi      = (siQuery sI) {F.ho_info = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv

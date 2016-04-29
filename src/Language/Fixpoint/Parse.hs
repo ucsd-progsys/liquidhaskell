@@ -576,7 +576,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty False
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]

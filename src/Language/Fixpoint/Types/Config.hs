@@ -52,7 +52,8 @@ data Config
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
+    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment 
+    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers 
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
     , elimStats   :: Bool                -- ^ print eliminate stats
@@ -80,6 +81,7 @@ instance Default Config where
                , ueqAllSorts = def
                , linear      = def
                , allowHO     = False
+               , allowHOqs   = False
                , newcheck    = False
                , eliminate   = def
                , elimStats   = def
@@ -155,6 +157,7 @@ config = Config {
   , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
   , linear      = False &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False &= help "Allow higher order binders into fixpoint environment"
+  , allowHOqs   = False &= help "Allow higher order qualifiers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
   , solverStats = False &= help "Print solver stats"
