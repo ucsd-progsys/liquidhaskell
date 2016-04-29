@@ -74,15 +74,3 @@ fib_increasing x y
   | otherwise
   = proof $ 
       fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) && fib_increasing (x-1) (y-1))
-
-
-
-
-
-
--- | The following should get auto generated
-
-{-@ measure fib :: Int -> Int @-}
-{-@ assume fib ::
-         n:Nat 
-      -> {v:Nat| v == fib n && if n == 0 then v == 0 else (if n == 1 then v == 1 else v == fib (n-1) + fib (n-2)) } @-}
