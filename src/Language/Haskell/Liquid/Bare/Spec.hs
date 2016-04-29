@@ -267,10 +267,10 @@ makeSpecDictionary embs vars (_, spec)
 makeSpecDictionaryOne :: F.TCEmb TyCon -> [Var] -> RInstance (Located BareType)
                       -> BareM (Maybe (Var, M.HashMap F.Symbol SpecType))
 makeSpecDictionaryOne embs vars (RI x t xts)
-  = do t'  <- mkLSpecType t
+  = do t'  <- mapM mkLSpecType t
        tyi <- gets tcEnv
        ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
-       let (d, dts) = makeDictionary $ RI x (val t') $ zip xs ts'
+       let (d, dts) = makeDictionary $ RI x (val <$> t') $ zip xs ts'
        let v = lookupName d
        return ((, dts) <$> v)
   where
