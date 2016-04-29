@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -242,6 +243,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- loadModule typechecked
   let specComments     = getSpecComments parsed
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
+  _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
     then return Nothing
@@ -275,7 +277,7 @@ processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc GhcInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
-  cfg               <- liftIO $ addFilePragmas cfg0 file $ Ms.pragmas bareSpec
+  cfg               <- liftIO $ withPragmas cfg0 file $ Ms.pragmas bareSpec
   let modSummary     = pm_mod_summary $ tm_parsed_module typechecked
   let mod            = ms_mod modSummary
   let modName        = ModName Target $ moduleName mod
@@ -340,21 +342,19 @@ getCachedBareSpecs specEnv mods = lookupBareSpec <$> mods
            "lookupBareSpec: missing module " ++ showPpr mod)
         (lookupModuleEnv specEnv mod)
 
-addFilePragmas :: Config -> FilePath -> [Located String] -> IO Config
-addFilePragmas cfg0 fp ps = foldM addFilePragma cfg0 ps >>= canonicalizePaths fp
-
-addFilePragma :: Config -> Located String -> IO Config
-addFilePragma cfg0 p = do
-  cfg <- withPragma cfg0 p
-  if checkFilePragmaChange cfg0 cfg
-    then return cfg
-    else throw (ErrFilePragma $ fSrcSpan p :: Error)
-
-checkFilePragmaChange :: Config -> Config -> Bool
-checkFilePragmaChange cfg0 cfg =
-  idirs      cfg0 == idirs      cfg &&
-  cFiles     cfg0 == cFiles     cfg &&
-  ghcOptions cfg0 == ghcOptions cfg
+checkFilePragmas :: [Located String] -> Ghc ()
+checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
+  where
+    err pragma
+      | check $ val pragma = Just $ (ErrFilePragma $ fSrcSpan pragma :: Error)
+      | otherwise = Nothing
+    check pragma =
+      any (`isPrefixOf` pragma) bad
+    bad =
+      [ "-i", "--idirs"
+      , "-g", "--ghc-option"
+      , "--c-files", "--cfiles"
+      ]
 
 --------------------------------------------------------------------------------
 -- Finding & Parsing Files -----------------------------------------------------

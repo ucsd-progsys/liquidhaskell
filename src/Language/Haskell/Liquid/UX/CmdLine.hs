@@ -19,7 +19,6 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
    -- * Update Configuration With Pragma
    , withPragmas
-   , withPragma
 
    -- * Canonicalize Paths in Config
    , canonicalizePaths
