@@ -37,8 +37,8 @@ proof _ = True
 (<:) x y _ = x
 
 
-(==:) :: Eq a => a -> a -> Proof -> a 
-{-@ (==:) :: (Eq a) => x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x } @-} 
+(==:) :: a -> a -> Proof -> a 
+{-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x } @-} 
 (==:) x y _ = x 
 
 
@@ -51,7 +51,7 @@ class OptEq a r where
 
 instance OptEq a (Bool -> a) where
 {-@ instance OptEq a (Bool -> a) where 
-  ==! :: x:a -> y:{a | x == y} -> Bool -> {v:a | v == x }
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:a | v == x }
   @-}
   (==!) x _ _ = x 
 
