@@ -832,21 +832,6 @@ consBind isRec γ (x, e, Asserted spect)
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
 
-consBind isRec γ (x, e, Internal spect)
-  = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv spect
-       γπ    <- foldM addPToEnv γ' πs
-       let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
-       cconsE γπ' e spect
-       when (F.symbol x `elemHEnv` holes γ) $
-         -- have to add the wf constraint here for HOLEs so we have the proper env
-         addW $ WfC γπ $ fmap killSubst spect
-       addIdA x (defAnn isRec spect)
-       return $ Internal spect -- Nothing
-  where
-    explanation = "Cannot give singleton type to the function definition."
-
-
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
@@ -891,22 +876,22 @@ addPToEnv γ π
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
 extender γ (x, Asserted t) 
-  = case lookupREnv (F.symbol x) (assms γ) of 
-      Just t' -> γ ++= ("extender", F.symbol x, t')
-      _       -> γ ++= ("extender", F.symbol x, t)
+  = case (lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of 
+      (_, Just t') -> γ ++= ("extender", F.symbol x, t')
+      (Just t', _) -> γ ++= ("extender", F.symbol x, t')
+      _            -> γ ++= ("extender", F.symbol x, t)
 extender γ (x, Assumed t)  
   = γ ++= ("extender", F.symbol x, t)
 extender γ _               
   = return γ
 
-data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
+data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
 
 unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
-unTemplate (Internal t) = t
 unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate :: CGEnv
@@ -914,7 +899,6 @@ addPostTemplate :: CGEnv
                 -> CG (Template SpecType)
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
-addPostTemplate γ (Internal t) = Internal  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown
 
 safeFromAsserted :: [Char] -> Template t -> t
@@ -927,7 +911,7 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
-      (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
+      (_, _, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
       (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
                               addW (WfC γ t)

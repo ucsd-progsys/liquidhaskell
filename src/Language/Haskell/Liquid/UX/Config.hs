@@ -55,7 +55,7 @@ data Config = Config {
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
-  , scrapeAssumed  :: Bool       -- ^ scrape qualifiers from assumed specifications
+  , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto generated specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   , elimStats      :: Bool       -- ^ print eliminate stats
   , json           :: Bool       -- ^ print results (safe/errors) as JSON

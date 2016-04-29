@@ -212,8 +212,8 @@ config = cmdArgsMode $ Config {
             &= name "scrape-imports"
             &= explicit
 
- , scrapeAssumed
-    = False &= help "Scrape qualifiers from assumed specifications"
+ , scrapeInternals
+    = False &= help "Scrape qualifiers from auto generated specifications"
             &= name "scrape-assumed"
             &= explicit
 
@@ -392,7 +392,7 @@ defConfig = Config { files             = def
                    , eliminate         = def
                    , port              = defaultPort
                    , scrapeImports     = False
-                   , scrapeAssumed     = False
+                   , scrapeInternals   = False
                    , scrapeUsedImports = False
                    , elimStats         = False
                    , json              = False

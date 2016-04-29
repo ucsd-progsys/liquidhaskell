@@ -13,7 +13,6 @@
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--scrape-assumed"  @-}
 module Append where
 
 import Axiomatize

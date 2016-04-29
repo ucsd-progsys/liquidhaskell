@@ -42,7 +42,6 @@ comments/explanation.
 {- LIQUID "--diff" @-}
 {-@ LIQUID "--scrape-used-imports" @-}
 {-@ LIQUID "--short-names" @-}
-{-@ LIQUID "--scrape-assumed"  @-}
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
