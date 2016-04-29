@@ -13,6 +13,7 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ImplicitParams            #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and
@@ -1192,8 +1193,17 @@ consE _ e@(Type t)
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
-consPattern _γ _p = panic Nothing "TODO:PATTERN"
+consPattern γ p = case p of
+  Rs.PatBindApp {..} -> do
+    tx <- checkMonad ("Non-monadic type", patE1) <$> consE γ patE1
+    γ' <- ((γ, "consPattern") += (F.symbol patX, tx))
+    addIdA patX (AnnDef tx)
+    consE γ' patE2
 
+checkMonad :: (Outputable a) => (String, a) -> SpecType -> SpecType
+checkMonad _ (RApp _ [t] _ _) = t
+checkMonad _ (RAppTy _ t _)   = t
+checkMonad x t                = checkErr x t
 
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
