@@ -9,7 +9,7 @@
 {-@ LIQUID "--higherorderqs" @-}
 
 
-module Helpers where
+module Helper where
 
 import Proves
 
