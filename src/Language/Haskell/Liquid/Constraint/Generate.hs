@@ -1222,7 +1222,8 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
   return $ RAppTy mt t mempty
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkMonad _ _ (RApp _ [t] _ _) = t
+checkMonad _ _ (RApp _ ts _ _) 
+  | length ts > 0               = last ts
 checkMonad _ _ (RAppTy _ t _)   = t
 checkMonad x g t                = checkErr x g t
 
