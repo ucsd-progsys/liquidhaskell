@@ -201,7 +201,7 @@ applyExpr g s (F.PKVar k su)
   | kI == mempty =           (e, kI)
   | otherwise    = {- trace msg -} (e, kI)
   where
-    msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
     (e, kI) = applyKVar g s k su
 
 applyExpr _ _ p              = (p, mempty)
