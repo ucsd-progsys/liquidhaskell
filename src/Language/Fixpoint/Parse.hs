@@ -91,11 +91,13 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
+import qualified Data.Functor.Identity
 
 type Parser = Parsec String Integer
 
 --------------------------------------------------------------------
 
+languageDef :: Token.GenLanguageDef String a Data.Functor.Identity.Identity
 languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
@@ -136,31 +138,47 @@ languageDef =
                                      ]
            }
 
+lexer :: Token.GenTokenParser String u Data.Functor.Identity.Identity
 lexer         = Token.makeTokenParser languageDef
+
+type ParserT u a = ParsecT String u Data.Functor.Identity.Identity a
+
+reserved :: String -> ParserT u ()
 reserved      = Token.reserved      lexer
+
+reservedOp :: String -> ParserT u ()
 reservedOp    = Token.reservedOp    lexer
+
+parens, brackets, angles, braces :: ParserT u a -> ParserT u a
 parens        = Token.parens        lexer
 brackets      = Token.brackets      lexer
 angles        = Token.angles        lexer
+braces        = Token.braces        lexer
+
+semi, colon, comma, stringLiteral :: Parser String
 semi          = Token.semi          lexer
 colon         = Token.colon         lexer
 comma         = Token.comma         lexer
-whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
-braces        = Token.braces        lexer
+
+whiteSpace :: Parser ()
+whiteSpace    = Token.whiteSpace    lexer
+
+double :: Parser Double
 double        = Token.float         lexer
 -- integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
-
+blanks :: Parser String
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+integer :: Parser Integer
 integer = posInteger
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
-
+posInteger :: Parser Integer
 posInteger = toI <$> (many1 digit <* spaces)
   where
     toI :: String -> Integer
@@ -197,7 +215,10 @@ isSmall c = isLower c || c == '_'
 
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)
+  where
+    keyWordSyms = ["if", "then", "else", "mod"]
 
+locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
@@ -222,10 +243,12 @@ expr0P
  <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
 
+charsExpr :: Symbol -> Expr
 charsExpr cs
   | isSmall (headSym cs) = expr cs
   | otherwise            = EVar cs
 
+fastIfP :: (Expr -> a -> a -> a) -> Parser a -> Parser a
 fastIfP f bodyP
   = do reserved "if"
        p <- predP
@@ -253,7 +276,18 @@ expr1P
 
 exprP :: Parser Expr
 exprP = buildExpressionParser bops expr1P
+  where
+    bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
+           , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
+             , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
+             ]
+           , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
+             , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
+             ]
+           , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
+           ]
 
+funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
   where
     exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
@@ -264,34 +298,27 @@ funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP
 
 
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
+litP :: Parser Expr
 litP = do reserved "lit"
           l <- stringLiteral
           t <- sortP
           return $ ECon $ L (T.pack l) t
 
+parenBrackets :: Parser a -> Parser a
 parenBrackets  = parens . brackets
-
-bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
-       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
-         , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
-         ]
-       , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
-         , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
-         ]
-       , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
-       ]
 
 -- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
 -- eNil       = EVar nilName
 
+exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
        (try dcolon) <|> colon
        so <- sortP
        return $ ECst e so
 
-
+lamP :: Parser Expr
 lamP
   = do reserved "\\"
        x <- symbolP
@@ -301,12 +328,16 @@ lamP
        e  <- exprP
        return $ ELam (x, t) e
 
-
+dcolon :: Parser String
 dcolon = string "::" <* spaces
 
+varSortP :: Parser Sort
 varSortP  = FVar  <$> parens intP
+
+funcSortP :: Parser Sort
 funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
+sortsP :: Parser [Sort]
 sortsP = brackets $ sepBy sortP semi
 
 sortP    :: Parser Sort
@@ -331,6 +362,7 @@ sortP' appArgsP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> try (fApp   <$> tvarP   <*> appArgsP)
 
+single :: a -> [a]
 single x = [x]
 
 tvarP :: Parser Sort
@@ -350,14 +382,13 @@ fTyConP
   <|> (reserved "num"     >> return numFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
-bvSortP
-  = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
+bvSortP :: Parser Sort
+bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
+  where
+    bvSizeP ss s = do
+      parens (reserved "BitVec" >> reserved ss)
+      return s
 
-bvSizeP ss s = do
-  parens (reserved "BitVec" >> reserved ss)
-  return s
-
-keyWordSyms = ["if", "then", "else", "mod"]
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -393,21 +424,21 @@ substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reserved ":="
 
-predP  :: Parser Expr
-predP  = buildExpressionParser lops pred0P
-
-
+predsP :: Parser [Expr]
 predsP = brackets $ sepBy predP semi
 
+predP  :: Parser Expr
+predP  = buildExpressionParser lops pred0P
+  where
+    lops = [ [Prefix (reservedOp "~"    >> return PNot)]
+           , [Prefix (reservedOp "not " >> return PNot)]
+           , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+           , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
+           , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
+           , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
+           , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
 
-lops = [ [Prefix (reservedOp "~"    >> return PNot)]
-       , [Prefix (reservedOp "not " >> return PNot)]
-       , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
-       , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
-       , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
-       , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
-       , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
-
+predrP :: Parser Expr
 predrP = do e1    <- exprP
             r     <- brelP
             e2    <- exprP
@@ -425,9 +456,9 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
 
-----------------------------------------------------------------------------------
------------------------------------- BareTypes -----------------------------------
-----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | BareTypes -----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 refaP :: Parser Expr
 refaP =  try (pAnd <$> brackets (sepBy predP semi))
@@ -445,16 +476,22 @@ refBindP bp rp kindP
       return $ t (Reft (x, ra))
 
 -- bindP      = symbol    <$> (lowerIdP <* colon)
+bindP :: Parser Symbol
 bindP      = symbolP <* colon
+
+optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
 
+refP :: Parser (Reft -> a) -> Parser a
 refP       = refBindP bindP refaP
+
+refDefP :: Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refDefP x  = refBindP (optBindP x)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
-
+qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
   n      <- upperIdP
@@ -462,8 +499,8 @@ qualifierP tP = do
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
-
-sortBindP = pairP symbolP colon
+  where
+    sortBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
@@ -556,6 +593,14 @@ subCP = do pos <- getPosition
            pos' <- getPosition
            return $ subC' env lhs rhs i tag pos pos'
 
+subC' :: IBindEnv
+      -> SortedReft
+      -> SortedReft
+      -> Integer
+      -> Tag
+      -> SourcePos
+      -> SourcePos
+      -> SubC ()
 subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
@@ -597,42 +642,43 @@ fixResultP pp
  <|> (reserved "UNSAT" >> Unsafe <$> brackets (sepBy pp comma))
  <|> (reserved "CRASH" >> crashP pp)
 
-crashP pp
-  = do i   <- pp
-       msg <- many anyChar
-       return $ Crash [i] msg
+crashP :: Parser a -> Parser (FixResult a)
+crashP pp = do
+  i   <- pp
+  msg <- many anyChar
+  return $ Crash [i] msg
 
-predSolP
-  = parens (predP  <* (comma >> iQualP))
+predSolP :: Parser Expr
+predSolP = parens (predP  <* (comma >> iQualP))
 
+iQualP :: Parser [Symbol]
+iQualP = upperIdP >> parens (sepBy symbolP comma)
 
-iQualP
-  = upperIdP >> parens (sepBy symbolP comma)
-
-solution1P
-  = do reserved "solution:"
-       k  <- kvP
-       reserved ":="
-       ps <- brackets $ sepBy predSolP semi
-       return (k, simplify $ PAnd ps)
-    where
-      kvP = try kvarP <|> (KV <$> symbolP)
+solution1P :: Parser (KVar, Expr)
+solution1P = do
+  reserved "solution:"
+  k  <- kvP
+  reserved ":="
+  ps <- brackets $ sepBy predSolP semi
+  return (k, simplify $ PAnd ps)
+  where
+    kvP = try kvarP <|> (KV <$> symbolP)
 
 solutionP :: Parser (M.HashMap KVar Expr)
-solutionP
-  = M.fromList <$> sepBy solution1P whiteSpace
+solutionP = M.fromList <$> sepBy solution1P whiteSpace
 
-solutionFileP
-  = (,) <$> fixResultP integer <*> solutionP
+solutionFileP :: Parser (FixResult Integer, M.HashMap KVar Expr)
+solutionFileP = (,) <$> fixResultP integer <*> solutionP
 
-------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+remainderP :: Parser a -> Parser (a, String, SourcePos)
 remainderP p
   = do res <- p
        str <- getInput
        pos <- getPosition
        return (res, str, pos)
 
+doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
       Left e            -> die $ err (errorSpan e) (dErr e)
@@ -645,6 +691,7 @@ doParse' parser f s
                     , nest 4 (text r)
                     , "when parsing from" <+> text f ]
 
+errorSpan :: ParseError -> SrcSpan
 errorSpan e = SS l l where l = errorPos e
 
 parseFromFile :: Parser b -> SourceName -> IO b
@@ -658,9 +705,10 @@ freshIntP = do n <- getState
 ---------------------------------------------------------------------
 -- Standalone SMTLIB2 commands --------------------------------------
 ---------------------------------------------------------------------
-
+commandsP :: Parser [Command]
 commandsP = sepBy commandP semi
 
+commandP :: Parser Command
 commandP
   =  (reserved "var"      >> cmdVarP)
  <|> (reserved "push"     >> return Push)
@@ -669,11 +717,11 @@ commandP
  <|> (reserved "assert"   >> (Assert Nothing <$> predP))
  <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
-cmdVarP
-  = do x <- bindP
-       t <- sortP
-       return $ Declare x [] t
-
+cmdVarP :: Parser Command
+cmdVarP = do
+  x <- bindP
+  t <- sortP
+  return $ Declare x [] t
 
 ---------------------------------------------------------------------
 -- Bundling Parsers into a Typeclass --------------------------------

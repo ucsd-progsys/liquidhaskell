@@ -82,7 +82,9 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
+import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
+
 {-
 runFile f
   = readFile f >>= runString
@@ -167,18 +169,25 @@ smtRead me = {-# SCC "smtRead" #-}
            -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
 
+type SmtParser a = Parser T.Text a
+
+responseP :: SmtParser Response
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat
          <|> A.string "unsat"   *> return Unsat
          <|> A.string "unknown" *> return Unknown
 
+sexpP :: SmtParser Response
 sexpP = {-# SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
      <|> Values <$> valuesP
 
+errorP :: SmtParser T.Text
 errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
 
+valuesP :: SmtParser [(Symbol, T.Text)]
 valuesP = A.many1' pairP <* A.char ')'
 
+pairP :: SmtParser (Symbol, T.Text)
 pairP = {-# SCC "pairP" #-}
   do A.skipSpace
      A.char '('
@@ -188,11 +197,14 @@ pairP = {-# SCC "pairP" #-}
      A.char ')'
      return (x,v)
 
+symbolP :: SmtParser Symbol
 symbolP = {-# SCC "symbolP" #-} symbol <$> A.takeWhile1 (not . isSpace)
 
+valueP :: SmtParser T.Text
 valueP = {-# SCC "valueP" #-} negativeP
       <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
 
+negativeP :: SmtParser T.Text
 negativeP
   = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
        return $ "(" <> v <> ")"
@@ -269,11 +281,13 @@ cleanupContext (Ctx {..})
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
 {- "z3 -smtc -in MBQI=false"        -}
 
+smtCmd         :: SMTSolver -> String --  T.Text
 smtCmd Z3      = "z3 -smt2 -in"
 smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+smtPreamble :: Bool -> Bool -> SMTSolver -> Context -> IO [LT.Text]
 smtPreamble ho u Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
@@ -283,6 +297,7 @@ smtPreamble ho u Z3 me
 smtPreamble _ u s _
   = return $ preamble u s
 
+versionGreater :: Ord a => [a] -> [a] -> Bool
 versionGreater (x:xs) (y:ys)
   | x >  y = True
   | x == y = versionGreater xs ys
@@ -299,9 +314,8 @@ smtPush, smtPop   :: Context -> IO ()
 smtPush me        = interact' me Push
 smtPop me         = interact' me Pop
 
-
 smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
-smtDecls me xts = forM_ xts (\(x,t) -> smtDecl me x t)
+smtDecls = mapM_ . uncurry . smtDecl
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
 smtDecl me x t = interact' me (Declare x ins out)
@@ -331,28 +345,34 @@ smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
 
 smtBracket :: Context -> IO a -> IO a
-smtBracket me a   = do smtPush me
-                       r <- a
-                       smtPop me
-                       return r
+smtBracket me a   = do
+  smtPush me
+  r <- a
+  smtPop me
+  return r
 
+respSat :: Response -> Bool
 respSat Unsat   = True
 respSat Sat     = False
 respSat Unknown = False
 respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ show r)
 
+interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
 
-makeMbqi ho 
+makeMbqi :: Bool -> [LT.Text]
+makeMbqi ho
   | ho = [""]
   | otherwise = ["\n(set-option :smt.mbqi false)"]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+z3_432_options :: [LT.Text]
 z3_432_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
     , "(set-option :model.partial false)"]
 
+z3_options :: [LT.Text]
 z3_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"

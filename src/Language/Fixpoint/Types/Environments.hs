@@ -11,7 +11,6 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE PatternGuards              #-}
 
 module Language.Fixpoint.Types.Environments (
 
@@ -78,18 +77,40 @@ fromListSEnv            = SE . M.fromList
 fromMapSEnv             ::  M.HashMap Symbol a -> SEnv a
 fromMapSEnv             = SE
 
+mapSEnv                 :: (a -> b) -> SEnv a -> SEnv b
 mapSEnv f (SE env)      = SE (fmap f env)
+
+mapSEnvWithKey          :: ((Symbol, a) -> (Symbol, b)) -> SEnv a -> SEnv b
 mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
+
+deleteSEnv :: Symbol -> SEnv a -> SEnv a
 deleteSEnv x (SE env)   = SE (M.delete x env)
-insertSEnv x y (SE env) = SE (M.insert x y env)
+
+insertSEnv :: Symbol -> a -> SEnv a -> SEnv a
+insertSEnv x v (SE env) = SE (M.insert x v env)
+
+lookupSEnv :: Symbol -> SEnv a -> Maybe a
 lookupSEnv x (SE env)   = M.lookup x env
+
+emptySEnv :: SEnv a
 emptySEnv               = SE M.empty
+
+memberSEnv :: Symbol -> SEnv a -> Bool
 memberSEnv x (SE env)   = M.member x env
+
+intersectWithSEnv :: (v1 -> v2 -> a) -> SEnv v1 -> SEnv v2 -> SEnv a
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
-differenceSEnv      (SE m1) (SE m2) = SE (M.difference m1 m2)
+
+differenceSEnv :: SEnv a -> SEnv w -> SEnv a
+differenceSEnv (SE m1) (SE m2) = SE (M.difference m1 m2)
+
+filterSEnv :: (a -> Bool) -> SEnv a -> SEnv a
 filterSEnv f (SE m)     = SE (M.filter f m)
+
+unionSEnv :: SEnv a -> M.HashMap Symbol a -> SEnv a
 unionSEnv (SE m1) m2    = SE (M.union m1 m2)
 
+lookupSEnvWithDistance :: Symbol -> SEnv a -> SESearch a
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of
      Just z  -> Found z
@@ -159,8 +180,8 @@ instance Functor SEnv where
 
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
-
-toFixBind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
+    where
+      toFixBind (i, (x, r)) = "bind" <+> toFix i <+> toFix x <+> ":" <+> toFix r
 
 instance (Fixpoint a) => Fixpoint (SEnv a) where
    toFix (SE m)   = toFix (hashMapToAscList m)

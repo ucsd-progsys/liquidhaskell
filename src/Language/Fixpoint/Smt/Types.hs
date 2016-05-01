@@ -23,7 +23,7 @@ module Language.Fixpoint.Smt.Types (
     -- * SMTLIB2 Process Context
     , Context (..)
 
-    -- * SMTLIB2 symbol environment 
+    -- * SMTLIB2 symbol environment
     , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym
 
     -- * Theory Symbol
@@ -90,25 +90,28 @@ data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv}
 
 type SMT2   = State SMTSt
 
-emptySMTEnv = emptySEnv 
+emptySMTEnv :: SMTEnv
+emptySMTEnv = emptySEnv
 
-withExtendedEnv bs act = do 
-  env <- smt2env <$> get 
+withExtendedEnv ::  [(Symbol, Sort)] -> SMT2 a -> SMT2 a
+withExtendedEnv bs act = do
+  env <- smt2env <$> get
   let env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   modify $ \s -> s{smt2env = env'}
-  r <- act 
+  r <- act
   modify $ \s -> s{smt2env = env}
-  return r 
+  return r
 
-freshSym = do 
-  n <- fresh <$> get 
+freshSym :: SMT2 Symbol
+freshSym = do
+  n <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
-  return $ intSymbol "lambda_fun_" n 
+  return $ intSymbol "lambda_fun_" n
 
 -- | Types that can be serialized
 class SMTLIB2 a where
   defunc :: a -> SMT2 a
-  defunc = return 
+  defunc = return
 
   smt2 :: a -> LT.Builder
 

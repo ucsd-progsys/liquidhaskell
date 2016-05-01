@@ -68,6 +68,7 @@ isFirstOrder (FAbs _ t)    = isFirstOrder t
 isFirstOrder (FFunc s1 s2) = noFun s1 && isFirstOrder s2
 isFirstOrder _             = True
 
+noFun :: Sort -> Bool
 noFun (FFunc _ _) = False
 noFun (FAbs _ _)  = False
 noFun _           = True
@@ -157,7 +158,10 @@ instance Applicative CheckM where
                                  (k, Left s)  -> (k, Left s)
                                  (k, Right g) -> (k, Right $ g x)
 
+initCM :: StateM
 initCM = 42
+
+runCM0 :: CheckM a -> Either String a
 runCM0 act = snd $ runCM act initCM
 
 class Freshable a where
@@ -213,6 +217,7 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
+checkPred' :: Env -> Expr -> Maybe Expr
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
@@ -490,7 +495,7 @@ checkOp f e1 o e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
 
-checkOpTy :: PPrint a => Env -> a -> Sort -> Sort -> CheckM Sort
+checkOpTy :: Env -> Expr -> Sort -> Sort -> CheckM Sort
 checkOpTy _ _ FInt FInt
   = return FInt
 
@@ -549,7 +554,7 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
-checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
 checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
@@ -636,7 +641,7 @@ unify1 _ θ FInt  FReal = return θ
 
 unify1 _ θ FReal FInt  = return θ
 
-unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
+unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f θ [t1, t2] [t1', t2']
 
 unify1 _ θ t1 t2
@@ -727,29 +732,52 @@ emptySubst = Th M.empty
 -------------------------------------------------------------------------
 -- | Error messages -----------------------------------------------------
 -------------------------------------------------------------------------
+errElabExpr    :: Expr -> String
+errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
 
-errElabExpr e        = printf "Elaborate fails on %s" (showpp e)
-
+errUnify :: Sort -> Sort -> String
 errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
 
+
+errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
                          (showpp ts) (showpp ts')
+
+errRel :: Expr -> Sort -> Sort -> String
 errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
+
+errOp :: Expr -> Sort -> Sort -> String
 errOp e t t'
   | t == t'          = printf "Operands have non-numeric types %s in %s"
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
+
+errIte :: Expr -> Expr -> Sort -> Sort -> String
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
+
+errCast :: Expr -> Sort -> Sort -> String
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
                          (showpp e) (showpp t') (showpp t)
+
+errUnboundAlts :: Symbol -> [Symbol] -> String
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
+
+errNonFunction :: Int -> Sort -> String
 errNonFunction i t   = printf "Sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
+
+errNonNumeric :: Symbol -> String
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
+
+errNonNumerics :: Symbol -> Symbol -> String
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
+
+errNonFractional :: Symbol -> String
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
+
+errBoolSort :: Expr -> Sort -> String
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)

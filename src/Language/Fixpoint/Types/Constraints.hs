@@ -225,8 +225,9 @@ instance Fixpoint a => Fixpoint (WfC a) where
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 
-pprId (Just i)  = text "id" <+> tshow i
-pprId _         = text ""
+pprId :: Show a => Maybe a -> Doc
+pprId (Just i)  = "id" <+> tshow i
+pprId _         = ""
 
 ----------------------------------------------------------------
 instance B.Binary Qualifier
@@ -262,6 +263,7 @@ wfC be sr x = if all isEmptySubst sus
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
 
+mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
@@ -282,6 +284,7 @@ shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
+addIds :: [SubC a] -> [(Integer, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
@@ -314,6 +317,7 @@ instance PPrint Qualifier where
                         , "defined at"
                         , pprintTidy k (q_pos q) ]
 
+pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
@@ -353,6 +357,16 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
+fi :: [SubC a]
+   -> [WfC a]
+   -> BindEnv
+   -> SEnv Sort
+   -> Kuts
+   -> [Qualifier]
+   -> M.HashMap BindId a
+   -> FilePath
+   -> Bool
+   -> GInfo SubC a
 fi cs ws binds ls ks qs bi fn aHO
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
@@ -435,8 +449,8 @@ toFixpoint cfg x' =    qualsDoc x'
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
+toFixConstant :: (Fixpoint a, Fixpoint b) => (a, b) -> Doc
+toFixConstant (c, so) = "constant" <+> toFix c <+> ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
@@ -567,12 +581,14 @@ saveQuery cfg fi = {- when (save cfg) $ -} do
   saveBinaryQuery cfg fi'
   saveTextQuery cfg   fi'
 
+saveBinaryQuery :: Config -> FInfo () -> IO ()
 saveBinaryQuery cfg fi = do
   let bfq  = queryFile Files.BinFq cfg
   putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
   ensurePath bfq
   B.encodeFile bfq fi
 
+saveTextQuery :: Config -> FInfo () -> IO ()
 saveTextQuery cfg fi = do
   let fq   = queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"

@@ -29,6 +29,7 @@ import           Language.Fixpoint.Graph.Types
 import qualified Data.HashSet              as S
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List as L
+import           Data.Hashable (Hashable)
 
 --------------------------------------------------------------------------------
 -- | `IKVGraph` is representation of the KVGraph with a fast succ, pred lookup
@@ -71,6 +72,7 @@ getPreds g v = S.toList $ M.lookupDefault S.empty v (igPred g)
 empty :: IKVGraph
 empty = IKVGraph M.empty M.empty
 
+txMany :: (a -> b -> b) -> [a] -> b -> b
 txMany op es g = L.foldl' (flip op) g es
 
 addSucc :: CEdge -> IKVGraph -> IKVGraph
@@ -89,5 +91,10 @@ delVtx :: CVertex -> IKVGraph -> IKVGraph
 delVtx v g = g { igSucc = M.delete v (igSucc g) }
                { igPred = M.delete v (igPred g) }
 
+inserts :: (Eq k, Eq v, Hashable k, Hashable v)
+        => k -> v -> M.HashMap k (S.HashSet v) -> M.HashMap k (S.HashSet v)
 inserts k v m = M.insert k (S.insert v $ M.lookupDefault S.empty k m) m
+
+removes :: (Eq k, Eq v, Hashable k, Hashable v)
+        => k -> v -> M.HashMap k (S.HashSet v) -> M.HashMap k (S.HashSet v)
 removes k v m = M.insert k (S.delete v (M.lookupDefault S.empty k m)) m

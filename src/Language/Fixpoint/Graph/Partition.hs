@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- | This module implements functions to build constraint / kvar
 --   dependency graphs, partition them and print statistics about
@@ -197,12 +196,22 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
+mkPartition :: F.GInfo F.SubC a
+            -> M.HashMap Int [(Integer, c a)]
+            -> M.HashMap Int [(F.KVar, F.WfC a)]
+            -> Int
+            -> F.GInfo c a
 mkPartition fi icM iwM j
   = fi { F.cm       = M.fromList $ M.lookupDefault [] j icM
        , F.ws       = M.fromList $ M.lookupDefault [] j iwM
        , F.fileName = partFile fi j
        }
 
+mkPartition' :: F.FInfo a1
+             -> M.HashMap Int [(Integer, F.SubC a)]
+             -> M.HashMap Int [(F.KVar, F.WfC a)]
+             -> Int
+             -> CPart a
 mkPartition' fi icM iwM j
   = CPart { pcm       = M.fromList $ M.lookupDefault [] j icM
           , pws       = M.fromList $ M.lookupDefault [] j iwM
