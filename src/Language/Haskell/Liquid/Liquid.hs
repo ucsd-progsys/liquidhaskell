@@ -19,11 +19,12 @@ import           Prelude hiding (error)
 import           Data.Maybe
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
+-- import           Var                              (Var)
 import           CoreSyn
 import           HscTypes                         (SourceError)
+import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
-import           GHC (HscEnv)
 
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
@@ -127,12 +128,15 @@ liquidOne tgt info = do
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [DC.thin cbs sp vs]
-  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | (v, _) <- tySigs sp ]
+  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- exportedVars info ]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return  (Left cbs)
   where
     vs            = tgtVars sp
     sp            = spec    info
+
+-- topLevelBinders :: GhcSpec -> [Var]
+-- topLevelBinders = map fst . tySigs
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d

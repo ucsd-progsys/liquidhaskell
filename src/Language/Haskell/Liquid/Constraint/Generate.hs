@@ -31,7 +31,7 @@ import           Coercion
 import           DataCon
 import           Pair
 import           CoreSyn
-import           SrcLoc                                        hiding (Located)
+import           SrcLoc                                 hiding (Located)
 import           Type
 import           TyCon
 import           PrelNames
@@ -39,10 +39,10 @@ import           TypeRep
 import           Class                                         (className)
 import           Var
 import           Kind
-import           Id
+import           Id                                     hiding (isExportedId)
 import           IdInfo
 import           Name
-import           NameSet
+-- import           NameSet
 import           Unify
 import           VarSet
 -- import Unique
@@ -81,6 +81,7 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
+import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.Names
@@ -333,9 +334,9 @@ grtyTop :: GhcInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ defVars info
-    isTop v      = isExportedId v && not (v `S.member` sigVs)
-    isExportedId = flip elemNameSet (exports $ spec info) . getName
+    isTop v      = isExportedVar info v && not (v `S.member` sigVs)
     sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
+
 
 initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -1070,7 +1071,7 @@ consE γ e
   | patternFlag γ
   , Just p <- Rs.lift e
   = consPattern γ p
-  
+
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment withh
 -- be empty if there is no axiomatization
@@ -1222,7 +1223,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
   return $ RAppTy mt t mempty
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkMonad _ _ (RApp _ ts _ _) 
+checkMonad _ _ (RApp _ ts _ _)
   | length ts > 0               = last ts
 checkMonad _ _ (RAppTy _ t _)   = t
 checkMonad x g t                = checkErr x g t

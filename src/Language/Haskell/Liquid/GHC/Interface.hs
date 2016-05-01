@@ -8,11 +8,15 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo,
-    runLiquidGhc,
+    getGhcInfo
+  , runLiquidGhc
 
   -- * printer
-    pprintCBs
+  , pprintCBs
+
+  -- * predicates
+  , isExportedVar
+  , exportedVars
   ) where
 
 import Prelude hiding (error)
@@ -35,6 +39,7 @@ import HscTypes hiding (Target)
 import IdInfo
 import InstEnv
 import Var
+import NameSet
 
 import Control.Exception
 import Control.Monad
@@ -206,8 +211,18 @@ makeLogicMap = do
   return $ parseSymbolToLogic lg lspec
 
 --------------------------------------------------------------------------------
--- Extract Ids -----------------------------------------------------------------
+-- | Extract Ids ---------------------------------------------------------------
 --------------------------------------------------------------------------------
+
+exportedVars :: GhcInfo -> [Var]
+exportedVars info = filter (isExportedVar info) (defVars info)
+
+isExportedVar :: GhcInfo -> Var -> Bool
+isExportedVar info v = n `elemNameSet` ns
+  where
+    n                = getName v
+    ns               = exports (spec info)
+
 
 classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
