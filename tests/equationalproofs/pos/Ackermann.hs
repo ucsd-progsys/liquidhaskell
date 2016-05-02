@@ -89,9 +89,8 @@ lemma3 n x
 
 
 
-{-
+
 lemma3_gen :: Int -> Int -> Int -> Bool
 {- lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
 lemma3_gen n x y
   = gen_increasing (ack n) (lemma3 n) x y
--}
