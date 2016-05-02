@@ -34,10 +34,9 @@ iack :: Int -> Int -> Int -> Int
 iack h n x
   = if h == 0 then x else ack n (iack (h-1) n x)
 
-{-
 -- | Equivalence of definitions
 
-{- def_eq :: n:Nat -> x:Nat -> {v:Proof | ack (n+1) x == iack x n 2 }  / [x]@-}
+{-@ def_eq :: n:Nat -> x:Nat -> {v:Proof | ack (n+1) x == iack x n 2 }  / [x]@-}
 def_eq n x
   | x == 0
   = proof $
@@ -54,7 +53,7 @@ def_eq n x
 -- | Lemma 2.2
 
 lemma2 :: Int -> Int -> Bool
-{- lemma2 :: n:Nat -> x:Nat -> {v:Bool | x + 1 < ack n x } / [n, x] @-}
+{-@ lemma2 :: n:Nat -> x:Nat -> {v:Bool | x + 1 < ack n x } / [n, x] @-}
 lemma2 n x
   | x == 0
   = proof $
@@ -73,7 +72,7 @@ lemma2 n x
 
 -- Lemma 2.3
 lemma3 :: Int -> Int -> Bool
-{- lemma3 :: n:Nat -> x:Nat -> {v:Bool | ack n x < ack n (x+1)} @-}
+{-@ lemma3 :: n:Nat -> x:Nat -> {v:Bool | ack n x < ack n (x+1)} @-}
 lemma3 n x
   | x == 0
   = proof $
@@ -86,11 +85,9 @@ lemma3 n x
       ack n x  <! ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
                <! ack n (x+1)
 
--}
 
-{-@ bar :: n:Int -> x:Int -> f:{(Int -> Int) | f == ack n} -> {v:Proof | f x == ack n x  } @-}
-bar :: Int -> Int -> (Int -> Int ) -> Proof
-bar _ _ _ = True
+
+
 
 {-
 lemma3_gen :: Int -> Int -> Int -> Bool
