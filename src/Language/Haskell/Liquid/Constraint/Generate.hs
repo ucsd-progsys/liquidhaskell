@@ -461,15 +461,17 @@ refreshArgsSub t
        xs'    <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus
-       ts'    <- mapM refreshPs $zipWith F.subst sus ts
+       ts'    <- mapM refreshPs $ zipWith F.subst sus ts
+       let rs' = zipWith F.subst sus rs
        tr     <- refreshPs $ F.subst su tbd
-       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr}
+       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr, ty_refts = rs'}
        return (t', su)
     where
        trep    = toRTypeRep t
        xs      = ty_binds trep
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
+       rs      = ty_refts trep 
 
 refreshPs :: SpecType -> CG SpecType
 refreshPs = mapPropM go
@@ -985,11 +987,16 @@ cconsE' γ (Lam α e) (RAllT _ t) | isKindVar α
 cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
 
-cconsE' γ (Lam x e) (RFun y ty t _)
+cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
-  = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
-       cconsE (addArgument γ' x) e (t `F.subst1` (y, F.EVar $ F.symbol x))
+  = do γ' <- (γ, "cconsE") += (x', ty)
+       cconsE (addArgument γ' x) e t'
+       addFunctionConstraint γ x e (RFun x' ty t' r') 
        addIdA x (AnnDef ty)
+  where
+    x'  = F.symbol x 
+    t'  = t `F.subst1` (y, F.EVar x')
+    r'  = r `F.subst1` (y, F.EVar x')
 
 cconsE' γ (Tick tt e) t
   = cconsE (γ `setLocation` (Sp.Tick tt)) e t
@@ -1008,6 +1015,20 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
+
+addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
+addFunctionConstraint γ x e (RFun y ty t r) 
+  = do ty'      <- true ty 
+       t'       <- true t
+       let truet = RFun y ty' t'  
+       case argExpr γ e of 
+          Just e' -> do tce    <- tyConEmbed <$> get 
+                        let sx  = typeSort tce $ varType x  
+                        let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+                        addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
+          Nothing ->    addC (SubC γ (truet mempty) $ truet r) "function constraint true"
+addFunctionConstraint γ _ _ _ 
+  = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
                  => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
@@ -1534,7 +1555,6 @@ makeSingleton γ e t
   | otherwise
   = t 
 
-
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
 funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
@@ -1552,6 +1572,7 @@ simplify (Tick _ e)       = simplify e
 simplify (App e (Type _)) = simplify e 
 simplify (App e1 e2)      = App (simplify e1) (simplify e2)
 simplify e                = e
+
 
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x

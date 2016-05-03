@@ -10,8 +10,8 @@ Proving ackermann properties from http://www.cs.yorku.ca/~gt/papers/Ackermann-fu
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--no-prune"        @-}
 {-@ LIQUID "--maxparams=5"     @-}
+{-@ LIQUID "--eliminate"       @-}
 
 
 module FunctionAbstraction where
@@ -446,18 +446,7 @@ lemma11' n x y z
     ack n (iack (x-1) n (iack y n z)) == iack x n (iack y n z)
 
 
-
-
-infixr 2 `with`
-infixr 2 `proves`
-
-
-{-@ with, proves  :: p:Bool -> q:Bool -> {v:Bool | Prop v <=> Prop p && Prop q } @-}
-proves, with :: Bool -> Bool -> Bool
-with   p q = p && q 
-proves p q = p && q 
-
-
-data Proof = Proof 
-
-
+lemma3_gen :: Int -> Int -> Int -> Bool
+{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
+lemma3_gen n x y
+    = gen_increasing (ack n) (lemma3 n) x y

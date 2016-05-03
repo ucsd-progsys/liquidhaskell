@@ -36,6 +36,9 @@ abstract _ _ _ = True
 
 
 gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
+
+
+
 {-@ gen_increasing :: f:(Nat -> Int)
                    -> (z:Nat -> {v:Proof | f z < f (z+1) })
                    ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x < f y } / [y] @-}
@@ -66,3 +69,4 @@ gen_increasing2 f thm c x y
   = proof $
       f x c <! f (y-1) c    ? gen_increasing2 f thm c x (y-1)
             <! f y c        ? thm c (y-1)
+

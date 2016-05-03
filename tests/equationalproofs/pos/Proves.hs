@@ -42,7 +42,6 @@ toProof _ = True
 (<:) x y _ = x
 
 
-
 (>:) :: Ord a => a -> a -> Proof -> a 
 {-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == x } @-} 
 (>:) x y _ = x

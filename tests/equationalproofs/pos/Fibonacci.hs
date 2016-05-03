@@ -1,5 +1,6 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--eliminate"       @-}
 
 module FunctionAbstraction where
 import Proves 
@@ -17,12 +18,17 @@ import Proves
 {-@ fib :: n:Nat -> Nat @-}
 {-@ axiomatize fib @-}
 
-fib :: Int -> Int 
-fib n 
-  | n == 0    = 0 
+fib :: Int -> Int
+{-
+fib 0 = 0
+fib 1 = 1
+fib n = fib (n-1) + fib (n-2)
+-}
+
+fib n
+  | n == 0    = 0
   | n == 1    = 1
   | otherwise = fib (n-1) + fib (n-2)
-
 
 -- | How to encode proofs:
 -- | ==!, <=!, and <! stand for the logical ==, <=, < resp.
@@ -38,7 +44,7 @@ lemma_fib x
   = proof $ 
   --  <! stands for logical < (also, <=, ==)
   -- after ? user can provide boolean proof statements
-      0 <! fib 2                 ? (fib 2 == fib 1 + fib 0)
+      0 <! fib 2                  ? (fib 2 == fib 1 + fib 0)
 
   | 2 < x 
   = proof $ 
@@ -46,7 +52,7 @@ lemma_fib x
         <! fib (x-1) + fib (x-2)  
         <! fib x                  
 
-
+proof' _ = True
 
 {-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> {v:Bool | fib x <= fib y} / [x, y] @-} 
 fib_increasing :: Int -> Int -> Bool 
