@@ -50,12 +50,12 @@ import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 -- import           Debug.Trace
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
 --   and delete everything else from F.SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice :: (F.TaggedC c a) => F.GInfo c a -> F.GInfo c a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice fi = fi { F.cm = cm'
               , F.ws = ws' }
   where
@@ -87,7 +87,7 @@ mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
     es            = gEdges $ cGraph fi
     v2i           = fst3 . vf
     i2v i         = fromMaybe (errU i) $ cf i
-    errU i        = errorstar $ "graphSlice: nknown constraint " ++ show i
+    errU i        = errorstar $ "graphSlice: Unknown constraint " ++ show i
 
 mkSlice_ :: F.TaggedC c a
          => M.HashMap CId (c a)
@@ -222,8 +222,6 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
   where
     i          = F.subcId c
 
-
-
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
@@ -257,31 +255,6 @@ elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
    kis      = concatMap (getPreds g) cis
    kV       = KVar k
    --g'       = trace (show k) $ (g `addLinks` es') `delNodes` (kV : cis)
-
-
-{-
--- ORIG BLCOSMAN: graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
--- ORIG BLCOSMAN: graphElim = S.foldl' graphElimSingle
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: graphElimSingle :: [CEdge] -> F.KVar -> [CEdge]
--- ORIG BLCOSMAN: graphElimSingle cs k = filter (elimCsK cIns k) (cs ++ newEdges)
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: cOuts    = [c | (KVar k1, Cstr c) <- cs, k1 == k]
-    -- ORIG BLCOSMAN: cIns     = [c | (Cstr c, KVar k1) <- cs, k1 == k]
-    -- ORIG BLCOSMAN: newEdges = concatMap (newEdgesSingle cs cOuts) cIns
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: newEdgesSingle :: [CEdge] -> [Integer] -> Integer -> [CEdge]
--- ORIG BLCOSMAN: newEdgesSingle cs cOuts cIn = [(KVar k, Cstr c) | k <- kIns, c <- cOuts]
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: kIns                    = [k | (KVar k, Cstr c) <- cs, c == cIn]
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: elimCsK :: [Integer] -> F.KVar -> CEdge -> Bool
--- ORIG BLCOSMAN: elimCsK cIns k (v1, v2) = okV v1 && okV v2
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: okV (Cstr c)   = c `notElem` cIns
-    -- ORIG BLCOSMAN: okV (KVar k1)  = k1 /= k
-    -- ORIG BLCOSMAN: okV (DKVar k1) = k1 /= k
--}
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------

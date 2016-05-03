@@ -36,7 +36,7 @@ import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
--- import           Debug.Trace (trace)
+import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier ----------------------------------------
@@ -199,9 +199,9 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
 applyExpr g s (F.PKVar k su)
   | kI == mempty =           (e, kI)
-  | otherwise    = {- trace msg -} (e, kI)
+  | otherwise    = trace msg (e, kI)
   where
-    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+    msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
     (e, kI) = applyKVar g s k su
 
 applyExpr _ _ p              = (p, mempty)
@@ -330,7 +330,7 @@ solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <-
 --------------------------------------------------------------------------------
 data KInfo = KI { kiTags  :: [Tag]
                 , kiDepth :: !Int
-                , kiCubes :: !Int
+                , kiCubes :: !Integer
                 } deriving (Eq, Ord, Show)
 
 instance Monoid KInfo where
