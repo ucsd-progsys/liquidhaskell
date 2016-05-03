@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module Proves where
 
@@ -53,9 +54,9 @@ proof _ = True
 class OptEq a r where
   (==!) :: a -> a -> r
 
-instance OptEq a (Bool -> a) where
-{-@ instance OptEq a (Bool -> a) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:a | v == x }
+instance (a~b) => OptEq a (Bool -> b) where
+{-@ instance OptEq a (Bool -> b) where
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v == x }
   @-}
   (==!) x _ _ = x
 
