@@ -360,7 +360,6 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn aHO aHOq
 fi :: [SubC a]
    -> [WfC a]
    -> BindEnv
@@ -372,6 +371,7 @@ fi :: [SubC a]
    -> Bool
    -> Bool 
    -> GInfo SubC a
+fi cs ws binds ls ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
