@@ -54,9 +54,22 @@ proof _ = True
 class OptEq a r where
   (==!) :: a -> a -> r
 
+{-
+-- | Note: The following will allow for polymorphic proof
+-- | i.e., proof :: a -> Proof
+-- | but now the `a~b` info does not go into the logic
+-- | thus I cannot for example apply this trick to
+-- | comparison operators
 instance (a~b) => OptEq a (Bool -> b) where
-{-@ instance OptEq a (Bool -> b) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v == x }
+{- instance OptEq a (Bool -> b) where
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x }
+  @-}
+  (==!) x _ _ = x
+-}
+
+instance OptEq a (Bool -> a) where
+{-@ instance OptEq a (Bool -> a) where
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:a | v == x }
   @-}
   (==!) x _ _ = x
 
