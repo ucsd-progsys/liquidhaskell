@@ -280,12 +280,12 @@ elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
 elimVars cfg si = (es, ds)
   where
-    ds          = forceKuts ks . edgeDeps . removeKutEdges ks $ es
+    ds          = forceKuts ks . edgeDeps cfg . removeKutEdges ks $ es
     ks          = cutVars cfg si
     es          = kvEdges si
 
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
-removeKutEdges ks = filter (not . isKut . snd) -- [ (u, v) | (u, v) <- es, isNotCut v ]
+removeKutEdges ks = filter (not . isKut . snd)
   where
     cutVs         = S.map KVar ks
     isKut         = (`S.member` cutVs)
@@ -299,17 +299,18 @@ forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
 
-edgeDeps :: [CEdge] -> Elims F.KVar
-edgeDeps es     = Deps (takeK cs) (takeK ns)
+edgeDeps :: Config -> [CEdge] -> Elims F.KVar
+edgeDeps cfg es = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gElims cutF (kvgEdges $ edgeGraph es)
+    Deps cs ns  = gElims cfg cutF (kvgEdges $ edgeGraph es)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
 
--- ORIG cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
--- ORIG cuts = S.map KVar . F.ksVars . F.kuts
+
+
+
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
@@ -325,7 +326,7 @@ edgeRank es = minimum . (n :) <$> kiM
 
 edgeRankCut :: EdgeRank -> Cutter CVertex
 edgeRankCut km vs = case ks of
-                      [] -> Nothing
+                      []  -> Nothing
                       k:_ -> Just (KVar k, [x | x@(u,_,_) <- vs, u /= KVar k])
   where
     ks            = orderBy [k | (KVar k, _ ,_) <- vs]
@@ -339,10 +340,17 @@ type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
 --------------------------------------------------------------------------------
 type Cutable a = (Eq a, Ord a, Hashable a, Show a)
 --------------------------------------------------------------------------------
-gElims :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
+gElims :: (Cutable a) => Config -> Cutter a -> [(a, a, [a])] -> Elims a
 --------------------------------------------------------------------------------
-gElims f g = sccsToDeps f (G.stronglyConnCompR g)
+gElims cfg f g = boundElims cfg g $ sccElims f g
 
+--------------------------------------------------------------------------------
+-- | `sccElims` returns an `Elims` that renders the dependency graph acyclic
+--    by picking _at least one_ kvar from each non-trivial SCC in the graph
+--------------------------------------------------------------------------------
+
+sccElims :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
+sccElims f = sccsToDeps f . G.stronglyConnCompR
 
 sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> Elims a
 sccsToDeps f xs = mconcat $ sccDep f <$> xs
@@ -352,7 +360,7 @@ sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
 sccDep f (G.CyclicSCC vs)      = cycleDep f vs
 
 
-cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> Elims a
+cycleDep :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
 cycleDep _ [] = mempty
 cycleDep f vs = addCut f (f vs)
 
@@ -361,6 +369,28 @@ addCut _ Nothing         = mempty
 addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
+
+
+--------------------------------------------------------------------------------
+-- | `boundElims` extends the input `Elims` by adding kuts that ensure that
+--   the *maximum distance* between an eliminated KVar and a cut KVar is
+--   *upper bounded* by a given threshold.
+--------------------------------------------------------------------------------
+boundElims :: (Cutable a) => Config -> [(a, a, [a])] -> Elims a -> Elims a
+--------------------------------------------------------------------------------
+boundElims _cfg _g ds = error "TODO:boundElims" -- [(a, a, [a])]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
