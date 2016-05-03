@@ -516,7 +516,6 @@ makeApplies i =
 
 
 exprSort :: Expr -> Sort
-<<<<<<< HEAD
 exprSort (ECst _ s)     
   = s
 exprSort (ELam (_,s) e) 
@@ -525,8 +524,3 @@ exprSort (EApp e _) | FFunc _ s <- exprSort e
   = s  
 exprSort e              
   = errorstar ("\nexprSort on unexpected expressions" ++ show e)
-=======
-exprSort (ECst _ s)     = s
-exprSort (ELam (_,s) e) = FFunc s $ exprSort e
-exprSort e              = errorstar ("\nexprSort on unexpected expressions" ++ show e)
->>>>>>> 527c73e8e3c252124904257b39b6782892ea2e7d
