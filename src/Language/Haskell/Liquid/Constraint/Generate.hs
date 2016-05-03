@@ -1453,6 +1453,8 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+argExpr γ (Var v)     | M.member v $ aenv γ
+                      = M.lookup v $ aenv γ
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e

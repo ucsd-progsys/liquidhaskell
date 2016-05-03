@@ -10,13 +10,18 @@ module Proves where
 infixl 3 ==:, <=:, <:, >:
 
 -- | proof operators with optional proof terms
-infixl 3 ==!, <=!, <!, >!
+infixl 3 ==!, <=!, <!, >!, >=!
 
 -- provide the proof terms after ?
 infixl 3 ?
 
 
 type Proof = Bool
+
+-- | Proof combinators (are boolean combinators)
+{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop v <=> Prop p && Prop q } @-}
+(&&&) :: Proof -> Proof -> Proof
+p &&& q = p && q
 
 
 (?) :: (Proof -> a) -> Proof -> a
@@ -128,3 +133,19 @@ instance OptGt a a where
     >! :: x:a -> y:{a| x > y} -> {v:a | v == x && v > y }
     @-}
   (>!) x _ = x
+
+
+class OptGtEq a r where
+   (>=!) :: a -> a -> r
+
+instance OptGtEq a (Bool -> a) where
+  {-@ instance OptGtEq a (Bool -> a) where
+    >=! :: x:a -> y:a -> {v:Bool| x >= y} -> {v:a | v == x && v >= y}
+   @-}
+   (>=!) x _ _ = x
+
+instance OptGtEq a a where
+{-@ instance OptGtEq a a where
+    >=! :: x:a -> y:{a| x >= y} -> {v:a | v == x && v >= y }
+  @-}
+  (>=!) x _ = x

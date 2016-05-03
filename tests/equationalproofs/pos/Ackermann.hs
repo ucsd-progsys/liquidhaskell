@@ -53,8 +53,8 @@ def_eq n x
 
 -- | Lemma 2.2
 
-lemma2 :: Int -> Int -> Bool
-{-@ lemma2 :: n:Nat -> x:Nat -> {v:Bool | x + 1 < ack n x } / [n, x] @-}
+lemma2 :: Int -> Int -> Proof
+{-@ lemma2 :: n:Nat -> x:Nat -> {v:Proof | x + 1 < ack n x } / [n, x] @-}
 lemma2 n x
   | x == 0
   = proof $
@@ -72,8 +72,8 @@ lemma2 n x
 -- | Lemma 2.3
 
 -- Lemma 2.3
-lemma3 :: Int -> Int -> Bool
-{-@ lemma3 :: n:Nat -> x:Nat -> {v:Bool | ack n x < ack n (x+1)} @-}
+lemma3 :: Int -> Int -> Proof
+{-@ lemma3 :: n:Nat -> x:Nat -> {v:Proof | ack n x < ack n (x+1)} @-}
 lemma3 n x
   | x == 0
   = proof $
@@ -86,13 +86,13 @@ lemma3 n x
       ack n x  <! ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
                <! ack n (x+1)
 
-lemma3_gen :: Int -> Int -> Int -> Bool
-{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
+lemma3_gen :: Int -> Int -> Int -> Proof
+{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Proof | ack n x < ack n y} / [y] @-}
 lemma3_gen n x y
     = gen_increasing (ack n) (lemma3 n) x y
 
-lemma3_eq :: Int -> Int -> Int -> Bool
-{-@ lemma3_eq :: n:Nat -> x:Nat -> y:{v:Nat | x <= v} -> {v:Bool | ack n x <= ack n y} / [y] @-}
+lemma3_eq :: Int -> Int -> Int -> Proof
+{-@ lemma3_eq :: n:Nat -> x:Nat -> y:{v:Nat | x <= v} -> {v:Proof | ack n x <= ack n y} / [y] @-}
 lemma3_eq n x y
   | x == y
   = ack n x == ack n y
@@ -101,26 +101,20 @@ lemma3_eq n x y
   = lemma3_gen n x y
 
 
-{-
+
 
 -- | Lemma 2.4
+{-@ type Pos = {v:Int | 0 < v } @-}
 
-lemma4 :: Int -> Int -> Bool
-{- lemma4 :: n:Nat -> x:{Int | x > 0 } -> {v:Bool | ack n x < ack (n+1) x } @-}
-lemma4 n x
+lemma4 :: Int -> Int -> Proof
+{-@ lemma4 :: x:Pos -> n:Nat -> {v:Proof | ack n x < ack (n+1) x } @-}
+lemma4 x n
   = proof $
-      ack n x ==! ack n (ack (n+1) (x-1))
-               >! ack n x                  ? (lemma3_gen n x (ack (n+1) (x-1))
-                                             && (proof $
-                                                   x <! ack (n+1) (x-1) ? lemma2 (n+1) (x-1))
-                                             )
--}
+      ack (n+1) x ==! ack n (ack (n+1) (x-1))
+                   >! ack n x                   ?  lemma2 (n+1) (x-1)
+                                               &&& lemma3_gen n x (ack (n+1) (x-1))
 
-{-
-    lemma2 (n+1) (x-1) `proves`
-      x < ack (n+1) (x-1) `with`
-    lemma3' n x (ack (n+1) (x-1)) `proves`
-      ack n x < ack n (ack (n+1) (x-1)) `with`
-      ack (n+1) x == ack n (ack (n+1) (x-1)) `with`
-      ack n x < ack (n+1) x
--}
+lemma4_gen :: Int -> Int -> Int -> Bool
+{-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Bool | ack n x < ack m x } @-}
+lemma4_gen n m x
+  = gen_increasing2 ack lemma4 x n m
