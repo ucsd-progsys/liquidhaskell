@@ -7,7 +7,6 @@
 {-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
-{-@ LIQUID "--no-prune"      @-}
 
 
 module Helper (

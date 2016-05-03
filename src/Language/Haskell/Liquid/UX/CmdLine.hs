@@ -118,9 +118,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Check a specific (top-level) binder"
           &= name "check-var"
 
- , noPrune
-    = def &= help "Disable prunning unsorted Predicates"
-          &= name "no-prune-unsorted"
+ , pruneunsorted 
+    = def &= help "Enable prunning unsorted Predicates"
+          &= name "prune-unsorted"
 
  , notermination
     = def &= help "Disable Termination Check"
@@ -382,7 +382,7 @@ defConfig = Config { files             = def
                    , strata            = def
                    , notruetypes       = def
                    , totality          = def
-                   , noPrune           = def
+                   , pruneunsorted     = def
                    , exactDC           = def
                    , cores             = def
                    , minPartSize       = defaultMinPartSize

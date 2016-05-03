@@ -7,7 +7,6 @@
 {-@ LIQUID "--totality"        @-}
 {- LIQUID "--maxparams=5"     @-}
 {-@ LIQUID "--eliminate"       @-}
-{-@ LIQUID "--no-prune"        @-}
 
 
 module Ackermann where
@@ -91,3 +90,37 @@ lemma3_gen :: Int -> Int -> Int -> Bool
 {-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
 lemma3_gen n x y
     = gen_increasing (ack n) (lemma3 n) x y
+
+lemma3_eq :: Int -> Int -> Int -> Bool
+{-@ lemma3_eq :: n:Nat -> x:Nat -> y:{v:Nat | x <= v} -> {v:Bool | ack n x <= ack n y} / [y] @-}
+lemma3_eq n x y
+  | x == y
+  = ack n x == ack n y
+
+  | otherwise
+  = lemma3_gen n x y
+
+
+{-
+
+-- | Lemma 2.4
+
+lemma4 :: Int -> Int -> Bool
+{- lemma4 :: n:Nat -> x:{Int | x > 0 } -> {v:Bool | ack n x < ack (n+1) x } @-}
+lemma4 n x
+  = proof $
+      ack n x ==! ack n (ack (n+1) (x-1))
+               >! ack n x                  ? (lemma3_gen n x (ack (n+1) (x-1))
+                                             && (proof $
+                                                   x <! ack (n+1) (x-1) ? lemma2 (n+1) (x-1))
+                                             )
+-}
+
+{-
+    lemma2 (n+1) (x-1) `proves`
+      x < ack (n+1) (x-1) `with`
+    lemma3' n x (ack (n+1) (x-1)) `proves`
+      ack n x < ack n (ack (n+1) (x-1)) `with`
+      ack (n+1) x == ack n (ack (n+1) (x-1)) `with`
+      ack n x < ack (n+1) x
+-}
