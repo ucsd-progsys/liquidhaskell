@@ -37,7 +37,7 @@ proof _ = True
 (<:) x _ _ = x
 
 (>:) :: a -> a -> Proof -> a
-{-@ (>:) :: x:a -> y:a -> {v:Proof | x >y } -> {v:a | v == x } @-}
+{-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == x } @-}
 (>:) x _ _ = x
 
 

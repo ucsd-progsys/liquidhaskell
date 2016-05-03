@@ -6,6 +6,7 @@
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {- LIQUID "--maxparams=5"     @-}
+{-@ LIQUID "--eliminate"       @-}
 
 
 module Ackermann where
@@ -85,12 +86,7 @@ lemma3 n x
       ack n x  <! ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
                <! ack n (x+1)
 
-
-
-
-
-
--- lemma3_gen :: Int -> Int -> Int -> Bool
-{- lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
--- lemma3_gen n x y
---   = gen_increasing (ack n) (lemma3 n) x y
+lemma3_gen :: Int -> Int -> Int -> Bool
+{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Bool | ack n x < ack n y} / [y] @-}
+lemma3_gen n x y
+    = gen_increasing (ack n) (lemma3 n) x y

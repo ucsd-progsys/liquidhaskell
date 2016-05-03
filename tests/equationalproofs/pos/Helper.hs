@@ -9,7 +9,11 @@
 {-@ LIQUID "--higherorderqs" @-}
 
 
-module Helper where
+module Helper (
+
+  gen_increasing
+
+  ) where
 
 import Proves
 
@@ -20,6 +24,9 @@ import Proves
 
 
 gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
+
+
+
 {-@ gen_increasing :: f:(Nat -> Int)
                    -> (z:Nat -> {v:Proof | f z < f (z+1) })
                    ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x < f y } / [y] @-}
@@ -27,10 +34,10 @@ gen_increasing f thm x y
 
   | x + 1 == y
   = proof $
-      f y ==: f (x + 1)  ? (x+1 == y)
-           >: f x        ? thm x
+      f y ==! f (x + 1)
+           >! f x        ? thm x
 
   | x + 1 < y
   = proof $
-      f x <: f (y-1)     ? gen_increasing f thm x (y-1)
-          <: f y         ? thm (y-1)
+      f x <! f (y-1)     ? gen_increasing f thm x (y-1)
+          <! f y         ? thm (y-1)
