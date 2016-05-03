@@ -104,10 +104,10 @@ refine s w
      let w'' = if b then W.push c w' else w'
      refine s' w''
   | otherwise = return s
-
--- DEBUG
-refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
-                        i (F.subcId c) (show b) rnk
+  where
+    -- DEBUG
+    refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
+                            i (F.subcId c) (show b) rnk
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -217,6 +217,7 @@ gradualSolveOne c =
                  $ if s then Nothing else Just c
       else return $ Just c
 
+makeGradualExpression :: [(F.Symbol, F.SortedReft)] -> [(F.Symbol, F.SortedReft)] -> F.Expr -> F.Expr
 makeGradualExpression γ γ' p
   = F.PAnd [F.PAll bs (F.PImp gs p), gs]
   where
@@ -224,12 +225,16 @@ makeGradualExpression γ γ' p
     gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
     bindToLogic (x, F.RR _ (F.Reft (v, e))) = e `F.subst1` (v, F.EVar x)
 
+
+-- makeEnvironment :: F.TaggedC c a => c a -> SolveM [(F.Symbol, F.SortedReft)]
+makeEnvironment :: F.SimpC a -> SolveM [(F.Symbol, F.SortedReft)]
 makeEnvironment  c
   = do lp <- getBinds
        return [ F.lookupBindEnv i lp | i <- bs ]
   where
     bs = sort $ F.elemsIBindEnv $ F.senv c
 
+splitLastGradual :: [(a, F.SortedReft)] -> ([(a, F.SortedReft)], [(a, F.SortedReft)], Bool)
 splitLastGradual = go [] . reverse
   where
     go acc (xe@(x, F.RR s (F.Reft (v, e))) : xss)
@@ -240,6 +245,7 @@ splitLastGradual = go [] . reverse
     go acc []
       = ([], reverse acc, False)
 
+removePGrads :: F.Expr -> Maybe [F.Expr]
 removePGrads (F.PAnd es)
   | F.PGrad `elem` es
   = Just $ filter (/= F.PGrad) es

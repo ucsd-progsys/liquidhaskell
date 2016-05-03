@@ -89,7 +89,13 @@ mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
     i2v i         = fromMaybe (errU i) $ cf i
     errU i        = errorstar $ "graphSlice: nknown constraint " ++ show i
 
-
+mkSlice_ :: F.TaggedC c a
+         => M.HashMap CId (c a)
+         -> G.Graph
+         -> [DepEdge]
+         -> (G.Vertex -> CId)
+         -> (CId -> G.Vertex)
+         -> Slice
 mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
                                   , slConcCs = concCs
                                   , slEdges  = sliceEdges kvarCs es
@@ -377,6 +383,7 @@ cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> Elims a
 cycleDep _ [] = mempty
 cycleDep f vs = addCut f (f vs)
 
+addCut :: (Cutable a) => Cutter a -> Maybe (a, [(a, a, [a])]) -> Elims a
 addCut _ Nothing         = mempty
 addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where

@@ -92,6 +92,7 @@ instance Subable Symbol where
 appSubst :: Subst -> Symbol -> Expr
 appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
 
+subSymbol :: Maybe Expr -> Symbol -> Symbol
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
 subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
@@ -195,6 +196,7 @@ instance Reftable Reft where
   bot    _        = falseReft
   top (Reft(v,_)) = Reft (v, mempty)
 
+pprReft :: Reft -> Doc -> Doc
 pprReft (Reft (v, p)) d
   | isTautoPred p
   = d
@@ -234,12 +236,14 @@ instance Show Reft where
 instance Show SortedReft where
   show  = showFix
 
+pprReftPred :: Reft -> Doc
 pprReftPred (Reft (_, p))
   | isTautoPred p
   = text "true"
   | otherwise
   = ppRas [p]
 
+ppRas :: [Expr] -> Doc
 ppRas = cat . punctuate comma . map toFix . flattenRefas
 
 --------------------------------------------------------------------------------

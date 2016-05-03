@@ -36,13 +36,13 @@ import Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
-
+import qualified Data.Text
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
 --------------------------------------------------------------------------
 
-elt, set, map :: Raw 
+elt, set, map :: Raw
 elt  = "Elt"
 set  = "Set"
 map  = "Map"
@@ -115,6 +115,7 @@ z3Preamble u
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
+uifDef :: Bool -> Data.Text.Text -> T.Text -> T.Text
 uifDef u f op | u         = format "(declare-fun {} (Int Int) Int)" (Only f)
               | otherwise = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
@@ -175,13 +176,14 @@ mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 isTheorySymbol :: Symbol -> Bool
 isTheorySymbol x = M.member x theorySymbols
 
-theoryEnv = M.map tsSort theorySymbols 
+theoryEnv :: M.HashMap Symbol Sort
+theoryEnv = M.map tsSort theorySymbols
 
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
   [ tSym setEmp   emp (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , tSym setEmpty emp (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , tSym setAdd add   setbopSort 
+  , tSym setAdd add   setbopSort
   , tSym setCup cup   setbopSort
   , tSym setCap cap   setbopSort
   , tSym setMem mem   setmemSort
@@ -198,9 +200,9 @@ theorySymbols = M.fromList
     setmemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setcmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     mapselSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 0)
-    mapstoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) 
-                                 $ FFunc (FVar 0) 
-                                 $ FFunc (FVar 1) 
+    mapstoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                 $ FFunc (FVar 0)
+                                 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
     bvbopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
 
