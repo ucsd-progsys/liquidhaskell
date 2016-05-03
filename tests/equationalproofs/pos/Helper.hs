@@ -7,6 +7,7 @@
 {-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
+{-@ LIQUID "--no-prune"      @-}
 
 
 module Helper (
@@ -34,7 +35,7 @@ gen_increasing f thm x y
 
   | x + 1 == y
   = proof $
-      f y ==! f (x + 1)
+      f y ==! f (x + 1)  ? y == x + 1
            >! f x        ? thm x
 
   | x + 1 < y

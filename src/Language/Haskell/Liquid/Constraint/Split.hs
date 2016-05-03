@@ -62,7 +62,7 @@ splitW ::  WfC -> CG [FixWfC]
 splitW (WfC γ t@(RFun x t1 t2 _))
   =  do ws'  <- splitW (WfC γ t1)
         γ'   <- (γ, "splitW") += (x, t1)
-        ws   <- bsplitW γ' t
+        ws   <- bsplitW γ t
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
@@ -311,7 +311,7 @@ splitC (SubC γ (RRTy e r o t1) t2)
 splitC (SubC γ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2))
   =  do cs'      <- splitC  (SubC γ t2 t1)
         γ'       <- (γ, "splitC") += (x2, t2)
-        cs       <- bsplitC γ' (RFun x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2))) 
+        cs       <- bsplitC γ  (RFun x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2))) 
                                (RFun x2 t2 t2'  r2)
         let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
         cs''     <- splitC  (SubC γ' t1x2' t2')

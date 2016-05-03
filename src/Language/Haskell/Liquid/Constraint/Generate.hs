@@ -32,7 +32,7 @@ import           DataCon
 import           Pair
 import           CoreSyn
 import           SrcLoc                                        hiding (Located)
-import           Type
+import           Type                                          hiding (isFunTy)
 import           TyCon
 import           PrelNames
 import           TypeRep
@@ -1489,7 +1489,7 @@ varRefType' γ x t'
     x' = F.symbol x
 
 -- | NV TODO: make singleton generation more general 
- 
+
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
@@ -1497,6 +1497,10 @@ makeSingleton γ e t allowHO
   = case argExpr γ x of 
       Just x' -> t `strengthenS` (uTop $ F.exprReft (F.EApp (F.EVar $ fromJust $ M.lookup v $ aenv γ) x'))
       _ -> t  
+  | allowHO, App f x <- e, not (isFunTy t)
+  = case (argExpr γ f, argExpr γ x) of 
+      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))  
+      _ -> t 
   | otherwise
   = t 
 

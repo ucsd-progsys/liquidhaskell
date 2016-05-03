@@ -7,6 +7,7 @@
 {-@ LIQUID "--totality"        @-}
 {- LIQUID "--maxparams=5"     @-}
 {-@ LIQUID "--eliminate"       @-}
+{-@ LIQUID "--no-prune"        @-}
 
 
 module Ackermann where
