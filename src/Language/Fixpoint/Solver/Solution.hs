@@ -36,7 +36,7 @@ import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
-import           Debug.Trace (trace)
+-- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier ----------------------------------------
@@ -200,10 +200,10 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
 applyExpr g s (F.PKVar k su)
-  | kI == mempty =           (e, kI)
-  | otherwise    = trace msg (e, kI)
+  | kI == mempty =                 (e, kI)
+  | otherwise    = {- trace msg -} (e, kI)
   where
-    msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+    _msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
     (e, kI) = applyKVar g s k su
 
 applyExpr _ _ p              = (p, mempty)
