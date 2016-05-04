@@ -31,13 +31,14 @@ ack n x
 
 {-@ axiomatize iack @-}
 {-@ iack :: Nat -> Nat -> Nat -> Nat @-}
+
 iack :: Int -> Int -> Int -> Int
 iack h n x
   = if h == 0 then x else ack n (iack (h-1) n x)
 
 -- | Equivalence of definitions
 
-{-@ def_eq :: n:Nat -> x:Nat -> {v:Proof | ack (n+1) x == iack x n 2 }  / [x]@-}
+{-@ def_eq :: n:Nat -> x:Nat -> {v:Proof | ack (n+1) x == iack x n 2 }  / [x] @-}
 def_eq n x
   | x == 0
   = proof $
@@ -47,7 +48,7 @@ def_eq n x
   | otherwise
   = proof $
       ack (n+1) x ==! ack n (ack (n+1) (x-1))
-                  ==! ack n (iack (x-1) n 2 )   ? def_eq n (x-1)
+                  ==! ack n (iack (x-1) n 2)   ? def_eq n (x-1)
                   ==! iack x n 2
 
 
@@ -87,7 +88,7 @@ lemma3 n x
                <! ack n (x+1)
 
 lemma3_gen :: Int -> Int -> Int -> Proof
-{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{v:Nat | x < v} -> {v:Proof | ack n x < ack n y} / [y] @-}
+{-@ lemma3_gen :: n:Nat -> x:Nat -> y:{Nat | x < y} -> {v:Proof | ack n x < ack n y} / [y] @-}
 lemma3_gen n x y
     = gen_increasing (ack n) (lemma3 n) x y
 
@@ -117,7 +118,7 @@ lemma4 x n
 lemma4_gen     :: Int -> Int -> Int -> Bool
 {-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Bool | ack n x < ack m x } @-}
 lemma4_gen n m x
-  = undefined -- gen_increasing2 ack lemma4 x n m
+  = gen_increasing2 ack lemma4 x n m
 
 
 lemma4_eq     :: Int -> Int -> Bool
@@ -161,13 +162,13 @@ lemma6 h n x
                   <! ack n (iack (h-1) n (x+1))
                   <! iack h n (x+1)
 
-{-
+
 lemma6_gen :: Int -> Int -> Int -> Int -> Proof
-{- lemma6_gen :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
+{-@ lemma6_gen :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
            -> {v:Proof | iack h n x < iack h n y } /[y] @-}
 lemma6_gen h n x y
   = gen_increasing (iack h n) (lemma6 h n) x y
--}
+
 
 -- Lemma 2.7
 

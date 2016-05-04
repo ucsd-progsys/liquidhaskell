@@ -1493,18 +1493,21 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
-  | allowHO, App f x <- untick e
+  | allowHO, App f x <- untick e, not (isFunTy t)
   = case (funExpr γ f, argExpr γ x) of 
       (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
       _ -> t  
-  | allowHO, App f x <- e, not (isFunTy t)
-  = case (argExpr γ f, argExpr γ x) of 
-      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))  
-      _ -> t 
   | otherwise
   = t 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr γ (Var v) | M.member v (aenv γ)
+  = F.EVar <$> (M.lookup v $ aenv γ)
+funExpr _ _ 
+  = Nothing 
+
+
+{- 
 funExpr γ (Var v) | M.member v (aenv γ)
   = F.EVar <$> (M.lookup v $ aenv γ)
 funExpr γ (App e1 e2)
@@ -1513,7 +1516,7 @@ funExpr γ (App e1 e2)
       _                    -> Nothing
 funExpr _ _ 
   = Nothing 
-
+-}
 untick :: CoreExpr -> CoreExpr
 untick (Tick _ e)  = e 
 untick (App e1 e2) = App (untick e1) (untick e2)

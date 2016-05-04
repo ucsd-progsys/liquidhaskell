@@ -193,7 +193,7 @@ makeMGIModGuts f = do
   case find (\m -> not (isBootSummary m) && f == msHsFilePath m) modGraph of
     Just modSummary -> do
       parsed   <- parseModule modSummary
-      modGuts  <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
+      modGuts  <- coreModule <$> (desugarModule =<< typecheckModule parsed)
       let deriv = Just $ instEnvElts $ mg_inst_env modGuts
       return $! miModGuts deriv modGuts
     Nothing ->
