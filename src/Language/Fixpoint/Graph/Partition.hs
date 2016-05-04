@@ -171,12 +171,12 @@ partFile fi j = extFileName (Part j) (F.fileName fi)
 
 
 -- | Type alias for a function to construct a partition. mkPartition and
--- mkPartition' are the two primary functions that conform to this interface
+--   mkPartition' are the two primary functions that conform to this interface
 type PartitionCtor a b = F.FInfo a
-                         -> M.HashMap Int [(Integer, F.SubC a)]
-                         -> M.HashMap Int [(F.KVar, F.WfC a)]
-                         -> Int
-                         -> b -- ^ typically a F.FInfo a or F.CPart a
+                       -> M.HashMap Int [(Integer, F.SubC a)]
+                       -> M.HashMap Int [(F.KVar, F.WfC a)]
+                       -> Int
+                       -> b -- ^ typically a F.FInfo a or F.CPart a
 
 partitionByConstraints :: PartitionCtor a b -- ^ mkPartition or mkPartition'
                           -> F.FInfo a
@@ -188,8 +188,8 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     gc   = groupFun cM                                 -- (i, ci) |-> j
     gk   = groupFun kM                                 -- k       |-> j
 
-    iwM  = groupMap (gk . fst) (M.toList (F.ws fi))             -- j |-> [w]
-    icM  = groupMap (gc . fst) (M.toList (F.cm fi))  -- j |-> [(i, ci)]
+    iwM  = groupMap (gk . fst) (M.toList (F.ws fi))    -- j |-> [w]
+    icM  = groupMap (gc . fst) (M.toList (F.cm fi))    -- j |-> [(i, ci)]
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
