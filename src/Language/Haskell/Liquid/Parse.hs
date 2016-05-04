@@ -845,16 +845,41 @@ cMeasureP
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
 
-instanceP :: Parser (RInstance (Located BareType))
-instanceP
-  = do c  <- locUpperIdP
-       lt <- locParserP (rit <$> locUpperIdP <*> classParams)
-       ts <- sepBy tyBindP semi
-       return $ RI c lt ts
+
+oneClassArg :: Parser [Located BareType]
+oneClassArg
+  = sing <$> locParserP (rit <$> locUpperIdP <*> (map val <$> classParams))
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
     classParams =  (reserved "where" >> return [])
-               <|> ((:) <$> lowerIdP <*> classParams)
+               <|> ((:) <$> locLowerIdP <*> classParams)
+    sing x      = [x]
+
+instanceP :: Parser (RInstance (Located BareType))
+instanceP
+  = do _    <- supersP
+       c    <- locUpperIdP
+       spaces
+       tvs  <- (try oneClassArg) <|> (manyTill iargsP (try $ reserved "where"))
+       ms   <- sepBy tyBindP semi
+       spaces
+       return $ RI c tvs ms 
+  where
+    superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
+    supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                       <* reserved "=>")
+               <|> return []
+    toRCls x = x
+
+    iargsP   =   (mkVar <$> tyVarIdP)
+            <|> (parens $ locParserP $ bareTypeP)
+
+
+    mkVar v  = dummyLoc $ RVar v mempty
+
+
+
+
 
 classP :: Parser (RClass (Located BareType))
 classP

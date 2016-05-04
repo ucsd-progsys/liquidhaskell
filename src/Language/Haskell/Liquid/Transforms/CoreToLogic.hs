@@ -10,7 +10,10 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   coreToLogic, coreToPred,
   mkLit, runToLogic,
   logicType,
-  strengthenResult
+
+  strengthenResult,
+
+  normalize
 
   ) where
 
