@@ -5,7 +5,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
-{- LIQUID "--maxparams=5"     @-}
+{- LIQUID "--maxparams=4"     @-}
 {-@ LIQUID "--eliminate"       @-}
 
 
@@ -118,3 +118,42 @@ lemma4_gen :: Int -> Int -> Int -> Bool
 {-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Bool | ack n x < ack m x } @-}
 lemma4_gen n m x
   = gen_increasing2 ack lemma4 x n m
+
+
+-- | Lemma 2.5
+
+lemma5 :: Int -> Int -> Int -> Bool
+{-@ lemma5 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Bool | iack h n x < iack (h+1) n x } @-}
+lemma5 h n x
+  = proof $
+      iack h n x <! ack n (iack h n x) ? lemma2 n (iack h n x)
+                 <! iack (h+1) n x
+
+
+-- | Lemma 2.6
+lemma6 :: Int -> Int -> Int -> Proof
+{-@ lemma6 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Proof | iack h n x < iack h n (x+1) } @-}
+
+lemma6 h n x
+  | h == 0
+  = proof $
+      iack h n x ==! x
+                  <! x + 1
+                  <! iack h n (x+1)
+  | h > 0
+  = proof $
+      iack h n x ==! ack n (iack (h-1) n x) ? (  lemma6 (h-1) n x
+                                             &&& lemma3_gen n (iack (h-1) n x) (iack (h-1) n (x+1))
+                                              )
+
+                  <! ack n (iack (h-1) n (x+1))
+                  <! iack h n (x+1)
+
+
+lemma6_gen :: Int -> Int -> Int -> Int -> Proof
+{-@ lemma6_gen :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
+           -> {v:Proof | iack h n x < iack h n y } /[y] @-}
+lemma6_gen h n x y
+  = gen_increasing (iack h n) (lemma6 h n) x y

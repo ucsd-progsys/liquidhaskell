@@ -7,6 +7,7 @@
 {-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
+{-@ LIQUID "--eliminate"     @-}
 
 
 module Helper (
@@ -44,20 +45,17 @@ gen_increasing f thm x y
 
 
 
-gen_increasing2 :: (a -> Int -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
-{-@ gen_increasing2 :: f:(a -> Nat -> Int)
+gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
+{-@ gen_increasing2 :: f:(Nat -> a -> Int)
                     -> (w:a -> z:Nat -> {v:Proof | f z w < f (z+1) w })
                     ->  c:a -> x:Nat -> y:{Nat | x < y } -> {v:Proof | f x c < f y c } / [y] @-}
-gen_increasing2 f thm x y
-  = undefined
-{-
+gen_increasing2 f thm c x y
   | x + 1 == y
   = proof $
-      f y ==! f (x + 1)  ? y == x + 1
-           >! f x        ? thm x
+      f y c ==! f (x + 1) c  ? y == x + 1
+             >! f x c        ? thm c x
 
   | x + 1 < y
   = proof $
-      f x <! f (y-1)     ? gen_increasing f thm x (y-1)
-          <! f y         ? thm (y-1)
--}
+      f x c <! f (y-1) c    ? gen_increasing2 f thm c x (y-1)
+            <! f y c        ? thm c (y-1)
