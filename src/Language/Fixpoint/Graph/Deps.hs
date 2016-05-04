@@ -388,7 +388,7 @@ boundElims _cfg isK es ds = forceKuts kS' ds
   where
     (_ , kS')           = L.foldl' step (M.empty, S.empty) ({- trace ("VS = " ++ show vs) -} vs)
     vs                  = topoSort ds es
-    delta               = 10 -- FIXME
+    delta               = 12 -- FIXME
     predM               = invertEdges es
 
     addK v ks
