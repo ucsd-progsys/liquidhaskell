@@ -339,4 +339,4 @@ mapAccumL f z0 (Stream next0 s0 len) =
                 where (z',c) = f z x
                       j | ord c < 0x10000 = i
                         | otherwise       = i + 1
-{- INLINE [0] mapAccumL -}
+{-# INLINE [0] mapAccumL #-}
