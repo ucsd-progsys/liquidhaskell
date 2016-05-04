@@ -365,7 +365,6 @@ sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> Elims a
 sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
 sccDep f (G.CyclicSCC vs)      = cycleDep f vs
 
-
 cycleDep :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
 cycleDep _ [] = mempty
 cycleDep f vs = addCut f (f vs)
@@ -386,7 +385,10 @@ boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -
 --------------------------------------------------------------------------------
 boundElims _cfg isK es ds = forceKuts kS' ds
   where
-    (_ , kS')           = L.foldl' step (M.empty, S.empty) ({- trace ("VS = " ++ show vs) -} vs)
+    (_ , kS')           = L.foldl' step (M.empty, kS0) ({- trace _msg -} vs)
+    -- dM0                 = M.empty
+    kS0                 = depCuts ds
+    _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
     vs                  = topoSort ds es
     delta               = 12 -- FIXME
     predM               = invertEdges es
@@ -400,7 +402,7 @@ boundElims _cfg isK es ds = forceKuts kS' ds
       | dk < delta      = (M.insert v dk dM,        kS)
       | otherwise       = (M.insert v 0  dM, addK v kS)
       where
-        dk              = tracepp ("DIST " ++ show v) $  dist predM v dM
+        dk              = tracepp ("DIST " ++ show v) $ dist predM v dM
 
 dist :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a Int -> Int
 dist predM v dM = 1 + maximumDef 0 (du <$> us)
