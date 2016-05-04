@@ -5,7 +5,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
-{- LIQUID "--maxparams=4"     @-}
+{-@ LIQUID "--maxparams=5"     @-}
 {-@ LIQUID "--eliminate"       @-}
 
 
@@ -92,7 +92,7 @@ lemma3_gen n x y
     = gen_increasing (ack n) (lemma3 n) x y
 
 lemma3_eq :: Int -> Int -> Int -> Proof
-{-@ lemma3_eq :: n:Nat -> x:Nat -> y:{v:Nat | x <= v} -> {v:Proof | ack n x <= ack n y} / [y] @-}
+{-@ lemma3_eq :: n:Nat -> x:Nat -> y:{Nat | x <= y} -> {v:Proof | ack n x <= ack n y} / [y] @-}
 lemma3_eq n x y
   | x == y
   = ack n x == ack n y
@@ -114,10 +114,20 @@ lemma4 x n
                    >! ack n x                   ?  lemma2 (n+1) (x-1)
                                                &&& lemma3_gen n x (ack (n+1) (x-1))
 
-lemma4_gen :: Int -> Int -> Int -> Bool
+lemma4_gen     :: Int -> Int -> Int -> Bool
 {-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Bool | ack n x < ack m x } @-}
 lemma4_gen n m x
-  = gen_increasing2 ack lemma4 x n m
+  = undefined -- gen_increasing2 ack lemma4 x n m
+
+
+lemma4_eq     :: Int -> Int -> Bool
+{-@ lemma4_eq :: n:Nat -> x:Nat -> {v:Bool | ack n x <= ack (n+1) x } @-}
+lemma4_eq n x
+  | x == 0
+  = proof $
+      ack n x ==! ack (n+1) x
+  | otherwise
+  = lemma4 n x
 
 
 -- | Lemma 2.5
@@ -151,9 +161,38 @@ lemma6 h n x
                   <! ack n (iack (h-1) n (x+1))
                   <! iack h n (x+1)
 
-
+{-
 lemma6_gen :: Int -> Int -> Int -> Int -> Proof
-{-@ lemma6_gen :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
+{- lemma6_gen :: h:Nat -> n:Nat -> x:Nat -> y:{Nat | x < y}
            -> {v:Proof | iack h n x < iack h n y } /[y] @-}
 lemma6_gen h n x y
   = gen_increasing (iack h n) (lemma6 h n) x y
+-}
+
+-- Lemma 2.7
+
+lemma7 :: Int -> Int -> Int -> Bool
+{-@ lemma7 :: h:Nat -> n:Nat -> x:Nat
+           -> {v:Bool | iack h n x <= iack h (n+1) x } @-}
+lemma7 h n x
+  | x == 0 , h == 0
+  = proof $
+     iack 0 n 0 ==! ack n 0
+                ==! (2 :: Int)
+                ==! ack (n+1) 0
+                ==! iack 0 (n+2) 0
+
+  | h == 0
+  = proof $
+      iack 0 n x ==! ack n x
+                  <! ack (n+1) x ? lemma4 x n
+                  <! iack 0 (n+1) x
+
+  | h > 0
+  = proof $
+      iack h n x ==! ack n (iack (h-1) n x)
+                 <=! ack (n+1) (iack (h-1) n x)     ? lemma4_eq n (iack (h-1) n x)
+                 <=! ack (n+1) (iack (h-1) (n+1) x) ? (lemma7 (h-1) n x
+                                                     &&& lemma3_eq (n+1) (iack (h-1) n x) (iack (h-1) (n+1) x)
+                                                      )
+                 <=! iack h (n+1) x

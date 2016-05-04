@@ -1454,7 +1454,7 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr γ (Var v)     | M.member v $ aenv γ
-                      = M.lookup v $ aenv γ
+                      = F.EVar <$> (M.lookup v $ aenv γ)
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
@@ -1490,14 +1490,12 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
--- | NV TODO: make singleton generation more general 
-
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
-  | allowHO, App (Var v) x <- untick e, (M.member v $ aenv γ)
-  = case argExpr γ x of 
-      Just x' -> t `strengthenS` (uTop $ F.exprReft (F.EApp (F.EVar $ fromJust $ M.lookup v $ aenv γ) x'))
+  | allowHO, App f x <- untick e
+  = case (funExpr γ f, argExpr γ x) of 
+      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
       _ -> t  
   | allowHO, App f x <- e, not (isFunTy t)
   = case (argExpr γ f, argExpr γ x) of 
@@ -1505,6 +1503,16 @@ makeSingleton γ e t allowHO
       _ -> t 
   | otherwise
   = t 
+
+funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr γ (Var v) | M.member v (aenv γ)
+  = F.EVar <$> (M.lookup v $ aenv γ)
+funExpr γ (App e1 e2)
+  = case (funExpr γ e1, argExpr γ e2) of 
+      (Just e1', Just e2') -> Just (F.EApp e1' e2')
+      _                    -> Nothing
+funExpr _ _ 
+  = Nothing 
 
 untick :: CoreExpr -> CoreExpr
 untick (Tick _ e)  = e 
