@@ -555,6 +555,8 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy _ _ Ueq _ _             = return ()
+checkRelTy _ _ Une _ _             = return ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
 checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
@@ -574,8 +576,6 @@ checkRelTy _ e Ne t1 t2
 checkRelTy f e Eq t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy f e Ne t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 
-checkRelTy _ _ Ueq _ _             = return ()
-checkRelTy _ _ Une _ _             = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 -------------------------------------------------------------------------

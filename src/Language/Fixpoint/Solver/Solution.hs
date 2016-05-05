@@ -94,49 +94,51 @@ refine :: F.SInfo a
        -> F.WfC a
        -> (F.KVar, QBind)
 --------------------------------------------------------------------
-refine fi qs w = refineK env qs $ F.wrft w
+refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
     env        = wenv <> genv
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.lits fi
 
-refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, QBind)
-refineK env qs (v, t, k) = {- tracepp msg -} (k, eqs')
+refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, QBind)
+refineK ho env qs (v, t, k) = {- tracepp msg -} (k, eqs')
    where
-    eqs                  = instK env v t qs
+    eqs                  = instK ho env v t qs
     eqs'                 = filter (okInst env v t) eqs
     -- msg                  = printf "refineK: k = %s, eqs = %s" (showpp k) (showpp eqs)
 
 --------------------------------------------------------------------
-instK :: F.SEnv F.Sort
+instK :: Bool
+      -> F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
       -> QBind
 --------------------------------------------------------------------
-instK env v t = unique . concatMap (instKQ env v t)
+instK ho env v t = unique . concatMap (instKQ ho env v t)
   where
     unique = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
 
-instKQ :: F.SEnv F.Sort
+instKQ :: Bool
+       -> F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
        -> QBind
-instKQ env v t q
+instKQ ho env v t q
   = do (su0, v0) <- candidates senv [(t, [v])] qt
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
        return     $ F.eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       tyss       = instCands env
+       tyss       = instCands ho env
        senv       = (`F.lookupSEnvWithDistance` env)
 
-instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
-instCands env = filter isOk tyss
+instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
+instCands ho env = filter isOk tyss
   where
     tyss      = groupList [(t, x) | (x, t) <- xts]
-    isOk      = isNothing . F.functionSort . fst
+    isOk      = if ho then (\_ -> True) else (isNothing . F.functionSort . fst)
     xts       = F.toListSEnv env
 
 match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
@@ -198,10 +200,10 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
 applyExpr g s (F.PKVar k su)
-  | kI == mempty =           (e, kI)
+  | kI == mempty =                 (e, kI)
   | otherwise    = {- trace msg -} (e, kI)
   where
-    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+    _msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
     (e, kI) = applyKVar g s k su
 
 applyExpr _ _ p              = (p, mempty)

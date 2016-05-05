@@ -233,7 +233,7 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si {- $ trace msg -} es'
+elimDeps si es nonKutVs = graphDeps si {-  trace msg -} es'
   where
     es'                 = graphElim es nonKutVs
     _msg                = "graphElim: " ++ show (length es')

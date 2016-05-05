@@ -27,7 +27,6 @@ import           Control.Monad.State
 
 import           Data.Maybe (fromMaybe)
 
-
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -407,7 +406,20 @@ grapLambdas e = go [] e
 
 -- s_to_Int :: s -> Int
 
-makeApplication :: Expr -> [Expr] -> SMT2 Expr
+ 
+makeApplication :: Expr -> [Expr] -> SMT2 Expr 
+makeApplication e es = defunc e >>= (`go` es)
+  where
+    go f []     = return f 
+    go f (e:es) = do df <- defunc $ makeFunSymbol f 1  
+                     de <- defunc $ e 
+                     let s  = dropArgs 1 $ exprSort f
+                     go ((`ECst` s) (eApps (EVar df) [ECst f (exprSort f), de])) es 
+
+
+{- 
+
+-- Old application: without currying 
 makeApplication e es
   = do df  <- defunc f
        de  <- defunc e
@@ -415,7 +427,7 @@ makeApplication e es
        return $ eApps (EVar df) (de:des)
   where
     f  = makeFunSymbol e $ length es
-
+-}
 
 makeFunSymbol :: Expr -> Int -> Symbol
 makeFunSymbol e i
@@ -434,10 +446,11 @@ makeFunSymbol e i
   where
     s = dropArgs i $ exprSort e
 
-    dropArgs 0 t           = t
-    dropArgs i (FAbs _ t)  = dropArgs i t
-    dropArgs i (FFunc _ t) = dropArgs (i-1) t
-    dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
+dropArgs :: Int -> Sort -> Sort
+dropArgs 0 t           = t
+dropArgs j (FAbs _ t)  = dropArgs j t
+dropArgs j (FFunc _ t) = dropArgs (j-1) t
+dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
 
 toInt :: Expr -> SMT2 Expr
 toInt e
@@ -503,6 +516,11 @@ makeApplies i =
 
 
 exprSort :: Expr -> Sort
-exprSort (ECst _ s)     = s
-exprSort (ELam (_,s) e) = FFunc s $ exprSort e
-exprSort e              = errorstar ("\nexprSort on unexpected expressions" ++ show e)
+exprSort (ECst _ s)     
+  = s
+exprSort (ELam (_,s) e) 
+  = FFunc s $ exprSort e    
+exprSort (EApp e _) | FFunc _ s <- exprSort e  
+  = s  
+exprSort e              
+  = errorstar ("\nexprSort on unexpected expressions" ++ show e)
