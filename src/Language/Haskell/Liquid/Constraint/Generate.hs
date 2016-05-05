@@ -31,7 +31,7 @@ import           Coercion
 import           DataCon
 import           Pair
 import           CoreSyn
-import           SrcLoc                                        hiding (Located)
+import           SrcLoc                                 hiding (Located)
 import           Type
 import           TyCon
 import           PrelNames
@@ -39,10 +39,10 @@ import           TypeRep
 import           Class                                         (className)
 import           Var
 import           Kind
-import           Id
+import           Id                                     hiding (isExportedId)
 import           IdInfo
 import           Name
-import           NameSet
+-- import           NameSet
 import           Unify
 import           VarSet
 -- import Unique
@@ -81,6 +81,7 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
+import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.Names
@@ -108,8 +109,11 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct info
-    cfg                  = config $ spec info
+    act                  = consAct    info
+    cfg                  = infoConfig info
+
+infoConfig :: GhcInfo -> Config
+infoConfig = config . spec
 
 consAct :: GhcInfo -> CG ()
 consAct info
@@ -179,9 +183,9 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs 
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (infoConfig info)
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
-       return γ{invs = is (invs1 ++ invs2)} 
+       return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -285,15 +289,16 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
+        -> Config
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs 
+measEnv sp xts cbs lts asms itys hs cfg
   = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mempty 
+        , invs  = mempty
         , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts  []
@@ -308,6 +313,7 @@ measEnv sp xts cbs lts asms itys hs
         , lcs   = mempty
         , aenv  = axiom_map $ logicMap sp
         , cerr  = Nothing
+        , cgCfg = cfg
         }
     where
       tce = tcEmbeds sp
@@ -328,9 +334,9 @@ grtyTop :: GhcInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ defVars info
-    isTop v      = isExportedId v && not (v `S.member` sigVs)
-    isExportedId = flip elemNameSet (exports $ spec info) . getName
+    isTop v      = isExportedVar info v && not (v `S.member` sigVs)
     sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
+
 
 initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -634,11 +640,11 @@ consCBTop _ γ cb
        let isStr  = tcond cb strict
        modify $ \s -> s { tcheck = tflag && isStr}
 
-       -- remove invariants that came from the cb definition 
-       let (γ',i) = removeInvariant γ cb 
+       -- remove invariants that came from the cb definition
+       let (γ',i) = removeInvariant γ cb
        γ'' <- consCB (tflag && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return $ restoreInvariant γ'' i  
+       return $ restoreInvariant γ'' i
 
 
 tcond :: Bind Var -> S.HashSet Var -> Bool
@@ -890,13 +896,13 @@ addPToEnv γ π
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extender γ (x, Asserted t) 
-  = case lookupREnv (F.symbol x) (assms γ) of 
+extender γ (x, Asserted t)
+  = case lookupREnv (F.symbol x) (assms γ) of
       Just t' -> γ ++= ("extender", F.symbol x, t')
       _       -> γ ++= ("extender", F.symbol x, t)
-extender γ (x, Assumed t)  
+extender γ (x, Assumed t)
   = γ ++= ("extender", F.symbol x, t)
-extender γ _               
+extender γ _
   = return γ
 
 data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
@@ -1061,18 +1067,17 @@ cconsLazyLet _ _ _
 --------------------------------------------------------------------------------
 consE :: CGEnv -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
-
 consE γ e
-  | Just p <- Rs.resugar e
+  | patternFlag γ
+  , Just p <- Rs.lift e
   = consPattern γ p
 
-
--- NV this is a hack to type polymorphic axiomatized functions
+-- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment withh
 -- be empty if there is no axiomatization
 
 consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
@@ -1104,7 +1109,7 @@ consE γ (App e (Type τ)) | isKind τ
 
 
 consE γ e'@(App e (Type τ))
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
@@ -1122,7 +1127,7 @@ consE γ e'@(App e a) | isDictionary a
               (γ', te''')      <- dropExists γ te'
               te''             <- dropConstraints γ te'''
               updateLocA {- πs -}  (exprLoc e) te''
-              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
               pushConsBind      $ cconsE γ' a tx
               addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
   where
@@ -1146,7 +1151,7 @@ consE γ e'@(App e a)
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
        updateLocA {- πs -}  (exprLoc e) te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
@@ -1191,8 +1196,39 @@ consE _ e@(Type t)
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
+patternFlag :: CGEnv -> Bool
+patternFlag = patternInline . cgCfg
+
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
-consPattern _γ _p = panic Nothing "TODO:PATTERN"
+
+{-
+    G |- e1 ~> m tx     G, x:tx |- e2 ~> m t
+    -----------------------------------------
+          G |- (e1 >>= \x -> e2) ~> m t
+ -}
+
+consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
+  tx <- checkMonad ("Non-monadic type", e1) γ <$> consE γ e1
+  γ' <- ((γ, "consPattern") += (F.symbol x, tx))
+  addIdA x (AnnDef tx)
+  mt <- consE γ' e2
+  return mt
+
+{-
+           G |- e ~> t
+    ------------------------
+      G |- return e ~ m t
+ -}
+consPattern γ (Rs.PatReturn e m _ _ _) = do
+  t     <- consE γ e
+  mt    <- trueTy  m
+  return $ RAppTy mt t mempty
+
+checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkMonad _ _ (RApp _ ts _ _)
+  | length ts > 0               = last ts
+checkMonad _ _ (RAppTy _ t _)   = t
+checkMonad x g t                = checkErr x g t
 
 
 --------------------------------------------------------------------------------
@@ -1345,15 +1381,12 @@ refreshVVRef (RProp ss t)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
 
-
-
-
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
@@ -1405,20 +1438,22 @@ instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
-checkTyCon :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                = checkErr x t
+checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkTyCon _ _ t@(RApp _ _ _ _) = t
+checkTyCon x g t              = checkErr x g t
 
-checkFun :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkFun _ t@(RFun _ _ _ _)   = t
-checkFun x t                  = checkErr x t
+checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkFun _ _ t@(RFun _ _ _ _) = t
+checkFun x g t                = checkErr x g t
 
-checkAll :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkAll _ t@(RAllT _ _)      = t
-checkAll x t                  = checkErr x t
+checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkAll _ _ t@(RAllT _ _)    = t
+checkAll x g t                = checkErr x g t
 
-checkErr :: (Outputable a) => (String, a) -> SpecType -> SpecType
-checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
+checkErr :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
+checkErr (msg, e) γ t         = panic (Just sp) $ msg ++ showPpr e ++ ", type: " ++ showpp t
+  where
+    sp                        = getLocation γ
 
 varAnn :: CGEnv -> Var -> t -> Annot t
 varAnn γ x t

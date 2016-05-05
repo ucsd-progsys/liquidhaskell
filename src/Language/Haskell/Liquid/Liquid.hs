@@ -20,11 +20,12 @@ import           Data.Bifunctor
 import           Data.Maybe
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
+-- import           Var                              (Var)
 import           CoreSyn
 import           HscTypes                         (SourceError)
+import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
-import           GHC (HscEnv)
 
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
@@ -38,6 +39,7 @@ import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
+import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
@@ -114,7 +116,8 @@ liquidOne info = do
   let cbs' = transformScope (cbs info)
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                 putStrLn $ render $ pprintCBs cbs'
+                 --  putStrLn $ render $ pprintCBs cbs'
+                 putStrLn $ showPpr cbs'
   edcs <- newPrune      cfg cbs' tgt info
   out' <- liquidQueries cfg      tgt info edcs
   DC.saveResult       tgt  out'
@@ -123,12 +126,15 @@ liquidOne info = do
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [DC.thin cbs sp vs]
-  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | (v, _) <- tySigs sp ]
+  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- exportedVars info ]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return  (Left cbs)
   where
     vs            = tgtVars sp
     sp            = spec    info
+
+-- topLevelBinders :: GhcSpec -> [Var]
+-- topLevelBinders = map fst . tySigs
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
@@ -184,12 +190,13 @@ solveCs cfg tgt cgi info names
                        , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
                        , FC.eliminate   = eliminate   cfg
-                       , FC.save        = saveQuery cfg
+                       , FC.save        = saveQuery   cfg
                        , FC.srcFile     = tgt
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
                        , FC.elimStats   = elimStats   cfg
+                       , FC.elimBound   = elimBound   cfg
                        }
 
 

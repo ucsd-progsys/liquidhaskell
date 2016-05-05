@@ -52,7 +52,7 @@ import Data.List                           (nub)
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 -- import Language.Fixpoint.Utils.Files
@@ -224,6 +224,11 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , elimBound
+    = Nothing
+            &= name "elimBound"
+            &= help "Maximum chain length for eliminating KVars"
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -392,6 +397,7 @@ defConfig = Config { files             = def
                    , scrapeImports     = False
                    , scrapeUsedImports = False
                    , elimStats         = False
+                   , elimBound         = Nothing
                    , json              = False
                    , counterExamples   = False
                    , timeBinds         = False

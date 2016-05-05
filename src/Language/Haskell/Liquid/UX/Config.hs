@@ -51,12 +51,13 @@ data Config = Config {
   , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
-  , eliminate      :: Bool
+  , eliminate      :: Bool       -- ^ eliminate non-top-level and non-recursive KVars
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   , elimStats      :: Bool       -- ^ print eliminate stats
+  , elimBound      :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
   , json           :: Bool       -- ^ print results (safe/errors) as JSON
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
   , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately

@@ -10,11 +10,15 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo,
-    runLiquidGhc,
+    getGhcInfo
+  , runLiquidGhc
 
   -- * printer
-    pprintCBs
+  , pprintCBs
+
+  -- * predicates
+  , isExportedVar
+  , exportedVars
   ) where
 
 import Prelude hiding (error)
@@ -41,6 +45,7 @@ import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
 import Var
+import NameSet
 
 import Control.Exception
 import Control.Monad
@@ -77,7 +82,7 @@ import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
 --------------------------------------------------------------------------------
--- GHC Interface Pipeline ------------------------------------------------------
+-- | GHC Interface Pipeline ----------------------------------------------------
 --------------------------------------------------------------------------------
 
 getGhcInfo :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
@@ -103,7 +108,7 @@ createTempDirectoryIfMissing tgtFile = tryIgnore "create temp directory" $
   createDirectoryIfMissing False $ tempDirectory tgtFile
 
 --------------------------------------------------------------------------------
--- GHC Configuration & Setup ---------------------------------------------------
+-- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
 runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
@@ -149,7 +154,7 @@ configureDynFlags cfg tmp = do
 
 configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
-  targets         <- mapM (`guessTarget` Nothing) tgtFiles 
+  targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
   moduleGraph     <- depanal [] False
   let homeModules  = flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
@@ -217,7 +222,56 @@ importDeclModule fromMod decl = do
         O.showSDoc dflags (cannotFindModule dflags modName result)
 
 --------------------------------------------------------------------------------
--- Per-Module Pipeline ---------------------------------------------------------
+-- | Extract Ids ---------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+exportedVars :: GhcInfo -> [Var]
+exportedVars info = filter (isExportedVar info) (defVars info)
+
+isExportedVar :: GhcInfo -> Var -> Bool
+isExportedVar info v = n `elemNameSet` ns
+  where
+    n                = getName v
+    ns               = exports (spec info)
+
+
+classCons :: Maybe [ClsInst] -> [Id]
+classCons Nothing   = []
+classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
+
+derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
+derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
+derivedVars _   Nothing    = []
+
+derivedVs :: CoreProgram -> DFunId -> [Id]
+derivedVs cbs fd = concatMap bindersOf cbs' ++ deps
+  where
+    cbs'           = filter f cbs
+    f (NonRec x _) = eqFd x
+    f (Rec xes)    = any eqFd (fst <$> xes)
+    eqFd x         = varName x == varName fd
+    deps           = concatMap unfoldDep unfolds
+    unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
+
+unfoldDep :: Unfolding -> [Id]
+unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
+unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
+unfoldDep _                           = []
+
+exprDep :: CoreExpr -> [Id]
+exprDep = freeVars S.empty
+
+importVars :: CoreProgram -> [Id]
+importVars = freeVars S.empty
+
+definedVars :: CoreProgram -> [Id]
+definedVars = concatMap defs
+  where
+    defs (NonRec x _) = [x]
+    defs (Rec xes)    = map fst xes
+
+--------------------------------------------------------------------------------
+-- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
@@ -229,7 +283,7 @@ processModules cfg logicMap tgtFiles depGraph homeModules =
   catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
   where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
-  
+
 processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGraph
               -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
@@ -284,7 +338,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   desugared         <- desugarModule typechecked
   let modGuts        = makeMGIModGuts desugared
   hscEnv            <- getSession
-  coreBinds         <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modGuts
+  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs          = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   let defVs          = definedVars coreBinds
@@ -472,50 +526,7 @@ makeLogicMap = do
   return $ parseSymbolToLogic lg lspec
 
 --------------------------------------------------------------------------------
--- Extract Ids -----------------------------------------------------------------
---------------------------------------------------------------------------------
-
-classCons :: Maybe [ClsInst] -> [Id]
-classCons Nothing   = []
-classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
-
-derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
-derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
-derivedVars _   Nothing    = []
-
-derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd = concatMap bindersOf cbs' ++ deps
-  where
-    cbs'           = filter f cbs
-    f (NonRec x _) = eqFd x
-    f (Rec xes)    = any eqFd (fst <$> xes)
-    eqFd x         = varName x == varName fd
-    deps           = concatMap unfoldDep unfolds
-    unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
-
-unfoldDep :: Unfolding -> [Id]
-unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
-unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
-unfoldDep _                           = []
-
-exprDep :: CoreExpr -> [Id]
-exprDep = freeVars S.empty
-
-importVars :: CoreProgram -> [Id]
-importVars = freeVars S.empty
-
-definedVars :: CoreProgram -> [Id]
-definedVars = concatMap defs
-  where
-    defs (NonRec x _) = [x]
-    defs (Rec xes)    = map fst xes
-
---------------------------------------------------------------------------------
--- Find & Parse Specs ----------------------------------------------------------
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- Pretty Printing -------------------------------------------------------------
+-- | Pretty Printing -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 instance PPrint GhcSpec where
@@ -576,4 +587,3 @@ instance Result SourceError where
 
 errMsgErrors :: ErrMsg -> [TError t]
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
-
