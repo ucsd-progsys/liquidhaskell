@@ -24,18 +24,6 @@ solverInfo cfg sI = SI sHyp sI' cD
     kI             = kIndex  sI
     (es, cKs, nKs) = kutVars cfg sI
 
--- --------------------------------------------------------------------------------
--- eliminate' :: Config -> SInfo a -> ([CEdge], Solution, SInfo a)
--- --------------------------------------------------------------------------------
--- eliminate' cfg sI  = (es, sHyp, sI')
-  -- where
-    -- sHyp           = solFromList [] kHyps
-    -- sI'            = cutSInfo   kI cKs sI
-    -- kHyps          = nonCutHyps kI nKs sI
-    -- kI             = kIndex  sI
-    -- (es, cKs, nKs) = kutVars cfg sI
-
-
 cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
 cutSInfo kI cKs si = si { ws = ws', cm = cm' }
   where
@@ -84,63 +72,3 @@ getSubC :: SInfo a -> Integer -> SimpC a
 getSubC si i = safeLookup msg i (cm si)
   where
     msg = "getSubC: " ++ show i
-
---------------------------------------------------------------------------------
-{-
-eliminateAll :: SInfo a -> (Solution, SInfo a)
-eliminateAll !si = foldl' eliminate (mempty, si) nonCuts
-  where
-    nonCuts      = depNonCuts $ deps si
-
-eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
-eliminate (!s, !si) k = (solInsert k (mkJVar orPred) s, si')
-  where
-    si'    = si { cm = nokCs , ws = M.delete k $ ws si }
-    kCs    = M.filter (   elem k . kvars . crhs) (cm si) -- with    k in RHS (SLOW!)
-    nokCs  = M.filter (notElem k . kvars . crhs) (cm si) -- without k in RHS (SLOW!)
-    kW     = (ws si) M.! k
-    kDom   = domain (bs si) kW
-    orPred = POr $!! extractPred kDom (bs si)  <$> M.elems kCs
-
-extractPred :: [Symbol] -> BindEnv -> SimpC a -> Expr
-extractPred kDom be sc = renameQuantified (subcId sc) kSol
-  where
-    kSol               = PExist xts $ PAnd (lhsPreds ++ suPreds)
-    xts                = filter (nonFunction be . fst) yts
-    yts                = second sr_sort <$> env
-    env                = clhs be sc
-    lhsPreds           = bindPred <$> env
-    suPreds            = substPreds kDom $ crhs sc
-
--- x:{v:int|v=10} -> (x=10)
-bindPred :: (Symbol, SortedReft) -> Expr
-bindPred (x, sr) = p `subst1`(v, eVar x)
-  where
-    v            = reftBind r
-    r            = sr_reft sr
-    p            = reftPred r
-
--- k0[v:=e1][x:=e2] -> [v = e1, x = e2]
-substPreds :: [Symbol] -> Expr -> [Expr]
-substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar x) e | (x, e) <- M.toList subs , x `elem` dom]
-substPreds _ _ = errorstar "Eliminate.substPreds called on bad input"
-
--- SLOW!
-nonFunction :: BindEnv -> Symbol -> Bool
-nonFunction be sym = sym `notElem` funcs
-  where
-    funcs = [x | (_, x, sr) <- bindEnvToList be
-               , isFunctionSortedReft sr]
-
-renameQuantified :: Integer -> Expr -> Expr
-renameQuantified i (PExist bs p) = PExist bs' p'
-  where
-    su  = substFromQBinds i bs
-    bs' = first (subst su) <$> bs
-    p'  = subst su p
-renameQuantified _ _ = errorstar "Eliminate.renameQuantified called on bad input"
-
-substFromQBinds :: Integer -> [(Symbol, Sort)] -> Subst
-substFromQBinds i bs = Su $ M.fromList [(s, EVar $ existSymbol s i) | s <- fst <$> bs]
-
--}

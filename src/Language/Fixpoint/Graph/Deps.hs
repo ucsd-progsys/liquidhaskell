@@ -48,14 +48,14 @@ import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
--- import           Debug.Trace
+-- import           Debug.Trace (trace)
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
 --   and delete everything else from F.SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice :: (F.TaggedC c a) => F.GInfo c a -> F.GInfo c a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 slice fi = fi { F.cm = cm'
               , F.ws = ws' }
   where
@@ -87,7 +87,7 @@ mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
     es            = gEdges $ cGraph fi
     v2i           = fst3 . vf
     i2v i         = fromMaybe (errU i) $ cf i
-    errU i        = errorstar $ "graphSlice: nknown constraint " ++ show i
+    errU i        = errorstar $ "graphSlice: Unknown constraint " ++ show i
 
 mkSlice_ :: F.TaggedC c a
          => M.HashMap CId (c a)
@@ -189,7 +189,7 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
 -------------------------------------------------------------------------------
 decompose :: (F.TaggedC c a) => F.GInfo c a -> KVComps
 -------------------------------------------------------------------------------
-decompose si = map (fst3 . f) <$> vss
+decompose si = {- tracepp "decompose" $ -} map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges . kvgEdges . kvGraph $ si
     vss      = T.flatten <$> G.components g
@@ -197,10 +197,10 @@ decompose si = map (fst3 . f) <$> vss
 -------------------------------------------------------------------------------
 kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
 -------------------------------------------------------------------------------
-kvGraph = edgeGraph . kvEdges
+kvGraph = {- tracepp "kvGraph" . -}  edgeGraph . kvEdges
 
 edgeGraph :: [CEdge] -> KVGraph
-edgeGraph es = KVGraph [(v,v,vs) | (v, vs) <- groupList es ]
+edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
@@ -208,10 +208,9 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
     bs     = F.bs fi
     cs     = M.elems (F.cm fi)
     ks     = fiKVars fi
-    selfes =  [(Cstr i, Cstr i)   | c <- cs, let i = F.subcId c]
-           ++ [(KVar k, DKVar k)  | k <- ks]
+    selfes =  [(Cstr i , Cstr  i) | c <- cs, let i = F.subcId c]
+           ++ [(KVar k , DKVar k) | k <- ks]
            ++ [(DKVar k, DKVar k) | k <- ks]
-
 
 fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
@@ -222,7 +221,13 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
   where
     i          = F.subcId c
 
-
+-- --------------------------------------------------------------------------------
+-- successors :: (Eq a, Hashable a, Ord a) => [(a, a)] -> [(a, a, [a])]
+-- --------------------------------------------------------------------------------
+-- successors es = [(v, v, vs) | (v, vs) <- M.toList $ groupBase m0 es ]
+  -- where
+    -- m0        = M.fromList [ (v, []) | v <- vs]
+    -- vs        = concatMap (\z -> [fst z, snd z]) es
 
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
@@ -258,31 +263,6 @@ elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
    kV       = KVar k
    --g'       = trace (show k) $ (g `addLinks` es') `delNodes` (kV : cis)
 
-
-{-
--- ORIG BLCOSMAN: graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
--- ORIG BLCOSMAN: graphElim = S.foldl' graphElimSingle
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: graphElimSingle :: [CEdge] -> F.KVar -> [CEdge]
--- ORIG BLCOSMAN: graphElimSingle cs k = filter (elimCsK cIns k) (cs ++ newEdges)
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: cOuts    = [c | (KVar k1, Cstr c) <- cs, k1 == k]
-    -- ORIG BLCOSMAN: cIns     = [c | (Cstr c, KVar k1) <- cs, k1 == k]
-    -- ORIG BLCOSMAN: newEdges = concatMap (newEdgesSingle cs cOuts) cIns
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: newEdgesSingle :: [CEdge] -> [Integer] -> Integer -> [CEdge]
--- ORIG BLCOSMAN: newEdgesSingle cs cOuts cIn = [(KVar k, Cstr c) | k <- kIns, c <- cOuts]
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: kIns                    = [k | (KVar k, Cstr c) <- cs, c == cIn]
--- ORIG BLCOSMAN:
--- ORIG BLCOSMAN: elimCsK :: [Integer] -> F.KVar -> CEdge -> Bool
--- ORIG BLCOSMAN: elimCsK cIns k (v1, v2) = okV v1 && okV v2
-  -- ORIG BLCOSMAN: where
-    -- ORIG BLCOSMAN: okV (Cstr c)   = c `notElem` cIns
-    -- ORIG BLCOSMAN: okV (KVar k1)  = k1 /= k
-    -- ORIG BLCOSMAN: okV (DKVar k1) = k1 /= k
--}
-
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -307,36 +287,34 @@ elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
 elimVars cfg si = (es, ds)
   where
-    ds          = forceKuts ks . edgeDeps . removeKutEdges ks $ es
+    ds          = forceKuts ks . edgeDeps cfg . removeKutEdges ks . filter isRealEdge $ es
     ks          = cutVars cfg si
     es          = kvEdges si
 
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
-removeKutEdges ks = filter (not . isKut . snd) -- [ (u, v) | (u, v) <- es, isNotCut v ]
+removeKutEdges ks = filter (not . isKut . snd)
   where
     cutVs         = S.map KVar ks
     isKut         = (`S.member` cutVs)
 
 cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
 cutVars _ si = F.ksVars . F.kuts $ si
-  -- / | useCuts cfg = F.ksVars . F.kuts $ si
-  -- / | otherwise   = S.empty
 
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
 
-edgeDeps :: [CEdge] -> Elims F.KVar
-edgeDeps es     = Deps (takeK cs) (takeK ns)
+edgeDeps :: Config -> [CEdge] -> Elims F.KVar
+edgeDeps cfg es = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gElims cutF (kvgEdges $ edgeGraph es)
+    Deps cs ns  = gElims cfg kF cutF g
+    g           = kvgEdges    (edgeGraph es)
     cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
-
--- ORIG cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
--- ORIG cuts = S.map KVar . F.ksVars . F.kuts
+    kF (KVar _) = True
+    kF _        = False
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
@@ -352,7 +330,7 @@ edgeRank es = minimum . (n :) <$> kiM
 
 edgeRankCut :: EdgeRank -> Cutter CVertex
 edgeRankCut km vs = case ks of
-                      [] -> Nothing
+                      []  -> Nothing
                       k:_ -> Just (KVar k, [x | x@(u,_,_) <- vs, u /= KVar k])
   where
     ks            = orderBy [k | (KVar k, _ ,_) <- vs]
@@ -366,10 +344,17 @@ type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
 --------------------------------------------------------------------------------
 type Cutable a = (Eq a, Ord a, Hashable a, Show a)
 --------------------------------------------------------------------------------
-gElims :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
+gElims :: (Cutable a) => Config -> (a -> Bool) -> Cutter a -> [(a, a, [a])] -> Elims a
 --------------------------------------------------------------------------------
-gElims f g = sccsToDeps f (G.stronglyConnCompR g)
+gElims cfg kF cutF g = boundElims cfg kF g $ sccElims cutF g
 
+--------------------------------------------------------------------------------
+-- | `sccElims` returns an `Elims` that renders the dependency graph acyclic
+--    by picking _at least one_ kvar from each non-trivial SCC in the graph
+--------------------------------------------------------------------------------
+
+sccElims :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
+sccElims f = sccsToDeps f . G.stronglyConnCompR
 
 sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> Elims a
 sccsToDeps f xs = mconcat $ sccDep f <$> xs
@@ -378,8 +363,7 @@ sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> Elims a
 sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
 sccDep f (G.CyclicSCC vs)      = cycleDep f vs
 
-
-cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> Elims a
+cycleDep :: (Cutable a) => Cutter a -> [(a, a, [a])] -> Elims a
 cycleDep _ [] = mempty
 cycleDep f vs = addCut f (f vs)
 
@@ -389,6 +373,60 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
 
+
+--------------------------------------------------------------------------------
+-- | `boundElims` extends the input `Elims` by adding kuts that ensure that
+--   the *maximum distance* between an eliminated KVar and a cut KVar is
+--   *upper bounded* by a given threshold.
+--------------------------------------------------------------------------------
+boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -> Elims a
+--------------------------------------------------------------------------------
+boundElims cfg isK es ds = maybe ds (bElims isK es ds) (elimBound cfg)
+
+bElims :: (Cutable a) => (a -> Bool) -> [(a, a, [a])] -> Elims a -> Int -> Elims a
+bElims isK es ds dMax = forceKuts kS' ds
+  where
+    (_ , kS')             = L.foldl' step (M.empty, depCuts ds) vs
+    vs                    = topoSort ds es
+    predM                 = invertEdges es
+
+    -- dMax                  = elimBound cfg
+    -- kS0                  = depCuts ds
+    -- _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
+
+    addK v ks
+      | isK v             = S.insert v ks
+      | otherwise         = ks
+
+    step (dM, kS) v
+      | v `S.member` kS   = (M.insert v 0  dM,        kS)
+      | dk < dMax         = (M.insert v dk dM,        kS)
+      | otherwise         = (M.insert v 0  dM, addK v kS)
+      where
+        dk                = {- tracepp ("DIST " ++ show v) $ -} dist predM v dM
+
+dist :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a Int -> Int
+dist predM v dM = 1 + maximumDef 0 (du <$> us)
+  where
+    du u        = fromMaybe (oops u) $ M.lookup u dM
+    us          = M.lookupDefault [] v predM
+    oops u      = errorstar $ "dist: don't have dist for " ++ show u ++ " when checking " ++ show v
+
+topoSort :: (Cutable a) => Elims a -> [(a, a, [a])] -> [a]
+topoSort ds = G.flattenSCCs . reverse . G.stronglyConnComp . ripKuts ds
+
+ripKuts :: (Cutable a) => Elims a -> [(a, a, [a])] -> [(a, a, [a])]
+ripKuts ds es = [ (u, x, notKuts vs) | (u, x, vs) <- es ]
+  where
+    notKuts   = filter (not . (`S.member` ks))
+    ks        = depCuts ds
+
+invertEdges :: (Cutable a) => [(a, a, [a])] -> M.HashMap a [a]
+invertEdges es = group [ (v, u) | (u, _, vs) <- es, v <- vs ]
+
+maximumDef :: (Ord a) => a -> [a] -> a
+maximumDef d [] = d
+maximumDef _ xs = maximum xs
 
 
 ---------------------------------------------------------------------------

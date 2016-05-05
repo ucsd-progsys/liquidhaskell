@@ -55,6 +55,7 @@ data Config
     , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
+    , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
     , metadata    :: Bool                -- ^ print meta-data associated with constraints
@@ -64,7 +65,6 @@ data Config
     , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
-    , useCuts     :: Bool                -- ^ use cut variables with `--eliminate`
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -82,6 +82,7 @@ instance Default Config where
                , allowHO     = False
                , newcheck    = False
                , eliminate   = def
+               , elimBound   = Nothing
                , elimStats   = def
                , solverStats = False
                , metadata    = def
@@ -90,7 +91,6 @@ instance Default Config where
                , save        = def
                , minimize    = def
                , gradual     = False
-               , useCuts     = False
                }
 
 instance Command Config where
@@ -146,28 +146,29 @@ instance Show SMTSolver where
 
 config :: Config
 config = Config {
-    inFile      = def   &= typ "TARGET"       &= args    &= typFile
-  , outFile     = "out" &= help "Output file"
-  , srcFile     = def   &= help "Source File from which FQ is generated"
-  , solver      = def   &= help "Name of SMT Solver"
-  , genSorts    = def   &= help "Generalize qualifier sorts"
-  , ueqAllSorts = def   &= help "Use UEq on all sorts"
-  , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
-  , linear      = False &= help "Use uninterpreted integer multiplication and division"
-  , allowHO     = False &= help "Allow higher order binders into fixpoint environment"
-  , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
-  , elimStats   = False &= help "(alpha) Print eliminate stats"
-  , solverStats = False &= help "Print solver stats"
-  , save        = False &= help "Save Query as .fq and .bfq files"
-  , metadata    = False &= help "Print meta-data associated with constraints"
-  , stats       = False &= help "Compute constraint statistics"
-  , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores       = def   &= help "(numeric) Number of threads to use"
+    inFile      = def     &= typ "TARGET"       &= args    &= typFile
+  , outFile     = "out"   &= help "Output file"
+  , srcFile     = def     &= help "Source File from which FQ is generated"
+  , solver      = def     &= help "Name of SMT Solver"
+  , genSorts    = def     &= help "Generalize qualifier sorts"
+  , ueqAllSorts = def     &= help "Use UEq on all sorts"
+  , newcheck    = False   &= help "(alpha) New liquid-fixpoint sort checking "
+  , linear      = False   &= help "Use uninterpreted integer multiplication and division"
+  , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
+  , eliminate   = False   &= help "(alpha) Eliminate non-cut KVars"
+  , elimBound   = Nothing &= name "elimBound"
+                          &= help "(alpha) Maximum eliminate-chain depth"
+  , elimStats   = False   &= help "(alpha) Print eliminate stats"
+  , solverStats = False   &= help "Print solver stats"
+  , save        = False   &= help "Save Query as .fq and .bfq files"
+  , metadata    = False   &= help "Print meta-data associated with constraints"
+  , stats       = False   &= help "Compute constraint statistics"
+  , parts       = False   &= help "Partition constraints into indepdendent .fq files"
+  , cores       = def     &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   , minimize    = False &= help "Use delta debug to minimize fq file"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
-  , useCuts     = False &= help "Use cut variables during --eliminate"
   }
   &= verbosity
   &= program "fixpoint"

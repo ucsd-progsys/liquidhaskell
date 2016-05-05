@@ -11,6 +11,7 @@ module Language.Fixpoint.Graph.Types (
   -- * Graphs
     CVertex (..)
   , CEdge
+  , isRealEdge
   , KVGraph (..)
 
   -- * Components
@@ -79,6 +80,9 @@ type CEdge      = (CVertex, CVertex)
 type Comps a    = [[a]]
 type KVComps    = Comps CVertex
 
+instance PPrint KVGraph where
+  pprintTidy _ = pprint . kvgEdges
+
 --------------------------------------------------------------------------------
 writeGraph :: FilePath -> KVGraph -> IO ()
 --------------------------------------------------------------------------------
@@ -90,15 +94,15 @@ ppGraph (KVGraph g) = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 ppEdges :: [CEdge] -> Doc
 ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]
                            . map ppE
-                           . filter (not . isJunkEdge)
+                           . filter isRealEdge
   where
     ppE (v, v')     = pprint v <+> "->" <+> pprint v'
 
-isJunkEdge :: CEdge -> Bool
-isJunkEdge (DKVar _, _)     = True
-isJunkEdge (_, DKVar _)     = True
-isJunkEdge (Cstr _, Cstr _) = True
-isJunkEdge _                = False
+isRealEdge :: CEdge -> Bool
+isRealEdge (DKVar _, _)     = False
+isRealEdge (_, DKVar _)     = False
+isRealEdge (Cstr _, Cstr _) = False
+isRealEdge _                = True
 
 
 

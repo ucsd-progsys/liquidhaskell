@@ -330,7 +330,7 @@ solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <-
 --------------------------------------------------------------------------------
 data KInfo = KI { kiTags  :: [Tag]
                 , kiDepth :: !Int
-                , kiCubes :: !Int
+                , kiCubes :: !Integer
                 } deriving (Eq, Ord, Show)
 
 instance Monoid KInfo where
