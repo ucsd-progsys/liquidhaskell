@@ -31,8 +31,13 @@ import           Coercion
 import           DataCon
 import           Pair
 import           CoreSyn
+<<<<<<< HEAD
 import           SrcLoc                                 hiding (Located)
 import           Type
+=======
+import           SrcLoc                                        hiding (Located)
+import           Type                                          hiding (isFunTy)
+>>>>>>> ackermann
 import           TyCon
 import           PrelNames
 import           TypeRep
@@ -361,7 +366,7 @@ initCGI cfg info = CGInfo {
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
-  , pruneRefs  = not $ noPrune cfg
+  , pruneRefs  = pruneunsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
@@ -460,15 +465,17 @@ refreshArgsSub t
        xs'    <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus
-       ts'    <- mapM refreshPs $zipWith F.subst sus ts
+       ts'    <- mapM refreshPs $ zipWith F.subst sus ts
+       let rs' = zipWith F.subst sus rs
        tr     <- refreshPs $ F.subst su tbd
-       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr}
+       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr, ty_refts = rs'}
        return (t', su)
     where
        trep    = toRTypeRep t
        xs      = ty_binds trep
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
+       rs      = ty_refts trep 
 
 refreshPs :: SpecType -> CG SpecType
 refreshPs = mapPropM go
@@ -838,21 +845,6 @@ consBind isRec γ (x, e, Asserted spect)
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
 
-consBind isRec γ (x, e, Internal spect)
-  = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv spect
-       γπ    <- foldM addPToEnv γ' πs
-       let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
-       cconsE γπ' e spect
-       when (F.symbol x `elemHEnv` holes γ) $
-         -- have to add the wf constraint here for HOLEs so we have the proper env
-         addW $ WfC γπ $ fmap killSubst spect
-       addIdA x (defAnn isRec spect)
-       return $ Internal spect -- Nothing
-  where
-    explanation = "Cannot give singleton type to the function definition."
-
-
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
@@ -896,23 +888,31 @@ addPToEnv γ π
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
+<<<<<<< HEAD
 extender γ (x, Asserted t)
   = case lookupREnv (F.symbol x) (assms γ) of
       Just t' -> γ ++= ("extender", F.symbol x, t')
       _       -> γ ++= ("extender", F.symbol x, t)
 extender γ (x, Assumed t)
+=======
+extender γ (x, Asserted t) 
+  = case (lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of 
+      (_, Just t') -> γ ++= ("extender", F.symbol x, t')
+      (Just t', _) -> γ ++= ("extender", F.symbol x, t')
+      _            -> γ ++= ("extender", F.symbol x, t)
+extender γ (x, Assumed t)  
+>>>>>>> ackermann
   = γ ++= ("extender", F.symbol x, t)
 extender γ _
   = return γ
 
-data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
+data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
 
 unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
-unTemplate (Internal t) = t
 unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate :: CGEnv
@@ -920,7 +920,6 @@ addPostTemplate :: CGEnv
                 -> CG (Template SpecType)
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
-addPostTemplate γ (Internal t) = Internal  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown
 
 safeFromAsserted :: [Char] -> Template t -> t
@@ -933,7 +932,7 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
-      (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
+      (_, _, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
       (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
                               addW (WfC γ t)
@@ -984,11 +983,16 @@ cconsE' γ (Lam α e) (RAllT _ t) | isKindVar α
 cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
 
-cconsE' γ (Lam x e) (RFun y ty t _)
+cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
-  = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
-       cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
+  = do γ' <- (γ, "cconsE") += (x', ty)
+       cconsE γ' e t'
+       addFunctionConstraint γ x e (RFun x' ty t' r') 
        addIdA x (AnnDef ty)
+  where
+    x'  = F.symbol x 
+    t'  = t `F.subst1` (y, F.EVar x')
+    r'  = r `F.subst1` (y, F.EVar x')
 
 cconsE' γ (Tick tt e) t
   = cconsE (γ `setLocation` (Sp.Tick tt)) e t
@@ -1007,6 +1011,20 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
+
+addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
+addFunctionConstraint γ x e (RFun y ty t r) 
+  = do ty'      <- true ty 
+       t'       <- true t
+       let truet = RFun y ty' t'  
+       case argExpr γ e of 
+          Just e' -> do tce    <- tyConEmbed <$> get 
+                        let sx  = typeSort tce $ varType x  
+                        let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+                        addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
+          Nothing ->    addC (SubC γ (truet mempty) $ truet r) "function constraint true"
+addFunctionConstraint γ _ _ _ 
+  = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
                  => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
@@ -1153,7 +1171,8 @@ consE γ e'@(App e a)
        updateLocA {- πs -}  (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
-       addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       tt <-  addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       makeSingleton γ e' tt . allowHO <$> get 
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1192,6 +1211,7 @@ consE _ e@(Coercion _)
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
+
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
@@ -1481,6 +1501,8 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+argExpr γ (Var v)     | M.member v $ aenv γ
+                      = F.EVar <$> (M.lookup v $ aenv γ)
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
@@ -1516,6 +1538,38 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+-- | create singleton types for function application
+makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
+makeSingleton γ e t allowHO
+  | allowHO, App f x <- untick e, not (isFunTy t)
+  = case (funExpr γ f, argExpr γ x) of 
+      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
+      _ -> t  
+  | otherwise
+  = t 
+
+funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr γ (Var v) | M.member v (aenv γ)
+  = F.EVar <$> (M.lookup v $ aenv γ)
+funExpr _ _ 
+  = Nothing 
+
+
+{- 
+funExpr γ (Var v) | M.member v (aenv γ)
+  = F.EVar <$> (M.lookup v $ aenv γ)
+funExpr γ (App e1 e2)
+  = case (funExpr γ e1, argExpr γ e2) of 
+      (Just e1', Just e2') -> Just (F.EApp e1' e2')
+      _                    -> Nothing
+funExpr _ _ 
+  = Nothing 
+-}
+untick :: CoreExpr -> CoreExpr
+untick (Tick _ e)  = e 
+untick (App e1 e2) = App (untick e1) (untick e2)
+untick e           = e  
+
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
@@ -1531,7 +1585,7 @@ strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
   -- where
     -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 
