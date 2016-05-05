@@ -384,7 +384,7 @@ boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -
 boundElims cfg isK es ds = forceKuts kS' ds
   where
     (_ , kS')            = L.foldl' step (M.empty, depCuts ds) vs
-    dMax                 = elimDepth cfg
+    dMax                 = elimBound cfg
     vs                   = topoSort ds es
     predM                = invertEdges es
 

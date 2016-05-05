@@ -55,7 +55,7 @@ data Config
     , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
-    , elimDepth   :: Int                 -- ^ maximum length of KVar chain to eliminate
+    , elimBound   :: Int                 -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
     , metadata    :: Bool                -- ^ print meta-data associated with constraints
@@ -82,7 +82,7 @@ instance Default Config where
                , allowHO     = False
                , newcheck    = False
                , eliminate   = def
-               , elimDepth   = 100
+               , elimBound   = 100
                , elimStats   = def
                , solverStats = False
                , metadata    = def
@@ -156,7 +156,7 @@ config = Config {
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
   , eliminate   = False   &= help "(alpha) Eliminate non-cut KVars"
-  , elimDepth   = 100     &= help "(alpha) Maximum eliminate-chain depth"
+  , elimBound   = 100     &= help "(alpha) Maximum eliminate-chain depth"
   , elimStats   = False   &= help "(alpha) Print eliminate stats"
   , solverStats = False   &= help "Print solver stats"
   , save        = False   &= help "Save Query as .fq and .bfq files"
