@@ -40,8 +40,8 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- TODO: categorize these!
   , ofType, toType
-  , rTyVar, rVar, rApp, rEx
-  , symbolRTyVar
+  , bTyVar, rTyVar, rVar, rApp, rEx
+  , symbolRTyVar, bareRTyVar
   , addTyConInfo
   , appRTyCon
   , typeSort, typeUniqueSymbol
@@ -263,7 +263,7 @@ instance FreeVar RTyCon RTyVar where
   freeVars = (RTV <$>) . tyConTyVarsDef . rtc_tc
 
 -- MOVE TO TYPES
-instance FreeVar LocSymbol Symbol where
+instance FreeVar BTyCon BTyVar where
   freeVars _ = []
 
 -- Eq Instances ------------------------------------------------------
@@ -347,8 +347,14 @@ rVar        = (`RVar` mempty) . RTV
 rTyVar :: TyVar -> RTyVar
 rTyVar      = RTV
 
+bTyVar :: Symbol -> BTyVar
+bTyVar      = BTV
+
 symbolRTyVar :: Symbol -> RTyVar
 symbolRTyVar = rTyVar . stringTyVar . symbolString
+
+bareRTyVar :: BTyVar -> RTyVar
+bareRTyVar (BTV tv) = symbolRTyVar tv
 
 normalizePds :: (OkRT c tv r) => RType c tv r -> RType c tv r
 normalizePds t = addPds ps t'
@@ -868,9 +874,9 @@ instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
 instance (SubsTy tv ty a, SubsTy tv ty b) => SubsTy tv ty (a, b) where
   subt su (x, y) = (subt su x, subt su y)
 
-instance SubsTy Symbol (RType (Located Symbol) Symbol ()) Sort where
+instance SubsTy BTyVar (RType BTyCon BTyVar ()) Sort where
   subt (v, RVar α _) (FObj s)
-    | symbol v == s = FObj α
+    | symbol v == s = FObj $ symbol α
     | otherwise     = FObj s
   subt _ s          = s
 
@@ -923,10 +929,10 @@ instance (SubsTy tv ty r) => SubsTy tv ty (UReft r) where
   subt su r = r {ur_reft = subt su $ ur_reft r}
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype
-instance SubsTy Symbol BSort LocSymbol where
+instance SubsTy BTyVar BSort BTyCon where
   subt _ t = t
 
-instance SubsTy Symbol BSort BSort where
+instance SubsTy BTyVar BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
