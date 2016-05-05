@@ -15,7 +15,7 @@ import           Language.Fixpoint.Misc            (safeLookup, group, errorstar
 --------------------------------------------------------------------------------
 solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
-solverInfo cfg sI = SI sHyp sI' cD
+solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps sI es nKs
     sI'            = cutSInfo   kI cKs sI

@@ -28,6 +28,9 @@ import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
 import           Data.List  (sort)
 import           Data.Maybe (catMaybes)
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
+
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -40,17 +43,18 @@ solve cfg fi = do
     -- print (numIter stat)
     return res
   where
+    act  = solve_ cfg fi s0 ks  wkl
     sI   = solverInfo cfg fi
     wkl  = W.init sI
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ cfg fi (siSol sI) wkl
+    s0   = siSol  sI
+    ks   = siVars sI
 
 --------------------------------------------------------------------------------
 -- | Progress Bar
 --------------------------------------------------------------------------------
 withProgressFI :: SolverInfo a -> IO b -> IO b
 withProgressFI = withProgress . fromIntegral . cNumScc . siDeps
-
 --------------------------------------------------------------------------------
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
@@ -63,17 +67,21 @@ solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
   | eliminate cfg = E.solverInfo cfg fI
-  | otherwise     = SI mempty fI cD
+  | otherwise     = SI mempty fI cD (siKvars fI)
   where
     cD            = elimDeps fI (kvEdges fI) mempty
 
+siKvars :: F.SInfo a -> S.HashSet F.KVar
+siKvars = S.fromList . M.keys . F.ws
+
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => Config -> F.SInfo a -> F.Solution -> W.Worklist a
+       => Config -> F.SInfo a -> F.Solution -> S.HashSet F.KVar -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 wkl = do
-  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
+solve_ cfg fi s0 ks wkl = do
+  -- lift $ dumpSolution "solve_.s0" s0
+  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi ks
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
@@ -148,10 +156,9 @@ result _ wkl s = do
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  return   $ F.Result (ci <$> stat) (F.solResult s)
+  return   $  F.Result (ci <$> stat) (F.solResult s)
   where
     ci c = (F.subcId c, F.sinfo c)
-
 
 result_ :: W.Worklist a -> F.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
@@ -164,12 +171,14 @@ result_  w s = res <$> filterM (isUnsat s) cs
 isUnsat :: F.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
+  -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   be    <- getBinds
   let lp = S.lhsPred be s c
   let rp = rhsPred        c
   res   <- not <$> isValid lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
+
 
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do

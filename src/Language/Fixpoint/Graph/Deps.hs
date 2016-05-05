@@ -272,6 +272,12 @@ data Elims a
          }
     deriving (Show)
 
+instance PPrint (Elims a) where
+  pprintTidy _ d = "#Cuts ="    <+> ppSize (depCuts d) <+>
+                   "#NonCuts =" <+> ppSize (depNonCuts d)
+    where
+      ppSize     = pprint . S.size
+
 instance (Eq a, Hashable a) => Monoid (Elims a) where
   mempty                            = Deps S.empty S.empty
   mappend (Deps d1 n1) (Deps d2 n2) = Deps (S.union d1 d2) (S.union n1 n2)
@@ -285,7 +291,7 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
-elimVars cfg si = (es, ds)
+elimVars cfg si = (es, tracepp "ElimVars" ds)
   where
     ds          = forceKuts ks . edgeDeps cfg . removeKutEdges ks . filter isRealEdge $ es
     ks          = cutVars cfg si
@@ -389,11 +395,6 @@ bElims isK es ds dMax = forceKuts kS' ds
     (_ , kS')             = L.foldl' step (M.empty, depCuts ds) vs
     vs                    = topoSort ds es
     predM                 = invertEdges es
-
-    -- dMax                  = elimBound cfg
-    -- kS0                  = depCuts ds
-    -- _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
-
     addK v ks
       | isK v             = S.insert v ks
       | otherwise         = ks

@@ -59,6 +59,8 @@ import           Language.Fixpoint.Types.Refinements -- Constraints
 -- import           Language.Fixpoint.Misc (safeLookup)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as S
+
 import GHC.Stack
 --------------------------------------------------------------------------------
 
@@ -161,7 +163,8 @@ instance PPrint Rank where
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
 data SolverInfo a = SI
-  { siSol   :: !F.Solution
-  , siQuery :: !(F.SInfo a)
-  , siDeps  :: !CDeps
+  { siSol   :: !F.Solution         -- ^ the initial solution
+  , siQuery :: !(F.SInfo a)        -- ^ the whole input query
+  , siDeps  :: !CDeps              -- ^ dependencies between constraints/ranks etc.
+  , siVars  :: !(S.HashSet F.KVar) -- ^ set of KVars to actually solve for
   }
