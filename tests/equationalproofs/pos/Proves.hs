@@ -18,24 +18,20 @@ infixl 3 ?
 -- can Proof be unit?
 type Proof = Bool
 
+{-@ measure proof :: Proof -> Bool @-}
+
 -- | Proof combinators (are boolean combinators)
-{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop v <=> Prop p && Prop q } @-}
+{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop (proof v) <=> Prop (proof p) && Prop (proof q) } @-}
 (&&&) :: Proof -> Proof -> Proof
 p &&& q = p && q
 
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
 
-{-# INLINE (?) #-}
-
-
 -- | proof goes from Int to resolve types for the optional proof combinators
 -- proof :: Bool -> Int -> Bool
 proof :: Int -> Bool
 proof _ = True
-
-{-# INLINE proof #-}
-
 
 -- | Comparison operators requiring proof terms
 
@@ -44,7 +40,7 @@ proof _ = True
 (<=:) x _ _ = x
 
 (<:) :: Int -> Int -> Proof -> Int
-{-@ (<:) :: x:Int -> y:Int -> {v:Proof | x < y } -> {v:Int | v == x } @-}
+{-@ (<:) :: x:Int -> y:Int -> {v:Proof | x < y } -> {v:Int | v == x && v < y } @-}
 (<:) x _ _ = x
 
 (>:) :: Int -> Int -> Proof -> Int

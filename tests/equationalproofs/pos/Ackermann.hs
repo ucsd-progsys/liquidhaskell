@@ -5,7 +5,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--maxparams=5"     @-}
+{- LIQUID "--maxparams=5"     @-}
 {-@ LIQUID "--eliminate"       @-}
 
 
@@ -102,8 +102,6 @@ lemma3_eq n x y
   = lemma3_gen n x y
 
 
-
-
 -- | Lemma 2.4
 {-@ type Pos = {v:Int | 0 < v } @-}
 
@@ -128,7 +126,7 @@ lemma4_eq n x
   = proof $
       ack n x ==! ack (n+1) x
   | otherwise
-  = lemma4 n x
+  = lemma4 x n
 
 
 -- | Lemma 2.5
@@ -154,13 +152,13 @@ lemma6 h n x
                   <! x + 1
                   <! iack h n (x+1)
   | h > 0
-  = proof $
+  = proof (
       iack h n x ==! ack n (iack (h-1) n x) ? (  lemma6 (h-1) n x
                                              &&& lemma3_gen n (iack (h-1) n x) (iack (h-1) n (x+1))
                                               )
 
                   <! ack n (iack (h-1) n (x+1))
-                  <! iack h n (x+1)
+                  <! iack h n (x+1) )
 
 
 lemma6_gen :: Int -> Int -> Int -> Int -> Proof
@@ -178,16 +176,12 @@ lemma7 :: Int -> Int -> Int -> Bool
 lemma7 h n x
   | x == 0 , h == 0
   = proof $
-     iack 0 n 0 ==! ack n 0
-                ==! (2 :: Int)
-                ==! ack (n+1) 0
-                ==! iack 0 (n+2) 0
+     iack 0 n 0 ==! iack 0 (n+2) 0
 
   | h == 0
   = proof $
-      iack 0 n x ==! ack n x
-                  <! ack (n+1) x ? lemma4 x n
-                  <! iack 0 (n+1) x
+      iack 0 n x ==! x
+                 ==! iack 0 (n+1) x
 
   | h > 0
   = proof $

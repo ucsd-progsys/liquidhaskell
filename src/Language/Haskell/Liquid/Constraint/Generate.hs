@@ -293,6 +293,7 @@ measEnv sp xts cbs lts asms itys hs
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
+        , fargs = S.empty
         , invs  = mempty 
         , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
@@ -967,7 +968,7 @@ cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
-       cconsE γ' e t'
+       cconsE (addArgument γ' x) e t'
        addFunctionConstraint γ x e (RFun x' ty t' r') 
        addIdA x (AnnDef ty)
   where
@@ -1493,32 +1494,51 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
-  | allowHO, App f x <- untick e, not (isFunTy t)
+  | allowHO, App f x <- untick e -- , not (isFunTy t)
   = case (funExpr γ f, argExpr γ x) of 
-      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
-      _ -> t  
+      (Just f', Just x') -> traceShow ("makeSingleton1 : " ++ showPpr e) (t `strengthenS` (uTop $ F.exprReft (F.EApp f' x')))
+      _ -> traceShow ("makeSingleton2 : " ++ showPpr e) t  
   | otherwise
-  = t 
-
-funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
-funExpr γ (Var v) | M.member v (aenv γ)
-  = F.EVar <$> (M.lookup v $ aenv γ)
-funExpr _ _ 
-  = Nothing 
-
+  = traceShow ("makeSingleton3 : " ++ showPpr e) t 
 
 {- 
 funExpr γ (Var v) | M.member v (aenv γ)
   = F.EVar <$> (M.lookup v $ aenv γ)
-funExpr γ (App e1 e2)
-  = case (funExpr γ e1, argExpr γ e2) of 
-      (Just e1', Just e2') -> Just (F.EApp e1' e2')
-      _                    -> Nothing
 funExpr _ _ 
   = Nothing 
 -}
+
+funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr γ e@(Var v) | M.member v (aenv γ)
+  = traceShow ("isAxiom " ++ showPpr e) $ F.EVar <$> (M.lookup v $ aenv γ)
+funExpr γ e@(App e1 e2)
+  = case (funExpr γ e1, argExpr γ e2) of 
+      (Just e1', Just e2') -> traceShow ("funExpr fun " ++ showPpr e) $ Just (F.EApp e1' e2')
+      _                    -> traceShow ("funExpr: Nothing " ++ showPpr e) $  Nothing
+funExpr γ (Var v) | S.member v (fargs γ)
+  = traceShow "isLocal " $ Just $ F.EVar (F.symbol v)
+funExpr _ e@(Var _)
+  = traceShow ("Nothing Var " ++ showPpr e) $  Nothing 
+funExpr _ e@(Tick _ _)
+  = traceShow ("Nothing Tick " ++ showPpr e) $  Nothing 
+funExpr _ e@(Lit _)
+  = traceShow ("Nothing Lit " ++ showPpr e) $  Nothing 
+funExpr _ e@(Lam _ _)
+  = traceShow ("Nothing Lam " ++ showPpr e) $  Nothing 
+funExpr _ e@(Let _ _)
+  = traceShow ("Nothing Let " ++ showPpr e) $  Nothing 
+funExpr _ e@(Case _ _ _ _)
+  = traceShow ("Nothing Case " ++ showPpr e) $  Nothing 
+funExpr _ e@(Cast _ _)
+  = traceShow ("Nothing Cast " ++ showPpr e) $  Nothing 
+funExpr _ e@(Type _)
+  = traceShow ("Nothing Type " ++ showPpr e) $  Nothing 
+funExpr _ e@(Coercion _)
+  = traceShow ("Nothing Coercion " ++ showPpr e) $  Nothing 
+
+
 untick :: CoreExpr -> CoreExpr
-untick (Tick _ e)  = e 
+untick (Tick _ e)  = untick e 
 untick (App e1 e2) = App (untick e1) (untick e2)
 untick e           = e  
 
