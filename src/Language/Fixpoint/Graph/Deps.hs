@@ -299,8 +299,6 @@ removeKutEdges ks = filter (not . isKut . snd)
 
 cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
 cutVars _ si = F.ksVars . F.kuts $ si
-  -- / | useCuts cfg = F.ksVars . F.kuts $ si
-  -- / | otherwise   = S.empty
 
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
@@ -383,15 +381,15 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
 --------------------------------------------------------------------------------
 boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -> Elims a
 --------------------------------------------------------------------------------
-boundElims _cfg isK es ds = forceKuts kS' ds
+boundElims cfg isK es ds = forceKuts kS' ds
   where
-    (_ , kS')           = L.foldl' step (M.empty, kS0) ({- trace _msg -} vs)
-    -- dM0                 = M.empty
-    kS0                 = depCuts ds
-    _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
-    vs                  = topoSort ds es
-    delta               = 12 -- FIXME
-    predM               = invertEdges es
+    (_ , kS')            = L.foldl' step (M.empty, depCuts ds) vs
+    dMax                 = elimDepth cfg
+    vs                   = topoSort ds es
+    predM                = invertEdges es
+
+    -- kS0                  = depCuts ds
+    -- _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
 
     addK v ks
       | isK v           = S.insert v ks
@@ -399,10 +397,10 @@ boundElims _cfg isK es ds = forceKuts kS' ds
 
     step (dM, kS) v
       | v `S.member` kS = (M.insert v 0  dM,        kS)
-      | dk < delta      = (M.insert v dk dM,        kS)
+      | dk < dMax       = (M.insert v dk dM,        kS)
       | otherwise       = (M.insert v 0  dM, addK v kS)
       where
-        dk              = tracepp ("DIST " ++ show v) $ dist predM v dM
+        dk              = {- tracepp ("DIST " ++ show v) $ -} dist predM v dM
 
 dist :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a Int -> Int
 dist predM v dM = 1 + maximumDef 0 (du <$> us)
