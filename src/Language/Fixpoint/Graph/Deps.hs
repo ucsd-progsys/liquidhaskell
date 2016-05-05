@@ -381,26 +381,29 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
 --------------------------------------------------------------------------------
 boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -> Elims a
 --------------------------------------------------------------------------------
-boundElims cfg isK es ds = forceKuts kS' ds
-  where
-    (_ , kS')            = L.foldl' step (M.empty, depCuts ds) vs
-    dMax                 = elimBound cfg
-    vs                   = topoSort ds es
-    predM                = invertEdges es
+boundElims cfg isK es ds = maybe ds (bElims isK es ds) (elimBound cfg)
 
+bElims :: (Cutable a) => (a -> Bool) -> [(a, a, [a])] -> Elims a -> Int -> Elims a
+bElims isK es ds dMax = forceKuts kS' ds
+  where
+    (_ , kS')             = L.foldl' step (M.empty, depCuts ds) vs
+    vs                    = topoSort ds es
+    predM                 = invertEdges es
+
+    -- dMax                  = elimBound cfg
     -- kS0                  = depCuts ds
     -- _msg                 = "\nVS = " ++ show vs ++ "\nkS = " ++ show kS0
 
     addK v ks
-      | isK v           = S.insert v ks
-      | otherwise       = ks
+      | isK v             = S.insert v ks
+      | otherwise         = ks
 
     step (dM, kS) v
-      | v `S.member` kS = (M.insert v 0  dM,        kS)
-      | dk < dMax       = (M.insert v dk dM,        kS)
-      | otherwise       = (M.insert v 0  dM, addK v kS)
+      | v `S.member` kS   = (M.insert v 0  dM,        kS)
+      | dk < dMax         = (M.insert v dk dM,        kS)
+      | otherwise         = (M.insert v 0  dM, addK v kS)
       where
-        dk              = {- tracepp ("DIST " ++ show v) $ -} dist predM v dM
+        dk                = {- tracepp ("DIST " ++ show v) $ -} dist predM v dM
 
 dist :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a Int -> Int
 dist predM v dM = 1 + maximumDef 0 (du <$> us)
