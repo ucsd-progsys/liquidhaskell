@@ -362,9 +362,9 @@ lineDiff' new old = (changedLines, lm)
     diffLineCount = fmap length <$> getGroupedDiff new old
 
 -- | Identifies lines that have changed
-diffLines :: Int -- ^ Starting line
-             -> [Diff Int] -- ^ List of lengths of diffs
-             -> [Int] -- ^ List of changed line numbers
+diffLines :: Int        -- ^ Starting line
+          -> [Diff Int] -- ^ List of lengths of diffs
+          -> [Int]      -- ^ List of changed line numbers
 diffLines _ []                        = []
 diffLines curr (Both lnsUnchgd _ : d) = diffLines toSkip d
    where toSkip = curr + lnsUnchgd
