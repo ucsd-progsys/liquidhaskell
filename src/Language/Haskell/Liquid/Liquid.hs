@@ -192,12 +192,13 @@ solveCs cfg tgt cgi info names
                        , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
                        , FC.eliminate   = eliminate   cfg
-                       , FC.save        = saveQuery cfg
+                       , FC.save        = saveQuery   cfg
                        , FC.srcFile     = tgt
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
                        , FC.elimStats   = elimStats   cfg
+                       , FC.elimBound   = elimBound   cfg
                        }
 
 
