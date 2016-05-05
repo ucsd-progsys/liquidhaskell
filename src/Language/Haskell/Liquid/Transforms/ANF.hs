@@ -37,6 +37,8 @@ import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (anfPrefix)
+
+import           Language.Haskell.Liquid.UX.Config  (Config, nocaseexpand, patternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -50,9 +52,9 @@ import           Data.List                        (sortBy, (\\))
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
 --------------------------------------------------------------------------------
-anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
+anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
-anormalize expandFlag hscEnv modGuts
+anormalize cfg hscEnv modGuts
   = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
                      putStrLn $ showPpr orig_cbs
        (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
@@ -60,9 +62,16 @@ anormalize expandFlag hscEnv modGuts
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
-      act      = concatMapM (normalizeTopBind expandFlag emptyAnfEnv) orig_cbs
+      act      = concatMapM (normalizeTopBind γ0) orig_cbs
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
+      γ0       = emptyAnfEnv cfg
+
+expandFlag :: AnfEnv -> Bool
+expandFlag = not . nocaseexpand . aeCfg
+
+patternFlag :: AnfEnv -> Bool
+patternFlag = patternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
@@ -78,13 +87,13 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
-normalizeTopBind :: Bool -> AnfEnv -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
-normalizeTopBind expandFlag γ (NonRec x e)
-  = do e' <- runDsM $ evalStateT (stitch γ e) (DsST expandFlag  [])
+normalizeTopBind :: AnfEnv -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
+normalizeTopBind γ (NonRec x e)
+  = do e' <- runDsM $ evalStateT (stitch γ e) (DsST [])
        return [normalizeTyVars $ NonRec x e']
 
-normalizeTopBind expandFlag γ (Rec xes)
-  = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) (DsST expandFlag [])
+normalizeTopBind γ (Rec xes)
+  = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) (DsST [])
        return $ map normalizeTyVars (st_binds xes')
 
 normalizeTyVars :: Bind Id -> Bind Id
@@ -118,9 +127,7 @@ normalizeForAllTys e = case e of
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
    deriving (Functor, Monad, MonadUnique, Applicative)
 
-data DsST = DsST { st_expandflag :: Bool
-                 , st_binds      :: [CoreBind]
-                 }
+data DsST = DsST { st_binds :: [CoreBind] }
 
 type DsMW = StateT DsST DsM
 
@@ -178,7 +185,7 @@ shouldNormalize l = case l of
   _ -> False
 
 add :: [CoreBind] -> DsMW ()
-add w = modify $ \s -> s{st_binds = st_binds s++w}
+add w = modify $ \s -> s { st_binds = st_binds s ++ w}
 
 --------------------------------------------------------------------------------
 normalizeLiteral :: AnfEnv -> CoreExpr -> DsMW CoreExpr
@@ -192,7 +199,8 @@ normalizeLiteral γ e =
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 normalize γ e
-  | Just p <- Rs.resugar e
+  | patternFlag γ
+  , Just p <- Rs.lift e
   = normalizePattern γ p
 
 normalize γ (Lam x e)
@@ -210,8 +218,7 @@ normalize γ (Case e x t as)
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
-       flag  <- st_expandflag <$> get
-       as''  <- lift $ expandDefaultCase γ flag τx as'
+       as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
     where τx = varType x
 
@@ -245,7 +252,7 @@ stitch :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 stitch γ e
   = do bs'   <- get
-       modify $ \s -> s {st_binds = []}
+       modify $ \s -> s { st_binds = [] }
        e'    <- normalize γ e
        bs    <- st_binds <$> get
        put bs'
@@ -254,20 +261,26 @@ stitch γ e
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
 --------------------------------------------------------------------------------
-normalizePattern _γ _ = panic Nothing "TODO:PATTERN"
+normalizePattern γ p@(Rs.PatBind {}) = do
+  -- don't normalize the >>= itself, we have a special typing rule for it
+  e1'   <- normalize γ (Rs.patE1 p)
+  e2'   <- stitch    γ (Rs.patE2 p)
+  return $ Rs.lower p { Rs.patE1 = e1', Rs.patE2 = e2' }
+
+normalizePattern γ p@(Rs.PatReturn {}) = do
+  e'    <- normalize γ (Rs.patE p)
+  return $ Rs.lower p { Rs.patE = e' }
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
-                  -> Bool
                   -> Type
                   -> [(AltCon, [Id], CoreExpr)]
                   -> DsM [(AltCon, [Id], CoreExpr)]
 --------------------------------------------------------------------------------
-
-expandDefaultCase γ flag tyapp zs@((DEFAULT, _ ,_) : _) | flag
+expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandFlag γ
   = expandDefaultCase' γ tyapp zs
 
-expandDefaultCase γ _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
+expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
                      if (length ds') == 1
@@ -275,7 +288,7 @@ expandDefaultCase γ _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
                       else return z
        Nothing -> return z --
 
-expandDefaultCase _ _ _ z
+expandDefaultCase _ _ z
    = return z
 
 expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
@@ -311,13 +324,13 @@ freshNormalVar γ t = mkUserLocalM anfOcc t sp
     anfOcc         = mkVarOccFS $ symbolFastString anfPrefix
     sp             = Sp.srcSpan (aeSrcSpan γ)
 
-
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
   , aeSrcSpan :: Sp.SpanStack
+  , aeCfg     :: Config
   }
 
-emptyAnfEnv :: AnfEnv
+emptyAnfEnv :: Config -> AnfEnv
 emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id

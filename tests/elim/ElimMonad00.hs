@@ -13,3 +13,8 @@ prop apple = do
 {-@ incr :: dog:Int -> IO {v:Int | v == dog + 1} @-}
 incr :: Int -> IO Int
 incr cat = return (cat + 1)
+
+
+{-@ zonk :: (Monad m) => Nat -> m Nat @-}
+zonk :: (Monad m) => Int -> m Int
+zonk mouse = return (mouse + 1)

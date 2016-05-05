@@ -522,9 +522,9 @@ isBool :: RType RTyCon t t1 -> Bool
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _                                 = False
 
-isRVar :: RType c tv r -> Bool 
-isRVar (RVar _ _) = True 
-isRVar _          = False 
+isRVar :: RType c tv r -> Bool
+isRVar (RVar _ _) = True
+isRVar _          = False
 
 isClassRTyCon :: RTyCon -> Bool
 isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)

@@ -20,6 +20,9 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Update Configuration With Pragma
    , withPragmas
 
+   -- * Canonicalize Paths in Config
+   , canonicalizePaths
+
    -- * Exit Function
    , exitWithResult
 
@@ -49,7 +52,7 @@ import Data.List                           (nub)
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 -- import Language.Fixpoint.Utils.Files
@@ -230,6 +233,11 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , elimBound
+    = Nothing
+            &= name "elimBound"
+            &= help "Maximum chain length for eliminating KVars"
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -400,6 +408,7 @@ defConfig = Config { files             = def
                    , scrapeInternals   = False
                    , scrapeUsedImports = False
                    , elimStats         = False
+                   , elimBound         = Nothing
                    , json              = False
                    , counterExamples   = False
                    , timeBinds         = False
@@ -411,10 +420,10 @@ defConfig = Config { files             = def
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
-exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
+exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out = do
-  annm <- {-# SCC "annotate" #-} annotate cfg target out
+exitWithResult cfg targets out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
   let r = o_result out `addErrors` o_errors out
   consoleResult cfg out r annm

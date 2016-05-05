@@ -75,10 +75,9 @@ import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
-
------------------------------------------------------------------------
---------------- Datatype For Holding GHC ModGuts ----------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Datatype For Holding GHC ModGuts ------------------------------------------
+--------------------------------------------------------------------------------
 
 data MGIModGuts = MI {
     mgi_binds     :: !CoreProgram
@@ -165,13 +164,6 @@ validTyVar _       = False
 tvId :: TyVar -> String
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
-tracePpr :: Outputable a => String -> a -> a
-tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
-
-pprShow :: Show a => a -> Out.SDoc
-pprShow = text . show
-
-
 tidyCBs :: [CoreBind] -> [CoreBind]
 tidyCBs = map unTick
 
@@ -192,39 +184,17 @@ unTickExpr x                  = x
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
---------------------------------------------------------------------------------
--- | Generic Helpers for DataConstructors --------------------------------------
---------------------------------------------------------------------------------
-
-isDataConId :: Id -> Bool
-isDataConId id = case idDetails id of
-                  DataConWorkId _ -> True
-                  DataConWrapId _ -> True
-                  _               -> False
-
-getDataConVarUnique :: Var -> Unique
-getDataConVarUnique v
-  | isId v && isDataConId v = getUnique $ idDataCon v
-  | otherwise               = getUnique v
-
-
-newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
-
-instance Hashable Loc where
-  hashWithSalt i (L z) = hashWithSalt i z
-
---instance (Uniquable a) => Hashable a where
-
-instance Hashable SrcSpan where
-  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
-  hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
-
-instance Outputable a => Outputable (S.HashSet a) where
-  ppr = ppr . S.toList
-
-
 
 --------------------------------------------------------------------------------
+-- | Pretty Printers -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+tracePpr :: Outputable a => String -> a -> a
+tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
+
+pprShow :: Show a => a -> Out.SDoc
+pprShow = text . show
+
 
 toFixSDoc :: Fixpoint a => a -> PJ.Doc
 toFixSDoc = PJ.text . PJ.render . toFix
@@ -247,13 +217,27 @@ showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle O
 showSDocDump :: Out.SDoc -> String
 showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
+instance Outputable a => Outputable (S.HashSet a) where
+  ppr = ppr . S.toList
+
 typeUniqueString :: Outputable a => a -> String
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
+
 --------------------------------------------------------------------------------
--- | Manipulating SrcSpan ------------------------------------------------------
+-- | Manipulating Source Spans -------------------------------------------------
 --------------------------------------------------------------------------------
 
+newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
+
+instance Hashable Loc where
+  hashWithSalt i (L z) = hashWithSalt i z
+
+--instance (Uniquable a) => Hashable a where
+
+instance Hashable SrcSpan where
+  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
+  hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
@@ -289,8 +273,6 @@ srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 srcSpanSourcePosE :: SrcSpan -> SourcePos
 srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "<no source information>"
 srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
-
-
 
 srcSpanFilename :: SrcSpan -> String
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
@@ -356,8 +338,19 @@ ignoreLetBinds e
   = e
 
 --------------------------------------------------------------------------------
--- | Predicates on CoreExpr ----------------------------------------------------
+-- | Predicates on CoreExpr and DataCons ---------------------------------------
 --------------------------------------------------------------------------------
+
+isDataConId :: Id -> Bool
+isDataConId x = case idDetails x of
+                  DataConWorkId _ -> True
+                  DataConWrapId _ -> True
+                  _               -> False
+
+getDataConVarUnique :: Var -> Unique
+getDataConVarUnique v
+  | isId v && isDataConId v = getUnique $ idDataCon v
+  | otherwise               = getUnique v
 
 isDictionaryExpression :: Core.Expr Id -> Maybe Id
 isDictionaryExpression (Tick _ e) = isDictionaryExpression e
@@ -417,6 +410,10 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
+--------------------------------------------------------------------------------
+-- | Symbol Conversions --------------------------------------------------------
+--------------------------------------------------------------------------------
+
 symbolTyConWithKind :: Kind -> Char -> Int -> Symbol -> TyCon
 symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
 
@@ -460,7 +457,7 @@ tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show 
 tyConTyVarsDef c = TC.tyConTyVars c
 
 --------------------------------------------------------------------------------
--- Myriad Instances
+-- | Symbol Instances
 --------------------------------------------------------------------------------
 
 instance Symbolic TyCon where
@@ -518,40 +515,6 @@ instance NFData Var where
   rnf t = seq t ()
 
 
-----------------------------------------------------------------------
--- GHC Compatibility Layer
-----------------------------------------------------------------------
-
-gHC_VERSION :: String
-gHC_VERSION = show __GLASGOW_HASKELL__
-
-symbolFastString :: Symbol -> FastString
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
-
-desugarModule :: TypecheckedModule -> Ghc DesugaredModule
-desugarModule tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm
-  -- let ms = modSummary tcm
-  let (tcg, _) = tm_internals_ tcm
-  hsc_env <- getSession
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
-
--- desugarModule = GHC.desugarModule
-
-type Prec = TyPrec
-
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
-
-synTyConRhs_maybe :: TyCon -> Maybe Type
-synTyConRhs_maybe = TC.synTyConRhs_maybe
-
-tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
-tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
-
-
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -568,7 +531,6 @@ takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
 dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
   where
     headName msg = symbol . safeHead msg
-
 
 sepModNames :: T.Text
 sepModNames = "."
@@ -611,6 +573,37 @@ stripParens t = fromMaybe t (strip t)
 stripParensSym :: Symbol -> Symbol
 stripParensSym (symbolText -> t) = symbol $ stripParens t
 
+
+
 --------------------------------------------------------------------------------
--- | Source Info = Stack of most recent binders/spans
+-- | GHC Compatibility Layer ---------------------------------------------------
 --------------------------------------------------------------------------------
+
+gHC_VERSION :: String
+gHC_VERSION = show __GLASGOW_HASKELL__
+
+symbolFastString :: Symbol -> FastString
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
+
+desugarModule :: TypecheckedModule -> Ghc DesugaredModule
+desugarModule tcm = do
+  let ms = pm_mod_summary $ tm_parsed_module tcm
+  -- let ms = modSummary tcm
+  let (tcg, _) = tm_internals_ tcm
+  hsc_env <- getSession
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
+
+-- desugarModule = GHC.desugarModule
+
+type Prec = TyPrec
+
+lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
+lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
+
+synTyConRhs_maybe :: TyCon -> Maybe Type
+synTyConRhs_maybe = TC.synTyConRhs_maybe
+
+tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
+tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName

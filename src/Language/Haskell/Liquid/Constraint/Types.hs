@@ -112,6 +112,7 @@ data CGEnv
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
         , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
         , fargs :: !(S.HashSet Var)
+        , cgCfg :: !Config                                -- ^ top-level config options
         } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
@@ -245,8 +246,8 @@ elemHEnv x (HEnv s) = x `S.member` s
 data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
                                            -- for all type arguments
                  , _rinv_type :: SpecType
-                 , _rinv_name :: Maybe Var 
-                 } deriving Show 
+                 , _rinv_name :: Maybe Var
+                 } deriving Show
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
@@ -261,10 +262,10 @@ mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip
   where
     strip = mapSnd (fourth4 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
-          | otherwise                = toRSort <$> ts 
+          | otherwise                = toRSort <$> ts
 
     generic ts = let ts' = L.nub ts in
-                 all isRVar ts' && length ts' == length ts 
+                 all isRVar ts' && length ts' == length ts
 
 mkRTyConIAl :: [(a, F.Located SpecType)] -> RTyConInv
 mkRTyConIAl    = mkRTyConInv . fmap ((Nothing,) . snd)
@@ -276,16 +277,16 @@ addRTyConInv m t
       Just ts -> L.foldl' conjoinInvariantShift t ts
 
 lookupRInv :: SpecType -> RTyConInv -> Maybe [SpecType]
-lookupRInv (RApp c ts _ _) m 
+lookupRInv (RApp c ts _ _) m
   = case M.lookup c m of
       Nothing   -> Nothing
       Just invs -> Just (catMaybes $ goodInvs ts <$> invs)
 lookupRInv _ _
-  = Nothing 
+  = Nothing
 
 goodInvs :: [SpecType] -> RInv -> Maybe SpecType
-goodInvs _ (RInv []  t _) 
-  = Just t 
+goodInvs _ (RInv []  t _)
+  = Just t
 goodInvs ts (RInv ts' t _)
   | and (zipWith unifiable ts' (toRSort <$> ts))
   = Just t
@@ -293,7 +294,7 @@ goodInvs ts (RInv ts' t _)
   = Nothing
 
 
-unifiable :: RSort -> RSort -> Bool 
+unifiable :: RSort -> RSort -> Bool
 unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
@@ -328,14 +329,14 @@ conjoinInvariant t _
 
 
 removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
-removeInvariant γ cbs 
+removeInvariant γ cbs
   = (γ{ invs  = M.map (filter f) (invs γ)
-      , rinvs = M.map (filter (\x -> not $ f x)) (invs γ)}, invs γ)
+      , rinvs = M.map (filter (not . f)) (invs γ)}, invs γ)
   where
-    f i | Just v  <- _rinv_name i, v `elem` binds cbs 
-        = False 
+    f i | Just v  <- _rinv_name i, v `elem` binds cbs
+        = False
         | otherwise
-        = True          
+        = True
 
     binds (NonRec x _) = [x]
     binds (Rec xes)    = fst $ unzip xes
@@ -345,19 +346,19 @@ restoreInvariant γ is = γ {invs = is}
 
 
 
-makeRecInvariants :: CGEnv -> [Var] -> CGEnv 
+makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . ((varType x) `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)
-      | Just f <- sizeFunction $ rtc_info c 
+      | Just f <- sizeFunction $ rtc_info c
       = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty mempty)
-      | otherwise 
-      = RApp c ts rs mempty 
+      | otherwise
+      = RApp c ts rs mempty
     guard t
-      = t   
+      = t
 
     ref f (F.Reft(v, rr)) = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
 
@@ -387,7 +388,7 @@ initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 --------------------------------------------------------------------------------
 
 instance NFData RInv where
-  rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z  
+  rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
   rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _)
