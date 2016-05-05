@@ -80,13 +80,14 @@ update1 s (k, qs) = (change, solInsert k qs s)
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
-init :: F.SInfo a -> Solution
+init :: F.SInfo a -> S.HashSet F.KVar -> Solution
 --------------------------------------------------------------------
-init si  = F.solFromList keqs [] -- (fromList keqs) M.empty
+init si ks = F.solFromList keqs []
   where
-    keqs = map (refine si qs) ws `using` parList rdeepseq
-    qs   = F.quals si
-    ws   = M.elems $ F.ws si
+    keqs   = map (refine si qs) ws `using` parList rdeepseq
+    qs     = F.quals si
+    ws     = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
+--    ws     = M.elems $ F.ws si
 
 --------------------------------------------------------------------
 refine :: F.SInfo a
