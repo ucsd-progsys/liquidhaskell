@@ -1538,9 +1538,9 @@ makeSingleton γ e t allowHO
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
-funExpr γ e@(Var v) | M.member v (aenv γ)
+funExpr γ (Var v) | M.member v (aenv γ)
   =  F.EVar <$> (M.lookup v $ aenv γ)
-funExpr γ e@(App e1 e2)
+funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of 
       (Just e1', Just e2') -> Just (F.EApp e1' e2')
       _                    -> Nothing

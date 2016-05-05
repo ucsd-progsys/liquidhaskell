@@ -18,10 +18,8 @@ infixl 3 ?
 -- can Proof be unit?
 type Proof = Bool
 
-{-@ measure proof :: Proof -> Bool @-}
-
 -- | Proof combinators (are boolean combinators)
-{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop (proof v) <=> Prop (proof p) && Prop (proof q) } @-}
+{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop v <=> Prop p && Prop q } @-}
 (&&&) :: Proof -> Proof -> Proof
 p &&& q = p && q
 

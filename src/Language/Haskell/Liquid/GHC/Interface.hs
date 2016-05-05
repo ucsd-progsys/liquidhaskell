@@ -182,25 +182,7 @@ compileCFiles cfg = do
 -- Home Module Dependency Graph ------------------------------------------------
 --------------------------------------------------------------------------------
 
-<<<<<<< HEAD
-makeMGIModGuts :: FilePath -> Ghc MGIModGuts
-makeMGIModGuts f = do
-  modGraph <- getModuleGraph
-  case find (\m -> not (isBootSummary m) && f == msHsFilePath m) modGraph of
-    Just modSummary -> do
-      parsed   <- parseModule modSummary
-      modGuts  <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline parsed))
-      let deriv = Just $ instEnvElts $ mg_inst_env modGuts
-      return $! miModGuts deriv modGuts
-    Nothing ->
-      panic Nothing "Ghc Interface: Unable to get GhcModGuts"
 
-makeLogicMap :: IO (Either Error LogicMap)
-makeLogicMap = do
-  lg    <- getCoreToLogicPath
-  lspec <- readFile lg
-  return $ parseSymbolToLogic lg lspec
-=======
 type DepGraph = Graph DepGraphNode
 type DepGraphNode = Node Module ()
 
@@ -239,7 +221,6 @@ importDeclModule fromMod decl = do
       liftIO $ throwGhcExceptionIO $ ProgramError $
         O.showPpr dflags (moduleName fromMod) ++ ": " ++
         O.showSDoc dflags (cannotFindModule dflags modName result)
->>>>>>> origin/devackerman
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
