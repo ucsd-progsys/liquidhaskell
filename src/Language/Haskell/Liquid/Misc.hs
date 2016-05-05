@@ -3,7 +3,7 @@
 module Language.Haskell.Liquid.Misc where
 
 import Prelude hiding (error)
-import Control.Monad (liftM2)
+import Control.Monad.State
 
 import Control.Arrow (first)
 import System.FilePath
@@ -13,6 +13,7 @@ import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
 import           Data.Maybe
+import           Data.Tuple
 import           Data.Hashable
 import           Data.Time
 import           Data.Function (on)
@@ -231,3 +232,8 @@ intToString 1 = "1st"
 intToString 2 = "2nd"
 intToString 3 = "3rd"
 intToString n = show n ++ "th"
+
+mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
+mapAccumM f acc0 xs =
+  swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
+

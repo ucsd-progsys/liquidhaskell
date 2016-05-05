@@ -149,7 +149,7 @@ fourth4 (_,_,_,d) = d
 getSpec :: [String] -> FilePath -> IO GhcSpec
 getSpec opts target
   = do cfg  <- getOpts ["--quiet"]
-       spec.fst <$> getGhcInfo Nothing (cfg {ghcOptions = opts}) target
+       spec.head.fst <$> getGhcInfo Nothing (cfg {ghcOptions = opts}) [target]
        -- case info of
        --   Left err -> error $ show err
        --   Right i  -> return $ spec i

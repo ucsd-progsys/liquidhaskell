@@ -134,7 +134,7 @@ makeContext l c c' s = vcat [ text ""
                             ]
   where
     lnum n           = text (show n) <+> text "|"
-    cursor           = blanks (c - 1) <> pointer (c' - c)
+    cursor           = blanks (c - 1) <> pointer (max 1 (c' - c))
     blanks n         = text $ replicate n ' '
     pointer n        = text $ replicate n '^'
 
@@ -328,6 +328,9 @@ data TError t =
                 , nam :: !Doc
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
+
+  | ErrFilePragma { pos :: !SrcSpan
+                  }
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -722,6 +725,10 @@ ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"
         $+$ dCtx
         $+$ {- nest 4 -} s
+
+ppError' _ dSp dCtx (ErrFilePragma _)
+  = dSp <+> text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
+        $+$ dCtx
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."

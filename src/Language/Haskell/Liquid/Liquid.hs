@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.Liquid (
   ) where
 
 import           Prelude hiding (error)
+import           Data.Bifunctor
 import           Data.Maybe
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
@@ -60,39 +61,35 @@ liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 ------------------------------------------------------------------------------
 runLiquid mE cfg = do
-  (d, mE') <- checkMany cfg mempty mE (files cfg)
-  return      (ec d, mE')
-  where
-    ec     = resultExit . o_result
-
-------------------------------------------------------------------------------
-checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
-------------------------------------------------------------------------------
-checkMany cfg d mE (f:fs) = do
-  (d', mE') <- checkOne mE cfg f
-  checkMany cfg (d `mappend` d') mE' fs
-
-checkMany _   d mE [] =
-  return (d, mE)
-
-------------------------------------------------------------------------------
-checkOne :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
-------------------------------------------------------------------------------
-checkOne mE cfg t = do
-  z <- actOrDie (checkOne' mE cfg t)
+  z <- actOrDie $ second Just <$> getGhcInfo mE cfg (files cfg)
   case z of
     Left e -> do
-      d <- exitWithResult cfg t $ mempty { o_result = e }
-      return (d, Nothing)
-    Right r ->
-      return r
+      exitWithResult cfg (files cfg) $ mempty { o_result = e }
+      return (resultExit e, mE)
+    Right (gs, mE') -> do
+      d <- checkMany cfg mempty gs
+      return (ec d, mE')
+  where
+    ec = resultExit . o_result
 
+------------------------------------------------------------------------------
+checkMany :: Config -> Output Doc -> [GhcInfo] -> IO (Output Doc)
+------------------------------------------------------------------------------
+checkMany cfg d (g:gs) = do
+  d' <- checkOne cfg g
+  checkMany cfg (d `mappend` d') gs
 
-checkOne' :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
-checkOne' mE cfg t = do
-  (gInfo, hEnv) <- getGhcInfo mE cfg t
-  d <- liquidOne t gInfo
-  return (d, Just hEnv)
+checkMany _   d [] =
+  return d
+
+------------------------------------------------------------------------------
+checkOne :: Config -> GhcInfo -> IO (Output Doc)
+------------------------------------------------------------------------------
+checkOne cfg g = do
+  z <- actOrDie $ liquidOne g
+  case z of
+    Left  e -> exitWithResult cfg [target g] $ mempty { o_result = e }
+    Right r -> return r
 
 
 actOrDie :: IO a -> IO (Either ErrorResult a)
@@ -107,11 +104,12 @@ handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
 
 ------------------------------------------------------------------------------
-liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
+liquidOne :: GhcInfo -> IO (Output Doc)
 ------------------------------------------------------------------------------
-liquidOne tgt info = do
+liquidOne info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
+  let tgt   = target info
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
@@ -122,8 +120,8 @@ liquidOne tgt info = do
                  putStrLn $ showPpr cbs'
   edcs <- newPrune      cfg cbs' tgt info
   out' <- liquidQueries cfg      tgt info edcs
-  DC.saveResult      tgt out'
-  exitWithResult cfg tgt out'
+  DC.saveResult       tgt  out'
+  exitWithResult cfg [tgt] out'
 
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
