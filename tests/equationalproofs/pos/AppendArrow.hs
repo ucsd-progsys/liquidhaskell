@@ -10,9 +10,11 @@
 -- | totallity: all the cases should be covered
 -- | termination: we cannot have diverging things into proofs
 
-{-@ LIQUID "--autoproofs"      @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--autoproofs"       @-}
+{-@ LIQUID "--totality"         @-}
+{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--scrape-internals" @-}
+
 module Append where
 
 import Axiomatize
@@ -36,11 +38,11 @@ $(axiomatize
 
 {-
 axiom_append_N :: xs: L a -> {v:Proof  |  append N xs == xs }
-axiom_append_N xs = Proof  
+axiom_append_N xs = Proof
 
-axiom_append_C :: xs: L a -> y:a > ys: L a 
+axiom_append_C :: xs: L a -> y:a > ys: L a
                 -> {v:Proof  |  append (C y ys) xs == C y (append ys xs) }
-axiom_append_C xs y ys  = Proof 
+axiom_append_C xs y ys  = Proof
 -}
 
 
@@ -58,7 +60,7 @@ axiom_append_C xs y ys  = Proof
 prop_app_nil :: (Eq a) => L a -> Proof
 prop_app_nil N        = axiom_append_N N
 prop_app_nil (C x xs)
-    = 
+    =
                                       -- (C x xs) ++ N
            (axiom_append_C N x xs)
                                       -- == C x (xs ++ N)
@@ -76,7 +78,7 @@ prop_app_nil (C x xs)
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
 
 prop_assoc N ys zs  = auto 2 (append (append N ys) zs == append N (append ys zs))
--- =    refl (append (append N ys) zs) 
+-- =    refl (append (append N ys) zs)
 --           axiom_append_N ys             -- == append ys zs
 --      `by` axiom_append_N (append ys zs) -- == append N (append ys zs)
 

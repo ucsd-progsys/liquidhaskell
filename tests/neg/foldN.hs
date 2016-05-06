@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 module Ex () where
 
 -- Testing "existential-types"
