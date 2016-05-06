@@ -1,4 +1,6 @@
 {-@ LIQUID "--notermination" @-}
+{-@ LIQUID "--pruneunsorted" @-}
+
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 

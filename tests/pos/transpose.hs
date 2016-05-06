@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--no-termination" @-}
 
 module Tx (transpose, transpose', transpose'') where
