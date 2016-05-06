@@ -293,9 +293,12 @@ elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
 elimVars cfg si = (es, tracepp "ElimVars" ds)
   where
-    ds          = forceKuts ks . edgeDeps cfg . removeKutEdges ks . filter isRealEdge $ es
-    ks          = cutVars cfg si
+    ds          = edgeDeps cfg si es
     es          = kvEdges si
+
+-- forceKuts ks . edgeDeps cfg si . removeKutEdges ks . filter isRealEdge $ es
+
+
 
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
 removeKutEdges ks = filter (not . isKut . snd)
@@ -309,18 +312,28 @@ cutVars _ si = F.ksVars . F.kuts $ si
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
-
-edgeDeps :: Config -> [CEdge] -> Elims F.KVar
-edgeDeps cfg es = Deps (takeK cs) (takeK ns)
+edgeDeps :: (F.TaggedC c a) => Config -> F.GInfo c a -> [CEdge] -> Elims F.KVar
+edgeDeps cfg si  = forceKuts ks
+                 . edgeDeps' cfg
+                 . removeKutEdges ks
+                 . filter isRealEdge
   where
-    Deps cs ns  = gElims cfg kF cutF g
-    g           = kvgEdges    (edgeGraph es)
-    cutF        = edgeRankCut (edgeRank es)
-    takeK       = sMapMaybe tx
-    tx (KVar z) = Just z
-    tx _        = Nothing
-    kF (KVar _) = True
-    kF _        = False
+    ks           = givenKs `S.union` nlKs
+    givenKs      = tracepp "Given  KVs" $ cutVars cfg    si
+    nlKs         = tracepp "NonLin KVs" $ nonLinearKVars si
+
+
+edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
+edgeDeps' cfg es = Deps (takeK cs) (takeK ns)
+  where
+    Deps cs ns   = gElims cfg kF cutF g
+    g            = kvgEdges    (edgeGraph es)
+    cutF         = edgeRankCut (edgeRank es)
+    takeK        = sMapMaybe tx
+    tx (KVar z)  = Just z
+    tx _         = Nothing
+    kF (KVar _)  = True
+    kF _         = False
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
@@ -487,9 +500,6 @@ inRanks fi es outR
     cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
-
-
-
 --------------------------------------------------------------------------------
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
@@ -526,14 +536,16 @@ graphStats cfg si = Stats {
   , stSetKVNonLin = nlks
   }
   where
-    nlks          = nlKVars si
+    nlks          = nonLinearKVars si
     d             = snd $ elimVars cfg si
 
-nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
-nlKVars fi = S.unions $ nlKVarsC bs <$> cs
+--------------------------------------------------------------------------------
+nonLinearKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
+--------------------------------------------------------------------------------
+nonLinearKVars fi = S.unions $ nlKVarsC bs <$> cs
   where
-    bs     = F.bs fi
-    cs     = M.elems (F.cm fi)
+    bs            = F.bs fi
+    cs            = M.elems (F.cm fi)
 
 nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
 nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
