@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 module Elems where
 
 import Prelude hiding (elem)

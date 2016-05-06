@@ -27,13 +27,19 @@ import           Paths_liquidhaskell
 timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
 timedAction label io = do
   t0 <- getCurrentTime
-  a <- io
+  whenJust label $ \x ->
+    printf "START: action %s" (show x)
+  a  <- io
   t1 <- getCurrentTime
   let time = realToFrac (t1 `diffUTCTime` t0) :: Double
-  case label of
-    Just x  -> printf "Time (%.2fs) for action %s \n" time (show x)
-    Nothing -> return ()
+  whenJust label $ \x -> 
+    printf "Time (%.2fs) for action %s  \n" time (show x)
   return a
+
+whenJust :: Maybe a -> (a -> IO ()) -> IO ()
+whenJust (Just x) act = act x
+whenJust Nothing  _   = return ()
+
 
 (!?) :: [a] -> Int -> Maybe a
 []     !? _ = Nothing
@@ -236,4 +242,3 @@ intToString n = show n ++ "th"
 mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
 mapAccumM f acc0 xs =
   swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
-
