@@ -1,6 +1,7 @@
 module TwiceM where
 
 {-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--eliminate"   @-}
 
 import RIO
 
@@ -19,7 +20,7 @@ get = undefined
 
 {-@ incr2 :: RIO <{\x -> counter x >= 0}, {\w1 x w2 -> counter w2 = counter w1 + 2  && x == counter w1 }> Nat @-}
 incr2 :: RIO Int
-incr2 = do w <- get 
+incr2 = do -- w <- get 
            x <- incr 
            y <- incr 
            return $ lassert (y > x) x
