@@ -26,6 +26,9 @@ f ? y = f y
 proof :: Int -> Bool 
 proof _ = True 
 
+toProof :: a -> Proof 
+toProof _ = True 
+
 -- | Comparison operators requiring proof terms
 
 (<=:) :: Ord a => a -> a -> Proof -> a 
@@ -57,7 +60,7 @@ instance (a~b) => OptEq a (Proof -> b) where
 
 instance (a~b) => OptEq a b where
 {-@ instance OptEq a b where
-  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y}
+  ==! :: x:a -> y:{a| x ~~ y} -> {v:b | v ~~ x && v ~~ y}
   @-}
   (==!) x _ = x
 

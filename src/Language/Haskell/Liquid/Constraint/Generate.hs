@@ -1516,6 +1516,35 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+-- | create singleton types for function application
+makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
+makeSingleton γ e t allowHO
+  | allowHO, App f x <- untick e -- , not (isFunTy t)
+  = case (funExpr γ f, argExpr γ x) of 
+      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
+      _ -> t  
+  | otherwise
+  = t 
+
+
+funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr γ (Var v) | M.member v (aenv γ)
+  =  F.EVar <$> (M.lookup v $ aenv γ)
+funExpr γ (App e1 e2)
+  = case (funExpr γ e1, argExpr γ e2) of 
+      (Just e1', Just e2') -> Just (F.EApp e1' e2')
+      _                    -> Nothing
+funExpr γ (Var v) | S.member v (fargs γ)
+  = Just $ F.EVar (F.symbol v)
+funExpr _ _
+  = Nothing 
+
+untick :: CoreExpr -> CoreExpr
+untick (Tick _ e)  = untick e 
+untick (App e (Type _)) = untick e 
+untick (App e1 e2) = App (untick e1) (untick e2)
+untick e           = e
+
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
