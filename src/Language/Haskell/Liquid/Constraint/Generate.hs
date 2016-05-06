@@ -1519,7 +1519,7 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
-  | allowHO, App f x <- untick e -- , not (isFunTy t)
+  | allowHO, App f x <- simplify e -- , not (isFunTy t)
   = case (funExpr γ f, argExpr γ x) of 
       (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
       _ -> t  
@@ -1539,11 +1539,11 @@ funExpr γ (Var v) | S.member v (fargs γ)
 funExpr _ _
   = Nothing 
 
-untick :: CoreExpr -> CoreExpr
-untick (Tick _ e)  = untick e 
-untick (App e (Type _)) = untick e 
-untick (App e1 e2) = App (untick e1) (untick e2)
-untick e           = e
+simplify :: CoreExpr -> CoreExpr
+simplify (Tick _ e)       = simplify e 
+simplify (App e (Type _)) = simplify e 
+simplify (App e1 e2)      = App (simplify e1) (simplify e2)
+simplify e                = e
 
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
