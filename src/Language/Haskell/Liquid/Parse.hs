@@ -787,7 +787,7 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <?> "Invalib variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
+tyBindsP = xyP (sepBy1 (locParserP binderP) comma) dcolon termBareTypeP
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
