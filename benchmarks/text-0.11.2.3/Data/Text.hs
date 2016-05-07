@@ -1,6 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
-
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE ScopedTypeVariables #-}

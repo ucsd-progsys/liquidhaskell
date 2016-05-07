@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 module Foo () where
 import Data.Set (Set(..)) 
 import Prelude hiding (concat)

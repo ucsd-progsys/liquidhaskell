@@ -207,7 +207,7 @@ makeAxioms tce cbs spec sp
        (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
        lmap'         <- logicEnv <$> get
        return $ spec { meas     = ms         ++  meas   spec
-                     , inSigs   = concat tys
+                     , asmSigs  = concat tys ++ asmSigs spec
                      , axioms   = concat as  ++ axioms spec
                      , logicMap = lmap' }
 
@@ -312,6 +312,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , tySigs     = tx  <$> msgs
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
+                     , inSigs     = []
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]

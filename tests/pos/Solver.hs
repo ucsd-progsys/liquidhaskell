@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 module MultiParams where
 
 {-@ LIQUID "--no-termination" @-}

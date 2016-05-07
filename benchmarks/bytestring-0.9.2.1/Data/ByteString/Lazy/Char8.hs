@@ -1,6 +1,4 @@
 {-@ LIQUID "--notermination" @-}
-{-@ LIQUID "--pruneunsorted" @-}
-
 
 {-# OPTIONS_GHC -cpp -fno-warn-orphans #-}
 

@@ -44,8 +44,6 @@ module Language.Haskell.Liquid.Constraint.Types
   , mkRTyConIAl
 
   , removeInvariant, restoreInvariant, makeRecInvariants
-
-  , addArgument
   ) where
 
 import Prelude hiding (error)
@@ -111,7 +109,6 @@ data CGEnv
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
         , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-        , fargs :: !(S.HashSet Var)
         , cgCfg :: !Config                                -- ^ top-level config options
         } -- deriving (Data, Typeable)
 
@@ -252,9 +249,6 @@ data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invarian
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
 
-
-addArgument :: CGEnv -> Var -> CGEnv
-addArgument γ v = γ {fargs = S.insert v (fargs γ) }
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
@@ -391,7 +385,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

@@ -1,4 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
 
 -- | A somewhat fancier example demonstrating the use of Abstract Predicates and exist-types
 

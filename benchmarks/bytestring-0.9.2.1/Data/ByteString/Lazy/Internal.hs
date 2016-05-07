@@ -1,4 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--maxparams=3" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
