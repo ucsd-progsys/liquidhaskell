@@ -53,8 +53,8 @@ class OptEq a r where
   (==!) :: a -> a -> r 
 
 instance (a~b) => OptEq a (Proof -> b) where
-{-@ instance OptEq a (Bool -> a) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x }
+{-@ instance OptEq a (Proof -> b) where
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==!) x _ _ = x 
 

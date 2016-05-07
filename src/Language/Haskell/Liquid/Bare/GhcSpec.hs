@@ -38,7 +38,7 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3, traceShow)
+import           Language.Fixpoint.Misc                     (thd3)
 
 import           Language.Fixpoint.Types                    hiding (Error)
 
@@ -101,7 +101,7 @@ listLMap = toLogicMap [(nilName, [], hNil),
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs     = traceShow "\nFinal Sigs\n" tySigs'
+  = sp { tySigs     = tySigs'
        , texprs     = ts
        , asmSigs    = asmSigs'
        , dicts      = dicts'
@@ -109,7 +109,7 @@ postProcess cbs specEnv sp@(SP {..})
        , meas       = meas'
        , inSigs     = inSigs' }
   where
-    (sigs, ts')     = traceShow ("replaceLocalBinds " ++ show tySigs) $  replaceLocalBinds allowHO tcEmbeds tyconEnv tySigs texprs specEnv cbs
+    (sigs, ts')     = replaceLocalBinds allowHO tcEmbeds tyconEnv tySigs texprs specEnv cbs
     (assms, ts'')   = replaceLocalBinds allowHO tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
     (insigs, ts)    = replaceLocalBinds allowHO tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
     tySigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
@@ -298,7 +298,7 @@ makeGhcSpec4 quals defVars specs name su sp
        lvars'  <- mkThing makeLVar
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
-       let msgs = traceShow ("strengthened" ++ show (tySigs sp)) $ strengthenHaskellMeasures hmeas (tySigs sp) 
+       let msgs = strengthenHaskellMeasures hmeas (tySigs sp) 
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let tx   = mapSnd (fmap $ txRefToLogic lmap inlmap)
@@ -309,7 +309,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
-                     , tySigs     = traceShow "\nHERE\n" (tx  <$> msgs)
+                     , tySigs     = tx  <$> msgs
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
                      , inSigs     = []
@@ -349,7 +349,7 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
        let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
        let minvs = makeMeasureInvariants sigs hms
-       return     (invs ++ minvs, ialias, traceShow "\nSIGS\n" sigs, asms)
+       return     (invs ++ minvs, ialias, sigs, asms)
 
 
 symbol' :: Var -> Symbol
