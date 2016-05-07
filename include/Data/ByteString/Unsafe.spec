@@ -4,7 +4,7 @@ unsafeHead
     :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
 
 unsafeTail
-    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
+    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.ByteString.ByteString
 
 unsafeInit
     :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
