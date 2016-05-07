@@ -1682,12 +1682,12 @@ instance Monoid (Output a) where
 --------------------------------------------------------------------------------
 
 data KVKind
-  = RecBindE    Var
-  | NonRecBindE Var
+  = RecBindE    Var -- ^ Recursive binder      @letrec x = ...@
+  | NonRecBindE Var -- ^ Non recursive binder  @let x = ...@
   | TypeInstE
   | PredInstE
   | LamE
-  | CaseE
+  | CaseE       Int -- ^ Int is the number of cases
   | LetE
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 

@@ -91,7 +91,8 @@ import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
 import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
 import           Language.Haskell.Liquid.Types.Meet
 import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                           , hasBaseTypeVar, showPpr, isDataConId)
+                                                           , hasBaseTypeVar, showPpr, isDataConId
+                                                           )
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
@@ -409,16 +410,14 @@ freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
-                     when (isKut k) $ addKuts k t -- ks
-                     -- modify $ \s -> s { kuts   = mappend   ks   (kuts s)   }
+                     when (isKut k) $ addKuts k t
   where
      ks         = F.KS $ S.fromList $ specTypeKVars t
 
 isKut              :: KVKind -> Bool
 isKut (RecBindE _) = True
+isKut (CaseE n)    = n > 2 -- True
 isKut _            = False
-
-{- -}
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
@@ -974,9 +973,10 @@ cconsE' γ (Let b e) t
 
 cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
-       forM_ cases $ cconsCase γ' x t nonDefAlts
+       forM_ cases $ cconsCase γ' x t $ {- trace _msg -} nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
+       _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 cconsE' γ (Lam α e) (RAllT _ t) | isKindVar α
   = cconsE γ e t
@@ -1137,7 +1137,7 @@ consE γ e'@(App e a) | isDictionary a
     mdict w                      = case w of
                                      Var x          -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
                                      Tick _ e       -> mdict e
-                                     App a (Type _) -> mdict a 
+                                     App a (Type _) -> mdict a
                                      _              -> Nothing
     isDictionary _               = isJust (mdict a)
     d     = fromJust (mdict a)
@@ -1171,8 +1171,8 @@ consE γ  e@(Lam x e1)
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e
 
-consE γ e@(Case _ _ _ _)
-  = cconsFreshE CaseE γ e
+consE γ e@(Case _ _ _ cases)
+  = cconsFreshE (CaseE n) γ e   where n = length cases
 
 consE γ (Tick tt e)
   = do t <- consE (setLocation γ (Sp.Tick tt)) e
