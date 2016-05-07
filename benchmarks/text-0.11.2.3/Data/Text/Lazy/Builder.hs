@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 

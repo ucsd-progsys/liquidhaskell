@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 module Measures where
 
 import Data.Set 

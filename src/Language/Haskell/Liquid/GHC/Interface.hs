@@ -182,7 +182,6 @@ compileCFiles cfg = do
 -- Home Module Dependency Graph ------------------------------------------------
 --------------------------------------------------------------------------------
 
-
 type DepGraph = Graph DepGraphNode
 type DepGraphNode = Node Module ()
 

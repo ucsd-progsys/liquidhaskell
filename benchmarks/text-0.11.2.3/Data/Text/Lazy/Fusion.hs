@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 {-# LANGUAGE BangPatterns #-}
 -- |
 -- Module      : Data.Text.Lazy.Fusion

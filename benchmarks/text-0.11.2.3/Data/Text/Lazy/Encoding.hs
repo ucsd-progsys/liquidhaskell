@@ -1,6 +1,4 @@
-{-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--notermination" @-}
-
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 -- |

@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 module MovieClient where
 import DataBase
 

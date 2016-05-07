@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 module ResolvePred (myFold) where
 
 {-@ data L [llen] = C (h :: Int) (t :: L) | N @-}

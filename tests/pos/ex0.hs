@@ -1,4 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--no-termination" @-}
 
 module Ex (count) where

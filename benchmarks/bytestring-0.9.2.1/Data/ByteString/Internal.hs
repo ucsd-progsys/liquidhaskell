@@ -1,5 +1,3 @@
-{-@ LIQUID "--pruneunsorted" @-}
-
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
 -- If we could, these are what they would be:
