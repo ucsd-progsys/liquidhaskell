@@ -1,7 +1,6 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--autoproofs"      @-}
-{- LIQUID "--totality"        @-}
-{-@ LIQUID "--no-termination"        @-}
+{-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--no-termination"  @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate" @-}
 {-@ LIQUID "--maxparams=10"  @-}
@@ -20,10 +19,6 @@ import Proves
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
-data L a = N | C a (L a)
-{-@ data L [llen] @-}
-
-
 {-@ axiomatize map @-}
 map :: (a -> b) -> L a -> L b
 map f xs 
@@ -31,11 +26,9 @@ map f xs
   | otherwise = C (f (hd xs)) (map f (tl xs)) 
 
 
-
-
 {-@ map_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a 
                -> {v:Proof | map  (compose f g) xs == (compose (map f) (map g)) (xs) } @-}
-map_fusion :: Eq (L a) =>  (a -> a) -> (a -> a) -> L a -> Proof
+map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion f g N 
   = toProof $ 
       (compose (map f) (map g)) N
@@ -58,6 +51,9 @@ map_fusion f g (C x xs)
        ==! (compose (map f) (map g)) (C x xs)
 
 
+data L a = N | C a (L a)
+{-@ data L [llen] @-}
+
 {-@ measure nill @-}
 nill :: L a -> Bool 
 nill N = True 
@@ -70,7 +66,7 @@ llen N        = 0
 llen (C _ xs) = 1 + llen xs 
 
 {-@ measure hd @-}
-{- hd :: {v:L a | llen v > 0 } -> a @-}
+{-@ hd :: {v:L a | llen v > 0 } -> a @-}
 hd :: L a -> a 
 hd (C x _) = x 
  

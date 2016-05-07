@@ -40,7 +40,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub)
+import Language.Fixpoint.Misc (mlookup, sortNub, traceShow)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -137,7 +137,7 @@ strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy cmpFst ((L.nubBy cmpFst $ reverse sigs) ++ hsigs))
   where
     hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
-    go xs  = L.foldl1' (\(v, t1) (_, t2) -> (v, t1 `meetRes` t2)) xs
+    go xs  = L.foldl1' (\(v, t1) (_, t2) -> traceShow ("strengthenHaskellMeasures for " ++ show (t1, t2)) (v, t2 `meetRes` t1)) xs
     cmpFst = \x y -> fst x == fst y
 
 meetRes :: Located SpecType -> Located SpecType -> Located SpecType
