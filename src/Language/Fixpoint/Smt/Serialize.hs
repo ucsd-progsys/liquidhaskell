@@ -213,7 +213,7 @@ mkRel :: Brel -> Expr -> Expr -> Builder.Builder
 mkRel Ne  e1 e2          = mkNe e1 e2
 mkRel Une e1 e2          = mkNe e1 e2
 mkRel Eq  e1 e2
-  | isFun e1 && isFun e2 = mkFunEq e1 e2
+  | isFun e1 && isFun e2 = build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
 mkRel r   e1 e2          = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
 
 mkNe :: Expr -> Expr -> Builder.Builder
