@@ -40,7 +40,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, groupList, traceShow)
+import Language.Fixpoint.Misc (mlookup, sortNub, groupList)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -133,9 +133,8 @@ simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
--- strengthenHaskellMeasures hmeas sigs = go <$> (L.groupBy cmpFst (sigs ++ hsigs))
 strengthenHaskellMeasures hmeas sigs 
-  = traceShow ("MERGED SIGS" ++ show (sigs, hsigs)) (go <$> groupList ((L.nubBy cmpFst $ reverse sigs) ++ hsigs))
+  = go <$> groupList ((L.nubBy cmpFst $ reverse sigs) ++ hsigs)
   where
     hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
     go (v, xs)  = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs

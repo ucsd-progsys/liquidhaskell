@@ -180,11 +180,11 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> (traceShow "ALL FS" [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5])
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (infoConfig info)
-       γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- traceShow "\nSIGS2\n" $ concat $ tail bs]
+       γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
