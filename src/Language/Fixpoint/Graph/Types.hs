@@ -20,6 +20,7 @@ module Language.Fixpoint.Graph.Types (
 
   -- * Printing
   , writeGraph
+  , writeEdges
 
   -- * Constraints
   , CId
@@ -88,15 +89,21 @@ instance PPrint KVGraph where
 --------------------------------------------------------------------------------
 writeGraph :: FilePath -> KVGraph -> IO ()
 --------------------------------------------------------------------------------
-writeGraph f = writeFile f . render . ppGraph
+writeGraph f = writeEdges f . graphEdges
+  where
+    graphEdges :: KVGraph -> [CEdge]
+    graphEdges (KVGraph g) = [ (v, v') | (v,_,vs) <- g, v' <- vs]
 
-ppGraph :: KVGraph -> Doc
-ppGraph (KVGraph g) = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
+--------------------------------------------------------------------------------
+writeEdges :: FilePath -> [CEdge] -> IO ()
+--------------------------------------------------------------------------------
+writeEdges f = writeFile f . render . ppEdges
 
 ppEdges :: [CEdge] -> Doc
 ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]
                            . map ppE
-                           . filter isRealEdge
+                           . txEdges
+                           -- . filter isRealEdge
   where
     ppE (v, v')     = pprint v <+> "->" <+> pprint v'
 
@@ -105,6 +112,19 @@ isRealEdge (DKVar _, _)     = False
 isRealEdge (_, DKVar _)     = False
 isRealEdge (Cstr _, Cstr _) = False
 isRealEdge _                = True
+
+txEdges    :: [CEdge] -> [CEdge]
+txEdges es = concatMap iEs is
+  where
+    is     = [i | (Cstr i, Cstr _) <- es]
+    kvInM  = group [ (i, k) | (KVar k, Cstr i) <- es]
+    kvOutM = group [ (i, k') | (Cstr i, KVar k') <- es]
+    ins i  = M.lookupDefault [] i kvInM
+    outs i = M.lookupDefault [] i kvOutM
+    iEs i  = case (ins i, outs i) of
+                 (ks, [] ) -> [(KVar k, Cstr i ) | k  <- ks ]
+                 ([], ks') -> [(Cstr i, KVar k') | k' <- ks']
+                 (ks, ks') -> [(KVar k, KVar k') | k  <- ks, k' <- ks']
 
 
 

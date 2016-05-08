@@ -48,7 +48,7 @@ import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
--- import           Debug.Trace (trace)
+import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -296,10 +296,6 @@ elimVars cfg si = (es, tracepp "ElimVars" ds)
     ds          = edgeDeps cfg si es
     es          = kvEdges si
 
--- forceKuts ks . edgeDeps cfg si . removeKutEdges ks . filter isRealEdge $ es
-
-
-
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
 removeKutEdges ks = filter (not . isKut . snd)
   where
@@ -412,19 +408,26 @@ bElims isK es ds dMax = forceKuts kS' ds
       | isK v             = S.insert v ks
       | otherwise         = ks
 
-    step (dM, kS) v
-      | v `S.member` kS   = (M.insert v 0  dM,        kS)
-      | dk < dMax         = (M.insert v dk dM,        kS)
-      | otherwise         = (M.insert v 0  dM, addK v kS)
-      where
-        dk                = {- tracepp ("DIST " ++ show v) $ -} dist predM v dM
+    zero                  = (0, S.empty)
 
-dist :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a Int -> Int
-dist predM v dM = 1 + maximumDef 0 (du <$> us)
+    step (dM, kS) v
+      | v `S.member` kS   = (M.insert v zero  dM,        kS)
+      | vDist < dMax      = (M.insert v dv    dM,        kS)
+      | otherwise         = (M.insert v zero  dM, addK v kS)
+      where
+        dv                = trace msg dv_
+        msg               = show v ++ " DIST =" ++ show vDist ++ " SIZE = " ++ show vSize
+        dv_@(vDist, s)    = distV predM v dM
+        vSize             = S.size s
+
+distV :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a (Int, S.HashSet a) -> (Int, S.HashSet a)
+distV predM v dM = (d, s)
   where
-    du u        = fromMaybe (oops u) $ M.lookup u dM
-    us          = M.lookupDefault [] v predM
-    oops u      = errorstar $ "dist: don't have dist for " ++ show u ++ " when checking " ++ show v
+    d            = 1 + maximumDef 0 (fst . du <$> us)
+    s            = S.insert v (S.unions (snd . du <$> us))
+    du u         = fromMaybe (oops u) $ M.lookup u dM
+    us           = M.lookupDefault [] v predM
+    oops u       = errorstar $ "dist: don't have dist for " ++ show u ++ " when checking " ++ show v
 
 topoSort :: (Cutable a) => Elims a -> [(a, a, [a])] -> [a]
 topoSort ds = G.flattenSCCs . reverse . G.stronglyConnComp . ripKuts ds
@@ -504,11 +507,14 @@ inRanks fi es outR
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
 graphStatistics cfg si = when (elimStats cfg) $ do
-  writeGraph f  (kvGraph si)
+  -- writeGraph f  (kvGraph si)
+  writeEdges f es'
   appendFile f . ppc . ptable $ graphStats cfg si
   where
-    f     = queryFile Dot cfg
-    ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
+    f        = queryFile Dot cfg
+    es'      = removeKutEdges (depCuts ds) es
+    (es, ds) = elimVars cfg si
+    ppc d    = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
 
 data Stats = Stats {
     stNumKVCuts   :: !Int   -- ^ number of kvars whose removal makes deps acyclic
