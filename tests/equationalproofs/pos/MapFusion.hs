@@ -1,6 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--no-termination"  @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate" @-}
 {-@ LIQUID "--maxparams=10"  @-}
@@ -72,6 +71,6 @@ hd (C x _) = x
  
 
 {-@ measure tl @-}
-{- tl :: {v:L a | llen v > 0 } -> L a @-}
+{-@ tl :: {v:L a | llen v == 0 } -> L a @-}
 tl :: L a -> L a 
 tl (C _ xs) = xs 
