@@ -416,7 +416,7 @@ addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks
 
 isKut              :: KVKind -> Bool
 isKut (RecBindE _) = True
-isKut (CaseE n)    = n > 2 -- True
+-- isKut (CaseE n)    = n > 2 -- True
 isKut _            = False
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()

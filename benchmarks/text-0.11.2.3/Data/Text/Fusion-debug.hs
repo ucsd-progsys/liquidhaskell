@@ -24,13 +24,6 @@ import Prelude (undefined)
 
 default (Int)
 
-{- assume mapAccumL
-      :: (a -> GHC.Types.Char -> (a, GHC.Types.Char))
-      -> a
-      -> s:Data.Text.Fusion.Internal.Stream Char
-      -> (a, {v:Data.Text.Internal.Text | tlength v == slen s})
-  @-}
-
 {-@ Lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a, Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
@@ -41,8 +34,8 @@ mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
                                arr       <- A.unsafeFreeze marr
                                return (arr, x) )
 
-{-@ outerL :: (b -> t1 -> (b, Char))
-           -> (t -> Step t t1)
+{-@ outerL :: (b -> c -> (b, Char))
+           -> (t -> Step t c)
            -> A.MArray s
            -> Int
            -> b
@@ -58,8 +51,15 @@ outerL :: (b -> t1 -> (b, Char))
            -> t
            -> Int
            -> ST s (A.MArray s, (b, Int))
-           
+
 outerL = undefined
+
+
+
+
+
+
+
 
 -- outerL f next0 arr top = loop
   -- where
