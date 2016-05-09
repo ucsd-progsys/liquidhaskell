@@ -21,12 +21,13 @@ import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
 
-import           Language.Fixpoint.SortCheck (elaborate)
+import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
 import           Control.Monad.State
 
 import           Data.Maybe (fromMaybe)
 
+import Text.PrettyPrint.HughesPJ (text)
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -213,6 +214,8 @@ mkRel :: Brel -> Expr -> Expr -> Builder.Builder
 mkRel Ne  e1 e2          = mkNe e1 e2
 mkRel Une e1 e2          = mkNe e1 e2
 mkRel Eq  e1 e2
+--   | isFun e1 && isFun e2 = mkFunEq e1 e2 
+--    build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
   | isFun e1 && isFun e2 = build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
 mkRel r   e1 e2          = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
 
@@ -413,8 +416,9 @@ makeApplication e es = defunc e >>= (`go` es)
     go f []     = return f 
     go f (e:es) = do df <- defunc $ makeFunSymbol f 1  
                      de <- defunc $ e 
-                     let s  = dropArgs 1 $ exprSort f
-                     go ((`ECst` s) (eApps (EVar df) [ECst f (exprSort f), de])) es 
+                     let res = eApps (EVar df) [ECst f (exprSort f), de]
+                     let s  = exprSort (EApp f de) 
+                     go ((`ECst` s) res) es 
 
 
 {- 
@@ -444,13 +448,14 @@ makeFunSymbol e i
   | otherwise
   = intApplyName i
   where
-    s = dropArgs i $ exprSort e
+    s = dropArgs ("dropArgs " ++ show (i, e, exprSort e)) i $ exprSort e
 
-dropArgs :: Int -> Sort -> Sort
-dropArgs 0 t           = t
-dropArgs j (FAbs _ t)  = dropArgs j t
-dropArgs j (FFunc _ t) = dropArgs (j-1) t
-dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
+dropArgs :: String -> Int -> Sort -> Sort
+dropArgs _ 0 t           = t
+dropArgs s j (FAbs _ t)  = dropArgs s j t
+dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
+dropArgs str j s           
+  = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
 toInt :: Expr -> SMT2 Expr
 toInt e
@@ -520,7 +525,10 @@ exprSort (ECst _ s)
   = s
 exprSort (ELam (_,s) e) 
   = FFunc s $ exprSort e    
-exprSort (EApp e _) | FFunc _ s <- exprSort e  
-  = s  
+exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e  
+  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx 
+  where
+    gen (FAbs _ t) = gen t 
+    gen t          = t 
 exprSort e              
   = errorstar ("\nexprSort on unexpected expressions" ++ show e)

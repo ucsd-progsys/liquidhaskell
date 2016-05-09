@@ -25,6 +25,7 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Unify
   , unifyFast
+  , unifySorts
   , unify
 
   -- * Apply Substitution
@@ -130,6 +131,8 @@ type StateM = Int
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
 
 type Env      = Symbol -> SESearch Sort
+
+emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -460,7 +463,24 @@ checkExprAs f t e
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
+-- | Checking function application should be curried, 
+-- | consider checking 
+-- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x  
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
+checkApp' f to g e 
+  = do gt       <- checkExpr f g >>= generalize
+       et       <- checkExpr f e 
+       (it, ot) <- checkFunSort gt 
+       θ        <- unifys f [it] [et]
+       let t     = apply θ ot
+       case to of
+         Nothing    -> return (θ, t)
+         Just t'    -> do θ' <- unifyMany f θ [t] [t']
+                          let ti = apply θ' et
+                          _ <- checkExprAs f ti e
+                          return (θ', apply θ' t)
+
+{- 
 checkApp' f to g' e
   = do gt           <- checkExpr f g
        gt'          <- generalize gt
@@ -476,6 +496,7 @@ checkApp' f to g' e
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
+-}
 
 -- | Helper for checking binary (numeric) operations
 checkNeg :: Env -> Expr -> CheckM Sort
@@ -601,6 +622,9 @@ unifyFast True  _ = uMono
      | t1 == t2   = Just emptySubst
      | otherwise  = Nothing
 
+
+unifySorts :: Sort -> Sort -> Maybe TVSubst
+unifySorts = unifyFast False emptyEnv 
 -------------------------------------------------------------------------
 unifys :: Env -> [Sort] -> [Sort] -> CheckM TVSubst
 -------------------------------------------------------------------------
@@ -704,6 +728,11 @@ sortMap f t             = f t
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
+
+checkFunSort :: Sort -> CheckM (Sort, Sort)
+checkFunSort (FAbs _ t)    = checkFunSort t 
+checkFunSort (FFunc t1 t2) = return (t1, t2)
+checkFunSort t             = throwError $ errNonFunction 1 t  
 
 sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
