@@ -100,7 +100,12 @@ prop_concatMap f N
         ==! N 
         ==! concatMap f N 
 prop_concatMap f (C x xs)
-  = undefined
+  = toProof $ 
+      concatt (map f (C x xs))
+        ==! concatt (C (f x) (map f xs))
+        ==! append (f x) (concatt (map f xs))
+        ==! append (f x) (concatMap f xs)       ? prop_concatMap f xs 
+        ==! concatMap f (C x xs)
 
 
 
