@@ -46,6 +46,7 @@ id x = x
 
 {-@ axiomatize compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
+-- compose :: (a -> a) -> (a -> a) -> a -> a
 compose f g x = f (g x)
 
 
@@ -67,8 +68,48 @@ identity (Just x)
 
 -- | Composition
 
-{- composition :: f:(a -> a) -> g:(a -> a) -> xs:Maybe a
-               -> {v:Proof | (seq (seq (seq (pure compose) u) v) w) = seq u (seq v w) } @-}
+{-@ composition0 :: x:{Maybe (a -> a) | is_Just x }
+                -> y:Maybe (a -> a)
+                -> z:Maybe a
+                -> {v:Proof | seq (Just compose) x == Just (compose (from_Just x)) } @-}
+composition0 :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
+composition0 x y z
+  = toProof (
+           seq (Just compose) x
+           ==! Just (from_Just (Just compose) (from_Just x))
+           ==! Just (compose (from_Just x))
+            )
+
+
+
+
+{-@ bar :: x:(Maybe (a -> a)) -> {v: _ | v == seq (Just compose) x } @-}
+bar :: Maybe (a -> a) -> Maybe ((a -> a) -> a -> a)
+bar x = seq (Just compose) x
+
+{-@ composition :: x:Maybe (a -> a)
+                -> y:Maybe (a -> a)
+                -> z:Maybe a
+                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) = seq x (seq y z) } @-}
+composition :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
+composition x y z
+   | is_Nothing x || is_Nothing y || is_Nothing z
+   = toProof $
+      seq (seq (seq (pure compose) x) y) z
+        ==! Nothing
+        ==! seq x (seq y z)
+composition x y z
+  = toProof $
+      seq (seq (seq (pure compose) x) y) z
+        ==! seq (seq (seq (Just compose) x) y) z
+        ==! seq (seq (Just (compose (from_Just x))) y) z
+        ==! seq (Just (compose (from_Just x) (from_Just y))) z
+        ==! Just ((compose (from_Just x) (from_Just y)) (from_Just z))
+        ==! Just ((from_Just x) ((from_Just y) (from_Just z)))
+        ==! Just (from_Just x (from_Just y (from_Just z)))
+        ==! Just (from_Just x (from_Just (Just (from_Just y (from_Just z)))))
+        ==! Just (from_Just x (from_Just (seq y z)))
+        ==! seq x (seq y z)
 
 
 data Maybe a = Nothing | Just a
