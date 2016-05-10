@@ -113,9 +113,8 @@ homomorphism f x
 
 interchange :: Maybe (a -> a) -> a -> Proof
 {-@ interchange :: u:(Maybe (a -> a)) -> y:a
-                -> {v:Proof | true }
+     -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
   @-}
---   -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
 interchange Nothing y
   = toProof $
        seq Nothing (pure y)
