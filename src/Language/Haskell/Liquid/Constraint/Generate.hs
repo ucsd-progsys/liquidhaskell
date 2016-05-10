@@ -101,7 +101,8 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
 -- import Debug.Trace (trace)
-
+mytraceShow :: String -> a -> a 
+mytraceShow _ a = a 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -1529,15 +1530,15 @@ makeSingleton γ e t allowHO
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
 funExpr γ (Var v) | M.member v $ aenv γ
-  = traceShow ("funExpr1 " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
+  = mytraceShow ("funExpr1 " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
 funExpr γ v@(App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of 
-      (Just e1', Just e2') -> traceShow ("funExpr2 " ++ show v) $ Just (F.EApp e1' e2')
-      _                    -> traceShow ("funExpr3 " ++ show v) Nothing
+      (Just e1', Just e2') -> mytraceShow ("funExpr2 " ++ show v) $ Just (F.EApp e1' e2')
+      _                    -> mytraceShow ("funExpr3 " ++ show v) Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
-  = traceShow ("funExpr3 " ++ show v) $ Just $ F.EVar (F.symbol v)
-funExpr γ e 
-  = traceShow ("funExpr4 " ++ show e) Nothing 
+  = mytraceShow ("funExpr3 " ++ show v) $ Just $ F.EVar (F.symbol v)
+funExpr _ e 
+  = mytraceShow ("funExpr4 " ++ show e) Nothing 
 
 simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e 

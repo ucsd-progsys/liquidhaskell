@@ -121,24 +121,18 @@ interchange Nothing y
        seq Nothing (pure y)
          ==! Nothing
          ==! seq (pure (idollar y)) Nothing
-interchange (Just ffff) y
+interchange (Just f) y
   = toProof $
-{-
       seq (Just f) (pure y)
          ==! seq (Just f) (Just y)
          ==! Just (from_Just (Just f) (from_Just (Just y)))
          ==! Just (from_Just (Just f) y)
-         ==! -}
-         ((from_Just (Just ffff)) y)
-           ==:
-             (ffff y) ? True
-           ==:  (idollar y ffff) ? True
-         {-
+         ==! Just ((from_Just (Just f)) y)
+         ==! Just (f y)
+         ==! Just (idollar y f)
          ==! Just ((idollar y) f)
          ==! seq (Just (idollar y)) (Just f)
          ==! seq (pure (idollar y)) (Just f)
--}
-
 
 data Maybe a = Nothing | Just a
 

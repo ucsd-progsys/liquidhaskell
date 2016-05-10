@@ -38,7 +38,7 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3, traceShow)
+import           Language.Fixpoint.Misc                     (thd3)
 
 import           Language.Fixpoint.Types                    hiding (Error)
 
@@ -172,11 +172,11 @@ addProofType spec = do
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons n flag vs spec
-  | flag      = return $ spec {tySigs = tySigs spec ++ traceShow "\nEXACT\n" xts}
+  | flag      = return $ spec {tySigs = tySigs spec ++ xts}
   | otherwise = return spec
   where
     xts       = makeExact <$> filter f vs 
-    f v       = traceShow ("FILTERED OUT? " ++ show (v, isDataConId v, varInModule n v)) $ isDataConId v && varInModule n v
+    f v       = isDataConId v && varInModule n v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
