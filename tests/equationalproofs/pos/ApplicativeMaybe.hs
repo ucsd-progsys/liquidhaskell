@@ -68,26 +68,65 @@ identity (Just x)
 
 -- | Composition
 
+
+{-@ composition1 :: x:{Maybe (a -> a) | is_Just x }
+                -> y:Maybe (a -> a)
+                -> z:Maybe a
+                -> {v:Proof | Just ((from_Just x) ((from_Just y) (from_Just z))) ==
+                  Just (from_Just x (from_Just y (from_Just z)))
+                  } @-}
+composition1 :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
+composition1 x y z
+  = toProof (
+               Just ((from_Just x) ((from_Just y) (from_Just z)))
+             ==! Just (from_Just x (from_Just y (from_Just z)))
+            )
 {-@ composition0 :: x:{Maybe (a -> a) | is_Just x }
                 -> y:Maybe (a -> a)
                 -> z:Maybe a
-                -> {v:Proof | seq (Just compose) x == Just (compose (from_Just x)) } @-}
+                -> {v:Proof | seq (seq (seq (pure compose) x) y) z ==
+                  Just ((from_Just x) ((from_Just y) (from_Just z)))
+                  } @-}
 composition0 :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
 composition0 x y z
   = toProof (
-           seq (Just compose) x
-           ==! Just (from_Just (Just compose) (from_Just x))
-           ==! Just (compose (from_Just x))
+               seq (seq (seq (pure compose) x) y) z
+             ==! seq (seq (seq (Just compose) x) y) z
+             ==! seq (seq (Just (compose (from_Just x))) y) z
+             ==! seq (Just (compose (from_Just x) (from_Just y))) z
+             ==! Just ((compose (from_Just x) (from_Just y)) (from_Just z))
+             ==! Just ((from_Just x) ((from_Just y) (from_Just z)))
+             ==! Just (from_Just x (from_Just y (from_Just z)))
             )
 
+{-
+
+seq (seq (seq (pure compose) x) y) z
+  ==! seq (seq (seq (Just compose) x) y) z
+  ==! seq (seq (Just (compose (from_Just x))) y) z
+  ==! seq (Just (compose (from_Just x) (from_Just y))) z
+  ==! Just ((compose (from_Just x) (from_Just y)) (from_Just z))
+  ==! Just ((from_Just x) ((from_Just y) (from_Just z)))
+  ==! Just (from_Just x (from_Just y (from_Just z)))
+  ==! Just (from_Just x (from_Just (Just (from_Just y (from_Just z)))))
+  ==! Just (from_Just x (from_Just (seq y z)))
+  ==! seq x (seq y z)
+
+-}
 
 
 
-{-@ bar :: x:(Maybe (a -> a)) -> {v: _ | v == seq (Just compose) x } @-}
-bar :: Maybe (a -> a) -> Maybe ((a -> a) -> a -> a)
-bar x = seq (Just compose) x
 
-{-@ composition :: x:Maybe (a -> a)
+
+bar :: Maybe (a -> a) ->  a ->  a
+{-@ bar :: x:Maybe (a -> a) -> z: a
+        -> {v: a | v == from_Just x z }
+  @-}
+bar x z = from_Just x z
+
+
+{-
+{- composition :: x:Maybe (a -> a)
                 -> y:Maybe (a -> a)
                 -> z:Maybe a
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) = seq x (seq y z) } @-}
@@ -111,12 +150,12 @@ composition x y z
         ==! Just (from_Just x (from_Just (seq y z)))
         ==! seq x (seq y z)
 
-
+-}
 data Maybe a = Nothing | Just a
 
 {-@ measure from_Just @-}
 from_Just :: Maybe a -> a
-{-@ from_Just :: xs:{Maybe a | is_Just xs } -> a @-}
+{-@ from_Just :: xs:{Maybe a | is_Just xs } -> {v:a  | v == from_Just xs}@-}
 from_Just (Just x) = x
 
 {-@ measure is_Nothing @-}

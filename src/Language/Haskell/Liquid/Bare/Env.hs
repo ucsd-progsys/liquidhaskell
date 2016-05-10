@@ -36,6 +36,7 @@ import qualified Data.HashMap.Strict                  as M
 
 
 import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol)
+import           Language.Fixpoint.Misc (traceShow)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -79,7 +80,7 @@ insertLogicEnv x ys e
 
 insertAxiom :: MonadState BareEnv m => Var -> Symbol -> m ()
 insertAxiom x s
-  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
+  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = traceShow ("insert " ++ show (x, s)) $ M.insert x s $ axiom_map $ logicEnv be}}
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }

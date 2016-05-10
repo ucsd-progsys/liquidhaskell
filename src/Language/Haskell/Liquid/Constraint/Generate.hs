@@ -1528,16 +1528,16 @@ makeSingleton γ e t allowHO
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
-funExpr γ (Var v) | M.member v (aenv γ)
-  =  F.EVar <$> (M.lookup v $ aenv γ)
-funExpr γ (App e1 e2)
+funExpr γ (Var v) | M.member v (traceShow "AENV = " $ aenv γ)
+  =  traceShow ("funExpr1 for " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
+funExpr γ v@(App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of 
-      (Just e1', Just e2') -> Just (F.EApp e1' e2')
-      _                    -> Nothing
+      (Just e1', Just e2') -> traceShow ("funExpr2 for " ++ show v)  $ Just (F.EApp e1' e2')
+      _                    -> traceShow ("funExpr3 for " ++ show v)  $ Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
-  = Just $ F.EVar (F.symbol v)
-funExpr _ _
-  = Nothing 
+  = traceShow ("funExpr4 for " ++ show v)  $ Just $ F.EVar (F.symbol v)
+funExpr _ e
+  = traceShow ("funExpr5 for " ++ show e)  $ Nothing 
 
 simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e 
@@ -1557,7 +1557,7 @@ strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
-strengthenS (RAllT a t) r'       = RAllT a (strengthenS t r')
+strengthenS (RAllT a t) r'       = RAllT a $ strengthenS t r'
 strengthenS t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r

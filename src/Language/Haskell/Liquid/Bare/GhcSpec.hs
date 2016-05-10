@@ -38,7 +38,7 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3)
+import           Language.Fixpoint.Misc                     (thd3, traceShow)
 
 import           Language.Fixpoint.Types                    hiding (Error)
 
@@ -209,7 +209,7 @@ makeAxioms tce cbs spec sp
        return $ spec { meas     = ms         ++  meas   spec
                      , asmSigs  = concat tys ++ asmSigs spec
                      , axioms   = concat as  ++ axioms spec
-                     , logicMap = lmap' }
+                     , logicMap = traceShow "LMAP\n" lmap' }
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
@@ -245,12 +245,9 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
-       lmap        <- logicEnv <$> get
-       inlmap      <- inlines  <$> get
-       let ctors'   = [ (x, txRefToLogic lmap inlmap <$> t) | (x, t) <- ctors ]
        return $ sp { tySigs     = filter (\(v,_) -> v `elem` vs) tySigs
                    , asmSigs    = filter (\(v,_) -> v `elem` vs) asmSigs
-                   , ctors      = filter (\(v,_) -> v `elem` vs) ctors'
+                   , ctors      = filter (\(v,_) -> v `elem` vs) ctors 
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
@@ -298,7 +295,10 @@ makeGhcSpec4 quals defVars specs name su sp
        lvars'  <- mkThing makeLVar
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
-       let msgs = strengthenHaskellMeasures hmeas (tySigs sp) 
+       mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
+       mapM_ insertHMeasLogicEnv $ S.toList hmeas
+       lmap'   <- logicEnv <$> get
+       let msgs = strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp) 
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let tx   = mapSnd (fmap $ txRefToLogic lmap inlmap)
@@ -310,13 +310,32 @@ makeGhcSpec4 quals defVars specs name su sp
                      , autosize   = asize'
                      , lazy       = lazies
                      , tySigs     = tx  <$> msgs
-                     , asmSigs    = tx  <$> asmSigs sp
+                     , asmSigs    = tx  <$> asmSigs  sp
+                     , inSigs     = tx  <$> inSigs   sp
                      , measures   = mtx <$> measures sp
-                     , inSigs     = []
+                     , logicMap   = lmap'
+                     , invariants = tx <$> invariants sp 
+                     , ctors      = tx <$> ctors      sp
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
        makeASize  = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+
+
+insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()
+insertHMeasLogicEnv (x, s) 
+  | isBool res 
+  = insertLogicEnv (val s) (fst <$> vxs) $ mkProp $ mkEApp s ((EVar . fst) <$> vxs)
+  where
+    rep = toRTypeRep  t
+    res = ty_res rep
+    xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
+    vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
+    t   = (ofType $ varType $ val x) :: SpecType
+insertHMeasLogicEnv _ 
+  = return ()
+
+
 
 makeGhcSpecCHOP1
   :: [(ModName,Ms.Spec ty bndr)]
