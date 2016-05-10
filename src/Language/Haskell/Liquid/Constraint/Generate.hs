@@ -1396,7 +1396,7 @@ caseEnv γ x _   (DataAlt c) ys
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ   x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
-       return cγ
+       return $ addArguments cγ ys
 
 caseEnv γ x acs a _
   = do let x'  = F.symbol x
@@ -1528,16 +1528,16 @@ makeSingleton γ e t allowHO
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
-funExpr γ (Var v) | M.member v (traceShow "AENV = " $ aenv γ)
-  =  traceShow ("funExpr1 for " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
+funExpr γ (Var v) | M.member v $ aenv γ
+  = traceShow ("funExpr1 " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
 funExpr γ v@(App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of 
-      (Just e1', Just e2') -> traceShow ("funExpr2 for " ++ show v)  $ Just (F.EApp e1' e2')
-      _                    -> traceShow ("funExpr3 for " ++ show v)  $ Nothing
+      (Just e1', Just e2') -> traceShow ("funExpr2 " ++ show v) $ Just (F.EApp e1' e2')
+      _                    -> traceShow ("funExpr3 " ++ show v) Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
-  = traceShow ("funExpr4 for " ++ show v)  $ Just $ F.EVar (F.symbol v)
-funExpr _ e
-  = traceShow ("funExpr5 for " ++ show e)  $ Nothing 
+  = traceShow ("funExpr3 " ++ show v) $ Just $ F.EVar (F.symbol v)
+funExpr γ e 
+  = traceShow ("funExpr4 " ++ show e) Nothing 
 
 simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e 

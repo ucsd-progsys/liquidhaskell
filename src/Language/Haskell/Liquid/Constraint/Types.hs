@@ -44,6 +44,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , mkRTyConIAl
 
   , removeInvariant, restoreInvariant, makeRecInvariants
+
+  , addArgument, addArguments
   ) where
 
 import Prelude hiding (error)
@@ -248,6 +250,13 @@ data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invarian
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
+
+
+addArgument :: CGEnv -> Var -> CGEnv
+addArgument γ v = γ {fargs = S.insert v (fargs γ) }
+
+addArguments :: CGEnv -> [Var] -> CGEnv
+addArguments = foldl addArgument 
 
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv

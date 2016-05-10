@@ -172,10 +172,11 @@ addProofType spec = do
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons n flag vs spec
-  | flag      = return $ spec {tySigs = tySigs spec ++ xts}
+  | flag      = return $ spec {tySigs = tySigs spec ++ traceShow "\nEXACT\n" xts}
   | otherwise = return spec
   where
-    xts       = makeExact <$> filter isDataConId (filter (varInModule n) vs)
+    xts       = makeExact <$> filter f vs 
+    f v       = traceShow ("FILTERED OUT? " ++ show (v, isDataConId v, varInModule n v)) $ isDataConId v && varInModule n v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
@@ -209,7 +210,7 @@ makeAxioms tce cbs spec sp
        return $ spec { meas     = ms         ++  meas   spec
                      , asmSigs  = concat tys ++ asmSigs spec
                      , axioms   = concat as  ++ axioms spec
-                     , logicMap = traceShow "LMAP\n" lmap' }
+                     , logicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing

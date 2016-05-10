@@ -134,11 +134,11 @@ simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskellMeasures hmeas sigs 
-  = go <$> groupList ((L.nubBy cmpFst $ reverse sigs) ++ hsigs)
+  = go <$> groupList ((reverse sigs) ++ hsigs)
   where
     hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
     go (v, xs)  = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
-    cmpFst x y = fst x == fst y 
+    -- cmpFst x y = fst x == fst y 
 
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
