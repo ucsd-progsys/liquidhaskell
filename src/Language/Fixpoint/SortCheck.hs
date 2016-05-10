@@ -391,9 +391,23 @@ elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t e@(EApp {}) = elabAppAs f t g es where (g, es) = splitEApp e
-elabAs f _ e           = fst <$> elab f e
+elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs f _ e            = fst <$> elab f e
 
+
+elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
+elabAppAs f t g e = do
+  gT       <- generalize =<< checkExpr f g
+  eT       <- checkExpr f e
+  (iT, oT) <- checkFunSort gT
+  su       <- unifys f [oT,iT] [t,eT] -- (snd gTios : fst gTios) (t:eTs)
+  let tg    = apply su gT
+  g'       <- elabAs f tg g
+  let te    = apply su eT
+  e'       <- elabAs f te e
+  return $ EApp (ECst g' tg) (ECst e' te)
+
+{-
 elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
 elabAppAs f t g es = do
   gT    <- generalize =<< checkExpr f g
@@ -405,6 +419,7 @@ elabAppAs f t g es = do
   let ts = apply su <$> eTs
   es'   <- zipWithM (elabAs f) ts es
   return $ eApps (ECst g' tg) (zipWith ECst es' ts)
+-}
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
@@ -734,6 +749,7 @@ checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2)
 checkFunSort t             = throwError $ errNonFunction 1 t  
 
+{- 
 sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
@@ -742,6 +758,7 @@ sortFunction i t
                           then throwError $ errNonFunction i t
                           else let (its, ots) = splitAt i ts
                                in return (its, foldl FFunc t' ots)
+-}
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------

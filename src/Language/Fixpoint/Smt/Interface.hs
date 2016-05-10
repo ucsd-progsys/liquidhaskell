@@ -361,9 +361,14 @@ interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
 
 makeMbqi :: Bool -> [LT.Text]
-makeMbqi ho
+makeMbqi _ho = [""]
+
+{- 
+  --  NV: do not merge this! 
+  -- the flag option does not work... should fix 
   | ho = [""]
   | otherwise = ["\n(set-option :smt.mbqi false)"]
+-}
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options :: [LT.Text]

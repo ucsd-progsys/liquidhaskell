@@ -61,10 +61,14 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
-  defunc (FAbs _ t)      = defunc t
-  defunc (FFunc _ _)     = return $ intSort
-  defunc t | isSMTSort t = return t
-  defunc _               = return intSort
+  defunc = return . defuncSort 
+
+
+defuncSort (FAbs _ t)      = defuncSort t
+defuncSort (FFunc _ _)     = intSort
+defuncSort t | isSMTSort t = t
+defuncSort _               = intSort
+
 
 instance SMTLIB2 Symbol where
   smt2 s
@@ -227,7 +231,7 @@ isFun e | FFunc _ _ <- exprSort e = True
         | otherwise               = False
 
 mkFunEq :: Expr -> Expr -> Builder.Builder
-mkFunEq e1 e2 = smt2 $ PAll (zip xs ss) (PAtom Eq
+mkFunEq e1 e2 = smt2 $ PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
                           (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
   where
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
