@@ -250,8 +250,8 @@ bbaseP
   =  holeRefP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM2 bAppTy bTyVarP (sepBy1 bareTyArgP blanks))
- <|> try (liftM3 bRVar bTyVarP stratumP monoPredicateP)
+ <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
+ <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
@@ -259,9 +259,6 @@ bTyConP = mkBTyCon <$> locUpperIdP
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
-
-bTyVarP :: Parser BTyVar
-bTyVarP = bTyVar <$> tyVarIdP
 
 stratumP :: Parser Strata
 stratumP
@@ -279,7 +276,7 @@ bbaseNoAppP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
- <|> liftM3 bRVar bTyVarP stratumP monoPredicateP
+ <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
 
 maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
 maybeP p = liftM Just p <|> return Nothing
@@ -338,7 +335,7 @@ bareAllS
 bareAllP :: Parser (RType BTyCon BTyVar RReft)
 bareAllP
   = do reserved "forall"
-       as <- many bTyVarP
+       as <- many (bTyVar <$> tyVarIdP)
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
@@ -521,7 +518,7 @@ boundP = do
                  )
            <|> return []
     bvsP   = try ( do reserved "forall"
-                      xs <- many (locParserP bTyVarP)
+                      xs <- many (locParserP (bTyVar <$> symbolP))
                       reserved  "."
                       return (fmap (`RVar` mempty) <$> xs)
                  )
@@ -782,7 +779,7 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <?> "Invalib variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsP = xyP (sepBy1 (locParserP binderP) comma) dcolon termBareTypeP
+tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
@@ -870,7 +867,7 @@ oneClassArg
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
     classParams =  (reserved "where" >> return [])
-               <|> ((:) <$> locParserP bTyVarP <*> classParams)
+               <|> ((:) <$> (fmap bTyVar <$> locLowerIdP) <*> classParams)
     sing x      = [x]
 
 instanceP :: Parser (RInstance (Located BareType))
@@ -889,7 +886,7 @@ instanceP
                <|> return []
     toRCls x = x
 
-    iargsP   =   (mkVar <$> bTyVarP)
+    iargsP   =   (mkVar . bTyVar <$> tyVarIdP)
             <|> (parens $ locParserP $ bareTypeP)
 
 
@@ -904,7 +901,7 @@ classP
   = do sups <- supersP
        c    <- classBTyConP
        spaces
-       tvs  <- manyTill bTyVarP (try $ reserved "where")
+       tvs  <- manyTill (bTyVar <$> tyVarIdP) (try $ reserved "where")
        ms   <- grabs tyBindP
        spaces
        return $ RClass c sups tvs ms -- sups tvs ms

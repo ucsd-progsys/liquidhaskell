@@ -30,7 +30,7 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
-                                subst, symbol, mkEApp)
+                                subst, symbol, symbolString, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -193,8 +193,8 @@ failRTAliasApp l rta _ _
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
   | length args == length αs + length εs
-    = do ts <- mapM (ofBareType l)                   $ take (length αs) args
-         es <- mapM (resolve l . exprArg (show err)) $ drop (length αs) args
+    = do ts <- mapM (ofBareType l) $ take (length αs) args
+         es <- mapM (resolve l . exprArg (symbolString $ rtName rta)) $ drop (length αs) args
          let tsu = zipWith (\α t -> (α, toRSort t, t)) αs ts
          let esu = mkSubst $ zip (symbol <$> εs) es
          return $ subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
@@ -223,6 +223,7 @@ exprArg msg (RAppTy (RVar f _) t _)
   = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
+    -- FIXME: Handle this error much better!
 
 --------------------------------------------------------------------------------
 
