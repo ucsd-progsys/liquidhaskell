@@ -59,29 +59,28 @@ compose f g x = f (g x)
 
 
 -- | Identity
-{-
-{- identity :: x:L a -> {v:Proof | seq (pure id) x == x } @-}
+{-@ identity :: x:L a -> {v:Proof | seq (pure id) x == x } @-}
 identity :: L a -> Proof
 identity xs
   = toProof $
        seq (pure id) xs
          ==! seq (C id N) xs
          ==! append (fmap id xs) (seq N xs)
-         ==! append xs N                     ? fmap_id xs
-         ==! xs                              ? prop_append_neutral xs
-
+         ==! append (id xs) (seq N xs)      ? fmap_id xs
+         ==! append xs (seq N xs)
+         ==! append xs N
+         ==! xs                             ? prop_append_neutral xs
 
 -- | Composition
 
-{- composition :: x:L (a -> a)
+{-@ composition :: x:L (a -> a)
                 -> y:L (a -> a)
                 -> z:L a
-                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
+                -> {v:Proof | true } @-}
+--                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
-   = undefined
-{-
-     toProof $
+   = toProof $
         seq (seq (seq (pure compose) xss) yss) zss
          ==! seq (seq (seq (C compose N) xss) yss) zss
          ==! seq (seq (append (fmap compose xss) (seq N xss)) yss) zss
@@ -96,10 +95,26 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
          ==! append (fmap (compose x y) zss) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss)
          ==! append (fmap (compose x y) (C z zs)) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss)
          ==! C (compose x y z) (append (fmap (compose x y) zs) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss))
--}
+
+
+         --  (seq (seq (seq (pure compose) xs) ys) zs) == seq xs (seq ys zs)
+
+
+         ==! C (x (y z)) (append (fmap x (append (fmap y zs) (seq ys zss))) (seq xs (seq yss zss)))
+         ==! append (C (x (y z)) (fmap x (append (fmap y zs) (seq ys zss)))) (seq xs (seq yss zss))
+         ==! append (fmap x (C (y z) (append (fmap y zs) (seq ys zss)))) (seq xs (seq yss zss))
+         ==! append (fmap x (append (C (y z) (fmap y zs)) (seq ys zss))) (seq xs (seq yss zss))
+         ==! append (fmap x (append (fmap y (C z zs)) (seq ys zss))) (seq xs (seq yss zss))
+         ==! append (fmap x (append (fmap y zss) (seq ys zss))) (seq xs (seq yss zss))
+         ==! append (fmap x (seq (C y ys) zss)) (seq xs (seq yss zss))
+         ==! append (fmap x (seq yss zss)) (seq xs (seq yss zss))
+         ==! seq (C x xs) (seq yss zss)
+         ==! seq xss (seq yss zss)
+
 composition _ _ _
    = undefined
 
+{-
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
 {- homomorphism :: f:(a -> a) -> x:a

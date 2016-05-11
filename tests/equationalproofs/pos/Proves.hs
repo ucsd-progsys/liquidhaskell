@@ -68,7 +68,7 @@ instance (a~b) => OptEq a b where
 -- NV TODO: check why this does not work
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Bool -> b) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x }
+  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==!) x _ _ = x
 
