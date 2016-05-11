@@ -2,8 +2,6 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate" @-}
-{-@ LIQUID "--maxparams=10"  @-}
-{-@ LIQUID "--higherorderqs" @-}
 
 
 
@@ -76,24 +74,41 @@ identity (Just x)
                 -> z:Maybe a
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) = seq x (seq y z) } @-}
 composition :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
-composition x y z
-   | is_Nothing x || is_Nothing y || is_Nothing z
+composition Nothing y z
    = toProof $
-      seq (seq (seq (pure compose) x) y) z
-        ==! Nothing
-        ==! seq x (seq y z)
-composition x y z
+       seq (seq (seq (pure compose) Nothing) y) z
+         ==! seq (seq Nothing y) z
+         ==! seq Nothing z
+         ==! Nothing
+         ==! seq Nothing (seq y z)
+
+composition x Nothing z
+   = toProof $
+       seq (seq (seq (pure compose) x) Nothing) z
+         ==! seq Nothing z
+         ==! Nothing
+         ==! seq Nothing z
+         ==! seq x (seq Nothing z)
+
+composition x y Nothing
+   = toProof $
+       seq (seq (seq (pure compose) x) y) Nothing
+         ==! Nothing
+         ==! seq y Nothing
+         ==! seq x (seq y Nothing)
+
+
+composition (Just x) (Just y) (Just z)
   = toProof $
-      seq (seq (seq (pure compose) x) y) z
-        ==! seq (seq (seq (Just compose) x) y) z
-        ==! seq (seq (Just (compose (from_Just x))) y) z
-        ==! seq (Just (compose (from_Just x) (from_Just y))) z
-        ==! Just ((compose (from_Just x) (from_Just y)) (from_Just z))
-        ==! Just ((from_Just x) ((from_Just y) (from_Just z)))
-        ==! Just (from_Just x (from_Just y (from_Just z)))
-        ==! Just (from_Just x (from_Just (Just (from_Just y (from_Just z)))))
-        ==! Just (from_Just x (from_Just (seq y z)))
-        ==! seq x (seq y z)
+      seq (seq (seq (pure compose) (Just x)) (Just y)) (Just z)
+        ==! seq (seq (seq (Just compose) (Just x)) (Just y)) (Just z)
+        ==! seq (seq (Just (compose x)) (Just y)) (Just z)
+        ==! seq (Just (compose x y)) (Just z)
+        ==! Just ((compose x y) z)
+        ==! Just (x (y z))
+        ==! Just (x (from_Just (Just (y z))))
+        ==! Just (x (from_Just (seq (Just y) (Just z))))
+        ==! seq (Just x) (seq (Just y) (Just z))
 
 
 -- | homomorphism  pure f <*> pure x = pure (f x)

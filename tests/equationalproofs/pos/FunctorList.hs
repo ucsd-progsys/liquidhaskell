@@ -9,7 +9,7 @@
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
-module ListFunctors where
+module FunctorList where
 
 import Prelude hiding (fmap, id)
 
@@ -25,8 +25,8 @@ import Helper
 {-@ axiomatize fmap @-}
 fmap :: (a -> b) -> L a -> L b
 fmap f xs
-  | nill xs   = N
-  | otherwise = C (f (hd xs)) (fmap f (tl xs))
+  | llen xs == 0 = N
+  | otherwise    = C (f (hd xs)) (fmap f (tl xs))
 
 {-@ axiomatize id @-}
 id :: a -> a

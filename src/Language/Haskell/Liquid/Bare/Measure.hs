@@ -136,8 +136,8 @@ strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellMeasures hmeas sigs 
   = go <$> groupList ((reverse sigs) ++ hsigs)
   where
-    hsigs  = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
-    go (v, xs)  = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
+    hsigs      = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
+    go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
     -- cmpFst x y = fst x == fst y 
 
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType

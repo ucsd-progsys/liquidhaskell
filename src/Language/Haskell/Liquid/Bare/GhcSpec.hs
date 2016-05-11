@@ -400,7 +400,7 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
 
 
     mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
-    mkInvariant z t tr = t `strengthen` MkUReft (Reft (v, subst su p )) mempty mempty
+    mkInvariant z t tr = (fmap top t) `strengthen` MkUReft (Reft (v, subst su p )) mempty mempty
       where 
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
         su = mkSubst [(v, mkEApp x [EVar v]), (z, EVar v)]  
