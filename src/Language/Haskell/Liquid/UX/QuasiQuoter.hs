@@ -30,6 +30,7 @@ import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.UX.Tidy
 
 --------------------------------------------------------------------------------
@@ -89,7 +90,7 @@ symbolName = mkName . symbolString . symbol
 -- BareType to TH Type ---------------------------------------------------------
 
 simplifyBareType :: LocSymbol -> BareType -> Either UserError Type
-simplifyBareType s t = case simplifyBareType' t of
+simplifyBareType s t = case simplifyBareType' (quantifyFreeRTy t) of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
