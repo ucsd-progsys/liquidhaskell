@@ -28,6 +28,7 @@ import GHC hiding (Target, desugarModule, Located)
 import qualified GHC
 import GHC.Paths (libdir)
 
+import Annotations
 import Bag
 import Class
 import CoreMonad
@@ -44,6 +45,8 @@ import IdInfo
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
+import Serialized
+import TcRnTypes
 import Var
 import NameSet
 
@@ -78,6 +81,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
+import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
@@ -293,10 +297,11 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
+  let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
+  let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule typechecked
-  let specComments     = getSpecComments parsed
-  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
@@ -312,19 +317,6 @@ loadDependenciesOf modName = do
   loadResult <- load $ LoadDependenciesOf modName
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
-
-getSpecComments :: ParsedModule -> [(SourcePos, String)]
-getSpecComments parsed = mapMaybe getSpecComment comments
-  where
-    comments = concat $ M.elems $ snd $ pm_annotations parsed
-
-getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
-getSpecComment (GHC.L span (AnnBlockComment text))
-  | isPrefixOf "{-@" text && isSuffixOf "@-}" text =
-    Just (offsetPos, take (length text - 6) $ drop 3 text)
-  where
-    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
-getSpecComment _ = Nothing
 
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
@@ -411,7 +403,42 @@ checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
       ]
 
 --------------------------------------------------------------------------------
--- Finding & Parsing Files -----------------------------------------------------
+-- | Extract Specifications from GHC -------------------------------------------
+--------------------------------------------------------------------------------
+
+extractSpecComments :: ParsedModule -> [(SourcePos, String)]
+extractSpecComments parsed = mapMaybe extractSpecComment comments
+  where
+    comments = concat $ M.elems $ snd $ pm_annotations parsed
+
+extractSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
+extractSpecComment (GHC.L span (AnnBlockComment text))
+  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
+    Just (offsetPos, take (length text - 6) $ drop 3 text)
+  where
+    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+extractSpecComment _ = Nothing
+
+extractSpecQuotes :: TypecheckedModule -> [BPspec]
+extractSpecQuotes typechecked = mapMaybe extractSpecQuote anns
+  where
+    anns = map ann_value $
+           filter (isOurModTarget . ann_target) $
+           tcg_anns $ fst $ tm_internals_ typechecked
+
+    isOurModTarget (ModuleTarget mod1) = mod1 == mod
+    isOurModTarget _ = False
+
+    mod = ms_mod $ pm_mod_summary $ tm_parsed_module typechecked
+
+extractSpecQuote :: AnnPayload -> Maybe BPspec
+extractSpecQuote payload =
+  case fromSerialized deserializeWithData payload of
+    Nothing -> Nothing
+    Just qt -> Just $ liquidQuoteSpec qt
+
+--------------------------------------------------------------------------------
+-- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
 
 -- Handle Spec Files -----------------------------------------------------------
@@ -587,3 +614,4 @@ instance Result SourceError where
 
 errMsgErrors :: ErrMsg -> [TError t]
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
+

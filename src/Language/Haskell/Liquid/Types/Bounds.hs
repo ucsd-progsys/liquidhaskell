@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 
@@ -22,6 +23,7 @@ import Data.Maybe
 import Data.Hashable
 -- import Data.Monoid
 import Data.Bifunctor
+import Data.Data
 
 import qualified Data.HashMap.Strict as M
 -- import Control.Applicative           ((<$>))
@@ -39,7 +41,7 @@ data Bound t e
           , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
           , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
           , bbody   :: e                 -- ^ The body of the bound
-          }
+          } deriving (Data, Typeable)
 
 type RBound        = RRBound RSort
 type RRBound tv    = Bound tv Expr
