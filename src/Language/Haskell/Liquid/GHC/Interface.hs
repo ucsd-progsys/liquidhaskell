@@ -54,9 +54,13 @@ import Control.Exception
 import Control.Monad
 
 import Data.Bifunctor
+import Data.Data
 import Data.List hiding (intersperse)
 import Data.Maybe
--- import Data.Function (on)
+
+import Data.Generics.Aliases (mkT)
+import Data.Generics.Schemes (everywhere)
+
 import qualified Data.HashSet as S
 import qualified Data.Map as M
 
@@ -435,7 +439,13 @@ extractSpecQuote :: AnnPayload -> Maybe BPspec
 extractSpecQuote payload =
   case fromSerialized deserializeWithData payload of
     Nothing -> Nothing
-    Just qt -> Just $ liquidQuoteSpec qt
+    Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
+
+refreshSymbols :: Data a => a -> a
+refreshSymbols = everywhere (mkT refreshSymbol)
+
+refreshSymbol :: Symbol -> Symbol
+refreshSymbol = symbol . symbolText
 
 --------------------------------------------------------------------------------
 -- | Finding & Parsing Files ---------------------------------------------------

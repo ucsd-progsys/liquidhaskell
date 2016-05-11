@@ -26,6 +26,7 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ
 
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
+import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Parse
@@ -73,12 +74,20 @@ throwErrorInQ err =
 
 mkSpecDecs :: BPspec -> Either UserError [Dec]
 mkSpecDecs (Asrt (name, ty)) =
-  return . SigD (symbolName name) <$> simplifyBareType name (val ty)
+  return . SigD (symbolName name)
+    <$> simplifyBareType name (quantifyFreeRTy $ val ty)
 mkSpecDecs (LAsrt (name, ty)) =
-  return . SigD (symbolName name) <$> simplifyBareType name (val ty)
+  return . SigD (symbolName name)
+    <$> simplifyBareType name (quantifyFreeRTy $ val ty)
 mkSpecDecs (Asrts (names, (ty, _))) =
-  (\t -> (`SigD` t) . symbolName <$> names) <$>
-    simplifyBareType (head names) (val ty)
+  (\t -> (`SigD` t) . symbolName <$> names)
+    <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
+mkSpecDecs (Alias rta) =
+  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody rta)
+  where
+    lsym = F.Loc (rtPos rta) (rtPosE rta) (rtName rta)
+    name = symbolName $ rtName rta
+    tvs  = PlainTV . symbolName <$> rtTArgs rta
 mkSpecDecs _ =
   Right []
 
@@ -90,7 +99,7 @@ symbolName = mkName . symbolString . symbol
 -- BareType to TH Type ---------------------------------------------------------
 
 simplifyBareType :: LocSymbol -> BareType -> Either UserError Type
-simplifyBareType s t = case simplifyBareType' (quantifyFreeRTy t) of
+simplifyBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
