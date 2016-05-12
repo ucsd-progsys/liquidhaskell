@@ -188,7 +188,7 @@ apply g s bs  = (F.pAnd (pks : ps), kI)
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
 
-exprKind :: F.Expr -> Either (F.KVar, F.Subst) F.Expr
+exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
 exprKind p              = Right p
 

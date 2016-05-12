@@ -74,6 +74,7 @@ stats0 fi = Stats nCs 0 0 0 0
   where
     nCs   = M.size $ F.cm fi
 
+
 instance F.PTable Stats where
   ptable s = F.DocTable [ (text "# Constraints"         , pprint (numCstr s))
                         , (text "# Refine Iterations"   , pprint (numIter s))
