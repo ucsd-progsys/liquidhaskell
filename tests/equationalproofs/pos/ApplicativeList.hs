@@ -30,8 +30,8 @@ pure x = C x N
 {-@ axiomatize seq @-}
 seq :: L (a -> b) -> L a -> L b
 seq fs xs
-  | llen fs > 0 = append (fmap (hd fs) xs) (seq (tl fs) xs)
-  | otherwise   = N
+  | llen fs > 0  = append (fmap (hd fs) xs) (seq (tl fs) xs)
+  | otherwise    = N
 
 {-@ axiomatize append @-}
 append :: L a -> L a -> L a
@@ -78,6 +78,8 @@ identity xs
                 -> z:L a
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
+
+
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
    = toProof $
         seq (seq (seq (pure compose) xss) yss) zss
@@ -108,7 +110,6 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
               ? append_distr (fmap x (fmap y zs)) (seq (fmap (compose x) ys) zss) (seq xs (seq yss zss))
          ==! C (x (y z))       (append (append (fmap x (fmap y zs)) (fmap x (seq ys zss)))   (seq xs (seq yss zss)))
               ? seq_fmap x ys zss
-
          ==! C (x (y z))       (append (append (fmap x (fmap y zs)) (fmap x (seq ys zss)))   (seq xs (seq yss zss)))
               ? append_fmap x (fmap y zs) (seq ys zss)
          ==! append (C (x (y z)) (fmap x (append (fmap y zs) (seq ys zss)))) (seq xs (seq yss zss))
@@ -121,13 +122,32 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
          ==! seq (C x xs) (seq yss zss)
          ==! seq xss (seq yss zss)
 
-composition _ _ _
-   = undefined
+composition N yss zss
+   = toProof $
+      seq (seq (seq (pure compose) N) yss) zss
+        ==! seq (seq N yss) zss                  ? seq_nill (pure compose)
+        ==! seq N zss
+        ==! N
+        ==! seq N (seq yss zss)
+
+composition xss N zss
+   = toProof $
+               seq (seq (seq (pure compose) xss) N) zss
+           ==! seq N zss                            ? seq_nill (seq (pure compose) xss)
+           ==! N
+           ==! seq N zss
+           ==! seq xss (seq N zss)  ? (seq_nill xss &&& (toProof $ seq N zss ==! N))
 
 
+composition xss yss N
+  = toProof $
+      seq (seq (seq (pure compose) xss) yss) N
+        ==! N                    ? seq_nill (seq (seq (pure compose) xss) yss)
+        ==! seq xss N            ? seq_nill xss
+        ==! seq xss (seq yss N)  ? seq_nill yss
 
 
-{-
+{- 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
 {- homomorphism :: f:(a -> a) -> x:a
@@ -135,7 +155,6 @@ composition _ _ _
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
   = undefined
-
 
 -- | interchange
 
@@ -173,6 +192,9 @@ tl (C _ xs) = xs
 -- | TODO: Cuurently I cannot improve proofs
 -- | HERE I duplicate the code...
 
+{-@ seq_nill :: fs:L (a -> b) -> {v:Proof | seq fs N == N } @-}
+seq_nill :: L (a -> b) -> Proof
+seq_nill = undefined
 
 {-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
    -> {v:Proof | append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}

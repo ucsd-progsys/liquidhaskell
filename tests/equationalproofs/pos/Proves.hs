@@ -16,9 +16,7 @@ infixl 3 ==!, <=!, <!
 infixl 3 ?
 
 
-{-@ (==?) :: x:a -> y:a -> {v:a | v == x && v == y} @-}
-(==?) :: a -> a -> a
-_ ==? _ = undefined
+
 -- can Proof be unit?
 type Proof = Bool
 
@@ -52,6 +50,23 @@ toProof _ = True
 
 -- | Comparison operators requiring proof terms optionally 
 
+class ToProve a e where
+  (==?) :: a -> a -> r
+
+
+instance (a~b) => ToProve a b where
+{-@ instance ToProve a b where
+  ==? :: x:a -> y:a -> {v:b | v ~~ x && v ~~ y}
+  @-}
+  (==?) x _ = undefined
+
+instance (a~b) => ToProve a (Proof -> b) where
+{-@ instance ToProve a (Bool -> b) where
+  ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x && v ~~ y }
+  @-}
+  (==?) = undefined
+
+
 
 class OptEq a r where
   (==!) :: a -> a -> r 
@@ -72,7 +87,7 @@ instance (a~b) => OptEq a b where
 -- NV TODO: check why this does not work
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Bool -> b) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x && v ~~ y }
+  ==! :: x:a -> y:a -> {v:Bool | x ~~ y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==!) x _ _ = x
 
