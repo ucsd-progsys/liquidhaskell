@@ -19,7 +19,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
+import           Language.Fixpoint.Misc (errorstar)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -191,8 +191,7 @@ defuncBop o e1 e2
 
 
 smt2App :: Expr -> Builder.Builder
-smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es))
-                      (Thy.smt2App (eliminate f) $ (map smt2 es))
+smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ (map smt2 es)
   where
     (f, es) = splitEApp e
 
@@ -200,12 +199,19 @@ smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es))
 defuncApp :: Expr -> SMT2 Expr
 defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
-                _      -> defuncApp' f es
+                _      -> defuncApp' f' es'
   where
-    (f, es) = splitEApp e
+    (f, es)   = splitEApp' e
+    (f', es') = splitEApp  e 
+
+splitEApp' e          = go [] e 
+  where
+    go acc (EApp f e) = go (e:acc) f 
+    go acc (ECst e _) = go acc e 
+    go acc e          = (e, acc) 
 
 eliminate :: Expr -> Expr
-eliminate (ECst e _) = e
+eliminate (ECst e _) = eliminate e
 eliminate e          = e
 
 defuncApp' :: Expr -> [Expr] -> SMT2 Expr
