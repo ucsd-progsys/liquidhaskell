@@ -197,6 +197,8 @@ solveCs cfg tgt cgi info names
                        , FC.maxPartSize = maxPartSize cfg
                        , FC.elimStats   = elimStats   cfg
                        , FC.elimBound   = elimBound   cfg
+                       , FC.allowHO     = higherorder cfg 
+                       , FC.allowHOqs   = higherorderqs cfg 
                        }
 
 
