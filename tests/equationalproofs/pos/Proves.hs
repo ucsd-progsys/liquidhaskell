@@ -7,7 +7,7 @@ module Proves where
 
 
 -- | proof operators requiring proof terms
-infixl 3 ==:, <=:, <:
+infixl 3 ==:, <=:, <:, >:, ==?
 
 -- | proof operators with optional proof terms
 infixl 3 ==!, <=!, <!
@@ -16,6 +16,10 @@ infixl 3 ==!, <=!, <!
 infixl 3 ?
 
 
+{-@ (==?) :: x:a -> y:a -> {v:a | v == x && v == y} @-}
+(==?) :: a -> a -> a
+_ ==? _ = undefined
+-- can Proof be unit?
 type Proof = Bool
 
 

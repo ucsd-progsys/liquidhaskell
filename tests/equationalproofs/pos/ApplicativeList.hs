@@ -76,8 +76,7 @@ identity xs
 {-@ composition :: x:L (a -> a)
                 -> y:L (a -> a)
                 -> z:L a
-                -> {v:Proof | true } @-}
---                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
+                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
    = toProof $
@@ -94,13 +93,24 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
          ==! seq (C (compose x y) (append (fmap (compose x) ys) (seq (fmap compose xs) yss))) zss
          ==! append (fmap (compose x y) zss) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss)
          ==! append (fmap (compose x y) (C z zs)) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss)
+         ==! append (C (compose x y z) (fmap (compose x y) zs)) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss)
          ==! C (compose x y z) (append (fmap (compose x y) zs) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss))
+         ==! C (x (y z))       (append (fmap (compose x y) zs) (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss))
+         ==! C (x (y z))       (append (fmap x (fmap y zs))    (seq (append (fmap (compose x) ys) (seq (fmap compose xs) yss)) zss))
+              ? map_fusion0 x y zs
+         ==! C (x (y z))       (append (fmap x (fmap y zs))    (append (seq (fmap (compose x) ys) zss) (seq (seq (fmap compose xs) yss) zss)))
+              ? seq_append (fmap (compose x) ys) (seq (fmap compose xs) yss) zss
+         ==! C (x (y z))       (append (fmap x (fmap y zs))    (append (seq (fmap (compose x) ys) zss) (seq (seq (seq (pure compose) xs) yss) zss)))
+              ? seq_one xs
+         ==! C (x (y z))       (append (fmap x (fmap y zs))    (append (seq (fmap (compose x) ys) zss) (seq xs (seq yss zss))))
+              ? composition xs yss zss
+         ==! C (x (y z))       (append (append (fmap x (fmap y zs)) (seq (fmap (compose x) ys) zss))   (seq xs (seq yss zss)))
+              ? append_distr (fmap x (fmap y zs)) (seq (fmap (compose x) ys) zss) (seq xs (seq yss zss))
+         ==! C (x (y z))       (append (append (fmap x (fmap y zs)) (fmap x (seq ys zss)))   (seq xs (seq yss zss)))
+              ? seq_fmap x ys zss
 
-
-         --  (seq (seq (seq (pure compose) xs) ys) zs) == seq xs (seq ys zs)
-
-
-         ==! C (x (y z)) (append (fmap x (append (fmap y zs) (seq ys zss))) (seq xs (seq yss zss)))
+         ==! C (x (y z))       (append (append (fmap x (fmap y zs)) (fmap x (seq ys zss)))   (seq xs (seq yss zss)))
+              ? append_fmap x (fmap y zs) (seq ys zss)
          ==! append (C (x (y z)) (fmap x (append (fmap y zs) (seq ys zss)))) (seq xs (seq yss zss))
          ==! append (fmap x (C (y z) (append (fmap y zs) (seq ys zss)))) (seq xs (seq yss zss))
          ==! append (fmap x (append (C (y z) (fmap y zs)) (seq ys zss))) (seq xs (seq yss zss))
@@ -113,6 +123,9 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
 
 composition _ _ _
    = undefined
+
+
+
 
 {-
 -- | homomorphism  pure f <*> pure x = pure (f x)
@@ -159,6 +172,39 @@ tl (C _ xs) = xs
 
 -- | TODO: Cuurently I cannot improve proofs
 -- | HERE I duplicate the code...
+
+
+{-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
+   -> {v:Proof | append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
+append_fmap :: (a -> b) -> L a -> L a -> Proof
+append_fmap = undefined
+
+seq_fmap :: (a -> a) -> L (a -> a) -> L a -> Proof
+{-@ seq_fmap :: f: (a -> a) -> fs:L (a -> a) -> xs:L a
+         -> {v:Proof | seq (fmap (compose f) fs) xs == fmap f (seq fs xs) }
+  @-}
+seq_fmap = undefined
+
+{-@ append_distr :: xs:L a -> ys:L a -> zs:L a
+   -> {v:Proof | append xs (append ys zs) == append (append xs ys) zs } @-}
+append_distr :: L a -> L a -> L a -> Proof
+append_distr = undefined
+
+
+{-@ seq_one :: xs:L (a -> b) -> {v:Proof | fmap compose xs == seq (pure compose) xs} @-}
+seq_one :: L (a -> b) -> Proof
+seq_one = undefined
+
+{-@ seq_append :: fs1:L (a -> b) -> fs2: L (a -> b) -> xs: L a
+   -> {v:Proof | seq (append fs1 fs2) xs == append (seq fs1 xs) (seq fs2 xs) } @-}
+seq_append :: L (a -> b) -> L (a -> b) -> L a -> Proof
+seq_append = undefined
+
+{-@ map_fusion0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
+    -> {v:Proof | fmap (compose f g) xs == fmap f (fmap g xs) } @-}
+map_fusion0 :: (a -> a) -> (a -> a) -> L a -> Proof
+map_fusion0 = undefined
+
 -- | FunctorList
 {-@ fmap_id :: xs:L a -> {v:Proof | fmap id xs == id xs } @-}
 fmap_id :: L a -> Proof
