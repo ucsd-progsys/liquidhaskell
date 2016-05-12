@@ -158,7 +158,7 @@ homomorphism f x
       seq (pure f) (pure x)
         ==! seq (C f N) (C x N)
         ==! append (fmap f (C x N)) (seq N (C x N))
-        ==! append (C (f x) (fmap f N)) N 
+        ==! append (C (f x) (fmap f N)) N
         ==! append (C (f x) N) N
         ==! C (f x) N  ? prop_append_neutral (C (f x) N)
         ==! pure (f x)
@@ -166,13 +166,34 @@ homomorphism f x
 -- | interchange
 
 interchange :: L (a -> a) -> a -> Proof
-{- interchange :: u:(L (a -> a)) -> y:a
+{-@ interchange :: u:(L (a -> a)) -> y:a
      -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
   @-}
 interchange N y
-  = undefined
+  = toProof $
+      seq N (pure y)
+        ==! N
+        ==! seq (pure (idollar y)) N ? seq_nill (pure (idollar y))
+
 interchange (C x xs) y
-  = undefined
+  = toProof $
+      seq (C x xs) (pure y)
+        ==! seq (C x xs) (C y N)
+        ==! append (fmap x (C y N)) (seq xs (C y N))
+        ==! append (C (x y) (fmap x N))      (seq xs (C y N))
+        ==! append (C (x y) N)      (seq xs (C y N))
+        ==! C (x y) (append N (seq xs (C y N)))
+        ==! C (x y) (seq xs (C y N))
+        ==! C (x y) (seq xs (pure y))
+        ==! C (x y) (seq (pure (idollar y)) xs) ? interchange xs y
+        ==! C (x y) (fmap (idollar y) xs)       ? seq_one' (idollar y) xs
+        ==! C (idollar y x) (fmap (idollar y) xs)
+        ==! fmap (idollar y) (C x xs)
+        ==! append (fmap (idollar y) (C x xs)) N  ? prop_append_neutral (fmap (idollar y) (C x xs))
+        ==! append (fmap (idollar y) (C x xs)) (seq N (C x xs))
+        ==! seq (C (idollar y) N) (C x xs)
+        ==! seq (pure (idollar y)) (C x xs)
+
 
 data L a = N | C a (L a)
 {-@ data L [llen] @-}
@@ -218,6 +239,10 @@ seq_fmap = undefined
 append_distr :: L a -> L a -> L a -> Proof
 append_distr = undefined
 
+
+{-@ seq_one' :: f:((a -> b) -> b) -> xs:L (a -> b) -> {v:Proof | fmap f xs == seq (pure f) xs} @-}
+seq_one' :: ((a -> b) -> b) -> L (a -> b) -> Proof
+seq_one' = undefined
 
 {-@ seq_one :: xs:L (a -> b) -> {v:Proof | fmap compose xs == seq (pure compose) xs} @-}
 seq_one :: L (a -> b) -> Proof
