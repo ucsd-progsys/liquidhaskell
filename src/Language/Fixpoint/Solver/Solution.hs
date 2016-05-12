@@ -10,9 +10,6 @@ module Language.Fixpoint.Solver.Solution
         , lhsPred
         , noKvars
 
-          -- * Debug
-        , elimSolGraph
-        , solutionGraph
         )
 where
 
@@ -23,15 +20,15 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
-import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Types.Config
+-- import           Language.Fixpoint.Utils.Files
+-- import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types.Constraints hiding (ws, bs)
-import           Language.Fixpoint.Graph
+-- import           Language.Fixpoint.Graph
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
@@ -77,24 +74,23 @@ update1 s (k, qs) = (change, solInsert k qs s)
     oldQs         = solLookup s k
     change        = length oldQs /= length qs
 
---------------------------------------------------------------------
--- | Initial Solution (from Qualifiers and WF constraints) ---------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Initial Solution (from Qualifiers and WF constraints) ---------------------
+--------------------------------------------------------------------------------
 init :: F.SInfo a -> S.HashSet F.KVar -> Solution
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 init si ks = F.solFromList keqs []
   where
     keqs   = map (refine si qs) ws `using` parList rdeepseq
     qs     = F.quals si
     ws     = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
---    ws     = M.elems $ F.ws si
 
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 refine :: F.SInfo a
        -> [F.Qualifier]
        -> F.WfC a
        -> (F.KVar, QBind)
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 refine fi qs w = refineK env qs $ F.wrft w
   where
     env        = wenv <> genv
@@ -108,13 +104,13 @@ refineK env qs (v, t, k) = {- tracepp msg -} (k, eqs')
     eqs'                 = filter (okInst env v t) eqs
     -- msg                  = printf "refineK: k = %s, eqs = %s" (showpp k) (showpp eqs)
 
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 instK :: F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
       -> QBind
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
     unique = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
@@ -157,9 +153,9 @@ candidates env tyss tx
   where
     mono = So.isMono tx
 
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> F.EQual -> Bool
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
@@ -210,14 +206,16 @@ applyPack g s kvs = case packable g s kvs of
   Nothing       -> applyKVars' g s kvs
   Just (p, kcs) -> applyPackCubes g s p kcs
 
-
-
 packKVars :: CombinedEnv -> [KVSub] -> [[KVSub]]
-packKVars = error "TODO:packKVars"
+packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
+  where
+    sm                 = F.soePacks se
+    kF (k, _)          = M.lookup k sm
+    eF (Just _,  xs)   = [xs]
+    eF (Nothing, xs)   = singleton <$> xs
 
 packable :: CombinedEnv -> Solution -> [KVSub] -> Maybe (F.Expr, [(KVSub, F.Cube)])
-packable _g _s _kvs = error "TODO:packable"
--- applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+packable _g _s _kvs = error "TBD:packable"
 
 applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> [(KVSub, F.Cube)] -> ExprInfo
 applyPackCubes g s p kcs = mrExprInfos (applyPackCube g s bs'') ppAnd mconcat kcs
@@ -237,13 +235,9 @@ applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
-applyKVar g s (k, su)
-  | Just cs  <- M.lookup k (F.sHyp s)
-  = hypPred g s k su cs
-  | Just eqs <- M.lookup k (F.sMap s)
-  = qBindPred su eqs -- TODO: don't initialize kvars that have a hyp solution
-  | otherwise
-  = errorstar $ "Unknown kvar: " ++ show k
+applyKVar g s (k, su) = case F.solLookup s k of
+  Left cs   -> hypPred g s k su cs
+  Right eqs -> qBindPred     su eqs -- TODO: don't initialize kvars that have a hyp solution
 
 hypPred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Hyp  -> ExprInfo
 hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
@@ -364,23 +358,6 @@ noKvars = null . V.kvars
 qBindPred :: F.Subst -> QBind -> ExprInfo
 --------------------------------------------------------------------------------
 qBindPred su eqs = (F.subst su $ F.pAnd $ F.eqPred <$> eqs, mempty)
-
---------------------------------------------------------------------------------
--- | Build and print the graph of post eliminate solution, which has an edge
---   from k -> k' if k' appears directly inside the "solution" for k
---------------------------------------------------------------------------------
-elimSolGraph :: Config -> F.Solution -> IO ()
-elimSolGraph cfg s = writeGraph f (solutionGraph s)
-  where
-    f              = queryFile Dot cfg
-
---------------------------------------------------------------------------------
-solutionGraph :: Solution -> KVGraph
---------------------------------------------------------------------------------
-solutionGraph s = KVGraph [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
-  where
-     eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
-     kEqs       = M.toList (F.sMap s)
 
 --------------------------------------------------------------------------------
 -- | Information about size of formula corresponding to an "eliminated" KVar.

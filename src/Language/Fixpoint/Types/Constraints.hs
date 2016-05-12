@@ -56,9 +56,9 @@ module Language.Fixpoint.Types.Constraints (
   , Cube (..)
   , QBind
   , Cand
-  , Sol (..)
+  , Sol
   , Solution
-  , solFromList, solInsert, solLookup, solResult
+  , solFromList, solInsert, solLookupQBind, solLookup, solResult
 
   -- * Cut KVars
   , Kuts (..)
@@ -559,9 +559,20 @@ solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
-solLookup :: Solution -> KVar -> QBind
+solLookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-solLookup s k = M.lookupDefault [] k (sMap s)
+solLookupQBind s k = M.lookupDefault [] k (sMap s)
+
+--------------------------------------------------------------------------------
+solLookup :: Solution -> KVar -> Either Hyp QBind
+--------------------------------------------------------------------------------
+solLookup s k
+  | Just cs  <- M.lookup k (sHyp s)
+  = Left cs
+  | Just eqs <- M.lookup k (sMap s)
+  = Right eqs -- TODO: don't initialize kvars that have a hyp solution
+  | otherwise
+  = errorstar $ "solLookup: Unknown kvar " ++ show k
 
 --------------------------------------------------------------------------------
 solInsert :: KVar -> a -> Sol a -> Sol a

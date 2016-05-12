@@ -267,6 +267,9 @@ writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
 ensurePath :: FilePath -> IO ()
 ensurePath = createDirectoryIfMissing True . takeDirectory
 
+singleton :: a -> [a]
+singleton x = [x]
+
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
 

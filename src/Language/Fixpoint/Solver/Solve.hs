@@ -137,7 +137,7 @@ refineC _i s c
 rhsCands :: F.Solution -> F.SimpC a -> ([F.KVar], F.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- F.solLookup s k]
+    kqs        = [ cnd k su q | (k, su) <- ks, q <- F.solLookupQBind s k]
     ks         = predKs . F.crhs $ c
     cnd k su q = (F.subst su (F.eqPred q), (k, q))
 
