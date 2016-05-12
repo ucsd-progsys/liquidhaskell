@@ -180,8 +180,8 @@ interchange (C x xs) y
       seq (C x xs) (pure y)
         ==! seq (C x xs) (C y N)
         ==! append (fmap x (C y N)) (seq xs (C y N))
-        ==! append (C (x y) (fmap x N))      (seq xs (C y N))
-        ==! append (C (x y) N)      (seq xs (C y N))
+        ==! append (C (x y) (fmap x N)) (seq xs (C y N))
+        ==! append (C (x y) N) (seq xs (C y N))
         ==! C (x y) (append N (seq xs (C y N)))
         ==! C (x y) (seq xs (C y N))
         ==! C (x y) (seq xs (pure y))
@@ -219,14 +219,25 @@ tl (C _ xs) = xs
 -- | TODO: Cuurently I cannot improve proofs
 -- | HERE I duplicate the code...
 
+-- TODO: remove stuff out of HERE
+
 {-@ seq_nill :: fs:L (a -> b) -> {v:Proof | seq fs N == N } @-}
 seq_nill :: L (a -> b) -> Proof
-seq_nill = undefined
+seq_nill N
+  = toProof $
+      seq N N ==! N
+seq_nill (C x xs)
+  = toProof $
+      seq (C x xs) N
+        ==! append (fmap x N) (seq xs N)
+        ==! append N N ? seq_nill xs
+        ==! N
 
 {-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
    -> {v:Proof | append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
 append_fmap :: (a -> b) -> L a -> L a -> Proof
-append_fmap = undefined
+append_fmap = undefined 
+
 
 seq_fmap :: (a -> a) -> L (a -> a) -> L a -> Proof
 {-@ seq_fmap :: f: (a -> a) -> fs:L (a -> a) -> xs:L a
