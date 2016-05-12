@@ -35,6 +35,10 @@ module Language.Fixpoint.Types.Environments (
 
   -- * Information needed to lookup and update Solutions
   , SolEnv (..)
+
+  -- * Groups of KVars (needed by eliminate)
+  , Packs (..)
+  , getPack
   ) where
 
 -- import qualified Data.Binary as B
@@ -70,8 +74,8 @@ data SizedEnv a    = BE { _beSize  :: !Int
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
-data SolEnv        = SolEnv { soeBinds :: BindEnv
-                            , soePacks :: M.HashMap KVar Int
+data SolEnv        = SolEnv { soeBinds :: !BindEnv
+                            , soePacks :: !Packs
                             } deriving (Eq, Show, Generic)
 
 
@@ -217,13 +221,32 @@ instance Fixpoint (IBindEnv) where
 
 --------------------------------------------------------------------------------
 
+instance NFData Packs
 instance NFData IBindEnv
 instance NFData BindEnv
 instance (NFData a) => NFData (SEnv a)
 
+instance B.Binary Packs
 instance B.Binary IBindEnv
 instance B.Binary BindEnv
 instance (B.Binary a) => B.Binary (SEnv a)
 instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
   put = B.put . S.toList
   get = S.fromList <$> B.get
+
+--------------------------------------------------------------------------------
+-- | Constraint Pack Sets -------------------------------------------------------
+--------------------------------------------------------------------------------
+
+newtype Packs = Packs { packm :: M.HashMap KVar Int }
+               deriving (Eq, Show, Generic)
+
+instance Fixpoint Packs where
+  toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> M.toList m
+
+instance Monoid Packs where
+  mempty        = Packs mempty
+  mappend m1 m2 = Packs $ M.union (packm m1) (packm m2)
+
+getPack :: KVar -> Packs -> Maybe Int
+getPack k (Packs m) = M.lookup k m

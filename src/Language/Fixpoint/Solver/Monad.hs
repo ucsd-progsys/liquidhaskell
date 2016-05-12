@@ -93,7 +93,7 @@ runSolverM cfg sI _ act =
   where
     acquire = makeContextWithSEnv (C.allowHO cfg) lar (solver cfg) file env
     release = cleanupContext
-    be      = F.SolEnv (F.bs fi) (error "TBD:initialPACKS")
+    be      = F.SolEnv (F.bs fi) (F.packs fi) -- (error "TBD:initialPACKS")
     file    = F.fileName fi -- (inFile cfg)
     env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]

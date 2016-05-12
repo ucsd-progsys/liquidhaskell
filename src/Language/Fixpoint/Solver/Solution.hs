@@ -356,7 +356,7 @@ packKVars :: CombinedEnv -> [KVSub] -> [[KVSub]]
 packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
   where
     sm                 = F.soePacks se
-    kF (k, _)          = M.lookup k sm
+    kF (k, _)          = F.getPack k sm
     eF (Just _,  xs)   = [xs]
     eF (Nothing, xs)   = singleton <$> xs
 
