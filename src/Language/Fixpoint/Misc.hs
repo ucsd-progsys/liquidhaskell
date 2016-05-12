@@ -270,6 +270,14 @@ ensurePath = createDirectoryIfMissing True . takeDirectory
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
 
+mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
+mapEither _ []     = ([], [])
+mapEither f (x:xs) = case f x of
+                       Left y  -> (y:ys, zs)
+                       Right z -> (ys, z:zs)
+                     where
+                       (ys, zs) = mapEither f xs
+
 {-
 exitColorStrLn :: Moods -> String -> IO ()
 exitColorStrLn c s = do

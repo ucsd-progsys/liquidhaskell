@@ -186,10 +186,15 @@ type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 type ExprInfo = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
-apply g s bs = mrExprInfos (apply1 g s)    F.pAnd mconcat (F.elemsIBindEnv bs)
+apply g s bs  = (F.pAnd (pks : ps), kI)
+  where
+    (pks, kI) = applyKVars g s ks
+    (ks, ps)  = mapEither exprKind es
+    es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
 
-apply1 :: CombinedEnv -> Solution -> F.BindId -> ExprInfo
-apply1 g s i = mrExprInfos (applyExpr g s) F.pAnd mconcat (bindExprs g i)
+exprKind :: F.Expr -> Either (F.KVar, F.Subst) F.Expr
+exprKind (F.PKVar k su) = Left  (k, su)
+exprKind p              = Right p
 
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
@@ -197,18 +202,28 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     (x, sr)          = F.lookupBindEnv i be
     rs               = F.reftConjuncts $ F.sr_reft sr
 
-applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
-applyExpr g s (F.PKVar k su)
-  | kI == mempty = (e, kI)
-  | otherwise    = (e, kI)
-  where
-    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
-    (e, kI) = applyKVar g s k su
+-- // apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
+-- // apply g s bs = mrExprInfos (apply1 g s)    F.pAnd mconcat (F.elemsIBindEnv bs)
+-- //
+-- // apply1 :: CombinedEnv -> Solution -> F.BindId -> ExprInfo
+-- // apply1 g s i = mrExprInfos (applyExpr g s) F.pAnd mconcat (bindExprs g i)
 
-applyExpr _ _ p              = (p, mempty)
 
-applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> ExprInfo
-applyKVar g s k su
+-- // applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
+-- // applyExpr g s (F.PKVar k su) = applyKVar g s k su
+-- // applyExpr _ _ p              = (p, mempty)
+
+-- //  | kI == mempty = (e, kI)
+-- //  | otherwise    = (e, kI)
+-- //  where
+-- //    (e, kI)      = applyKVar g s k su
+-- //    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+
+applyKVars :: CombinedEnv -> Solution -> [(F.KVar, F.Subst)] -> ExprInfo
+applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+
+applyKVar :: CombinedEnv -> Solution -> (F.KVar, F.Subst) -> ExprInfo
+applyKVar g s (k, su)
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
   | Just eqs <- M.lookup k (F.sMap s)
