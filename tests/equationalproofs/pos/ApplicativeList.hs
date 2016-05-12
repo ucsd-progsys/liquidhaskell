@@ -78,8 +78,9 @@ identity xs
                 -> z:L a
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
+composition = undefined
 
-
+{-
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
    = toProof $
         seq (seq (seq (pure compose) xss) yss) zss
@@ -145,16 +146,22 @@ composition xss yss N
         ==! N                    ? seq_nill (seq (seq (pure compose) xss) yss)
         ==! seq xss N            ? seq_nill xss
         ==! seq xss (seq yss N)  ? seq_nill yss
+-}
 
-
-{- 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
-{- homomorphism :: f:(a -> a) -> x:a
+{-@ homomorphism :: f:(a -> a) -> x:a
                  -> {v:Proof | seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
-  = undefined
+  = toProof $
+      seq (pure f) (pure x)
+        ==! seq (C f N) (C x N)
+        ==! append (fmap f (C x N)) (seq N (C x N))
+        ==! append (C (f x) (fmap f N)) N 
+        ==! append (C (f x) N) N
+        ==! C (f x) N  ? prop_append_neutral (C (f x) N)
+        ==! pure (f x)
 
 -- | interchange
 
@@ -166,7 +173,6 @@ interchange N y
   = undefined
 interchange (C x xs) y
   = undefined
--}
 
 data L a = N | C a (L a)
 {-@ data L [llen] @-}
