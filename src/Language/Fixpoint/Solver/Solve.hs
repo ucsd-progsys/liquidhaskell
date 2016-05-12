@@ -211,7 +211,7 @@ gradualSolve :: (Fixpoint a)
 gradualSolve cfg (F.Unsafe cs)
   | gradual cfg   = go cs
   where
-    go cs         = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
+    go cs         = smtEnablembqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
     makeResult    = applyNonNull F.Safe F.Unsafe
 gradualSolve _  r = return r
 

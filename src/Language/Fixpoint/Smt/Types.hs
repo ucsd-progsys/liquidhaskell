@@ -116,5 +116,5 @@ class SMTLIB2 a where
 
   smt2 :: a -> LT.Builder
 
-  runSmt2 :: Show a => SMTEnv -> a -> LT.Builder
+  runSmt2 :: SMTEnv -> a -> LT.Builder
   runSmt2 env a = smt2 $ evalState (defunc a) (SMTSt 0 env)

@@ -6,6 +6,7 @@
 
 module Language.Fixpoint.Types.Config (
     Config  (..)
+  , defConfig
   , getOpts
   , Command (..)
   , SMTSolver (..)
@@ -94,6 +95,8 @@ instance Default Config where
                , minimize    = def
                , gradual     = False
                }
+defConfig :: Config
+defConfig = def 
 
 instance Command Config where
   command c =  command (genSorts c)
