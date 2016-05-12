@@ -22,6 +22,7 @@ import           Text.Printf                     (printf)
 
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Smt.Interface hiding (verbose)
+import qualified Language.Fixpoint.Types.Config  as F 
 
 import           Test.Target.Monad
 import           Test.Target.Targetable (Targetable(..))
@@ -74,7 +75,7 @@ targetResultWith f name path opts
   = do when (verbose opts) $
          printf "Testing %s\n" name
        sp  <- getSpec (ghcOpts opts) path
-       ctx <- mkContext (solver opts)
+       ctx <- mkContext 
        do r <- runTarget opts (initState path sp ctx) $ do
                  ty <- safeFromJust "targetResultWith" . lookup (symbol name) <$> gets sigs
                  test f ty
@@ -83,8 +84,8 @@ targetResultWith f name path opts
         `onException` terminateProcess (pId ctx)
   where
     mkContext = if logging opts
-                then flip (makeContext False False) (".target/" ++ name)
-                else makeContextNoLog False False
+                then makeContext F.defConfig{F.solver = solver opts} (".target/" ++ name)
+                else makeContextNoLog F.defConfig{F.solver = solver opts}
 
 targetResultWithTH :: TH.Name -> FilePath -> TargetOpts -> TH.ExpQ
 targetResultWithTH f m opts = [| targetResultWith $(monomorphic f) $(TH.stringE $ show f) m opts |]
