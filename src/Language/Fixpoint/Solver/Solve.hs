@@ -237,11 +237,12 @@ makeGradualExpression γ γ' p
 
 -- makeEnvironment :: F.TaggedC c a => c a -> SolveM [(F.Symbol, F.SortedReft)]
 makeEnvironment :: F.SimpC a -> SolveM [(F.Symbol, F.SortedReft)]
-makeEnvironment  c
-  = do lp <- getBinds
-       return [ F.lookupBindEnv i lp | i <- bs ]
+makeEnvironment c = cstrBinders c . F.soeBinds <$> getBinds
+
+cstrBinders :: F.SimpC a -> F.BindEnv -> [(F.Symbol, F.SortedReft)]
+cstrBinders c be = [ F.lookupBindEnv i be | i <- is  ]
   where
-    bs = sort $ F.elemsIBindEnv $ F.senv c
+    is           = sort $ F.elemsIBindEnv $ F.senv c
 
 splitLastGradual :: [(a, F.SortedReft)] -> ([(a, F.SortedReft)], [(a, F.SortedReft)], Bool)
 splitLastGradual = go [] . reverse

@@ -170,7 +170,7 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
+lhsPred :: F.SolEnv -> F.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
 lhsPred be s c = {- F.tracepp msg $ -} fst $ apply g s bs
   where
@@ -179,11 +179,10 @@ lhsPred be s c = {- F.tracepp msg $ -} fst $ apply g s bs
     ci         = sid c
     -- msg        = "LhsPred for id = " ++ show (sid c)
 
-type Cid = Maybe Integer
-
-type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
-
-type ExprInfo = (F.Expr, KInfo)
+type Cid         = Maybe Integer
+type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
+type ExprInfo    = (F.Expr, KInfo)
+type KVSub       = (F.KVar, F.Subst)
 
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
 apply g s bs  = (F.pAnd (pks : ps), kI)
@@ -199,30 +198,45 @@ exprKind p              = Right p
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
   where
-    (x, sr)          = F.lookupBindEnv i be
+    (x, sr)          = F.lookupBindEnv i (F.soeBinds be)
     rs               = F.reftConjuncts $ F.sr_reft sr
 
--- // apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
--- // apply g s bs = mrExprInfos (apply1 g s)    F.pAnd mconcat (F.elemsIBindEnv bs)
--- //
--- // apply1 :: CombinedEnv -> Solution -> F.BindId -> ExprInfo
--- // apply1 g s i = mrExprInfos (applyExpr g s) F.pAnd mconcat (bindExprs g i)
+
+applyKVars :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
+applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
+
+applyPack :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
+applyPack g s kvs = case packable g s kvs of
+  Nothing       -> applyKVars' g s kvs
+  Just (p, kcs) -> applyPackCubes g s p kcs
 
 
--- // applyExpr :: CombinedEnv -> Solution -> F.Expr -> ExprInfo
--- // applyExpr g s (F.PKVar k su) = applyKVar g s k su
--- // applyExpr _ _ p              = (p, mempty)
 
--- //  | kI == mempty = (e, kI)
--- //  | otherwise    = (e, kI)
--- //  where
--- //    (e, kI)      = applyKVar g s k su
--- //    -- msg     = "applyKVar: " ++ show k ++ " info =" ++ show kI
+packKVars :: CombinedEnv -> [KVSub] -> [[KVSub]]
+packKVars = error "TODO:packKVars"
 
-applyKVars :: CombinedEnv -> Solution -> [(F.KVar, F.Subst)] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+packable :: CombinedEnv -> Solution -> [KVSub] -> Maybe (F.Expr, [(KVSub, F.Cube)])
+packable _g _s _kvs = error "TODO:packable"
+-- applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
-applyKVar :: CombinedEnv -> Solution -> (F.KVar, F.Subst) -> ExprInfo
+applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> [(KVSub, F.Cube)] -> ExprInfo
+applyPackCubes g s p kcs = mrExprInfos (applyPackCube g s bs'') ppAnd mconcat kcs
+  where
+    ppAnd ps             = F.pAnd (p:ps)
+    bs''                 = foldr1 F.intersectionIBindEnv bss
+    bss                  = [ F.cuBinds c | (_, c) <- kcs ]
+
+applyPackCube:: CombinedEnv -> Solution -> F.IBindEnv -> (KVSub, F.Cube) -> ExprInfo
+applyPackCube g s bs'' kc = cubePredExc g s k su c bs'
+  where
+    ((k, su), c)          = kc
+    bs'                   = F.diffIBindEnv bs bs''
+    bs                    = F.cuBinds c
+
+applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
+applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+
+applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
 applyKVar g s (k, su)
   | Just cs  <- M.lookup k (F.sHyp s)
   = hypPred g s k su cs
@@ -234,46 +248,70 @@ applyKVar g s (k, su)
 hypPred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Hyp  -> ExprInfo
 hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
 
+
+{- | `cubePred g s k su c` returns the predicate for
+
+        (k . su)
+
+      defined by using cube
+
+        c := [b1,...,bn] |- (k . su')
+
+      in the binder environment `g`.
+
+        bs' := the subset of "extra" binders in [b1...bn] that are *not* in `g`
+        p'  := the predicate corresponding to the "extra" binders
+
+ -}
+
 cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> ExprInfo
-cubePred g s k su c = (cubeP, extendKInfo kI (cuTag c))
+cubePred g s k su c = cubePredExc g s k su c bs'
+  where
+    bs'             = delCEnv bs g
+    bs              = F.cuBinds c
+
+-- | A variant of @cubePred@ which computes the predicate for the subset of
+--   of binders cbs'' (which are the "delta" over those that are common over
+--   a "pack" of kvars).
+
+cubePredExc :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.IBindEnv -> ExprInfo
+cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (cuTag c))
   where
     cubeP           = F.PExist xts
                        $ F.pAnd [ psu
                                 , F.PExist yts' $ F.pAnd [p', psu'] ]
     yts'            = symSorts g bs'
-    g'              = addCEnv g bs
+    g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
-    bs'             = delCEnv bs g
-    bs              = F.cuBinds c
-    su'             = F.cuSubst c
-    -- F.Cube bs su'   = c
     (_  , psu')     = substElim g' k su'
     (xts, psu)      = substElim g  k su
+    su'             = F.cuSubst c
+    bs              = F.cuBinds c
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
--- | substElim returns the binders that must be existentially quantified,
---   and the equality predicate relating the kvar-"parameters" and their
---   actual values. i.e. given
---
---      K[x1 := e1]...[xn := en]
---
---   where e1 ... en have types t1 ... tn
---   we want to quantify out
---
---     x1:t1 ... xn:tn
---
---   and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
---   we use ~~ because the param and value may have different sorts, see:
---
---      tests/pos/kvar-param-poly-00.hs
---
---   Finally, we filter out binders if they are
---   1. "free" in e1...en i.e. in the outer environment.
---      (Hmm, that shouldn't happen...?)
---   2. are binders corresponding to sorts (e.g. `a : num`, currently used
---      to hack typeclasses current.)
+{- | @substElim@ returns the binders that must be existentially quantified,
+     and the equality predicate relating the kvar-"parameters" and their
+     actual values. i.e. given
 
+        K[x1 := e1]...[xn := en]
+
+     where e1 ... en have types t1 ... tn
+     we want to quantify out
+
+       x1:t1 ... xn:tn
+
+     and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
+     we use ~~ because the param and value may have different sorts, see:
+
+        tests/pos/kvar-param-poly-00.hs
+
+     Finally, we filter out binders if they are
+     1. "free" in e1...en i.e. in the outer environment.
+        (Hmm, that shouldn't happen...?)
+     2. are binders corresponding to sorts (e.g. `a : num`, currently used
+        to hack typeclasses current.)
+ -}
 substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim g _ (F.Su m) = (xts, p)
   where
@@ -284,7 +322,6 @@ substElim g _ (F.Su m) = (xts, p)
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
-    -- sortOf e = fromMaybe (badExpr g k e) $ So.checkSortExpr env e
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True
@@ -305,7 +342,9 @@ isClass _       = False
 -- substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
-combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
+combinedSEnv (_, se, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
+  where
+    be                   = F.soeBinds se
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
@@ -314,7 +353,9 @@ delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
 delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
+symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
+  where
+    be                 = F.soeBinds se
 
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars

@@ -31,7 +31,10 @@ module Language.Fixpoint.Types.Environments (
   , BindEnv, beBinds
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
-  , unionIBindEnv, diffIBindEnv
+  , unionIBindEnv, diffIBindEnv, intersectionIBindEnv
+
+  -- * Information needed to lookup and update Solutions
+  , SolEnv (..)
   ) where
 
 -- import qualified Data.Binary as B
@@ -66,6 +69,10 @@ data SizedEnv a    = BE { _beSize  :: !Int
 
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
+
+data SolEnv        = SolEnv { soeBinds :: BindEnv
+                            , soePacks :: M.HashMap KVar Int
+                            } deriving (Eq, Show, Generic)
 
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
@@ -168,9 +175,12 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
+intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
+
+
 diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
-
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m

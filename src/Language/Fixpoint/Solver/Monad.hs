@@ -56,7 +56,7 @@ import           Control.Exception.Base (bracket)
 type SolveM = StateT SolverState IO
 
 data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
-                      , ssBinds   :: !F.BindEnv        -- ^ All variables and types
+                      , ssBinds   :: !F.SolEnv         -- ^ All variables and types
                       , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
@@ -93,7 +93,7 @@ runSolverM cfg sI _ act =
   where
     acquire = makeContextWithSEnv (C.allowHO cfg) lar (solver cfg) file env
     release = cleanupContext
-    be      = F.bs     fi
+    be      = F.SolEnv (F.bs fi) (error "TBD:initialPACKS")
     file    = F.fileName fi -- (inFile cfg)
     env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
@@ -102,7 +102,7 @@ runSolverM cfg sI _ act =
     fi      = (siQuery sI) {F.allowHO = C.allowHO cfg}
 
 ---------------------------------------------------------------------------
-getBinds :: SolveM F.BindEnv
+getBinds :: SolveM F.SolEnv
 ---------------------------------------------------------------------------
 getBinds = ssBinds <$> get
 
