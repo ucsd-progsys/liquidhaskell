@@ -50,7 +50,7 @@ toProof _ = True
 
 -- | Comparison operators requiring proof terms optionally 
 
-class ToProve a e where
+class ToProve a r where
   (==?) :: a -> a -> r
 
 
@@ -58,13 +58,13 @@ instance (a~b) => ToProve a b where
 {-@ instance ToProve a b where
   ==? :: x:a -> y:a -> {v:b | v ~~ x && v ~~ y}
   @-}
-  (==?) x _ = undefined
+  (==?)  = undefined
 
 instance (a~b) => ToProve a (Proof -> b) where
-{-@ instance ToProve a (Bool -> b) where
+{-@ instance ToProve a (Proof -> b) where
   ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x && v ~~ y }
   @-}
-  (==?) = undefined
+  (==?) = undefined 
 
 
 

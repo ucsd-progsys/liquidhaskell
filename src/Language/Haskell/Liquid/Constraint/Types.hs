@@ -253,10 +253,18 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 
 
 addArgument :: CGEnv -> Var -> CGEnv
-addArgument γ v = γ {fargs = S.insert v (fargs γ) }
+addArgument γ v 
+ | higherorder $ cgCfg γ
+ = γ {fargs = S.insert v (fargs γ) }
+ | otherwise
+ = γ 
 
 addArguments :: CGEnv -> [Var] -> CGEnv
-addArguments = foldl addArgument 
+addArguments γ vs 
+ | higherorder $ cgCfg γ
+ = foldl addArgument γ vs 
+ | otherwise
+ = γ
 
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv

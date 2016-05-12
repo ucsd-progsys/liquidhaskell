@@ -101,8 +101,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
 -- import Debug.Trace (trace)
-mytraceShow :: String -> a -> a 
-mytraceShow _ a = a 
+
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -1083,7 +1082,7 @@ consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       return $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
+       return $ strengthenS id tt (singletonReft (M.lookup x $ aenv γ) x)
 
 {-
 consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β
@@ -1482,6 +1481,11 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+<<<<<<< HEAD
+=======
+argExpr γ (Var v)     | M.member v $ aenv γ, higherorder $ cgCfg γ
+                      = F.EVar <$> (M.lookup v $ aenv γ)
+>>>>>>> cleaning
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
@@ -1510,9 +1514,9 @@ varRefType γ x = do
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
   | Just tys <- trec γ, Just tr  <- M.lookup x' tys
-  = tr `strengthenS` xr
+  = strengthenS F.top tr xr
   | otherwise
-  = t' `strengthenS` xr
+  = strengthenS F.top t' xr
   where
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
@@ -1520,9 +1524,9 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
 makeSingleton γ e t allowHO
-  | allowHO, App f x <- simplify e -- , not (isFunTy t)
+  | allowHO, App f x <- simplify e
   = case (funExpr γ f, argExpr γ x) of 
-      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
+      (Just f', Just x') -> strengthenS id t (uTop $ F.exprReft (F.EApp f' x'))
       _ -> t  
   | otherwise
   = t 
@@ -1530,15 +1534,15 @@ makeSingleton γ e t allowHO
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
 funExpr γ (Var v) | M.member v $ aenv γ
-  = mytraceShow ("funExpr1 " ++ show v) (F.EVar <$> (M.lookup v $ aenv γ))
-funExpr γ v@(App e1 e2)
+  = F.EVar <$> (M.lookup v $ aenv γ)
+funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of 
-      (Just e1', Just e2') -> mytraceShow ("funExpr2 " ++ show v) $ Just (F.EApp e1' e2')
-      _                    -> mytraceShow ("funExpr3 " ++ show v) Nothing
+      (Just e1', Just e2') -> Just (F.EApp e1' e2')
+      _                    -> Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
-  = mytraceShow ("funExpr3 " ++ show v) $ Just $ F.EVar (F.symbol v)
-funExpr _ e 
-  = mytraceShow ("funExpr4 " ++ show e) Nothing 
+  = Just $ F.EVar (F.symbol v)
+funExpr _ _ 
+  = Nothing 
 
 simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e 
@@ -1553,16 +1557,16 @@ singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenS :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
-strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
-strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
-strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
-strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
-strengthenS (RAllT a t) r'       = RAllT a $ strengthenS t r'
-strengthenS t _                  = t
+strengthenS :: (PPrint r, F.Reftable r) => (r -> r) -> RType c tv r -> r -> RType c tv r
+strengthenS f (RApp c ts rs r) r'  = RApp c ts rs $ topMeet f r r'
+strengthenS f (RVar a r) r'        = RVar a       $ topMeet f r r'
+strengthenS f (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet f r r'
+strengthenS f (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet f r r'
+strengthenS f (RAllT a t) r'       = RAllT a $ strengthenS f t r'
+strengthenS _ t _                  = t
 
-topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+topMeet :: (PPrint r, F.Reftable r) => (r -> r) -> r -> r -> r
+topMeet f r r' = {- F.tracepp msg $ -} f r `F.meet` r'
   -- where
     -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 

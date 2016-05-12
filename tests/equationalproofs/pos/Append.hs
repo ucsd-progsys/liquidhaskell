@@ -18,27 +18,27 @@ import Proves
 {-@ axiomatize append @-}
 append :: L a -> L a -> L a
 append xs ys  
-  | nill xs   = ys 
-  | otherwise = C (hd xs) (append (tl xs) ys) 
+  | llen xs == 0 = ys 
+  | otherwise    = C (hd xs) (append (tl xs) ys) 
 
 {-@ axiomatize map @-}
 map :: (a -> b) -> L a -> L b
 map f xs 
-  | nill xs   = N 
-  | otherwise = C (f (hd xs)) (map f (tl xs)) 
+  | llen xs == 0 = N 
+  | otherwise    = C (f (hd xs)) (map f (tl xs)) 
 
 {-@ axiomatize concatMap @-}
 concatMap :: (a -> L b) -> L a -> L b
 concatMap f xs 
-  | nill xs   = N
-  | otherwise = append (f (hd xs)) (concatMap f (tl xs)) 
+  | llen xs == 0 = N
+  | otherwise    = append (f (hd xs)) (concatMap f (tl xs)) 
 
 
 {-@ axiomatize concatt @-}
 concatt :: L (L a) -> L a 
 concatt xs 
-  | nill xs   = N 
-  | otherwise = append (hd xs) (concatt (tl xs))
+  | llen xs == 0 = N 
+  | otherwise    = append (hd xs) (concatt (tl xs))
 
 
 prop_append_neutral :: L a -> Proof 
@@ -112,10 +112,6 @@ prop_concatMap f (C x xs)
 data L a = N | C a (L a)
 {-@ data L [llen] @-}
 
-{-@ measure nill @-}
-nill :: L a -> Bool 
-nill N = True 
-nill _ = False 
 
 {-@ measure llen @-}
 llen :: L a -> Int 
