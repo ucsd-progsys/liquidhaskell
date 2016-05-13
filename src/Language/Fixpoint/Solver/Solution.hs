@@ -72,7 +72,7 @@ groupKs ks kqs = M.toList $ groupBase m0 kqs
 update1 :: Solution -> (F.KVar, QBind) -> (Bool, Solution)
 update1 s (k, qs) = (change, solInsert k qs s)
   where
-    oldQs         = solLookup s k
+    oldQs         = F.solLookupQBind s k
     change        = length oldQs /= length qs
 
 --------------------------------------------------------------------------------
@@ -184,9 +184,11 @@ type KVSub       = (F.KVar, F.Subst)
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
 apply g s bs  = (F.pAnd (pks : ps), kI)
   where
-    (pks, kI) = applyKVars g s ks
+    (pks, kI) = (dummy applyKVars' applyKVars) g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
+    dummy _ x = x
+
 
 exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
@@ -202,18 +204,26 @@ applyKVars :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
   where
     applyPack :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
-    applyPack g s kvs = case packable g s kvs of
+    applyPack g s kvs = case packable s kvs of
       Nothing       -> applyKVars' g s kvs
+      Just (p, [])  -> (p, mempty)
       Just (p, kcs) -> applyPackCubes g s p kcs
 
 --------------------------------------------------------------------------------
-applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> [(KVSub, F.Cube)] -> ExprInfo
+applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> ListNE (KVSub, F.Cube) -> ExprInfo
 --------------------------------------------------------------------------------
-applyPackCubes g s p kcs = mrExprInfos (applyPackCube g s bs'') ppAnd mconcat kcs
+applyPackCubes g s p kcs = mrExprInfos (applyPackCube g s bs'') ppAnd ppConcat kcs
   where
-    ppAnd ps             = F.pAnd (p:ps)
-    bs''                 = foldr1 F.intersectionIBindEnv bss
-    bss                  = [ F.cuBinds c | (_, c) <- kcs ]
+    ppAnd ps             = F.pAnd [ p
+                                  , F.pExist yts'' $ F.pAnd (p'' : ps) ]
+
+    ppConcat kIs         = mconcat (kI : kIs)
+    yts''                = symSorts g bs''
+    (p'', kI)            = apply (addCEnv g bs'') s bs''
+    bs''                 = boing F.intersectionIBindEnv bs's
+    bs's                 = [ delCEnv bs g | bs <- F.cuBinds . snd <$> kcs ]
+    boing _ []           = errorstar "OOPS BOING"
+    boing f zs           = foldr1 f zs
 
 applyPackCube:: CombinedEnv -> Solution -> F.IBindEnv -> (KVSub, F.Cube) -> ExprInfo
 applyPackCube g s bs'' kc = cubePredExc g s k su c bs'
@@ -262,9 +272,9 @@ cubePred g s k su c = cubePredExc g s k su c bs'
 cubePredExc :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.IBindEnv -> ExprInfo
 cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (cuTag c))
   where
-    cubeP           = F.PExist xts
+    cubeP           = F.pExist xts
                        $ F.pAnd [ psu
-                                , F.PExist yts' $ F.pAnd [p', psu'] ]
+                                , F.pExist yts' $ F.pAnd [p', psu'] ]
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
@@ -361,9 +371,9 @@ packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
     eF (Nothing, xs)   = singleton <$> xs
 
 --------------------------------------------------------------------------------
-packable :: CombinedEnv -> Solution -> [KVSub] -> Maybe (F.Expr, [(KVSub, F.Cube)])
+packable :: Solution -> [KVSub] -> Maybe (F.Expr, [(KVSub, F.Cube)])
 --------------------------------------------------------------------------------
-packable _g s = fmap reduceCubes . sequence . fmap (getCube s)
+packable s = fmap reduceCubes . sequence . fmap (getCube s)
 
 reduceCubes :: [Either F.Expr (KVSub, F.Cube)] -> (F.Expr, [(KVSub, F.Cube)])
 reduceCubes zs = (F.pAnd ps, cs)
