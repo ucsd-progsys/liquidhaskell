@@ -41,7 +41,7 @@ data Config = Config {
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
-  , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
+  , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
   , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
   , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
