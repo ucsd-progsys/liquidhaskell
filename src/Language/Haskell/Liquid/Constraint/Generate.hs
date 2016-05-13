@@ -1575,16 +1575,6 @@ simplify (App e1 e2)      = App (simplify e1) (simplify e2)
 simplify e                = e
 
 
-
-makeSingleton :: CGEnv -> CoreExpr -> SpecType -> Bool -> SpecType
-makeSingleton γ e t allowHO
-  | allowHO, App f x <- e 
-  = case (argExpr γ f, argExpr γ x) of 
-      (Just f', Just x') -> t `strengthenS` (uTop $ F.exprReft (F.EApp f' x'))
-      _ -> t  
-  | otherwise
-  = t 
-
 singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v

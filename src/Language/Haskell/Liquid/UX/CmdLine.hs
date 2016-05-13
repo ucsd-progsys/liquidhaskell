@@ -404,6 +404,7 @@ defConfig = Config { files             = def
                    , cFiles            = def
                    , eliminate         = def
                    , port              = defaultPort
+                   , scrapeInternals   = False
                    , scrapeImports     = False
                    , scrapeUsedImports = False
                    , elimStats         = False
