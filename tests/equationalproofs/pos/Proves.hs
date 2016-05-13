@@ -10,7 +10,7 @@ module Proves where
 infixl 3 ==:, <=:, <:, >:, ==?
 
 -- | proof operators with optional proof terms
-infixl 3 ==!, <=!, <!
+infixl 3 ==!, <=!, <!, >!
 
 -- provide the proof terms after ? 
 infixl 3 ?
@@ -24,6 +24,13 @@ type Proof = Bool
 (?) :: (Proof -> a) -> Proof -> a 
 f ? y = f y 
 
+
+-- | Proof combinators (are boolean combinators)
+{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop v <=> Prop p && Prop q } @-}
+(&&&) :: Proof -> Proof -> Proof
+p &&& q = p && q
+
+
 -- | proof goes from Int to resolve types for the optional proof combinators
 proof :: Int -> Bool 
 proof _ = True 
@@ -33,11 +40,11 @@ toProof _ = True
 
 -- | Comparison operators requiring proof terms
 
-(<=:) :: Ord a => a -> a -> Proof -> a 
+(<=:) :: a -> a -> Proof -> a 
 {-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == x } @-} 
 (<=:) x y _ = x
 
-(<:) :: Ord a => a -> a -> Proof -> a 
+(<:) :: a -> a -> Proof -> a 
 {-@ (<:) :: x:a -> y:a -> {v:Proof | x < y } -> {v:a | v == x } @-} 
 (<:) x y _ = x
 
