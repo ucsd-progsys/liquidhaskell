@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE PatternGuards      #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Create and Update Solution
@@ -184,11 +183,10 @@ type KVSub       = (F.KVar, F.Subst)
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
 apply g s bs  = (F.pAnd (pks : ps), kI)
   where
-    (pks, kI) = (dummy applyKVars' applyKVars) g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (pks, kI) = dummy applyKVars' applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
-    dummy _ x = x
-
+    dummy _old _new = _old -- _new
 
 exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
@@ -212,25 +210,26 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
 --------------------------------------------------------------------------------
 applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> ListNE (KVSub, F.Cube) -> ExprInfo
 --------------------------------------------------------------------------------
-applyPackCubes g s p kcs = mrExprInfos (applyPackCube g s bs'') ppAnd ppConcat kcs
+applyPackCubes g s p kcs = mrExprInfos (applyPackCube g'' s) ppAnd ppConcat kcs
   where
     ppAnd ps             = F.pAnd [ p
                                   , F.pExist yts'' $ F.pAnd (p'' : ps) ]
 
     ppConcat kIs         = mconcat (kI : kIs)
     yts''                = symSorts g bs''
-    (p'', kI)            = apply (addCEnv g bs'') s bs''
-    bs''                 = boing F.intersectionIBindEnv bs's
+    (p'', kI)            = apply g'' s bs''
+    g''                  = addCEnv g bs''
+    bs''                 = foldr1 F.intersectionIBindEnv bs's
     bs's                 = [ delCEnv bs g | bs <- F.cuBinds . snd <$> kcs ]
-    boing _ []           = errorstar "OOPS BOING"
-    boing f zs           = foldr1 f zs
+    -- boing _ []           = errorstar "OOPS BOING"
+    -- boing f zs           = foldr1 f zs
 
-applyPackCube:: CombinedEnv -> Solution -> F.IBindEnv -> (KVSub, F.Cube) -> ExprInfo
-applyPackCube g s bs'' kc = cubePredExc g s k su c bs'
+applyPackCube:: CombinedEnv -> Solution -> (KVSub, F.Cube) -> ExprInfo
+applyPackCube g s kc = cubePredExc g s k su c bs'
   where
-    ((k, su), c)          = kc
-    bs'                   = F.diffIBindEnv bs bs''
-    bs                    = F.cuBinds c
+    ((k, su), c)     = kc
+    bs'              = delCEnv bs g --F.diffIBindEnv bs bs''
+    bs               = F.cuBinds c
 
 applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
