@@ -78,9 +78,7 @@ identity xs
                 -> z:L a
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
-composition = undefined
 
-{-
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
    = toProof $
         seq (seq (seq (pure compose) xss) yss) zss
@@ -146,7 +144,6 @@ composition xss yss N
         ==! N                    ? seq_nill (seq (seq (pure compose) xss) yss)
         ==! seq xss N            ? seq_nill xss
         ==! seq xss (seq yss N)  ? seq_nill yss
--}
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
