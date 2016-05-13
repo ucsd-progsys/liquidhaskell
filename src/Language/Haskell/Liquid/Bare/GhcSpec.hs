@@ -302,11 +302,12 @@ makeGhcSpec4 quals defVars specs name su sp
        let msgs = strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp) 
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
-       let tx   = mapSnd (fmap $ txRefToLogic lmap inlmap)
+       let f    = fmap $ txRefToLogic lmap inlmap
+       let tx   = mapSnd f 
        let mtx  = txRefToLogic lmap inlmap
+       let txdcons d = d{tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
        return   $ sp { qualifiers = subst su quals
                      , decr       = decr'
-                     , texprs     = texprs'
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
@@ -317,6 +318,9 @@ makeGhcSpec4 quals defVars specs name su sp
                      , logicMap   = lmap'
                      , invariants = tx <$> invariants sp 
                      , ctors      = tx <$> ctors      sp
+                     , ialiases   = tx <$> ialiases   sp 
+                     , dconsP     = mapSnd txdcons <$> dconsP sp 
+                     , texprs     = mapSnd f <$> texprs'
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]

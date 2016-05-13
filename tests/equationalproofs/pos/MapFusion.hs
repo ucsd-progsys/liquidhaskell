@@ -23,8 +23,8 @@ compose f g x = f (g x)
 {-@ axiomatize map @-}
 map :: (a -> b) -> L a -> L b
 map f xs
-  | nill xs   = N
-  | otherwise = C (f (hd xs)) (map f (tl xs))
+  | llen xs == 0 = N
+  | otherwise    = C (f (hd xs)) (map f (tl xs))
 
 
 {-@ map_fusion_0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
