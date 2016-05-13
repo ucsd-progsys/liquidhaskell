@@ -298,6 +298,7 @@ measEnv sp xts cbs lts asms itys hs cfg
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
+        , fargs = S.empty
         , invs  = mempty
         , rinvs = mempty
         , ial   = mkRTyConIAl    $ ialiases   sp
@@ -987,7 +988,7 @@ cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
 cconsE' γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
-       cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
+       cconsE (addArgument γ' x) e (t `F.subst1` (y, F.EVar $ F.symbol x))
        addIdA x (AnnDef ty)
 
 cconsE' γ (Tick tt e) t

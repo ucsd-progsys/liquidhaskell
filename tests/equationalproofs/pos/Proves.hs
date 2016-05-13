@@ -42,6 +42,11 @@ toProof _ = True
 (<:) x y _ = x
 
 
+
+(>:) :: Ord a => a -> a -> Proof -> a 
+{-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == x } @-} 
+(>:) x y _ = x
+
 (==:) :: a -> a -> Proof -> a
 {-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x && v == y } @-}
 (==:) x _ _ = x
@@ -83,13 +88,6 @@ instance (a~b) => OptEq a b where
   @-}
   (==!) x _ = x
 
-
--- NV TODO: check why this does not work
-instance (a~b) => OptEq a (Proof -> b) where
-{-@ instance OptEq a (Bool -> b) where
-  ==! :: x:a -> y:a -> {v:Bool | x ~~ y} -> {v:b | v ~~ x && v ~~ y }
-  @-}
-  (==!) x _ _ = x
 
 instance OptEq a a where
 {-@ instance OptEq a a where 
@@ -142,3 +140,20 @@ instance OptLess a a where
   <! :: x:a -> y:{a| x < y} -> {v:a | v == x && v < y }
   @-}
   (<!) x y = (<!) x y True  
+
+
+
+class OptGt a r where
+  (>!) :: a -> a -> r 
+
+instance OptGt a (Bool -> a) where
+{-@ instance OptLess a (Bool -> a) where 
+  >! :: x:a -> y:a -> {v:Bool| x > y} -> {v:a | v == x && v > y}
+  @-}
+  (>!) x _ _ = x 
+
+instance OptGt a a where
+{-@ instance OptLess a a where 
+  >! :: x:a -> y:{a| x > y} -> {v:a | v == x && v > y }
+  @-}
+  (>!) x y = x
