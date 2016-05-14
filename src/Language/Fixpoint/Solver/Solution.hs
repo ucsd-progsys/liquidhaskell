@@ -186,7 +186,7 @@ apply g s bs  = (F.pAnd (pks : ps), kI)
     (pks, kI) = dummy applyKVars' applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
-    dummy _old _new = _old -- _new
+    dummy _old _new = _old --   _new
 
 exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
@@ -210,25 +210,31 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
 --------------------------------------------------------------------------------
 applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> ListNE (KVSub, F.Cube) -> ExprInfo
 --------------------------------------------------------------------------------
-applyPackCubes g s p kcs = mrExprInfos (applyPackCube g'' s) ppAnd ppConcat kcs
+applyPackCubes g s p kcs = mrExprInfos (applyPackCube g'' s) conjF catF kcs
   where
-    ppAnd ps             = F.pAnd [ p
-                                  , F.pExist yts'' $ F.pAnd (p'' : ps) ]
-
-    ppConcat kIs         = mconcat (kI : kIs)
+    conjF                = (p &.&) . conjCube yts'' p''
+    catF kIs             = mconcat (kI : kIs)
     yts''                = symSorts g bs''
     (p'', kI)            = apply g'' s bs''
     g''                  = addCEnv g bs''
     bs''                 = foldr1 F.intersectionIBindEnv bs's
     bs's                 = [ delCEnv bs g | bs <- F.cuBinds . snd <$> kcs ]
-    -- boing _ []           = errorstar "OOPS BOING"
-    -- boing f zs           = foldr1 f zs
 
-applyPackCube:: CombinedEnv -> Solution -> (KVSub, F.Cube) -> ExprInfo
+conjCube :: Binders -> F.Pred -> [(Binders, F.Pred, F.Pred)] -> F.Pred
+conjCube yts'' p'' z     = foldr wrap inP xtSuPs
+  where
+    wrap (xts, suP) q    = F.pExist xts (suP &.& q)
+    xtSuPs               = [ (xts, psu) | (xts, psu, _) <- z ]
+    inP                  = F.pExist yts'' (F.pAnd (p'' : (thd3 <$> z)))
+
+applyPackCube :: CombinedEnv
+              -> Solution
+              -> (KVSub, F.Cube)
+              -> ((Binders, F.Pred, F.Pred), KInfo)
 applyPackCube g s kc = cubePredExc g s k su c bs'
   where
     ((k, su), c)     = kc
-    bs'              = delCEnv bs g --F.diffIBindEnv bs bs''
+    bs'              = delCEnv bs g
     bs               = F.cuBinds c
 
 applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
@@ -258,22 +264,27 @@ hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
 
  -}
 
+(&.&) p q = F.pAnd [p, q]
+
 cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> ExprInfo
-cubePred g s k su c = cubePredExc g s k su c bs'
+cubePred g s k su c   = ( F.pExist xts (psu &.& p) , kI )
   where
-    bs'             = delCEnv bs g
-    bs              = F.cuBinds c
+    ((xts,psu,p), kI) = cubePredExc g s k su c bs'
+    bs'               = delCEnv bs g
+    bs                = F.cuBinds c
 
--- | A variant of @cubePred@ which computes the predicate for the subset of
---   of binders cbs'' (which are the "delta" over those that are common over
---   a "pack" of kvars).
+type Binders = [(F.Symbol, F.Sort)]
 
-cubePredExc :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.IBindEnv -> ExprInfo
+-- | @cubePredExc@ computes the predicate for the subset of binders bs'.
+--   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
+--   we want is `Exists xts.(psu /\ p)`.
+
+cubePredExc :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.IBindEnv
+            -> ((Binders, F.Pred, F.Pred), KInfo)
+
 cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (cuTag c))
   where
-    cubeP           = F.pExist xts
-                       $ F.pAnd [ psu
-                                , F.pExist yts' $ F.pAnd [p', psu'] ]
+    cubeP           = ( xts, psu, F.pExist yts' (p' &.& psu') )
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
@@ -281,6 +292,8 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (cuTag c))
     (xts, psu)      = substElim g  k su
     su'             = F.cuSubst c
     bs              = F.cuBinds c
+
+
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
@@ -419,7 +432,8 @@ extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
 
-mrExprInfos :: (a -> ExprInfo) -> ([F.Expr] -> F.Expr) -> ([KInfo] -> KInfo) -> [a] -> ExprInfo
+-- mrExprInfos :: (a -> ExprInfo) -> ([F.Expr] -> F.Expr) -> ([KInfo] -> KInfo) -> [a] -> ExprInfo
+mrExprInfos :: (a -> (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> (b1, c1)
 mrExprInfos mF erF irF xs = (erF es, irF is)
   where
     (es, is)              = unzip $ map mF xs
