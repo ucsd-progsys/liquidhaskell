@@ -179,6 +179,9 @@ instance Fixpoint Subst where
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
 
+instance PPrint Subst where
+  pprintTidy _ = toFix
+
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------
 --------------------------------------------------------------------------------

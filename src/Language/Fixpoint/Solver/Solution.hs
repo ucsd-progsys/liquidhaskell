@@ -33,7 +33,7 @@ import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
--- import           Debug.Trace (trace)
+import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier ----------------------------------------
@@ -186,7 +186,7 @@ apply g s bs  = (F.pAnd (pks : ps), kI)
     (pks, kI) = dummy applyKVars' applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
-    dummy _old _new = _old --   _new
+    dummy _old _new = _new
 
 exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
@@ -205,7 +205,10 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
     applyPack g s kvs = case packable s kvs of
       Nothing       -> applyKVars' g s kvs
       Just (p, [])  -> (p, mempty)
-      Just (p, kcs) -> applyPackCubes g s p kcs
+      Just (p, kcs) -> applyPackCubes g s p kcs -- $ tr kvs kcs
+    _tr kvs kcs
+       | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
+       | otherwise      = kcs
 
 --------------------------------------------------------------------------------
 applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> ListNE (KVSub, F.Cube) -> ExprInfo

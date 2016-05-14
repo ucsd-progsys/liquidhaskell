@@ -14,8 +14,17 @@ bind 22 x_2_1 : {v: int | $k_2_1 }
 bind 23 x_2_2 : {v: int | $k_2_2 }
 bind 24 x_3_1 : {v: int | $k_3_1 }
 bind 25 x_3_2 : {v: int | $k_3_2 }
-// bind 26 x_4_1 : {v: int | $k_4_1 }
-// bind 27 x_4_2 : {v: int | $k_4_2 }
+
+pack $k_1_1 : 1
+pack $k_1_2 : 1
+pack $k_2_1 : 2
+pack $k_2_2 : 2
+pack $k_3_1 : 3
+pack $k_3_2 : 3
+pack $k_4_1 : 4
+pack $k_4_2 : 4
+
+
 
 constraint:
   env [ 0; 1; 2; 3; 4; 5; 6; 7 ]
@@ -70,13 +79,6 @@ constraint:
   lhs {v : int | $k_4_1 }
   rhs {v : int | v = 1  }
   id 9 tag []
-
-constraint:
-  env [ ]
-  lhs {v : int | $k_4_2 }
-  rhs {v : int | v = 2  }
-  id 10 tag []
-
 
 wf:
   env [ ]
