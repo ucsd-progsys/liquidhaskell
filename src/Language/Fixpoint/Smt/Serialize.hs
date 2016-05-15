@@ -167,7 +167,9 @@ instance SMTLIB2 Expr where
   defunc (PAll   bs p)    = do bs' <- mapM defunc bs
                                p'  <- withExtendedEnv bs $ defunc p
                                return $ PAll bs' p'
-  defunc (PAtom r e1 e2)  = PAtom r <$> defunc e1 <*> defunc e2
+  defunc (PAtom r e1 e2)  = do e1' <- defunc e1 
+                               e2' <- defunc e2
+                               defuncPAtom r e1' e2' 
   defunc PGrad            = return PGrad
   defunc  e               = errorstar ("smtlib2 Pred  " ++ show e)
 
@@ -219,15 +221,17 @@ defuncApp' f [] = defunc f
 defuncApp' f es = makeApplication f es
 -- smt2App' env f es = build "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es
 
+defuncPAtom :: Brel -> Expr -> Expr -> SMT2 Expr
+defuncPAtom Eq e1 e2 
+  | isFun e1, isFun e2 
+  = mkFunEq e1 e2 
+defuncPAtom r e1 e2 
+  = return $ PAtom r e1 e2 
 
 mkRel :: Brel -> Expr -> Expr -> Builder.Builder
-mkRel Ne  e1 e2          = mkNe e1 e2
-mkRel Une e1 e2          = mkNe e1 e2
-mkRel Eq  e1 e2
---   | isFun e1 && isFun e2 = mkFunEq e1 e2 
---    build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
-  | isFun e1 && isFun e2 = build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
-mkRel r   e1 e2          = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
+mkRel Ne  e1 e2 = mkNe e1 e2
+mkRel Une e1 e2 = mkNe e1 e2
+mkRel r   e1 e2 = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
 
 mkNe :: Expr -> Expr -> Builder.Builder
 mkNe  e1 e2              = build "(not (= {} {}))" (smt2 e1, smt2 e2)
@@ -236,10 +240,12 @@ isFun :: Expr -> Bool
 isFun e | FFunc _ _ <- exprSort e = True
         | otherwise               = False
 
-mkFunEq :: Expr -> Expr -> Builder.Builder
-mkFunEq e1 e2 = smt2 $ PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
-                          (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
-  where
+mkFunEq :: Expr -> Expr -> SMT2 Expr 
+mkFunEq e1 e2 
+  = return $ PAnd [PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
+                   (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
+                  , PAtom Eq e1 e2]
+  where 
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
     xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss]
     (s, ss) = go [] $ exprSort e1
@@ -316,10 +322,17 @@ smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 defineFun :: (Symbol, Expr) -> SMT2 [Command]
 defineFun (f, ELam (x, t) (ECst e tr))
   = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr
-       assert <- withExtendedEnv [(f, FFunc t tr)] $
+       assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
                                   (PAtom Eq (mkApp (EApp (EVar f) (EVar x)) (fst <$> xts)) bd))
-       return [decl, assert]
+       g <- freshSym            
+       assert2 <- withExtendedEnv [(f, FFunc t tr)] $
+                   defunc $ Assert Nothing 
+        (PAll [(g, FFunc t tr)]
+          (PIff
+        (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
+        (PAtom Eq (EVar f) (EVar g))))
+       return [decl, assert1, assert2]
   where
     go acc (ELam (x, t) e) = go ((x,t):acc) e
     go acc (ECst e _)      = go acc e
