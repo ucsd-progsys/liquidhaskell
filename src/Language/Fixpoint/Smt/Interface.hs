@@ -54,11 +54,11 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..))
+import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, allowHO, solver)
 import           Language.Fixpoint.Misc   (errorstar)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Smt.Theories  (preamble)
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
@@ -101,9 +101,9 @@ runCommands cmds
 
 
 -- TODO take makeContext's Bool from caller instead of always using False?
-makeZ3Context :: Bool -> FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context ho f xts
-  = do me <- makeContextWithSEnv ho False Z3 f $ fromListSEnv xts
+makeZ3Context :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
+makeZ3Context cfg f xts
+  = do me <- makeContextWithSEnv cfg f $ fromListSEnv xts
        smtDecls me (toListSEnv initSMTEnv)
        smtDecls me xts
        return me
@@ -117,9 +117,9 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Bool -> Bool -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValid ho u f xts p q
-  = do me <- makeContext ho u Z3 f
+checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid cfg f xts p q
+  = do me <- makeContext cfg f
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
@@ -128,9 +128,9 @@ checkValid ho u f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: Bool -> Bool -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
-checkValids ho u f xts ps
-  = do me <- makeContext ho u Z3 f
+checkValids :: Config -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
+checkValids cfg f xts ps
+  = do me <- makeContext cfg f
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
@@ -232,11 +232,11 @@ hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: Bool -> Bool -> SMTSolver -> FilePath -> IO Context
+makeContext   :: Config -> FilePath -> IO Context
 --------------------------------------------------------------------------
-makeContext ho u s f
-  = do me   <- makeProcess s
-       pre  <- smtPreamble ho u s me
+makeContext cfg f
+  = do me   <- makeProcess (solver cfg)
+       pre  <- smtPreamble cfg (solver cfg) me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
        let me' = me { cLog = Just hLog }
@@ -245,14 +245,14 @@ makeContext ho u s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Bool -> Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context
-makeContextWithSEnv ho u s f env
-  = (\cxt -> cxt {smtenv = env}) <$> makeContext ho u s f
+makeContextWithSEnv :: Config -> FilePath  -> SMTEnv -> IO Context
+makeContextWithSEnv cfg f env
+  = (\cxt -> cxt {smtenv = env}) <$> makeContext cfg f
 
-makeContextNoLog :: Bool -> Bool -> SMTSolver -> IO Context
-makeContextNoLog ho u s
-  = do me  <- makeProcess s
-       pre <- smtPreamble ho u s me
+makeContextNoLog :: Config -> IO Context
+makeContextNoLog cfg
+  = do me  <- makeProcess (solver cfg)
+       pre <- smtPreamble cfg (solver cfg) me
        mapM_ (smtWrite me) pre
        return me
 
@@ -287,15 +287,15 @@ smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
-smtPreamble :: Bool -> Bool -> SMTSolver -> Context -> IO [LT.Text]
-smtPreamble ho u Z3 me
+smtPreamble :: Config -> SMTSolver -> Context -> IO [LT.Text]
+smtPreamble cfg Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        if T.splitOn "." v `versionGreater` ["4", "3", "2"]
-         then return $ z3_432_options ++ makeMbqi ho ++ preamble u Z3
-         else return $ z3_options     ++ makeMbqi ho ++ preamble u Z3
-smtPreamble _ u s _
-  = return $ preamble u s
+         then return $ z3_432_options ++ makeMbqi cfg ++ preamble cfg Z3
+         else return $ z3_options     ++ makeMbqi cfg ++ preamble cfg Z3
+smtPreamble cfg s _
+  = return $ preamble cfg s
 
 versionGreater :: Ord a => [a] -> [a] -> Bool
 versionGreater (x:xs) (y:ys)
@@ -360,10 +360,10 @@ respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ sho
 interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
 
-makeMbqi :: Bool -> [LT.Text]
-makeMbqi ho
-  | ho = [""]
-  | otherwise = ["\n(set-option :smt.mbqi false)"]
+makeMbqi :: Config -> [LT.Text]
+makeMbqi cfg 
+  | allowHO cfg = [""]
+  | otherwise   = ["\n(set-option :smt.mbqi false)"]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options :: [LT.Text]

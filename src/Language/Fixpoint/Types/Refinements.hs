@@ -36,7 +36,7 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
-  , mkEApp
+  , mkEApp, mkProp
   , intKvar
   , vv_
 

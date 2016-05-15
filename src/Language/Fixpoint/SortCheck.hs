@@ -25,6 +25,7 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Unify
   , unifyFast
+  , unifySorts
   , unify
 
   -- * Apply Substitution
@@ -130,6 +131,8 @@ type StateM = Int
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
 
 type Env      = Symbol -> SESearch Sort
+
+emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -388,9 +391,23 @@ elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t e@(EApp {}) = elabAppAs f t g es where (g, es) = splitEApp e
-elabAs f _ e           = fst <$> elab f e
+elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs f _ e            = fst <$> elab f e
 
+
+elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
+elabAppAs f t g e = do
+  gT       <- generalize =<< checkExpr f g
+  eT       <- checkExpr f e
+  (iT, oT) <- checkFunSort gT
+  su       <- unifys f [oT,iT] [t,eT] -- (snd gTios : fst gTios) (t:eTs)
+  let tg    = apply su gT
+  g'       <- elabAs f tg g
+  let te    = apply su eT
+  e'       <- elabAs f te e
+  return $ EApp (ECst g' tg) (ECst e' te)
+
+{-
 elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
 elabAppAs f t g es = do
   gT    <- generalize =<< checkExpr f g
@@ -402,6 +419,7 @@ elabAppAs f t g es = do
   let ts = apply su <$> eTs
   es'   <- zipWithM (elabAs f) ts es
   return $ eApps (ECst g' tg) (zipWith ECst es' ts)
+-}
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
@@ -460,7 +478,24 @@ checkExprAs f t e
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
+-- | Checking function application should be curried, 
+-- | consider checking 
+-- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x  
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
+checkApp' f to g e 
+  = do gt       <- checkExpr f g >>= generalize
+       et       <- checkExpr f e 
+       (it, ot) <- checkFunSort gt 
+       θ        <- unifys f [it] [et]
+       let t     = apply θ ot
+       case to of
+         Nothing    -> return (θ, t)
+         Just t'    -> do θ' <- unifyMany f θ [t] [t']
+                          let ti = apply θ' et
+                          _ <- checkExprAs f ti e
+                          return (θ', apply θ' t)
+
+{- 
 checkApp' f to g' e
   = do gt           <- checkExpr f g
        gt'          <- generalize gt
@@ -476,6 +511,7 @@ checkApp' f to g' e
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
+-}
 
 -- | Helper for checking binary (numeric) operations
 checkNeg :: Env -> Expr -> CheckM Sort
@@ -555,6 +591,8 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy _ _ Ueq _ _             = return ()
+checkRelTy _ _ Une _ _             = return ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
 checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
@@ -574,8 +612,6 @@ checkRelTy _ e Ne t1 t2
 checkRelTy f e Eq t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy f e Ne t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
 
-checkRelTy _ _ Ueq _ _             = return ()
-checkRelTy _ _ Une _ _             = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 -------------------------------------------------------------------------
@@ -601,6 +637,9 @@ unifyFast True  _ = uMono
      | t1 == t2   = Just emptySubst
      | otherwise  = Nothing
 
+
+unifySorts :: Sort -> Sort -> Maybe TVSubst
+unifySorts = unifyFast False emptyEnv 
 -------------------------------------------------------------------------
 unifys :: Env -> [Sort] -> [Sort] -> CheckM TVSubst
 -------------------------------------------------------------------------
@@ -705,6 +744,12 @@ sortMap f t             = f t
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
 
+checkFunSort :: Sort -> CheckM (Sort, Sort)
+checkFunSort (FAbs _ t)    = checkFunSort t 
+checkFunSort (FFunc t1 t2) = return (t1, t2)
+checkFunSort t             = throwError $ errNonFunction 1 t  
+
+{- 
 sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
@@ -713,6 +758,7 @@ sortFunction i t
                           then throwError $ errNonFunction i t
                           else let (its, ots) = splitAt i ts
                                in return (its, foldl FFunc t' ots)
+-}
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------

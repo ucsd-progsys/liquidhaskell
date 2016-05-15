@@ -6,6 +6,7 @@
 
 module Language.Fixpoint.Types.Config (
     Config  (..)
+  , defConfig
   , getOpts
   , Command (..)
   , SMTSolver (..)
@@ -52,7 +53,8 @@ data Config
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
+    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment 
+    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers 
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
     , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
@@ -80,6 +82,7 @@ instance Default Config where
                , ueqAllSorts = def
                , linear      = def
                , allowHO     = False
+               , allowHOqs   = False
                , newcheck    = False
                , eliminate   = def
                , elimBound   = Nothing
@@ -92,6 +95,8 @@ instance Default Config where
                , minimize    = def
                , gradual     = False
                }
+defConfig :: Config
+defConfig = def 
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -155,6 +160,7 @@ config = Config {
   , newcheck    = False   &= help "(alpha) New liquid-fixpoint sort checking "
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
+  , allowHOqs   = False &= help "Allow higher order qualifiers"
   , eliminate   = False   &= help "(alpha) Eliminate non-cut KVars"
   , elimBound   = Nothing &= name "elimBound"
                           &= help "(alpha) Maximum eliminate-chain depth"

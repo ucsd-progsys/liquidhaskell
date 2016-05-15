@@ -19,15 +19,15 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
+import           Language.Fixpoint.Misc (errorstar)
 
-import           Language.Fixpoint.SortCheck (elaborate)
+import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
 import           Control.Monad.State
 
 import           Data.Maybe (fromMaybe)
 
-
+import Text.PrettyPrint.HughesPJ (text)
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -61,10 +61,14 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
-  defunc (FAbs _ t)      = defunc t
-  defunc (FFunc _ _)     = return $ intSort
-  defunc t | isSMTSort t = return t
-  defunc _               = return intSort
+  defunc = return . defuncSort 
+
+
+defuncSort (FAbs _ t)      = defuncSort t
+defuncSort (FFunc _ _)     = intSort
+defuncSort t | isSMTSort t = t
+defuncSort _               = intSort
+
 
 instance SMTLIB2 Symbol where
   smt2 s
@@ -187,8 +191,7 @@ defuncBop o e1 e2
 
 
 smt2App :: Expr -> Builder.Builder
-smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es))
-                      (Thy.smt2App (eliminate f) $ (map smt2 es))
+smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ (map smt2 es)
   where
     (f, es) = splitEApp e
 
@@ -196,12 +199,19 @@ smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es))
 defuncApp :: Expr -> SMT2 Expr
 defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
-                _      -> defuncApp' f es
+                _      -> defuncApp' f' es'
   where
-    (f, es) = splitEApp e
+    (f, es)   = splitEApp' e
+    (f', es') = splitEApp  e 
+
+splitEApp' e          = go [] e 
+  where
+    go acc (EApp f e) = go (e:acc) f 
+    go acc (ECst e _) = go acc e 
+    go acc e          = (e, acc) 
 
 eliminate :: Expr -> Expr
-eliminate (ECst e _) = e
+eliminate (ECst e _) = eliminate e
 eliminate e          = e
 
 defuncApp' :: Expr -> [Expr] -> SMT2 Expr
@@ -214,7 +224,9 @@ mkRel :: Brel -> Expr -> Expr -> Builder.Builder
 mkRel Ne  e1 e2          = mkNe e1 e2
 mkRel Une e1 e2          = mkNe e1 e2
 mkRel Eq  e1 e2
-  | isFun e1 && isFun e2 = mkFunEq e1 e2
+--   | isFun e1 && isFun e2 = mkFunEq e1 e2 
+--    build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
+  | isFun e1 && isFun e2 = build "(and (= {} {}) {})" (smt2 e1, smt2 e2, mkFunEq e1 e2)
 mkRel r   e1 e2          = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
 
 mkNe :: Expr -> Expr -> Builder.Builder
@@ -225,7 +237,7 @@ isFun e | FFunc _ _ <- exprSort e = True
         | otherwise               = False
 
 mkFunEq :: Expr -> Expr -> Builder.Builder
-mkFunEq e1 e2 = smt2 $ PAll (zip xs ss) (PAtom Eq
+mkFunEq e1 e2 = smt2 $ PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
                           (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
   where
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
@@ -407,7 +419,21 @@ grapLambdas e = go [] e
 
 -- s_to_Int :: s -> Int
 
-makeApplication :: Expr -> [Expr] -> SMT2 Expr
+ 
+makeApplication :: Expr -> [Expr] -> SMT2 Expr 
+makeApplication e es = defunc e >>= (`go` es)
+  where
+    go f []     = return f 
+    go f (e:es) = do df <- defunc $ makeFunSymbol f 1  
+                     de <- defunc $ e 
+                     let res = eApps (EVar df) [ECst f (exprSort f), de]
+                     let s  = exprSort (EApp f de) 
+                     go ((`ECst` s) res) es 
+
+
+{- 
+
+-- Old application: without currying 
 makeApplication e es
   = do df  <- defunc f
        de  <- defunc e
@@ -415,7 +441,7 @@ makeApplication e es
        return $ eApps (EVar df) (de:des)
   where
     f  = makeFunSymbol e $ length es
-
+-}
 
 makeFunSymbol :: Expr -> Int -> Symbol
 makeFunSymbol e i
@@ -432,12 +458,14 @@ makeFunSymbol e i
   | otherwise
   = intApplyName i
   where
-    s = dropArgs i $ exprSort e
+    s = dropArgs ("dropArgs " ++ show (i, e, exprSort e)) i $ exprSort e
 
-    dropArgs 0 t           = t
-    dropArgs i (FAbs _ t)  = dropArgs i t
-    dropArgs i (FFunc _ t) = dropArgs (i-1) t
-    dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
+dropArgs :: String -> Int -> Sort -> Sort
+dropArgs _ 0 t           = t
+dropArgs s j (FAbs _ t)  = dropArgs s j t
+dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
+dropArgs str j s           
+  = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
 toInt :: Expr -> SMT2 Expr
 toInt e
@@ -503,6 +531,14 @@ makeApplies i =
 
 
 exprSort :: Expr -> Sort
-exprSort (ECst _ s)     = s
-exprSort (ELam (_,s) e) = FFunc s $ exprSort e
-exprSort e              = errorstar ("\nexprSort on unexpected expressions" ++ show e)
+exprSort (ECst _ s)     
+  = s
+exprSort (ELam (_,s) e) 
+  = FFunc s $ exprSort e    
+exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e  
+  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx 
+  where
+    gen (FAbs _ t) = gen t 
+    gen t          = t 
+exprSort e              
+  = errorstar ("\nexprSort on unexpected expressions" ++ show e)

@@ -64,7 +64,8 @@ module Language.Fixpoint.Types.Constraints (
   , Kuts (..)
   , ksMember
 
-
+  , HOInfo (..)
+  , allowHO, allowHOquals
 
   ) where
 
@@ -232,6 +233,7 @@ pprId _         = ""
 ----------------------------------------------------------------
 instance B.Binary Qualifier
 instance B.Binary Kuts
+instance B.Binary HOInfo
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
@@ -239,6 +241,7 @@ instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 
 instance NFData Qualifier
 instance NFData Kuts
+instance NFData HOInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -366,8 +369,9 @@ fi :: [SubC a]
    -> M.HashMap BindId a
    -> FilePath
    -> Bool
+   -> Bool 
    -> GInfo SubC a
-fi cs ws binds ls ks qs bi fn aHO
+fi cs ws binds ls ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -376,7 +380,7 @@ fi cs ws binds ls ks qs bi fn aHO
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
-       , allowHO  = aHO
+       , ho_info  = HOI aHO aHOq
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -388,6 +392,16 @@ fi cs ws binds ls ks qs bi fn aHO
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
+
+
+data HOInfo = HOI { ho_binds :: Bool          -- ^ Allow higher order binds in the environemnt
+                  , ho_quals :: Bool          -- ^ Allow higher order quals 
+                  }  
+  deriving (Eq, Show, Generic)
+
+allowHO      = ho_binds . ho_info
+allowHOquals = ho_quals . ho_info
+
 data GInfo c a =
   FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
@@ -397,13 +411,18 @@ data GInfo c a =
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , fileName :: FilePath                   -- ^ Source file name
-     , allowHO  :: !Bool                      -- ^ Hmm. Move to Config?
+     , ho_info  :: !HOInfo                    -- ^ Higher Order info 
      }
   deriving (Eq, Show, Functor, Generic)
 
+instance Monoid HOInfo where
+  mempty        = HOI False False
+  mappend i1 i2 = HOI { ho_binds = (ho_binds i1) || (ho_binds i2)
+                      , ho_quals = (ho_quals i1) || (ho_quals i2)
+                      }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -412,7 +431,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
-                     , allowHO  = allowHO i1 || allowHO i2
+                     , ho_info  = mappend (ho_info i1)   (ho_info i2)
                      }
 
 instance PTable (SInfo a) where
