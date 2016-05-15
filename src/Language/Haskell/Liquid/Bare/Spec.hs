@@ -111,10 +111,11 @@ makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
 
 makeHIMeas :: [Var]
            -> Ms.Spec ty bndr
-           -> BareM [Located Var]
-makeHIMeas  vs spec = fmap tx <$> varSymbols id vs [(v, (loc v, locE v)) | v <- S.toList (Ms.hmeas spec) ++ S.toList (Ms.inlines spec)]
+           -> BareM [(Located Var, LocSymbol)]
+makeHIMeas  vs spec 
+  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (Ms.hmeas spec) ++ S.toList (Ms.inlines spec)]
   where
-    tx (x,(l, l'))  = Loc l l' x
+    tx (x,(l, l', s))  = (Loc l l' x, s)
 
 varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f vs  = concatMapM go

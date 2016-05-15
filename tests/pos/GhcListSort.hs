@@ -20,12 +20,12 @@ sort1 = mergeAll . sequences
       | otherwise           = ascending  b (a:) xs -- a >= b => (a:) ->   
     sequences [x] = [[x]]
     sequences []  = [[]]
-    {-@ descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
+    {- descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
     descending a as (b:bs)
       | a `compare` b == GT = descending b (a:as) bs
     descending a as bs      = (a:as): sequences bs
 
-    {-@ ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
+    {- ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
     ascending a as (b:bs)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs -- a <= b
     ascending a as bs       = as [a]: sequences bs

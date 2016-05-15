@@ -1,4 +1,6 @@
 {-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--prune-unsorted" @-}
+
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal

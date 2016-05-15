@@ -85,20 +85,23 @@ makeAssumeType tce lmap x v xts ams def
   | not (null ams) 
   = x {val = axiomType x t}
   | otherwise
-  = (x {val = axiomType x t `strengthenRes` ref})
+  = (x {val = at `strengthenRes` F.subst su ref})
   where
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
+    at = axiomType x t 
 
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
            Left e -> e
            Right e -> panic Nothing $ show e
-    ref = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) $ F.subst su le)
+    ref = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
     (xs, def') = grapBody $ normalize def 
-    ys = ty_binds $ toRTypeRep t
-    su = F.mkSubst $ zip (F.symbol <$> xs) (F.EVar <$> ys )
+    su = F.mkSubst $ 
+             zip (F.symbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
+             ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
+
 
     grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e') 
     grapBody (Tick _ e) = grapBody e 

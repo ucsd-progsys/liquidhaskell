@@ -28,6 +28,7 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
+  , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
@@ -40,7 +41,7 @@ data Config = Config {
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
-  , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
+  , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
   , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
   , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
@@ -55,6 +56,7 @@ data Config = Config {
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
+  , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   , elimStats      :: Bool       -- ^ print eliminate stats
   , elimBound      :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
