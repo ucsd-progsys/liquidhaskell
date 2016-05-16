@@ -44,6 +44,7 @@ module Language.Fixpoint.Types.Names (
   , dropSym
   , headSym
   , lengthSym
+  , mappendSym
 
   -- * Transforms
   , nonSymbol

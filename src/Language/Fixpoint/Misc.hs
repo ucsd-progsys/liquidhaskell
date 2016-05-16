@@ -29,8 +29,8 @@ import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                        (stdout, hFlush )
 import           System.Exit                      (ExitCode)
 import           Control.Concurrent.Async
-import           Data.Time.Clock
 
+import           Data.Unique 
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -55,9 +55,8 @@ hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 -- | Unique Int -----------------------------------------------
 ---------------------------------------------------------------
 
-
 getUniqueInt :: IO Int 
-getUniqueInt = fromEnum . utctDayTime <$> getCurrentTime
+getUniqueInt = hashUnique <$> newUnique 
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
