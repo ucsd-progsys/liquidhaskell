@@ -135,7 +135,7 @@ composition xss N zss
            ==! seq N zss                            ? seq_nill (seq (pure compose) xss)
            ==! N
            ==! seq N zss
-           ==! seq xss (seq N zss)  ? (seq_nill xss &&& (toProof $ seq N zss ==! N))
+           ==! seq xss (seq N zss)  ? (seq_nill xss ==> (toProof $ seq N zss ==! N))
 
 
 composition xss yss N

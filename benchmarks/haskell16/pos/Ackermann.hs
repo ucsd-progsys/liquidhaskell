@@ -111,7 +111,7 @@ lemma4 x n
   = proof $
       ack (n+1) x ==! ack n (ack (n+1) (x-1))
                    >! ack n x                   ?  lemma2 (n+1) (x-1)
-                                               &&& lemma3_gen n x (ack (n+1) (x-1))
+                                               ==> lemma3_gen n x (ack (n+1) (x-1))
 
 lemma4_gen     :: Int -> Int -> Int -> Proof
 {-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Proof | ack n x < ack m x } @-}
@@ -154,7 +154,7 @@ lemma6 h n x
   | h > 0
   = proof (
       iack h n x ==! ack n (iack (h-1) n x) ? (  lemma6 (h-1) n x
-                                             &&& lemma3_gen n (iack (h-1) n x) (iack (h-1) n (x+1))
+                                             ==> lemma3_gen n (iack (h-1) n x) (iack (h-1) n (x+1))
                                               )
 
                   <! ack n (iack (h-1) n (x+1))
@@ -183,8 +183,8 @@ lemma7 h n x
   = proof $
       iack h n x ==! ack n (iack (h-1) n x)
                  <=! ack (n+1) (iack (h-1) n x)     ? lemma4_eq n (iack (h-1) n x)
-                 <=! ack (n+1) (iack (h-1) (n+1) x) ? (lemma7 (h-1) n x
-                                                     &&& lemma3_eq (n+1) (iack (h-1) n x) (iack (h-1) (n+1) x)
+                 <=! ack (n+1) (iack (h-1) (n+1) x) ? (  lemma7 (h-1) n x
+                                                     ==> lemma3_eq (n+1) (iack (h-1) n x) (iack (h-1) (n+1) x)
                                                       )
                  <=! iack h (n+1) x
 
@@ -247,8 +247,8 @@ lemma10 n x l
                   ==! ladder ((x-l) + l) n 2
                   ==! ladder l n (ladder (x-l) n 2) ? ladder_prop2 l (x-l) n 2
                    >! ladder l n x                  ? (  lemma10_helper n x l
-                                                   &&& ladder_prop1 n (x-l) 2
-                                                   &&& ladder_prop3 x (ladder (x-l) n 2) n l
+                                                   ==> ladder_prop1 n (x-l) 2
+                                                   ==> ladder_prop3 x (ladder (x-l) n 2) n l
                                                     )
                    >! iack l n x                    ? ladder_prop1 n l x
 
@@ -336,8 +336,8 @@ ladder_prop3 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop3 x y n l
   = proof $
       iack l n x <! iack l n y ? (  ladder_prop1 n l x
-                                &&& ladder_prop1 n l y
-                                &&& lemma6_gen l n x y
+                                ==> ladder_prop1 n l y
+                                ==> lemma6_gen l n x y
                                  )
 
 
@@ -352,7 +352,7 @@ lemma11 n x y
                        ==! iack x n (ack (n+1) y) ? def_eq n y
                         >! iack x n y             ? (proof $
                                                           y <! ack (n+1) y ? lemma2 (n+1) y
-                                                    ) &&& lemma6_gen x n y (ack (n+1) y)
+                                                    ) ==> lemma6_gen x n y (ack (n+1) y)
 
 
 lemma11_helper :: Int -> Int -> Int -> Int -> Proof

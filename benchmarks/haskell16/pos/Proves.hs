@@ -13,7 +13,7 @@ module Proves (
 
   , (?)
 
-  , (&&&)
+  , (==>), (&&&)
 
   , proof, toProof, simpleProof
 
@@ -43,11 +43,20 @@ f ? y = f y
 {-@ measure proofBool :: Proof -> Bool @-}
 
 -- | Proof combinators (are Proofean combinators)
-{- (&&&) :: p:{Proof | Prop (proofBool p) } 
+{-@ (==>) :: p:Proof
+          -> q:Proof
+          -> {v:Proof | 
+          ((Prop (proofBool p)) && (Prop (proofBool p) => Prop (proofBool q)))
+          => 
+          ((Prop (proofBool p) && Prop (proofBool q)))
+          } @-}
+(==>) :: Proof -> Proof -> Proof
+p ==> q = ()
+
+
+{-@ (&&&) :: p:{Proof | Prop (proofBool p) }
           -> q:{Proof | Prop (proofBool q) }
-          -> {v:Proof | (Prop (proofBool p) && Prop (proofBool q)) } @-}
-{-@ assume (&&&) :: p:Proof -> q:Proof 
-          -> {v:Proof | (Prop (proofBool v)) <=> (Prop (proofBool p) && Prop (proofBool q)) } @-}
+          -> {v:Proof | Prop (proofBool p) && Prop (proofBool q) } @-}
 (&&&) :: Proof -> Proof -> Proof
 p &&& q = ()
 
