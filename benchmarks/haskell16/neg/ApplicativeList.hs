@@ -59,7 +59,7 @@ compose f g x = f (g x)
 
 
 -- | Identity
-{-@ identity :: x:L a -> {v:Proof | seq (pure id) x == x } @-}
+{-@ identity :: x:L a -> {v:Proof | seq (pure id) x /= x } @-}
 identity :: L a -> Proof
 identity xs
   = toProof $
@@ -76,7 +76,7 @@ identity xs
 {-@ composition :: x:L (a -> a)
                 -> y:L (a -> a)
                 -> z:L a
-                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
+                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) /= seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
@@ -148,7 +148,7 @@ composition xss yss N
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
 {-@ homomorphism :: f:(a -> a) -> x:a
-                 -> {v:Proof | seq (pure f) (pure x) == pure (f x) } @-}
+                 -> {v:Proof | seq (pure f) (pure x) /= pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
   = toProof $
@@ -164,7 +164,7 @@ homomorphism f x
 
 interchange :: L (a -> a) -> a -> Proof
 {-@ interchange :: u:(L (a -> a)) -> y:a
-     -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
+     -> {v:Proof | seq u (pure y) /= seq (pure (idollar y)) u }
   @-}
 interchange N y
   = toProof $
@@ -233,7 +233,7 @@ seq_nill (C x xs)
 {-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
    -> {v:Proof | append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
 append_fmap :: (a -> b) -> L a -> L a -> Proof
-append_fmap = undefined 
+append_fmap = undefined
 
 
 seq_fmap :: (a -> a) -> L (a -> a) -> L a -> Proof

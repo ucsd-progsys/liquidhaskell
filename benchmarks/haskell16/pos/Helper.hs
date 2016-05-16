@@ -12,7 +12,9 @@
 
 module Helper (
 
-  gen_increasing, gen_increasing2
+    gen_increasing, gen_increasing2
+
+  , gen_increasing_eq
 
   , abstract
 
@@ -25,7 +27,7 @@ import Proves
 {-@ assume abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:Proof | f x == g x })
              -> {v:Proof | f == g } @-}
 abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
-abstract _ _ _ = True
+abstract _ _ _ = simpleProof
 
 
 
@@ -36,9 +38,6 @@ abstract _ _ _ = True
 
 
 gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
-
-
-
 {-@ gen_increasing :: f:(Nat -> Int)
                    -> (z:Nat -> {v:Proof | f z < f (z+1) })
                    ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x < f y } / [y] @-}
@@ -55,6 +54,23 @@ gen_increasing f thm x y
            <! f y       ?   thm (y-1)
 
 
+gen_increasing_eq :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
+{-@ gen_increasing_eq :: f:(Nat -> Int)
+                   -> (z:Nat -> {v:Proof | f z <= f (z+1) })
+                   ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x <= f y } / [y] @-}
+gen_increasing_eq f thm x y
+
+  | x + 1 == y
+  = proof $
+      f y ==! f (x + 1)
+          >=! f x       ?  thm x
+
+  | x + 1 < y
+  = proof $
+      f x  <=! f (y-1)   ?   gen_increasing_eq f thm x (y-1)
+           <=! f y       ?   thm (y-1)
+
+
 gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
 {-@ gen_increasing2 :: f:(Nat -> a -> Int)
                     -> (w:a -> z:Nat -> {v:Proof | f z w < f (z+1) w })
@@ -69,4 +85,3 @@ gen_increasing2 f thm c x y
   = proof $
       f x c <! f (y-1) c    ? gen_increasing2 f thm c x (y-1)
             <! f y c        ? thm c (y-1)
-

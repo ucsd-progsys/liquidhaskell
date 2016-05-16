@@ -817,7 +817,7 @@ consCB _ _ γ (NonRec x def)
 
     grepDictionary (App (Var w) (Type t))
       = Just (w, t)
-    grepDictionary (App e _)
+    grepDictionary (App e (Var _))
       = grepDictionary e 
     grepDictionary _ 
       = Nothing 
