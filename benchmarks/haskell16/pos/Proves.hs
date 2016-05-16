@@ -43,8 +43,11 @@ f ? y = f y
 {-@ measure proofBool :: Proof -> Bool @-}
 
 -- | Proof combinators (are Proofean combinators)
+{- (&&&) :: p:{Proof | Prop (proofBool p) } 
+          -> q:{Proof | Prop (proofBool q) }
+          -> {v:Proof | (Prop (proofBool p) && Prop (proofBool q)) } @-}
 {-@ assume (&&&) :: p:Proof -> q:Proof 
-          -> {v:Proof | Prop (proofBool v) <=> (Prop (proofBool p) && Prop (proofBool q)) } @-}
+          -> {v:Proof | (Prop (proofBool v)) <=> (Prop (proofBool p) && Prop (proofBool q)) } @-}
 (&&&) :: Proof -> Proof -> Proof
 p &&& q = ()
 
