@@ -79,4 +79,4 @@ fib_increasing x y
 
   | otherwise
   = proof $ 
-      fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1))
+      fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) ==> fib_increasing (x-1) (y-1))
