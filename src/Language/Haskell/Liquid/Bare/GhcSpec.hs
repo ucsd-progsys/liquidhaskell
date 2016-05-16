@@ -39,7 +39,6 @@ import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
 import           Language.Fixpoint.Misc                     (thd3)
-
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -397,18 +396,20 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
                           (text "Measures' types cannot have preconditions")
 -}
       | [tx] <- ts
-      = mkInvariant (head $ ty_binds trep) tx  $ ty_res trep
+      = mkInvariant (head $ ty_binds trep) tx $ ty_res trep
       | otherwise  
       = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x) 
                           (text "Measures has more than one arguments")
 
 
     mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
-    mkInvariant z t tr = (fmap top t) `strengthen` MkUReft (Reft (v, subst su p )) mempty mempty
+    mkInvariant z t tr = (fmap top t) `strengthen` MkUReft reft mempty mempty
       where 
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
-        su = mkSubst [(v, mkEApp x [EVar v]), (z, EVar v)]  
+        su    = mkSubst [(v, mkEApp x [EVar v])]
+        reft  = Reft (v, subst su p')
 
+        p'    = pAnd $ filter (\e -> not (z `elem` syms e)) $ conjuncts p
 
 makeGhcSpecCHOP2 :: [CoreBind]
                  -> [(ModName, Ms.BareSpec)]

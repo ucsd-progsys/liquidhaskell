@@ -233,7 +233,7 @@ seq_nill (C x xs)
 {-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
    -> {v:Proof | append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
 append_fmap :: (a -> b) -> L a -> L a -> Proof
-append_fmap = undefined 
+append_fmap = undefined
 
 
 seq_fmap :: (a -> a) -> L (a -> a) -> L a -> Proof
