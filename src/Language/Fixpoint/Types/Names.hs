@@ -58,7 +58,7 @@ module Language.Fixpoint.Types.Names (
 
   -- * Creating Symbols
   , dummySymbol
-  , intSymbol, intSymbolBare
+  , intSymbol
   , tempSymbol
 
   -- * Wrapping Symbols
@@ -394,10 +394,6 @@ unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i = x `suffixSymbol` (symbol $ show i)
-
-intSymbolBare :: (Show a) => Symbol -> a -> Symbol
-intSymbolBare x i = x `mappendSym` (symbol $ show i)
-
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
