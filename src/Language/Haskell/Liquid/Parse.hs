@@ -193,23 +193,27 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-refBindP :: Subable a => Parser Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
-refBindP bp rp kindP
-  = braces $ do
-      x  <- bp
-      i  <- freshIntP
-      t  <- kindP
-      reserved "|"
-      ra <- rp <* spaces
-      let xi = intSymbol x i
-      let su v = if v == x then xi else v
-      return $ substa su $ t (Reft (x, ra))
 
-refP :: Subable a => Parser (Reft -> a) -> Parser a
+refBindP :: Parser Symbol 
+         -> Parser Expr 
+         -> Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) 
+         -> Parser (RType LocSymbol Symbol (UReft Reft))
+refBindP bp rp kindP
+  = braces $ 
+   try (do x  <- bp
+           i  <- freshIntP
+           t  <- kindP
+           reserved "|"
+           ra <- rp <* spaces
+           let xi = intSymbol x i
+           let su v = if v == x then xi else v
+           return $ substa su $ t (Reft (x, ra)) )
+  <|> (RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces)
+
+refP :: Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) -> Parser (RType LocSymbol Symbol (UReft Reft))
 refP       = refBindP bindP refaP
 
-refDefP :: Subable a
-        => Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
+refDefP :: Symbol -> Parser Expr -> Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) -> Parser (RType LocSymbol Symbol (UReft Reft))
 refDefP x  = refBindP (optBindP x)
 
 optBindP :: Symbol

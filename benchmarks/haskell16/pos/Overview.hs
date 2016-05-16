@@ -17,12 +17,13 @@ fib n
 
 
 fib_increasing_gen :: Int -> Int -> Proof
-{-@ fib_increasing_gen :: n:Nat -> m:{Nat | n < m } -> {v:Proof | fib n <= fib m } @-}
+{-@ fib_increasing_gen :: n:Nat -> m:{Nat | n < m } -> {fib n <= fib m} 
+  @-}
 fib_increasing_gen
   = gen_increasing_eq fib fib_increasing
 
 fib_increasing :: Int -> Proof
-{-@ fib_increasing :: n:Nat -> {v:Proof | fib n <= fib (n+1)} @-}
+{-@ fib_increasing :: n:Nat -> {fib n <= fib (n+1)} @-}
 fib_increasing n
    | n == 0
    = proof $
@@ -35,6 +36,8 @@ fib_increasing n
    = proof $
        fib n
           ==! fib (n-1) + fib (n-2)
-          <=! fib n     + fib (n-2)  ? fib_increasing (n-1)
-          <=! fib n     + fib (n-1)  ? fib_increasing (n-2)
+          <=! fib n     + fib (n-2)
+              ? fib_increasing (n-1)
+          <=! fib n     + fib (n-1)
+              ? fib_increasing (n-2)
           <=! fib (n+1)

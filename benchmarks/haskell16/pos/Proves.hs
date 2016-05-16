@@ -39,7 +39,6 @@ type Proof = ()
 f ? y = f y
 
 
-
 {-@ measure proofBool :: Proof -> Bool @-}
 
 -- | Proof combinators (are Proofean combinators)
