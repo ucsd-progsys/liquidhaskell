@@ -33,18 +33,18 @@ fib n
 -- | How to encode proofs:
 -- | ==!, <=!, and <! stand for the logical ==, <=, < resp.
 -- | If the proofs do not derive automatically, user can 
--- | optionally provide the boolean statements, after `?`
+-- | optionally provide the Proofean statements, after `?`
 -- | Note, no inference occurs: logic only reasons about
 -- | linear arithmetic and equalities
 
-lemma_fib :: Int -> Bool
-{-@ lemma_fib :: x:{Nat | 1 < x } -> {v:Bool | 0 < fib x } @-}
+lemma_fib :: Int -> Proof
+{-@ lemma_fib :: x:{Nat | 1 < x } -> {v:Proof | 0 < fib x } @-}
 lemma_fib x 
   | x == 2
   = proof $ 
   --  <! stands for logical < (also, <=, ==)
-  -- after ? user can provide boolean proof statements
-      0 <! fib 2                  ? (fib 2 == fib 1 + fib 0)
+  -- after ? user can provide Proofean proof statements
+      0 <! fib 2                  ? (proof $ fib 2 ==! fib 1 + fib 0)
 
   | 2 < x 
   = proof $ 
@@ -54,8 +54,8 @@ lemma_fib x
 
 proof' _ = True
 
-{-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> {v:Bool | fib x <= fib y} / [x, y] @-} 
-fib_increasing :: Int -> Int -> Bool 
+{-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> {v:Proof | fib x <= fib y} / [x, y] @-} 
+fib_increasing :: Int -> Int -> Proof 
 fib_increasing x y 
   | x == 0, y == 1
   = proof $
@@ -79,4 +79,4 @@ fib_increasing x y
 
   | otherwise
   = proof $ 
-      fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) && fib_increasing (x-1) (y-1))
+      fib x <=! fib y                 ? (fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1))

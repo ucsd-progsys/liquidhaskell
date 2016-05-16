@@ -3,7 +3,23 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
-module Proves where
+module Proves (
+
+    (==:), (<=:), (<:), (>:)
+
+  , (==?)
+
+  , (==!), (<=!), (<!), (>!)
+
+  , (?)
+
+  , (&&&)
+
+  , proof, toProof, simpleProof
+
+  , Proof
+
+  ) where
 
 
 -- | proof operators requiring proof terms
@@ -16,27 +32,32 @@ infixl 3 ==!, <=!, <!, >!
 infixl 3 ?
 
 
-
--- can Proof be unit?
-type Proof = Bool
+type Proof = ()
 
 
 (?) :: (Proof -> a) -> Proof -> a 
 f ? y = f y 
 
 
--- | Proof combinators (are boolean combinators)
-{-@ (&&&) :: p:Proof -> q:Proof -> {v:Proof | Prop v <=> Prop p && Prop q } @-}
+
+{-@ measure proofBool :: Proof -> Bool @-}
+
+-- | Proof combinators (are Proofean combinators)
+{-@ assume (&&&) :: p:Proof -> q:Proof 
+          -> {v:Proof | Prop (proofBool v) <=> (Prop (proofBool p) && Prop (proofBool q)) } @-}
 (&&&) :: Proof -> Proof -> Proof
-p &&& q = p && q
+p &&& q = ()
 
 
 -- | proof goes from Int to resolve types for the optional proof combinators
-proof :: Int -> Bool 
-proof _ = True 
+proof :: Int -> Proof 
+proof _ = () 
 
 toProof :: a -> Proof
-toProof _ = True
+toProof _ = ()
+
+simpleProof :: Proof
+simpleProof = ()
 
 -- | Comparison operators requiring proof terms
 
@@ -85,7 +106,7 @@ class OptEq a r where
 
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Proof -> b) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:b | v ~~ x && v ~~ y }
+  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==!) x _ _ = x 
 
@@ -103,8 +124,8 @@ instance OptEq a a where
   (==!) x _ = x
 
 instance OptEq a (Proof -> a) where
-{-@ instance OptEq a (Bool -> a) where
-  ==! :: x:a -> y:a -> {v:Bool | x == y} -> {v:a | v == x }
+{-@ instance OptEq a (Proof -> a) where
+  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:a | v == x }
   @-}
   (==!) x _ _ = x
 
@@ -112,9 +133,9 @@ instance OptEq a (Proof -> a) where
 class OptLEq a r where
   (<=!) :: a -> a -> r 
 
-instance OptLEq a (Bool -> a) where
-{-@ instance OptLEq a (Bool -> a) where 
-  <=! :: x:a -> y:a -> {v:Bool| x <= y} -> {v:a | v == x && v <= y}
+instance OptLEq a (Proof -> a) where
+{-@ instance OptLEq a (Proof -> a) where 
+  <=! :: x:a -> y:a -> {v:Proof| x <= y} -> {v:a | v == x && v <= y}
   @-}
   (<=!) x _ _ = x 
 
@@ -122,15 +143,15 @@ instance OptLEq a a where
 {-@ instance OptLEq a a where 
   <=! :: x:a -> y:{a| x <= y} -> {v:a | v == x && v <= y }
   @-}
-  (<=!) x y = (<=!) x y True  
+  (<=!) x _ = x  
 
 
 class OptLess a r where
   (<!) :: a -> a -> r 
 
-instance OptLess a (Bool -> a) where
-{-@ instance OptLess a (Bool -> a) where 
-  <! :: x:a -> y:a -> {v:Bool| x < y} -> {v:a | v == x && v < y}
+instance OptLess a (Proof -> a) where
+{-@ instance OptLess a (Proof -> a) where 
+  <! :: x:a -> y:a -> {v:Proof| x < y} -> {v:a | v == x && v < y}
   @-}
   (<!) x _ _ = x 
 
@@ -145,9 +166,9 @@ instance OptLess a a where
 class OptGt a r where
   (>!) :: a -> a -> r 
 
-instance OptGt a (Bool -> a) where
-{-@ instance OptGt a (Bool -> a) where 
-  >! :: x:a -> y:a -> {v:Bool| x > y} -> {v:a | v == x && v > y}
+instance OptGt a (Proof -> a) where
+{-@ instance OptGt a (Proof -> a) where 
+  >! :: x:a -> y:a -> {v:Proof| x > y} -> {v:a | v == x && v > y}
   @-}
   (>!) x _ _ = x 
 

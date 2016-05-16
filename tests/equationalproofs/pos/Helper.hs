@@ -25,7 +25,7 @@ import Proves
 {-@ assume abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:Proof | f x == g x })
              -> {v:Proof | f == g } @-}
 abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
-abstract _ _ _ = True
+abstract _ _ _ = simpleProof
 
 
 

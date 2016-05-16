@@ -288,14 +288,14 @@ makeSpecDictionaryOne embs (RI x t xts)
 resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol SpecType)] -> [Maybe (Var, M.HashMap F.Symbol SpecType)]
 resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
  where 
-    go (x,is)           = addIndex 0 x is
+    go (x,is)           = addIndex 0 x $ reverse is
 
     -- GHC internal postfixed same name dictionaries with ints
     addIndex _ _ []     = []
     addIndex _ x [i]    = [(x,i)]
     addIndex j x (i:is) = (F.mappendSym x (F.symbol $ show j),i):addIndex (j+1) x is
 
-    lookupVar (s, i) = (,i) <$> lookupName s 
+    lookupVar (s, i)    = ((,i) <$> lookupName s) 
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x

@@ -96,7 +96,7 @@ lemma3_eq :: Int -> Int -> Int -> Proof
 {-@ lemma3_eq :: n:Nat -> x:Nat -> y:{Nat | x <= y} -> {v:Proof | ack n x <= ack n y} / [y] @-}
 lemma3_eq n x y
   | x == y
-  = ack n x == ack n y
+  = proof $ ack n x ==! ack n y
 
   | otherwise
   = lemma3_gen n x y
@@ -113,14 +113,14 @@ lemma4 x n
                    >! ack n x                   ?  lemma2 (n+1) (x-1)
                                                &&& lemma3_gen n x (ack (n+1) (x-1))
 
-lemma4_gen     :: Int -> Int -> Int -> Bool
-{-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Bool | ack n x < ack m x } @-}
+lemma4_gen     :: Int -> Int -> Int -> Proof
+{-@ lemma4_gen :: n:Nat -> m:{Nat | n < m }-> x:Pos -> {v:Proof | ack n x < ack m x } @-}
 lemma4_gen n m x
   = gen_increasing2 ack lemma4 x n m
 
 
-lemma4_eq     :: Int -> Int -> Bool
-{-@ lemma4_eq :: n:Nat -> x:Nat -> {v:Bool | ack n x <= ack (n+1) x } @-}
+lemma4_eq     :: Int -> Int -> Proof
+{-@ lemma4_eq :: n:Nat -> x:Nat -> {v:Proof | ack n x <= ack (n+1) x } @-}
 lemma4_eq n x
   | x == 0
   = proof $
@@ -131,9 +131,9 @@ lemma4_eq n x
 
 -- | Lemma 2.5
 
-lemma5 :: Int -> Int -> Int -> Bool
+lemma5 :: Int -> Int -> Int -> Proof
 {-@ lemma5 :: h:Nat -> n:Nat -> x:Nat
-           -> {v:Bool | iack h n x < iack (h+1) n x } @-}
+           -> {v:Proof | iack h n x < iack (h+1) n x } @-}
 lemma5 h n x
   = proof $
       iack h n x <! ack n (iack h n x) ? lemma2 n (iack h n x)
@@ -355,9 +355,9 @@ lemma11 n x y
                                                     ) &&& lemma6_gen x n y (ack (n+1) y)
 
 
-lemma11_helper :: Int -> Int -> Int -> Int -> Bool
+lemma11_helper :: Int -> Int -> Int -> Int -> Proof
 {-@ lemma11_helper :: n:Nat -> x:Nat -> y:Nat -> z:Nat
-             -> {v:Bool | iack (x+y) n z == iack x n (iack y n z) } / [x] @-}
+             -> {v:Proof | iack (x+y) n z == iack x n (iack y n z) } / [x] @-}
 lemma11_helper n x y z
   | x == 0
   = proof $
