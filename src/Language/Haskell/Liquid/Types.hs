@@ -780,7 +780,7 @@ instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc
-  isClass c  = isClassRTyCon c || isEqual c 
+  isClass    = isClassRTyCon
   isEqual    = (eqPrimTyCon ==) . rtc_tc
   ppTycon    = toFix
 

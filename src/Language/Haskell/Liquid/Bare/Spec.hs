@@ -39,7 +39,12 @@ import qualified Data.List                                  as L
 import qualified Data.HashSet                               as S
 import qualified Data.HashMap.Strict                        as M
 
-import           Language.Fixpoint.Misc                     (group, snd3)
+
+
+import           Language.Fixpoint.Misc                     (group, snd3, groupList)
+-- import           Language.Fixpoint.Misc                     (traceShow)
+
+
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Misc           ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
@@ -260,23 +265,37 @@ makeSpecDictionaries embs vars specs sp
   = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
        return $ sp { dicts = ds }
 
+
+
 makeSpecDictionary :: F.TCEmb TyCon -> [Var] -> (a, Ms.BareSpec)
                    -> BareM [(Var, M.HashMap F.Symbol SpecType)]
 makeSpecDictionary embs vars (_, spec)
-  = catMaybes <$> mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
+  = (catMaybes . resolveDictionaries vars) <$> mapM (makeSpecDictionaryOne embs) (Ms.rinstance spec)
 
-makeSpecDictionaryOne :: F.TCEmb TyCon -> [Var] -> RInstance (Located BareType)
-                      -> BareM (Maybe (Var, M.HashMap F.Symbol SpecType))
-makeSpecDictionaryOne embs vars (RI x t xts)
+
+makeSpecDictionaryOne :: F.TCEmb TyCon -> (RInstance (Located BareType))
+                      -> BareM (F.Symbol, M.HashMap F.Symbol SpecType)
+makeSpecDictionaryOne embs (RI x t xts)
   = do t'  <- mapM mkLSpecType t
        tyi <- gets tcEnv
        ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
-       let (d, dts) = makeDictionary $ RI x (val <$> t') $ zip xs ts'
-       let v = lookupName d
-       return ((, dts) <$> v)
+       return $ makeDictionary $ RI x (val <$> t') $ zip xs ts'
   where
     mkTy' t  = fmap generalize <$> mkLSpecType t
     (xs, ts) = unzip xts
+
+
+resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol SpecType)] -> [Maybe (Var, M.HashMap F.Symbol SpecType)]
+resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
+ where 
+    go (x,is)           = addIndex 0 x is
+
+    -- GHC internal postfixed same name dictionaries with ints
+    addIndex _ _ []     = []
+    addIndex _ x [i]    = [(x,i)]
+    addIndex j x (i:is) = (F.mappendSym x (F.symbol $ show j),i):addIndex (j+1) x is
+
+    lookupVar (s, i) = (,i) <$> lookupName s 
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x
