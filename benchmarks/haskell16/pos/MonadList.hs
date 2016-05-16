@@ -1,12 +1,12 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--eliminate" @-}
-
+{-@ LIQUID "--eliminate"       @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+
 module MonadMaybe where
 
 import Prelude hiding (return, Maybe(..))
@@ -37,7 +37,7 @@ append xs ys
 
 -- | Left Identity
 
-{- left_identity :: x:a -> f:(a -> L b) -> {v:Proof | bind (return x) f == f x } @-}
+{-@ left_identity :: x:a -> f:(a -> L b) -> {v:Proof | bind (return x) f == f x } @-}
 left_identity :: a -> (a -> L b) -> Proof
 left_identity x f
   = toProof $
@@ -81,7 +81,7 @@ associativity (C x xs) f g
   = toProof $
       bind (bind (C x xs) f) g
           ==! bind (append (f x) (bind xs f)) g
-          ==! bind (append (f x) (bind xs f)) g ? bind_append (f x) (bind xs f) g
+          ==! bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
           ==! append (bind (f x) g) (bind (bind xs f) g)
           ==! append (bind (f x) g) (bind xs (\y -> bind (f y) g)) ? associativity xs f g
           ==! append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g))
