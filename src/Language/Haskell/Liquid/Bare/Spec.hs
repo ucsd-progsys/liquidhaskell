@@ -293,7 +293,7 @@ resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
     -- GHC internal postfixed same name dictionaries with ints
     addIndex _ _ []     = []
     addIndex _ x [i]    = [(x,i)]
-    addIndex j x (i:is) = (F.mappendSym x (F.symbol $ show j),i):addIndex (j+1) x is
+    addIndex j x (i:is) = (F.intSymbolBare x j,i):addIndex (j+1) x is
 
     lookupVar (s, i)    = ((,i) <$> lookupName s) 
     lookupName x
