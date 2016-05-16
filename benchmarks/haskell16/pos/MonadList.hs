@@ -45,7 +45,7 @@ left_identity x f
         ==! bind (C x N) f
         ==! append (f x) (bind N f)
         ==! append (f x) N
-        ==! f x                      ? prop_append_neutral (bind N f)
+        ==! f x                      ? prop_append_neutral (f x)
 
 
 -- | Right Identity
