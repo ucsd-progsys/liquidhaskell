@@ -329,7 +329,7 @@ defineFun (f, ELam (x, t) (ECst e tr))
        assert2 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing 
         (PAll [(g, FFunc t tr)]
-          (PIff
+          (PImp
         (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
        return [decl, assert1, assert2]

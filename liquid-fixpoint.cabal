@@ -134,6 +134,8 @@ Library
                , fgl
                , fgl-visualize
                , dotgen
+               , time
+
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
   if !os(windows)
@@ -157,4 +159,4 @@ test-suite test
                     tasty >= 0.10,
                     tasty-hunit,
                     tasty-rerun >= 1.1,
-                    text
+                    text 
