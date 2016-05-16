@@ -209,7 +209,7 @@ import           TyCon
 import           Type                                   (getClassPredTys_maybe)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon, boolTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
 import           Var
 
 
@@ -527,7 +527,7 @@ isRVar (RVar _ _) = True
 isRVar _          = False
 
 isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon = isClassTyCon . rtc_tc
+isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -780,7 +780,7 @@ instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc
-  isClass    = isClassRTyCon
+  isClass c  = isClassRTyCon c || isEqual c 
   isEqual    = (eqPrimTyCon ==) . rtc_tc
   ppTycon    = toFix
 
