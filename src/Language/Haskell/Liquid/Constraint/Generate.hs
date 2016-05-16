@@ -803,8 +803,8 @@ consCB _ _ γ (NonRec x _) | isDictionary x
     isDictionary = isJust . dlookup (denv γ)
 
 
-consCB _ _ γ (NonRec x (App (Var w) (Type τ)))
-  | Just d <- dlookup (denv γ) w
+consCB _ _ γ (NonRec x def)
+  | Just (w, τ) <- grepDictionary def, Just d <- dlookup (denv γ) w
   = do t      <- trueTy τ
        addW    $ WfC γ t
        let xts = dmap (f t) d
@@ -812,8 +812,16 @@ consCB _ _ γ (NonRec x (App (Var w) (Type τ)))
        t      <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
-       f t' (RAllT α te) = subsTyVar_meet' (α, t') te
-       f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
+    f t' (RAllT α te) = subsTyVar_meet' (α, t') te
+    f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
+
+    grepDictionary (App (Var w) (Type t))
+      = Just (w, t)
+    grepDictionary (App e _)
+      = grepDictionary e 
+    grepDictionary _ 
+      = Nothing 
+
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
