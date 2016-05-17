@@ -253,4 +253,7 @@ getPack :: KVar -> Packs -> Maybe Int
 getPack k (Packs m) = M.lookup k m
 
 makePack :: [S.HashSet KVar] -> Packs
-makePack = error "TBD:makePack"
+makePack kvss = Packs (M.fromList kIs)
+  where
+    kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
+    kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
