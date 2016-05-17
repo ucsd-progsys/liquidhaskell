@@ -183,10 +183,9 @@ type KVSub       = (F.KVar, F.Subst)
 apply :: CombinedEnv -> Solution -> F.IBindEnv -> ExprInfo
 apply g s bs  = (F.pAnd (pks : ps), kI)
   where
-    (pks, kI) = dummy applyKVars' applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (pks, kI) = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
-    dummy _old _new = _new
 
 exprKind :: F.Expr -> Either KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
@@ -234,7 +233,7 @@ applyPackCube :: CombinedEnv
               -> Solution
               -> (KVSub, F.Cube)
               -> ((Binders, F.Pred, F.Pred), KInfo)
-applyPackCube g s kc = cubePredExc g s k su c bs'
+applyPackCube g s kc = cubePredExc g s (F.tracepp "applyPackCube" k) su c bs'
   where
     ((k, su), c)     = kc
     bs'              = delCEnv bs g
@@ -244,7 +243,7 @@ applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
-applyKVar g s (k, su) = case F.solLookup s (F.tracepp "applyKVar" k) of
+applyKVar g s (k, su) = case F.solLookup s (F.tracepp "solLookup:applyKVar" k) of
   Left cs   -> hypPred g s k su cs
   Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
@@ -398,7 +397,7 @@ reduceCubes zs = (F.pAnd ps, cs)
     cs         = rights zs
 
 getCube :: Solution -> KVSub -> Maybe (Either F.Expr (KVSub, F.Cube))
-getCube s (k, su) = case F.solLookup s k of
+getCube s (k, su) = case F.solLookup s (F.tracepp "solLookup:getCube" k) of
   Left []   -> Just (Left F.PFalse)
   Left [c]  -> Just (Right ((k, su), c))
   Right eqs -> Just (Left  (qBindPred su eqs))
