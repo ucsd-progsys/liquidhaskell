@@ -244,7 +244,7 @@ applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
-applyKVar g s (k, su) = case F.solLookup s k of
+applyKVar g s (k, su) = case F.solLookup s (F.tracepp "applyKVar" k) of
   Left cs   -> hypPred g s k su cs
   Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
