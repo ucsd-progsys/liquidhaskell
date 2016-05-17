@@ -44,6 +44,7 @@ module Language.Fixpoint.Types.Environments (
 
 -- import qualified Data.Binary as B
 import qualified Data.Binary as B
+import qualified Data.List   as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -51,6 +52,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
+import           Data.Function             (on)
 import           Text.PrettyPrint.HughesPJ
 import           Control.DeepSeq
 
@@ -243,7 +245,12 @@ newtype Packs = Packs { packm :: M.HashMap KVar Int }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Packs where
-  toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> M.toList m
+  toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> kIs
+    where
+      kIs = L.sortBy (compare `on` snd) . M.toList $ m
+
+instance PPrint Packs where
+  pprintTidy _ = toFix
 
 instance Monoid Packs where
   mempty        = Packs mempty

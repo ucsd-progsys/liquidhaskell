@@ -428,6 +428,7 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
+                  $++$ packsDoc x'
                   $++$ conDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
@@ -439,6 +440,7 @@ toFixpoint cfg x' =    qualsDoc x'
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
+    packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
