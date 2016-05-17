@@ -12,32 +12,32 @@
 
 module MapFusion where
 
-import Prelude hiding (map)
+import Prelude hiding (map, (++))
 
 import Proves
 
-{-@ axiomatize append @-}
-append :: L a -> L a -> L a
-append xs ys
+{-@ axiomatize (++) @-}
+(++) :: L a -> L a -> L a
+xs ++ ys
   | llen xs == 0 = ys
-  | otherwise    = C (hd xs) (append (tl xs) ys)
+  | otherwise    = C (hd xs) (tl xs ++ ys)
 
 
-{-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
-               -> {v:Proof | append (append xs ys) zs == append xs (append ys zs) } @-}
-prop_assoc :: L a -> L a -> L a -> Proof
-prop_assoc N ys zs
+{-@ associative :: xs:L a -> ys:L a -> zs:L a
+                -> {(xs ++ ys) ++ zs == xs ++ (ys ++ zs)} @-}
+associative :: L a -> L a -> L a -> Proof
+associative N ys zs
   = toProof $
-       append (append N ys) zs ==! append ys zs
-                               ==! append N (append ys zs)
+       (N ++ ys) ++ zs ==! ys ++ zs
+                       ==! N ++ (ys ++ zs)
 
-prop_assoc (C x xs) ys zs
+associative (C x xs) ys zs
   = toProof $
-      append (append (C x xs) ys) zs
-        ==! append (C x (append xs ys)) zs
-        ==! C x (append (append xs ys) zs)
-        ==! C x (append xs (append ys zs))  ? prop_assoc xs ys zs
-        ==! append (C x xs) (append ys zs)
+      (C x xs ++ ys) ++ zs
+        ==! (C x (xs ++ ys)) ++ zs
+        ==! C x ((xs ++ ys) ++ zs)
+        ==! C x (xs ++ (ys ++ zs))  ? associative xs ys zs
+        ==! (C x xs) ++ (ys ++ zs)
 
 
 
