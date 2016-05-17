@@ -31,16 +31,16 @@ mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
     mlen          = upperBound 4 len
     (na, (nz,nl)) = runST
                       -- (blob f next0 mlen z0 s0)
-                       ( do arr0      <- A.new mlen
-                            (marr, x) <- outerL f next0 arr0 mlen z0 s0 0
+                       ( do arrBLOB0  <- undefined -- A.new mlen
+                            (marr, x) <- outerL f next0 arrBLOB0 mlen z0 s0 0
                             arr       <- A.unsafeFreeze marr
                             return (arr, x) )
 
-blob f next0 mlen z0 s0 = do
-  arr0      <- A.new mlen
-  (marr, x) <- outerL f next0 arr0 mlen z0 s0 0
-  arr       <- A.unsafeFreeze marr
-  return (arr, x)
+-- blob f next0 mlen z0 s0 = do
+  -- arr0      <- A.new mlen
+  -- (marr, x) <- outerL f next0 arr0 mlen z0 s0 0
+  -- arr       <- A.unsafeFreeze marr
+  -- return (arr, x)
 
 {-@ outerL :: (b -> c -> (b, Char))
            -> (t -> Step t c)
