@@ -353,7 +353,8 @@ initCGI cfg info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
   , tyConEmbed = tce
-  , kuts       = mempty -- F.ksEmpty
+  , kuts       = mempty
+  , kvPacks    = mempty
   , lits       = coreBindLits tce info ++  (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
@@ -404,7 +405,9 @@ freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
 freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
+freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
+  where
+    t                = F.tracepp "freshTy_reftype" _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -416,7 +419,6 @@ addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks
 
 isKut              :: KVKind -> Bool
 isKut (RecBindE _) = True
--- isKut (CaseE n)    = n > 2 -- True
 isKut _            = False
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
@@ -426,6 +428,11 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
      ks
        | S.null ks' = ks'
        | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
+
+addKvPack :: SpecType -> CG ()
+addKvPack t = modify $ \s -> s { kvPacks = ks : kvPacks s}
+  where
+    ks      = S.fromList $ specTypeKVars t
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
@@ -1073,10 +1080,10 @@ consE γ e
   = consPattern γ p
 
 -- NV (below) is a hack to type polymorphic axiomatized functions
--- no need to check this code with flag, the axioms environment withh
+-- no need to check this code with flag, the axioms environment with
 -- be empty if there is no axiomatization
 
-consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
+consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
@@ -1107,13 +1114,29 @@ consE _ (Lit c)
 consE γ (App e (Type τ)) | isKind τ
   = consE γ e
 
-
 consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
-       addW        $ WfC γ t
+       addW         $ WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (α, t') te)
+
+{-
+addPack :: SpecType -> CG ()
+addPack = undefined
+
+consAppType :: CGEnv -> CoreExpr -> ListNE Type -> CG SpecType
+consAppType γ e τs  = do
+  ts <-
+
+(((Triple @ Int/K1) @ Bool/K2) @ String/K3)
+
+Pack (forall b c. Triple K1 b c)    ===> pack [K1]
+Pack (forall c.   Triple K1 K2 c)   ===> pack [K1, K2]
+Pack (            Triple K1 K2 K3)  ===> pack [K1, K2, K3]
+
+ -}
+
 
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
