@@ -39,6 +39,7 @@ module Language.Fixpoint.Types.Environments (
   -- * Groups of KVars (needed by eliminate)
   , Packs (..)
   , getPack
+  , makePack
   ) where
 
 -- import qualified Data.Binary as B
@@ -250,3 +251,6 @@ instance Monoid Packs where
 
 getPack :: KVar -> Packs -> Maybe Int
 getPack k (Packs m) = M.lookup k m
+
+makePack :: [S.HashSet KVar] -> Packs
+makePack = error "TBD:makePack"
