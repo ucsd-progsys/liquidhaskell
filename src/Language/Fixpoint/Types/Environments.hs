@@ -236,7 +236,7 @@ instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
   get = S.fromList <$> B.get
 
 --------------------------------------------------------------------------------
--- | Constraint Pack Sets -------------------------------------------------------
+-- | Constraint Pack Sets ------------------------------------------------------
 --------------------------------------------------------------------------------
 
 newtype Packs = Packs { packm :: M.HashMap KVar Int }
