@@ -314,8 +314,8 @@ edgeDeps cfg si  = forceKuts ks
                  . filter isRealEdge
   where
     ks           = givenKs `S.union` nlKs
-    givenKs      = tracepp "Given  KVs" $ cutVars cfg    si
-    nlKs         = tracepp "NonLin KVs" $ nonLinearKVars si
+    givenKs      = {- tracepp "Given  KVs" $ -} cutVars cfg    si
+    nlKs         = {- tracepp "NonLin KVs" $ -} nonLinearKVars si
 
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
