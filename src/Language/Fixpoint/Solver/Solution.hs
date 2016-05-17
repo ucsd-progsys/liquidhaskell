@@ -267,6 +267,7 @@ hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
 
  -}
 
+(&.&) :: F.Pred -> F.Pred -> F.Pred
 (&.&) p q = F.pAnd [p, q]
 
 cubePred :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> ExprInfo
