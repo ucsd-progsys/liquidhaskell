@@ -236,7 +236,7 @@ instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
   get = S.fromList <$> B.get
 
 --------------------------------------------------------------------------------
--- | Constraint Pack Sets -------------------------------------------------------
+-- | Constraint Pack Sets ------------------------------------------------------
 --------------------------------------------------------------------------------
 
 newtype Packs = Packs { packm :: M.HashMap KVar Int }
@@ -244,6 +244,9 @@ newtype Packs = Packs { packm :: M.HashMap KVar Int }
 
 instance Fixpoint Packs where
   toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> M.toList m
+
+instance PPrint Packs where
+  pprintTidy _ = toFix
 
 instance Monoid Packs where
   mempty        = Packs mempty
