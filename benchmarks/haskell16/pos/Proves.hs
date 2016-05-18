@@ -100,13 +100,13 @@ class ToProve a r where
 
 instance (a~b) => ToProve a b where
 {-@ instance ToProve a b where
-  ==? :: x:a -> y:a -> {v:b | v ~~ x && v ~~ y}
+  ==? :: x:a -> y:a -> {v:b | v ~~ x }
   @-}
   (==?)  = undefined
 
 instance (a~b) => ToProve a (Proof -> b) where
 {-@ instance ToProve a (Proof -> b) where
-  ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x && v ~~ y }
+  ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x  }
   @-}
   (==?) = undefined
 
@@ -117,13 +117,13 @@ class OptEq a r where
 
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Proof -> b) where
-  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y }
+  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x }
   @-}
   (==!) x _ _ = x
 
 instance (a~b) => OptEq a b where
 {-@ instance OptEq a b where
-  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y}
+  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x }
   @-}
   (==!) x _ = x
 
@@ -146,30 +146,40 @@ class OptLEq a r where
 
 instance OptLEq a (Proof -> a) where
 {-@ instance OptLEq a (Proof -> a) where
-  <=! :: x:a -> y:a -> {v:Proof| x <= y} -> {v:a | v == x && v <= y}
+  <=! :: x:a -> y:a -> {v:Proof| x <= y} -> {v:a | v == x }
   @-}
   (<=!) x _ _ = x
 
 instance OptLEq a a where
 {-@ instance OptLEq a a where
-  <=! :: x:a -> y:{a| x <= y} -> {v:a | v == x && v <= y }
+  <=! :: x:a -> y:{a| x <= y} -> {v:a | v == x  }
   @-}
   (<=!) x _ = x
 
+instance (a~b) => OptLEq a (Proof -> b) where
+{-@ instance OptLEq a (Proof -> b) where
+  <=! :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ x }
+  @-}
+  (<=!) x _ _ = x
 
+instance (a~b) => OptLEq a b where
+{-@ instance OptLEq a b where
+  <=! :: x:a -> y:{a | x <= y} -> {v:b | v ~~ x }
+  @-}
+  (<=!) x _ = x
 
 class OptGEq a r where
   (>=!) :: a -> a -> r
 
 instance OptGEq a (Proof -> a) where
 {-@ instance OptGEq a (Proof -> a) where
-  >=! :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == x && v >= y}
+  >=! :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == x }
   @-}
   (>=!) x _ _ = x
 
 instance OptGEq a a where
 {-@ instance OptGEq a a where
-  >=! :: x:a -> y:{a| x >= y} -> {v:a | v == x && v >= y }
+  >=! :: x:a -> y:{a| x >= y} -> {v:a | v == x  }
   @-}
   (>=!) x _ = x
 
@@ -179,27 +189,34 @@ class OptLess a r where
 
 instance OptLess a (Proof -> a) where
 {-@ instance OptLess a (Proof -> a) where
-  <! :: x:a -> y:a -> {v:Proof| x < y} -> {v:a | v == x && v < y}
+  <! :: x:a -> y:a -> {v:Proof| x < y} -> {v:a | v == x }
   @-}
   (<!) x _ _ = x
 
 instance OptLess a a where
 {-@ instance OptLess a a where
-  <! :: x:a -> y:{a| x < y} -> {v:a | v == x && v < y }
+  <! :: x:a -> y:{a| x < y} -> {v:a | v == x  }
   @-}
   (<!) x y = x
+
+instance (a~b) => OptLess a b where
+{-@ instance OptLess a b where
+  <! :: x:a -> y:{a| x < y} -> {v:b | v ~~ x  }
+  @-}
+  (<!) x _ = x
+
 
 class OptGt a r where
   (>!) :: a -> a -> r
 
 instance OptGt a (Proof -> a) where
 {-@ instance OptGt a (Proof -> a) where
-  >! :: x:a -> y:a -> {v:Proof| x > y} -> {v:a | v == x && v > y}
+  >! :: x:a -> y:a -> {v:Proof| x > y} -> {v:a | v == x }
   @-}
   (>!) x _ _ = x
 
 instance OptGt a a where
 {-@ instance OptGt a a where
-  >! :: x:a -> y:{a| x > y} -> {v:a | v == x && v > y }
+  >! :: x:a -> y:{a| x > y} -> {v:a | v == x  }
   @-}
   (>!) x y = x
