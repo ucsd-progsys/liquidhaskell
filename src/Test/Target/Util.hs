@@ -17,7 +17,7 @@ import           Data.Maybe
 
 import           Data.Generics                   (everywhere, mkT)
 import           Data.Text.Format                hiding (print)
-import qualified Data.Text.Lazy                  as T
+import           Data.Text.Lazy.Builder          (Builder)
 import           Debug.Trace
 
 import qualified DynFlags as GHC
@@ -95,14 +95,14 @@ type family Res a where
 -- smt2Sort s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
 -- smt2Sort _           = "Int"
 
-makeDecl :: Symbol -> Sort -> T.Text
+makeDecl :: Symbol -> Sort -> Builder
 -- FIXME: hack..
 makeDecl x t
   | Just (_, ts, t) <- functionSort t
-  = format "(declare-fun {} ({}) {})"
-           (smt2 x, T.unwords (map smt2 ts), smt2 t)
+  = build "(declare-fun {} ({}) {})"
+          (smt2 x, smt2s ts, smt2 t)
 makeDecl x t
-  = format "(declare-const {} {})" (smt2 x, smt2 t)
+  = build "(declare-const {} {})" (smt2 x, smt2 t)
 
 safeFromJust :: String -> Maybe a -> a
 safeFromJust msg Nothing  = error $ "safeFromJust: " ++ msg
@@ -149,7 +149,7 @@ fourth4 (_,_,_,d) = d
 getSpec :: [String] -> FilePath -> IO GhcSpec
 getSpec opts target
   = do cfg  <- getOpts ["--quiet"]
-       spec.fst <$> getGhcInfo Nothing (cfg {ghcOptions = opts}) target
+       spec.head.fst <$> getGhcInfo Nothing (cfg {ghcOptions = opts}) [target]
        -- case info of
        --   Left err -> error $ show err
        --   Right i  -> return $ spec i

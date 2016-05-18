@@ -3,6 +3,8 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Control.Applicative
@@ -12,9 +14,11 @@ import Control.Monad.Trans.Class (lift)
 import Data.Char
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
+import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
+import Data.String
 import Data.Tagged
 import Data.Typeable
 import Options.Applicative
@@ -68,7 +72,12 @@ instance IsOption SmtSolver where
       <> help (untag (optionHelp :: Tagged SmtSolver String))
       )
 
-newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable)
+newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable, IsString)
+instance Monoid LiquidOpts where
+  mempty = LO ""
+  mappend (LO "") y = y
+  mappend x (LO "") = x
+  mappend (LO x) (LO y) = LO $ x ++ (' ' : y)
 instance IsOption LiquidOpts where
   defaultValue = LO ""
   parseValue = Just . LO
@@ -87,8 +96,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
-    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs"]           ExitSuccess
-    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs"]           (ExitFailure 1)
+    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
+    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
 
 benchTests
@@ -97,10 +106,13 @@ benchTests
     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         ["HsColour.hs"]           ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                ["RIO.hs", "DataBase.hs"] ExitSuccess
-    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
+    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+    , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"             ["OverviewListInfix.hs"]                        ExitSuccess
+    , testGroup "haskell16_neg"   <$> dirTests "benchmarks/haskell16/neg"             ["Proves.hs", "Helper.hs"]             (ExitFailure 1)
     ]
+
 
 selfTests
   = group "Self" [
@@ -132,7 +144,7 @@ mkTest code dir file
         createDirectoryIfMissing True $ takeDirectory log
         bin <- binPath "liquid"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file smt opts
+          let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
@@ -164,12 +176,47 @@ knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
+--------------------------------------------------------------------------------
+extraOptions :: FilePath -> FilePath -> LiquidOpts
+--------------------------------------------------------------------------------
+extraOptions dir test = mappend (dirOpts dir) (testOpts test)
+  where
+    dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
+      [ ( "benchmarks/bytestring-0.9.2.1"
+        , "-iinclude --c-files=cbits/fpstring.c"
+        )
+      , ( "benchmarks/text-0.11.2.3"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        )
+      , ( "benchmarks/vector-0.10.0.1"
+        , "-i."
+        )
+      ]
+    testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
+      [ ( "tests/pos/Class2.hs"
+        , "-i../neg"
+        )
+      , ( "tests/pos/FFI.hs"
+        , "-i../ffi-include --c-files=../ffi-include/foo.c"
+        )
+      ]
+
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
+icfpIgnored = ["RIO.hs", "DataBase.hs"
+
+              -- , "CopyRec.hs"                                -- eliminate 
+              ] 
+
+hscIgnored = [ "HsColour.hs"
+             -- , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             -- , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+
+             ]
 
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
@@ -196,8 +243,7 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-
-             --  , "Data/Text/Fusion.hs" -- eliminate
+        --   , "Data/Text/Fusion.hs"                           -- eliminate
               ]
 
 

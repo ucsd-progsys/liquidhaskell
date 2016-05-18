@@ -51,8 +51,10 @@ realRank :: Heap a -> Int
 realRank (Empty)        = 0
 realRank (Node p k l r) = 1 + realRank l + realRank r
 
+{-@ invariant {v:Heap a | rank v == realRank v } @-}
+
 {-@ measure rank @-}
-{-@ rank :: h:PHeap a -> {v:Nat | v = realRank h} @-}
+{-@ rank :: h:Heap a -> {v:Nat | v = realRank h} @-}
 rank Empty          = 0
 rank (Node _ r _ _) = r
 

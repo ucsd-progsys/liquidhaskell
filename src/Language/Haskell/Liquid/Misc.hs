@@ -3,7 +3,7 @@
 module Language.Haskell.Liquid.Misc where
 
 import Prelude hiding (error)
-import Control.Monad (liftM2)
+import Control.Monad.State
 
 import Control.Arrow (first)
 import System.FilePath
@@ -13,14 +13,27 @@ import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
 import           Data.Maybe
+import           Data.Tuple
 import           Data.Hashable
+import           Data.Time
+import           Data.Function (on)
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import           Text.PrettyPrint.HughesPJ ((<>), char, Doc)
-
+import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 
+timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
+timedAction label io = do
+  t0 <- getCurrentTime
+  a <- io
+  t1 <- getCurrentTime
+  let time = realToFrac (t1 `diffUTCTime` t0) :: Double
+  case label of
+    Just x  -> printf "Time (%.2fs) for action %s \n" time (show x)
+    Nothing -> return ()
+  return a
 
 (!?) :: [a] -> Int -> Maybe a
 []     !? _ = Nothing
@@ -162,7 +175,7 @@ firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.B
 firstElems seps str
   = case splitters seps str of
       [] -> Nothing
-      is -> Just $ L.minimumBy (\x y -> compare (fst3 x) (fst3 y)) is
+      is -> Just $ L.minimumBy (compare `on` fst3) is
 
 splitters :: [(B.ByteString, t)]
           -> B.ByteString -> [(Int, t, (B.ByteString, B.ByteString))]
@@ -176,12 +189,12 @@ bchopAlts :: [(B.ByteString, B.ByteString)] -> B.ByteString -> [B.ByteString]
 bchopAlts seps  = go
   where
     go  s               = maybe [s] go' (firstElems seps s)
-    go' (_,c',(s0, s1)) = if (B.length s2 == B.length s1) then [B.concat [s0,s1]] else (s0 : s2' : go s3')
+    go' (_,c',(s0, s1)) = if B.length s2 == B.length s1 then [B.concat [s0,s1]] else s0 : s2' : go s3'
                           where (s2, s3) = B.breakSubstring c' s1
                                 s2'      = B.append s2 c'
                                 s3'      = B.drop (B.length c') s3
 
-chopAlts :: [(String, String)] -> String -> [[Char]]
+chopAlts :: [(String, String)] -> String -> [String]
 chopAlts seps str = unpack <$> bchopAlts [(pack c, pack c') | (c, c') <- seps] (pack str)
 
 sortDiff :: (Ord a) => [a] -> [a] -> [a]
@@ -219,3 +232,8 @@ intToString 1 = "1st"
 intToString 2 = "2nd"
 intToString 3 = "3rd"
 intToString n = show n ++ "th"
+
+mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
+mapAccumM f acc0 xs =
+  swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
+

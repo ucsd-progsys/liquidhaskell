@@ -1,7 +1,3 @@
-{-@ LIQUID "--idirs=../../../bytestring-0.9.2.1/" @-}
-{-@ LIQUID "--idirs=../../../../include/" @-}
-{-@ LIQUID "--c-files=../../cbits/cbits.c" @-}
-
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}

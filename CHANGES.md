@@ -6,6 +6,12 @@
   suppressed and only the list of errors is returned as a JSON object to be
   consumed by an editor.
 
+- Add `--checks` flag (formerly `--binders`), which checks a given binder's
+  definition, assuming specified types for all callees (but inferring types for
+  callees without signatures.)
+
+- Add `--time-binds` which is like the above, but checks all binders in a module
+  and prints out time taken for each.
 
 ## 0.5.0.1
 

@@ -20,6 +20,9 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Update Configuration With Pragma
    , withPragmas
 
+   -- * Canonicalize Paths in Config
+   , canonicalizePaths
+
    -- * Exit Function
    , exitWithResult
 
@@ -49,9 +52,9 @@ import Data.List                           (nub)
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                               getOpts, cores, minPartSize,
-                                              maxPartSize, newcheck, eliminate)
+                                              maxPartSize, newcheck, eliminate, defConfig)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -103,6 +106,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
+ , higherorderqs
+    = def
+          &= help "Allow higher order qualifiers to get automatically instantiated"
+
  , linear
     = def
           &= help "Use uninterpreted integer multiplication and division"
@@ -110,12 +117,13 @@ config = cmdArgsMode $ Config {
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
 
- , binders
-    = def &= help "Check a specific set of binders"
+ , checks
+    = def &= help "Check a specific (top-level) binder"
+          &= name "check-var"
 
- , noPrune
+ , pruneUnsorted
     = def &= help "Disable prunning unsorted Predicates"
-          &= name "no-prune-unsorted"
+          &= name "prune-unsorted"
 
  , notermination
     = def &= help "Disable Termination Check"
@@ -211,6 +219,11 @@ config = cmdArgsMode $ Config {
             &= name "scrape-imports"
             &= explicit
 
+ , scrapeInternals
+    = False &= help "Scrape qualifiers from auto generated specifications"
+            &= name "scrape-internals"
+            &= explicit
+
  , scrapeUsedImports
     = False &= help "Scrape qualifiers from used, imported specifications"
             &= name "scrape-used-imports"
@@ -220,6 +233,11 @@ config = cmdArgsMode $ Config {
     = False &= name "elimStats"
             &= help "Print eliminate stats"
 
+ , elimBound
+    = Nothing
+            &= name "elimBound"
+            &= help "Maximum chain length for eliminating KVars"
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -227,7 +245,16 @@ config = cmdArgsMode $ Config {
  , counterExamples
     = False &= name "counter-examples"
             &= help "Attempt to generate counter-examples to type errors (experimental!)"
-} &= verbosity
+
+ , timeBinds
+    = False &= name "time-binds"
+            &= help "Solve each (top-level) asserted type signature separately & time solving."
+
+ , patternInline
+    = False &= name "pattern-inline"
+            &= help "Inline applications of `>>=` and `return` during constraint generation."
+
+ } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
    &= summary copyright
@@ -344,43 +371,48 @@ parsePragma = withPragma defConfig
    --withArgs [val s] $ cmdArgsRun config
 
 defConfig :: Config
-defConfig = Config { files          = def
-                   , idirs          = def
-                   , newcheck       = True
-                   , fullcheck      = def
-                   , linear         = def
-                   , higherorder    = def
-                   , diffcheck      = def
-                   , saveQuery      = def
-                   , binders        = def
-                   , noCheckUnknown = def
-                   , notermination  = def
-                   , autoproofs     = def
-                   , nowarnings     = def
-                   , trustinternals = def
-                   , nocaseexpand   = def
-                   , strata         = def
-                   , notruetypes    = def
-                   , totality       = def
-                   , noPrune        = def
-                   , exactDC        = def
-                   , cores          = def
-                   , minPartSize    = defaultMinPartSize
-                   , maxPartSize    = defaultMaxPartSize
-                   , maxParams      = defaultMaxParams
-                   , smtsolver      = def
-                   , shortNames     = def
-                   , shortErrors    = def
-                   , cabalDir       = def
-                   , ghcOptions     = def
-                   , cFiles         = def
-                   , eliminate      = def
-                   , port           = defaultPort
-                   , scrapeImports  = False
-                   , scrapeUsedImports  = False
-                   , elimStats      = False
-                   , json           = False
-                   , counterExamples= False
+defConfig = Config { files             = def
+                   , idirs             = def
+                   , newcheck          = True
+                   , fullcheck         = def
+                   , linear            = def
+                   , higherorder       = def
+                   , higherorderqs     = def 
+                   , diffcheck         = def
+                   , saveQuery         = def
+                   , checks            = def
+                   , noCheckUnknown    = def
+                   , notermination     = def
+                   , autoproofs        = def
+                   , nowarnings        = def
+                   , trustinternals    = def
+                   , nocaseexpand      = def
+                   , strata            = def
+                   , notruetypes       = def
+                   , totality          = def
+                   , pruneUnsorted     = def
+                   , exactDC           = def
+                   , cores             = def
+                   , minPartSize       = defaultMinPartSize
+                   , maxPartSize       = defaultMaxPartSize
+                   , maxParams         = defaultMaxParams
+                   , smtsolver         = def
+                   , shortNames        = def
+                   , shortErrors       = def
+                   , cabalDir          = def
+                   , ghcOptions        = def
+                   , cFiles            = def
+                   , eliminate         = def
+                   , port              = defaultPort
+                   , scrapeInternals   = False
+                   , scrapeImports     = False
+                   , scrapeUsedImports = False
+                   , elimStats         = False
+                   , elimBound         = Nothing
+                   , json              = False
+                   , counterExamples   = False
+                   , timeBinds         = False
+                   , patternInline     = False
                    }
 
 ------------------------------------------------------------------------
@@ -388,10 +420,10 @@ defConfig = Config { files          = def
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
-exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
+exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg target out = do
-  annm <- {-# SCC "annotate" #-} annotate cfg target out
+exitWithResult cfg targets out = do
+  annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
   let r = o_result out `addErrors` o_errors out
   consoleResult cfg out r annm

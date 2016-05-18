@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 module Toy  where
 
 {-@ foldN :: forall a <p :: x0:Int -> x1:a -> Prop>. 
