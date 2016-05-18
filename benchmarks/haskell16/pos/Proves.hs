@@ -11,11 +11,13 @@ module Proves (
 
   , (==!), (<=!), (<!), (>!), (>=!)
 
-  , (?)
+  , (?), (!)
 
   , (==>), (&&&)
 
   , proof, toProof, simpleProof
+
+  , QED(..)
 
   , Proof
 
@@ -31,6 +33,8 @@ infixl 3 ==!, <=!, <!, >!, >=!
 -- provide the proof terms after ?
 infixl 3 ?
 
+infixl 2 ! 
+
 
 type Proof = ()
 
@@ -38,6 +42,10 @@ type Proof = ()
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
 
+data QED = QED
+
+(!) :: a -> QED -> Proof
+_ ! _ = ()
 
 {-@ measure proofBool :: Proof -> Bool @-}
 

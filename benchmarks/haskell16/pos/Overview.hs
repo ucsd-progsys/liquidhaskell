@@ -33,7 +33,11 @@ fib n
 unsafe () = ()
 
 {-@ safe :: () -> { fib 2 == 1 } @-}
-safe () = toProof $ fib 2 ==! fib 0 + fib 1 
+safe :: () -> Proof
+safe () =
+   fib 2 ==! fib 0 + fib 1
+
+   ! QED
 
 -- | fib 2 == fib 1 + fib 0
 
@@ -64,8 +68,9 @@ fib_incr :: Int -> Proof
 {-@ fib_incr :: n:Nat -> {fib n <= fib (n+1)} @-}
 fib_incr n
    | n == 0
-   = toProof $
-      fib 0 <! fib 1
+   = fib 0 <! fib 1
+   ! QED
+
    | n == 1
    = toProof $
       fib 1 <=! fib 1 + fib 0
