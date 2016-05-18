@@ -37,7 +37,7 @@ safe :: () -> Proof
 safe () =
    fib 2 ==! fib 0 + fib 1
 
-   ! QED
+   *** QED
 
 -- | fib 2 == fib 1 + fib 0
 
@@ -69,7 +69,7 @@ fib_incr :: Int -> Proof
 fib_incr n
    | n == 0
    = fib 0 <! fib 1
-   ! QED
+   *** QED
 
    | n == 1
    = toProof $

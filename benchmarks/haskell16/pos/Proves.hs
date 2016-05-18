@@ -11,7 +11,7 @@ module Proves (
 
   , (==!), (<=!), (<!), (>!), (>=!)
 
-  , (?), (!)
+  , (?), (***)
 
   , (==>), (&&&)
 
@@ -33,7 +33,7 @@ infixl 3 ==!, <=!, <!, >!, >=!
 -- provide the proof terms after ?
 infixl 3 ?
 
-infixl 2 ! 
+infixl 2 ***
 
 
 type Proof = ()
@@ -44,8 +44,8 @@ f ? y = f y
 
 data QED = QED
 
-(!) :: a -> QED -> Proof
-_ ! _ = ()
+(***) :: a -> QED -> Proof
+_ *** _ = ()
 
 {-@ measure proofBool :: Proof -> Bool @-}
 
