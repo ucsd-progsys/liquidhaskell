@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.GHC.Resugar (
   ) where
 
 import           DataCon      (DataCon)
-import           MkCore       (mkCoreApps)
+import           MkCore       (mkCoreApps, mkCoreVarTup)
 import           CoreSyn
 import           Type
 import           TypeRep
@@ -103,8 +103,8 @@ exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
 exprArgs (Let (NonRec x e) rest) _
   | Just (n, ts  ) <- varTuple x
   , Just (xes, e') <- takeBinds n rest
-  , matchTypes ts xes
-  , hasTuple e xes
+  , matchTypes xes ts
+  , hasTuple xes e
   = Just (PatMatchTup x n ts e (fst <$> xes) e')
 
 exprArgs _ _
@@ -150,22 +150,39 @@ lower (PatMatchTup _ _ _ e xs e')
 
 {- Ooh, some helpful things!
 
-  mkCoreVarTup
   mkCoreTup
-  
+
 -}
 
 substTuple :: CoreExpr -> [Var] -> CoreExpr -> CoreExpr
-substTuple = undefined
+substTuple = error "TBD:substTuple"
 
 takeBinds  :: Int -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds = undefined
+takeBinds = error "TBD:takeBinds"
 
-matchTypes :: [Type] -> [(Var, CoreExpr)] -> Bool
-matchTypes = undefined
+matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
+matchTypes xes ts =  xN == tN
+                  && all (uncurry eqType) (zip xts ts)
+                  && all isProjection es
+  where
+    xN       = length xes
+    tN       = length ts
+    xts      = varType <$> xs
+    (xs, es) = unzip xes
 
-hasTuple   :: CoreExpr -> [(Var, a)] -> Bool
-hasTuple = undefined
+isProjection :: CoreExpr -> Bool
+isProjection = error "TBD:isProjection"
+
+
+
+hasTuple   :: [(Var, a)] -> CoreExpr -> Bool
+hasTuple xes = isSubExpr tE
+  where
+    tE       = mkCoreVarTup (fst <$> xes)
+
+isSubExpr :: CoreExpr -> CoreExpr -> Bool
+isSubExpr = error "TBD:isSubExpr"
+
 
 varTuple :: Var -> Maybe (Int, [Type])
 varTuple x
