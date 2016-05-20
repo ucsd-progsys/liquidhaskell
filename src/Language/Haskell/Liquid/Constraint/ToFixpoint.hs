@@ -21,7 +21,7 @@ cgInfoFInfo info cgi fi = do
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
 targetFInfo info cgi fn = F.fi cs ws bs ls ks packs qs bi fn aHO
   where
-    packs               = F.tracepp "PACKS: " $ F.makePack (kvPacks cgi)
+    packs               = F.makePack (kvPacks cgi)
     cs                  = fixCs  cgi
     ws                  = fixWfs cgi
     bs                  = binds  cgi

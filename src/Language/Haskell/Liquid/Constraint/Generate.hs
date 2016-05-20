@@ -15,8 +15,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
 
--- | This module defines the representation of Subtyping and WF Constraints, and
--- the code for syntax-directed constraint generation.
+-- | This module defines the representation of Subtyping and WF Constraints,
+--   and the code for syntax-directed constraint generation.
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
@@ -407,7 +407,7 @@ freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
 freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
   where
-    t                = F.tracepp "freshTy_reftype" _t
+    t                = {- F.tracepp "freshTy_reftype" -} _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -419,7 +419,12 @@ addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks
 
 isKut              :: KVKind -> Bool
 isKut (RecBindE _) = True
+isKut  ProjectE    = True
 isKut _            = False
+
+caseKVKind ::[Alt Var] -> KVKind
+caseKVKind [(DataAlt _, _, Var _)] = ProjectE
+caseKVKind cs                      = CaseE (length cs)
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
@@ -980,7 +985,7 @@ cconsE' γ (Let b e) t
 
 cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
-       forM_ cases $ cconsCase γ' x t $ {- trace _msg -} nonDefAlts
+       forM_ cases $ cconsCase γ' x t nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
@@ -1121,23 +1126,6 @@ consE γ e'@(App e (Type τ))
        t'         <- refreshVV t
        addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (α, t') te)
 
-{-
-addPack :: SpecType -> CG ()
-addPack = undefined
-
-consAppType :: CGEnv -> CoreExpr -> ListNE Type -> CG SpecType
-consAppType γ e τs  = do
-  ts <-
-
-(((Triple @ Int/K1) @ Bool/K2) @ String/K3)
-
-Pack (forall b c. Triple K1 b c)    ===> pack [K1]
-Pack (forall c.   Triple K1 K2 c)   ===> pack [K1, K2]
-Pack (            Triple K1 K2 K3)  ===> pack [K1, K2, K3]
-
- -}
-
-
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
 
@@ -1194,8 +1182,9 @@ consE γ  e@(Lam x e1)
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e
 
-consE γ e@(Case _ _ _ cases)
-  = cconsFreshE (CaseE n) γ e   where n = length cases
+consE γ e@(Case _ _ _ cs)
+  = cconsFreshE (caseKVKind cs) γ e
+
 
 consE γ (Tick tt e)
   = do t <- consE (setLocation γ (Sp.Tick tt)) e
@@ -1224,7 +1213,8 @@ patternFlag = patternInline . cgCfg
 
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
 
-{-
+{- [NOTE] special type rule for monadic-bind application
+
     G |- e1 ~> m tx     G, x:tx |- e2 ~> m t
     -----------------------------------------
           G |- (e1 >>= \x -> e2) ~> m t
@@ -1237,7 +1227,8 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
   mt <- consE γ' e2
   return mt
 
-{-
+{- [NOTE] special type rule for monadic-return
+
            G |- e ~> t
     ------------------------
       G |- return e ~ m t
@@ -1247,12 +1238,25 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
   mt    <- trueTy  m
   return $ RAppTy mt t mempty
 
+{- [NOTE] special type rule for field projection, is
+          t  = G(x)       ti = Proj(t, i)
+    -----------------------------------------
+      G |- case x of C [y1...yn] -> yi : ti
+ -}
+
+consPattern γ (Rs.PatProject xe _ τ c ys i) = do
+  let yi = ys !! i
+  t    <- (addW . WfC γ) <<= freshTy_type (CaseE 1) {- ProjectE -}  (Var yi) τ
+  γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
+  ti   <- γ' ??= yi -- ALT : varRefType γ' yi
+  addC (SubC γ' ( F.tracepp ("consPattern " ++ show yi ) ti) t) "consPattern:project"
+  return t
+
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad _ _ (RApp _ ts _ _)
   | length ts > 0               = last ts
 checkMonad _ _ (RAppTy _ t _)   = t
 checkMonad x g t                = checkErr x g t
-
 
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
@@ -1305,30 +1309,18 @@ isClassConCo co
 --
 --   D:C :: (a -> b) -> C
 
--- | @consElimE@ is used to *synthesize* types by **existential elimination**
---   instead of *checking* via a fresh template. That is, assuming
---      γ |- e1 ~> t1
---   we have
---      γ |- let x = e1 in e2 ~> Ex x t1 t2
---   where
---      γ, x:t1 |- e2 ~> t2
---   instead of the earlier case where we generate a fresh template `t` and check
---      γ, x:t1 |- e <~ t
-
--- consElimE γ xs e
---   = do t     <- consE γ e
---        xts   <- forM xs $ \x -> (x,) <$> (γ ??= x)
---        return $ rEx xts t
-
--- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
---   the above existential elimination is not easy (e.g. at joins, recursive binders)
-
-cconsFreshE :: KVKind -> CGEnv -> Expr Var -> CG SpecType
+--------------------------------------------------------------------------------
+-- | @consFreshE@ is used to *synthesize* types with a **fresh template**.
+--   e.g. at joins, recursive binders, polymorphic instantiations etc. It is
+--   the "portal" that connects `consE` (synthesis) and `cconsE` (checking)
+--------------------------------------------------------------------------------
+cconsFreshE :: KVKind -> CGEnv -> CoreExpr -> CG SpecType
 cconsFreshE kvkind γ e = do
   t   <- freshTy_type kvkind e $ exprType e
   addW $ WfC γ t
   cconsE γ e t
   return t
+--------------------------------------------------------------------------------
 
 checkUnbound :: (Show a, Show a2, F.Subable a)
              => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
@@ -1360,7 +1352,7 @@ dropConstraints _ t = return t
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 -------------------------------------------------------------------------------------
 cconsCase γ x t acs (ac, ys, ce)
-  = do cγ <- caseEnv γ x acs ac ys
+  = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
 --------------------------------------------------------------------------------
@@ -1405,27 +1397,43 @@ refreshVVRef (RProp ss t)
        liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
 
 -------------------------------------------------------------------------------------
-caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
+caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ x _   (DataAlt c) ys
+caseEnv γ x _   (DataAlt c) ys pIs
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
-       let (rtd, yts, _) = unfoldR tdc xt ys
+       let (rtd,yts', _) = unfoldR tdc xt ys
+       yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
-       let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
+       let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
        cγ'              <- addBinders γ   x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
        return cγ
 
-caseEnv γ x acs a _
+caseEnv γ x acs a _ _
   = do let x'  = F.symbol x
        xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
+
+
+--------------------------------------------------------------------------------
+-- | `projectTypes` masks (i.e. true's out) all types EXCEPT those
+--   at given indices; it is used to simplify the environment used
+--   when projecting out fields of single-ctor datatypes.
+--------------------------------------------------------------------------------
+projectTypes :: Maybe [Int] -> [SpecType] -> CG [SpecType]
+projectTypes Nothing   ts = return ts
+projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
+  where
+    projT is (j, t)
+      | j `elem` is       = return t
+      | otherwise         = true t
+
 
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l

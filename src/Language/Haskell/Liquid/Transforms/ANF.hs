@@ -23,7 +23,7 @@ import           OccName                          (mkVarOccFS)
 import           Id                               (mkUserLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
-import           Outputable                       (trace)
+import           Outputable                       (showSDocDebug, ppr, trace)
 import           Var                              (varType, setVarType)
 import           TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
@@ -32,6 +32,7 @@ import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique)
+import           DynFlags                         (unsafeGlobalDynFlags)
 
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -40,13 +41,14 @@ import           Language.Fixpoint.Types            (anfPrefix)
 
 import           Language.Haskell.Liquid.UX.Config  (Config, nocaseexpand, patternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, tidyCBs, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
+
 
 
 --------------------------------------------------------------------------------
@@ -66,6 +68,7 @@ anormalize cfg hscEnv modGuts
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
+      _showPprVerbose = showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
 
 expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
@@ -270,6 +273,9 @@ normalizePattern γ p@(Rs.PatBind {}) = do
 normalizePattern γ p@(Rs.PatReturn {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
+
+normalizePattern _ p@(Rs.PatProject {}) =
+  return (Rs.lower p)
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv

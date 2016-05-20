@@ -1689,6 +1689,7 @@ data KVKind
   | LamE
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
+  | ProjectE        -- ^ Projecting out field of 
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind

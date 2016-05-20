@@ -23,13 +23,16 @@ module Language.Haskell.Liquid.GHC.Resugar (
   , lower
   ) where
 
-import           MkCore                           (mkCoreApps)
+import           DataCon      (DataCon)
+import           MkCore       (mkCoreApps)
 import           CoreSyn
 import           Type
+import           TypeRep
+import           TyCon
 import qualified PrelNames as PN -- (bindMName)
-import           Name       (Name, getName)
-
--- import qualified Data.List as L
+import           Name         (Name, getName)
+import           Var          (varType)
+import qualified Data.List as L
 -- import           Debug.Trace
 -- import           Var
 -- import           Data.Maybe                                 (fromMaybe)
@@ -50,13 +53,32 @@ data Pattern
       , patFF  :: !Var
       }                      -- ^ e1 >>= \x -> e2
 
-  | PatReturn
-     { patE    :: !CoreExpr
-     , patM    :: !Type
-     , patDct  :: !CoreExpr
-     , patTy   :: !Type
-     , patRet  :: !Var
-     }                       -- ^ return e
+  | PatReturn                -- return @ m @ t @ $dT @ e
+     { patE    :: !CoreExpr  -- ^ e
+     , patM    :: !Type      -- ^ m
+     , patDct  :: !CoreExpr  -- $ $dT
+     , patTy   :: !Type      -- ^ t
+     , patRet  :: !Var       -- ^ "return"
+     }
+
+  | PatProject               -- (case xe as x of C [x1,...,xn] -> xi) : ty
+    { patXE    :: !Var       -- ^ xe
+    , patX     :: !Var       -- ^ x
+    , patTy    :: !Type      -- ^ ty
+    , patCtor  :: !DataCon   -- ^ C
+    , patBinds :: ![Var]     -- ^ [x1,...,xn]
+    , patIdx   :: !Int       -- ^ i :: NatLT {len patBinds}
+    }
+
+ | PatMatchTup               -- See NOTE on @PatMatchTup@
+    { patX    :: !Var
+    , patN    :: !Int
+    , patTs   :: ![Type]    -- ListN Type patN
+    , patE    :: !CoreExpr
+    , patXs   :: ![Var]     -- ListN Var patN
+    , patE'   :: CoreExpr
+    }
+
 
 --------------------------------------------------------------------------------
 -- | Lift expressions into High-level patterns ---------------------------------
@@ -73,6 +95,17 @@ exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
 exprArgs _e (Var op, [Type m, d, Type t, e])
   | op `is` PN.returnMName
   = Just (PatReturn e m d t op)
+
+exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
+  | Just i <- y `L.elemIndex` ys
+  = Just (PatProject xe x t c ys i)
+
+exprArgs (Let (NonRec x e) rest) _
+  | Just (n, ts  ) <- varTuple x
+  , Just (xes, e') <- takeBinds n rest
+  , matchTypes ts xes
+  , hasTuple e xes
+  = Just (PatMatchTup x n ts e (fst <$> xes) e')
 
 exprArgs _ _
   = Nothing
@@ -91,6 +124,53 @@ lower (PatBind e1 x e2 m d a b op)
 lower (PatReturn e m d t op)
   = mkCoreApps (Var op) [Type m, d, Type t, e]
 
--- argsExpr :: CoreExpr -> [CoreExpr] -> CoreExpr
--- argsExpr = L.foldl' App
--- mkCoreApps (Var bindMVar)
+lower (PatProject xe x t c ys i)
+  = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i
+
+lower (PatMatchTup _ _ _ e xs e')
+  = substTuple e xs e'
+
+--------------------------------------------------------------------------------
+-- | Pattern-Match-Tuples ------------------------------------------------------
+--------------------------------------------------------------------------------
+
+{- [NOTE] The following is the structure of a @PatMatchTup@
+
+      let x :: (t1,...,tn) = E[(x1,...,xn)]
+          xn = case x of (..., yn) -> yn
+          …
+          x1 = case x of (y1, ...) -> y1
+      in
+          E'
+
+  we strive to simplify the above to:
+
+      E [ (x1,...,xn) := E' ]
+-}
+
+{- Ooh, some helpful things!
+
+  mkCoreVarTup
+  mkCoreTup
+  
+-}
+
+substTuple :: CoreExpr -> [Var] -> CoreExpr -> CoreExpr
+substTuple = undefined
+
+takeBinds  :: Int -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
+takeBinds = undefined
+
+matchTypes :: [Type] -> [(Var, CoreExpr)] -> Bool
+matchTypes = undefined
+
+hasTuple   :: CoreExpr -> [(Var, a)] -> Bool
+hasTuple = undefined
+
+varTuple :: Var -> Maybe (Int, [Type])
+varTuple x
+  | TyConApp c ts <- varType x
+  , isTupleTyCon c
+  = Just (length ts, ts)
+  | otherwise
+  = Nothing
