@@ -62,6 +62,7 @@ data Config = Config {
   , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
   , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
   , patternInline  :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , untidyCore     :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

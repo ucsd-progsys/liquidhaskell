@@ -245,6 +245,10 @@ config = cmdArgsMode $ Config {
     = False &= name "pattern-inline"
             &= help "Inline applications of `>>=` and `return` during constraint generation."
 
+ , untidyCore
+    = False &= name "untidy-core"
+            &= help "Print fully qualified identifier names in verbose mode"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -402,6 +406,7 @@ defConfig = Config { files             = def
                    , counterExamples   = False
                    , timeBinds         = False
                    , patternInline     = False
+                   , untidyCore        = False
                    }
 
 ------------------------------------------------------------------------

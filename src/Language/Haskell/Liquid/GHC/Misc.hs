@@ -614,3 +614,8 @@ synTyConRhs_maybe = TC.synTyConRhs_maybe
 
 tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
+
+showCBs :: Bool -> [CoreBind] -> String
+showCBs untidy
+  | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
+  | otherwise = showPpr

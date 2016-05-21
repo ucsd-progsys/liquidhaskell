@@ -25,18 +25,21 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
 -- import           VarEnv       (emptyInScopeSet)
 -- import           CoreUtils    (eqExpr)
-import           MkCore       (mkCoreVarTup)
+-- import           MkCore       (mkCoreVarTup)
 import           CoreSyn
 import           Type
 import           TypeRep
 import           TyCon
-import           Var          (varType)
+import           Var            (varType)
+import qualified CoreSubst
+import qualified Outputable
 -- import qualified Data.List as L
-import           Data.Maybe   (fromMaybe, isJust)
-import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (mapFst, mapSnd, mapThd3, Nat)
+import           Data.Maybe     (fromMaybe)
+import           Control.Monad  (msum)
+-- import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId) --, showPpr)
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId, tracePpr)
 -- import           Debug.Trace
 
 
@@ -86,15 +89,20 @@ rewriteWith tx           = go
 {- [NOTE] The following is the structure of a @PatMatchTup@
 
       let x :: (t1,...,tn) = E[(x1,...,xn)]
-          xn = case x of (..., yn) -> yn
+          yn = case x of (..., yn) -> yn
           …
-          x1 = case x of (y1, ...) -> y1
+          y1 = case x of (y1, ...) -> y1
       in
           E'
 
   we strive to simplify the above to:
 
-      E [ (x1,...,xn) := E' ]
+      E [ (x1,...,xn) := E' [y1 := x1,...,yn := xn] ]
+
+  Need to rewrite
+
+     (y1, ... , yn)
+
 -}
 
 --------------------------------------------------------------------------------
@@ -102,83 +110,108 @@ simplifyPatTuple :: RewriteRule
 --------------------------------------------------------------------------------
 simplifyPatTuple (Let (NonRec x e) rest)
   | Just (n, ts  ) <- varTuple x
-  , Just (xes, e') <- takeBinds n rest
-  , matchTypes xes ts
-  , hasTuple xes e
-  = substTuple e (fst <$> xes) e'
+  , 2 <= n
+  , Just (yes, e') <- takeBinds n rest
+  , let ys          = fst <$> yes
+  , Just _         <- hasTuple (tracePpr "looking for tuple" ys) e
+  , matchTypes yes ts
+  = replaceTuple ys e e'
 
 simplifyPatTuple _
   = Nothing
 
+varTuple :: Var -> Maybe (Int, [Type])
+varTuple x
+  | TyConApp c ts <- varType x
+  , isTupleTyCon c
+  = Just (length ts, ts)
+  | otherwise
+  = Nothing
+
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds n = fmap (mapFst reverse) . go n
-  where
-    go 0 e                      = Just ([], e)
-    go n (Let (NonRec x e) e')  = do (xes, e'') <- takeBinds (n-1) e'
-                                     Just ((x,e) : xes, e'')
-    go _ _                      = Nothing
+takeBinds n e
+  | n < 2     = Nothing
+  | otherwise = {- tracePpr ("takeBinds " ++ show n)  -} mapFst reverse <$> go n e
+    where
+      -- vs      = map fst . fst <$> res
+      go 0 e                      = Just ([], e)
+      go n (Let (NonRec x e) e')  = do (xes, e'') <- go (n-1) e'
+                                       Just ((x,e) : xes, e'')
+      go _ _                      = Nothing
 
 matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
 matchTypes xes ts =  xN == tN
-                  && all (uncurry eqType) (zip xts ts)
+                  && all (uncurry eqType) (safeZipWithError msg xts ts)
                   && all isProjection es
   where
     xN            = length xes
     tN            = length ts
     xts           = varType <$> xs
     (xs, es)      = unzip xes
+    msg           = "RW:matchTypes"
 
 isProjection :: CoreExpr -> Bool
 isProjection e = case lift e of
                    Just (PatProject {}) -> True
                    _                    -> False
 
-hasTuple   :: [(Var, a)] -> CoreExpr -> Bool
-hasTuple xes = isSubExpr xs -- tE
+--------------------------------------------------------------------------------
+-- | `hasTuple ys e` CHECKS if `e` contains a tuple that "looks like" (y1...yn)
+--------------------------------------------------------------------------------
+hasTuple :: [Var] -> CoreExpr -> Maybe [Var]
+--------------------------------------------------------------------------------
+hasTuple ys = stepE
   where
-    xs       = fst <$> xes
-    -- tE       = mkCoreVarTup (fst <$> xes)
+    stepE e
+     | Just xs <- isVarTup ys e = Just xs
+     | otherwise                = go e
+    stepA (DEFAULT,_,_)         = Nothing
+    stepA (_, _, e)             = stepE e
+    go (Let _ e)                = stepE e
+    go (Case _ _ _ cs)          = msum (stepA <$> cs)
+    go _                        = Nothing
 
-substTuple :: CoreExpr -> [Var] -> CoreExpr -> Maybe CoreExpr
-substTuple e xs e' = searchReplace (xs, e') e
-
-isSubExpr :: [Var] -> CoreExpr -> Bool
-isSubExpr xs outE = isJust $ searchReplace (xs, tE) outE
+--------------------------------------------------------------------------------
+-- | `replaceTuple ys e e'` REPLACES tuples that "looks like" (y1...yn) with e'
+--------------------------------------------------------------------------------
+replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
+replaceTuple ys e e'            = stepE e
   where
-    tE             = mkCoreVarTup xs
+    stepE e
+     | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
+     | otherwise                = go e
+    stepA a@(DEFAULT,_,_)       = Just a
+    stepA (c, xs, e)            = (c, xs,)   <$> stepE e
+    go (Let b e)                = Let b      <$> stepE e
+    go (Case e x t cs)          = Case e x t <$> mapM stepA cs
+    go _                        = Nothing
 
-searchReplace :: ([Var], CoreExpr) -> CoreExpr -> Maybe CoreExpr
-searchReplace (xs, oE)     = stepE
+--------------------------------------------------------------------------------
+-- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
+--------------------------------------------------------------------------------
+substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
+substTuple xs ys = CoreSubst.substExpr Outputable.empty (mkSubst ys xs)
+
+mkSubst :: [Var] -> [Var] -> CoreSubst.Subst
+mkSubst ys xs = CoreSubst.extendIdSubstList CoreSubst.emptySubst yxs
   where
-    stepE e                = if eqTuple xs e then Just oE else go e
-    stepA a@(DEFAULT,_,_)  = Just a
-    stepA (c, xs, e)       = (c, xs,)   <$> stepE e
-    go (Let b e)           = Let b      <$> stepE e
-    go (Case e x t cs)     = Case e x t <$> mapM stepA cs
-    go _                   = Nothing
+    yxs       = safeZipWithError "RW:mkSubst" ys (Var <$> xs)
 
-    -- go' (Rec xes)      = undefined
-    -- go' (NonRec x e)   = undefined
-    -- go (App e1 e2)     = undefined
-    -- go (Lam x e)       = undefined
-    -- go (Cast e c)      = undefined
-    -- go (Tick t e)      = undefined
+--------------------------------------------------------------------------------
+-- | `isVarTup xs e` returns `Just ys` if e == (y1, ... , yn) and xi ~ yi
+--------------------------------------------------------------------------------
 
-eqTuple :: [Var] -> CoreExpr -> Bool
-eqTuple xs e
-  | Just ys <- isTuple e = F.tracepp ("eqTuple " ++ show xs ++ show ys) (eqVars xs ys)
-eqTuple _ _              = False
+isVarTup :: [Var] -> CoreExpr -> Maybe [Var]
+isVarTup xs e
+  | Just ys <- isTuple e
+  , eqVars xs ys         = Just ys
+isVarTup _ _             = Nothing
 
 eqVars :: [Var] -> [Var] -> Bool
-eqVars xs ys = F.tracepp ("eqVars: " ++ show xs' ++ show ys') (xs' == ys')
+eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
   where
-    xs' = F.symbol <$> xs
-    ys' = F.symbol <$> ys
-
--- eqEx :: CoreExpr -> CoreExpr -> Bool
--- eqEx e1 e2 = F.tracepp msg $ eqExpr emptyInScopeSet e1 e2
-   -- where
-     -- msg   = "eqEx = " ++ showPpr e2 ++ " AND " ++ showPpr e1
+    xs' = {- F.symbol -} show <$> xs
+    ys' = {- F.symbol -} show <$> ys
 
 isTuple :: CoreExpr -> Maybe [Var]
 isTuple e
@@ -197,11 +230,3 @@ secondHalf :: [a] -> [a]
 secondHalf xs = drop (n `div` 2) xs
   where
     n         = length xs
-
-varTuple :: Var -> Maybe (Int, [Type])
-varTuple x
-  | TyConApp c ts <- varType x
-  , isTupleTyCon c
-  = Just (length ts, ts)
-  | otherwise
-  = Nothing

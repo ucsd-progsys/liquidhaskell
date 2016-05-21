@@ -318,15 +318,16 @@ snd = undefined
 {-@ Lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
-    (nz, I.textP na 0 nl)
+  case blob of
+    (na, thing) -> ( case thing of (nz, nl) -> (nz, I.textP na 0 nl) ) 
   where
     mlen = upperBound 4 len
     --LIQUID INLINE (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
     -- na = fst blob
     -- nz = fst (snd blob)
     -- nl = snd (snd blob)
-    (na, (nz, nl))
-    -- blob
+    -- (na, (nz, nl))
+    blob
                  = runST $ do arr0 <- A.new mlen
                               (marr,x) <- outer arr0 mlen z0 s0 0
                               arr <- A.unsafeFreeze marr

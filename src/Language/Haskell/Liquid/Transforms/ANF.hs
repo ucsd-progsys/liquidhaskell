@@ -23,7 +23,7 @@ import           OccName                          (mkVarOccFS)
 import           Id                               (mkUserLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
-import           Outputable                       (showSDocDebug, ppr, trace)
+import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
 import           TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
@@ -32,16 +32,15 @@ import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique)
-import           DynFlags                         (unsafeGlobalDynFlags)
 
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (anfPrefix)
 
-import           Language.Haskell.Liquid.UX.Config  (Config, nocaseexpand, patternInline)
+import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, patternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, tidyCBs, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
@@ -59,9 +58,9 @@ anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts
   = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
-                     putStrLn $ _showPprVerbose orig_cbs
+                     putStrLn $ showCBs (untidyCore cfg) orig_cbs
                      putStrLn "***************************** RWR CoreBinds ***************************"
-                     putStrLn $ showPpr rwr_cbs
+                     putStrLn $ showCBs (untidyCore cfg) rwr_cbs
        (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       m        = mgi_module modGuts
@@ -72,7 +71,8 @@ anormalize cfg hscEnv modGuts
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
-      _showPprVerbose = showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
+
+
 
 expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
