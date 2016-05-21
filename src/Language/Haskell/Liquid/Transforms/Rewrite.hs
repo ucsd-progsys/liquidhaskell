@@ -13,13 +13,13 @@
 
 module Language.Haskell.Liquid.Transforms.Rewrite
   ( -- * Top level rewrite function
-    rewrite
+    rewriteBinds
 
-    -- * Low-level Rewriting Function
-  , rewriteWith
+  -- * Low-level Rewriting Function
+  -- , rewriteWith
 
   -- * Rewrite Rule
-  ,  RewriteRule
+  -- ,  RewriteRule
 
   ) where
 
@@ -40,14 +40,20 @@ import           Language.Haskell.Liquid.GHC.Resugar
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
 --------------------------------------------------------------------------------
-rewrite :: CoreExpr -> CoreExpr
-rewrite = rewriteWith simplifyPatTuple
+rewriteBinds :: [CoreBind] -> [CoreBind]
+rewriteBinds = fmap (rewriteBindWith simplifyPatTuple)
 
 --------------------------------------------------------------------------------
 -- | A @RewriteRule@ is a function that maps a CoreExpr to another
 --------------------------------------------------------------------------------
 type RewriteRule = CoreExpr -> Maybe CoreExpr
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+rewriteBindWith :: RewriteRule -> CoreBind -> CoreBind
+--------------------------------------------------------------------------------
+rewriteBindWith r (NonRec x e) = NonRec x (rewriteWith r e)
+rewriteBindWith r (Rec xes)    = Rec    (mapSnd (rewriteWith r) <$> xes)
 
 
 --------------------------------------------------------------------------------

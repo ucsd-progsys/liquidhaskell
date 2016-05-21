@@ -43,6 +43,7 @@ import           Language.Haskell.Liquid.UX.Config  (Config, nocaseexpand, patte
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, tidyCBs, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
+import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
@@ -59,12 +60,15 @@ anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize cfg hscEnv modGuts
   = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
                      putStrLn $ showPpr orig_cbs
+                     putStrLn "***************************** RWR CoreBinds ***************************"
+                     putStrLn $ showPpr rwr_cbs
        (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
-      act      = concatMapM (normalizeTopBind γ0) orig_cbs
+      act      = concatMapM (normalizeTopBind γ0) rwr_cbs
+      rwr_cbs  = rewriteBinds orig_cbs
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
