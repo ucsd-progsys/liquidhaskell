@@ -1,6 +1,9 @@
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
-module Data.Text.Fusion ( mapAccumL ) where
+-- FAST module Data.Text.Fusion (mapAccumL) where
+
+-- SLOW
+module Data.Text.Fusion where
 
 import Prelude (Bool(..), Char, Maybe(..), Monad(..), Int,
                 Num(..), Ord(..), ($), (&&),
@@ -22,14 +25,14 @@ import Language.Haskell.Liquid.Prelude
 
 default (Int)
 
+{-@ fst :: (a, b) -> a @-}
 fst :: (a, b) -> a
 fst = undefined
 
+{-@ snd :: (a, b) -> b @-}
 snd :: (a, b) -> b
 snd = undefined
 
-
-{- Lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a, Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
   where

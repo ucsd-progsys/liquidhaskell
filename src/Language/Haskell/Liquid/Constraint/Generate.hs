@@ -39,7 +39,7 @@ import           TypeRep
 import           Class                                         (className)
 import           Var
 import           Kind
-import           Id                                     hiding (isExportedId)
+import           Id                                           -- hiding (isExportedId)
 import           IdInfo
 import           Name
 -- import           NameSet
@@ -418,8 +418,7 @@ addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks
      ks         = F.KS $ S.fromList $ specTypeKVars t
 
 isKut              :: KVKind -> Bool
-isKut (RecBindE _) = True
-isKut  ProjectE    = True
+isKut (RecBindE v) = F.tracepp ("isKut: " ++ showPpr v) True
 isKut _            = False
 
 caseKVKind ::[Alt Var] -> KVKind
@@ -863,7 +862,6 @@ consBind isRec γ (x, e, Internal spect)
   where
     explanation = "Cannot give singleton type to the function definition."
 
-
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
@@ -875,9 +873,8 @@ consBind isRec γ (x, e, Assumed spect)
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
-       when (isExportedId x) (addKuts x t)
+       when (F.tracepp ("isExportedId " ++ show x) $ isExportedId x) (addKuts x t)
        return $ Asserted t
-
 
 noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
 noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
@@ -916,7 +913,11 @@ extender γ (x, Assumed t)
 extender γ _
   = return γ
 
-data Template a = Asserted a | Assumed a | Internal a | Unknown deriving (Functor, F.Foldable, T.Traversable)
+data Template a = Asserted a
+                | Assumed a
+                | Internal a
+                | Unknown
+                deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
 
