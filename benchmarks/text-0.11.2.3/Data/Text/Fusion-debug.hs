@@ -1,9 +1,9 @@
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
--- FAST module Data.Text.Fusion (mapAccumL) where
+-- FAST
+module Data.Text.Fusion (mapAccumL) where
 
--- SLOW
-module Data.Text.Fusion where
+-- SLOW module Data.Text.Fusion where
 
 import Prelude (Bool(..), Char, Maybe(..), Monad(..), Int,
                 Num(..), Ord(..), ($), (&&),
@@ -48,6 +48,19 @@ mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
                             arr       <- A.unsafeFreeze marr
                             return (arr, x) )
 
+-- SLOW
+{-
+  outerL :: (b -> t1 -> (b, Char))
+            -> (t -> Step t t1)
+            -> A.MArray s
+            -> Int
+            -> b
+            -> t
+            -> Int
+            -> ST s (A.MArray s, (b, Int))
+  @-}
+
+-- FAST
 outerL :: (b -> t1 -> (b, Char))
            -> (t -> Step t t1)
            -> A.MArray s
@@ -56,4 +69,5 @@ outerL :: (b -> t1 -> (b, Char))
            -> t
            -> Int
            -> ST s (A.MArray s, (b, Int))
+
 outerL = undefined

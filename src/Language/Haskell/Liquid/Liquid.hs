@@ -26,7 +26,7 @@ import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
-
+import           Control.Monad (when)
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -148,7 +148,7 @@ liquidQueries cfg tgt info (Right dcs)
 
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
-  whenLoud (dumpCs cgi)
+  when False (dumpCs cgi)
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
