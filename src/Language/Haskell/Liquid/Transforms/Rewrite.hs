@@ -8,44 +8,70 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
--- | This module contains functions for "resugaring" low-level GHC `CoreExpr`
---   into high-level patterns, that can receive special case handling in
---   different phases (e.g. ANF, Constraint Generation, etc.)
+-- | This module contains functions for recursively "rewriting"
+--   GHC core using "rules".
 
-module Language.Haskell.Liquid.Transforms.TupleMatch ( simplify ) where
+module Language.Haskell.Liquid.Transforms.Rewrite
+  ( -- * Top level rewrite function
+    rewrite
+
+    -- * Low-level Rewriting Function
+  , rewriteWith
+
+  -- * Rewrite Rule
+  ,  RewriteRule
+
+  ) where
 
 import           CoreUtils    (cheapEqExpr)
-import           DataCon      (DataCon)
-import           MkCore       (mkCoreApps, mkCoreVarTup)
+import           MkCore       (mkCoreVarTup)
 import           CoreSyn
 import           Type
 import           TypeRep
 import           TyCon
-import qualified PrelNames as PN -- (bindMName)
-import           Name         (Name, getName)
 import           Var          (varType)
-import qualified Data.List as L
+-- import qualified Data.List as L
 import           Data.Maybe   (fromMaybe, isJust)
-import           Language.Haskell.Liquid.Misc (Nat)
+import           Language.Haskell.Liquid.Misc (mapSnd, mapThd3, Nat)
+import           Language.Haskell.Liquid.GHC.Resugar
 -- import           Debug.Trace
 
---------------------------------------------------------------------------------
-simplify :: CoreExpr -> CoreExpr
---------------------------------------------------------------------------------
-simplify = error "TBD:TupleMatch:simplify"
-
-simplify (Let (NonRec x e) rest) =
-  | Just (n, ts  ) <- varTuple x
-  , Just (xes, e') <- takeBinds n rest
-  , matchTypes xes ts
-  , hasTuple xes e
-  = Just (PatMatchTup x n ts e (fst <$> xes) e')
-
-lower (PatMatchTup _ _ _ e xs e')
-  = substTuple e xs e'
 
 --------------------------------------------------------------------------------
--- | Pattern-Match-Tuples ------------------------------------------------------
+-- | Top-level rewriter --------------------------------------------------------
+--------------------------------------------------------------------------------
+rewrite :: CoreExpr -> CoreExpr
+rewrite = rewriteWith simplifyPatTuple
+
+--------------------------------------------------------------------------------
+-- | A @RewriteRule@ is a function that maps a CoreExpr to another
+--------------------------------------------------------------------------------
+type RewriteRule = CoreExpr -> Maybe CoreExpr
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+rewriteWith :: RewriteRule -> CoreExpr -> CoreExpr
+--------------------------------------------------------------------------------
+rewriteWith tx           = go
+  where
+    go                   = txTop . step
+    txTop e              = fromMaybe e (tx e)
+    goB (Rec xes)        = Rec         (mapSnd go <$> xes)
+    goB (NonRec x e)     = NonRec x    (go e)
+    step (Let b e)       = Let (goB b) (go e)
+    step (App e e')      = App (go e)  (go e')
+    step (Lam x e)       = Lam x       (go e)
+    step (Cast e c)      = Cast (go e) c
+    step (Tick t e)      = Tick t      (go e)
+    step (Case e x t cs) = Case (go e) x t (mapThd3 go <$> cs)
+    step e@(Lit _)       = e
+    step e@(Var _)       = e
+    step e@(Coercion _)  = e
+
+
+--------------------------------------------------------------------------------
+-- | Rewriting Pattern-Match-Tuples --------------------------------------------
 --------------------------------------------------------------------------------
 
 {- [NOTE] The following is the structure of a @PatMatchTup@
@@ -61,6 +87,21 @@ lower (PatMatchTup _ _ _ e xs e')
 
       E [ (x1,...,xn) := E' ]
 -}
+
+--------------------------------------------------------------------------------
+simplifyPatTuple :: RewriteRule
+--------------------------------------------------------------------------------
+simplifyPatTuple (Let (NonRec x e) rest)
+  | Just (n, ts  ) <- varTuple x
+  , Just (xes, e') <- takeBinds n rest
+  , matchTypes xes ts
+  , hasTuple xes e
+  = substTuple e (fst <$> xes) e'
+
+simplifyPatTuple _
+  = Nothing
+  -- = Just (PatMatchTup x n ts e (fst <$> xes) e')
+  -- lower (PatMatchTup _ _ _ e xs e')
 
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
 takeBinds 0 e
@@ -91,13 +132,11 @@ hasTuple xes = isSubExpr tE
   where
     tE       = mkCoreVarTup (fst <$> xes)
 
--- HARD
-substTuple :: CoreExpr -> [Var] -> CoreExpr -> CoreExpr
-substTuple e xs e' = fromMaybe e $ searchReplace (tE, e') e
+substTuple :: CoreExpr -> [Var] -> CoreExpr -> Maybe CoreExpr
+substTuple e xs e' = searchReplace (tE, e') e
   where
     tE             = mkCoreVarTup xs
 
--- HARD
 isSubExpr :: CoreExpr -> CoreExpr -> Bool
 isSubExpr inE outE = isJust $ searchReplace (inE, inE) outE
 

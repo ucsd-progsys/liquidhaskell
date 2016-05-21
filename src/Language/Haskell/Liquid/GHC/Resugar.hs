@@ -23,22 +23,15 @@ module Language.Haskell.Liquid.GHC.Resugar (
   , lower
   ) where
 
-import           CoreUtils    (cheapEqExpr)
 import           DataCon      (DataCon)
-import           MkCore       (mkCoreApps, mkCoreVarTup)
+import           MkCore       (mkCoreApps)
 import           CoreSyn
 import           Type
-import           TypeRep
-import           TyCon
-import qualified PrelNames as PN -- (bindMName)
+import qualified PrelNames as PN
 import           Name         (Name, getName)
-import           Var          (varType)
 import qualified Data.List as L
-import           Data.Maybe   (fromMaybe, isJust)
-import           Language.Haskell.Liquid.Misc (Nat)
+
 -- import           Debug.Trace
--- import           Var
--- import           Data.Maybe                                 (fromMaybe)
 
 --------------------------------------------------------------------------------
 -- | Data type for high-level patterns -----------------------------------------
