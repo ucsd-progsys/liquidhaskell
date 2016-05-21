@@ -59,7 +59,7 @@ anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts
   = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
-                     putStrLn $ showPpr orig_cbs
+                     putStrLn $ _showPprVerbose orig_cbs
                      putStrLn "***************************** RWR CoreBinds ***************************"
                      putStrLn $ showPpr rwr_cbs
        (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act

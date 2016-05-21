@@ -23,7 +23,8 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
   ) where
 
-import           CoreUtils    (cheapEqExpr)
+-- import           VarEnv       (emptyInScopeSet)
+-- import           CoreUtils    (eqExpr)
 import           MkCore       (mkCoreVarTup)
 import           CoreSyn
 import           Type
@@ -32,8 +33,10 @@ import           TyCon
 import           Var          (varType)
 -- import qualified Data.List as L
 import           Data.Maybe   (fromMaybe, isJust)
-import           Language.Haskell.Liquid.Misc (mapSnd, mapThd3, Nat)
+import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Misc (mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId) --, showPpr)
 -- import           Debug.Trace
 
 
@@ -55,7 +58,6 @@ rewriteBindWith :: RewriteRule -> CoreBind -> CoreBind
 rewriteBindWith r (NonRec x e) = NonRec x (rewriteWith r e)
 rewriteBindWith r (Rec xes)    = Rec    (mapSnd (rewriteWith r) <$> xes)
 
-
 --------------------------------------------------------------------------------
 rewriteWith :: RewriteRule -> CoreExpr -> CoreExpr
 --------------------------------------------------------------------------------
@@ -71,6 +73,7 @@ rewriteWith tx           = go
     step (Cast e c)      = Cast (go e) c
     step (Tick t e)      = Tick t      (go e)
     step (Case e x t cs) = Case (go e) x t (mapThd3 go <$> cs)
+    step e@(Type _)      = e
     step e@(Lit _)       = e
     step e@(Var _)       = e
     step e@(Coercion _)  = e
@@ -106,17 +109,14 @@ simplifyPatTuple (Let (NonRec x e) rest)
 
 simplifyPatTuple _
   = Nothing
-  -- = Just (PatMatchTup x n ts e (fst <$> xes) e')
-  -- lower (PatMatchTup _ _ _ e xs e')
 
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds 0 e
-  = Just ([], e)
-takeBinds n (Let (NonRec x e) e')
-  = do (xes, e'') <- takeBinds (n-1) e'
-       Just ((x,e):xes, e'')
-takeBinds _ _
-  = Nothing
+takeBinds n = fmap (mapFst reverse) . go n
+  where
+    go 0 e                      = Just ([], e)
+    go n (Let (NonRec x e) e')  = do (xes, e'') <- takeBinds (n-1) e'
+                                     Just ((x,e) : xes, e'')
+    go _ _                      = Nothing
 
 matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
 matchTypes xes ts =  xN == tN
@@ -134,24 +134,25 @@ isProjection e = case lift e of
                    _                    -> False
 
 hasTuple   :: [(Var, a)] -> CoreExpr -> Bool
-hasTuple xes = isSubExpr tE
+hasTuple xes = isSubExpr xs -- tE
   where
-    tE       = mkCoreVarTup (fst <$> xes)
+    xs       = fst <$> xes
+    -- tE       = mkCoreVarTup (fst <$> xes)
 
 substTuple :: CoreExpr -> [Var] -> CoreExpr -> Maybe CoreExpr
-substTuple e xs e' = searchReplace (tE, e') e
+substTuple e xs e' = searchReplace (xs, e') e
+
+isSubExpr :: [Var] -> CoreExpr -> Bool
+isSubExpr xs outE = isJust $ searchReplace (xs, tE) outE
   where
     tE             = mkCoreVarTup xs
 
-isSubExpr :: CoreExpr -> CoreExpr -> Bool
-isSubExpr inE outE = isJust $ searchReplace (inE, inE) outE
-
-searchReplace :: (CoreExpr, CoreExpr) -> CoreExpr -> Maybe CoreExpr
-searchReplace (iE, oE)     = stepE
+searchReplace :: ([Var], CoreExpr) -> CoreExpr -> Maybe CoreExpr
+searchReplace (xs, oE)     = stepE
   where
-    stepE e                = if cheapEqExpr e iE then Just oE else go e
-    stepA (c, xs, e)       = (c, xs,)   <$> stepE e
+    stepE e                = if eqTuple xs e then Just oE else go e
     stepA a@(DEFAULT,_,_)  = Just a
+    stepA (c, xs, e)       = (c, xs,)   <$> stepE e
     go (Let b e)           = Let b      <$> stepE e
     go (Case e x t cs)     = Case e x t <$> mapM stepA cs
     go _                   = Nothing
@@ -163,6 +164,39 @@ searchReplace (iE, oE)     = stepE
     -- go (Cast e c)      = undefined
     -- go (Tick t e)      = undefined
 
+eqTuple :: [Var] -> CoreExpr -> Bool
+eqTuple xs e
+  | Just ys <- isTuple e = F.tracepp ("eqTuple " ++ show xs ++ show ys) (eqVars xs ys)
+eqTuple _ _              = False
+
+eqVars :: [Var] -> [Var] -> Bool
+eqVars xs ys = F.tracepp ("eqVars: " ++ show xs' ++ show ys') (xs' == ys')
+  where
+    xs' = F.symbol <$> xs
+    ys' = F.symbol <$> ys
+
+-- eqEx :: CoreExpr -> CoreExpr -> Bool
+-- eqEx e1 e2 = F.tracepp msg $ eqExpr emptyInScopeSet e1 e2
+   -- where
+     -- msg   = "eqEx = " ++ showPpr e2 ++ " AND " ++ showPpr e1
+
+isTuple :: CoreExpr -> Maybe [Var]
+isTuple e
+  | (Var t, es) <- collectArgs e
+  , isTupleId t
+  , Just xs     <- mapM isVar (secondHalf es)
+  = Just xs
+  | otherwise
+  = Nothing
+
+isVar :: CoreExpr -> Maybe Var
+isVar (Var x) = Just x
+isVar _       = Nothing
+
+secondHalf :: [a] -> [a]
+secondHalf xs = drop (n `div` 2) xs
+  where
+    n         = length xs
 
 varTuple :: Var -> Maybe (Int, [Type])
 varTuple x
