@@ -24,6 +24,8 @@ import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 
+type Nat = Int 
+
 timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
 timedAction label io = do
   t0 <- getCurrentTime

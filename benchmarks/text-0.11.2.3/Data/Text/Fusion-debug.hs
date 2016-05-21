@@ -46,6 +46,7 @@ mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
                             arr       <- A.unsafeFreeze marr
                             return (arr, x) )
 
+
 {- outerL :: (b -> c -> (b, Char))
            -> (t -> Step t c)
            -> A.MArray s

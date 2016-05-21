@@ -325,13 +325,13 @@ mapAccumL f z0 (Stream next0 s0 len) =
     -- na = fst blob
     -- nz = fst (snd blob)
     -- nl = snd (snd blob)
-    (na,(nz,nl))
+    (na, (nz, nl))
     -- blob
                  = runST $ do arr0 <- A.new mlen
                               (marr,x) <- outer arr0 mlen z0 s0 0
                               arr <- A.unsafeFreeze marr
                               return (arr,x)
-                         
+
       -- where mlen = upperBound 4 len
     outer arr top = loop
       where

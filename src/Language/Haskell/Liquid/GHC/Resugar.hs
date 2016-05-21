@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.GHC.Resugar (
   , lower
   ) where
 
+import           CoreUtils    (cheapEqExpr)
 import           DataCon      (DataCon)
 import           MkCore       (mkCoreApps, mkCoreVarTup)
 import           CoreSyn
@@ -33,6 +34,8 @@ import qualified PrelNames as PN -- (bindMName)
 import           Name         (Name, getName)
 import           Var          (varType)
 import qualified Data.List as L
+import           Data.Maybe   (fromMaybe, isJust)
+import           Language.Haskell.Liquid.Misc (Nat)
 -- import           Debug.Trace
 -- import           Var
 -- import           Data.Maybe                                 (fromMaybe)
@@ -70,16 +73,6 @@ data Pattern
     , patIdx   :: !Int       -- ^ i :: NatLT {len patBinds}
     }
 
- | PatMatchTup               -- See NOTE on @PatMatchTup@
-    { patX    :: !Var
-    , patN    :: !Int
-    , patTs   :: ![Type]    -- ListN Type patN
-    , patE    :: !CoreExpr
-    , patXs   :: ![Var]     -- ListN Var patN
-    , patE'   :: CoreExpr
-    }
-
-
 --------------------------------------------------------------------------------
 -- | Lift expressions into High-level patterns ---------------------------------
 --------------------------------------------------------------------------------
@@ -100,13 +93,6 @@ exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
   | Just i <- y `L.elemIndex` ys
   = Just (PatProject xe x t c ys i)
 
-exprArgs (Let (NonRec x e) rest) _
-  | Just (n, ts  ) <- varTuple x
-  , Just (xes, e') <- takeBinds n rest
-  , matchTypes xes ts
-  , hasTuple xes e
-  = Just (PatMatchTup x n ts e (fst <$> xes) e')
-
 exprArgs _ _
   = Nothing
 
@@ -126,68 +112,3 @@ lower (PatReturn e m d t op)
 
 lower (PatProject xe x t c ys i)
   = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i
-
-lower (PatMatchTup _ _ _ e xs e')
-  = substTuple e xs e'
-
---------------------------------------------------------------------------------
--- | Pattern-Match-Tuples ------------------------------------------------------
---------------------------------------------------------------------------------
-
-{- [NOTE] The following is the structure of a @PatMatchTup@
-
-      let x :: (t1,...,tn) = E[(x1,...,xn)]
-          xn = case x of (..., yn) -> yn
-          …
-          x1 = case x of (y1, ...) -> y1
-      in
-          E'
-
-  we strive to simplify the above to:
-
-      E [ (x1,...,xn) := E' ]
--}
-
-{- Ooh, some helpful things!
-
-  mkCoreTup
-
--}
-
-substTuple :: CoreExpr -> [Var] -> CoreExpr -> CoreExpr
-substTuple = error "TBD:substTuple"
-
-takeBinds  :: Int -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds = error "TBD:takeBinds"
-
-matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
-matchTypes xes ts =  xN == tN
-                  && all (uncurry eqType) (zip xts ts)
-                  && all isProjection es
-  where
-    xN       = length xes
-    tN       = length ts
-    xts      = varType <$> xs
-    (xs, es) = unzip xes
-
-isProjection :: CoreExpr -> Bool
-isProjection = error "TBD:isProjection"
-
-
-
-hasTuple   :: [(Var, a)] -> CoreExpr -> Bool
-hasTuple xes = isSubExpr tE
-  where
-    tE       = mkCoreVarTup (fst <$> xes)
-
-isSubExpr :: CoreExpr -> CoreExpr -> Bool
-isSubExpr = error "TBD:isSubExpr"
-
-
-varTuple :: Var -> Maybe (Int, [Type])
-varTuple x
-  | TyConApp c ts <- varType x
-  , isTupleTyCon c
-  = Just (length ts, ts)
-  | otherwise
-  = Nothing
