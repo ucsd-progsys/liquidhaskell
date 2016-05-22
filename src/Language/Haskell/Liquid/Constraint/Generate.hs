@@ -414,11 +414,13 @@ freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
                      when (isKut k) $ addKuts k t
+                     when (True)    $ addKvPack t
   where
      ks         = F.KS $ S.fromList $ specTypeKVars t
 
 isKut              :: KVKind -> Bool
-isKut (RecBindE v) = F.tracepp ("isKut: " ++ showPpr v) True
+isKut (RecBindE _) = True
+isKut ProjectE     = True
 isKut _            = False
 
 caseKVKind ::[Alt Var] -> KVKind
@@ -873,7 +875,7 @@ consBind isRec γ (x, e, Assumed spect)
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
-       when (F.tracepp ("isExportedId " ++ show x) $ isExportedId x) (addKuts x t)
+       when (isExportedId x) (addKuts x t)
        return $ Asserted t
 
 noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
@@ -1247,10 +1249,10 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
 
 consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   let yi = ys !! i
-  t    <- (addW . WfC γ) <<= freshTy_type (CaseE 1) {- ProjectE -}  (Var yi) τ
+  t    <- (addW . WfC γ) <<= freshTy_type ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
-  ti   <- γ' ??= yi -- ALT : varRefType γ' yi
-  addC (SubC γ' ( F.tracepp ("consPattern " ++ show yi ) ti) t) "consPattern:project"
+  ti   <- {- γ' ??= yi -} varRefType γ' yi
+  addC (SubC γ' ( {- F.tracepp ("consPattern:Project " ++ show yi ) -} ti) t) "consPattern:project"
   return t
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
