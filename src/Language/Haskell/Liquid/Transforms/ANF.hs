@@ -67,12 +67,10 @@ anormalize cfg hscEnv modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
       act      = concatMapM (normalizeTopBind γ0) rwr_cbs
-      rwr_cbs  = rewriteBinds orig_cbs
+      rwr_cbs  = rewriteBinds cfg orig_cbs
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
-
-
 
 expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg

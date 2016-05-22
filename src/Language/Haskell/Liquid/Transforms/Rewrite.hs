@@ -23,9 +23,6 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
   ) where
 
--- import           VarEnv       (emptyInScopeSet)
--- import           CoreUtils    (eqExpr)
--- import           MkCore       (mkCoreVarTup)
 import           CoreSyn
 import           Type
 import           TypeRep
@@ -33,21 +30,21 @@ import           TyCon
 import           Var            (varType)
 import qualified CoreSubst
 import qualified Outputable
--- import qualified Data.List as L
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
--- import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (isTupleId, tracePpr)
+import           Language.Haskell.Liquid.UX.Config  (Config, simplifyCore)
 -- import           Debug.Trace
-
 
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
 --------------------------------------------------------------------------------
-rewriteBinds :: [CoreBind] -> [CoreBind]
-rewriteBinds = fmap (rewriteBindWith simplifyPatTuple)
+rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
+rewriteBinds cfg
+  | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
+  | otherwise        = id
 
 --------------------------------------------------------------------------------
 -- | A @RewriteRule@ is a function that maps a CoreExpr to another

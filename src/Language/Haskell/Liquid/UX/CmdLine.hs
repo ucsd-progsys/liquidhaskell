@@ -249,6 +249,10 @@ config = cmdArgsMode $ Config {
     = False &= name "untidy-core"
             &= help "Print fully qualified identifier names in verbose mode"
 
+ , simplifyCore
+    = False &= name "simplify-core"
+            &= help "Simplify GHC core before constraint generation (alpha)"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -407,6 +411,7 @@ defConfig = Config { files             = def
                    , timeBinds         = False
                    , patternInline     = False
                    , untidyCore        = False
+                   , simplifyCore      = False
                    }
 
 ------------------------------------------------------------------------

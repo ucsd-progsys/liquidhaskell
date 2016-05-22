@@ -63,6 +63,7 @@ data Config = Config {
   , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
   , patternInline  :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore     :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
+  , simplifyCore   :: Bool       -- ^ simplify GHC core before constraint-generation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
