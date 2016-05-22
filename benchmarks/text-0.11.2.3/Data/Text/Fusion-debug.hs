@@ -49,7 +49,7 @@ mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
                             return (arr, x) )
 
 -- SLOW
-{-
+{-@
   outerL :: (b -> t1 -> (b, Char))
             -> (t -> Step t t1)
             -> A.MArray s
