@@ -243,7 +243,7 @@ applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
-applyKVar g s (k, su) = case F.solLookup s (F.tracepp "solLookup:applyKVar" k) of
+applyKVar g s (k, su) = case F.solLookup s ({- F.tracepp "solLookup:applyKVar" -} k) of
   Left cs   -> hypPred g s k su cs
   Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
@@ -397,7 +397,7 @@ reduceCubes zs = (F.pAnd ps, cs)
     cs         = rights zs
 
 getCube :: Solution -> KVSub -> Maybe (Either F.Expr (KVSub, F.Cube))
-getCube s (k, su) = case F.solLookup s (F.tracepp "solLookup:getCube" k) of
+getCube s (k, su) = case F.solLookup s ({- F.tracepp "solLookup:getCube" -} k) of
   Left []   -> Just (Left F.PFalse)
   Left [c]  -> Just (Right ((k, su), c))
   Right eqs -> Just (Left  (qBindPred su eqs))

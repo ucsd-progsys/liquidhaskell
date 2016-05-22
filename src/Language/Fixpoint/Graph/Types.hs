@@ -102,7 +102,7 @@ writeEdges f = writeFile f . render . ppEdges
 ppEdges :: [CEdge] -> Doc
 ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]
                            . map ppE
-                           . (if True then id else txEdges)  -- RJ: use this to collapse "constraint" vertices
+                           . (if True then filter isRealEdge else txEdges)  -- RJ: use this to collapse "constraint" vertices
   where
     ppE (v, v')     = pprint v <+> "->" <+> pprint v'
 
