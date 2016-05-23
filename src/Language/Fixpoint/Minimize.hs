@@ -26,7 +26,11 @@ minQuery cfg solve fi = do
   let cfg'  = cfg { minimize = False }
   let fis   = partition' Nothing fi
   failFis  <- filterM (fmap isUnsafe . solve cfg') fis
+  -- TODO: why concatMap? isn't the first (or smallest) set of failing cs good enough?
   failCs   <- concatMapM (getMinFailingCons cfg' solve) failFis
+  -- TODO: the minFileName call here is useless because filenames are stored in
+  -- both fi and cfg, and it's cfg's one that's used next. Could fix that here, but
+  -- it may be better to refactor so that filename is stored only once
   let minFi = fi { cm = M.fromList failCs, fileName = minFileName fi }
   saveQuery cfg' minFi
   putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
