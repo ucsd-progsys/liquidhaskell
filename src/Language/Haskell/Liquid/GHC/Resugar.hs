@@ -24,9 +24,9 @@ module Language.Haskell.Liquid.GHC.Resugar (
   ) where
 
 import           DataCon      (DataCon)
-import           MkCore       (mkCoreApps)
 import           CoreSyn
 import           Type
+import qualified MkCore
 import qualified PrelNames as PN
 import           Name         (Name, getName)
 import qualified Data.List as L
@@ -98,10 +98,10 @@ is v n = n == getName v
 lower :: Pattern -> CoreExpr
 --------------------------------------------------------------------------------
 lower (PatBind e1 x e2 m d a b op)
-  = mkCoreApps (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
+  = MkCore.mkCoreApps (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
 
 lower (PatReturn e m d t op)
-  = mkCoreApps (Var op) [Type m, d, Type t, e]
+  = MkCore.mkCoreApps (Var op) [Type m, d, Type t, e]
 
 lower (PatProject xe x t c ys i)
   = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i

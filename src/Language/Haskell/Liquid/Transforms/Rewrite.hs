@@ -27,14 +27,19 @@ import           CoreSyn
 import           Type
 import           TypeRep
 import           TyCon
-import           Var            (varType)
 import qualified CoreSubst
 import qualified Outputable
+import qualified CoreUtils
+-- import qualified PrelNames
+import qualified Var
+import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
+-- import qualified Data.List as L
+import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId, tracePpr)
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId)
 import           Language.Haskell.Liquid.UX.Config  (Config, simplifyCore)
 -- import           Debug.Trace
 
@@ -83,6 +88,19 @@ rewriteWith tx           = go
 -- | Rewriting Pattern-Match-Tuples --------------------------------------------
 --------------------------------------------------------------------------------
 
+{-
+    let CrazyPat x1 ... xn = e in e'
+
+    let t : (t1,...,tn) = "CrazyPat e ... (y1, ..., yn)"
+        xn = Proj t n
+        ...
+        x1 = Proj t 1
+    in
+        e'
+
+    "crazy-pat"
+ -}
+
 {- [NOTE] The following is the structure of a @PatMatchTup@
 
       let x :: (t1,...,tn) = E[(x1,...,xn)]
@@ -92,13 +110,39 @@ rewriteWith tx           = go
       in
           E'
 
-  we strive to simplify the above to:
+  GOAL: simplify the above to:
 
       E [ (x1,...,xn) := E' [y1 := x1,...,yn := xn] ]
 
-  Need to rewrite
+  TODO: several tests (e.g. tests/pos/zipper000.hs) fail because
+  the above changes the "type" the expression `E` and in "other branches"
+  the new type may be different than the old, e.g.
 
-     (y1, ... , yn)
+     let (x::y::_) = e in
+     x + y
+
+     let t = case e of
+               h1::t1 -> case t1 of
+                            (h2::t2) ->  (h1, h2)
+                            DEFAULT  ->  error @ (Int, Int)
+               DEFAULT   -> error @ (Int, Int)
+         x = case t of (h1, _) -> h1
+         y = case t of (_, h2) -> h2
+     in
+         x + y
+
+  is rewritten to:
+
+              h1::t1     -> case t1 of
+                            (h2::t2) ->  h1 + h2
+                            DEFAULT  ->  error @ (Int, Int)
+               DEFAULT   -> error @ (Int, Int)
+
+     case e of
+       h1 :: h2 :: _ -> h1 + h2
+       DEFAULT       -> error @ (Int, Int)
+
+  which, alas, is ill formed.
 
 -}
 
@@ -110,7 +154,7 @@ simplifyPatTuple (Let (NonRec x e) rest)
   , 2 <= n
   , Just (yes, e') <- takeBinds n rest
   , let ys          = fst <$> yes
-  , Just _         <- hasTuple (tracePpr "looking for tuple" ys) e
+  , Just _         <- hasTuple ys e
   , matchTypes yes ts
   = replaceTuple ys e e'
 
@@ -119,7 +163,7 @@ simplifyPatTuple _
 
 varTuple :: Var -> Maybe (Int, [Type])
 varTuple x
-  | TyConApp c ts <- varType x
+  | TyConApp c ts <- Var.varType x
   , isTupleTyCon c
   = Just (length ts, ts)
   | otherwise
@@ -128,9 +172,8 @@ varTuple x
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
 takeBinds n e
   | n < 2     = Nothing
-  | otherwise = {- tracePpr ("takeBinds " ++ show n)  -} mapFst reverse <$> go n e
+  | otherwise = mapFst reverse <$> go n e
     where
-      -- vs      = map fst . fst <$> res
       go 0 e                      = Just ([], e)
       go n (Let (NonRec x e) e')  = do (xes, e'') <- go (n-1) e'
                                        Just ((x,e) : xes, e'')
@@ -143,7 +186,7 @@ matchTypes xes ts =  xN == tN
   where
     xN            = length xes
     tN            = length ts
-    xts           = varType <$> xs
+    xts           = Var.varType <$> xs
     (xs, es)      = unzip xes
     msg           = "RW:matchTypes"
 
@@ -174,14 +217,37 @@ hasTuple ys = stepE
 replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
 replaceTuple ys e e'            = stepE e
   where
+    t'                          = CoreUtils.exprType e'
     stepE e
      | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
      | otherwise                = go e
-    stepA a@(DEFAULT,_,_)       = Just a
+    stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
     stepA (c, xs, e)            = (c, xs,)   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
     go (Case e x t cs)          = Case e x t <$> mapM stepA cs
     go _                        = Nothing
+
+replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
+replaceIrrefutPat t (App (Lam z e) eVoid)
+  | (Var x, _:args) <- collectArgs e
+  , isIrrefutErrorVar x
+  , let e' = MkCore.mkCoreApps (Var x) (Type t : args)
+  = App (Lam z e') eVoid
+
+replaceIrrefutPat _ e
+  = e
+
+isIrrefutErrorVar :: Var -> Bool
+isIrrefutErrorVar x = F.tracepp ("isIrrefut: " ++ show x) $ isIrrefutErrorVar' x
+
+isIrrefutErrorVar' :: Var -> Bool
+isIrrefutErrorVar'
+  = (MkCore.iRREFUT_PAT_ERROR_ID ==)
+  -- ( "irrefutPatError" `L.isSuffixOf`) . show
+  -- Grr.. doesn't work:
+  -- 1.
+  -- 2. (PrelNames.irrefutPatErrorIdKey == ) . Var.varUnique
+
 
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]

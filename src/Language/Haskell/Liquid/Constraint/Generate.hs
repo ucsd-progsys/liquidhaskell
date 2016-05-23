@@ -1185,6 +1185,10 @@ consE γ  e@(Lam x e1)
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e
 
+consE γ e@(Case _ _ _ [_])
+  | Just p@(Rs.PatProject {}) <- Rs.lift e
+  = consPattern γ p
+
 consE γ e@(Case _ _ _ cs)
   = cconsFreshE (caseKVKind cs) γ e
 
