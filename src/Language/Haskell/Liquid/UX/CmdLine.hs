@@ -53,8 +53,8 @@ import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
-                                              getOpts, cores, minPartSize,
-                                              maxPartSize, newcheck, eliminate)
+                                                   getOpts, cores, minPartSize,
+                                                   maxPartSize, newcheck )
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -197,10 +197,6 @@ config = cmdArgsMode $ Config {
           &= typ "OPTION"
           &= help "Tell GHC to compile and link against these files"
 
- , eliminate
-    = def &= name "eliminate"
-          &= help "Use experimental 'eliminate' feature"
-
  , port
      = defaultPort
           &= name "port"
@@ -241,17 +237,21 @@ config = cmdArgsMode $ Config {
     = False &= name "time-binds"
             &= help "Solve each (top-level) asserted type signature separately & time solving."
 
- , patternInline
-    = False &= name "pattern-inline"
-            &= help "Inline applications of `>>=` and `return` during constraint generation."
-
- , untidyCore
+  , untidyCore
     = False &= name "untidy-core"
             &= help "Print fully qualified identifier names in verbose mode"
 
- , simplifyCore
-    = False &= name "simplify-core"
-            &= help "Simplify GHC core before constraint generation (alpha)"
+  , noEliminate
+    = False &= name "no-eliminate"
+            &= help "Don't use KVar elimination during solving"
+
+  , noPatternInline
+    = False &= name "no-pattern-inline"
+            &= help "Don't inline special patterns (e.g. `>>=` and `return`) during constraint generation."
+
+  , noSimplifyCore
+    = False &= name "no-simplify-core"
+            &= help "Don't simplify GHC core before constraint generation"
 
  } &= verbosity
    &= program "liquid"
@@ -400,7 +400,6 @@ defConfig = Config { files             = def
                    , cabalDir          = def
                    , ghcOptions        = def
                    , cFiles            = def
-                   , eliminate         = def
                    , port              = defaultPort
                    , scrapeImports     = False
                    , scrapeUsedImports = False
@@ -409,9 +408,10 @@ defConfig = Config { files             = def
                    , json              = False
                    , counterExamples   = False
                    , timeBinds         = False
-                   , patternInline     = False
                    , untidyCore        = False
-                   , simplifyCore      = False
+                   , noEliminate       = False
+                   , noPatternInline   = False
+                   , noSimplifyCore    = False
                    }
 
 ------------------------------------------------------------------------

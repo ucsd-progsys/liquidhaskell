@@ -1216,7 +1216,7 @@ consE _ e@(Type t)
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
 patternFlag :: CGEnv -> Bool
-patternFlag = patternInline . cgCfg
+patternFlag = not . noPatternInline . cgCfg
 
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
 

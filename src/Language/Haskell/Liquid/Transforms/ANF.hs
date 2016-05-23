@@ -38,7 +38,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (anfPrefix)
 
-import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, patternInline)
+import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, noPatternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -76,7 +76,7 @@ expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
 
 patternFlag :: AnfEnv -> Bool
-patternFlag = patternInline . aeCfg
+patternFlag = not . noPatternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis

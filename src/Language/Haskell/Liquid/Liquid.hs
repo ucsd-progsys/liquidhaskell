@@ -175,7 +175,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names
   = do finfo          <- cgInfoFInfo info cgi tgt
-       F.Result r sol <- solve fx finfo
+       F.Result r sol <- solve (fixConfig tgt cfg) finfo
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res_err = fmap (applySolution sol . cinfoError . snd) r
@@ -186,19 +186,21 @@ solveCs cfg tgt cgi info names
                         { o_errors  = e2u sol <$> warns }
                         { o_result  = res_model         }
     where
-       fx        = def { FC.solver      = fromJust (smtsolver cfg)
-                       , FC.linear      = linear      cfg
-                       , FC.newcheck    = newcheck    cfg
-                       , FC.eliminate   = eliminate   cfg
-                       , FC.save        = saveQuery   cfg
-                       , FC.srcFile     = tgt
-                       , FC.cores       = cores       cfg
-                       , FC.minPartSize = minPartSize cfg
-                       , FC.maxPartSize = maxPartSize cfg
-                       , FC.elimStats   = elimStats   cfg
-                       , FC.elimBound   = elimBound   cfg
-                       }
 
+fixConfig :: FilePath -> Config -> FC.Config
+fixConfig tgt cfg = def
+  { FC.solver      = fromJust (smtsolver cfg)
+  , FC.linear      = linear            cfg
+  , FC.newcheck    = newcheck          cfg
+  , FC.eliminate   = not $ noEliminate cfg
+  , FC.save        = saveQuery         cfg
+  , FC.srcFile     = tgt
+  , FC.cores       = cores             cfg
+  , FC.minPartSize = minPartSize       cfg
+  , FC.maxPartSize = maxPartSize       cfg
+  , FC.elimStats   = elimStats         cfg
+  , FC.elimBound   = elimBound         cfg
+  }
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

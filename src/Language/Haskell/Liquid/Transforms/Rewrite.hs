@@ -40,7 +40,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (isTupleId)
-import           Language.Haskell.Liquid.UX.Config  (Config, simplifyCore)
+import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -50,6 +50,9 @@ rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
   | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
   | otherwise        = id
+
+simplifyCore :: Config -> Bool
+simplifyCore = not . noSimplifyCore
 
 --------------------------------------------------------------------------------
 -- | A @RewriteRule@ is a function that maps a CoreExpr to another
