@@ -36,7 +36,7 @@ import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
 -- import qualified Data.List as L
-import qualified Language.Fixpoint.Types as F
+-- import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (isTupleId)
@@ -241,15 +241,7 @@ replaceIrrefutPat _ e
   = e
 
 isIrrefutErrorVar :: Var -> Bool
-isIrrefutErrorVar x = F.tracepp ("isIrrefut: " ++ show x) $ isIrrefutErrorVar' x
-
-isIrrefutErrorVar' :: Var -> Bool
-isIrrefutErrorVar'
-  = (MkCore.iRREFUT_PAT_ERROR_ID ==)
-  -- ( "irrefutPatError" `L.isSuffixOf`) . show
-  -- Grr.. doesn't work:
-  -- 1.
-  -- 2. (PrelNames.irrefutPatErrorIdKey == ) . Var.varUnique
+isIrrefutErrorVar x = MkCore.iRREFUT_PAT_ERROR_ID == x
 
 
 --------------------------------------------------------------------------------
