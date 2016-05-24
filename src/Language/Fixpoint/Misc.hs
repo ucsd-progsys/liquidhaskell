@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 module Language.Fixpoint.Misc where
@@ -17,8 +18,11 @@ import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
 import           Data.Maybe
-import           Data.Array                hiding (indices)
+import           Data.Array                       hiding (indices)
 import           Data.Function                    (on)
+import qualified Data.Graph                       as G
+import qualified Data.Tree                        as T
+import           Data.Unique
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -29,8 +33,6 @@ import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                        (stdout, hFlush )
 import           System.Exit                      (ExitCode)
 import           Control.Concurrent.Async
-
-import           Data.Unique 
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -55,8 +57,8 @@ hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 -- | Unique Int -----------------------------------------------
 ---------------------------------------------------------------
 
-getUniqueInt :: IO Int 
-getUniqueInt = hashUnique <$> newUnique 
+getUniqueInt :: IO Int
+getUniqueInt = hashUnique <$> newUnique
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
@@ -122,7 +124,7 @@ donePhase c str
 putBlankLn :: IO ()
 putBlankLn = putStrLn "" >> hFlush stdout
 
------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 wrap :: [a] -> [a] -> [a] -> [a]
 wrap l r s = l ++ s ++ r
 
@@ -275,8 +277,40 @@ writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
 ensurePath :: FilePath -> IO ()
 ensurePath = createDirectoryIfMissing True . takeDirectory
 
+singleton :: a -> [a]
+singleton x = [x]
+
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
+
+mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
+mapEither _ []     = ([], [])
+mapEither f (x:xs) = case f x of
+                       Left y  -> (y:ys, zs)
+                       Right z -> (ys, z:zs)
+                     where
+                       (ys, zs) = mapEither f xs
+
+componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
+componentsWith eF x = map (fst3 . f) <$> vss
+  where
+    (g,f,_)         = G.graphFromEdges . eF $ x
+    vss             = T.flatten <$> G.components g
+
+
+type EqHash a = (Eq a, Ord a, Hashable a)
+
+-- >>> coalesce [[1], [2,1], [5], [5, 6], [5, 7], [9, 6], [10], [10,100]]
+-- [[1,2],[5,7,6,9],[10,100]]
+
+coalesce :: (EqHash v) => [ListNE v] -> [ListNE v]
+coalesce = componentsWith coalesceEdges
+
+coalesceEdges :: (EqHash v) => [ListNE v] -> [(v, v, [v])]
+coalesceEdges vss = [ (u, u, vs) | (u, vs) <- groupList (uvs ++ vus) ]
+  where
+    vus           = swap <$> uvs
+    uvs           = [ (u, v) | (u : vs) <- vss, v <- vs ]
 
 {-
 exitColorStrLn :: Moods -> String -> IO ()

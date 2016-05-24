@@ -44,7 +44,6 @@ import qualified Data.HashSet                         as S
 import qualified Data.List                            as L
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Graph                           as G
-import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
@@ -154,7 +153,6 @@ graphRanks g vf = (M.fromList irs, sccs)
     sccs       = L.reverse $ map flatten $ G.scc g
     v2i        = fst3 . vf
 
-
 ---------------------------------------------------------------------------
 -- | Dependencies ---------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -185,14 +183,15 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
     cm      = F.cm fi
     bs      = F.bs fi
 
-
 -------------------------------------------------------------------------------
 decompose :: (F.TaggedC c a) => F.GInfo c a -> KVComps
 -------------------------------------------------------------------------------
-decompose si = {- tracepp "decompose" $ -} map (fst3 . f) <$> vss
-  where
-    (g,f,_)  = G.graphFromEdges . kvgEdges . kvGraph $ si
-    vss      = T.flatten <$> G.components g
+decompose = componentsWith (kvgEdges . kvGraph)
+
+-- decompose si = {- tracepp "decompose" $ -} map (fst3 . f) <$> vss
+--   where
+--     (g,f,_)  = G.graphFromEdges . kvgEdges . kvGraph $ si
+--     vss      = T.flatten <$> G.components g
 
 -------------------------------------------------------------------------------
 kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
@@ -315,8 +314,8 @@ edgeDeps cfg si  = forceKuts ks
                  . filter isRealEdge
   where
     ks           = givenKs `S.union` nlKs
-    givenKs      = tracepp "Given  KVs" $ cutVars cfg    si
-    nlKs         = tracepp "NonLin KVs" $ nonLinearKVars si
+    givenKs      = {- tracepp "Given  KVs" $ -} cutVars cfg    si
+    nlKs         = {- tracepp "NonLin KVs" $ -} nonLinearKVars si
 
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar

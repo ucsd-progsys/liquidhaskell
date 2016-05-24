@@ -28,31 +28,31 @@ showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
 
 instance (Ord a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
-  toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> L.sort (S.toList xs))
+  toFix xs = brackets $ sep $ punctuate ";" (toFix <$> L.sort (S.toList xs))
   simplify = S.fromList . map simplify . S.toList
 
 instance Fixpoint () where
-  toFix _ = text "()"
+  toFix _ = "()"
 
 instance Fixpoint a => Fixpoint (Maybe a) where
-  toFix    = maybe (text "Nothing") ((text "Just" <+>) . toFix)
+  toFix    = maybe "Nothing" (("Just" <+>) . toFix)
   simplify = fmap simplify
 
 instance Fixpoint a => Fixpoint [a] where
-  toFix xs = brackets $ sep $ punctuate (text ";") (fmap toFix xs)
+  toFix xs = brackets $ sep $ punctuate ";" (fmap toFix xs)
   simplify = map simplify
 
 instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
-  toFix   (x,y)  = toFix x <+> text ":" <+> toFix y
+  toFix   (x,y)  = toFix x <+> ":" <+> toFix y
   simplify (x,y) = (simplify x, simplify y)
 
 instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a,b,c) where
-  toFix   (x,y,z)  = toFix x <+> text ":" <+> toFix y <+> text ":" <+> toFix  z
+  toFix   (x,y,z)  = toFix x <+> ":" <+> toFix y <+> ":" <+> toFix  z
   simplify (x,y,z) = (simplify x, simplify y,simplify z)
 
 instance Fixpoint Bool where
-  toFix True  = text "True"
-  toFix False = text "False"
+  toFix True  = "True"
+  toFix False = "False"
   simplify z  = z
 
 instance Fixpoint Int where
@@ -84,7 +84,7 @@ pprint = pprintPrec 0 Full
 showpp :: (PPrint a) => a -> String
 showpp = render . pprint
 
-showTable :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> String 
+showTable :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> String
 showTable k = render . pprintKVs k
 
 tracepp :: (PPrint a) => String -> a -> a
@@ -94,7 +94,7 @@ instance PPrint Doc where
   pprintTidy _ = id
 
 instance PPrint a => PPrint (Maybe a) where
-  pprintTidy k = maybe (text "Nothing") ((text "Just" <+>) . pprintTidy k)
+  pprintTidy k = maybe "Nothing" (("Just" <+>) . pprintTidy k)
 
 instance PPrint a => PPrint [a] where
   pprintTidy k = brackets . intersperse comma . map (pprintTidy k)
@@ -106,9 +106,9 @@ instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprintTidy k = pprintKVs k . M.toList
 
 pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
-pprintKVs t = vcat . punctuate (text "\n") . map pp1
+pprintKVs t = vcat . punctuate "\n" . map pp1
   where
-    pp1 (x,y) = pprintTidy t x <+> text ":=" <+> pprintTidy t y
+    pp1 (x,y) = pprintTidy t x <+> ":=" <+> pprintTidy t y
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
   pprintTidy k (x, y, z)  = parens $ pprintTidy k x <> "," <+>

@@ -36,7 +36,9 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
-  , mkEApp, mkProp
+  , pExist
+  , mkEApp
+  , mkProp
   , intKvar
   , vv_
 
@@ -178,6 +180,9 @@ instance Fixpoint Subst where
   toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
+
+instance PPrint Subst where
+  pprintTidy _ = toFix
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------
@@ -583,12 +588,16 @@ isSingletonExpr v (PAtom r e1 e2)
   | e2 == EVar v && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
 
-pAnd, pOr     :: ListNE Expr -> Expr
+pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 
 pIte :: Pred -> Expr -> Expr -> Expr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+
+pExist :: [(Symbol, Sort)] -> Pred -> Pred
+pExist []  p = p
+pExist xts p = PExist xts p
 
 mkProp :: Expr -> Pred
 mkProp = EApp (EVar propConName)

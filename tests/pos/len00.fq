@@ -5,11 +5,11 @@ qualif ListZ(v : [@(0)]): (len v >= 0)
 
 constant len : (func(2, [(@(0)  @(1)); int]))
 
-bind 0 y : {v : [(Tuple int a)] | [len v >= 0]}
+bind 0 yoink : {v : [(Tuple int a)] | [len v >= 0]}
 
 constraint:
   env [0]
-  lhs {v : [(Tuple int a)] | [v = y] }
+  lhs {v : [(Tuple int a)] | [v = yoink] }
   rhs {v : [(Tuple int a)] | [$k0]   }
   id 1 tag []
 

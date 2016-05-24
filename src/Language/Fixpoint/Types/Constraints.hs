@@ -56,16 +56,18 @@ module Language.Fixpoint.Types.Constraints (
   , Cube (..)
   , QBind
   , Cand
-  , Sol (..)
+  , Sol
   , Solution
-  , solFromList, solInsert, solLookup, solResult
+  , solFromList, solInsert, solLookupQBind, solLookup, solResult
 
   -- * Cut KVars
   , Kuts (..)
   , ksMember
 
+  -- * Higher Order Logic
   , HOInfo (..)
-  , allowHO, allowHOquals
+  , allowHO
+  , allowHOquals
 
   ) where
 
@@ -340,6 +342,7 @@ envSort l lEnv tEnv x i
     ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
     -- msg = "unknown symbol in qualifier: " ++ show x
 
+
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -365,22 +368,24 @@ fi :: [SubC a]
    -> BindEnv
    -> SEnv Sort
    -> Kuts
+   -> Packs
    -> [Qualifier]
    -> M.HashMap BindId a
    -> FilePath
    -> Bool
-   -> Bool 
+   -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ks qs bi fn aHO aHOq
+fi cs ws binds ls ks pm qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
        , lits     = ls
        , kuts     = ks
+       , packs    = pm
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
-       , ho_info  = HOI aHO aHOq
+       , hoInfo   = HOI aHO aHOq
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -393,14 +398,14 @@ fi cs ws binds ls ks qs bi fn aHO aHOq
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 
-
-data HOInfo = HOI { ho_binds :: Bool          -- ^ Allow higher order binds in the environemnt
-                  , ho_quals :: Bool          -- ^ Allow higher order quals 
-                  }  
+data HOInfo = HOI { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
+                  , hoQuals :: Bool          -- ^ Allow higher order quals
+                  }
   deriving (Eq, Show, Generic)
 
-allowHO      = ho_binds . ho_info
-allowHOquals = ho_quals . ho_info
+allowHO, allowHOquals :: GInfo c a -> Bool
+allowHO      = hoBinds . hoInfo
+allowHOquals = hoQuals . hoInfo
 
 data GInfo c a =
   FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
@@ -408,30 +413,32 @@ data GInfo c a =
      , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
      , lits     :: !(SEnv Sort)               -- ^ Constant symbols
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
+     , packs    :: !Packs                     -- ^ Pack-sets of related KVars
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , fileName :: FilePath                   -- ^ Source file name
-     , ho_info  :: !HOInfo                    -- ^ Higher Order info 
+     , hoInfo   :: !HOInfo                    -- ^ Higher Order info
      }
   deriving (Eq, Show, Functor, Generic)
 
 instance Monoid HOInfo where
   mempty        = HOI False False
-  mappend i1 i2 = HOI { ho_binds = (ho_binds i1) || (ho_binds i2)
-                      , ho_quals = (ho_quals i1) || (ho_quals i2)
+  mappend i1 i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
+                      , hoQuals = hoQuals i1 || hoQuals i2
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
                      , lits     = mappend (lits i1)     (lits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
+                     , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
-                     , ho_info  = mappend (ho_info i1)   (ho_info i2)
+                     , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      }
 
 instance PTable (SInfo a) where
@@ -446,6 +453,7 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
+                  $++$ packsDoc x'
                   $++$ conDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
@@ -457,6 +465,7 @@ toFixpoint cfg x' =    qualsDoc x'
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
+    packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
@@ -578,9 +587,20 @@ solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
-solLookup :: Solution -> KVar -> QBind
+solLookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-solLookup s k = M.lookupDefault [] k (sMap s)
+solLookupQBind s k = M.lookupDefault [] k (sMap s)
+
+--------------------------------------------------------------------------------
+solLookup :: Solution -> KVar -> Either Hyp QBind
+--------------------------------------------------------------------------------
+solLookup s k
+  | Just cs  <- M.lookup k (sHyp s)
+  = Left cs
+  | Just eqs <- M.lookup k (sMap s)
+  = Right eqs -- TODO: don't initialize kvars that have a hyp solution
+  | otherwise
+  = errorstar $ "solLookup: Unknown kvar " ++ show k
 
 --------------------------------------------------------------------------------
 solInsert :: KVar -> a -> Sol a -> Sol a

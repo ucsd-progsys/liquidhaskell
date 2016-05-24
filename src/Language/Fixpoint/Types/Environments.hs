@@ -31,11 +31,20 @@ module Language.Fixpoint.Types.Environments (
   , BindEnv, beBinds
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
-  , unionIBindEnv, diffIBindEnv
+  , unionIBindEnv, diffIBindEnv, intersectionIBindEnv
+
+  -- * Information needed to lookup and update Solutions
+  , SolEnv (..)
+
+  -- * Groups of KVars (needed by eliminate)
+  , Packs (..)
+  , getPack
+  , makePack
   ) where
 
 -- import qualified Data.Binary as B
 import qualified Data.Binary as B
+import qualified Data.List   as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -43,6 +52,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
+import           Data.Function             (on)
 import           Text.PrettyPrint.HughesPJ
 import           Control.DeepSeq
 
@@ -66,6 +76,10 @@ data SizedEnv a    = BE { _beSize  :: !Int
 
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
+
+data SolEnv        = SolEnv { soeBinds :: !BindEnv
+                            , soePacks :: !Packs
+                            } deriving (Eq, Show, Generic)
 
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
@@ -168,9 +182,12 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
+intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
+
+
 diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
-
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
@@ -207,13 +224,43 @@ instance Fixpoint (IBindEnv) where
 
 --------------------------------------------------------------------------------
 
+instance NFData Packs
 instance NFData IBindEnv
 instance NFData BindEnv
 instance (NFData a) => NFData (SEnv a)
 
+instance B.Binary Packs
 instance B.Binary IBindEnv
 instance B.Binary BindEnv
 instance (B.Binary a) => B.Binary (SEnv a)
 instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
   put = B.put . S.toList
   get = S.fromList <$> B.get
+
+--------------------------------------------------------------------------------
+-- | Constraint Pack Sets ------------------------------------------------------
+--------------------------------------------------------------------------------
+
+newtype Packs = Packs { packm :: M.HashMap KVar Int }
+               deriving (Eq, Show, Generic)
+
+instance Fixpoint Packs where
+  toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> kIs
+    where
+      kIs = L.sortBy (compare `on` snd) . M.toList $ m
+
+instance PPrint Packs where
+  pprintTidy _ = toFix
+
+instance Monoid Packs where
+  mempty        = Packs mempty
+  mappend m1 m2 = Packs $ M.union (packm m1) (packm m2)
+
+getPack :: KVar -> Packs -> Maybe Int
+getPack k (Packs m) = M.lookup k m
+
+makePack :: [S.HashSet KVar] -> Packs
+makePack kvss = Packs (M.fromList kIs)
+  where
+    kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
+    kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss

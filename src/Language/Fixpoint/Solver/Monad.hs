@@ -31,7 +31,7 @@ import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
 import qualified Language.Fixpoint.Types.Config  as C
-import           Language.Fixpoint.Types.Config  (Config) 
+import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Types   (pprint)
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -56,7 +56,7 @@ import           Control.Exception.Base (bracket)
 type SolveM = StateT SolverState IO
 
 data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
-                      , ssBinds   :: !F.BindEnv        -- ^ All variables and types
+                      , ssBinds   :: !F.SolEnv         -- ^ All variables and types
                       , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
@@ -73,6 +73,7 @@ stats0    :: F.GInfo c b -> Stats
 stats0 fi = Stats nCs 0 0 0 0
   where
     nCs   = M.size $ F.cm fi
+
 
 instance F.PTable Stats where
   ptable s = F.DocTable [ (text "# Constraints"         , pprint (numCstr s))
@@ -93,16 +94,16 @@ runSolverM cfg sI _ act =
   where
     acquire = makeContextWithSEnv cfg file env
     release = cleanupContext
-    be      = F.bs     fi
+    be      = F.SolEnv (F.bs fi) (F.packs fi) -- (error "TBD:initialPACKS")
     file    = F.fileName fi -- (inFile cfg)
     env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.ho_info = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi      = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 ---------------------------------------------------------------------------
-getBinds :: SolveM F.BindEnv
+getBinds :: SolveM F.SolEnv
 ---------------------------------------------------------------------------
 getBinds = ssBinds <$> get
 
