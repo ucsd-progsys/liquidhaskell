@@ -31,7 +31,7 @@ import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
 import qualified Language.Fixpoint.Types.Config  as C
-import           Language.Fixpoint.Types.Config  (Config) 
+import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Types   (pprint)
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -100,7 +100,7 @@ runSolverM cfg sI _ act =
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.ho_info = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi      = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
