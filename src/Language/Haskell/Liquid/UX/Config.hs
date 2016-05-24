@@ -52,18 +52,20 @@ data Config = Config {
   , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
-  , eliminate      :: Bool       -- ^ eliminate non-top-level and non-recursive KVars
+  , noEliminate    :: Bool       -- ^ eliminate non-top-level and non-recursive KVars
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
-  , elimStats      :: Bool       -- ^ print eliminate stats
-  , elimBound      :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
-  , json           :: Bool       -- ^ print results (safe/errors) as JSON
-  , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
-  , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
-  , patternInline  :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , elimStats       :: Bool       -- ^ print eliminate stats
+  , elimBound       :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
+  , json            :: Bool       -- ^ print results (safe/errors) as JSON
+  , counterExamples :: Bool       -- ^ attempt to generate counter-examples to type errors
+  , timeBinds       :: Bool       -- ^ check and time each (asserted) type-sig separately
+  , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
+  , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

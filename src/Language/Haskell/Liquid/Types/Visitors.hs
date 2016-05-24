@@ -66,7 +66,7 @@ instance CBVisitable CoreBind where
       (xs, es)              = unzip xes
 
   literals (NonRec _ e)      = literals e
-  literals (Rec xes)         = concatMap literals $ map snd xes
+  literals (Rec xes)         = concatMap (literals . snd) xes
 
 instance CBVisitable (Expr Var) where
   freeVars = exprFreeVars
@@ -78,12 +78,12 @@ exprFreeVars :: S.HashSet Id -> Expr Id -> [Id]
 exprFreeVars = go
   where
     go env (Var x)         = if x `S.member` env then [] else [x]
-    go env (App e a)       = (go env e) ++ (go env a)
+    go env (App e a)       = go env e ++ go env a
     go env (Lam x e)       = go (extendEnv env [x]) e
-    go env (Let b e)       = (freeVars env b) ++ (go (extendEnv env (bindings b)) e)
+    go env (Let b e)       = freeVars env b ++ go (extendEnv env (bindings b)) e
     go env (Tick _ e)      = go env e
     go env (Cast e _)      = go env e
-    go env (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs)
+    go env (Case e x _ cs) = go env e ++ concatMap (freeVars (extendEnv env [x])) cs
     go _   _               = []
 
 exprReadVars :: (CBVisitable (Alt t), CBVisitable (Bind t)) => Expr t -> [Id]
@@ -95,7 +95,7 @@ exprReadVars = go
     go (Let b e)           = readVars b ++ go e
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
-    go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs)
+    go (Case e _ _ cs)     = go e ++ concatMap readVars cs
     go _                   = []
 
 exprLetVars :: Expr Var -> [Var]
@@ -120,7 +120,7 @@ exprLiterals = go
     go (Lam _ e)           = go e
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
-    go (Case e _ _ cs)     = (go e) ++ (concatMap literals cs)
+    go (Case e _ _ cs)     = go e ++ concatMap literals cs
     go _                   = []
 
 
@@ -130,7 +130,6 @@ instance CBVisitable (Alt Var) where
   letVars  (_,xs,e)       = xs ++ letVars e
   literals (c,_, e)       = literals c ++ literals e
 
-
 instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = dataConImplicitIds dc
   freeVars _ _            = []
@@ -139,14 +138,9 @@ instance CBVisitable AltCon where
   literals (LitAlt l)     = [l]
   literals _              = []
 
-
-
-extendEnv :: (Eq a, Foldable t, Hashable a)
-          => S.HashSet a -> t a -> S.HashSet a
+extendEnv :: (Eq a, Hashable a) => S.HashSet a -> [a] -> S.HashSet a
 extendEnv = foldl' (flip S.insert)
 
 bindings :: Bind t -> [t]
-bindings (NonRec x _)
-  = [x]
-bindings (Rec  xes  )
-  = map fst xes
+bindings (NonRec x _) = [x]
+bindings (Rec  xes  ) = map fst xes

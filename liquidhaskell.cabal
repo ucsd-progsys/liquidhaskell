@@ -182,6 +182,7 @@ Library
                     Language.Haskell.Liquid.Types.Meet,
                     Language.Haskell.Liquid.UX.ACSS,
                     Language.Haskell.Liquid.UX.DiffCheck,
+                    Language.Haskell.Liquid.Transforms.Rewrite,
                     Language.Haskell.Liquid.Transforms.ANF,
                     Language.Haskell.Liquid.Transforms.RefSplit,
                     Language.Haskell.Liquid.Transforms.CoreToLogic,

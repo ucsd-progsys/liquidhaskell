@@ -192,6 +192,7 @@ data CGInfo = CGInfo {
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+  , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
   , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
@@ -429,5 +430,6 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))      `seq`
           ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x))

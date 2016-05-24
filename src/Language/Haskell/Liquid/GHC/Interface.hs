@@ -400,10 +400,9 @@ checkFilePragmas :: [Located String] -> Ghc ()
 checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
   where
     err pragma
-      | check $ val pragma = Just $ (ErrFilePragma $ fSrcSpan pragma :: Error)
-      | otherwise = Nothing
-    check pragma =
-      any (`isPrefixOf` pragma) bad
+      | check (val pragma) = Just (ErrFilePragma $ fSrcSpan pragma :: Error)
+      | otherwise          = Nothing
+    check pragma           = any (`isPrefixOf` pragma) bad
     bad =
       [ "-i", "--idirs"
       , "-g", "--ghc-option"
@@ -557,9 +556,7 @@ instance PPrint GhcInfo where
     , "*************** Core Bindings ***************"
     , pprintCBs $ cbs info                          ]
 
-
 -- RJ: the silly guards below are to silence the unused-var checker
-
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
   | otherwise = pprintCBsVerbose
@@ -567,7 +564,7 @@ pprintCBs
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
-
+ 
 instance Show GhcInfo where
   show = showpp
 

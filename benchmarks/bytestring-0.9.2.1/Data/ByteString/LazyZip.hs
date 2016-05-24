@@ -184,7 +184,7 @@ sz x xs y ys = fromIntegral (S.length x) + length xs
 
 {-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
 
-{-@ qualif LBZip(v:List a,
+{- qualif LBZip(v:List a,
                  x:S.ByteString,
                  xs:ByteString,
                  y:S.ByteString,
