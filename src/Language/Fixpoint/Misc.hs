@@ -28,8 +28,9 @@ import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                        (stdout, hFlush )
 import           System.Exit                      (ExitCode)
-import Control.Concurrent.Async
+import           Control.Concurrent.Async
 
+import           Data.Unique 
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -49,6 +50,13 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
+
+---------------------------------------------------------------
+-- | Unique Int -----------------------------------------------
+---------------------------------------------------------------
+
+getUniqueInt :: IO Int 
+getUniqueInt = hashUnique <$> newUnique 
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------

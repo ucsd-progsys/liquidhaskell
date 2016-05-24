@@ -81,7 +81,7 @@ setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-z3Preamble :: Bool -> [T.Text]
+z3Preamble :: Config -> [T.Text]
 z3Preamble u
   = [ format "(define-sort {} () Int)"
         (Only elt)
@@ -115,11 +115,14 @@ z3Preamble u
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
-uifDef :: Bool -> Data.Text.Text -> T.Text -> T.Text
-uifDef u f op | u         = format "(declare-fun {} (Int Int) Int)" (Only f)
-              | otherwise = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
+uifDef :: Config -> Data.Text.Text -> T.Text -> T.Text
+uifDef cfg f op 
+  | linear cfg || Z3 /= solver cfg         
+  = format "(declare-fun {} (Int Int) Int)" (Only f)
+  | otherwise 
+  = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
-cvc4Preamble :: Bool -> [T.Text]
+cvc4Preamble :: Config -> [T.Text]
 cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic ALL_SUPPORTED)"
     , format "(define-sort {} () Int)"       (Only elt)
@@ -139,7 +142,7 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
         (sto, map, elt, elt, map)
     ]
 
-smtlibPreamble :: Bool -> [T.Text]
+smtlibPreamble :: Config -> [T.Text]
 smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
   = [       --  "(set-logic QF_AUFRIA)",
       format "(define-sort {} () Int)"       (Only elt)
@@ -251,7 +254,7 @@ smt2App (EVar f) (d:ds)
 smt2App _ _           = Nothing
 
 
-preamble :: Bool -> SMTSolver -> [T.Text]
+preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
