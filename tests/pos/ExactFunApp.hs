@@ -1,10 +1,6 @@
 {-@ LIQUID "--higherorder"     @-}
-{- LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--eliminate" @-}
-{-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
-
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
