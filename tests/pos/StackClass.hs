@@ -1,3 +1,5 @@
+{-@ LIQUID "--pruneunsorted" @-}
+
 module SClass where
 
 import qualified Data.Set

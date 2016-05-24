@@ -31,7 +31,10 @@ import Debug.Trace
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (inSigs $ spec info) ++ (ctors $ spec info)
+  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
+                  ++ if info `hasOpt` scrapeInternals 
+                       then inSigs $ spec info else []
+                  ++ (ctors $ spec info)
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it

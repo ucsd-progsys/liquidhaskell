@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 module DeepMeasure () where
 
 import Language.Haskell.Liquid.Prelude (liquidError)

@@ -185,7 +185,6 @@ solveCs cfg tgt cgi info names
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
                         { o_result  = res_model         }
-    where
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -200,6 +199,8 @@ fixConfig tgt cfg = def
   , FC.maxPartSize = maxPartSize       cfg
   , FC.elimStats   = elimStats         cfg
   , FC.elimBound   = elimBound         cfg
+  , FC.allowHO     = higherorder       cfg
+  , FC.allowHOqs   = higherorderqs     cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

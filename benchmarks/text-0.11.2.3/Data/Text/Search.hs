@@ -1,3 +1,5 @@
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-# LANGUAGE BangPatterns, ScopedTypeVariables #-}
 
 -- |

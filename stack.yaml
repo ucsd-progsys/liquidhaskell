@@ -19,5 +19,6 @@ extra-deps:
 - located-base-0.1.0.0
 - text-1.2.2.1
 
+
 compiler-check: newer-minor
 resolver: lts-5.9
