@@ -38,12 +38,14 @@ import Test.Tasty.Runners.AntXML
 
 import Text.Printf
 
+testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
                , combineReporters myConsoleReporter antXMLRunner
                , myConsoleReporter
                ]
 
+myConsoleReporter :: Ingredient
 myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
 
 main :: IO ()
@@ -89,6 +91,7 @@ instance IsOption LiquidOpts where
       <> help (untag (optionHelp :: Tagged LiquidOpts String))
       )
 
+unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
@@ -100,6 +103,7 @@ unitTests
     , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
 
+benchTests :: IO TestTree
 benchTests
   = group "Benchmarks" [
       testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
@@ -111,7 +115,7 @@ benchTests
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
     ]
 
-
+selfTests :: IO TestTree
 selfTests
   = group "Self" [
       testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
@@ -153,10 +157,12 @@ mkTest code dir file
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
 
+binPath :: FilePath -> IO FilePath
 binPath pkgName = do
   testPath <- getExecutablePath
   return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
+knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/RealProps.hs"
                    , "tests/pos/RealProps1.hs"
@@ -205,17 +211,18 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
+icfpIgnored :: [FilePath]
 icfpIgnored = ["RIO.hs", "DataBase.hs"
+              -- , "CopyRec.hs"                             -- eliminate
+              ]
 
-              -- , "CopyRec.hs"                                -- eliminate 
-              ] 
-
+hscIgnored :: [FilePath]
 hscIgnored = [ "HsColour.hs"
-             -- , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
-             -- , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
-
+             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
              ]
 
+textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
               , "Data/Text/Encoding/Fusion.hs"
@@ -242,10 +249,10 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
-        --   , "Data/Text/Fusion.hs"                           -- eliminate
+              , "Data/Text/Fusion.hs"
               ]
 
-
+demosIgnored :: [FilePath]
 demosIgnored = [ "Composition.hs"
                , "Eval.hs"
                , "Inductive.hs"
@@ -257,7 +264,7 @@ demosIgnored = [ "Composition.hs"
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
-
+group :: (Monad m) => TestName -> [m TestTree] -> m TestTree
 group n xs = testGroup n <$> sequence xs
 
 gitTimestamp :: IO String
@@ -315,6 +322,7 @@ concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
 --
 -- Runs the reporters in sequence, so it's best to start with the one
 -- that will produce incremental output, e.g. 'consoleTestReporter'.
+combineReporters :: Ingredient -> Ingredient -> Ingredient
 combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
   = TestReporter (opts1 ++ opts2) $ \opts tree -> do
       f1 <- run1 opts tree
@@ -326,6 +334,7 @@ type Summary = [(String, Double, Bool)]
 
 -- this is largely based on ocharles' test runner at
 -- https://github.com/ocharles/tasty-ant-xml/blob/master/Test/Tasty/Runners/AntXML.hs#L65
+loggingTestReporter :: Ingredient
 loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
   let
     runTest _ testName _ = Traversal $ Functor.Compose $ do

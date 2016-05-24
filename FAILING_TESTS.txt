@@ -6,41 +6,30 @@
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+
     icfp_pos
       WhileTest.hs:                                 FAIL (0.73s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Incr.hs:                                      FAIL (0.74s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Incr-elim.hs:                                 FAIL (0.73s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+        non-monadic-type?
       IfM2.hs:                                      FAIL (0.73s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+        non-monadic-type?
       IfM.hs:                                       FAIL (0.72s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+        non-monadic-type?
+
+-------------------------
+
       FindRec.hs:                                   FAIL (9.65s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+
+        --eliminate crashes due to `cannot unify Tuple with FHandle error`.
+        A cons-gen bug?
+
       CopyRec.hs:                                   FAIL (42.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+
+        --eliminate seems to blow up (lack of pattern-inline)?
+
     icfp_neg
+
       WhileM.hs:                                    FAIL (0.82s)
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
+        non-monadic-type?
+
       IfM.hs:                                       FAIL (0.81s)
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
+        non-monadic-type?
