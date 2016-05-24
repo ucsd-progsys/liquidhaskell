@@ -25,7 +25,7 @@ cgInfoFInfo info cgi fi = do
   return    $ tgtFI <> impFI
 
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
-targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn aHO 
+targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn aHO aHOqs 
   where
    cs     = fixCs  cgi
    ws     = fixWfs cgi
@@ -35,6 +35,7 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn aHO
    qs     = targetQuals info cgi
    bi     = (`Ci` Nothing) <$> bindSpans cgi
    aHO    = allowHO cgi 
+   aHOqs  = higherorderqs $ config $ spec info 
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs

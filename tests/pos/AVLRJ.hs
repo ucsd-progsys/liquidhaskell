@@ -16,10 +16,11 @@ data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a} deriving Show
   @-}
 
 {-@ measure ht @-}
+{-@ ht          :: Tree a -> Nat @-}
 ht              :: Tree a -> Int
 ht Nil          = 0
 ht (Tree _ l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
-{-@ invariant {v:Tree a | 0 <= ht v} @-}
+{-@ invariant {v:Tree a | 0 <= bFac v + 1 && bFac v <= 1 } @-}
 
 
 {-@ measure bFac @-}

@@ -1,3 +1,4 @@
+{-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--no-termination" @-}
 
 module Ex () where

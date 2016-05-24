@@ -42,7 +42,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Misc          (mapSnd)
-import           Language.Haskell.Liquid.WiredIn
+-- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
 
@@ -60,7 +60,7 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
 
 
     mkResType t
-     | isBool t   = propType
+--      | isBool t   = propType
      | otherwise  = t
 
 
@@ -82,7 +82,7 @@ strengthenResult v
   where rep = toRTypeRep t
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs)))         mempty mempty
+        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
         r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
         vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
@@ -334,7 +334,7 @@ splitArgs e = (f, reverse es)
     (f, es) = go e
 
     go (C.App (C.Var i) e) | ignoreVar i       = go e
-    go (C.App f (C.Var v)) | isErasable v    = go f
+    go (C.App f (C.Var v)) | isErasable v      = go f
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 

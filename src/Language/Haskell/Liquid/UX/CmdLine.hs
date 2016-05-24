@@ -54,7 +54,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                               getOpts, cores, minPartSize,
-                                              maxPartSize, newcheck, eliminate)
+                                              maxPartSize, newcheck, eliminate, defConfig)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -106,6 +106,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
+ , higherorderqs
+    = def
+          &= help "Allow higher order qualifiers to get automatically instantiated"
+
  , linear
     = def
           &= help "Use uninterpreted integer multiplication and division"
@@ -117,9 +121,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Check a specific (top-level) binder"
           &= name "check-var"
 
- , noPrune
+ , pruneUnsorted
     = def &= help "Disable prunning unsorted Predicates"
-          &= name "no-prune-unsorted"
+          &= name "prune-unsorted"
 
  , notermination
     = def &= help "Disable Termination Check"
@@ -213,6 +217,11 @@ config = cmdArgsMode $ Config {
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
+            &= explicit
+
+ , scrapeInternals
+    = False &= help "Scrape qualifiers from auto generated specifications"
+            &= name "scrape-internals"
             &= explicit
 
  , scrapeUsedImports
@@ -368,6 +377,7 @@ defConfig = Config { files             = def
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
+                   , higherorderqs     = def 
                    , diffcheck         = def
                    , saveQuery         = def
                    , checks            = def
@@ -380,7 +390,7 @@ defConfig = Config { files             = def
                    , strata            = def
                    , notruetypes       = def
                    , totality          = def
-                   , noPrune           = def
+                   , pruneUnsorted     = def
                    , exactDC           = def
                    , cores             = def
                    , minPartSize       = defaultMinPartSize
@@ -394,6 +404,7 @@ defConfig = Config { files             = def
                    , cFiles            = def
                    , eliminate         = def
                    , port              = defaultPort
+                   , scrapeInternals   = False
                    , scrapeImports     = False
                    , scrapeUsedImports = False
                    , elimStats         = False

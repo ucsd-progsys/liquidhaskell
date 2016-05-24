@@ -109,6 +109,8 @@ benchTests
     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+    , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"             []                        ExitSuccess
+    , testGroup "haskell16_neg"   <$> dirTests "benchmarks/haskell16/neg"             ["Proves.hs", "Helper.hs"]             (ExitFailure 1)
     ]
 
 

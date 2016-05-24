@@ -1,4 +1,5 @@
 {-@ LIQUID "--totality" @-}
+{-@ LIQUID "--prune-unsorted" @-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 -- LIQUID {- LANGUAGE DeriveDataTypeable, StandaloneDeriving -}
