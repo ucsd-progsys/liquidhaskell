@@ -1258,7 +1258,7 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   t    <- (addW . WfC γ) <<= freshTy_type ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
   ti   <- {- γ' ??= yi -} varRefType γ' yi
-  addC (SubC γ' ( {- F.tracepp ("consPattern:Project " ++ show yi ) -} ti) t) "consPattern:project"
+  addC (SubC γ' ti t) "consPattern:project"
   return t
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType

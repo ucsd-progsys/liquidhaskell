@@ -212,14 +212,15 @@ testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
 icfpIgnored :: [FilePath]
-icfpIgnored = ["RIO.hs", "DataBase.hs"
-              -- , "CopyRec.hs"                             -- eliminate
+icfpIgnored = [ "RIO.hs"
+              , "DataBase.hs" 
               ]
 
 hscIgnored :: [FilePath]
 hscIgnored = [ "HsColour.hs"
-             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
-             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+             -- , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             -- , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+             , "Language/Haskell/HsColour/ACSS.hs"          -- eliminate
              ]
 
 textIgnored :: [FilePath]
