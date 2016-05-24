@@ -1228,11 +1228,13 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
  -}
 
 consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
-  tx <- checkMonad ("Non-monadic type", e1) γ <$> consE γ e1
+  tx <- checkMonad (msg, e1) γ <$> consE γ e1
   γ' <- ((γ, "consPattern") += (F.symbol x, tx))
   addIdA x (AnnDef tx)
   mt <- consE γ' e2
   return mt
+  where
+    msg = "This expression has a refined monadic type; run with --no-pattern-inline: "
 
 {- [NOTE] special type rule for monadic-return
 
@@ -1260,11 +1262,16 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   return t
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkMonad _ _ (RApp _ ts _ _)
-  | length ts > 0               = last ts
-checkMonad _ _ (RAppTy _ t _)   = t
-checkMonad x g t                = checkErr x g t
+checkMonad x g = go . unRRTy
+ where
+   go (RApp _ ts _ _)
+     | length ts > 0 = last ts
+   go (RAppTy _ t _) = t
+   go t              = checkErr x g t
 
+unRRTy :: SpecType -> SpecType
+unRRTy (RRTy _ _ _ t) = unRRTy t
+unRRTy t              = t
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
