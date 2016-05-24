@@ -22,6 +22,7 @@ import           Data.Array                       hiding (indices)
 import           Data.Function                    (on)
 import qualified Data.Graph                       as G
 import qualified Data.Tree                        as T
+import           Data.Unique
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -51,6 +52,13 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
+
+---------------------------------------------------------------
+-- | Unique Int -----------------------------------------------
+---------------------------------------------------------------
+
+getUniqueInt :: IO Int
+getUniqueInt = hashUnique <$> newUnique
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------

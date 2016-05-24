@@ -64,6 +64,11 @@ module Language.Fixpoint.Types.Constraints (
   , Kuts (..)
   , ksMember
 
+  -- * Higher Order Logic
+  , HOInfo (..)
+  , allowHO
+  , allowHOquals
+
   ) where
 
 import qualified Data.Binary as B
@@ -230,6 +235,7 @@ pprId _         = ""
 ----------------------------------------------------------------
 instance B.Binary Qualifier
 instance B.Binary Kuts
+instance B.Binary HOInfo
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
@@ -237,6 +243,7 @@ instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 
 instance NFData Qualifier
 instance NFData Kuts
+instance NFData HOInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -366,8 +373,9 @@ fi :: [SubC a]
    -> M.HashMap BindId a
    -> FilePath
    -> Bool
+   -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ks pm qs bi fn aHO
+fi cs ws binds ls ks pm qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -377,7 +385,7 @@ fi cs ws binds ls ks pm qs bi fn aHO
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
-       , allowHO  = aHO
+       , hoInfo   = HOI aHO aHOq
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -389,21 +397,38 @@ fi cs ws binds ls ks pm qs bi fn aHO
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
-data GInfo c a = FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
-                    , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
-                    , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
-                    , lits     :: !(SEnv Sort)               -- ^ Constant symbols
-                    , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
-                    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
-                    , quals    :: ![Qualifier]               -- ^ Abstract domain
-                    , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
-                    , fileName :: FilePath                   -- ^ Source file name
-                    , allowHO  :: !Bool                      -- ^ Hmm. Move to Config?
-                    } deriving (Eq, Show, Functor, Generic)
 
+data HOInfo = HOI { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
+                  , hoQuals :: Bool          -- ^ Allow higher order quals
+                  }
+  deriving (Eq, Show, Generic)
+
+allowHO, allowHOquals :: GInfo c a -> Bool
+allowHO      = hoBinds . hoInfo
+allowHOquals = hoQuals . hoInfo
+
+data GInfo c a =
+  FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
+     , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
+     , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
+     , lits     :: !(SEnv Sort)               -- ^ Constant symbols
+     , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
+     , packs    :: !Packs                     -- ^ Pack-sets of related KVars
+     , quals    :: ![Qualifier]               -- ^ Abstract domain
+     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+     , fileName :: FilePath                   -- ^ Source file name
+     , hoInfo   :: !HOInfo                    -- ^ Higher Order info
+     }
+  deriving (Eq, Show, Functor, Generic)
+
+instance Monoid HOInfo where
+  mempty        = HOI False False
+  mappend i1 i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
+                      , hoQuals = hoQuals i1 || hoQuals i2
+                      }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty False
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -413,7 +438,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
-                     , allowHO  = allowHO i1 || allowHO i2
+                     , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      }
 
 instance PTable (SInfo a) where

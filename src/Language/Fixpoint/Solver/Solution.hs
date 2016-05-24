@@ -90,50 +90,51 @@ refine :: F.SInfo a
        -> [F.Qualifier]
        -> F.WfC a
        -> (F.KVar, QBind)
---------------------------------------------------------------------------------
-refine fi qs w = refineK env qs $ F.wrft w
+refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
     env        = wenv <> genv
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.lits fi
 
-refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, QBind)
-refineK env qs (v, t, k) = {- tracepp msg -} (k, eqs')
+refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, QBind)
+refineK ho env qs (v, t, k) = {- tracepp msg -} (k, eqs')
    where
-    eqs                  = instK env v t qs
+    eqs                  = instK ho env v t qs
     eqs'                 = filter (okInst env v t) eqs
     -- msg                  = printf "refineK: k = %s, eqs = %s" (showpp k) (showpp eqs)
 
 --------------------------------------------------------------------------------
-instK :: F.SEnv F.Sort
+instK :: Bool
+      -> F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
       -> QBind
 --------------------------------------------------------------------------------
-instK env v t = unique . concatMap (instKQ env v t)
+instK ho env v t = unique . concatMap (instKQ ho env v t)
   where
-    unique = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
+    unique       = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
 
-instKQ :: F.SEnv F.Sort
+instKQ :: Bool
+       -> F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
        -> QBind
-instKQ env v t q
+instKQ ho env v t q
   = do (su0, v0) <- candidates senv [(t, [v])] qt
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
        return     $ F.eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       tyss       = instCands env
+       tyss       = instCands ho env
        senv       = (`F.lookupSEnvWithDistance` env)
 
-instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
-instCands env = filter isOk tyss
+instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
+instCands ho env = filter isOk tyss
   where
     tyss      = groupList [(t, x) | (x, t) <- xts]
-    isOk      = isNothing . F.functionSort . fst
+    isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
 match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
@@ -209,6 +210,7 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
        | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
        | otherwise      = kcs
 
+
 --------------------------------------------------------------------------------
 applyPackCubes :: CombinedEnv -> Solution -> F.Expr -> ListNE (KVSub, F.Cube) -> ExprInfo
 --------------------------------------------------------------------------------
@@ -243,7 +245,7 @@ applyKVars' :: CombinedEnv -> Solution -> [KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Solution -> KVSub -> ExprInfo
-applyKVar g s (k, su) = case F.solLookup s ({- F.tracepp "solLookup:applyKVar" -} k) of
+applyKVar g s (k, su) = case F.solLookup s k of
   Left cs   -> hypPred g s k su cs
   Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
@@ -397,7 +399,7 @@ reduceCubes zs = (F.pAnd ps, cs)
     cs         = rights zs
 
 getCube :: Solution -> KVSub -> Maybe (Either F.Expr (KVSub, F.Cube))
-getCube s (k, su) = case F.solLookup s ({- F.tracepp "solLookup:getCube" -} k) of
+getCube s (k, su) = case F.solLookup s k of
   Left []   -> Just (Left F.PFalse)
   Left [c]  -> Just (Right ((k, su), c))
   Right eqs -> Just (Left  (qBindPred su eqs))

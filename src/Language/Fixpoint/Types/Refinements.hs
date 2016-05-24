@@ -35,8 +35,10 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , pAnd, pOr, pIte, pExist
+  , pAnd, pOr, pIte
+  , pExist
   , mkEApp
+  , mkProp
   , intKvar
   , vv_
 

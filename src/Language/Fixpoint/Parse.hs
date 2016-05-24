@@ -623,16 +623,16 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts pks qs mempty mempty False
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts pks qs mempty mempty mempty
   where
-    cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
-    ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]
-    bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
-    kts    = KS $ S.fromList  [k                | Kut k       <- defs]
-    pks    = Packs $ M.fromList [(k, i)         | Pack k i     <- defs]
-    qs     =                  [q                | Qul q       <- defs]
-    cid    = fromJust . sid
+    cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
+    ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
+    bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
+    lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
+    kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
+    pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
+    qs         =                    [q                  | Qul q       <- defs]
+    cid        = fromJust . sid
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
 ---------------------------------------------------------------------

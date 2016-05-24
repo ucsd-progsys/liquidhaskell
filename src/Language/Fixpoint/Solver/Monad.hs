@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Monad
          -- * SMT Query
        , filterValid
        , checkSat
-       , smtEnablrmbqi
+       , smtEnablembqi
 
          -- * Debug
        , Stats
@@ -31,7 +31,7 @@ import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
 import qualified Language.Fixpoint.Types.Config  as C
-import           Language.Fixpoint.Types.Config  (Config, solver, linear, SMTSolver(Z3))
+import           Language.Fixpoint.Types.Config  (Config) 
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Types   (pprint)
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -92,15 +92,15 @@ runSolverM cfg sI _ act =
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    acquire = makeContextWithSEnv (C.allowHO cfg) lar (solver cfg) file env
+    acquire = makeContextWithSEnv cfg file env
     release = cleanupContext
     be      = F.SolEnv (F.bs fi) (F.packs fi) -- (error "TBD:initialPACKS")
     file    = F.fileName fi -- (inFile cfg)
     env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
-    lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.allowHO = C.allowHO cfg}
+    -- lar     = linear cfg || Z3 /= solver cfg
+    fi      = (siQuery sI) {F.ho_info = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -157,8 +157,8 @@ filterValid_ p qs me = catMaybes <$> do
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
 
-smtEnablrmbqi :: SolveM ()
-smtEnablrmbqi
+smtEnablembqi :: SolveM ()
+smtEnablembqi
   = withContext $ \me ->
       smtWrite me "(set-option :smt.mbqi true)"
 
