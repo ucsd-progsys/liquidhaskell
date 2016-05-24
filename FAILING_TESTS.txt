@@ -1,35 +1,18 @@
-      Language/Haskell/HsColour/Anchors.hs:         FAIL (683.88s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Language/Haskell/HsColour/ACSS.hs:            FAIL (1.70s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+      
+Language/Haskell/HsColour/Anchors.hs:         FAIL (683.88s)
+  Wrong exit code
+  expected: ExitSuccess
+  but got: ExitFailure 1
 
-    icfp_pos
-      WhileTest.hs:                                 FAIL (0.73s)
-        non-monadic-type?
-      IfM2.hs:                                      FAIL (0.73s)
-        non-monadic-type?
-      IfM.hs:                                       FAIL (0.72s)
-        non-monadic-type?
+Language/Haskell/HsColour/ACSS.hs:            FAIL (1.70s)
+  Wrong exit code
+  expected: ExitSuccess
+  but got: ExitFailure 2
 
--------------------------
+FindRec.hs:                                   FAIL (9.65s)
+  --eliminate crashes due to `cannot unify Tuple with FHandle error`.
+  A cons-gen bug tickled by --eliminate?
 
-      FindRec.hs:                                   FAIL (9.65s)
+CopyRec.hs:                                   FAIL (42.90s)
+  --eliminate seems to blow up (lack of pattern-inline)?
 
-        --eliminate crashes due to `cannot unify Tuple with FHandle error`.
-        A cons-gen bug?
-
-      CopyRec.hs:                                   FAIL (42.90s)
-
-        --eliminate seems to blow up (lack of pattern-inline)?
-
-    icfp_neg
-
-      WhileM.hs:                                    FAIL (0.82s)
-        non-monadic-type?
-
-      IfM.hs:                                       FAIL (0.81s)
-        non-monadic-type?
