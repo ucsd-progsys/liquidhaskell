@@ -1,6 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--eliminate"       @-}
 
 module FunctionAbstraction where
 import Proves 

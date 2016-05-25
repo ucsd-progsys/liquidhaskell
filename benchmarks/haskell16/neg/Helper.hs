@@ -5,9 +5,7 @@
 {-@ LIQUID "--higherorder"   @-}
 {-@ LIQUID "--autoproofs"    @-}
 {-@ LIQUID "--totality"      @-}
-{-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
-{-@ LIQUID "--eliminate"     @-}
 
 
 module Helper (
