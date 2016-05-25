@@ -221,8 +221,8 @@ icfpIgnored = [ "RIO.hs"
 
 hscIgnored :: [FilePath]
 hscIgnored = [ "HsColour.hs"
-             -- , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
-             -- , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
              , "Language/Haskell/HsColour/ACSS.hs"          -- eliminate
              ]
 
