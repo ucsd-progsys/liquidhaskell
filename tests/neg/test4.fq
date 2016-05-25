@@ -1,0 +1,20 @@
+bind 0 x : {v : int | []}
+
+bind 1 y : {v : int | []}
+
+constraint:
+  env [0; 1]
+  lhs {VV#F1 : int | []}
+  rhs {VV#F1 : int | [$k_0[v:=x]]}
+  id 1 tag [3]
+
+constraint:
+  env [0; 1]
+  lhs {VV#F2 : int | [$k_0[v:=y]]}
+  rhs {VV#F2 : int | [y = x]}
+  id 2 tag [4]
+
+wf:
+  env []
+  reft {v : int | [$k_0]}
+

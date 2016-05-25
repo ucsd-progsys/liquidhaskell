@@ -205,7 +205,7 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
     applyPack g s kvs = case packable s kvs of
       Nothing       -> applyKVars' g s kvs
       Just (p, [])  -> (p, mempty)
-      Just (p, kcs) -> applyPackCubes g s p kcs -- $ tr kvs kcs
+      Just (p, kcs) -> applyPackCubes g s p kcs
     _tr kvs kcs
        | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
        | otherwise      = kcs
@@ -235,7 +235,7 @@ applyPackCube :: CombinedEnv
               -> Solution
               -> (KVSub, F.Cube)
               -> ((Binders, F.Pred, F.Pred), KInfo)
-applyPackCube g s kc = cubePredExc g s (F.tracepp "applyPackCube" k) su c bs'
+applyPackCube g s kc = cubePredExc g s k su c bs'
   where
     ((k, su), c)     = kc
     bs'              = delCEnv bs g
@@ -282,7 +282,7 @@ type Binders = [(F.Symbol, F.Sort)]
 
 -- | @cubePredExc@ computes the predicate for the subset of binders bs'.
 --   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
---   we want is `Exists xts.(psu /\ p)`.
+--   we want is `Exists xts. (psu /\ p)`.
 
 cubePredExc :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Cube -> F.IBindEnv
             -> ((Binders, F.Pred, F.Pred), KInfo)
@@ -319,8 +319,10 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (cuTag c))
         tests/pos/kvar-param-poly-00.hs
 
      Finally, we filter out binders if they are
+     
      1. "free" in e1...en i.e. in the outer environment.
         (Hmm, that shouldn't happen...?)
+
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
