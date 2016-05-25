@@ -1,8 +1,6 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-
 
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE FlexibleContexts    #-}

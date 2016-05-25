@@ -1,9 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--maxparams=10"  @-}
-{-@ LIQUID "--higherorderqs" @-}
-
+{- LIQUID "--higherorderqs" -} -- this seems to kill it?
 
 
 {-# LANGUAGE IncoherentInstances   #-}

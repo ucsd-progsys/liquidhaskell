@@ -5,7 +5,6 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--maxparams=5"     @-}
 
 
 module Ackermann where

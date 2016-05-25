@@ -5,8 +5,6 @@
 {-@ LIQUID "--higherorder"   @-}
 {-@ LIQUID "--autoproofs"    @-}
 {-@ LIQUID "--totality"      @-}
-{-@ LIQUID "--higherorderqs" @-}
-
 
 module Helper (
 
