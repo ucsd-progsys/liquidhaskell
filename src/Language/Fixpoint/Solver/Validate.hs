@@ -55,7 +55,8 @@ banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
     errs             = concatMap (checkIllScope si kDs) ks
     kDs              = kvarDefUses si
-    ks               = M.keys (F.ws si)
+    ks               = filter notKut $ M.keys (F.ws si)
+    notKut           = not . (`F.ksMember` F.kuts si)
 
 badKs :: [(F.KVar, SubcId, SubcId, F.IBindEnv)] -> F.Error
 badKs = E.catErrors . map E.errIllScopedKVar
@@ -67,7 +68,7 @@ type SubcId    = Integer
 checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> [(F.KVar, SubcId, SubcId, F.IBindEnv)]
 checkIllScope si (inM, outM) k = mapMaybe (uncurry (isIllScope si k)) ios
   where
-    ios                        = [(i, o) | i <- ins, o <- outs]
+    ios                        = [(i, o) | i <- ins, o <- outs, i /= o ]
     ins                        = M.lookupDefault [] k inM
     outs                       = M.lookupDefault [] k outM
 
