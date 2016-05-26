@@ -205,7 +205,7 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
     applyPack g s kvs = case packable s kvs of
       Nothing       -> applyKVars' g s kvs
       Just (p, [])  -> (p, mempty)
-      Just (p, kcs) -> applyPackCubes g s p kcs -- $ tr kvs kcs
+      Just (p, kcs) -> applyPackCubes g s p kcs 
     _tr kvs kcs
        | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
        | otherwise      = kcs
