@@ -9,7 +9,6 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
-
        )
        where
 
@@ -20,11 +19,11 @@ import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc          (fM)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Types.Errors as E
-import           Language.Fixpoint.Graph.Deps (kvEdges, CEdge)
+import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L
-import           Data.Maybe          (isNothing)
+import           Data.Maybe          (isNothing, mapMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
@@ -33,16 +32,14 @@ type ValidateM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize   = fM dropFuncSortedShadowedBinders
+sanitize   =    banIllScopedKvars
+         >=> fM dropFuncSortedShadowedBinders
          >=> fM sanitizeWfC
          >=> fM replaceDeadKvars
          >=> fM dropBogusSubstitutions
          >=>    banMixedRhs
          >=>    banQualifFreeVars
          >=>    banConstraintFreeVars
-         >=>    banIllScopedKvars
-
-
 
 
 --------------------------------------------------------------------------------
@@ -54,19 +51,50 @@ sanitize   = fM dropFuncSortedShadowedBinders
 --------------------------------------------------------------------------------
 banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-banIllScopedKvars si = undefined
+banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
+    errs             = concatMap (checkIllScope si kDs) ks
+    kDs              = kvarDefUses si
+    ks               = M.keys (F.ws si)
 
-    es = kvEdges si
+badKs :: [(F.KVar, SubcId, SubcId, F.IBindEnv)] -> F.Error
+badKs = E.catErrors . map E.errIllScopedKVar
 
-type KvConstrM = M.HashMap F.KVar Integer
+type KvConstrM = M.HashMap F.KVar [Integer]
 type KvDefs    = (KvConstrM, KvConstrM)
+type SubcId    = Integer
 
-checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> Maybe [(Integer, Integer, S.HashSet F.BindId)]
-checkIllScope = error "TBD:checkIllScope"
+checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> [(F.KVar, SubcId, SubcId, F.IBindEnv)]
+checkIllScope si (inM, outM) k = mapMaybe (uncurry (isIllScope si k)) ios
+  where
+    ios                        = [(i, o) | i <- ins, o <- outs]
+    ins                        = M.lookupDefault [] k inM
+    outs                       = M.lookupDefault [] k outM
 
-kvarDefUses :: F.SInfo a -> [CEdge] -> KvDefs
-kvarDefUses si es = error "TBD:kvarDefUses"
+isIllScope :: F.SInfo a -> F.KVar -> SubcId -> SubcId -> Maybe (F.KVar, SubcId, SubcId, F.IBindEnv)
+isIllScope si k inI outI
+  | F.nullIBindEnv badXs = Nothing
+  | otherwise            = Just (k, inI, outI, badXs)
+  where
+    badXs                = F.diffIBindEnv commonXs kXs
+    kXs                  = F.tracepp ("kvarBinds " ++ show k) $ kvarBinds si k
+    commonXs             = F.intersectionIBindEnv inXs outXs
+    inXs                 = subcBinds si inI
+    outXs                = subcBinds si outI
+
+subcBinds :: F.SInfo a -> SubcId -> F.IBindEnv
+subcBinds si i = F._cenv $ F.cm si M.! i
+
+kvarBinds :: F.SInfo a -> F.KVar -> F.IBindEnv
+kvarBinds si = F.wenv . (F.ws si M.!)
+
+kvarDefUses :: F.SInfo a -> KvDefs
+kvarDefUses si = (Misc.group ins, Misc.group outs)
+  where
+    es         = kvEdges si
+    outs       = [(k, o) | (KVar k, Cstr o) <- es ]
+    ins        = [(k, i) | (Cstr i, KVar k) <- es ]
+
 
 --------------------------------------------------------------------------------
 -- | remove substitutions `K[x := e]` where `x` is not in the domain of K
@@ -78,7 +106,9 @@ dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
     kvXs k                 = M.lookupDefault S.empty k kvM
     keepSubst k x _        = x `S.member` kvXs k
 
-kvarDomainM :: F.SInfo a -> M.HashMap F.KVar (S.HashSet F.Symbol)
+type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
+
+kvarDomainM :: F.SInfo a -> KvDom
 kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
   where
     ks         = M.keys (F.ws si)
@@ -230,9 +260,9 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
 sanitizeWfC :: F.SInfo a -> F.SInfo a
 sanitizeWfC si = si { F.ws = ws' }
   where
-    keepF      = conjKF [nonConstantF si, nonFunctionF si]
-    (_, drops) = filterBindEnv keepF   $  F.bs si
     ws'        = deleteWfCBinds drops <$> F.ws si
+    (_, drops) = filterBindEnv keepF   $  F.bs si
+    keepF      = conjKF [nonConstantF si, nonFunctionF si]
 
 conjKF :: [KeepBindF] -> KeepBindF
 conjKF fs x t = and [f x t | f <- fs]
@@ -248,32 +278,16 @@ nonFunctionF si
   | otherwise       = \_ t -> isNothing (F.functionSort t)
 
 --------------------------------------------------------------------------------
--- | Drop functions from WfC environments
---------------------------------------------------------------------------------
--- dropWfcFunctions :: F.SInfo a -> F.SInfo a
--- --------------------------------------------------------------------------------
--- dropWfcFunctions fi | F.allowHO fi = fi
--- dropWfcFunctions fi = fi { F.ws = ws' }
-  -- where
-    -- nonFunction   = isNothing . F.functionSort
-    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
-    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
---
--- dropWfcFunctions fi | F.allowHO fi = fi
--- dropWfcFunctions fi = fi { F.ws = ws' }
-  -- where
-    -- nonFunction   = isNothing . F.functionSort
-    -- (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
-    -- ws'           = deleteWfCBinds discards          <$> F.ws fi
-
---------------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
 --------------------------------------------------------------------------------
 dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.lits = lits' }
+dropBinders f g fi  = fi { F.bs = bs'
+                         , F.cm = cm'
+                         , F.ws = ws'
+                         , F.lits = lits' }
   where
-    discards        = {- tracepp "DISCARDING" -} diss
+    discards        = diss
     (bs', diss)     = filterBindEnv f $ F.bs fi
     cm'             = deleteSubCBinds discards   <$> F.cm fi
     ws'             = deleteWfCBinds  discards   <$> F.ws fi

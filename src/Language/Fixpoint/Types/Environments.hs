@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Environments (
   , BindEnv, beBinds
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
-  , unionIBindEnv, diffIBindEnv, intersectionIBindEnv
+  , unionIBindEnv, diffIBindEnv, intersectionIBindEnv, nullIBindEnv
 
   -- * Information needed to lookup and update Solutions
   , SolEnv (..)
@@ -66,6 +66,9 @@ type BindId        = Int
 type BindMap a     = M.HashMap BindId a
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+
+instance PPrint IBindEnv where
+  pprintTidy _ = pprint . L.sort . elemsIBindEnv
 
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, Foldable, Traversable)
@@ -114,6 +117,7 @@ memberSEnv x (SE env)   = M.member x env
 
 intersectWithSEnv :: (v1 -> v2 -> a) -> SEnv v1 -> SEnv v2 -> SEnv a
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
+
 
 differenceSEnv :: SEnv a -> SEnv w -> SEnv a
 differenceSEnv (SE m1) (SE m2) = SE (M.difference m1 m2)
@@ -185,6 +189,8 @@ unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
 
+nullIBindEnv :: IBindEnv -> Bool
+nullIBindEnv (FB m) = S.null m
 
 diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2

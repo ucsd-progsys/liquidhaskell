@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Errors (
   -- * Some popular errors
   , errFreeVarInQual
   , errFreeVarInConstraint
+  , errIllScopedKVar
   ) where
 
 import           Control.Exception
@@ -180,5 +181,13 @@ errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"
     sp               = srcSpan q
 
 errFreeVarInConstraint :: Integer -> Error
-errFreeVarInConstraint i = err dummySpan $ vcat [ "Constraint with free vars"
-                                                , pprint i ]
+errFreeVarInConstraint i = err dummySpan $
+  vcat [ "Constraint with free vars"
+       , pprint i ]
+
+errIllScopedKVar :: (PPrint k, PPrint bs) => (k, Integer, Integer, bs) -> Error
+errIllScopedKVar (k, inId, outId, xs) = err dummySpan $
+  vcat [ "Ill-scoped KVar" <+> pprint k
+       , "Missing common binders at def" <+> pprint inId <+> "and use" <+> pprint outId
+       , pprint xs
+       ]
