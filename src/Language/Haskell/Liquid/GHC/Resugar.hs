@@ -52,7 +52,7 @@ data Pattern
   | PatReturn                -- return @ m @ t @ $dT @ e
      { patE    :: !CoreExpr  -- ^ e
      , patM    :: !Type      -- ^ m
-     , patDct  :: !CoreExpr  -- $ $dT
+     , patDct  :: !CoreExpr  -- ^ $dT
      , patTy   :: !Type      -- ^ t
      , patRet  :: !Var       -- ^ "return"
      }
