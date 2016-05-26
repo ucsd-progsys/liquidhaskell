@@ -32,8 +32,8 @@ type ValidateM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize   =    banIllScopedKvars
-         >=> fM dropFuncSortedShadowedBinders
+sanitize   =    -- banIllScopedKvars
+             fM dropFuncSortedShadowedBinders
          >=> fM sanitizeWfC
          >=> fM replaceDeadKvars
          >=> fM dropBogusSubstitutions
@@ -49,9 +49,9 @@ sanitize   =    banIllScopedKvars
 --   then
 --      G1 \cap G2 \subseteq wenv(k)
 --------------------------------------------------------------------------------
-banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
+_banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
+_banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
     errs             = concatMap (checkIllScope si kDs) ks
     kDs              = kvarDefUses si
@@ -78,7 +78,7 @@ isIllScope si k inI outI
   | otherwise            = Just (k, inI, outI, badXs)
   where
     badXs                = F.diffIBindEnv commonXs kXs
-    kXs                  = F.tracepp ("kvarBinds " ++ show k) $ kvarBinds si k
+    kXs                  = {- F.tracepp ("kvarBinds " ++ show k) $ -} kvarBinds si k
     commonXs             = F.intersectionIBindEnv inXs outXs
     inXs                 = subcBinds si inI
     outXs                = subcBinds si outI
