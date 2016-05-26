@@ -1,0 +1,20 @@
+This package was debianized by Adam Sjøgren <asjo@koldfront.dk> on
+Sun, 15 Jul 2007 00:20:44 +0200.
+
+It was downloaded from <http://www.cs.york.ac.uk/fp/darcs/hscolour>
+
+Upstream Author(s): 
+
+    Malcolm Wallace <Malcolm.Wallace@cs.york.ac.uk>
+
+Copyright: 
+
+    Copyright (C) 2003-2007, Malcolm Wallace, University of York
+    Copyright (C) 2006 Bjorn Bringert
+
+License:
+
+    GPLv2
+
+The Debian packaging is (C) 2007, Adam Sjøgren <asjo@koldfront.dk> and
+is licensed under the GPL, see `/usr/share/common-licenses/GPL'.

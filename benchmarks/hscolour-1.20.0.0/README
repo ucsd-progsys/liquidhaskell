@@ -1,0 +1,75 @@
+HsColour: A Haskell source-code colouriser.
+-------------------------------------------
+Copyright:  2003-2012, Malcolm Wallace
+Licence:    GPL
+
+Building:
+    hmake HsColour
+or
+    ghc --make HsColour
+
+Usage:
+    HsColour [-Ofile]
+             [ -tty | -html | -css | -icss | -latex | -mirc ]
+             [ -lit | -lit-tex | -anchor  | -partial ]
+             [ -nolit          | -noanchor| -nopartial ]
+             [ --annot=FILE ]
+             [file.hs]
+
+The program can colourise a Haskell source file for either terminal
+output (option -tty), or HTML 3.2 output with font tags (option -html),
+or HTML 4.01 output with CSS (option -css), or XHTML 1.0 output with
+inline styling (option -icss) or LaTeX output (option -latex), or IRC
+chat client (option -mirc).  The default is for terminal output, which
+uses standard ANSI screen codes for the colours.
+
+If no file argument is given, it reads standard input.  Output is
+written to the file specified by the -O option, or by default, stdout.
+
+HsColour can add named anchors in HTML or CSS or ICSS (option -anchor) to
+top-level definitions in the source file (functions, datatypes,
+classes).  This enables you to make links to a specific location in the
+generated file with the standard "file.html#anchor" notation.
+
+If an input file is literate, that is, it has a suffix ".lhs" or ".ly"
+or ".lx", then only the code fragments will be colourised, leaving the
+commentary untouched.  You can explicitly override this
+filename-guessing of literate status: use the -lit option to
+force literate colouring, or -nolit to force all text to be
+colourised.  (-lit-tex is an obsolete synonym for -lit)
+
+For more advanced usage, if you are building documents in parts, and you
+want to embed several individually colourised fragments into a larger
+document, use the <tt>-partial</tt> option with each fragment, to omit
+the HTML DOCTYPE header, CSS stylesheet link, or LaTeX prologue.
+
+You can configure the colours for different lexical entities by
+editing a configuration file called .hscolour in the current directory.
+(An example is included in the distribution.)  The file format is as
+a simple Haskell value of type ColourPrefs, constructed using named
+fields, as follows:
+
+  data ColourPrefs = ColourPrefs
+    { keyword, keyglyph, layout, comment
+    , conid, varid, conop, varop
+    , string, char, number, cpp
+    , selection, variantselection :: [Highlight]
+    }
+
+  data Colour = Black | Red | Green | Yellow | Blue | Magenta | Cyan | White
+
+  data Highlight =
+      Normal
+    | Bold
+    | Dim
+    | Underscore
+    | Blink
+    | ReverseVideo
+    | Concealed
+    | Foreground Colour
+    | Background Colour
+    | Italic
+
+For CSS output, it is sufficient to edit the hscolour.css file, also in
+the distribution.
+
