@@ -1,9 +1,9 @@
-{-
-This module creates new bindings for each argument of each kvar.
-It also makes sure that all arguments to each kvar are explicit.
-For example,
+{- | This module creates new bindings for each argument of each kvar.
+     It also makes sure that all arguments to each kvar are explicit.
 
-'''
+     For example,
+
+```
 bind 0 x
 bind 1 v
 constraint:
@@ -12,11 +12,11 @@ constraint:
 wf:
   env [0]
   reft {v : int | [$k_42]}
-'''
+```
 
 becomes
 
-'''
+```
 bind 0 x
 bind 1 v
 bind 2 lq_karg$x$k_42
@@ -27,25 +27,25 @@ constraint:
 wf:
   env [2]
   reft {lq_karg$v$k_42 : int | [$k_42]}
-'''
+```
+
 -}
 
 module Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor (mapKVarSubsts)
--- import           Language.Fixpoint.Solver.Validate (getDomain)
 import qualified Data.HashMap.Strict as M
 import           Data.Foldable       (foldl')
 
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 wfcUniqify    :: SInfo a -> SInfo a
 wfcUniqify fi = updateWfcs $ remakeSubsts fi
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 remakeSubsts :: SInfo a -> SInfo a
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
@@ -60,9 +60,9 @@ updateSubst k (Su su) sym
   where
     kx                = kv k
 
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 updateWfcs :: SInfo a -> SInfo a
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 
 updateWfc :: SInfo a -> WfC a -> SInfo a

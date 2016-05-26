@@ -20,12 +20,14 @@ import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc          (fM)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Types.Errors as E
+import           Language.Fixpoint.Graph.Deps (kvEdges, CEdge)
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L
 import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
+
 type ValidateM a = Either E.Error a
 
 --------------------------------------------------------------------------------
@@ -38,6 +40,33 @@ sanitize   = fM dropFuncSortedShadowedBinders
          >=>    banMixedRhs
          >=>    banQualifFreeVars
          >=>    banConstraintFreeVars
+         >=>    banIllScopedKvars
+
+
+
+
+--------------------------------------------------------------------------------
+-- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
+--      G1        |- K.su1
+--      G2, K.su2 |- rhs
+--   then
+--      G1 \cap G2 \subseteq wenv(k)
+--------------------------------------------------------------------------------
+banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
+--------------------------------------------------------------------------------
+banIllScopedKvars si = undefined
+  where
+
+    es = kvEdges si
+
+type KvConstrM = M.HashMap F.KVar Integer
+type KvDefs    = (KvConstrM, KvConstrM)
+
+checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> Maybe [(Integer, Integer, S.HashSet F.BindId)]
+checkIllScope = error "TBD:checkIllScope"
+
+kvarDefUses :: F.SInfo a -> [CEdge] -> KvDefs
+kvarDefUses si es = error "TBD:kvarDefUses"
 
 --------------------------------------------------------------------------------
 -- | remove substitutions `K[x := e]` where `x` is not in the domain of K
@@ -54,6 +83,10 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
   where
     ks         = M.keys (F.ws si)
     dom        = S.fromList . F.kvarDomain si
+
+
+
+
 
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
