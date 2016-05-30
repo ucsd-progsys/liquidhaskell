@@ -12,7 +12,7 @@ module Helper (
 
     gen_increasing, gen_increasing2
 
-  , gen_increasing_eq
+  , gen_incr
 
   , abstract
 
@@ -34,11 +34,12 @@ abstract _ _ _ = simpleProof
 -- |   if    forall x:Nat.   f x < f (x+1)
 -- |   then  forall x,y:Nat.  x < y => f x < f y
 
+{-@ type Greater N = {v:Int | N < v } @-}
 
 gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 {-@ gen_increasing :: f:(Nat -> Int)
                    -> (z:Nat -> {v:Proof | f z < f (z+1) })
-                   ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x < f y } / [y] @-}
+                   ->  x:Nat -> y:Greater x -> {v:Proof | f x < f y } / [y] @-}
 gen_increasing f thm x y
 
   | x + 1 == y
@@ -52,27 +53,27 @@ gen_increasing f thm x y
            <! f y       ?   thm (y-1)
 
 
-gen_increasing_eq :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
-{-@ gen_increasing_eq :: f:(Nat -> Int)
-                   -> (z:Nat -> {v:Proof | f z <= f (z+1) })
-                   ->  x:Nat -> y:{Nat | x < y } -> {v:Proof | f x <= f y } / [y] @-}
-gen_increasing_eq f thm x y
+gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
+{-@ gen_incr :: f:(Nat -> Int)
+                   -> (z:Nat -> {f z <= f (z+1)})
+                   ->  x:Nat -> y:Greater x -> {f x <= f y} / [y] @-}
+gen_incr f thm x y
 
   | x + 1 == y
   = proof $
-      f y ==! f (x + 1)
-          >=! f x       ?  thm x
+      f x <=! f (x + 1) ? thm x
+          <=! f y
 
   | x + 1 < y
   = proof $
-      f x  <=! f (y-1)   ?   gen_increasing_eq f thm x (y-1)
+      f x  <=! f (y-1)   ?   gen_incr f thm x (y-1)
            <=! f y       ?   thm (y-1)
 
 
 gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
 {-@ gen_increasing2 :: f:(Nat -> a -> Int)
                     -> (w:a -> z:Nat -> {v:Proof | f z w < f (z+1) w })
-                    ->  c:a -> x:Nat -> y:{Nat | x < y } -> {v:Proof | f x c < f y c } / [y] @-}
+                    ->  c:a -> x:Nat -> y:Greater x -> {v:Proof | f x c < f y c } / [y] @-}
 gen_increasing2 f thm c x y
   | x + 1 == y
   = proof $

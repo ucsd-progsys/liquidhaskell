@@ -5,8 +5,6 @@ module FunctionAbstraction where
 import Proves
 import Helper
 
-{-@ fib :: n:Nat -> Nat @-}
-{-@ axiomatize fib @-}
 
 fib :: Int -> Int
 fib n
@@ -15,25 +13,73 @@ fib n
   | otherwise = fib (n-1) + fib (n-2)
 
 
-fib_increasing_gen :: Int -> Int -> Proof
-{-@ fib_increasing_gen :: n:Nat -> m:{Nat | n < m } -> {v:Proof | fib n <= fib m } @-}
-fib_increasing_gen
-  = gen_increasing_eq fib fib_increasing
+{-@ fib :: n:Nat -> Nat @-}
+{-@ axiomatize fib @-}
 
-fib_increasing :: Int -> Proof
-{-@ fib_increasing :: n:Nat -> {v:Proof | fib n <= fib (n+1)} @-}
-fib_increasing n
+-- | How do I teach the logic the implementation of fib?
+-- | Two trents:
+-- | Dafny, F*, HALO: create an SMT axiom
+-- | forall n. fib n == if n == 0 then 0 else if n == 1 == 1 else fib (n-1) + fin (n-2)
+
+-- | Problem: When does this axiom trigger?
+-- | undefined: unpredicted behaviours + the butterfly effect
+
+-- | LiquidHaskell: logic does not know about fib:
+-- | reffering to fib in the logic will lead to un sorted refinements
+
+
+{- unsafe :: _ -> { fib 2 == 1 } @-}
+unsafe () = ()
+
+{-@ safe :: () -> { fib 2 == 1 } @-}
+safe :: () -> Proof
+safe () =
+   fib 2 ==! fib 0 + fib 1
+
+   *** QED
+
+-- | fib 2 == fib 1 + fib 0
+
+-- | Adding some structure to proofs
+-- | ==! :: x:a -> y:{a | x == y} -> {v:a | v == x && x == y}
+-- | proofs are unit
+-- | toProof :: a -> Proof
+-- | type Proof = ()
+
+{-@ safe' :: () ->  { fib 3 == 2 } @-}
+safe' () =
+  toProof $
+     fib 3 ==! fib 2 + fib 1 ? safe ()
+           ==! 2
+
+
+
+
+
+
+fib_incr_gen :: Int -> Int -> Proof
+{-@ fib_incr_gen :: n:Nat -> m:Greater n -> {fib n <= fib m}
+  @-}
+fib_incr_gen
+  = gen_incr fib fib_incr
+
+fib_incr :: Int -> Proof
+{-@ fib_incr :: n:Nat -> {fib n <= fib (n+1)} @-}
+fib_incr n
    | n == 0
-   = proof $
-      fib 0 <! fib 1
+   = fib 0 <! fib 1
+   *** QED
+
    | n == 1
-   = proof $
+   = toProof $
       fib 1 <=! fib 1 + fib 0
             <=! fib 2
    | otherwise
-   = proof $
+   = toProof $
        fib n
           ==! fib (n-1) + fib (n-2)
-          <=! fib n     + fib (n-2)  ? fib_increasing (n-1)
-          <=! fib n     + fib (n-1)  ? fib_increasing (n-2)
+          <=! fib n     + fib (n-2)
+              ? fib_incr (n-1)
+          <=! fib n     + fib (n-1)
+              ? fib_incr (n-2)
           <=! fib (n+1)
