@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 module Language.Fixpoint.Misc where
@@ -39,6 +40,8 @@ import Prelude hiding (error, undefined)
 import GHC.Err.Located
 import GHC.Stack
 #endif
+
+type (|->) a b = M.HashMap a b
 
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 firstMaybe f = listToMaybe . mapMaybe f

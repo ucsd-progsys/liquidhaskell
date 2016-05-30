@@ -58,21 +58,20 @@ _banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
     ks               = filter notKut $ M.keys (F.ws si)
     notKut           = not . (`F.ksMember` F.kuts si)
 
-badKs :: [(F.KVar, SubcId, SubcId, F.IBindEnv)] -> F.Error
+badKs :: [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)] -> F.Error
 badKs = E.catErrors . map E.errIllScopedKVar
 
 type KvConstrM = M.HashMap F.KVar [Integer]
 type KvDefs    = (KvConstrM, KvConstrM)
-type SubcId    = Integer
 
-checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> [(F.KVar, SubcId, SubcId, F.IBindEnv)]
+checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)]
 checkIllScope si (inM, outM) k = mapMaybe (uncurry (isIllScope si k)) ios
   where
     ios                        = [(i, o) | i <- ins, o <- outs, i /= o ]
     ins                        = M.lookupDefault [] k inM
     outs                       = M.lookupDefault [] k outM
 
-isIllScope :: F.SInfo a -> F.KVar -> SubcId -> SubcId -> Maybe (F.KVar, SubcId, SubcId, F.IBindEnv)
+isIllScope :: F.SInfo a -> F.KVar -> F.SubcId -> F.SubcId -> Maybe (F.KVar, F.SubcId, F.SubcId, F.IBindEnv)
 isIllScope si k inI outI
   | F.nullIBindEnv badXs = Nothing
   | otherwise            = Just (k, inI, outI, badXs)
@@ -83,7 +82,7 @@ isIllScope si k inI outI
     inXs                 = subcBinds si inI
     outXs                = subcBinds si outI
 
-subcBinds :: F.SInfo a -> SubcId -> F.IBindEnv
+subcBinds :: F.SInfo a -> F.SubcId -> F.IBindEnv
 subcBinds si i = F._cenv $ F.cm si M.! i
 
 kvarBinds :: F.SInfo a -> F.KVar -> F.IBindEnv

@@ -29,6 +29,7 @@ module Language.Fixpoint.Types.Refinements (
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
+  , KVSub
   , Reft (..)
   , SortedReft (..)
 
@@ -169,7 +170,6 @@ instance Hashable Constant
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
-
 newtype Subst = Su (M.HashMap Symbol Expr)
                 deriving (Eq, Data, Typeable, Generic)
 
@@ -183,6 +183,8 @@ instance Fixpoint Subst where
 
 instance PPrint Subst where
   pprintTidy _ = toFix
+
+type KVSub       = (KVar, Subst)
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------

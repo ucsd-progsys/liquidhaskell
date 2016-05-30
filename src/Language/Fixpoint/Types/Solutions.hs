@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 
@@ -35,6 +36,12 @@ module Language.Fixpoint.Types.Solutions (
   -- * Conversion for client
   , result
 
+
+  -- * "Fast" Solver
+  , Index  (..)
+  , KIndex (..)
+  , BindPred (..)
+  , BIndex
   ) where
 
 import           Prelude hiding (lookup)
@@ -62,18 +69,20 @@ type QBind    = [EQual]
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
-data Sol a = Sol { sMap :: !(M.HashMap KVar a)
-                 , sHyp :: !(M.HashMap KVar Hyp)
+data Sol a = Sol { sMap  :: !(M.HashMap KVar a)
+                 , sHyp  :: !(M.HashMap KVar Hyp)
+                 , sIdx  :: !(Maybe Index)
                  }
 
 instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty
-  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
-                      , sHyp = mappend (sHyp s1) (sHyp s2)
+  mempty        = Sol mempty mempty Nothing
+  mappend s1 s2 = Sol { sMap  = mappend (sMap s1) (sMap s2)
+                      , sHyp  = mappend (sHyp s1) (sHyp s2)
+                      , sIdx  = sIdx s1
                       }
 
 instance Functor Sol where
-  fmap f (Sol s h) = Sol (f <$> s) h
+  fmap f (Sol s h z) = Sol (f <$> s) h z
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k = pprintTidy k . sMap
@@ -100,8 +109,8 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SInfo b -> [(KVar, a)] -> [(KVar, Hyp)] -> Sol a
-fromList _si kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
+fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe Index -> Sol a
+fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
@@ -131,3 +140,37 @@ insert k qs s = s { sMap = M.insert k qs (sMap s) }
 -- | A `Cand` is an association list indexed by predicates
 --------------------------------------------------------------------------------
 type Cand a   = [(Expr, a)]
+
+
+--------------------------------------------------------------------------------
+-- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
+--------------------------------------------------------------------------------
+newtype KIndex = KIndex Int
+
+--------------------------------------------------------------------------------
+-- | A BIndex is created for each LHS Bind or RHS constraint
+--------------------------------------------------------------------------------
+data BIndex    = Bind !BindId
+               | Cstr !SubcId
+                 deriving (Eq, Ord, Show)
+
+--------------------------------------------------------------------------------
+-- | Each `Bind` corresponds to a conjunction of a `bpConc` and `bpKVars`
+--------------------------------------------------------------------------------
+data BindPred  = BP
+  { bpConc :: !Pred                   -- ^ Concrete predicate (PTrue o)
+  , bpKVar :: [KIndex]                  -- ^ KVar-Subst pairs
+  }
+
+
+--------------------------------------------------------------------------------
+-- | A Index is a suitably indexed version of the cosntraints that lets us
+--   1. CREATE a monolithic "background formula" representing all constraints,
+--   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
+--------------------------------------------------------------------------------
+data Index = FastIdx
+  { bindExpr :: BindId |-> BindPred   -- ^ BindPred for each BindId
+  , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
+  , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
+  , kvDef    :: KVar   |-> Hyp    -- ^ Constraints defining each `KVar`
+  }
