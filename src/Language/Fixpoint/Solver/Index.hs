@@ -6,7 +6,7 @@
 
 {-# LANGUAGE TypeOperators #-}
 
-module Language.Fixpoint.Solver.Fast (
+module Language.Fixpoint.Solver.Index (
 
     -- * Constructor
       create
@@ -25,23 +25,19 @@ import qualified Language.Fixpoint.Types.Solutions  as Sol
 -- import qualified Data.HashMap.Strict                as M
 
 --------------------------------------------------------------------------------
-create :: Config -> F.SInfo a -> Sol.FastInfo
+create :: Config -> F.SInfo a -> Sol.Index
 --------------------------------------------------------------------------------
-create = error "TBD:Fast.create"
+create = error "TBD:Indexed.create"
 
 --------------------------------------------------------------------------------
-backgroundPred :: Sol.FastInfo -> F.Pred
+backgroundPred :: Sol.Index -> F.Pred
 --------------------------------------------------------------------------------
 backgroundPred = error "TBD:backgroundPred"
 
 --------------------------------------------------------------------------------
-lhsPred :: Sol.FastInfo -> F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
+lhsPred :: Sol.Index -> F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
 lhsPred = undefined
-
-
-
-
 
 
 {- | [NOTE: Bit-Indexed Representation]

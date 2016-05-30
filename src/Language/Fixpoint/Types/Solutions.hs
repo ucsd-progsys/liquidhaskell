@@ -38,7 +38,7 @@ module Language.Fixpoint.Types.Solutions (
 
 
   -- * "Fast" Solver
-  , FastInfo (..)
+  , Index  (..)
   , KIndex (..)
   , BindPred (..)
   , BIndex
@@ -71,14 +71,14 @@ type QBind    = [EQual]
 --------------------------------------------------------------------------------
 data Sol a = Sol { sMap  :: !(M.HashMap KVar a)
                  , sHyp  :: !(M.HashMap KVar Hyp)
-                 , sFast :: !(Maybe FastInfo)
+                 , sIdx  :: !(Maybe Index)
                  }
 
 instance Monoid (Sol a) where
   mempty        = Sol mempty mempty Nothing
   mappend s1 s2 = Sol { sMap  = mappend (sMap s1) (sMap s2)
                       , sHyp  = mappend (sHyp s1) (sHyp s2)
-                      , sFast = sFast s1
+                      , sIdx  = sIdx s1
                       }
 
 instance Functor Sol where
@@ -109,7 +109,7 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe FastInfo -> Sol a
+fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe Index -> Sol a
 fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
 
 --------------------------------------------------------------------------------
@@ -164,11 +164,11 @@ data BindPred  = BP
 
 
 --------------------------------------------------------------------------------
--- | A FastInfo is a suitably indexed version of the cosntraints that lets us
+-- | A Index is a suitably indexed version of the cosntraints that lets us
 --   1. CREATE a monolithic "background formula" representing all constraints,
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
-data FastInfo = FastInfo
+data Index = FastIdx
   { bindExpr :: BindId |-> BindPred   -- ^ BindPred for each BindId
   , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
   , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`

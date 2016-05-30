@@ -7,7 +7,7 @@ import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
-import qualified Language.Fixpoint.Solver.Fast     as Fast
+import qualified Language.Fixpoint.Solver.Index    as Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
