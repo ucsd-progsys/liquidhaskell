@@ -6,15 +6,16 @@
 --   at most once (yielding VCs that is linear in the size of the FQ queries.)
 
 module Language.Fixpoint.Solver.Solution
-        ( -- * Create and Update Solution
-          init
-        , update
+  ( -- * Create Initial Solution
+    init
 
-          -- * Lookup Solution
-        , lhsPred
-        , noKvars
-        )
-        where
+    -- * Update Solution
+  , update
+
+  -- * Lookup Solution
+  , lhsPred
+  -- , noKvars
+  ) where
 
 import           Control.Parallel.Strategies
 import           Control.Arrow (second)
@@ -24,9 +25,6 @@ import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Data.Either                    (lefts, rights)
--- import           Language.Fixpoint.Utils.Files
--- import           Language.Fixpoint.Types.Config
--- import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
@@ -74,7 +72,7 @@ update1 s (k, qs) = (change, Sol.insert k qs s)
 --------------------------------------------------------------------------------
 init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init si ks = Sol.fromList keqs []
+init si ks = Sol.fromList si keqs []
   where
     keqs   = map (refine si qs) ws `using` parList rdeepseq
     qs     = F.quals si
@@ -366,8 +364,8 @@ symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
   where
     be                 = F.soeBinds se
 
-noKvars :: F.Expr -> Bool
-noKvars = null . V.kvars
+_noKvars :: F.Expr -> Bool
+_noKvars = null . V.kvars
 
 --------------------------------------------------------------------------------
 qBindPred :: F.Subst -> Sol.QBind -> F.Expr

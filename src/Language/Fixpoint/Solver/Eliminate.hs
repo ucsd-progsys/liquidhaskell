@@ -17,15 +17,15 @@ solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
-    cD             = elimDeps sI es nKs
-    sI'            = cutSInfo   kI cKs sI
-    sHyp           = Sol.fromList [] kHyps
-    kHyps          = nonCutHyps kI nKs sI
-    kI             = kIndex  sI
-    (es, cKs, nKs) = kutVars cfg sI
+    cD             = elimDeps     sI es nKs
+    sI'            = cutSInfo     sI kI cKs
+    sHyp           = Sol.fromList sI [] kHyps
+    kHyps          = nonCutHyps   sI kI nKs
+    kI             = kIndex       sI
+    (es, cKs, nKs) = kutVars cfg  sI
 
-cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
-cutSInfo kI cKs si = si { ws = ws', cm = cm' }
+cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar ->  SInfo a
+cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
     ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
     cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
@@ -50,8 +50,9 @@ kIndex si  = group [(k, i) | (i, c) <- iCs, k <- rkvars c]
     iCs    = M.toList (cm si)
     rkvars = kvars . crhs
 
-nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Sol.Hyp)]
-nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]
+nonCutHyps :: SInfo a -> KIndex -> S.HashSet KVar -> [(KVar, Sol.Hyp)]
+nonCutHyps si kI nKs = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]
+
 
 nonCutHyp  :: KIndex -> SInfo a -> KVar -> Sol.Hyp
 nonCutHyp kI si k = nonCutCube <$> cs
