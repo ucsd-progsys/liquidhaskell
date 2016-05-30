@@ -2,8 +2,6 @@ Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg
 ===============
 
 
-
-
 This package implements a Horn-Clause/Logical Implication constraint solver used
 for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm similar to:
 
