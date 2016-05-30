@@ -11,7 +11,7 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 
--- | This module contains the top-level query data types and elements,
+-- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
 
 module Language.Fixpoint.Types.Constraints (
@@ -43,22 +43,14 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
-  , qualifier
   , EQual (..)
   , eQual
+  , qualifier
+  , mkQual, remakeQual
 
   -- * Results
   , FixSolution
   , Result (..)
-
-  -- * Solutions
-  , Hyp
-  , Cube (..)
-  , QBind
-  , Cand
-  , Sol
-  , Solution
-  , solFromList, solInsert, solLookupQBind, solLookup, solResult
 
   -- * Cut KVars
   , Kuts (..)
@@ -75,7 +67,7 @@ import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.List                 (sort, nub, delete)
+import qualified Data.List                 as L -- (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (void)
@@ -182,7 +174,7 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
-pprSinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
+pprSinfos msg = map ((text msg <>) . toFix) . L.sort . fmap sinfo
 
 instance Fixpoint a => Show (WfC a) where
   show = showFix
@@ -301,26 +293,26 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data Qualifier = Q { q_name   :: !Symbol          -- ^ Name
-                   , q_params :: [(Symbol, Sort)] -- ^ Parameters
-                   , q_body   :: !Expr            -- ^ Predicate
-                   , q_pos    :: !SourcePos       -- ^ Source Location
+data Qualifier = Q { qName   :: !Symbol          -- ^ Name
+                   , qParams :: [(Symbol, Sort)] -- ^ Parameters
+                   , qBody   :: !Expr            -- ^ Predicate
+                   , qPos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Loc Qualifier where
   srcSpan q = SS l l
     where
-      l     = q_pos q
+      l     = qPos q
 
 instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
   pprintTidy k q = hcat [ "qualif"
-                        , pprintTidy k (q_name q)
+                        , pprintTidy k (qName q)
                         , "defined at"
-                        , pprintTidy k (q_pos q) ]
+                        , pprintTidy k (qPos q) ]
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
@@ -330,7 +322,7 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
 qualifier lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
-    xs  = delete v $ nub $ syms p
+    xs  = L.delete v $ L.nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
@@ -341,6 +333,55 @@ envSort l lEnv tEnv x i
   where
     ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
     -- msg = "unknown symbol in qualifier: " ++ show x
+
+remakeQual :: Qualifier -> Qualifier
+remakeQual q = {- traceShow msg $ -} mkQual (qName q) (qParams q) (qBody q) (qPos q)
+
+mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
+mkQual n xts p = Q n ((v, t) : yts) (subst su p)
+  where
+    (v, t):zts = gSorts xts
+    -- yts        = first mkParam <$> zts
+    yts        = zts
+    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
+gSorts :: [(a, Sort)] -> [(a, Sort)]
+gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
+  where
+    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
+
+substVars :: [(Symbol, Int)] -> Sort -> Sort
+substVars su = mapSort' tx
+  where
+    tx (FObj x)
+      | Just i <- lookup x su = FVar i
+    tx t                      = t
+
+sortVars :: Sort -> [Symbol]
+sortVars = foldSort' go []
+  where
+    go b (FObj x) = x : b
+    go b _        = b
+
+-- COPIED from Visitor due to cyclic deps
+mapSort' :: (Sort -> Sort) -> Sort -> Sort
+mapSort' f = step
+  where
+    step             = go . f
+    go (FFunc t1 t2) = FFunc (step t1) (step t2)
+    go (FApp t1 t2)  = FApp (step t1) (step t2)
+    go (FAbs i t)    = FAbs i (step t)
+    go t             = t
+
+-- COPIED from Visitor due to cyclic deps
+foldSort' :: (a -> Sort -> a) -> a -> Sort -> a
+foldSort' f = step
+  where
+    step b t           = go (f b t) t
+    go b (FFunc t1 t2) = L.foldl' step b [t1, t2]
+    go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
+    go b (FAbs _ t)    = go b t
+    go b _             = b
 
 
 --------------------------------------------------------------------------------
@@ -513,7 +554,7 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
 
 
 --------------------------------------------------------------------------------
--- | Solutions (Instantiated Qualfiers )----------------------------------------
+-- | Instantiated Qualfiers ----------------------------------------
 --------------------------------------------------------------------------------
 
 data EQual = EQL { eqQual :: !Qualifier
@@ -531,81 +572,10 @@ instance NFData EQual
 eQual :: Qualifier -> [Symbol] -> EQual
 eQual q xs = EQL q p es
   where
-    p      = subst su $  q_body q
+    p      = subst su $  qBody q
     su     = mkSubst  $  safeZip "eQual" qxs es
     es     = eVar    <$> xs
-    qxs    = fst     <$> q_params q
-
-
---------------------------------------------------------------------------------
--- | Types ---------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-type Solution = Sol QBind
-
-data Sol a = Sol { sMap :: !(M.HashMap KVar a)
-                 , sHyp :: !(M.HashMap KVar Hyp)
-                 }
-
-data Cube = Cube
-  { cuBinds :: IBindEnv  -- ^ Binders       from defining Env
-  , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
-  , cuId    :: Integer   -- ^ Id            of   defining Cstr (DEBUG)
-  , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
-  }
-
-type Hyp      = ListNE Cube
-
-type QBind    = [EQual]
-
-type Cand a   = [(Expr, a)]
-
-instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty
-  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
-                      , sHyp = mappend (sHyp s1) (sHyp s2)
-                      }
-
-instance Functor Sol where
-  fmap f (Sol s h) = Sol (f <$> s) h
-
-instance PPrint a => PPrint (Sol a) where
-  pprintTidy k = pprintTidy k . sMap
-
---------------------------------------------------------------------------------
-solResult :: Solution -> M.HashMap KVar Expr
---------------------------------------------------------------------------------
-solResult s = sMap $ (pAnd . fmap eqPred) <$> s
-
-
---------------------------------------------------------------------------------
--- | Create a Solution ---------------------------------------------------------
---------------------------------------------------------------------------------
-solFromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Sol a
-solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
-
---------------------------------------------------------------------------------
--- | Read / Write Solution at KVar ---------------------------------------------
---------------------------------------------------------------------------------
-solLookupQBind :: Solution -> KVar -> QBind
---------------------------------------------------------------------------------
-solLookupQBind s k = M.lookupDefault [] k (sMap s)
-
---------------------------------------------------------------------------------
-solLookup :: Solution -> KVar -> Either Hyp QBind
---------------------------------------------------------------------------------
-solLookup s k
-  | Just cs  <- M.lookup k (sHyp s)
-  = Left cs
-  | Just eqs <- M.lookup k (sMap s)
-  = Right eqs -- TODO: don't initialize kvars that have a hyp solution
-  | otherwise
-  = errorstar $ "solLookup: Unknown kvar " ++ show k
-
---------------------------------------------------------------------------------
-solInsert :: KVar -> a -> Sol a -> Sol a
---------------------------------------------------------------------------------
-solInsert k qs s = s { sMap = M.insert k qs (sMap s) }
+    qxs    = fst     <$> qParams q
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------

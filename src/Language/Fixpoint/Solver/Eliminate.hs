@@ -7,6 +7,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
+import           Language.Fixpoint.Types.Solutions 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)

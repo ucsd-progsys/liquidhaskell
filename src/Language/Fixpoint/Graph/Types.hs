@@ -56,7 +56,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements -- Constraints
-
+import qualified Language.Fixpoint.Types.Solutions as F 
 -- import           Language.Fixpoint.Misc (safeLookup)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M

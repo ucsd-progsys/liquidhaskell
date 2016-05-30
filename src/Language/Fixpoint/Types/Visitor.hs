@@ -250,7 +250,7 @@ instance  SymConsts (FInfo a) where
     where
       csLits   = concatMap symConsts $ M.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi
-      qsLits   = concatMap symConsts $ q_body  <$> quals fi
+      qsLits   = concatMap symConsts $ qBody  <$> quals fi
 
 instance SymConsts BindEnv where
   symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
@@ -275,11 +275,3 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
-
-
-{-
-
-instance SymConsts (SimpC a) where
-  symConsts c  = symConsts (crhs c)
-
--}

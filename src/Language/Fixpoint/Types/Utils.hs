@@ -9,21 +9,14 @@ module Language.Fixpoint.Types.Utils (
   , reftFreeVars
   ) where
 
--- import           Language.Fixpoint.Types.PrettyPrint
+import qualified Data.HashMap.Strict                  as M
+import qualified Data.HashSet                         as S
+
 import           Language.Fixpoint.Types.Names
--- import           Language.Fixpoint.Types.Errors
--- import           Language.Fixpoint.Types.Spans
--- import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
--- import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
--- import           Language.Fixpoint.Types.Graphs
-
 import           Language.Fixpoint.Misc (fst3)
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as S
-
 
 --------------------------------------------------------------------------------
 -- | Compute the domain of a kvar

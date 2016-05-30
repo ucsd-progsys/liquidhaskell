@@ -12,7 +12,8 @@ module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
 import           Control.Monad (when, filterM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types           as F
+import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
