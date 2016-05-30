@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE BangPatterns         #-}
 
 module Language.Fixpoint.Solver.Eliminate (solverInfo) where
 
@@ -7,7 +6,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
-import           Language.Fixpoint.Types.Solutions 
+import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
@@ -20,7 +19,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps sI es nKs
     sI'            = cutSInfo   kI cKs sI
-    sHyp           = solFromList [] kHyps
+    sHyp           = Sol.fromList [] kHyps
     kHyps          = nonCutHyps kI nKs sI
     kI             = kIndex  sI
     (es, cKs, nKs) = kutVars cfg sI
@@ -51,16 +50,16 @@ kIndex si  = group [(k, i) | (i, c) <- iCs, k <- rkvars c]
     iCs    = M.toList (cm si)
     rkvars = kvars . crhs
 
-nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Hyp)]
+nonCutHyps :: KIndex -> S.HashSet KVar -> SInfo a -> [(KVar, Sol.Hyp)]
 nonCutHyps kI nKs si = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]
 
-nonCutHyp  :: KIndex -> SInfo a -> KVar -> Hyp
+nonCutHyp  :: KIndex -> SInfo a -> KVar -> Sol.Hyp
 nonCutHyp kI si k = nonCutCube <$> cs
   where
     cs            = getSubC   si <$> M.lookupDefault [] k kI
 
-nonCutCube :: SimpC a -> Cube
-nonCutCube c = Cube (senv c) (rhsSubst c) (subcId c) (stag c)
+nonCutCube :: SimpC a -> Sol.Cube
+nonCutCube c = Sol.Cube (senv c) (rhsSubst c) (subcId c) (stag c)
 
 
 rhsSubst :: SimpC a -> Subst
