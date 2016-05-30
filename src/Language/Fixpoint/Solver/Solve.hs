@@ -12,7 +12,8 @@ module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
 import           Control.Monad (when, filterM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types           as F
+import qualified Language.Fixpoint.Types.Solutions as Sol --F
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -76,7 +77,7 @@ siKvars = S.fromList . M.keys . F.ws
 
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => Config -> F.SInfo a -> F.Solution -> S.HashSet F.KVar -> W.Worklist a
+       => Config -> F.SInfo a -> Sol.Solution -> S.HashSet F.KVar -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
@@ -102,7 +103,7 @@ tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
-refine :: F.Solution -> W.Worklist a -> SolveM F.Solution
+refine :: Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
 --------------------------------------------------------------------------------
 refine s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
@@ -120,7 +121,7 @@ refine s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: Int -> F.Solution -> F.SimpC a -> SolveM (Bool, F.Solution)
+refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
@@ -134,10 +135,10 @@ refineC _i s c
     --               _i (show (F.sid c)) (showpp s)
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
-rhsCands :: F.Solution -> F.SimpC a -> ([F.KVar], F.Cand (F.KVar, F.EQual))
+rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- F.solLookupQBind s k]
+    kqs        = [ cnd k su q | (k, su) <- ks, q <- Sol.lookupQBind s k]
     ks         = predKs . F.crhs $ c
     cnd k su q = (F.subst su (F.eqPred q), (k, q))
 
@@ -149,18 +150,18 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a) => Config -> W.Worklist a -> F.Solution -> SolveM (F.Result (Integer, a))
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result _ wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  return   $  F.Result (ci <$> stat) (F.solResult s)
+  return   $  F.Result (ci <$> stat) (Sol.result s)
   where
     ci c = (F.subcId c, F.sinfo c)
 
-result_ :: W.Worklist a -> F.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
@@ -168,7 +169,7 @@ result_  w s = res <$> filterM (isUnsat s) cs
     res cs'  = F.Unsafe cs'
 
 ---------------------------------------------------------------------------
-isUnsat :: F.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))

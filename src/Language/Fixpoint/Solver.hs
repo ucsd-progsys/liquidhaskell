@@ -35,7 +35,7 @@ import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Graph
-import           Language.Fixpoint.Parse            (rr', mkQual)
+import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery)
 import           Control.DeepSeq
@@ -175,11 +175,6 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
-
-remakeQual :: Qualifier -> Qualifier
-remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
---   where
---     msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ----------------------------------

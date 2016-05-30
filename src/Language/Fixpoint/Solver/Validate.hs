@@ -150,7 +150,7 @@ banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
     lits   = fst <$> F.toListSEnv (F.lits fi)
-    free q = S.toList $ F.syms (F.q_body q) `nubDiff` (lits ++ F.prims ++ F.syms (fst <$> F.q_params q))
+    free q = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (fst <$> F.qParams q))
 
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error

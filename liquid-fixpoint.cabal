@@ -70,6 +70,7 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
+                   Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Graph.Types,
@@ -159,4 +160,4 @@ test-suite test
                     tasty >= 0.10,
                     tasty-hunit,
                     tasty-rerun >= 1.1,
-                    text 
+                    text

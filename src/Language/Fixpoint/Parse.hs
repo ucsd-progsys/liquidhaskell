@@ -85,10 +85,10 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (tshow, sortNub, thd3)
+import           Language.Fixpoint.Misc      (tshow, thd3)
 import           Language.Fixpoint.Smt.Types
---import           Language.Fixpoint.Types.Names     (headSym)
-import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
+-- import           Language.Fixpoint.Types.Names     (headSym)
+-- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
 import qualified Data.Functor.Identity
@@ -293,7 +293,7 @@ funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP
     exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
     exprFunCommasP = mkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
     exprFunSemisP  = mkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
-    simpleAppP     = EApp <$> (parens exprP) <*> (parens exprP)
+    simpleAppP     = EApp <$> parens exprP <*> parens exprP
     funSymbolP     = locParserP symbolP
 
 
@@ -505,36 +505,10 @@ qualifierP tP = do
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
-mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
-mkQual n xts p = Q n ((v, t) : yts) (subst su p)
-  where
-    (v, t):zts = gSorts xts
-    -- yts        = first mkParam <$> zts
-    yts        = zts
-    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
-
 -- mkParam :: Symbol -> Symbol
 -- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
 --  where
 --    Just (c,cs) = T.uncons $ symbolSafeText s
-
-gSorts :: [(a, Sort)] -> [(a, Sort)]
-gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
-  where
-    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
-
-substVars :: [(Symbol, Int)] -> Sort -> Sort
-substVars su = mapSort tx
-  where
-    tx (FObj x)
-      | Just i <- lookup x su = FVar i
-    tx t                      = t
-
-sortVars :: Sort -> [Symbol]
-sortVars = foldSort go []
-  where
-    go b (FObj x) = x : b
-    go b _        = b
 
 
 ---------------------------------------------------------------------
