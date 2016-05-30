@@ -31,7 +31,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
-  , SubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
+  , SubC, SubcId
+  , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -101,10 +102,12 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Eq, Generic, Functor)
 
+type SubcId = Integer
+
 data SubC a = SubC { _senv  :: !IBindEnv
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , _sid   :: !(Maybe Integer)
+                   , _sid   :: !(Maybe SubcId)
                    , _stag  :: !Tag
                    , _sinfo :: !a
                    }
