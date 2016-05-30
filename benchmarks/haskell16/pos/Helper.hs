@@ -5,7 +5,7 @@
 {-@ LIQUID "--higherorder"   @-}
 {-@ LIQUID "--autoproofs"    @-}
 {-@ LIQUID "--totality"      @-}
-{-@ LIQUID "--higherorderqs" @-}
+{-@ LIQUID "--eliminate"     @-}
 
 
 module Helper (
@@ -43,14 +43,15 @@ gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 gen_increasing f thm x y
 
   | x + 1 == y
-  = proof $
-      f y ==! f (x + 1)
-           >! f x       ?  thm x
+  = f y ==! f (x + 1)
+         >! f x       ?  thm x
+        *** QED
 
   | x + 1 < y
-  = proof $
-      f x  <! f (y-1)   ?   gen_increasing f thm x (y-1)
-           <! f y       ?   thm (y-1)
+  = f x
+  <!  f (y-1)   ?   gen_increasing f thm x (y-1)
+  <!  f y       ?   thm (y-1)
+  *** QED
 
 
 gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
@@ -60,14 +61,14 @@ gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 gen_incr f thm x y
 
   | x + 1 == y
-  = proof $
-      f x <=! f (x + 1) ? thm x
-          <=! f y
+  = f x <=! f (x + 1) ? thm x
+        <=! f y
+        *** QED
 
   | x + 1 < y
-  = proof $
-      f x  <=! f (y-1)   ?   gen_incr f thm x (y-1)
-           <=! f y       ?   thm (y-1)
+  = f x  <=! f (y-1)   ?   gen_incr f thm x (y-1)
+         <=! f y       ?   thm (y-1)
+         *** QED
 
 
 gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
@@ -76,11 +77,11 @@ gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int 
                     ->  c:a -> x:Nat -> y:Greater x -> {v:Proof | f x c < f y c } / [y] @-}
 gen_increasing2 f thm c x y
   | x + 1 == y
-  = proof $
-      f y c ==! f (x + 1) c
-             >! f x c        ? thm c x
+  = f y c ==! f (x + 1) c
+           >! f x c        ? thm c x
+          *** QED
 
   | x + 1 < y
-  = proof $
-      f x c <! f (y-1) c    ? gen_increasing2 f thm c x (y-1)
-            <! f y c        ? thm c (y-1)
+  = f x c <!  f (y-1) c    ? gen_increasing2 f thm c x (y-1)
+          <!  f y c        ? thm c (y-1)
+          *** QED
