@@ -1,10 +1,6 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
 
--- | This module implements a "faster" version of `L.F.S.Solution` where
---   the eliminated kvars yield "compact" VCs, in which each binder appears
---   at most once (yielding VCs that is linear in the size of the FQ queries.)
-
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
     init
@@ -14,7 +10,6 @@ module Language.Fixpoint.Solver.Solution
 
   -- * Lookup Solution
   , lhsPred
-  -- , noKvars
   ) where
 
 import           Control.Parallel.Strategies
@@ -31,8 +26,9 @@ import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
-import           Language.Fixpoint.Types.Constraints hiding (ws, bs)
-import           Prelude                        hiding (init, lookup)
+import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
+-- import qualified Language.Fixpoint.Solver.Fast        as Fast
+import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
@@ -72,7 +68,7 @@ update1 s (k, qs) = (change, Sol.insert k qs s)
 --------------------------------------------------------------------------------
 init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init si ks = Sol.fromList si keqs []
+init si ks = Sol.fromList keqs [] Nothing
   where
     keqs   = map (refine si qs) ws `using` parList rdeepseq
     qs     = F.quals si
@@ -172,7 +168,6 @@ lhsPred be s c = {- F.tracepp msg $ -} fst $ apply g s bs
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
-type KVSub       = (F.KVar, F.Subst)
 
 apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> ExprInfo
 apply g s bs  = (F.pAnd (pks : ps), kI)
@@ -181,7 +176,7 @@ apply g s bs  = (F.pAnd (pks : ps), kI)
     (ks, ps)  = mapEither exprKind es
     es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
 
-exprKind :: F.Expr -> Either KVSub F.Expr
+exprKind :: F.Expr -> Either F.KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
 exprKind p              = Right p
 
@@ -191,10 +186,10 @@ bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
     (x, sr)          = F.lookupBindEnv i (F.soeBinds be)
     rs               = F.reftConjuncts $ F.sr_reft sr
 
-applyKVars :: CombinedEnv -> Sol.Solution -> [KVSub] -> ExprInfo
+applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
   where
-    applyPack :: CombinedEnv -> Sol.Solution -> [KVSub] -> ExprInfo
+    applyPack :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
     applyPack g s kvs = case packable s kvs of
       Nothing       -> applyKVars' g s kvs
       Just (p, [])  -> (p, mempty)
@@ -205,7 +200,7 @@ applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
 
 
 --------------------------------------------------------------------------------
-applyPackCubes :: CombinedEnv -> Sol.Solution -> F.Expr -> ListNE (KVSub, Sol.Cube) -> ExprInfo
+applyPackCubes :: CombinedEnv -> Sol.Solution -> F.Expr -> ListNE (F.KVSub, Sol.Cube) -> ExprInfo
 --------------------------------------------------------------------------------
 applyPackCubes g s p kcs = mrExprInfos (applyPackCube g'' s) conjF catF kcs
   where
@@ -226,7 +221,7 @@ conjCube yts'' p'' z     = foldr wrap inP xtSuPs
 
 applyPackCube :: CombinedEnv
               -> Sol.Solution
-              -> (KVSub, Sol.Cube)
+              -> (F.KVSub, Sol.Cube)
               -> ((Binders, F.Pred, F.Pred), KInfo)
 applyPackCube g s kc = cubePredExc g s k su c bs'
   where
@@ -234,10 +229,10 @@ applyPackCube g s kc = cubePredExc g s k su c bs'
     bs'              = delCEnv bs g
     bs               = Sol.cuBinds c
 
-applyKVars' :: CombinedEnv -> Sol.Solution -> [KVSub] -> ExprInfo
+applyKVars' :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
-applyKVar :: CombinedEnv -> Sol.Solution -> KVSub -> ExprInfo
+applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s (k, su) = case Sol.lookup s k of
   Left cs   -> hypPred g s k su cs
   Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
@@ -373,7 +368,7 @@ qBindPred :: F.Subst -> Sol.QBind -> F.Expr
 qBindPred su = F.subst su . F.pAnd . fmap F.eqPred
 
 --------------------------------------------------------------------------------
-packKVars :: CombinedEnv -> [KVSub] -> [[KVSub]]
+packKVars :: CombinedEnv -> [F.KVSub] -> [[F.KVSub]]
 --------------------------------------------------------------------------------
 packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
   where
@@ -383,17 +378,17 @@ packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
     eF (Nothing, xs)   = singleton <$> xs
 
 --------------------------------------------------------------------------------
-packable :: Sol.Solution -> [KVSub] -> Maybe (F.Expr, [(KVSub, Sol.Cube)])
+packable :: Sol.Solution -> [F.KVSub] -> Maybe (F.Expr, [(F.KVSub, Sol.Cube)])
 --------------------------------------------------------------------------------
 packable s = fmap reduceCubes . sequence . fmap (getCube s)
 
-reduceCubes :: [Either F.Expr (KVSub, Sol.Cube)] -> (F.Expr, [(KVSub, Sol.Cube)])
+reduceCubes :: [Either F.Expr (F.KVSub, Sol.Cube)] -> (F.Expr, [(F.KVSub, Sol.Cube)])
 reduceCubes zs = (F.pAnd ps, cs)
   where
     ps         = lefts  zs
     cs         = rights zs
 
-getCube :: Sol.Solution -> KVSub -> Maybe (Either F.Expr (KVSub, Sol.Cube))
+getCube :: Sol.Solution -> F.KVSub -> Maybe (Either F.Expr (F.KVSub, Sol.Cube))
 getCube s (k, su) = case Sol.lookup s k of
   Left []   -> Just (Left F.PFalse)
   Left [c]  -> Just (Right ((k, su), c))
