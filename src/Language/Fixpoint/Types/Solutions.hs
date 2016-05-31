@@ -97,7 +97,7 @@ type Hyp      = ListNE Cube
 data Cube = Cube
   { cuBinds :: IBindEnv  -- ^ Binders       from defining Env
   , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
-  , cuId    :: Integer   -- ^ Id            of   defining Cstr (DEBUG)
+  , cuId    :: SubcId    -- ^ Id            of   defining Cstr (DEBUG)
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
   }
 
@@ -174,10 +174,10 @@ data BindPred  = BP
 --------------------------------------------------------------------------------
 data Index = FastIdx
   { bindExpr :: BindId |-> BindPred -- ^ BindPred for each BindId
-  , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
+  , bindPrev :: BIndex |-> BIndex   -- ^ "parent" (immediately dominating) binder
   , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
   , kvDef    :: KVar   |-> Hyp      -- ^ Constraints defining each `KVar`
-  , kvDeps   :: CMap [KVar]         -- ^ List of (Cut) KVars on which a SubC depends
+  , kvDeps   :: CMap [KIndex]       -- ^ List of (Cut) KVars on which a SubC depends
   }
 
 type CMap a  = M.HashMap SubcId a

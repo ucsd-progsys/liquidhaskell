@@ -25,6 +25,7 @@ import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
+import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 -- import qualified Language.Fixpoint.Solver.Fast        as Fast
@@ -183,18 +184,6 @@ envConcKVars g bs = (concat pss, concat kss)
     is            = F.elemsIBindEnv bs
     be            = F.soeBinds (snd3 g)
 
-{-
-exprKind :: F.Expr -> Either F.KVSub F.Expr
-exprKind (F.PKVar k su) = Left  (k, su)
-exprKind p              = Right p
-
-bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
-bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
-  where
-    rs               = F.reftConjuncts $ F.sr_reft sr
-    (x, sr)          = F.lookupBindEnv i (F.soeBinds be)
--}
-
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
   where
@@ -264,9 +253,6 @@ hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
         p'  := the predicate corresponding to the "extra" binders
 
  -}
-
-(&.&) :: F.Pred -> F.Pred -> F.Pred
-(&.&) p q = F.pAnd [p, q]
 
 cubePred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Cube -> ExprInfo
 cubePred g s k su c   = ( F.pExist xts (psu &.& p) , kI )

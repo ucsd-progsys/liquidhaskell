@@ -37,6 +37,7 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
+  , (&.&), (|.|)
   , pExist
   , mkEApp
   , mkProp
@@ -592,6 +593,12 @@ isSingletonExpr _ _        = Nothing
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
+
+(&.&) :: Pred -> Pred -> Pred
+(&.&) p q = pAnd [p, q]
+
+(|.|) :: Pred -> Pred -> Pred
+(|.|) p q = pOr [p, q]
 
 pIte :: Pred -> Expr -> Expr -> Expr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]

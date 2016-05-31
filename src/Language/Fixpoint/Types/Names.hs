@@ -407,11 +407,14 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix  :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
+
+kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"
 existPrefix  = "lq_ext$"
 
