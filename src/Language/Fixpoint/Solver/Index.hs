@@ -104,13 +104,15 @@ buddies _        = []
 backgroundPred :: Index -> F.Pred
 --------------------------------------------------------------------------------
 backgroundPred = error "TBD:backgroundPred"
+-- TODO: backgroundPred, lhsPred, hook into the ACTUAL SOLVER
+
 
 --------------------------------------------------------------------------------
 -- | Flipping on bits for a single SubC, given current Solution ----------------
 --------------------------------------------------------------------------------
 lhsPred :: Index -> F.SolEnv -> Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
-lhsPred = undefined
+lhsPred = error "TBD:lhsPred"
 
 
 {- | [NOTE: Bit-Indexed Representation]
