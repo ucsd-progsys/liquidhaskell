@@ -51,7 +51,12 @@ gen_increasing f thm x y
   <!  f (y-1)   ?   gen_increasing f thm x (y-1)
   <!  f y       ?   thm (y-1)
   *** QED
-
+revgen_increasing :: (Int -> Int) -> (Int -> Int -> Proof) -> (Int -> Proof)
+{-@ revgen_increasing :: f:(Nat -> Int)
+                   ->  (x:Nat -> y:Greater x -> {v:Proof | f x < f y })
+                   -> z:Nat -> {v:Proof | f z < f (z+1) } @-}
+revgen_increasing f thm z
+  = thm z (z+1)
 
 gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 {-@ gen_incr :: f:(Nat -> Int)

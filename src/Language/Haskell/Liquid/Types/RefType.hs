@@ -749,8 +749,8 @@ subsFree _ _ _ t@(RExprArg _)
   = t
 subsFree m s z@(α, τ, _) (RRTy e r o t)
   = RRTy (mapSnd (subsFree m s z) <$> e) (subt (α, τ) r) o (subsFree m s z t)
-subsFree _ _ _ t@(RHole _)
-  = t
+subsFree _ _ (α, τ, _) (RHole r)
+  = RHole (subt (α, τ) r)
 
 subsFrees
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
