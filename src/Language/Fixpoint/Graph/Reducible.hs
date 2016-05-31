@@ -6,29 +6,13 @@
 
 module Language.Fixpoint.Graph.Reducible ( isReducible ) where
 
--- import           GHC.Conc                  (getNumProcessors)
--- import           Control.Monad             (when, forM_)
--- import           GHC.Generics              (Generic)
--- import           Language.Fixpoint.Utils.Files
--- import           Language.Fixpoint.Types.Config
--- import           Language.Fixpoint.Types.PrettyPrint
-
 import qualified Data.Tree                            as T
 import qualified Data.HashMap.Strict                  as M
-import Data.Graph.Inductive
+import           Data.Graph.Inductive
 
 import           Language.Fixpoint.Misc         -- hiding (group)
 import qualified Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.Types              as F
-
--- import           Language.Fixpoint.Graph.Types
--- import qualified Data.Graph                           as G
--- import           Data.Function (on)
--- import           Data.Maybe                     (mapMaybe, fromMaybe)
--- import           Data.Hashable
--- import           Text.PrettyPrint.HughesPJ
--- import           Data.List (sortBy)
--- import qualified Data.HashSet              as S
 
 
 --------------------------------------------------------------------------------
@@ -42,9 +26,11 @@ isReducible fi = all (isReducibleWithStart g) vs
 isReducibleWithStart :: Gr a b -> Node -> Bool
 isReducibleWithStart g x = all (isBackEdge domList) rEdges
   where
-    dfsTree = head $ dff [x] g --head because only care about nodes reachable from 'start node'?
-    rEdges = [e | e@(a,b) <- edges g, isDescendant a b dfsTree]
-    domList = dom g x
+    dfsTree              = head $ dff [x] g --head because only care about nodes reachable from 'start node'?
+    rEdges               = [ e | e@(a,b) <- edges g, isDescendant a b dfsTree]
+    domList              = dom g x
+
+
 
 convertToGraph :: F.SInfo a -> Gr Int ()
 convertToGraph fi = mkGraph vs es
