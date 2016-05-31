@@ -17,6 +17,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution tables
     Solution
   , Sol
+  , CMap
 
   -- * Solution elements
   , Hyp, Cube (..), QBind
@@ -49,7 +50,7 @@ import           Prelude hiding (lookup)
 import           GHC.Generics
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
-import qualified Data.HashSet              as S
+-- import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
@@ -172,9 +173,11 @@ data BindPred  = BP
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
 data Index = FastIdx
-  { bindExpr :: BindId |-> BindPred        -- ^ BindPred for each BindId
-  , bindPrev :: BindId |-> BindId          -- ^ "parent" (immediately dominating) binder
-  , kvUse    :: KIndex |-> KVSub           -- ^ Definition of each `KIndex`
-  , kvDef    :: KVar   |-> Hyp             -- ^ Constraints defining each `KVar`
-  , kvDeps   :: KVar   |-> S.HashSet KVar  -- ^ Set of Cut KVars on which a KVar depends
+  { bindExpr :: BindId |-> BindPred -- ^ BindPred for each BindId
+  , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
+  , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
+  , kvDef    :: KVar   |-> Hyp      -- ^ Constraints defining each `KVar`
+  , kvDeps   :: CMap [KVar]         -- ^ List of (Cut) KVars on which a SubC depends
   }
+
+type CMap a  = M.HashMap SubcId a

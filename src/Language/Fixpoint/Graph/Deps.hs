@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE RecordWildCards       #-}
 
 module Language.Fixpoint.Graph.Deps (
@@ -89,11 +90,11 @@ mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
     errU i        = errorstar $ "graphSlice: Unknown constraint " ++ show i
 
 mkSlice_ :: F.TaggedC c a
-         => M.HashMap CId (c a)
+         => M.HashMap F.SubcId (c a)
          -> G.Graph
          -> [DepEdge]
-         -> (G.Vertex -> CId)
-         -> (CId -> G.Vertex)
+         -> (G.Vertex -> F.SubcId)
+         -> (F.SubcId -> G.Vertex)
          -> Slice
 mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
                                   , slConcCs = concCs
@@ -106,7 +107,7 @@ mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
     rootVs             = i2v <$> concCs
     reachVs            = concatMap flatten $ G.dfs g' rootVs
 
-sliceEdges :: [CId] -> [DepEdge] -> [DepEdge]
+sliceEdges :: [F.SubcId] -> [DepEdge] -> [DepEdge]
 sliceEdges is es = [ (i, i, filter inSlice js) | (i, _, js) <- es, inSlice i ]
   where
     inSlice i    = M.member i im
@@ -136,7 +137,7 @@ cGraph fi = CGraph { gEdges = es
                    , gSucc  = next
                    , gSccs  = length sccs }
   where
-    es             = [(i, i, next i) | i <- M.keys $ F.cm fi]
+    es             = [(i, i, M.lookupDefault [] i next) | i <- M.keys $ F.cm fi]
     next           = kvSucc fi
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
@@ -156,21 +157,21 @@ graphRanks g vf = (M.fromList irs, sccs)
 --------------------------------------------------------------------------------
 -- | Dependencies --------------------------------------------------------------
 --------------------------------------------------------------------------------
-kvSucc :: (F.TaggedC c a) => F.GInfo c a -> CSucc
----------------------------------------------------------------------------
+kvSucc :: (F.TaggedC c a) => F.GInfo c a -> CMap [F.SubcId]
+--------------------------------------------------------------------------------
 kvSucc fi = succs cm rdBy
   where
     rdBy  = kvReadBy fi
     cm    = F.cm     fi
 
-succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CSucc
-succs cm rdBy i = sortNub $ concatMap kvReads iKs
+succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CMap [F.SubcId]
+succs cm rdBy = (sortNub . concatMap kvReads . kvWrites) <$> cm
   where
-    iKs         = kvWriteBy cm i
-    kvReads k   = M.lookupDefault [] k rdBy
+    kvReads k = M.lookupDefault [] k rdBy
+    kvWrites  = V.kvars . F.crhs
 
 --------------------------------------------------------------------------------
-kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> CId -> [F.KVar]
+kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> F.SubcId -> [F.KVar]
 --------------------------------------------------------------------------------
 kvWriteBy cm = V.kvars . F.crhs . lookupCMap cm
 
@@ -233,21 +234,18 @@ elimDeps si es nonKutVs = graphDeps si {-  trace msg -} es'
           ki ------------> c
 -}
 graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim es ks = {- tracepp msg $ -} ikvgEdges $ elimKs ks $ edgesIkvg es
+graphElim es ks = ikvgEdges $ elimKs ks $ edgesIkvg es
   where
     elimKs      = flip (S.foldl' elimK)
-    -- msg         = "graphElim: ks = " ++ showpp ks ++ "\nes = " ++ showpp es
 
 elimK  :: IKVGraph -> F.KVar -> IKVGraph
 elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
---elimK g k   = trace ("num edges: " ++ (show $ length $ ikvgEdges g') ++ "num nodes: " ++ (show $ length $ M.keys $ igSucc g')) g'
   where
    es'      = [(ki, c) | ki@(KVar _) <- kis, c@(Cstr _) <- cs]
    cs       = getSuccs g kV
    cis      = getPreds g kV
    kis      = concatMap (getPreds g) cis
    kV       = KVar k
-   --g'       = trace (show k) $ (g `addLinks` es') `delNodes` (kV : cis)
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
@@ -436,16 +434,18 @@ maximumDef _ xs = maximum xs
 graphDeps :: F.SInfo a -> [CEdge] -> CDeps
 ---------------------------------------------------------------------------
 graphDeps fi cs = CDs { cSucc   = gSucc cg
+                      , cPrev   = cPrevM
                       , cNumScc = gSccs cg
                       , cRank   = M.fromList [(i, rf i) | i <- is ]
                       }
   where
-    rf    = rankF (F.cm fi) outRs inRs
-    inRs  = inRanks fi es outRs
-    outRs = gRanks cg
-    es    = gEdges cg
-    cg    = cGraphCE cs
-    is    = [i | (Cstr i, _) <- cs]
+    rf          = rankF (F.cm fi) outRs inRs
+    inRs        = inRanks fi es outRs
+    outRs       = gRanks cg
+    es          = gEdges cg
+    cg          = cGraphCE cs
+    is          = [i | (Cstr i, _) <- cs]
+    cPrevM      = sortNub <$> group [ (i, k) | (KVar k, Cstr i) <- cs ]
 
 --TODO merge these with cGraph and kvSucc
 cGraphCE :: [CEdge] -> CGraph
@@ -454,19 +454,19 @@ cGraphCE cs = CGraph { gEdges = es
                      , gSucc  = next
                      , gSccs  = length sccs }
   where
-    es             = [(i, i, next i) | (Cstr i, _) <- cs]
-    next           = kvSuccCE cs
+    es             = [(i, i, M.lookupDefault [] i next) | (Cstr i, _) <- cs]
+    next           = cSuccM cs
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
 
-kvSuccCE :: [CEdge] -> CSucc
-kvSuccCE cs i = sortNub $ concatMap kvReads iKs
+cSuccM      :: [CEdge] -> CMap [F.SubcId]
+cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
   where
-    rdBy      = group [(k, i) | (KVar k, Cstr i) <- cs]
-    iKs       = [k | (Cstr i1, KVar k) <- cs, i == i1]
-    kvReads k = M.lookupDefault [] k rdBy
+    kRdBy k  = M.lookupDefault [] k kReads
+    iWrites  = group [ (i, k) | (Cstr i, KVar k) <- es ]
+    kReads   = group [ (k, j) | (KVar k, Cstr j) <- es ]
 
-rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
+rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> F.SubcId -> Rank
 rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
   where
     outScc        = lookupCMap outR

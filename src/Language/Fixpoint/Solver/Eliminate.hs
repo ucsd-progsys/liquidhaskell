@@ -24,9 +24,9 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
-    fastI          = Index.create cfg sI cKs
+    fastI          = Index.create cfg sI kHyps cD
 
-cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar ->  SInfo a
+cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
     ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
@@ -63,7 +63,6 @@ nonCutHyp kI si k = nonCutCube <$> cs
 
 nonCutCube :: SimpC a -> Sol.Cube
 nonCutCube c = Sol.Cube (senv c) (rhsSubst c) (subcId c) (stag c)
-
 
 rhsSubst :: SimpC a -> Subst
 rhsSubst             = rsu . crhs

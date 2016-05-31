@@ -24,22 +24,23 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Types.Solutions
+import           Language.Fixpoint.Graph            (CDeps (..))
 
 import qualified Data.HashMap.Strict  as M
-import qualified Data.HashSet         as S
+-- import qualified Data.HashSet         as S
 import qualified Data.Graph.Inductive as G
 import qualified Data.List            as L
 --------------------------------------------------------------------------------
 -- | Creating an Index ---------------------------------------------------------
 --------------------------------------------------------------------------------
-create :: Config -> F.SInfo a -> S.HashSet F.KVar -> Index
+create :: Config -> F.SInfo a -> [(F.KVar, Hyp)] -> CDeps -> Index
 --------------------------------------------------------------------------------
-create _cfg sI cKs = FastIdx
+create _cfg sI kHyps cDs = FastIdx
   { bindExpr = bE
   , kvUse    = kU
   , bindPrev = mkBindPrev sI
-  , kvDef    = mkKvDef    sI
-  , kvDeps   = mkKvDeps   sI cKs
+  , kvDef    = M.fromList kHyps
+  , kvDeps   = cPrev cDs
   }
   where
     (bE, kU) = mkBindExpr sI
@@ -61,13 +62,6 @@ mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
     tx j k@(kv,_) = (KIndex (Bind i) j kv, k)
 
 --------------------------------------------------------------------------------
-mkKvDef :: F.SInfo a -> (F.KVar |-> Hyp)
-mkKvDef = error "TBD:mkKvDef"
-
-mkKvDeps :: F.SInfo a -> S.HashSet F.KVar -> (F.KVar |-> S.HashSet F.KVar)
-mkKvDeps = error "TBD:mkKvDeps"
-
---------------------------------------------------------------------------------
 mkBindPrev :: F.SInfo a -> (F.BindId |-> F.BindId)
 mkBindPrev sI = M.fromList iDoms
   where
@@ -85,7 +79,7 @@ mkDoms is envs  = G.iDom (mkEnvTree is envs) (minimum is)
 mkEnvTree :: [F.BindId] -> [[F.BindId]] -> G.Gr Int ()
 mkEnvTree is envs
   | isTree es   = G.mkGraph (node <$> is) es
-  | otherwise   = error "mkBindPrev: Malformed environments -- not tree-like!"
+  | otherwise   = error "mkBindPrev: Malformed environments -- not tree-like! (TODO: move into Validate)"
   where
     es          = concatMap envEdges envs
     envEdges    = map edge . buddies . L.sort

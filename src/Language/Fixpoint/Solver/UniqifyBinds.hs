@@ -6,7 +6,6 @@
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Graph (CId)
 import           Language.Fixpoint.Misc          (fst3, mlookup)
 
 import qualified Data.HashMap.Strict as M
@@ -29,7 +28,7 @@ renameAll fi2 = fi4
     idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 --------------------------------------------------------------
 
-data Ref = RB !BindId | RI !CId deriving (Eq, Generic)
+data Ref = RB !BindId | RI !SubcId deriving (Eq, Generic)
 
 instance NFData   Ref
 instance Hashable Ref
@@ -47,7 +46,7 @@ mkIdMap :: SInfo a -> IdMap
 --------------------------------------------------------------
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
-updateIdMap :: BindEnv -> IdMap -> CId -> SimpC a -> IdMap
+updateIdMap :: BindEnv -> IdMap -> SubcId -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids = elemsIBindEnv $ senv s
