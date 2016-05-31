@@ -36,7 +36,8 @@ iack h n x
 
 -- | Equivalence of definitions
 
-{-@ def_eq :: n:Nat -> x:Nat -> {v:Proof | ack (n+1) x == iack x n 2 }  / [x] @-}
+{-@ def_eq :: n:Nat -> x:Nat -> { ack (n+1) x == iack x n 2 }  / [x] @-}
+def_eq :: Int -> Int -> Proof
 def_eq n x
   | x == 0
   = proof $

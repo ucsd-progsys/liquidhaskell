@@ -1,4 +1,5 @@
 -- | Unification for simple terms a la Zombie
+-- | cite : http://www.seas.upenn.edu/~sweirich/papers/congruence-extended.pdf
 
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}

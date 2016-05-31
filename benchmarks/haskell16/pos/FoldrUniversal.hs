@@ -1,3 +1,6 @@
+-- | Universal property of foldr a la Zombie
+-- | cite : http://www.seas.upenn.edu/~sweirich/papers/congruence-extended.pdf
+
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
