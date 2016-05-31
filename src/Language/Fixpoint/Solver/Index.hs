@@ -50,7 +50,6 @@ mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
 mkBindExpr = error "TBD:mkBindExpr"
 
 
-
 --------------------------------------------------------------------------------
 mkKvDef :: F.SInfo a -> (F.KVar |-> Hyp)
 mkKvDef = error "TBD:mkKvDef"
@@ -60,11 +59,9 @@ mkKvDeps = error "TBD:mkKvDeps"
 
 --------------------------------------------------------------------------------
 mkBindPrev :: F.SInfo a -> (F.BindId |-> F.BindId)
-mkBindPrev sI
-  | isTree    = M.fromList iDoms
-  | otherwise = error "mkBindPrev: Malformed environments -- not tree-like!"
+mkBindPrev sI = M.fromList iDoms
   where
-    isTree    = length iDoms == length bindIds - 1
+    -- isTree    = length iDoms == length bindIds - 1
     iDoms     = mkDoms bindIds cEnvs
     bindIds   = fst3   <$> F.bindEnvToList (F.bs sI)
     cEnvs     = cBinds <$> M.elems         (F.cm sI)
@@ -72,15 +69,25 @@ mkBindPrev sI
 
 -- >>> mkDoms [1,2,3,4,5] [[1,2,3], [1,2,4], [1,5]]
 -- [(2,1),(3,2),(4,2),(5,1)]
-mkDoms :: [F.BindId] -> [[F.BindId]] -> [(F.BindId, F.BindId)]
-mkDoms is envs  = G.iDom g i0
+mkDoms :: ListNE F.BindId -> [[F.BindId]] -> [(F.BindId, F.BindId)]
+mkDoms is envs  = G.iDom (mkEnvTree is envs) (minimum is)
+
+mkEnvTree :: [F.BindId] -> [[F.BindId]] -> G.Gr Int ()
+mkEnvTree is envs
+  | isTree es   = G.mkGraph (node <$> is) es
+  | otherwise   = error "mkBindPrev: Malformed environments -- not tree-like!"
   where
-    i0          = minimum is
-    g           :: G.Gr Int ()
-    g           = G.mkGraph (node <$> is) (concatMap edges envs)
-    edges       = map edge . buddies . L.sort
+    es          = concatMap envEdges envs
+    envEdges    = map edge . buddies . L.sort
     node i      = (i, i)
     edge (i, j) = (i, j, ())
+
+-- TODO: push the `isTree` check into Validate
+isTree :: [(Int, Int, a)] -> Bool
+isTree es    = allMap (sizeLE 1) inEs
+  where
+    inEs     = group [ (j, i) | (i, j, _) <- es]
+    sizeLE n = (<= n) . length . sortNub
 
 buddies :: [a] -> [(a, a)]
 buddies (x:y:zs) = (x, y) : buddies (y:zs)
