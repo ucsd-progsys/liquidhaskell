@@ -30,6 +30,7 @@ import qualified Data.HashMap.Strict  as M
 -- import qualified Data.HashSet         as S
 import qualified Data.Graph.Inductive as G
 import qualified Data.List            as L
+
 --------------------------------------------------------------------------------
 -- | Creating an Index ---------------------------------------------------------
 --------------------------------------------------------------------------------
