@@ -21,6 +21,8 @@ module Proves (
 
   , Proof
 
+  , withTheorem
+
   ) where
 
 
@@ -37,6 +39,10 @@ infixl 2 ***
 
 
 type Proof = ()
+
+
+withTheorem :: Proof -> a -> a
+withTheorem _ a = a
 
 
 (?) :: (Proof -> a) -> Proof -> a
@@ -125,28 +131,15 @@ class OptEq a r where
 
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Proof -> b) where
-  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x }
+  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
   @-}
   (==!) x _ _ = x
 
 instance (a~b) => OptEq a b where
 {-@ instance OptEq a b where
-  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x }
+  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==!) x _ = x
-
-
-instance OptEq a a where
-{-@ instance OptEq a a where
-  ==! :: x:a -> y:{a| x == y} -> {v:a | v == x }
-  @-}
-  (==!) x _ = x
-
-instance OptEq a (Proof -> a) where
-{-@ instance OptEq a (Proof -> a) where
-  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:a | v == x }
-  @-}
-  (==!) x _ _ = x
 
 
 class OptLEq a r where
