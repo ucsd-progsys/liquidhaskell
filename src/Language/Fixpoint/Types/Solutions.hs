@@ -46,7 +46,7 @@ module Language.Fixpoint.Types.Solutions (
 
 import           Prelude hiding (lookup)
 import qualified Data.HashMap.Strict       as M
-
+import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
@@ -54,7 +54,6 @@ import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 
 -- import           Text.PrettyPrint.HughesPJ
--- import qualified Data.HashSet              as S
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
@@ -62,8 +61,6 @@ import           Language.Fixpoint.Types.Constraints
 
 type Solution = Sol QBind
 type QBind    = [EQual]
-
-
 
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
@@ -145,7 +142,7 @@ type Cand a   = [(Expr, a)]
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
 --------------------------------------------------------------------------------
-newtype KIndex = KIndex Int
+data KIndex = KIndex BIndex Int
 
 --------------------------------------------------------------------------------
 -- | A BIndex is created for each LHS Bind or RHS constraint
@@ -158,8 +155,8 @@ data BIndex    = Bind !BindId
 -- | Each `Bind` corresponds to a conjunction of a `bpConc` and `bpKVars`
 --------------------------------------------------------------------------------
 data BindPred  = BP
-  { bpConc :: !Pred                   -- ^ Concrete predicate (PTrue o)
-  , bpKVar :: [KIndex]                  -- ^ KVar-Subst pairs
+  { bpConc :: !Pred                  -- ^ Concrete predicate (PTrue o)
+  , bpKVar :: [KIndex]               -- ^ KVar-Subst pairs
   }
 
 
@@ -169,8 +166,9 @@ data BindPred  = BP
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
 data Index = FastIdx
-  { bindExpr :: BindId |-> BindPred   -- ^ BindPred for each BindId
-  , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
-  , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
-  , kvDef    :: KVar   |-> Hyp    -- ^ Constraints defining each `KVar`
+  { bindExpr :: BindId |-> BindPred        -- ^ BindPred for each BindId
+  , bindPrev :: BindId |-> BindId          -- ^ "parent" (immediately dominating) binder
+  , kvUse    :: KIndex |-> KVSub           -- ^ Definition of each `KIndex`
+  , kvDef    :: KVar   |-> Hyp             -- ^ Constraints defining each `KVar`
+  , kvDeps   :: KVar   |-> S.HashSet KVar  -- ^ Set of Cut KVars on which a KVar depends
   }

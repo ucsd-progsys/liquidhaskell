@@ -7,7 +7,7 @@ import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
-import qualified Language.Fixpoint.Solver.Index    as Fast
+import qualified Language.Fixpoint.Solver.Index    as Index -- Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
@@ -24,7 +24,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
-    fastI          = Fast.create  cfg sI
+    fastI          = Index.create cfg sI cKs
 
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar ->  SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
