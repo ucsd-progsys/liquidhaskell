@@ -47,8 +47,18 @@ create _cfg sI cKs = FastIdx
 
 --------------------------------------------------------------------------------
 mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
-mkBindExpr = error "TBD:mkBindExpr"
+mkBindExpr sI = (M.fromList ips, M.fromList kSus)
+  where
+    kSus = [ (k, kSu)                | (_, _, iks) <- ipks, (k, kSu) <- iks    ]
+    ips  = [ (i, BP p (fst <$> iks)) | (i, p, iks) <- ipks                     ]
+    ipks = [ (i, p, iks)             | (i, x, r)   <- F.bindEnvToList (F.bs sI)
+                                     , let (p, iks) = mkBindPred i x r         ]
 
+mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub)])
+mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
+  where
+    (ps, ks)      = F.sortedReftConcKVars x sr
+    tx j k@(kv,_) = (KIndex (Bind i) j kv, k)
 
 --------------------------------------------------------------------------------
 mkKvDef :: F.SInfo a -> (F.KVar |-> Hyp)

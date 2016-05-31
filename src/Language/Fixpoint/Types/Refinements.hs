@@ -132,7 +132,6 @@ instance B.Binary Expr
 instance B.Binary Reft
 instance B.Binary SortedReft
 
-
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where

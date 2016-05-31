@@ -170,12 +170,20 @@ type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> ExprInfo
-apply g s bs  = (F.pAnd (pks : ps), kI)
+apply g s bs     = (F.pAnd (pks : ps), kI)
   where
-    (pks, kI) = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
-    (ks, ps)  = mapEither exprKind es
-    es        = concatMap (bindExprs g) (F.elemsIBindEnv bs)
+    (pks, kI)    = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (ps,  ks)    = envConcKVars g bs
 
+envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub])
+envConcKVars g bs = (concat pss, concat kss)
+  where
+    (pss, kss)    = unzip [ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+    xrs           = (`F.lookupBindEnv` be) <$> is
+    is            = F.elemsIBindEnv bs
+    be            = F.soeBinds (snd3 g)
+
+{-
 exprKind :: F.Expr -> Either F.KVSub F.Expr
 exprKind (F.PKVar k su) = Left  (k, su)
 exprKind p              = Right p
@@ -183,8 +191,9 @@ exprKind p              = Right p
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
   where
-    (x, sr)          = F.lookupBindEnv i (F.soeBinds be)
     rs               = F.reftConjuncts $ F.sr_reft sr
+    (x, sr)          = F.lookupBindEnv i (F.soeBinds be)
+-}
 
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g

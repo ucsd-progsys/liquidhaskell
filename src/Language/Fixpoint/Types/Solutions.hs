@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 
 -- | This module contains the top-level SOLUTION data types,
 --   including various indices used for solving.
@@ -41,10 +42,12 @@ module Language.Fixpoint.Types.Solutions (
   , Index  (..)
   , KIndex (..)
   , BindPred (..)
-  , BIndex
+  , BIndex (..)
   ) where
 
 import           Prelude hiding (lookup)
+import           GHC.Generics
+import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
@@ -142,15 +145,18 @@ type Cand a   = [(Expr, a)]
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
 --------------------------------------------------------------------------------
-data KIndex = KIndex BIndex Int
+data KIndex = KIndex BIndex Int KVar
+              deriving (Eq, Ord, Show, Generic)
 
+instance Hashable KIndex
 --------------------------------------------------------------------------------
 -- | A BIndex is created for each LHS Bind or RHS constraint
 --------------------------------------------------------------------------------
 data BIndex    = Bind !BindId
                | Cstr !SubcId
-                 deriving (Eq, Ord, Show)
+                 deriving (Eq, Ord, Show, Generic)
 
+instance Hashable BIndex
 --------------------------------------------------------------------------------
 -- | Each `Bind` corresponds to a conjunction of a `bpConc` and `bpKVars`
 --------------------------------------------------------------------------------
