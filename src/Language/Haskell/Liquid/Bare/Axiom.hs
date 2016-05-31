@@ -84,16 +84,20 @@ makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Locat
 makeAssumeType tce lmap x v xts ams def
   | not (null ams) 
   = x {val = axiomType x t}
+  | isBool $ ty_res trep  
+  = (x {val = at `strengthenRes` F.subst su bref})
   | otherwise
   = (x {val = at `strengthenRes` F.subst su ref})
   where
+    trep = toRTypeRep t 
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
     at = axiomType x t 
 
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
            Left e -> e
            Right e -> panic Nothing $ show e
-    ref = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) le)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
