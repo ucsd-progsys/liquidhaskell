@@ -96,8 +96,12 @@ makeAssumeType tce lmap x v xts ams def
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
            Left e -> e
            Right e -> panic Nothing $ show e
+
+    ble = case runToLogic tce lmap mkErr (coreToPred def') of
+           Left e -> e
+           Right e -> panic Nothing $ show e
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
-    bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) le)
+    bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
@@ -130,9 +134,17 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = insertLogicEnv (val x) ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
-    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+    makeProp e 
+      | isBool $ ty_res trep
+      = F.mkProp e
+      | otherwise
+      = e 
+
+
+    nargs = dropWhile isClassType $ ty_args trep 
+    trep  = toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
@@ -262,7 +274,10 @@ axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     res = ty_res t `strengthen` MkUReft ref mempty mempty
 
-    ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
+    ref = if isBool (ty_res t) then bref else eref 
+
+    eref  = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
+    bref = F.Reft (x, F.PIff (F.mkProp (F.EVar x)) (mkApp xs))
 
     mkApp = F.mkEApp s . map F.EVar
 
