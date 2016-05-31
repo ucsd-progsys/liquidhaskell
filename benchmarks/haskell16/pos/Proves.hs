@@ -21,7 +21,7 @@ module Proves (
 
   , Proof
 
-  , withTheorem
+  , byTheorem
 
   ) where
 
@@ -41,8 +41,8 @@ infixl 2 ***
 type Proof = ()
 
 
-withTheorem :: Proof -> a -> a
-withTheorem _ a = a
+byTheorem :: a -> Proof -> a
+byTheorem a _ = a
 
 
 (?) :: (Proof -> a) -> Proof -> a
