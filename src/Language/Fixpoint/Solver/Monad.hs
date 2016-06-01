@@ -40,6 +40,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
+import qualified Language.Fixpoint.Solver.Index as Index
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
@@ -183,7 +184,7 @@ declare fi s0 = withContext $ \me -> do
   return ()
 
 backgroundPred :: F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
-backgroundPred = error "TBD:backgroundPred"
+backgroundPred s0 = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 declareInitEnv :: SolveM ()
 declareInitEnv
