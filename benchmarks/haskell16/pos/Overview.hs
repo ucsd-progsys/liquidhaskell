@@ -34,9 +34,8 @@ unsafe () = ()
 {-@ safe :: () -> { fib 2 == 1 } @-}
 safe :: () -> Proof
 safe () =
-   fib 2 ==! fib 0 + fib 1
-
-   *** QED
+  fib 2 ==! fib 0 + fib 1
+  *** QED
 
 -- | fib 2 == fib 1 + fib 0
 
@@ -48,9 +47,9 @@ safe () =
 
 {-@ safe' :: () ->  { fib 3 == 2 } @-}
 safe' () =
-  toProof $
-     fib 3 ==! fib 2 + fib 1 ? safe ()
-           ==! 2
+  fib 3 ==! fib 2 + fib 1 ? safe ()
+        ==! 2
+        *** QED
 
 
 
@@ -71,15 +70,16 @@ fib_incr n
    *** QED
 
    | n == 1
-   = toProof $
-      fib 1 <=! fib 1 + fib 0
-            <=! fib 2
+   = fib 1
+       <=! fib 1 + fib 0
+       <=! fib 2
+       *** QED
    | otherwise
-   = toProof $
-       fib n
-          ==! fib (n-1) + fib (n-2)
-          <=! fib n     + fib (n-2)
-              ? fib_incr (n-1)
-          <=! fib n     + fib (n-1)
-              ? fib_incr (n-2)
-          <=! fib (n+1)
+   = fib n
+       ==! fib (n-1) + fib (n-2)
+       <=! fib n     + fib (n-2)
+           ? fib_incr (n-1)
+       <=! fib n     + fib (n-1)
+           ? fib_incr (n-2)
+       <=! fib (n+1)
+       *** QED
