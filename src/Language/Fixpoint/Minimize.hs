@@ -19,11 +19,11 @@ import           Control.DeepSeq
 ---------------------------------------------------------------------------
 -- polymorphic delta debugging implementation
 ---------------------------------------------------------------------------
-deltaDebug :: Int -> Oracle a c -> Config -> Solver a -> FInfo a -> [c] -> [c] -> IO [c]
+deltaDebug :: Bool -> Oracle a c -> Config -> Solver a -> FInfo a -> [c] -> [c] -> IO [c]
 deltaDebug min testSet cfg solve finfo set r = do
   let (s1, s2) = splitAt (length set `div` 2) set
-  if length set == min
-    then return set
+  if length set == 1
+    then deltaDebug1 min testSet cfg solve finfo set r
     else do
       test1 <- testSet cfg solve finfo (s1 ++ r)
       if test1
@@ -36,6 +36,11 @@ deltaDebug min testSet cfg solve finfo set r = do
               d1 <- deltaDebug min testSet cfg solve finfo s1 (s2 ++ r)
               d2 <- deltaDebug min testSet cfg solve finfo s2 (d1 ++ r)
               return (d1 ++ d2)
+
+deltaDebug1 True  _       _   _     _     set _ = return set
+deltaDebug1 False testSet cfg solve finfo set r = do
+  test <- testSet cfg solve finfo r
+  if test then return [] else return set
 
 type Oracle a c = (Config -> Solver a -> FInfo a -> [c] -> IO Bool)
 
@@ -73,7 +78,7 @@ testConstraints cfg solve fi cons  = do
 getMinFailingCons :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO (ConsList a)
 getMinFailingCons cfg solve fi = do
   let cons = M.toList $ cm fi
-  deltaDebug 1 testConstraints cfg solve fi cons []
+  deltaDebug True testConstraints cfg solve fi cons []
 
 
 ---------------------------------------------------------------------------
@@ -96,7 +101,7 @@ minQualsName = extFileName Min . fileName
 getMinPassingQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO [Qualifier]
 getMinPassingQuals cfg solve fi = do
   let qs = quals fi
-  deltaDebug 0 testQuals cfg solve fi qs []
+  deltaDebug False testQuals cfg solve fi qs []
 
 testQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> [Qualifier] -> IO Bool
 testQuals cfg solve fi qs = do
