@@ -233,11 +233,10 @@ applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s (k, su) = case Sol.lookup s k of
   Left cs   -> hypPred g s k su cs
-  Right eqs -> (qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right eqs -> (Sol.qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
 hypPred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Hyp  -> ExprInfo
 hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
-
 
 {- | `cubePred g s k su c` returns the predicate for
 
@@ -358,11 +357,6 @@ _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars
 
 --------------------------------------------------------------------------------
-qBindPred :: F.Subst -> Sol.QBind -> F.Expr
---------------------------------------------------------------------------------
-qBindPred su = F.subst su . F.pAnd . fmap F.eqPred
-
---------------------------------------------------------------------------------
 packKVars :: CombinedEnv -> [F.KVSub] -> [[F.KVSub]]
 --------------------------------------------------------------------------------
 packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
@@ -387,7 +381,7 @@ getCube :: Sol.Solution -> F.KVSub -> Maybe (Either F.Expr (F.KVSub, Sol.Cube))
 getCube s (k, su) = case Sol.lookup s k of
   Left []   -> Just (Left F.PFalse)
   Left [c]  -> Just (Right ((k, su), c))
-  Right eqs -> Just (Left  (qBindPred su eqs))
+  Right eqs -> Just (Left  (Sol.qBindPred su eqs))
   _         -> Nothing
 
 --------------------------------------------------------------------------------

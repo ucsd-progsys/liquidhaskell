@@ -1,8 +1,45 @@
--- | This module contains the code for the new "fast" solver, that creates
---   bit-indexed propositions for each binder and constraint-id, links them
---   via the environment dominator tree, after which each lhsPred is simply
---   a conjunction of the RHS binder and the "current" solutions for dependent
---   (cut) KVars.
+
+{- | This module contains the code for the new "fast" solver, that creates
+     bit-indexed propositions for each binder and constraint-id, links them
+     via the environment dominator tree, after which each lhsPred is simply
+     a conjunction of the RHS binder and the "current" solutions for dependent
+     (cut) KVars. See [NOTE: Bit-Indexed Representation] for details.
+
+     [NOTE: Bit-Indexed Representation]
+
+     The whole constraint system will be represented by a collection
+     of bit indexed propositions:
+
+     Definitions:
+
+     * Tree-Pred links are (i, i')
+     * BindIds are `i`
+     * SubcIds are `j`
+     * KIndex  are `kI`
+     * KVar    are `k`
+     * Substs  are `[X := Y]` where `X` are the KVars params
+     * Each BIndex = BindId i | SubcId j is represented by a
+       symbol, respectively `bp[i]`, `bp[j]`
+     * Solutions are `s`
+
+      bgPred = /\_{i in BindIds} ( bp[i] <=> bindPred i  )
+                           /\_{i in prev   } ( bp[i] ==> bp[prev(i)] )
+
+      bindPred i     = p /\_{kI in kIs} kIndexPred kI
+        where
+          (p, kIs)       = bindExpr i
+
+      kIndexPred kI  = * \/_{j in Js} bp[j] /\ (Y = Z[j])   IF  G[j] |- K[X:=Z[j]] ... <- kvDef k
+                       * bp[kI]                             OTHERWISE
+                                                            where
+                                                              k[X := Y] = kvUse kI
+
+      lhsPred s j    = /\_{kI} bp[kI] <=> kIndexSol s kI
+
+      kIndexSol s kI = s(k) [ X:= Y ]
+        where
+          k[X := Y]  = kvUse kI
+ -}
 
 -- TODO: backgroundPred, lhsPred, hook into the ACTUAL SOLVER
 
@@ -21,9 +58,11 @@ module Language.Fixpoint.Solver.Index (
     -- * LHS Predicate
     , lhsPred
 
-    , mkDoms
+    -- DEBUG
+    -- , mkDoms
     ) where
 
+import           Prelude hiding (lookup)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types            as F
@@ -84,12 +123,13 @@ mkDoms is envs  = G.iDom (mkEnvTree is envs) (minimum is)
 mkEnvTree :: [F.BindId] -> [(F.SubcId, [F.BindId])] -> G.Gr Int ()
 mkEnvTree is envs
   | isTree es   = G.mkGraph vs es
-  | otherwise   = error "mkBindPrev: Malformed environments -- not tree-like! (TODO: move into Validate)"
+  | otherwise   = error msg
   where
     vs          = node <$> (Bind <$> is)  ++ (Cstr . fst <$> envs)
     es          = edge <$> concatMap envEdges envs
     node i      = (bIndexInt i, bIndexInt i)
     edge (i, j) = (bIndexInt i, bIndexInt j, ())
+    msg         = "mkBindPrev: Malformed non-tree environments!" -- TODO: move into Validate
 
 envEdges :: (F.SubcId, [F.BindId]) -> [(BIndex, BIndex)]
 envEdges (i,js) = (maximum js', Cstr i) : buddies js'
@@ -135,15 +175,14 @@ bindPred me (BP p kIs) = F.pAnd (p : kIps)
   where
     kIps               = kIndexPred me <$> kIs
 
-
 kIndexPred :: Index -> KIndex -> F.Pred
 kIndexPred me kI = case kIDef of
                      Just cs -> F.pOr (kIndexCube ySu <$> cs)
                      Nothing -> bp kI
   where
     kIDef        = M.lookup k (kvDef me)
-    msg          = "kIndexPred: unknown KIndex" ++ show kI
     (k, ySu)     = safeLookup msg kI (kvUse me)
+    msg          = "kIndexPred: unknown KIndex" ++ show kI
 
 kIndexCube :: F.Subst -> Cube ->  F.Pred
 kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
@@ -151,17 +190,43 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
     zSu          = cuSubst c
     j            = cuId    c
 
+--------------------------------------------------------------------------------
+-- | `eqSubst [X := Y] [X := Z]` takes two substitutions over the SAME params
+--   `X`, typically of a KVar K, and returns the equality predicate `Y = Z`
+--------------------------------------------------------------------------------
 eqSubst :: F.Subst -> F.Subst -> F.Pred
-eqSubst = error "TBD:substPred"
+eqSubst (F.Su yM) (F.Su zM)
+  | eN == yN && eN == zN   = F.pAnd (M.elems eM)
+  | otherwise              = error msg
+  where
+    eM                     = M.intersectionWith (F.PAtom F.Ueq) yM zM
+    [eN, yN, zN]           = M.size <$> [eM, yM, zM]
+    msg                    = "eqSubst: incompatible substs "
+                           ++ show yM ++ " and " ++ show zM 
 
-{-
+--------------------------------------------------------------------------------
+-- | Flipping on bits for a single SubC, given current Solution ----------------
+--------------------------------------------------------------------------------
+lhsPred :: Index -> F.SolEnv -> Solution -> F.SimpC a -> F.Pred
+--------------------------------------------------------------------------------
+lhsPred me _ s c = F.pAnd [ bp kI `F.PIff` kIndexSol me s kI | kI <- kIs ]
+  where
+    kIs          = safeLookup msg j (kvDeps me)
+    j            = F.subcId c
+    msg          = "lhsPred: unknown SubcId" ++ show j
 
-      kIndexPred kI  = * \/_{j in Js} bp[j] /\ (Y = Z[j])   IF  G[j] |- K[X:=Z[j]] ... <- kvDef k
-                       * bp[kI]                             OTHERWISE
-                                                            where
-                                                              k[X := Y] = kvUse kI
+kIndexSol :: Index -> Solution -> KIndex -> F.Pred
+kIndexSol me s kI = case lookup s k of
+                      Right eqs -> qBindPred su eqs
+                      _         -> error msg2
+  where
+    (k, su)       = safeLookup msg1 kI (kvUse me)
+    msg1          = "kIndexSol: unknown KIndex"         ++ show kI
+    msg2          = "kIndexSol: unexpected non-cut var" ++ show k
 
--}
+--------------------------------------------------------------------------------
+-- | Helper/Local typeclass for generating bit-indices for various entities ----
+--------------------------------------------------------------------------------
 
 class BitSym a where
   bx :: a -> F.Symbol
@@ -180,48 +245,3 @@ instance BitSym F.SubcId where
 instance BitSym BIndex where
   bx (Bind i) = bx i
   bx (Cstr j) = bx j
-
-
---------------------------------------------------------------------------------
--- | Flipping on bits for a single SubC, given current Solution ----------------
---------------------------------------------------------------------------------
-lhsPred :: Index -> F.SolEnv -> Solution -> F.SimpC a -> F.Expr
---------------------------------------------------------------------------------
-lhsPred = error "TBD:lhsPred"
-
-
-{- | [NOTE: Bit-Indexed Representation]
-
-     The whole constraint system will be represented by a collection
-     of bit indexed propositions:
-
-     Definitions:
-
-     * Tree-Pred links are (i, i')
-     * BindIds are `i`
-     * SubcIds are `j`
-     * KIndex  are `kI`
-     * KVar    are `k`
-     * Substs  are `[X := Y]` where `X` are the KVars params
-     * Each BIndex = BindId i | SubcId j is represented by a
-       symbol, respectively `bp[i]`, `bp[j]`
-     * Solutions are `s`
-
-      bgPred = /\_{i in BindIds} ( bp[i] <=> bindPred i  )
-                           /\_{i in prev   } ( bp[i] ==> bp[prev(i)] )
-
-      bindPred i     = p /\_{kI in kIs} kIndexPred kI
-        where
-          (p, kIs)       = bindExpr i
-
-      kIndexPred kI  = * \/_{j in Js} bp[j] /\ (Y = Z[j])   IF  G[j] |- K[X:=Z[j]] ... <- kvDef k
-                       * bp[kI]                             OTHERWISE
-                                                            where
-                                                              k[X := Y] = kvUse kI
-
-      lhsPred s j    = /\_{kI} bp[kI] <=> kIndexSol s kI
-
-      kIndexSol s kI = s(k) [ X:= Y ]
-        where
-          k[X := Y]  = kvUse kI
- -}

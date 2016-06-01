@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Lookup
   , lookupQBind
   , lookup
+  , qBindPred
 
   -- * Conversion for client
   , result
@@ -97,7 +98,7 @@ type Hyp      = ListNE Cube
 data Cube = Cube
   { cuBinds :: IBindEnv  -- ^ Binders       from defining Env
   , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
-  , cuId    :: SubcId    -- ^ Id            of   defining Cstr (DEBUG)
+  , cuId    :: SubcId    -- ^ Id            of   defining Cstr
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
   }
 
@@ -112,6 +113,11 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 --------------------------------------------------------------------------------
 fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe Index -> Sol a
 fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
+
+--------------------------------------------------------------------------------
+qBindPred :: Subst -> QBind -> Pred
+--------------------------------------------------------------------------------
+qBindPred su = subst su . pAnd . fmap eqPred
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
