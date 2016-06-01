@@ -106,51 +106,35 @@ subcDeps bE = fmap (S.fromList . cBinds)
 closeSubcDeps :: (F.KVar |-> Hyp) -> CMap (S.HashSet KIndex) -> CMap (S.HashSet KIndex)
 closeSubcDeps kHypM kiM = cMap (execState act s0)
   where
-    act                 = mapM_ goCI (M.keys kiM)
+    act = mapM_ goCI (M.keys kiM)
+    s0  = DS M.empty M.empty
 
-    s0                  = DS M.empty M.empty
+    goCI :: F.SubcId -> DM (S.HashSet KIndex)
+    goCI = memoWith accCM $ \ci ->
+             case M.lookup ci kiM of
+               Just kis -> many goKI (S.toList kis)
+               Nothing  -> error $ "goCI: unknown SubcId: " ++ show ci
 
-    goCI                = memoWith gpCM $ \ci ->
-                            case M.lookup ci kiM of
-                              Just kis -> many goKI (S.toList kis)
-                              Nothing  -> error $ "goCI: unknown SubcId: " ++ show ci
+    goK  :: F.KVar -> DM (S.HashSet KIndex)
+    goK  = memoWith accKM $ \k ->
+             case M.lookup k kHypM of
+               Just cs -> many goCI (cuId <$> cs)
+               _       -> error "impossible"
 
-    goK                 = memoWith gpKM $ \k ->
-                            case M.lookup k kHypM of
-                              Just cs -> many goCI (cuId <$> cs)
-                              _       -> error "impossible"
+    goKI  :: KIndex -> DM (S.HashSet KIndex)
+    goKI ki = case M.lookup (kiKVar ki) kHypM of
+                Just _  -> goK k
+                Nothing -> return (S.singleton ki)
+              where
+                k = kiKVar ki
 
-    goKI ki             = case M.lookup (kiKVar ki) kHypM of
-                            Just _  -> goK k
-                            Nothing -> return (S.singleton ki)
-                          where
-                            k = kiKVar ki
+    accKM :: Acc F.KVar (S.HashSet KIndex)
+    accKM = (  \x   -> M.lookup x . kMap <$> get
+            ,  \x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
 
-    gpKM :: Acc F.KVar (S.HashSet KIndex)
-    gpKM = (  \x   -> M.lookup x . kMap <$> get
-           ,  \x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
-
-    gpCM :: Acc F.SubcId (S.HashSet KIndex)
-    gpCM = (  \x   -> M.lookup x . cMap <$> get
-           ,  \x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
-
-data DState = DS { kMap :: F.KVar   |-> S.HashSet KIndex
-                 , cMap :: F.SubcId |-> S.HashSet KIndex
-                 }
-
-type DM a    = State DState a
-
-type Acc a b = (a -> DM (Maybe b), a -> b -> DM b)
-
-memoWith :: Acc a b -> (a -> DM b) -> a -> DM b
-memoWith (getF, putF) f x = do
-  ro <- getF x
-  case ro of
-    Just r  -> return r
-    Nothing -> putF x =<< f x
-
-many :: (Monad m, EqHash b) => (a -> m (S.HashSet b)) -> [a] -> m (S.HashSet b)
-many f = foldM (\r x -> S.union r <$> f x) S.empty
+    accCM :: Acc F.SubcId (S.HashSet KIndex)
+    accCM = (  \x   -> M.lookup x . cMap <$> get
+            ,  \x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
 
 --------------------------------------------------------------------------------
 mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
@@ -306,3 +290,24 @@ instance BitSym F.SubcId where
 instance BitSym BIndex where
   bx (Bind i) = bx i
   bx (Cstr j) = bx j
+
+--------------------------------------------------------------------------------
+-- | Tiny memoizing library used in closeSubcDeps` -----------------------------
+--------------------------------------------------------------------------------
+type DM a   = State DState a
+
+data DState = DS { kMap :: F.KVar   |-> S.HashSet KIndex
+                 , cMap :: F.SubcId |-> S.HashSet KIndex
+                 }
+
+type Acc a b = (a -> DM (Maybe b), a -> b -> DM b)
+
+memoWith :: Acc a b -> (a -> DM b) -> a -> DM b
+memoWith (getF, putF) f x = do
+  ro <- getF x
+  case ro of
+    Just r  -> return r
+    Nothing -> putF x =<< f x
+
+many :: (Monad m, EqHash b) => (a -> m (S.HashSet b)) -> [a] -> m (S.HashSet b)
+many f = foldM (\r x -> S.union r <$> f x) S.empty
