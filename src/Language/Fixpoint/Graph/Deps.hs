@@ -383,26 +383,26 @@ boundElims :: (Cutable a) => Config -> (a -> Bool) -> [(a, a, [a])] -> Elims a -
 boundElims cfg isK es ds = maybe ds (bElims isK es ds) (elimBound cfg)
 
 bElims :: (Cutable a) => (a -> Bool) -> [(a, a, [a])] -> Elims a -> Int -> Elims a
-bElims isK es ds dMax = forceKuts kS' ds
+bElims isK es ds dMax   = forceKuts kS' ds
   where
-    (_ , kS')             = L.foldl' step (M.empty, depCuts ds) vs
-    vs                    = topoSort ds es
-    predM                 = invertEdges es
+    (_ , kS')           = L.foldl' step (M.empty, depCuts ds) vs
+    vs                  = topoSort ds es
+    predM               = invertEdges es
     addK v ks
-      | isK v             = S.insert v ks
-      | otherwise         = ks
+      | isK v           = S.insert v ks
+      | otherwise       = ks
 
-    zero                  = (0, S.empty)
+    zero                = (0, S.empty)
 
     step (dM, kS) v
-      | v `S.member` kS   = (M.insert v zero  dM,        kS)
-      | vDist < dMax      = (M.insert v dv    dM,        kS)
-      | otherwise         = (M.insert v zero  dM, addK v kS)
+      | v `S.member` kS = (M.insert v zero  dM,        kS)
+      | vDist < dMax    = (M.insert v dv    dM,        kS)
+      | otherwise       = (M.insert v zero  dM, addK v kS)
       where
-        dv                = trace msg dv_
-        msg               = show v ++ " DIST =" ++ show vDist ++ " SIZE = " ++ show vSize
-        dv_@(vDist, s)    = distV predM v dM
-        vSize             = S.size s
+        dv              = trace msg dv_
+        msg             = show v ++ " DIST =" ++ show vDist ++ " SIZE = " ++ show vSize
+        dv_@(vDist, s)  = distV predM v dM
+        vSize           = S.size s
 
 distV :: (Cutable a) => M.HashMap a [a] -> a -> M.HashMap a (Int, S.HashSet a) -> (Int, S.HashSet a)
 distV predM v dM = (d, s)

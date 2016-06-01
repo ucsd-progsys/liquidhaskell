@@ -71,9 +71,10 @@ import           Language.Fixpoint.Types.Solutions
 import           Language.Fixpoint.Graph            (CDeps (..))
 
 import qualified Data.HashMap.Strict  as M
--- import qualified Data.HashSet         as S
+import qualified Data.HashSet         as S
 import qualified Data.Graph.Inductive as G
 import qualified Data.List            as L
+import           Control.Monad.State
 
 --------------------------------------------------------------------------------
 -- | Creating an Index ---------------------------------------------------------
@@ -84,12 +85,72 @@ create _cfg sI kHyps _cDs = FastIdx
   { bindExpr = bE
   , kvUse    = kU
   , bindPrev = mkBindPrev sI
-  , kvDef    = M.fromList kHyps
-  , kvDeps   = error "TBD:kvDeps" -- cPrev cDs
+  , kvDef    = kHypM
+  , kvDeps   = mkKvDeps kHypM bE (F.cm sI)
   }
   where
+    kHypM    = M.fromList kHyps
     (bE, kU) = mkBindExpr sI
 
+--------------------------------------------------------------------------------
+mkKvDeps :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap [KIndex]
+mkKvDeps kHyps bE = fmap S.toList . closeSubcDeps kHyps . subcDeps bE
+
+subcDeps :: (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap (S.HashSet KIndex)
+subcDeps bE = fmap (S.fromList . cBinds)
+  where
+    cBinds  = concatMap bKIs . F.elemsIBindEnv . F.senv
+    bKIs i  = bpKVar $ safeLookup (msg i) i bE
+    msg  i  = "subcDeps: unknown BindId " ++ show i
+
+closeSubcDeps :: (F.KVar |-> Hyp) -> CMap (S.HashSet KIndex) -> CMap (S.HashSet KIndex)
+closeSubcDeps kHypM kiM = cMap (execState act s0)
+  where
+    act                 = mapM_ goCI (M.keys kiM)
+
+    s0                  = DS M.empty M.empty
+
+    goCI                = memoWith gpCM $ \ci ->
+                            case M.lookup ci kiM of
+                              Just kis -> many goKI (S.toList kis)
+                              Nothing  -> error $ "goCI: unknown SubcId: " ++ show ci
+
+    goK                 = memoWith gpKM $ \k ->
+                            case M.lookup k kHypM of
+                              Just cs -> many goCI (cuId <$> cs)
+                              _       -> error "impossible"
+
+    goKI ki             = case M.lookup (kiKVar ki) kHypM of
+                            Just _  -> goK k
+                            Nothing -> return (S.singleton ki)
+                          where
+                            k = kiKVar ki
+
+    gpKM :: Acc F.KVar (S.HashSet KIndex)
+    gpKM = (  \x   -> M.lookup x . kMap <$> get
+           ,  \x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
+
+    gpCM :: Acc F.SubcId (S.HashSet KIndex)
+    gpCM = (  \x   -> M.lookup x . cMap <$> get
+           ,  \x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
+
+data DState = DS { kMap :: F.KVar   |-> S.HashSet KIndex
+                 , cMap :: F.SubcId |-> S.HashSet KIndex
+                 }
+
+type DM a    = State DState a
+
+type Acc a b = (a -> DM (Maybe b), a -> b -> DM b)
+
+memoWith :: Acc a b -> (a -> DM b) -> a -> DM b
+memoWith (getF, putF) f x = do
+  ro <- getF x
+  case ro of
+    Just r  -> return r
+    Nothing -> putF x =<< f x
+
+many :: (Monad m, EqHash b) => (a -> m (S.HashSet b)) -> [a] -> m (S.HashSet b)
+many f = foldM (\r x -> S.union r <$> f x) S.empty
 
 --------------------------------------------------------------------------------
 mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
@@ -202,7 +263,7 @@ eqSubst (F.Su yM) (F.Su zM)
     eM                     = M.intersectionWith (F.PAtom F.Ueq) yM zM
     [eN, yN, zN]           = M.size <$> [eM, yM, zM]
     msg                    = "eqSubst: incompatible substs "
-                           ++ show yM ++ " and " ++ show zM 
+                           ++ show yM ++ " and " ++ show zM
 
 --------------------------------------------------------------------------------
 -- | Flipping on bits for a single SubC, given current Solution ----------------

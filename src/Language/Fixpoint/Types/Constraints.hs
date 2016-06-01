@@ -452,7 +452,7 @@ allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
 data GInfo c a =
-  FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
+  FI { cm       :: !(M.HashMap SubcId (c a)) -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
      , lits     :: !(SEnv Sort)               -- ^ Constant symbols
