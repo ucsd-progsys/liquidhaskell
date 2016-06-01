@@ -359,4 +359,4 @@ lemma11_helper n x y z
   =    iack (x+y) n z ==! ack n (iack (x+y-1) n z)
                      ==! ack n (iack (x-1) n (iack y n z)) ? lemma11_helper n (x-1) y z
                      ==! iack x n (iack y n z)
-                     *** QED 
+                     *** QED
