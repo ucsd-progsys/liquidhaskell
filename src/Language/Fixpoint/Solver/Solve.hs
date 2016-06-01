@@ -39,7 +39,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n s0 act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -75,9 +75,14 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
+
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => Config -> F.SInfo a -> Sol.Solution -> S.HashSet F.KVar -> W.Worklist a
+       => Config
+       -> F.SInfo a
+       -> Sol.Solution
+       -> S.HashSet F.KVar
+       -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
@@ -89,9 +94,10 @@ solve_ cfg fi s0 ks wkl = do
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
--- | tidyResult ensures we replace the temporary kVarArg names
---   introduced to ensure uniqueness with the original names
---   appearing in the supplied WF constraints.
+--------------------------------------------------------------------------------
+-- | tidyResult ensures we replace the temporary kVarArg names introduced to
+--   ensure uniqueness with the original names in the given WF constraints.
+--------------------------------------------------------------------------------
 
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
@@ -180,14 +186,11 @@ isUnsat s c = do
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
 
-
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do
   putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
   putStrLn $ showpp $ "LHS:" <+> pprint lP
   putStrLn $ showpp $ "RHS:" <+> pprint rP
-
-
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to RHS of constraint in current solution

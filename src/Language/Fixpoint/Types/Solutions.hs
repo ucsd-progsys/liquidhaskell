@@ -17,6 +17,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution tables
     Solution
   , Sol
+  , sIdx
   , CMap
 
   -- * Solution elements
@@ -63,7 +64,6 @@ import           Language.Fixpoint.Types.Constraints
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
-
 type Solution = Sol QBind
 type QBind    = [EQual]
 
@@ -139,7 +139,7 @@ lookup s k
 
 --------------------------------------------------------------------------------
 insert :: KVar -> a -> Sol a -> Sol a
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 insert k qs s = s { sMap = M.insert k qs (sMap s) }
 
 
