@@ -46,6 +46,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Language.Fixpoint.Solver.Index (
 
@@ -150,7 +151,7 @@ mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub
 mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
   where
     (ps, ks)      = F.sortedReftConcKVars x sr
-    tx j k@(kv,_) = (KIndex (Bind i) j kv, k)
+    tx j k@(kv,_) = (KIndex i j kv, k)
 
 --------------------------------------------------------------------------------
 mkBindPrev :: F.SInfo a -> (BIndex |-> BIndex)
@@ -214,15 +215,13 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me = ( F.tracepp "Index.bgPred: bXs" bXs
+bgPred me = ( F.tracepp "Index.bgPred: bXs" $ (, F.boolSort) <$> bXs
             , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
             )
   where
-   bXs    =  [(bx b, F.boolSort) | b <- bs]
-          --  ++ [(bx i, F.boolSort) | i <- is]
+   bXs    = (bx <$> bs) ++ (bx <$> M.keys (kvUse me))
    bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
-   -- is     = F.tracepp "bgPred is:" $ M.keys (kvDeps me)
    iBps   = F.tracepp "bindExprs" $ M.toList (bindExpr me)
    links  = M.toList (bindPrev me)
 
@@ -292,7 +291,8 @@ class BitSym a where
   bp = F.eVar . bx
 
 instance BitSym KIndex where
-  bx = F.suffixSymbol "lq_kindex$" . F.symbol . show
+  bx (KIndex i p _) = "lq_kindex$" `F.intSymbol` (fromIntegral i) `F.intSymbol` p
+
 
 instance BitSym F.BindId where
   bx = F.intSymbol "lq_bind$"

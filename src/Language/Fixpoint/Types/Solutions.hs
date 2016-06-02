@@ -150,7 +150,7 @@ type Cand a   = [(Expr, a)]
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
 --------------------------------------------------------------------------------
-data KIndex = KIndex { kiBIndex :: !BIndex
+data KIndex = KIndex { kiBIndex :: !BindId
                      , kiPos    :: !Int
                      , kiKVar   :: !KVar
                      }
