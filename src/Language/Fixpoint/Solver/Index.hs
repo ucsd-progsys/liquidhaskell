@@ -205,13 +205,14 @@ buddies _        = []
 --------------------------------------------------------------------------------
 -- | Encoding _all_ constraints as a single background predicate ---------------
 --------------------------------------------------------------------------------
-bgPred :: Index -> ([F.Symbol], F.Pred)
+bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
 bgPred me = ( bXs , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
                           ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
             )
   where
-   bXs    = bx <$> (sortNub . concatMap (\(x, y) -> [x, y]) $ links)
+   bXs    = [(bx b, F.boolSort) | b <- bs]
+   bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
    iBps   = M.toList (bindExpr me)
    links  = M.toList (bindPrev me)
 
