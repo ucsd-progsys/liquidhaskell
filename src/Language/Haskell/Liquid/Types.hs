@@ -215,7 +215,7 @@ import           TyCon
 import           Type                                   (getClassPredTys_maybe)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon, boolTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
 import           Var
 
 
@@ -569,7 +569,7 @@ isClassBTyCon :: BTyCon -> Bool
 isClassBTyCon = btc_class
 
 isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon = isClassTyCon . rtc_tc
+isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -1208,7 +1208,7 @@ emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
 emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
 emapReft f γ (RAllS p t)         = RAllS p (emapReft f γ t)
-emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f γ r)
+emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
 emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
 emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
@@ -1741,13 +1741,14 @@ instance Monoid (Output a) where
 --------------------------------------------------------------------------------
 
 data KVKind
-  = RecBindE    Var
-  | NonRecBindE Var
+  = RecBindE    Var -- ^ Recursive binder      @letrec x = ...@
+  | NonRecBindE Var -- ^ Non recursive binder  @let x = ...@
   | TypeInstE
   | PredInstE
   | LamE
-  | CaseE
+  | CaseE       Int -- ^ Int is the number of cases
   | LetE
+  | ProjectE        -- ^ Projecting out field of 
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind

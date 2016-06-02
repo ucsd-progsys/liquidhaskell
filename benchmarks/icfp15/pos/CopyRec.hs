@@ -1,11 +1,14 @@
 {-# Language EmptyDataDecls #-}
 module CopyRec where
-{-@ LIQUID "--no-termination" @-}
+
+{-@ LIQUID "--no-termination"    @-}
+{-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-eliminate"      @-}
 
 import RIO2
 import Data.Map
 import Data.Set
-import Language.Haskell.Liquid.Prelude 
+import Language.Haskell.Liquid.Prelude
 import Privileges
 
 {- ** API ** -}
@@ -47,28 +50,28 @@ data FHandle = FH Int deriving Eq
 
 
 {- ** API ** -}
-{-@ contents :: 
-  d:FHandle -> RIO<{v:World | Lst v d},\w1 x -> {v:World | NoChange w1 v}> [Path] 
+{-@ contents ::
+  d:FHandle -> RIO<{v:World | Lst v d},\w1 x -> {v:World | NoChange w1 v}> [Path]
 @-}
 contents :: FHandle -> RIO [Path]
 contents = undefined
 {-@ measure parent :: FHandle -> FHandle @-}
-{-@ flookup :: 
+{-@ flookup ::
   h:FHandle -> Path -> RIO<{v:World | Lkup v h },\w x -> {v:World | UpdActive w v x && UpdCaps w v x h }> FHandle @-}
 flookup :: FHandle -> Path -> RIO FHandle
 flookup = undefined
-          
-{-@ create :: 
+
+{-@ create ::
   h:FHandle -> p:Path -> RIO<{v:World | Cr v h},\w1 x -> {v:World | (UpdActive w1 v x) && DeriveCaps w1 v x h}> FHandle @-}
 create :: FHandle -> Path -> RIO FHandle
-create = undefined          
-          
-{-@ createDir :: 
+create = undefined
+
+{-@ createDir ::
   h:FHandle -> p:Path -> RIO<{w:World | Cr w h},\w1 x -> {w2:World | (UpdActive w1 w2 x) && UpdCaps w1 w2 x h}> FHandle @-}
 createDir :: FHandle -> Path -> RIO FHandle
-createDir = undefined          
+createDir = undefined
 
-{-@ write :: 
+{-@ write ::
   h:FHandle -> s:String -> RIO<{w:World | Wr w h},\w1 x -> {w2:World | NoChange w1 w2}> () @-}
 write :: FHandle -> String -> RIO ()
 write = undefined
@@ -77,7 +80,7 @@ write = undefined
   h:FHandle -> RIO<{w:World | Rd w h},\w1 x -> {w2:World | NoChange w1 w2}> String @-}
 fread :: FHandle -> RIO String
 fread = undefined
-        
+
 {-@ isFile :: h:FHandle -> Bool @-}
 isFile :: FHandle -> Bool
 isFile = undefined
@@ -86,11 +89,11 @@ isFile = undefined
 isDir :: FHandle -> Bool
 isDir = undefined
 
-{-@ 
+{-@
 forM_ :: forall <i :: World -> Prop>.
-         [a] -> 
+         [a] ->
          (a -> RIO <i,\w1 x -> {v:World<i> | true}> b) ->
-         RIO <i,\w1 x -> {v:World<i> | true}> ()          
+         RIO <i,\w1 x -> {v:World<i> | true}> ()
 @-}
 forM_ :: [a] -> (a -> RIO b) -> RIO ()
 forM_ []     _ = return ()
@@ -108,14 +111,14 @@ when False  _ = return ()
 {-@ predicate CopySpec V H D = Lst V H && Lkup V H && Rd V H && Cr V D && CrWO V D @-}
 {-@ predicate StableInv W1 W2 X Y = NoChange W1 W2 || (UpdActive W1 W2 Y && (UpdCaps W1 W2 Y X || DeriveCaps W1 W2 Y X)) @-}
 
-{-@ 
+{-@
 copyRec :: forall <i :: World -> Prop>.
   { a :: FHandle, b :: FHandle, w :: World<i> |- {v:World | StableInv w v a b } <: World<i> }
   Bool ->
   f:FHandle ->
   d:FHandle ->
   RIO<{v:World<i> | CopySpec v f d },
-      \w x -> {v:World<i> | (CopySpec v f d) }> () 
+      \w x -> {v:World<i> | (CopySpec v f d) }> ()
 @-}
 copyRec :: Bool -> FHandle -> FHandle -> RIO ()
 copyRec recur f d = do cs <- contents f

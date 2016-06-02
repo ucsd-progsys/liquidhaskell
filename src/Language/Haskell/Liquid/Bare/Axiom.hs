@@ -84,21 +84,32 @@ makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Locat
 makeAssumeType tce lmap x v xts ams def
   | not (null ams) 
   = x {val = axiomType x t}
+  | isBool $ ty_res trep  
+  = (x {val = at `strengthenRes` F.subst su bref})
   | otherwise
-  = (x {val = axiomType x t `strengthenRes` ref})
+  = (x {val = at `strengthenRes` F.subst su ref})
   where
+    trep = toRTypeRep t 
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
+    at = axiomType x t 
 
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
            Left e -> e
            Right e -> panic Nothing $ show e
-    ref = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) $ F.subst su le)
+
+    ble = case runToLogic tce lmap mkErr (coreToPred def') of
+           Left e -> e
+           Right e -> panic Nothing $ show e
+    ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
     (xs, def') = grapBody $ normalize def 
-    ys = ty_binds $ toRTypeRep t
-    su = F.mkSubst $ zip (F.symbol <$> xs) (F.EVar <$> ys )
+    su = F.mkSubst $ 
+             zip (F.symbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
+             ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
+
 
     grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e') 
     grapBody (Tick _ e) = grapBody e 
@@ -123,9 +134,17 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = insertLogicEnv (val x) ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
-    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+    makeProp e 
+      | isBool $ ty_res trep
+      = F.mkProp e
+      | otherwise
+      = e 
+
+
+    nargs = dropWhile isClassType $ ty_args trep 
+    trep  = toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
@@ -255,7 +274,10 @@ axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     res = ty_res t `strengthen` MkUReft ref mempty mempty
 
-    ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
+    ref = if isBool (ty_res t) then bref else eref 
+
+    eref  = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
+    bref = F.Reft (x, F.PIff (F.mkProp (F.EVar x)) (mkApp xs))
 
     mkApp = F.mkEApp s . map F.EVar
 

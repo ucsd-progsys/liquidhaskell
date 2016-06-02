@@ -28,6 +28,7 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
+  , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
@@ -40,7 +41,7 @@ data Config = Config {
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
-  , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
+  , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
   , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
   , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
@@ -51,17 +52,20 @@ data Config = Config {
   , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
-  , eliminate      :: Bool       -- ^ eliminate non-top-level and non-recursive KVars
+  , noEliminate    :: Bool       -- ^ eliminate non-top-level and non-recursive KVars
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
+  , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
-  , elimStats      :: Bool       -- ^ print eliminate stats
-  , elimBound      :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
-  , json           :: Bool       -- ^ print results (safe/errors) as JSON
-  , counterExamples:: Bool       -- ^ attempt to generate counter-examples to type errors
-  , timeBinds      :: Bool       -- ^ check and time each (asserted) type-sig separately
-  , patternInline  :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , elimStats       :: Bool       -- ^ print eliminate stats
+  , elimBound       :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
+  , json            :: Bool       -- ^ print results (safe/errors) as JSON
+  , counterExamples :: Bool       -- ^ attempt to generate counter-examples to type errors
+  , timeBinds       :: Bool       -- ^ check and time each (asserted) type-sig separately
+  , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
+  , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

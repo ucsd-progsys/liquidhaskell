@@ -185,6 +185,7 @@ Library
                     Language.Haskell.Liquid.UX.ACSS,
                     Language.Haskell.Liquid.UX.DiffCheck,
                     Language.Haskell.Liquid.UX.QuasiQuoter,
+                    Language.Haskell.Liquid.Transforms.Rewrite,
                     Language.Haskell.Liquid.Transforms.ANF,
                     Language.Haskell.Liquid.Transforms.RefSplit,
                     Language.Haskell.Liquid.Transforms.CoreToLogic,

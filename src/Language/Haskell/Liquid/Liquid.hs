@@ -26,7 +26,7 @@ import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
-
+import           Control.Monad (when)
 import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -148,7 +148,7 @@ liquidQueries cfg tgt info (Right dcs)
 
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
-  whenLoud (dumpCs cgi)
+  when False (dumpCs cgi)
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
@@ -175,7 +175,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names
   = do finfo          <- cgInfoFInfo info cgi tgt
-       F.Result r sol <- solve fx finfo
+       F.Result r sol <- solve (fixConfig tgt cfg) finfo
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res_err = fmap (applySolution sol . cinfoError . snd) r
@@ -185,20 +185,23 @@ solveCs cfg tgt cgi info names
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
                         { o_result  = res_model         }
-    where
-       fx        = def { FC.solver      = fromJust (smtsolver cfg)
-                       , FC.linear      = linear      cfg
-                       , FC.newcheck    = newcheck    cfg
-                       , FC.eliminate   = eliminate   cfg
-                       , FC.save        = saveQuery   cfg
-                       , FC.srcFile     = tgt
-                       , FC.cores       = cores       cfg
-                       , FC.minPartSize = minPartSize cfg
-                       , FC.maxPartSize = maxPartSize cfg
-                       , FC.elimStats   = elimStats   cfg
-                       , FC.elimBound   = elimBound   cfg
-                       }
 
+fixConfig :: FilePath -> Config -> FC.Config
+fixConfig tgt cfg = def
+  { FC.solver      = fromJust (smtsolver cfg)
+  , FC.linear      = linear            cfg
+  , FC.newcheck    = newcheck          cfg
+  , FC.eliminate   = not $ noEliminate cfg
+  , FC.save        = saveQuery         cfg
+  , FC.srcFile     = tgt
+  , FC.cores       = cores             cfg
+  , FC.minPartSize = minPartSize       cfg
+  , FC.maxPartSize = maxPartSize       cfg
+  , FC.elimStats   = elimStats         cfg
+  , FC.elimBound   = elimBound         cfg
+  , FC.allowHO     = higherorder       cfg
+  , FC.allowHOqs   = higherorderqs     cfg
+  }
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

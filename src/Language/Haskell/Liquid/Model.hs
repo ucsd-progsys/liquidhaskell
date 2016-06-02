@@ -29,7 +29,7 @@ import           Unsafe.Coerce
 import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
                                           mkSubst, subst)
 import           Language.Fixpoint.Smt.Interface
-import           Language.Fixpoint.Types.Config (SMTSolver)
+import qualified Language.Fixpoint.Types.Config as FC  
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types         hiding (var)
@@ -109,7 +109,7 @@ getModel info cfg err
       return err
 
 getModel' :: GhcInfo -> Config -> Error -> Ghc Error
-getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
+getModel' info cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   let vv  = (symbol "VV", tact `strengthen` (fmap (mapPredReft PNot) (rt_reft texp)))
   let vts = vv : HM.toList ctx
 
@@ -120,7 +120,7 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   hsc_env <- getSession
   df <- getDynFlags
   let opts = defaultOpts
-  model <- liftIO $ withContext False False (solver opts) (target info) $ \smt -> do
+  model <- liftIO $ withContext (toFixCfg cfg) (solver opts) (target info) $ \smt -> do
     runTarget opts (initState (target info) (spec info) smt) $ do
       free <- gets freesyms
       let dcs = [ (v, tidySymbol v)
@@ -162,10 +162,20 @@ getModel' info _cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
 
 getModel' _ _ err = return err
 
-withContext :: Bool -> Bool -> SMTSolver -> FilePath -> (Context -> IO a) -> IO a
-withContext l ho smt t act = do
-  ctx <- makeContext l ho smt t
+
+withContext :: FC.Config -> FC.SMTSolver -> FilePath -> (Context -> IO a) -> IO a
+withContext cfg s t act = do
+  ctx <- makeContext (cfg{FC.solver = s}) t
   act ctx `finally` cleanupContext ctx
+
+
+toFixCfg :: Config -> FC.Config
+toFixCfg cfg 
+  = FC.defConfig
+     { FC.solver    = fromMaybe FC.Z3 $ smtsolver cfg
+     , FC.allowHO   = higherorder cfg
+     , FC.allowHOqs = higherorderqs cfg 
+     }
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t
 dictProxy Dict = Proxy

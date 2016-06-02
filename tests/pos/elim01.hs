@@ -1,5 +1,3 @@
-{-@ LIQUID "--eliminate" @-}
-
 module EliminateCuts (bar) where
 
 {-@ bar :: n:{Int | n > 0} -> {v:Int | v = n + 4 } @-}

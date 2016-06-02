@@ -1,5 +1,7 @@
 module Count () where
 
+{-@ LIQUID "--no-pattern-inline" @-}
+
 {-@ measure count :: Count a -> Int @-}
 
 data Count a = Count a 

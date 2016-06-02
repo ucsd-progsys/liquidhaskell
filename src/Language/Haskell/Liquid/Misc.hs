@@ -24,6 +24,8 @@ import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 
+type Nat = Int
+
 timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
 timedAction label io = do
   t0 <- getCurrentTime
@@ -219,9 +221,12 @@ tryIgnore s a = catch a $ \e ->
                    writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
-(=>>) :: Monad m
-      => m b -> (b -> m a) -> m b
+(=>>) :: Monad m => m b -> (b -> m a) -> m b
 (=>>) m f = m >>= (\x -> f x >> return x)
+
+(<<=) :: Monad m => (b -> m a) -> m b -> m b
+(<<=) = flip (=>>)
+
 
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
@@ -236,4 +241,3 @@ intToString n = show n ++ "th"
 mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
 mapAccumM f acc0 xs =
   swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
-

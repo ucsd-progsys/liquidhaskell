@@ -469,10 +469,6 @@ ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
 {-@ assume GHC.Exts.sortWith :: Ord b => (a -> b) -> xs:[a] -> ListXs a xs @-}
 {-@ assume GHC.Exts.groupWith :: Ord b => (a -> b) -> [a] -> [ListNE a] @-}
 
-{- junkProp :: ListNE Int @-}
--- junkProp :: [Int]
--- junkProp = [ 8 ]
-
 --------------------------------------------------------------------------------
 -- | A Little Unit Test --------------------------------------------------------
 --------------------------------------------------------------------------------

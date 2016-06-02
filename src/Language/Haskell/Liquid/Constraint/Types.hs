@@ -44,6 +44,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , mkRTyConIAl
 
   , removeInvariant, restoreInvariant, makeRecInvariants
+
+  , addArgument, addArguments
   ) where
 
 import Prelude hiding (error)
@@ -94,6 +96,7 @@ data CGEnv
         , denv  :: !RDEnv             -- ^ Dictionary Environment
         , fenv  :: !FEnv              -- ^ Fixpoint Environment
         , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+        , fargs :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs  :: !RTyConInv         -- ^ Datatype invariants
         , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
         , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
@@ -189,6 +192,7 @@ data CGInfo = CGInfo {
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+  , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
   , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
@@ -248,6 +252,21 @@ data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invarian
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
+
+
+addArgument :: CGEnv -> Var -> CGEnv
+addArgument γ v 
+ | higherorder $ cgCfg γ
+ = γ {fargs = S.insert v (fargs γ) }
+ | otherwise
+ = γ 
+
+addArguments :: CGEnv -> [Var] -> CGEnv
+addArguments γ vs 
+ | higherorder $ cgCfg γ
+ = foldl addArgument γ vs 
+ | otherwise
+ = γ
 
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
@@ -385,7 +404,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
@@ -411,5 +430,6 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))      `seq`
           ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x))
