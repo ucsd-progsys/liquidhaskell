@@ -13,7 +13,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Data.Foldable       (foldl')
-import           Data.Maybe          (catMaybes, fromJust, isJust)
+import           Data.Maybe          (catMaybes, fromJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
 import           Control.DeepSeq     (NFData, ($!!))
@@ -24,7 +24,7 @@ renameAll fi2 = fi4
   where
     fi4      = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
     fi3      = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
-    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
+    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $ fi2
     idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 --------------------------------------------------------------
 
@@ -67,23 +67,25 @@ namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
 namesToIds xs m = S.fromList $ catMaybes [M.lookup x m | x <- S.toList xs] --TODO why any Nothings?
 
 --------------------------------------------------------------
-mkRenameMap :: BindEnv -> RenameMap
+mkRenameMap :: SInfo a -> RenameMap
 --------------------------------------------------------------
-mkRenameMap be = foldl' (addId be) M.empty ids
+mkRenameMap fi = foldl' (addId ls be) M.empty ids
   where
+    ls  = fst <$> toListSEnv (lits fi)
+    be  = bs fi
     ids = fst3 <$> bindEnvToList be
 
-addId :: BindEnv -> RenameMap -> BindId -> RenameMap
-addId be m i
-  | M.member sym m = addDupId m sym i
+addId :: [Symbol] -> BindEnv -> RenameMap -> BindId -> RenameMap
+addId ls be m i
+  | M.member sym m = addDupId ls m sym i
   | otherwise      = M.insert sym [(i, Nothing)] m
   where
     sym            = fst $ lookupBindEnv i be
 
-addDupId :: RenameMap -> Symbol -> BindId -> RenameMap
-addDupId m sym i
-  | isJust $ L.lookup i mapping = m
-  | otherwise                   = M.insert sym ((i, Just $ renameSymbol sym i) : mapping) m
+addDupId :: [Symbol] -> RenameMap -> Symbol -> BindId -> RenameMap
+addDupId ls m sym i
+  | sym `L.elem` ls = M.insert sym ((i, Nothing                  ) : mapping) m
+  | otherwise       = M.insert sym ((i, Just $ renameSymbol sym i) : mapping) m
   where
     mapping = fromJust $ M.lookup sym m
 --------------------------------------------------------------
