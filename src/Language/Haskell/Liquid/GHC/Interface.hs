@@ -131,10 +131,8 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 , ghcLink      = LinkInMemory
-                 -- FIXME: this *should* be HscNothing, but that prevents us from
-                 -- looking up *unexported* names in another source module..
-                 , hscTarget    = HscInterpreted -- HscNothing
+                 , ghcLink      = NoLink
+                 , hscTarget    = HscNothing
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -156,10 +154,19 @@ configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
-  moduleGraph     <- depanal [] False
+  moduleGraph     <- enableInterpretedIfNeeded =<< depanal [] False
   let homeModules  = flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
   return homeModules
+
+enableInterpretedIfNeeded :: ModuleGraph -> Ghc ModuleGraph
+enableInterpretedIfNeeded moduleGraph
+  | not (needsTemplateHaskell moduleGraph) = return moduleGraph
+  | otherwise = do
+    _ <- setSessionDynFlags =<< (enable <$> getSessionDynFlags)
+    return $ (\m -> m {ms_hspp_opts = enable $ ms_hspp_opts m}) <$> moduleGraph
+  where
+    enable df = df { ghcLink = LinkInMemory, hscTarget = HscInterpreted }
 
 setTargetModules :: [ModuleName] -> Ghc ()
 setTargetModules modNames = setTargets $ mkTarget <$> modNames
