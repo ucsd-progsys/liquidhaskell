@@ -90,19 +90,29 @@ runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI _ s0 act =
   bracket acquire release $ \ctx -> do
-    res <- runStateT (declareInitEnv >> declare fi s0 >> act) (SS ctx be $ stats0 fi)
+    res <- runStateT act' (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    acquire = makeContextWithSEnv cfg file env
-    release = cleanupContext
-    be      = F.SolEnv (F.bs fi) (F.packs fi)
-    file    = F.fileName fi -- (inFile cfg)
-    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
-    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
+    act'     = declareInitEnv >> declare xts ess p >> act
+    acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
+    release  = cleanupContext
+    ess      = declLiterals fi
+    (xts, p) = background fi s0
+    be       = F.SolEnv (F.bs fi) (F.packs fi)
+    file     = F.fileName fi
+    -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
+    -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+
+
+background :: F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
+background fi s0 = (bts ++ xts, p)
+  where
+    xts          = either E.die id $ declSymbols fi
+    (bts, p)     = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -171,20 +181,17 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: F.GInfo c a -> F.Solution -> SolveM ()
+declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
 --------------------------------------------------------------------------------
-declare fi s0 = withContext $ \me -> do
-  xts         <- either E.die return $ declSymbols fi
-  let (bts, p) = backgroundPred s0
-  let yts      = xts ++ bts
-  let ess      = declLiterals fi
-  forM_ yts    $ uncurry $ smtDecl     me
+declare xts ess p = withContext $ \me -> do
+  -- xts         <- either E.die return $ declSymbols fi
+  -- let (bts, p) = backgroundPred s0
+  -- let yts      = xts ++ bts
+  -- let ess      = declLiterals fi
+  forM_ xts    $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
   _           <-           smtAssert   me p
   return ()
-
-backgroundPred :: F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
-backgroundPred s0 = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 declareInitEnv :: SolveM ()
 declareInitEnv

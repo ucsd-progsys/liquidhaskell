@@ -59,8 +59,6 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 
--- import           Text.PrettyPrint.HughesPJ
-
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
@@ -159,21 +157,33 @@ data KIndex = KIndex { kiBIndex :: !BIndex
               deriving (Eq, Ord, Show, Generic)
 
 instance Hashable KIndex
+
+instance PPrint KIndex where
+  pprintTidy _ = tshow
+
 --------------------------------------------------------------------------------
 -- | A BIndex is created for each LHS Bind or RHS constraint
 --------------------------------------------------------------------------------
-data BIndex    = Bind !BindId
+data BIndex    = Root
+               | Bind !BindId
                | Cstr !SubcId
                  deriving (Eq, Ord, Show, Generic)
 
 instance Hashable BIndex
+
+instance PPrint BIndex where
+  pprintTidy _ = tshow
+
 --------------------------------------------------------------------------------
 -- | Each `Bind` corresponds to a conjunction of a `bpConc` and `bpKVars`
 --------------------------------------------------------------------------------
 data BindPred  = BP
   { bpConc :: !Pred                  -- ^ Concrete predicate (PTrue o)
   , bpKVar :: [KIndex]               -- ^ KVar-Subst pairs
-  }
+  } deriving (Show)
+
+instance PPrint BindPred where
+  pprintTidy _ = tshow
 
 
 --------------------------------------------------------------------------------

@@ -136,6 +136,7 @@ closeSubcDeps kHypM kiM = cMap (execState act s0)
     accCM = (  \x   -> M.lookup x . cMap <$> get
             ,  \x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
 
+
 --------------------------------------------------------------------------------
 mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
 mkBindExpr sI = (M.fromList ips, M.fromList kSus)
@@ -160,35 +161,41 @@ mkBindPrev sI = M.fromList [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
     cEnvs     = [(i, cBinds be) | (i, be) <- M.toList (F.cm sI) ]
     cBinds    = F.elemsIBindEnv . F.senv
 
+
 -- >>> mkDoms [1,2,3,4,5] [[1,2,3], [1,2,4], [1,5]]
 -- [(2,1),(3,2),(4,2),(5,1)]
 mkDoms :: ListNE F.BindId -> [(F.SubcId, [F.BindId])] -> [(Int, Int)]
-mkDoms is envs  = G.iDom (mkEnvTree is envs) (minimum is)
+mkDoms is envs  = G.iDom (mkEnvTree is envs) (bIndexInt Root)
 
 mkEnvTree :: [F.BindId] -> [(F.SubcId, [F.BindId])] -> G.Gr Int ()
 mkEnvTree is envs
   | isTree es   = G.mkGraph vs es
   | otherwise   = error msg
   where
-    vs          = node <$> (Bind <$> is)  ++ (Cstr . fst <$> envs)
-    es          = edge <$> concatMap envEdges envs
+    vs          = node <$> Root : (Bind <$> is)  ++ (Cstr . fst <$> envs)
+    es          = edge <$> F.tracepp "mkEnvTree es:" (concatMap envEdges envs)
     node i      = (bIndexInt i, bIndexInt i)
     edge (i, j) = (bIndexInt i, bIndexInt j, ())
     msg         = "mkBindPrev: Malformed non-tree environments!" -- TODO: move into Validate
 
 envEdges :: (F.SubcId, [F.BindId]) -> [(BIndex, BIndex)]
-envEdges (i,js) = (maximum js', Cstr i) : buddies js'
+envEdges (i,js) = buddies    $ [Root] ++ js' ++ [Cstr i]
   where
-    js'         = intBIndex <$> L.sort js
+    js'         = Bind <$> L.sort js
 
+--------------------------------------------------------------------------------
+-- | Horrible hack.
+--------------------------------------------------------------------------------
 bIndexInt :: BIndex -> Int
-bIndexInt (Bind i) = i
+bIndexInt (Root)   = 0
+bIndexInt (Bind i) = i + 1
 bIndexInt (Cstr j) = fromIntegral (negate j)
 
 intBIndex :: Int -> BIndex
 intBIndex i
-  | 0 <= i    = Bind i
-  | otherwise = Cstr (fromIntegral i)
+  | 0 == i    = Root
+  | 0 <  i    = Bind (i - 1)
+  | otherwise = Cstr (fromIntegral (negate i))
 
 
 -- TODO: push the `isTree` check into Validate
@@ -207,14 +214,18 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me = ( bXs , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
-                          ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
+bgPred me = ( F.tracepp "Index.bgPred: bXs" bXs
+            , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
+                    ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
             )
   where
-   bXs    = [(bx b, F.boolSort) | b <- bs]
+   bXs    =  [(bx b, F.boolSort) | b <- bs]
+          --  ++ [(bx i, F.boolSort) | i <- is]
    bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
-   iBps   = M.toList (bindExpr me)
+   -- is     = F.tracepp "bgPred is:" $ M.keys (kvDeps me)
+   iBps   = F.tracepp "bindExprs" $ M.toList (bindExpr me)
    links  = M.toList (bindPrev me)
+
 
 bindPred :: Index -> BindPred -> F.Pred
 bindPred me (BP p kIs) = F.pAnd (p : kIps)
@@ -241,14 +252,15 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
 --   `X`, typically of a KVar K, and returns the equality predicate `Y = Z`
 --------------------------------------------------------------------------------
 eqSubst :: F.Subst -> F.Subst -> F.Pred
-eqSubst (F.Su yM) (F.Su zM)
-  | eN == yN && eN == zN   = F.pAnd (M.elems eM)
-  | otherwise              = error msg
+eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
+  -- // | eN == yN && eN == zN   =
+  -- // | otherwise              = error msg
   where
     eM                     = M.intersectionWith (F.PAtom F.Ueq) yM zM
-    [eN, yN, zN]           = M.size <$> [eM, yM, zM]
-    msg                    = "eqSubst: incompatible substs "
-                           ++ show yM ++ " and " ++ show zM
+    -- [eN, yN, zN]           = M.size <$> [eM, yM, zM]
+    -- msg                    = "eqSubst: incompatible substs "
+    --                        ++ show yM ++ " and " ++ show zM
+
 
 --------------------------------------------------------------------------------
 -- | Flipping on bits for a single SubC, given current Solution ----------------
@@ -289,6 +301,7 @@ instance BitSym F.SubcId where
   bx = F.intSymbol "lq_cstr$"
 
 instance BitSym BIndex where
+  bx Root     = F.intSymbol "lq_root$" 0
   bx (Bind i) = bx i
   bx (Cstr j) = bx j
 
