@@ -190,7 +190,8 @@ interchange (C x xs) y
 
 
 data L a = N | C a (L a)
-{-@ data L [llen] @-}
+{-@ data L [llen]
+    = N | C {x :: a, xs :: L a } @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int
@@ -198,25 +199,11 @@ llen :: L a -> Int
 llen N        = 0
 llen (C _ xs) = 1 + llen xs
 
-{-@ measure is_N @-}
-is_N N = True
-is_N _ = False
-
-{-@ measure is_C @-}
-is_C N = False
-is_C _ = True
 
 
 
-{-@ measure select_C_1 @-}
-{-@ select_C_1 :: {v:L a | llen v > 0 } -> a @-}
-select_C_1 :: L a -> a
-select_C_1 (C x _) = x
 
-{-@ measure select_C_2 @-}
-{-@ select_C_2 :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
-select_C_2 :: L a -> L a
-select_C_2 (C _ xs) = xs
+
 
 
 {-@ measure hd @-}

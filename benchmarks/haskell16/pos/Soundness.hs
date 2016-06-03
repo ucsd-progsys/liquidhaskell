@@ -183,10 +183,10 @@ typing γ (EApp e1 e2)
 
 
 
-bar :: Maybe b -> Proof
+bar :: Eq b =>  Maybe b -> Proof
 {-@ bar :: m:Maybe b -> {m == Nothing => not (is_Just m) } @-}
-bar Nothing =
-  is_Just Nothing ==! False ==! not True *** QED
+bar Nothing
+  = is_Just Nothing ==! False ==! not True *** QED
 bar (Just x) = simpleProof
 
 foo :: Int -> Proof
