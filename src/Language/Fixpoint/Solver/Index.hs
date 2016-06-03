@@ -215,15 +215,18 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me = ( F.tracepp "Index.bgPred: bXs" $ (, F.boolSort) <$> bXs
+bgPred me = ( F.tracepp "Index.bgPred: bXs" [ (x, F.boolSort) | x <- bXs ]
             , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
             )
   where
-   bXs    = (bx <$> bs) ++ (bx <$> M.keys (kvUse me))
-   bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
-   iBps   = F.tracepp "bindExprs" $ M.toList (bindExpr me)
-   links  = M.toList (bindPrev me)
+   bXs    =  (bx . fst <$> iBps)               -- BindId
+          ++ (bx       <$> M.keys (kvDeps me)) -- SubcId
+          ++ (bx       <$> M.keys (kvUse me))  -- KIndex
+   iBps   = F.tracepp "bindExprs"    $ M.toList (bindExpr me)
+   links  = filter ((/= Root) . snd) $ M.toList (bindPrev me)
+   
+   -- bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
 
 
 bindPred :: Index -> BindPred -> F.Pred
@@ -291,7 +294,9 @@ class BitSym a where
   bp = F.eVar . bx
 
 instance BitSym KIndex where
-  bx (KIndex i p _) = "lq_kindex$" `F.intSymbol` (fromIntegral i) `F.intSymbol` p
+  bx (KIndex i p _) = "lq_kindex$"
+                          `F.intSymbol` fromIntegral i
+                          `F.intSymbol` p
 
 
 instance BitSym F.BindId where
