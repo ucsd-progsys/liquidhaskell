@@ -144,8 +144,17 @@ mkBindExpr sI = (M.fromList ips, M.fromList kSus)
   where
     kSus = [ (k, kSu)                | (_, _, iks) <- ipks, (k, kSu) <- iks    ]
     ips  = [ (i, BP p (fst <$> iks)) | (i, p, iks) <- ipks                     ]
-    ipks = [ (i, p, iks)             | (i, x, r)   <- F.bindEnvToList (F.bs sI)
+    ipks = [ (i, p, iks)             | (i, x, r)   <- ixrs
                                      , let (p, iks) = mkBindPred i x r         ]
+    ixrs = checkNoDups $ F.bindEnvToList (F.bs sI)
+
+checkNoDups :: [(F.BindId, F.Symbol, a)] -> [(F.BindId, F.Symbol, a)]
+checkNoDups ixrs = applyNonNull ixrs dbErr bads
+  where
+    bads         = [(x, is) | (x, is) <- groupList xis, 2 <= length is ]
+    xis          = [(x, i)  | (i, x, _) <- ixrs]
+    dbErr xis    = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
+
 
 mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub)])
 mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
@@ -174,7 +183,7 @@ mkEnvTree is envs
   | otherwise   = error msg
   where
     vs          = node <$> Root : (Bind <$> is)  ++ (Cstr . fst <$> envs)
-    es          = edge <$> F.tracepp "mkEnvTree es:" (concatMap envEdges envs)
+    es          = edge <$> concatMap envEdges envs
     node i      = (bIndexInt i, bIndexInt i)
     edge (i, j) = (bIndexInt i, bIndexInt j, ())
     msg         = "mkBindPrev: Malformed non-tree environments!" -- TODO: move into Validate
@@ -215,19 +224,17 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me = ( F.tracepp "Index.bgPred: bXs" [ (x, F.boolSort) | x <- bXs ]
-            , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
-                    ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
-            )
+bgPred me  = ( [(x, F.boolSort) | x <- bXs ]
+             , F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
+                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
+             )
   where
-   bXs    =  (bx . fst <$> iBps)               -- BindId
-          ++ (bx       <$> M.keys (kvDeps me)) -- SubcId
-          ++ (bx       <$> M.keys (kvUse me))  -- KIndex
-   iBps   = F.tracepp "bindExprs"    $ M.toList (bindExpr me)
-   links  = filter ((/= Root) . snd) $ M.toList (bindPrev me)
-   
-   -- bs     = sortNub . concatMap (\(x, y) -> [x, y]) $ links
-
+   bXs     =  (bx . fst <$> iBps                 ) -- BindId
+           ++ (bx       <$> M.keys   (kvDeps me )) -- SubcId
+           ++ (bx       <$> M.keys   (kvUse me  )) -- KIndex
+   iBps    =                M.toList (bindExpr me)
+   links   = noRoots     $  M.toList (bindPrev me)
+   noRoots = filter ((/= Root) . snd)
 
 bindPred :: Index -> BindPred -> F.Pred
 bindPred me (BP p kIs) = F.pAnd (p : kIps)
