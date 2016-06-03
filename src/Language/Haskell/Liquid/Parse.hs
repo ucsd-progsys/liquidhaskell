@@ -208,8 +208,8 @@ bareAtomP ref
 
 refBindP :: Parser Symbol 
          -> Parser Expr 
-         -> Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) 
-         -> Parser (RType LocSymbol Symbol (UReft Reft))
+         -> Parser (Reft -> BareType) 
+         -> Parser BareType
 refBindP bp rp kindP
   = braces $ 
    try (do x  <- bp
@@ -222,10 +222,10 @@ refBindP bp rp kindP
            return $ substa su $ t (Reft (x, ra)) )
   <|> (RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces)
 
-refP :: Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) -> Parser (RType LocSymbol Symbol (UReft Reft))
+refP :: Parser (Reft -> BareType) -> Parser BareType
 refP       = refBindP bindP refaP
 
-refDefP :: Symbol -> Parser Expr -> Parser (Reft -> (RType LocSymbol Symbol (UReft Reft))) -> Parser (RType LocSymbol Symbol (UReft Reft))
+refDefP :: Symbol -> Parser Expr -> Parser (Reft -> BareType) -> Parser BareType
 refDefP x  = refBindP (optBindP x)
 
 optBindP :: Symbol
