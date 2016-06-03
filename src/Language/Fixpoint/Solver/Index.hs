@@ -87,7 +87,7 @@ create _cfg sI kHyps _cDs = FastIdx
   , kvUse    = kU
   , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
-  , kvDeps   = mkKvDeps kHypM bE (F.cm sI)
+  , kvDeps   = F.tracepp "KVDeps" $ mkKvDeps kHypM bE (F.cm sI)
   }
   where
     kHypM    = M.fromList kHyps
@@ -268,25 +268,27 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
 --------------------------------------------------------------------------------
 eqSubst :: F.Subst -> F.Subst -> F.Pred
 eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
-  -- // | eN == yN && eN == zN   =
-  -- // | otherwise              = error msg
   where
-    eM                     = M.intersectionWith (F.PAtom F.Ueq) yM zM
+    eM                      = M.intersectionWith (F.PAtom F.Ueq) yM zM
+
     -- [eN, yN, zN]           = M.size <$> [eM, yM, zM]
     -- msg                    = "eqSubst: incompatible substs "
     --                        ++ show yM ++ " and " ++ show zM
+  -- // | eN == yN && eN == zN   =
+  -- // | otherwise              = error msg
 
 
 --------------------------------------------------------------------------------
 -- | Flipping on bits for a single SubC, given current Solution ----------------
 --------------------------------------------------------------------------------
-lhsPred :: Index -> F.SolEnv -> Solution -> F.SimpC a -> F.Pred
+lhsPred :: F.SolEnv -> Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
-lhsPred me _ s c = F.pAnd [ bp kI `F.PIff` kIndexSol me s kI | kI <- kIs ]
+lhsPred _ s c = F.pAnd [ bp kI `F.PIff` kIndexSol me s kI | kI <- kIs ]
   where
-    kIs          = safeLookup msg j (kvDeps me)
-    j            = F.subcId c
-    msg          = "lhsPred: unknown SubcId" ++ show j
+    me        = mfromJust "Index.lhsPred" (sIdx s)
+    kIs       = safeLookup msg j (kvDeps me)
+    j         = F.subcId c
+    msg       = "lhsPred: unknown SubcId" ++ show j
 
 kIndexSol :: Index -> Solution -> KIndex -> F.Pred
 kIndexSol me s kI = case lookup s k of

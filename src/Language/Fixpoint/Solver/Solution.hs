@@ -28,7 +28,7 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
--- import qualified Language.Fixpoint.Solver.Fast        as Fast
+import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
@@ -153,12 +153,17 @@ okInst env v t eq = isNothing tc
     p             = F.eqPred eq
     tc            = So.checkSorted env sr
 
+
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
---------------------------------------------------------------------------------
-lhsPred be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = case Sol.sIdx s of
+                   Just _  -> Index.lhsPred  be s c
+                   Nothing ->       lhsPred' be s c
+
+lhsPred' :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
+lhsPred' be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c

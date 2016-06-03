@@ -179,7 +179,7 @@ instance PPrint BIndex where
 --------------------------------------------------------------------------------
 data BindPred  = BP
   { bpConc :: !Pred                  -- ^ Concrete predicate (PTrue o)
-  , bpKVar :: [KIndex]               -- ^ KVar-Subst pairs
+  , bpKVar :: ![KIndex]              -- ^ KVar-Subst pairs
   } deriving (Show)
 
 instance PPrint BindPred where
@@ -192,11 +192,11 @@ instance PPrint BindPred where
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
 data Index = FastIdx
-  { bindExpr :: BindId |-> BindPred -- ^ BindPred for each BindId
-  , bindPrev :: BIndex |-> BIndex   -- ^ "parent" (immediately dominating) binder
-  , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
-  , kvDef    :: KVar   |-> Hyp      -- ^ Constraints defining each `KVar`
-  , kvDeps   :: CMap [KIndex]       -- ^ List of (Cut) KVars on which a SubC depends
+  { bindExpr :: !(BindId |-> BindPred) -- ^ BindPred for each BindId
+  , bindPrev :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
+  , kvUse    :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
+  , kvDef    :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
+  , kvDeps   :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   }
 
 type CMap a  = M.HashMap SubcId a

@@ -132,7 +132,7 @@ refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = {- tracepp msg $ -} S.lhsPred be s c
+                   let lhs = S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
