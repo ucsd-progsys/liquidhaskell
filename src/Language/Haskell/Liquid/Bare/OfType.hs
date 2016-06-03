@@ -30,7 +30,7 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
-                                subst, symbol, mkEApp)
+                                subst, symbol, symbolString, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -104,7 +104,7 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy Symbol (RType (Located Symbol) Symbol ()) r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -121,9 +121,9 @@ ofBRType appRTAlias resolveReft
       =  do env <- get
             goRFun (bounds env) x t1 t2 r
     go (RVar a r)
-      = RVar (symbolRTyVar a) <$> resolveReft r
+      = RVar (bareRTyVar a) <$> resolveReft r
     go (RAllT a t)
-      = RAllT (symbolRTyVar a) <$> go t
+      = RAllT (bareRTyVar a) <$> go t
     go (RAllP a t)
       = RAllP <$> ofBPVar a <*> go t
     go (RAllS x t)
@@ -148,17 +148,21 @@ ofBRType appRTAlias resolveReft
     go_syms
       = secondM ofBSort
 
-    goRFun bounds _ (RApp c ps' _ _) t _ | Just bnd <- M.lookup c bounds
+    goRFun bounds _ (RApp c ps' _ _) t _
+      | Just bnd <- M.lookup (btc_tc c) bounds
       = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
            ts <- mapM go ts'
-           makeBound bnd ts [x | RVar x _ <- ps] <$> go t
+           makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
     goRFun _ x t1 t2 r
       = RFun x <$> go t1 <*> go t2 <*> resolveReft r
 
-    goRApp aliases (RApp (Loc l _ c) ts _ r) | Just rta <- M.lookup c aliases
+    goRApp aliases (RApp tc ts _ r)
+      | Loc l _ c <- btc_tc tc
+      , Just rta <- M.lookup c aliases
       = appRTAlias l rta ts =<< resolveReft r
-    goRApp _ (RApp lc ts rs r)
-      =  do let l = loc lc
+    goRApp _ (RApp tc ts rs r)
+      =  do let lc = btc_tc tc
+            let l = loc lc
             r'  <- resolveReft r
             lc' <- Loc l l <$> matchTyCon lc (length ts)
             rs' <- mapM go_ref rs
@@ -189,8 +193,8 @@ failRTAliasApp l rta _ _
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
   | length args == length αs + length εs
-    = do ts <- mapM (ofBareType l)                   $ take (length αs) args
-         es <- mapM (resolve l . exprArg (show err)) $ drop (length αs) args
+    = do ts <- mapM (ofBareType l) $ take (length αs) args
+         es <- mapM (resolve l . exprArg (symbolString $ rtName rta)) $ drop (length αs) args
          let tsu = zipWith (\α t -> (α, toRSort t, t)) αs ts
          let esu = mkSubst $ zip (symbol <$> εs) es
          return $ subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
@@ -214,11 +218,12 @@ exprArg _   (RVar x _)
 exprArg _   (RApp x [] [] _)
   = EVar (symbol x)
 exprArg msg (RApp f ts [] _)
-  = mkEApp (symbol <$> f) (exprArg msg <$> ts)
+  = mkEApp (symbol <$> btc_tc f) (exprArg msg <$> ts)
 exprArg msg (RAppTy (RVar f _) t _)
   = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
+    -- FIXME: Handle this error much better!
 
 --------------------------------------------------------------------------------
 

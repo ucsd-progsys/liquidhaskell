@@ -117,9 +117,10 @@ checkRefinedClasses definitions instances
       = filter ((== cls) . riclass) instances
 
     mkError (cls, conflicts)
-      = ErrRClass (sourcePosSrcSpan $ loc cls) (pprint cls) (ofConflict <$> conflicts)
+      = ErrRClass (sourcePosSrcSpan $ loc $ btc_tc cls)
+                  (pprint cls) (ofConflict <$> conflicts)
     ofConflict
-      = sourcePosSrcSpan . loc . riclass &&& pprint . ritype
+      = sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
 
 checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDuplicateFieldNames = mapMaybe go

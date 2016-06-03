@@ -14,7 +14,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import Language.Fixpoint.Misc (fst3)
-import Language.Fixpoint.Types (Expr(..), Symbol)
+import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
@@ -148,7 +148,7 @@ buildTypeEdges :: AliasTable BareType -> BareType -> [Symbol]
 buildTypeEdges table = ordNub . go
   where
     go :: BareType -> [Symbol]
-    go (RApp c ts rs _) = go_alias (val c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RApp c ts rs _) = go_alias (symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RFun _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2

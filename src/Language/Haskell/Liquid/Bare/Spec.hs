@@ -47,9 +47,9 @@ import           Language.Fixpoint.Misc                     (group, snd3, groupL
 
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.GHC.Misc           ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
-import           Language.Haskell.Liquid.Misc               (addFst3, fourth4, mapFst, concatMapM)
-import           Language.Haskell.Liquid.Types.RefType      (generalize, rVar, symbolRTyVar)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
@@ -73,15 +73,16 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
   where
     --FIXME: cleanup this code
     unClass = snd . bkClass . fourth4 . bkUniv
-    mkClass (RClass c ss as ms)
-            = do let l      = loc  c
+    mkClass (RClass cc ss as ms)
+            = do let c      = btc_tc cc
+                 let l      = loc  c
                  let l'     = locE c
                  tc        <- lookupGhcTyCon c
                  ss'       <- mapM mkLSpecType ss
                  let (dc:_) = tyConDataCons tc
-                 let αs  = map symbolRTyVar as
-                 let as' = [rVar $ symbolTyVar a | a <- as ]
-                 let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
+                 let αs  = map bareRTyVar as
+                 let as' = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
+                 let ms' = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
                  vts <- makeSpec (noCheckUnknown cfg || cmod /= mod) vs ms'
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
