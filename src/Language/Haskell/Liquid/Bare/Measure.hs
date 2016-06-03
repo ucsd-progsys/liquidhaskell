@@ -153,7 +153,7 @@ meetLoc !t1 !t2 = t1{val = fromRTypeRep $ trep1
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = catMaybes (go <$> zip (reverse xts) [1..])
+  =  catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
       | isFunTy t = Nothing
@@ -161,6 +161,8 @@ makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
 
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
     n             = length xts
+
+
 
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor

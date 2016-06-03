@@ -26,21 +26,21 @@ pure x = C x N
 
 {-@ axiomatize seq @-}
 seq :: L (a -> b) -> L a -> L b
-seq fs xs
-  | llen fs > 0  = append (fmap (hd fs) xs) (seq (tl fs) xs)
-  | otherwise    = N
+seq (C f fs) xs
+  = append (fmap f xs) (seq fs xs)
+seq N xs
+  = N
 
 {-@ axiomatize append @-}
 append :: L a -> L a -> L a
-append xs ys
-  | llen xs == 0 = ys
-  | otherwise    = C (hd xs) (append (tl xs) ys)
+append N ys
+  = ys
+append (C x xs) ys
+  = C x (append xs ys)
 
 {-@ axiomatize fmap @-}
-fmap :: (a -> b) -> L a -> L b
-fmap f xs
-  | llen xs == 0 = N
-  | otherwise    = C (f (hd xs)) (fmap f (tl xs))
+fmap f N        = N
+fmap f (C x xs) = C (f x) (fmap f xs)
 
 {-@ axiomatize id @-}
 id :: a -> a
@@ -198,6 +198,27 @@ llen :: L a -> Int
 llen N        = 0
 llen (C _ xs) = 1 + llen xs
 
+{-@ measure is_N @-}
+is_N N = True
+is_N _ = False
+
+{-@ measure is_C @-}
+is_C N = False
+is_C _ = True
+
+
+
+{-@ measure select_C_1 @-}
+{-@ select_C_1 :: {v:L a | llen v > 0 } -> a @-}
+select_C_1 :: L a -> a
+select_C_1 (C x _) = x
+
+{-@ measure select_C_2 @-}
+{-@ select_C_2 :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
+select_C_2 :: L a -> L a
+select_C_2 (C _ xs) = xs
+
+
 {-@ measure hd @-}
 {-@ hd :: {v:L a | llen v > 0 } -> a @-}
 hd :: L a -> a
@@ -207,8 +228,6 @@ hd (C x _) = x
 {-@ tl :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
 tl :: L a -> L a
 tl (C _ xs) = xs
-
-
 
 -- | TODO: Cuurently I cannot improve proofs
 -- | HERE I duplicate the code...

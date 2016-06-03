@@ -21,9 +21,10 @@ mempty = Nothing
 
 {-@ axiomatize mappend @-}
 mappend :: Maybe a -> Maybe a -> Maybe a
-mappend x y
-  | is_Nothing x = y
-  | otherwise    = x
+mappend Nothing y
+  = y
+mappend (Just x) _
+  = Just x
 
 mempty_left :: Maybe a -> Proof
 {-@ mempty_left :: x:Maybe a -> {mappend mempty x == x}  @-}
@@ -70,10 +71,10 @@ mappend_assoc Nothing Nothing z
 
 data Maybe a = Nothing | Just a
 
-{-@ measure from_Just @-}
-from_Just :: Maybe a -> a
-{-@ from_Just :: xs:{Maybe a | is_Just xs } -> a @-}
-from_Just (Just x) = x
+{-@ measure select_Just_1 @-}
+select_Just_1 :: Maybe a -> a
+{-@ select_Just_1 :: xs:{Maybe a | is_Just xs } -> a @-}
+select_Just_1 (Just x) = x
 
 {-@ measure is_Nothing @-}
 is_Nothing :: Maybe a -> Bool
