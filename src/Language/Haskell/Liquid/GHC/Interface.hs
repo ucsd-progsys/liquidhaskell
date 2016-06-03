@@ -300,7 +300,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
-  typechecked         <- typecheckModule $ ignoreInline parsed
+  typechecked         <- typecheckModule' $ ignoreInline parsed
   _                   <- loadModule typechecked
   let specComments     = getSpecComments parsed
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
@@ -319,6 +319,19 @@ loadDependenciesOf modName = do
   loadResult <- load $ LoadDependenciesOf modName
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
+
+-- | Tell the typechecker that we're doing `LinkInMemory`, so it will think
+-- we're in interactive mode and not complain about modules named `Main`
+-- without a `main` IO action (this came up in tests/neg/AbsApp.hs`).
+typecheckModule' :: ParsedModule -> Ghc TypecheckedModule
+typecheckModule' pm = do
+  let ms   = pm_mod_summary pm
+  let df   = ms_hspp_opts ms
+  let df'  = df { ghcLink = LinkInMemory }
+  let ms'  = ms { ms_hspp_opts = df' }
+  let pm'  = pm { pm_mod_summary = ms' }
+  tm      <- typecheckModule pm'
+  return $ tm { tm_parsed_module = pm }
 
 getSpecComments :: ParsedModule -> [(SourcePos, String)]
 getSpecComments parsed = mapMaybe getSpecComment comments
