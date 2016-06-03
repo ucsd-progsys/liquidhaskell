@@ -570,7 +570,7 @@ above the function definition. [For example](tests/pos/spec0.hs)
     incr x = x + 1
 
 Modules WITH code: Type Classes
----------------------------------------
+-------------------------------
 
 Write the specification directly into the .hs or .lhs file,
 above the type class definition. [For example](tests/pos/Class.hs)
@@ -603,6 +603,59 @@ the refined type `Odd -> Odd -> Odd`.
 
 Note that currently liquidHaskell does not allow refining instances of
 refined classes.
+
+Modules WITH code: QuasiQuotation
+---------------------------------
+
+Instead of writing both a Haskell type signature *and* a LiquidHaskell
+specification for a function, the `lq` quasiquoter in the `LiquidHaskell` module
+can be used to generate both from just the LiquidHaskell specification.
+
+```haskell
+module Nats (nats) where
+
+{-@ nats :: [{v:Int | 0 <= v}] @-}
+nats :: [Int]
+nats = [1,2,3]
+```
+
+can be written as
+
+```haskell
+{-# LANGUAGE QuasiQuoters #-}
+module Nats (nats) where
+
+import LiquidHaskell
+
+[lq| nats :: [{v:Int | 0 <= v}] |]
+nats = [1,2,3]
+```
+
+and the `lq` quasiquoter will generate the plain `nats :: [Int]` when GHC
+compiles the module.
+
+Refined type aliases (see the next section) can also be written inside `lq`; for
+example:
+
+```haskell
+{-# LANGUAGE QuasiQuoters #-}
+module Nats (Nat, nats) where
+
+[lq| type Nat = {v:Int | 0 <= v} |]
+
+[lq| nats :: [Nat] |]
+nats = [1,2,3] 
+```
+
+Here, the `lq` quasiquoter will generate a plain Haskell type synonym for `Nat`
+as well as the refined one.
+
+Note that this is still an experimental feature, and currently requires that one
+depend on LiquidHaskell as a build dependency for your project; the quasiquoter
+will likely be split out eventually into an independent, dependency-light
+package. Also, at this time, writing a type inside `lq` which refers to a
+refined type alias for which there is not a plain Haskell type synonym of the
+same name will result in a "not in scope" error from GHC.
 
 Refinement Type Aliases
 -----------------------
