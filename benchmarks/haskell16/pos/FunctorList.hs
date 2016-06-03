@@ -34,10 +34,11 @@ id x = x
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
-{-@ fmap_id' :: {v:Proof | fmap id == id } @-}
+{-
+{- fmap_id' :: {v:Proof | fmap id == id } @-}
 fmap_id' :: Proof
 fmap_id' = abstract (fmap id) id fmap_id
-
+-}
 
 {-@ fmap_id :: xs:L a -> {v:Proof | fmap id xs == id xs } @-}
 fmap_id :: L a -> Proof
@@ -55,14 +56,14 @@ fmap_id (C x xs)
 
 
 -- | Distribution
-
-{-@ fmap_distrib' :: f:(a -> a) -> g:(a -> a)
+{-
+{- fmap_distrib' :: f:(a -> a) -> g:(a -> a)
                -> {v:Proof | fmap  (compose f g) == compose (fmap f) (fmap g) } @-}
 fmap_distrib' :: (a -> a) -> (a -> a) -> Proof
 fmap_distrib' f g
   = abstract (fmap  (compose f g)) (compose (fmap f) (fmap g))
        (fmap_distrib f g)
-
+-}
 
 {-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:L a
                -> {v:Proof | fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
