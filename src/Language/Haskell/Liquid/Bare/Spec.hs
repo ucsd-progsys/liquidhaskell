@@ -94,7 +94,7 @@ makeQualifiers :: (ModName, Ms.Spec ty bndr)
                -> BareM [F.Qualifier]
 makeQualifiers (mod,spec) = inModule mod mkQuals
   where
-    mkQuals = mapM (\q -> resolve (F.q_pos q) q) $ Ms.qualifiers spec
+    mkQuals = mapM (\q -> resolve (F.qPos q) q) $ Ms.qualifiers spec
 
 makeHints :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Int])]
 makeHints   vs spec = varSymbols id vs $ Ms.decr spec
