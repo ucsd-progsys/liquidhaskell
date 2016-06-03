@@ -146,14 +146,20 @@ mkBindExpr sI = (M.fromList ips, M.fromList kSus)
     ips  = [ (i, BP p (fst <$> iks)) | (i, p, iks) <- ipks                     ]
     ipks = [ (i, p, iks)             | (i, x, r)   <- ixrs
                                      , let (p, iks) = mkBindPred i x r         ]
-    ixrs = checkNoDups $ F.bindEnvToList (F.bs sI)
+    ixrs = checkNoDups sI $ F.bindEnvToList (F.bs sI)
 
-checkNoDups :: [(F.BindId, F.Symbol, a)] -> [(F.BindId, F.Symbol, a)]
-checkNoDups ixrs = applyNonNull ixrs dbErr bads
+-- TODO: we should not need the below checks once LH issue #724 is resolved.
+checkNoDups :: F.SInfo a -> [(F.BindId, F.Symbol, F.SortedReft)] -> [(F.BindId, F.Symbol, F.SortedReft)]
+checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
   where
-    bads         = [(x, is) | (x, is) <- groupList xis, 2 <= length is ]
-    xis          = [(x, i)  | (i, x, _) <- ixrs]
-    dbErr xis    = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
+    bads            = [(x, is) | (x, is) <- groupList xis
+                               , 2 <= length is               ]
+    xis             = [(x, i)  | (i, x, r) <- ixrs
+                               , F.isNonTrivial r
+                               -- TODO (Fix LH issue #724 and remove spl. case. on consts)
+                               , not (F.memberSEnv x _consts) ]
+    _consts         = F.lits _sI
+    dbErr xis       = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
 
 
 mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub)])
