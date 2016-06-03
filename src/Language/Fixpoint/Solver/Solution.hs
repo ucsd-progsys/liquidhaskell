@@ -159,12 +159,14 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
-lhsPred be s c = {- F.tracepp msg $ -} fst $ apply g s bs
+foo _ x = x
+
+lhsPred be s c = foo (error "FUCKED") (F.tracepp _msg $ fst $ apply g s bs)
   where
     g          = (ci, be, bs)
     bs         = F.senv c
     ci         = sid c
-    -- msg        = "LhsPred for id = " ++ show (sid c)
+    _msg       = "LhsPred for id = " ++ show (sid c)
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
