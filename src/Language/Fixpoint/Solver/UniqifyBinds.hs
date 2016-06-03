@@ -12,10 +12,9 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Data.Foldable       (foldl')
-import           Data.Maybe          (catMaybes, fromJust, isJust)
+import           Data.Maybe          (catMaybes, fromJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
-import           Control.Arrow       (second)
 import           Control.DeepSeq     (NFData, ($!!))
 
 --------------------------------------------------------------
@@ -24,7 +23,7 @@ renameAll fi2 = fi4
   where
     fi4      = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
     fi3      = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
-    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
+    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $ fi2
     idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 --------------------------------------------------------------
 
@@ -37,9 +36,9 @@ instance Hashable Ref
 -- references, i.e. those where it needs to know when their names gets changed
 type IdMap = M.HashMap Ref (S.HashSet BindId)
 
--- map from old name and sort to new name, represented by a hashmap containing
+-- map from old name and bindid to new name, represented by a hashmap containing
 -- association lists. Nothing as new name means same as old
-type RenameMap = M.HashMap Symbol [(Sort, Maybe Symbol)]
+type RenameMap = M.HashMap Symbol [(BindId, Maybe Symbol)]
 
 --------------------------------------------------------------
 mkIdMap :: SInfo a -> IdMap
@@ -67,23 +66,25 @@ namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
 namesToIds xs m = S.fromList $ catMaybes [M.lookup x m | x <- S.toList xs] --TODO why any Nothings?
 
 --------------------------------------------------------------
-mkRenameMap :: BindEnv -> RenameMap
+mkRenameMap :: SInfo a -> RenameMap
 --------------------------------------------------------------
-mkRenameMap be = foldl' (addId be) M.empty ids
+mkRenameMap fi = foldl' (addId ls be) M.empty ids
   where
+    ls  = fst <$> toListSEnv (lits fi)
+    be  = bs fi
     ids = fst3 <$> bindEnvToList be
 
-addId :: BindEnv -> RenameMap -> BindId -> RenameMap
-addId be m i
-  | M.member sym m = addDupId m sym t i
-  | otherwise      = M.insert sym [(t, Nothing)] m
+addId :: [Symbol] -> BindEnv -> RenameMap -> BindId -> RenameMap
+addId ls be m i
+  | M.member sym m = addDupId ls m sym i
+  | otherwise      = M.insert sym [(i, Nothing)] m
   where
-    (sym, t)       = second sr_sort $ lookupBindEnv i be
+    sym            = fst $ lookupBindEnv i be
 
-addDupId :: RenameMap -> Symbol -> Sort -> BindId -> RenameMap
-addDupId m sym t i
-  | isJust $ L.lookup t mapping = m
-  | otherwise                   = M.insert sym ((t, Just $ renameSymbol sym i) : mapping) m
+addDupId :: [Symbol] -> RenameMap -> Symbol -> BindId -> RenameMap
+addDupId ls m sym i
+  | sym `L.elem` ls = M.insert sym ((i, Nothing                  ) : mapping) m
+  | otherwise       = M.insert sym ((i, Just $ renameSymbol sym i) : mapping) m
   where
     mapping = fromJust $ M.lookup sym m
 --------------------------------------------------------------
@@ -96,12 +97,12 @@ renameVars fi rnMap idMap = M.foldlWithKey' (updateRef rnMap) fi idMap
 updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
-    symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
+    symTList = [(fst $ lookupBindEnv i $ bs fi, i) | i <- S.toList bset]
     subs = catMaybes $ mkSubUsing rnMap <$> symTList
 
-mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
-mkSubUsing m (sym, t) = do
-  newName <- fromJust $ L.lookup t $ mlookup m sym
+mkSubUsing :: RenameMap -> (Symbol, BindId) -> Maybe (Symbol, Expr)
+mkSubUsing m (sym, i) = do
+  newName <- fromJust $ L.lookup i $ mlookup m sym
   return (sym, eVar newName)
 
 applySub :: Subst -> SInfo a -> Ref -> SInfo a
@@ -126,6 +127,5 @@ renameBind m (i, sym, sr)
   | (Just newSym) <- mnewSym = (i, newSym, sr)
   | otherwise                = (i, sym,    sr)
   where
-    t       = sr_sort sr
-    mnewSym = fromJust $ L.lookup t $ mlookup m sym
+    mnewSym = fromJust $ L.lookup i $ mlookup m sym
 --------------------------------------------------------------

@@ -64,7 +64,8 @@ data Config
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
-    , minimize    :: Bool                -- ^ use delta debug to min fq file
+    , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
+    , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     } deriving (Eq,Data,Typeable,Show)
@@ -93,6 +94,7 @@ instance Default Config where
                , parts       = def
                , save        = def
                , minimize    = def
+               , minimizeQs  = def
                , gradual     = False
                }
 defConfig :: Config
@@ -173,7 +175,8 @@ config = Config {
   , cores       = def     &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
-  , minimize    = False &= help "Use delta debug to minimize fq file"
+  , minimize    = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
+  , minimizeQs  = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
   }
   &= verbosity

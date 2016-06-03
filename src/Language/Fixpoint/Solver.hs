@@ -37,7 +37,7 @@ import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Minimize (minQuery)
+import           Language.Fixpoint.Minimize (minQuery, minQuals)
 import           Control.DeepSeq
 
 
@@ -68,6 +68,7 @@ solve cfg q
   | parts cfg    = partition  cfg        $!! q
   | stats cfg    = statistics cfg        $!! q
   | minimize cfg = minQuery   cfg solve' $!! q
+  | minimizeQs cfg = minQuals cfg solve' $!! q
   | otherwise    = solve'     cfg        $!! q
 
 solve' :: (NFData a, Fixpoint a) => Solver a
