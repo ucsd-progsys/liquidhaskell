@@ -23,7 +23,6 @@ import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
--- DEBUG
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
@@ -32,6 +31,7 @@ import           Data.Maybe (catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
+-- DEBUG
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
