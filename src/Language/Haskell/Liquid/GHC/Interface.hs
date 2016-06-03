@@ -131,8 +131,8 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 , ghcLink      = NoLink
-                 , hscTarget    = HscNothing
+                 , ghcLink      = LinkInMemory
+                 , hscTarget    = HscInterpreted
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -154,19 +154,10 @@ configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
-  moduleGraph     <- enableInterpretedIfNeeded =<< depanal [] False
+  moduleGraph     <- depanal [] False
   let homeModules  = flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
   return homeModules
-
-enableInterpretedIfNeeded :: ModuleGraph -> Ghc ModuleGraph
-enableInterpretedIfNeeded moduleGraph
-  | not (needsTemplateHaskell moduleGraph) = return moduleGraph
-  | otherwise = do
-    _ <- setSessionDynFlags =<< (enable <$> getSessionDynFlags)
-    return $ (\m -> m {ms_hspp_opts = enable $ ms_hspp_opts m}) <$> moduleGraph
-  where
-    enable df = df { ghcLink = LinkInMemory, hscTarget = HscInterpreted }
 
 setTargetModules :: [ModuleName] -> Ghc ()
 setTargetModules modNames = setTargets $ mkTarget <$> modNames
@@ -300,8 +291,8 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
-  typechecked         <- typecheckModule' $ ignoreInline parsed
-  _                   <- loadModule typechecked
+  typechecked         <- typecheckModule $ ignoreInline parsed
+  _                   <- loadModule' typechecked
   let specComments     = getSpecComments parsed
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
@@ -320,18 +311,16 @@ loadDependenciesOf modName = do
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
 
--- | Tell the typechecker that we're doing `LinkInMemory`, so it will think
--- we're in interactive mode and not complain about modules named `Main`
--- without a `main` IO action (this came up in tests/neg/AbsApp.hs`).
-typecheckModule' :: ParsedModule -> Ghc TypecheckedModule
-typecheckModule' pm = do
-  let ms   = pm_mod_summary pm
-  let df   = ms_hspp_opts ms
-  let df'  = df { ghcLink = LinkInMemory }
-  let ms'  = ms { ms_hspp_opts = df' }
-  let pm'  = pm { pm_mod_summary = ms' }
-  tm      <- typecheckModule pm'
-  return $ tm { tm_parsed_module = pm }
+loadModule' :: TypecheckedModule -> Ghc TypecheckedModule
+loadModule' tm = loadModule tm'
+  where
+    pm   = tm_parsed_module tm
+    ms   = pm_mod_summary pm
+    df   = ms_hspp_opts ms
+    df'  = df { hscTarget = HscNothing, ghcLink = NoLink }
+    ms'  = ms { ms_hspp_opts = df' }
+    pm'  = pm { pm_mod_summary = ms' }
+    tm'  = tm { tm_parsed_module = pm' }
 
 getSpecComments :: ParsedModule -> [(SourcePos, String)]
 getSpecComments parsed = mapMaybe getSpecComment comments
