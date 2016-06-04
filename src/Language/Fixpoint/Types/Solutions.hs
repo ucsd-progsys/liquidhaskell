@@ -58,6 +58,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
+import           Text.PrettyPrint.HughesPJ
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
@@ -99,6 +100,9 @@ data Cube = Cube
   , cuId    :: SubcId    -- ^ Id            of   defining Cstr
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
   }
+
+instance PPrint Cube where
+  pprintTidy _ c = "Cube" <+> pprint (cuId c)
 
 --------------------------------------------------------------------------------
 result :: Solution -> M.HashMap KVar Expr
