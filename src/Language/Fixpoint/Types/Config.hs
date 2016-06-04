@@ -67,6 +67,7 @@ data Config
     , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
+    , extensionality :: Bool             -- ^ allow function extensionality 
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -94,6 +95,7 @@ instance Default Config where
                , save        = def
                , minimize    = def
                , gradual     = False
+               , extensionality = False 
                }
 defConfig :: Config
 defConfig = def 
@@ -175,6 +177,7 @@ config = Config {
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   , minimize    = False &= help "Use delta debug to minimize fq file"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
+  , extensionality = False &= help "Allow function extensionality axioms"
   }
   &= verbosity
   &= program "fixpoint"

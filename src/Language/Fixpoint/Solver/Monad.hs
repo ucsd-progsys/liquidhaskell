@@ -43,6 +43,7 @@ import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
+import           Data.Char            (isUpper)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
@@ -185,8 +186,9 @@ declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi | F.allowHO fi
   = [es | (_, es) <- tess ]
   where
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x)]
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x), isConstant x]
     isThy       = isJust . Thy.smt2Symbol
+    isConstant  = isUpper . head . F.symbolString
 
 declLiterals fi
   = [es | (_, es) <- tess ]

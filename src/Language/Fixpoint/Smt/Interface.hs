@@ -54,7 +54,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, allowHO, solver)
+import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality)
 import           Language.Fixpoint.Misc   (errorstar, getUniqueInt)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -149,7 +149,7 @@ command              :: Context -> Command -> IO Response
 command me !cmd       = do n <- getUniqueInt
                            say n cmd >> hear cmd
   where
-    say n             = smtWrite me . Builder.toLazyText . runSmt2 n (smtenv me)
+    say n             = smtWrite me . Builder.toLazyText . runSmt2 n me
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -235,7 +235,7 @@ hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
 makeContext   :: Config -> FilePath -> IO Context
 --------------------------------------------------------------------------
 makeContext cfg f
-  = do me   <- makeProcess (solver cfg)
+  = do me   <- makeProcess cfg
        pre  <- smtPreamble cfg (solver cfg) me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
@@ -251,20 +251,21 @@ makeContextWithSEnv cfg f env
 
 makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
-  = do me  <- makeProcess (solver cfg)
+  = do me  <- makeProcess cfg
        pre <- smtPreamble cfg (solver cfg) me
        mapM_ (smtWrite me) pre
        return me
 
-makeProcess :: SMTSolver -> IO Context
-makeProcess s
-  = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
+makeProcess :: Config -> IO Context
+makeProcess cfg
+  = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
        loud <- isLoud
        return Ctx { pId     = pid
                   , cIn     = hIn
                   , cOut    = hOut
                   , cLog    = Nothing
                   , verbose = loud
+                  , c_ext   = extensionality cfg  
                   , smtenv  = initSMTEnv
                   }
 
@@ -362,8 +363,8 @@ interact' me cmd  = void $ command me cmd
 
 makeMbqi :: Config -> [LT.Text]
 makeMbqi cfg 
-  | allowHO cfg = [""]
-  | otherwise   = ["\n(set-option :smt.mbqi false)"]
+  | extensionality cfg = [""]
+  | otherwise          = ["\n(set-option :smt.mbqi false)"]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options :: [LT.Text]
