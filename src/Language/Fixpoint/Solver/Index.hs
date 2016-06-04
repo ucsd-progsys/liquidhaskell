@@ -87,7 +87,7 @@ create _cfg sI kHyps _cDs = FastIdx
   , kvUse    = kU
   , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
-  , kvDeps   = F.tracepp "KVDeps\n" $ mkKvDeps kHypM bE (F.cm sI)
+  , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
   }
   where
     kHypM    = M.fromList kHyps
@@ -95,10 +95,10 @@ create _cfg sI kHyps _cDs = FastIdx
 
 --------------------------------------------------------------------------------
 mkKvDeps :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap [KIndex]
-mkKvDeps kHyps bE = fmap S.toList . closeSubcDeps (F.tracepp "kHypm" kHyps) . subcDeps bE
+mkKvDeps kHyps bE = fmap S.toList . closeSubcDeps kHyps . subcDeps bE
 
 subcDeps :: (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap (S.HashSet KIndex)
-subcDeps bE m = F.tracepp "subcDeps\n" $ fmap (S.fromList . cBinds) m
+subcDeps bE m = fmap (S.fromList . cBinds) m
   where
     cBinds  = concatMap bKIs . F.elemsIBindEnv . F.senv
     bKIs i  = bpKVar $ safeLookup (msg i) i bE
@@ -113,18 +113,18 @@ closeSubcDeps kHypM kiM = cMap (execState act s0)
     goCI :: F.SubcId -> DM (S.HashSet KIndex)
     goCI = memoWith accCM $ \ci ->
              case M.lookup ci kiM of
-               Just kis -> F.tracepp ("many goCI " ++ show ci) <$> many goKI (S.toList kis)
+               Just kis -> {- F.tracepp ("many goCI " ++ show ci) <$> -} many goKI (S.toList kis)
                Nothing  -> error $ "goCI: unknown SubcId: " ++ show ci
 
     goK  :: F.KVar -> DM (S.HashSet KIndex)
     goK  = memoWith accKM $ \k ->
              case M.lookup k kHypM of
-               Just cs -> F.tracepp ("many goK " ++ show k) <$> many goCI (cuId <$> cs)
+               Just cs -> {- F.tracepp ("many goK " ++ show k) <$> -} many goCI (cuId <$> cs)
                _       -> error "impossible"
 
     goKI  :: KIndex -> DM (S.HashSet KIndex)
     goKI ki = case M.lookup (kiKVar ki) kHypM of
-                Just _  -> F.tracepp ("many goKI " ++ show ki) <$> goK k
+                Just _  -> {- F.tracepp ("many goKI " ++ show ki) <$> -} goK k
                 Nothing -> return (S.singleton ki)
               where
                 k = kiKVar ki
@@ -170,7 +170,7 @@ mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
 
 --------------------------------------------------------------------------------
 mkBindPrev :: F.SInfo a -> (BIndex |-> BIndex)
-mkBindPrev sI = M.fromList $ F.tracepp "mkBindPrev:Doms" [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
+mkBindPrev sI = M.fromList $ {- F.tracepp "mkBindPrev:Doms" -} [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
   where
     iDoms     = mkDoms bindIds cEnvs
     bindIds   = fst3   <$> F.bindEnvToList (F.bs sI)
@@ -230,7 +230,7 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me   = ( xts, F.tracepp "Index.bgPred" p )
+bgPred me   = ( xts, {- F.tracepp "Index.bgPred" -} p )
   where
     p       = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
@@ -283,7 +283,7 @@ eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
-lhsPred _ s c = F.tracepp ("Index.lhsPred for " ++ show j) $
+lhsPred _ s c = {- F.tracepp ("Index.lhsPred for " ++ show j) $ -}
                   F.pAnd (bp j : [bp kI `F.PIff` kIndexSol me s kI | kI <- kIs])
   where
     me        = mfromJust "Index.lhsPred" (sIdx s)
