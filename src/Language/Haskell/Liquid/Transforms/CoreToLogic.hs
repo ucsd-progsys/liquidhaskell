@@ -23,7 +23,6 @@ import           Prelude                               hiding (error)
 import           Type
 import           TypeRep
 import           Var
-import           DataCon                               (dataConWorkId)
 
 import qualified CoreSyn                               as C
 import           Literal
@@ -35,11 +34,12 @@ import           TysWiredIn
 
 
 
-import           Language.Fixpoint.Misc                (snd3, traceShow)
+import           Language.Fixpoint.Misc                (snd3)
 
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Bare.Misc     
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Misc          (mapSnd)
@@ -259,16 +259,11 @@ checkDataCon d e
   = return $ EApp (EVar $ makeDataConChecker d) e
   where 
 
-makeDataConChecker :: DataCon -> Symbol 
-makeDataConChecker d = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
-makeDataSelector :: DataCon -> Int -> Symbol 
-makeDataSelector d i = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
-
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)
   = do p <- coreToLg e 
        let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]  
-       return $ traceShow ("\nAlt for \n" ++ show (d, xs, e)++ "\n\n" ++ show su ++ "\n\n"  ++ show e) (d, subst su p) 
+       return (d, subst su p) 
   where
     f x i = let t = EApp (EVar $ makeDataSelector d i) de 
             in [(symbol x, t), (simplesymbol x, t)]
@@ -417,10 +412,6 @@ mkS                    = Just . ESym . SL  . decodeUtf8
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
-
-
-simpleSymbolVar :: Id -> Symbol
-simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 
 simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = symbol . showPpr . getName

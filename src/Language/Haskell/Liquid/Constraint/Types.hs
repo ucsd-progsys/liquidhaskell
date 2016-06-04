@@ -374,8 +374,7 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
       = t
 
     ref f (F.Reft(v, rr)) 
-      = traceShow ("\nInvariants for \n" ++ show (x)) 
-        $ F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
+      = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
 
 makeRecInvariants γ _ = γ
 

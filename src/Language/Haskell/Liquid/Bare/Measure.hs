@@ -63,7 +63,7 @@ import Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult)
+import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataSelector)
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
@@ -175,12 +175,6 @@ makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType 
 
     checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n 
-
-makeDataSelector :: DataCon -> Int -> Symbol 
-makeDataSelector d i = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
-
-makeDataConChecker :: DataCon -> Symbol 
-makeDataConChecker d = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
 
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor
