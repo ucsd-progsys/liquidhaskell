@@ -27,7 +27,7 @@ mappend (Just x) _
   = Just x
 
 mempty_left :: Maybe a -> Proof
-{-@ mempty_left :: x:Maybe a -> {mappend mempty x == x}  @-}
+{-@ mempty_left :: x:Maybe a -> { mappend mempty x == x }  @-}
 mempty_left x
   =   mappend mempty x
   ==! mappend Nothing x
@@ -35,7 +35,7 @@ mempty_left x
   *** QED
 
 mempty_right :: Maybe a -> Proof
-{-@ mempty_right :: x:Maybe a -> {mappend x mempty == x}  @-}
+{-@ mempty_right :: x:Maybe a -> { mappend x mempty == x }  @-}
 mempty_right Nothing
   =   mappend Nothing mempty
   ==! mempty
@@ -70,18 +70,4 @@ mappend_assoc Nothing Nothing z
   *** QED
 
 data Maybe a = Nothing | Just a
-
-{-@ measure select_Just_1 @-}
-select_Just_1 :: Maybe a -> a
-{-@ select_Just_1 :: xs:{Maybe a | is_Just xs } -> a @-}
-select_Just_1 (Just x) = x
-
-{-@ measure is_Nothing @-}
-is_Nothing :: Maybe a -> Bool
-is_Nothing Nothing = True
-is_Nothing _       = False
-
-{-@ measure is_Just @-}
-is_Just :: Maybe a -> Bool
-is_Just (Just _) = True
-is_Just _        = False
+{-@ data Maybe a = Nothing | Just a @-}
