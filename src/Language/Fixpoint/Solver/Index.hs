@@ -232,7 +232,7 @@ bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
 bgPred me   = ( xts, F.tracepp "Index.bgPred" p )
   where
-    p       = F.pAnd $ [ bp i `F.PIff` bindPred me bP | (i, bP) <- iBps  ]
+    p       = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
     xts     = [(x, F.boolSort) | x <- bXs ]
     bXs     =  (bx . fst <$> iBps                 ) -- BindId
