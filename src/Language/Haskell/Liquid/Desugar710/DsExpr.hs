@@ -16,6 +16,7 @@ import Prelude hiding (error)
 import Language.Haskell.Liquid.Desugar710.Match
 import Language.Haskell.Liquid.Desugar710.MatchLit
 import Language.Haskell.Liquid.Desugar710.DsBinds
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.DsMeta
 import Language.Haskell.Liquid.Desugar710.DsGRHSs
 import Language.Haskell.Liquid.Desugar710.DsListComp
 import Language.Haskell.Liquid.Desugar710.DsUtils
@@ -650,9 +651,9 @@ dsExpr (RecordUpd record_expr (HsRecFields { rec_flds = fields })
 
 dsExpr (HsRnBracketOut _ _) = panic "dsExpr HsRnBracketOut"
 -- #ifdef GHCI
--- dsExpr (HsTcBracketOut x ps) = dsBracket x ps
+dsExpr (HsTcBracketOut x ps) = dsBracket x ps
 -- #else
-dsExpr (HsTcBracketOut _ _) = panic "dsExpr HsBracketOut"
+-- dsExpr (HsTcBracketOut _ _) = panic "dsExpr HsBracketOut"
 -- #endif
 dsExpr (HsSpliceE _ s)      = pprPanic "dsExpr:splice" (ppr s)
 
