@@ -19,11 +19,12 @@ import Helper
 mempty :: Maybe a
 mempty = Nothing
 
+
 {-@ axiomatize mappend @-}
 mappend :: Maybe a -> Maybe a -> Maybe a
 mappend Nothing y
   = y
-mappend (Just x) _
+mappend (Just x) y
   = Just x
 
 mempty_left :: Maybe a -> Proof
@@ -44,6 +45,7 @@ mempty_right Nothing
 
 mempty_right (Just x)
   = mappend (Just x) mempty
+  ==! mappend (Just x) Nothing
   ==! Just x
   *** QED
 

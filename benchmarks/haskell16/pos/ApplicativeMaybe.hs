@@ -27,7 +27,7 @@ pure x = Just x
 {-@ axiomatize seq @-}
 seq :: Maybe (a -> b) -> Maybe a -> Maybe b
 seq (Just f) (Just x) = Just (f x)
-seq _         _       = Nothing 
+seq _         _       = Nothing
 
 {-@ axiomatize fmap @-}
 fmap :: (a -> b) -> Maybe a -> Maybe b
