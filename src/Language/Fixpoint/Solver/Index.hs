@@ -130,7 +130,7 @@ closeSubcDeps kHypM kiM = cMap (execState act s0)
              case M.lookup k kHypM of
                Just cs -> {- F.tracepp ("many goK " ++ show k) <$> -} many goCI (cuId <$> cs)
                _       -> error $ "goK: unknown KVar" ++ show k
-               
+
     isNotKut :: KIndex -> Bool
     isNotKut = (`M.member` kHypM) . kiKVar
 
@@ -296,7 +296,9 @@ bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
 bgPred me   = ( xts, F.PTrue )
   where
-    xts     = [(bx i, F.boolSort) | i <- M.keys (bindExpr me)]
+    xts     = (, F.boolSort) <$> bXs
+    bXs     =  (bx <$> M.keys  (bindExpr me)) -- BindId
+            ++ (bx <$> M.keys  (envBinds me)) -- SubcId
 
 {-
     bXs     =  (bx <$> M.keys  (bindExpr me)) -- BindId
