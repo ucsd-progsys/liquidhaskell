@@ -158,9 +158,10 @@ meetLoc !t1 !t2 = t1{val = fromRTypeRep $ trep1
       su = F.mkSubst [(y, F.EVar x) | (x, y) <- zip (ty_binds trep1) (ty_binds trep2)]
 -}
 
-makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = checker : (go' <$> zip (reverse xts) [1..]) ++ catMaybes (go <$> zip (reverse xts) [1..])
+makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
+  = if autoselectors then checker : (go' <$> zip (reverse xts) [1..]) else []
+    ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
       | isFunTy t = Nothing
