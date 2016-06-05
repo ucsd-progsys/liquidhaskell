@@ -88,12 +88,16 @@ create _cfg sI kHyps _cDs = FastIdx
   , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
   , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
-  , envBinds = error "TBD:envBinds"
+  , envBinds = envM
   , envTxBinds = error "TBD:envTxBinds"
   }
   where
     kHypM    = M.fromList kHyps
     (bE, kU) = mkBindExpr sI
+    envM     = F.senv <$> F.cm sI
+
+mkEnvTxBinds :: F.SInfo a -> CMap F.IBindEnv
+mkEnvTxBinds = error "TBD"
 
 --------------------------------------------------------------------------------
 mkKvDeps :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap [KIndex]
@@ -288,19 +292,25 @@ eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
 lhsPred :: Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
 lhsPred s c = F.pAnd $ [subcIdPred me j]
-                    ++ [bp i' `F.PImp` bindIdPred me s i' | i' <- txBindIds me j]
-                    ++ [bp j' `F.PImp` subcIdPred me   j' | j' <- txSubcIds me j]
+                    ++ [bp i' `F.PImp` ip'              | (i', ip') <- ips' ]
+                    ++ [bp j' `F.PImp` subcIdPred me j' | j'        <- js'  ]
    where
-     me     = mfromJust "Index.lhsPred" (sIdx s)
-     j      = F.subcId c
+     me          = mfromJust "Index.lhsPred" (sIdx s)
+     j           = F.subcId c
+     (ips', js') = footprint me s j
+
+footprint :: Index -> Solution -> F.SubcId -> ([(F.BindId, F.Pred)], [F.SubcId])
+footprint me s j = (ips', crunch jss')
+  where
+    crunch       = S.toList . S.unions
+    (ips', jss') = unzip [ ((i', ip'), ijs')
+                          | i'             <- txBindIds me j
+                          , let (ijs', ip') = bindIdPred me s i' ]
 
 txBindIds :: Index -> F.SubcId -> [F.BindId]
 txBindIds me j = F.elemsIBindEnv $ safeLookup msg j (envTxBinds me)
   where
     msg        = "Index.lhsPred: unknown SubcId " ++ show j
-
-txSubcIds :: Index -> F.SubcId -> [F.SubcId]
-txSubcIds = error "TBD:txConstraints"
 
 subcIdPred :: Index -> F.SubcId -> F.Pred
 subcIdPred me j = F.pAnd (bp <$> is)
@@ -308,16 +318,20 @@ subcIdPred me j = F.pAnd (bp <$> is)
     is          = F.elemsIBindEnv $ safeLookup msg j (envBinds me)
     msg         = "Index.subcIdPred: unknown SubcId " ++ show j
 
-bindIdPred :: Index -> Solution -> F.BindId -> F.Pred
-bindIdPred me s i = F.pAnd $ p : (kIndexPred me s <$> kIs)
+bindIdPred :: Index -> Solution -> F.BindId -> (S.HashSet F.SubcId, F.Pred)
+bindIdPred me s i = ( S.unions js
+                    , F.pAnd (p : kIPs) )
   where
+    (js, kIPs)    = unzip (kIndexPred me s <$> kIs)
     BP p kIs      = safeLookup msg i (bindExpr me)
     msg           = "Index.bindIdPred: unknown BindId " ++ show i
 
-kIndexPred :: Index -> Solution -> KIndex -> F.Pred
+kIndexPred :: Index -> Solution -> KIndex -> (S.HashSet F.SubcId, F.Pred)
 kIndexPred me s kI = case lookup s k of
-                       Right eqs -> qBindPred su eqs
-                       Left  cs  -> F.pOr (kIndexCube su <$> cs)
+                       Right eqs -> ( mempty
+                                    , qBindPred su eqs             )
+                       Left  cs  -> ( S.fromList (cuId     <$> cs)
+                                    , F.pOr (kIndexCube su <$> cs) )
   where
     (k, su)        = safeLookup msg kI (kvUse me)
     msg            = "kIndexSol: unknown KIndex" ++ show kI

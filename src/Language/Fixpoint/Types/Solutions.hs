@@ -202,7 +202,7 @@ data Index = FastIdx
   , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
   , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
-  , envTxBinds :: !(CMap IBindEnv)       -- ^ Transitive closure oof all dependent binders 
+  , envTxBinds :: !(CMap IBindEnv)       -- ^ Transitive closure oof all dependent binders
   }
 
 type CMap a  = M.HashMap SubcId a
