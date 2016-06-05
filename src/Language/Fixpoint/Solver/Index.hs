@@ -88,6 +88,8 @@ create _cfg sI kHyps _cDs = FastIdx
   , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
   , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
+  , envBinds = error "TBD:envBinds"
+  , envTxBinds = error "TBD:envTxBinds"
   }
   where
     kHypM    = M.fromList kHyps
@@ -98,7 +100,7 @@ mkKvDeps :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> C
 mkKvDeps kHyps bE = fmap S.toList . closeSubcDeps kHyps . subcDeps bE
 
 subcDeps :: (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap (S.HashSet KIndex)
-subcDeps bE m = fmap (S.fromList . cBinds) m
+subcDeps bE = fmap (S.fromList . cBinds)
   where
     cBinds  = concatMap bKIs . F.elemsIBindEnv . F.senv
     bKIs i  = bpKVar $ safeLookup (msg i) i bE
@@ -233,9 +235,9 @@ bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 bgPred me   = ( xts, F.PTrue ) -- {- F.tracepp "Index.bgPred" -} p )
   where
     xts     = [(x, F.boolSort) | x <- bXs ]
-    bXs     =  (bx . fst <$> iBps                 ) -- BindId
-            ++ (bx       <$> M.keys   (kvDeps me )) -- SubcId
-{- 
+    bXs     =  (bx <$> M.keys  (bindExpr me)) -- BindId
+            ++ (bx <$> M.keys  (kvDeps   me)) -- SubcId
+{-
     _p      = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
                      ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
               ++ (bx       <$> M.keys   (kvUse me  )) -- KIndex
@@ -283,26 +285,34 @@ eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
 --------------------------------------------------------------------------------
 -- | Flipping on bits for a single SubC, given current Solution ----------------
 --------------------------------------------------------------------------------
-lhsPred :: F.SolEnv -> Solution -> F.SimpC a -> F.Pred
+lhsPred :: Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
-lhsPred _ s c = F.pAnd $ (subcIdPred me j) : (bindIdPred s <$> is')
-   where            
-    is'       = F.elemsIBindEnv $ safeLookup msg j (envTxBinds me)
-    me        = mfromJust "Index.lhsPred" (sIdx s)
-    j         = F.subcId c
-    msg       = "Index.lhsPred: unknown SubcId " ++ show j
+lhsPred s c = F.pAnd $ [subcIdPred me j]
+                    ++ [bp i' `F.PImp` bindIdPred me s i' | i' <- txBindIds me j]
+                    ++ [bp j' `F.PImp` subcIdPred me   j' | j' <- txSubcIds me j]
+   where
+     me     = mfromJust "Index.lhsPred" (sIdx s)
+     j      = F.subcId c
 
-subcIdPred :: Index -> F.SubcId -> F.Pred 
+txBindIds :: Index -> F.SubcId -> [F.BindId]
+txBindIds me j = F.elemsIBindEnv $ safeLookup msg j (envTxBinds me)
+  where
+    msg        = "Index.lhsPred: unknown SubcId " ++ show j
+
+txSubcIds :: Index -> F.SubcId -> [F.SubcId]
+txSubcIds = error "TBD:txConstraints"
+
+subcIdPred :: Index -> F.SubcId -> F.Pred
 subcIdPred me j = F.pAnd (bp <$> is)
   where
-    is          = F.elemsIBindEnv $ safeLookup msg j (envBinds   me)
+    is          = F.elemsIBindEnv $ safeLookup msg j (envBinds me)
     msg         = "Index.subcIdPred: unknown SubcId " ++ show j
 
-bindIdPred :: Index -> Solution -> F.BindId -> F.Pred 
-bindIdPred me s i = F.pAnd $ p : (kIndexPred me s <$> kIs) 
-  where 
-    BP p kIs      = safeLookup msg j (bindExpr me)
-    msg           = "Index.bindIdPred: unknown BindId " ++ show i 
+bindIdPred :: Index -> Solution -> F.BindId -> F.Pred
+bindIdPred me s i = F.pAnd $ p : (kIndexPred me s <$> kIs)
+  where
+    BP p kIs      = safeLookup msg i (bindExpr me)
+    msg           = "Index.bindIdPred: unknown BindId " ++ show i
 
 kIndexPred :: Index -> Solution -> KIndex -> F.Pred
 kIndexPred me s kI = case lookup s k of
@@ -312,14 +322,14 @@ kIndexPred me s kI = case lookup s k of
     (k, su)        = safeLookup msg kI (kvUse me)
     msg            = "kIndexSol: unknown KIndex" ++ show kI
 
-kIndexCube :: Index -> F.Subst -> Cube -> F.Pred
-kIndexCube ySu c = (subcIdPred me j) &.& (ySu `eqSubst` zSu)
+kIndexCube :: F.Subst -> Cube -> F.Pred
+kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
   where
     zSu          = cuSubst c
     j            = cuId    c
 
 
-{- 
+{-
 lhsPred _ s c = {- F.tracepp ("Index.lhsPred for " ++ show j) $ -}
                   F.pAnd (bp j : [bp kI `F.PIff` kIndexSol me s kI | kI <- kIs])
   where
@@ -350,8 +360,8 @@ instance BitSym KIndex where
 instance BitSym F.BindId where
   bx = F.intSymbol "lq_bind$"
 
--- instance BitSym F.SubcId where
---  bx = F.intSymbol "lq_cstr$"
+instance BitSym F.SubcId where
+  bx = F.intSymbol "lq_cstr$"
 
 instance BitSym BIndex where
   bx Root     = F.intSymbol "lq_root$" 0

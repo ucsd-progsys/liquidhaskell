@@ -159,7 +159,7 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 lhsPred be s c = case Sol.sIdx s of
-                   Just _  -> Index.lhsPred  be s c
+                   Just _  -> Index.lhsPred     s c
                    Nothing ->       lhsPred' be s c
 
 lhsPred' :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
