@@ -170,7 +170,7 @@ mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
 
 --------------------------------------------------------------------------------
 mkBindPrev :: F.SInfo a -> (BIndex |-> BIndex)
-mkBindPrev sI = M.fromList $ {- F.tracepp "mkBindPrev:Doms" -} [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
+mkBindPrev sI = M.fromList [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
   where
     iDoms     = mkDoms bindIds cEnvs
     bindIds   = fst3   <$> F.bindEnvToList (F.bs sI)
@@ -230,14 +230,15 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me   = ( xts, {- F.tracepp "Index.bgPred" -} p )
+bgPred me   = ( xts, F.PTrue ) -- {- F.tracepp "Index.bgPred" -} p )
   where
-    p       = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
-                    ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
     xts     = [(x, F.boolSort) | x <- bXs ]
     bXs     =  (bx . fst <$> iBps                 ) -- BindId
             ++ (bx       <$> M.keys   (kvDeps me )) -- SubcId
-            ++ (bx       <$> M.keys   (kvUse me  )) -- KIndex
+{- 
+    _p      = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
+                     ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
+              ++ (bx       <$> M.keys   (kvUse me  )) -- KIndex
     iBps    =                M.toList (bindExpr me)
     links   = noRoots     $  M.toList (bindPrev me)
     noRoots = filter ((/= Root) . snd)
@@ -261,6 +262,7 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
   where
     zSu          = cuSubst c
     j            = cuId    c
+-}
 
 --------------------------------------------------------------------------------
 -- | `eqSubst [X := Y] [X := Z]` takes two substitutions over the SAME params
@@ -283,6 +285,41 @@ eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
+lhsPred _ s c = F.pAnd $ (subcIdPred me j) : (bindIdPred s <$> is')
+   where            
+    is'       = F.elemsIBindEnv $ safeLookup msg j (envTxBinds me)
+    me        = mfromJust "Index.lhsPred" (sIdx s)
+    j         = F.subcId c
+    msg       = "Index.lhsPred: unknown SubcId " ++ show j
+
+subcIdPred :: Index -> F.SubcId -> F.Pred 
+subcIdPred me j = F.pAnd (bp <$> is)
+  where
+    is          = F.elemsIBindEnv $ safeLookup msg j (envBinds   me)
+    msg         = "Index.subcIdPred: unknown SubcId " ++ show j
+
+bindIdPred :: Index -> Solution -> F.BindId -> F.Pred 
+bindIdPred me s i = F.pAnd $ p : (kIndexPred me s <$> kIs) 
+  where 
+    BP p kIs      = safeLookup msg j (bindExpr me)
+    msg           = "Index.bindIdPred: unknown BindId " ++ show i 
+
+kIndexPred :: Index -> Solution -> KIndex -> F.Pred
+kIndexPred me s kI = case lookup s k of
+                       Right eqs -> qBindPred su eqs
+                       Left  cs  -> F.pOr (kIndexCube su <$> cs)
+  where
+    (k, su)        = safeLookup msg kI (kvUse me)
+    msg            = "kIndexSol: unknown KIndex" ++ show kI
+
+kIndexCube :: Index -> F.Subst -> Cube -> F.Pred
+kIndexCube ySu c = (subcIdPred me j) &.& (ySu `eqSubst` zSu)
+  where
+    zSu          = cuSubst c
+    j            = cuId    c
+
+
+{- 
 lhsPred _ s c = {- F.tracepp ("Index.lhsPred for " ++ show j) $ -}
                   F.pAnd (bp j : [bp kI `F.PIff` kIndexSol me s kI | kI <- kIs])
   where
@@ -291,14 +328,9 @@ lhsPred _ s c = {- F.tracepp ("Index.lhsPred for " ++ show j) $ -}
     j         = F.subcId c
     msg       = "lhsPred: unknown SubcId" ++ show j
 
-kIndexSol :: Index -> Solution -> KIndex -> F.Pred
-kIndexSol me s kI = case lookup s k of
-                      Right eqs -> qBindPred su eqs
-                      _         -> error msg2
-  where
-    (k, su)       = safeLookup msg1 kI (kvUse me)
-    msg1          = "kIndexSol: unknown KIndex"         ++ show kI
-    msg2          = "kIndexSol: unexpected non-cut var" ++ show k
+-}
+
+
 
 --------------------------------------------------------------------------------
 -- | Helper/Local typeclass for generating bit-indices for various entities ----
@@ -318,8 +350,8 @@ instance BitSym KIndex where
 instance BitSym F.BindId where
   bx = F.intSymbol "lq_bind$"
 
-instance BitSym F.SubcId where
-  bx = F.intSymbol "lq_cstr$"
+-- instance BitSym F.SubcId where
+--  bx = F.intSymbol "lq_cstr$"
 
 instance BitSym BIndex where
   bx Root     = F.intSymbol "lq_root$" 0

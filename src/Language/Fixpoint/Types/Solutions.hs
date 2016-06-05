@@ -196,11 +196,13 @@ instance PPrint BindPred where
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
 data Index = FastIdx
-  { bindExpr :: !(BindId |-> BindPred) -- ^ BindPred for each BindId
-  , bindPrev :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
-  , kvUse    :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
-  , kvDef    :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
-  , kvDeps   :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
+  { bindExpr   :: !(BindId |-> BindPred) -- ^ BindPred for each BindId
+  , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
+  , kvUse      :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
+  , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
+  , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
+  , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
+  , envTxBinds :: !(CMap IBindEnv)       -- ^ Transitive closure oof all dependent binders 
   }
 
 type CMap a  = M.HashMap SubcId a
