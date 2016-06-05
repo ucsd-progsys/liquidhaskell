@@ -200,9 +200,9 @@ data Index = FastIdx
   , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
   , kvUse      :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
   , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
-  , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
+  -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
-  , envTxBinds :: !(CMap IBindEnv)       -- ^ Transitive closure oof all dependent binders
+  , envTx      :: !(CMap [SubcId])       -- ^ Transitive closure oof all dependent binders
   }
 
 type CMap a  = M.HashMap SubcId a

@@ -87,19 +87,70 @@ create _cfg sI kHyps _cDs = FastIdx
   , kvUse    = kU
   , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
-  , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
-  , envBinds = envM
-  , envTxBinds = error "TBD:envTxBinds"
+  -- - , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
+  , envBinds = F.senv <$> cm
+  , envTx    = mkEnvTx kHypM bE cm
   }
   where
     kHypM    = M.fromList kHyps
     (bE, kU) = mkBindExpr sI
-    envM     = F.senv <$> F.cm sI
-
-mkEnvTxBinds :: F.SInfo a -> CMap F.IBindEnv
-mkEnvTxBinds = error "TBD"
+    cm       = F.cm sI
 
 --------------------------------------------------------------------------------
+
+mkEnvTx :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap [F.SubcId]
+mkEnvTx kHyps bE = fmap S.toList . closeSubcDeps kHyps . subcDeps bE
+
+subcDeps :: (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap (S.HashSet KIndex)
+subcDeps bE = fmap (S.fromList . cBinds)
+  where
+    cBinds  = concatMap bKIs . F.elemsIBindEnv . F.senv
+    bKIs i  = bpKVar $ safeLookup (msg i) i bE
+    msg  i  = "subcDeps: unknown BindId " ++ show i
+
+closeSubcDeps :: (F.KVar |-> Hyp) -> CMap (S.HashSet KIndex) -> CMap (S.HashSet F.SubcId)
+closeSubcDeps kHypM kiM = cMap (execState act s0)
+  where
+    act = mapM_ goCI (M.keys kiM)
+    s0  = DS M.empty M.empty
+
+    goCI :: F.SubcId -> DM (S.HashSet F.SubcId)
+    goCI = memoWith accCM $ \ci ->
+             case M.lookup ci kiM of
+               Just kis -> {- F.tracepp ("many goCI " ++ show ci) <$> -} S.insert ci <$> many goKI (S.toList kis)
+               Nothing  -> error $ "goCI: unknown SubcId: " ++ show ci
+
+    goKI  :: KIndex -> DM (S.HashSet F.SubcId)
+    goKI ki
+      | isNotKut ki = goK (kiKVar ki)
+      | otherwise   = return S.empty
+
+    goK  :: F.KVar -> DM (S.HashSet F.SubcId)
+    goK  = memoWith accKM $ \k ->
+             case M.lookup k kHypM of
+               Just cs -> {- F.tracepp ("many goK " ++ show k) <$> -} many goCI (cuId <$> cs)
+               _       -> error $ "goK: unknown KVar" ++ show k
+               
+    isNotKut :: KIndex -> Bool
+    isNotKut = (`M.member` kHypM) . kiKVar
+
+type DM = State DState
+
+data DState = DS { kMap :: F.KVar   |-> S.HashSet F.SubcId
+                 , cMap :: F.SubcId |-> S.HashSet F.SubcId
+                 }
+
+accKM :: Acc DM F.KVar (S.HashSet F.SubcId)
+accKM = Acc (\x   -> M.lookup x . kMap <$> get)
+            (\x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
+
+accCM :: Acc DM F.SubcId (S.HashSet F.SubcId)
+accCM = Acc (\x   -> M.lookup x . cMap <$> get)
+            (\x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
+
+--------------------------------------------------------------------------------
+
+{-
 mkKvDeps :: (F.KVar |-> Hyp) -> (F.BindId |-> BindPred) -> CMap (F.SimpC a) -> CMap [KIndex]
 mkKvDeps kHyps bE = fmap S.toList . closeSubcDeps kHyps . subcDeps bE
 
@@ -135,14 +186,21 @@ closeSubcDeps kHypM kiM = cMap (execState act s0)
               where
                 k = kiKVar ki
 
-    accKM :: Acc F.KVar (S.HashSet KIndex)
-    accKM = (  \x   -> M.lookup x . kMap <$> get
-            ,  \x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
+type DM = State DState
 
-    accCM :: Acc F.SubcId (S.HashSet KIndex)
-    accCM = (  \x   -> M.lookup x . cMap <$> get
-            ,  \x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
+data DState = DS { kMap :: F.KVar   |-> S.HashSet KIndex
+                 , cMap :: F.SubcId |-> S.HashSet KIndex
+                 }
 
+accKM :: Acc DM F.KVar (S.HashSet KIndex)
+accKM = Acc (\x   -> M.lookup x . kMap <$> get)
+            (\x r -> modify (\s -> s { kMap = M.insert x r (kMap s)}) >> return r)
+
+accCM :: Acc DM F.SubcId (S.HashSet KIndex)
+accCM = Acc (\x   -> M.lookup x . cMap <$> get)
+            (\x r -> modify (\s -> s { cMap = M.insert x r (cMap s)}) >> return r)
+
+-}
 
 --------------------------------------------------------------------------------
 mkBindExpr :: F.SInfo a -> (F.BindId |-> BindPred, KIndex |-> F.KVSub)
@@ -236,13 +294,14 @@ buddies _        = []
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me   = ( xts, F.PTrue ) -- {- F.tracepp "Index.bgPred" -} p )
+bgPred me   = ( xts, F.PTrue )
   where
-    xts     = [(x, F.boolSort) | x <- bXs ]
+    xts     = [(bx i, F.boolSort) | i <- M.keys (bindExpr me)]
+
+{-
     bXs     =  (bx <$> M.keys  (bindExpr me)) -- BindId
             ++ (bx <$> M.keys  (kvDeps   me)) -- SubcId
-{-
-    _p      = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
+    bgPred  = F.pAnd $ [ bp i `F.PImp` bindPred me bP | (i, bP) <- iBps  ]
                      ++ [ bp i `F.PImp` bp i'          | (i, i') <- links ]
               ++ (bx       <$> M.keys   (kvUse me  )) -- KIndex
     iBps    =                M.toList (bindExpr me)
@@ -308,15 +367,23 @@ footprint me s j = (ips', crunch jss')
                           , let (ijs', ip') = bindIdPred me s i' ]
 
 txBindIds :: Index -> F.SubcId -> [F.BindId]
-txBindIds me j = F.elemsIBindEnv $ safeLookup msg j (envTxBinds me)
+txBindIds me j = sortNub $ concatMap (getEnvBinds me) js
   where
-    msg        = "Index.lhsPred: unknown SubcId " ++ show j
+    js         = j : getEnvTx me j
 
 subcIdPred :: Index -> F.SubcId -> F.Pred
-subcIdPred me j = F.pAnd (bp <$> is)
+subcIdPred me j = F.pAnd (bp <$> getEnvBinds me j)
+
+getEnvTx :: Index -> F.SubcId -> [F.SubcId]
+getEnvTx me j = safeLookup msg j (envTx me)
   where
-    is          = F.elemsIBindEnv $ safeLookup msg j (envBinds me)
-    msg         = "Index.subcIdPred: unknown SubcId " ++ show j
+    msg       = "Index.getEnvTx: unknown SubcId " ++ show j
+
+getEnvBinds :: Index -> F.SubcId -> [F.BindId]
+getEnvBinds me j = F.elemsIBindEnv $ safeLookup msg j (envBinds me)
+  where
+    msg          = "Index.getEnvBinds: unknown SubcId " ++ show j
+
 
 bindIdPred :: Index -> Solution -> F.BindId -> (S.HashSet F.SubcId, F.Pred)
 bindIdPred me s i = ( S.unions js
@@ -385,20 +452,18 @@ instance BitSym BIndex where
 --------------------------------------------------------------------------------
 -- | Tiny memoizing library used in closeSubcDeps` -----------------------------
 --------------------------------------------------------------------------------
-type DM a   = State DState a
 
-data DState = DS { kMap :: F.KVar   |-> S.HashSet KIndex
-                 , cMap :: F.SubcId |-> S.HashSet KIndex
-                 }
+data Acc m k v = Acc {
+    getF :: k -> m (Maybe v)
+  , putF :: k -> v -> m v
+  }
 
-type Acc a b = (a -> DM (Maybe b), a -> b -> DM b)
-
-memoWith :: Acc a b -> (a -> DM b) -> a -> DM b
-memoWith (getF, putF) f x = do
-  ro <- getF x
+memoWith :: (Monad m) => Acc m a b -> (a -> m b) -> a -> m b
+memoWith a f x = do
+  ro <- getF a x
   case ro of
     Just r  -> return r
-    Nothing -> putF x =<< f x
+    Nothing -> putF a x =<< f x
 
 many :: (Monad m, EqHash b) => (a -> m (S.HashSet b)) -> [a] -> m (S.HashSet b)
 many f = foldM (\r x -> S.union r <$> f x) S.empty
