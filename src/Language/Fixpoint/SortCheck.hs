@@ -95,7 +95,10 @@ sortExpr l γ e = case runCM0 $ checkExpr f e of
     d m = vcat [ "sortExpr failed on expression:"
                , nest 4 (pprint e)
                , "with error:"
-               , nest 4 (text m)]
+               , nest 4 (text m)
+               , "in environment"
+               , nest 4 (pprint γ)
+               ]
 
 checkSortExpr :: SEnv Sort -> Expr -> Maybe Sort
 checkSortExpr γ e = case runCM0 $ checkExpr f e of
@@ -120,8 +123,14 @@ elaborate γ e
                , "with error"
                , nest 4 (text m)
                , "in environment"
-               , nest 4 (error "FIXTHIS")
+               , nest 4 (pprint $ subEnv γ' e)
                ]
+
+subEnv :: (Subable e) => SEnv a -> e -> SEnv a
+subEnv g e = intersectWithSEnv (\t _ -> t) g g'
+  where
+    g' = fromListSEnv $ (, ()) <$> syms e
+
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
