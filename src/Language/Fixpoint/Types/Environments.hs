@@ -84,6 +84,8 @@ data SolEnv        = SolEnv { soeBinds :: !BindEnv
                             , soePacks :: !Packs
                             } deriving (Eq, Show, Generic)
 
+instance PPrint a => PPrint (SEnv a) where
+  pprintTidy k = pprintKVs k . L.sortBy (compare `on` fst) . toListSEnv
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
