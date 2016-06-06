@@ -116,10 +116,10 @@ z3Preamble u
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
 uifDef :: Config -> Data.Text.Text -> T.Text -> T.Text
-uifDef cfg f op 
-  | linear cfg || Z3 /= solver cfg         
+uifDef cfg f op
+  | linear cfg || Z3 /= solver cfg
   = format "(declare-fun {} (Int Int) Int)" (Only f)
-  | otherwise 
+  | otherwise
   = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
 cvc4Preamble :: Config -> [T.Text]
@@ -186,28 +186,28 @@ theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
   [ tSym setEmp   emp (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , tSym setEmpty emp (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , tSym setAdd add   setbopSort
-  , tSym setCup cup   setbopSort
-  , tSym setCap cap   setbopSort
-  , tSym setMem mem   setmemSort
-  , tSym setDif dif   setbopSort
-  , tSym setSub sub   setcmpSort
-  , tSym setCom com   setcmpSort
-  , tSym mapSel sel   mapselSort
-  , tSym mapSto sto   mapstoSort
-  , tSym bvOrName "bvor"   bvbopSort
-  , tSym bvAndName "bvand" bvbopSort
+  , tSym setAdd add   setBopSort
+  , tSym setCup cup   setBopSort
+  , tSym setCap cap   setBopSort
+  , tSym setMem mem   setMemSort
+  , tSym setDif dif   setBopSort
+  , tSym setSub sub   setCmpSort
+  , tSym setCom com   setCmpSort
+  , tSym mapSel sel   mapSelSort
+  , tSym mapSto sto   mapStoSort
+  , tSym bvOrName "bvor"   bvBopSort
+  , tSym bvAndName "bvand" bvBopSort
   ]
   where
-    setbopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
-    setmemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    setcmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    mapselSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 0)
-    mapstoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
+    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
+    mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
-    bvbopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
 
 
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)

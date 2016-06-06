@@ -111,8 +111,11 @@ runSolverM cfg sI _ s0 act =
 background :: F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background fi s0 = (bts ++ xts, p)
   where
-    xts          = either E.die id $ declSymbols fi
+    xts          = either E.die id $ symbolSorts fi -- declSymbols fi
     (bts, p)     = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
+
+--    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)		+    (xts, p) = background fi s0
+--    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -183,7 +186,8 @@ checkSat p
 --------------------------------------------------------------------------------
 declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
 --------------------------------------------------------------------------------
-declare xts ess p = withContext $ \me -> do
+declare xts' ess p = withContext $ \me -> do
+  let xts      = filter (not . isThy . fst) xts'
   -- xts         <- either E.die return $ declSymbols fi
   -- let (bts, p) = backgroundPred s0
   -- let yts      = xts ++ bts
@@ -192,6 +196,8 @@ declare xts ess p = withContext $ \me -> do
   forM_ ess    $           smtDistinct me
   _           <-           smtAssert   me p
   return ()
+  where
+    isThy   = isJust . Thy.smt2Symbol
 
 declareInitEnv :: SolveM ()
 declareInitEnv
@@ -211,11 +217,11 @@ declLiterals fi
     notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
 
-declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
-declSymbols = fmap dropThy . symbolSorts
-  where
-    dropThy = filter (not . isThy . fst)
-    isThy   = isJust . Thy.smt2Symbol
+-- declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
+-- declSymbols = fmap dropThy . symbolSorts
+  -- where
+    -- dropThy = filter (not . isThy . fst)
+    -- isThy   = isJust . Thy.smt2Symbol
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats
