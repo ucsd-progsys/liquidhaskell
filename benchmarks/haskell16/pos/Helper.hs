@@ -12,20 +12,17 @@ module Helper (
     gen_increasing, gen_increasing2
 
   , gen_incr
-
-  , abstract
-
   ) where
 
 import Proves
 
--- | Function abstractio: Can I prove this?
-
-{-@ assume abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:Proof | f x == g x })
-             -> {v:Proof | f == g } @-}
+-- | Function abstractio: We cannot prove this....
+{-
+{- abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> { f x == g x })
+             -> { f == g } @-}
 abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
 abstract _ _ _ = simpleProof
-
+-}
 
 
 

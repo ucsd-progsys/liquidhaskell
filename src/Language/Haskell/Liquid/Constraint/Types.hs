@@ -373,7 +373,8 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
     guard t
       = t
 
-    ref f (F.Reft(v, rr)) = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
+    ref f (F.Reft(v, rr)) 
+      = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
 
 makeRecInvariants γ _ = γ
 

@@ -3,9 +3,10 @@
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--extensionality"  @-}
 module Append where
 
-import Proves 
+import Proves
 
 import Prelude hiding (map)
 

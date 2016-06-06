@@ -54,7 +54,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate, defConfig)
+                                                   maxPartSize, newcheck, eliminate, defConfig, extensionality)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -105,6 +105,10 @@ config = cmdArgsMode $ Config {
  , higherorder
     = def
           &= help "Allow higher order binders into the logic"
+ 
+ , extensionality
+    = def 
+          &= help "Allow function extentionality axioms"
 
  , higherorderqs
     = def
@@ -385,6 +389,7 @@ defConfig = Config { files             = def
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
+                   , extensionality    = def 
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def

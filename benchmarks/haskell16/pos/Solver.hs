@@ -28,9 +28,9 @@ type Asgn = L (P Var Bool)
 -- | Top-level "solver"
 
 
-{-@ solve :: f:_ -> Maybe {a:Asgn | sat a f } @-}
+{-@ solve :: f:Formula -> Maybe {a:Asgn | sat a f } @-}
 solve   :: Formula -> Maybe Asgn
-solve f = find (\a -> sat a f) (asgns f)
+solve f = find (`sat` f) (asgns f)
 
 {-@ bound witness @-}
 witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
