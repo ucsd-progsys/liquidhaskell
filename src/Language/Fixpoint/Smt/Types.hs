@@ -72,6 +72,7 @@ data Context      = Ctx { pId     :: !ProcessHandle
                         , cOut    :: !Handle
                         , cLog    :: !(Maybe Handle)
                         , verbose :: !Bool
+                        , c_ext   :: !Bool              -- flag to enable function extentionality axioms
                         , smtenv  :: !SMTEnv
                         }
 
@@ -87,7 +88,7 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 -----------------------------------------------------------------------
 
 type SMTEnv = SEnv Sort
-data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv}
+data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool }
 
 type SMT2   = State SMTSt
 
@@ -116,5 +117,5 @@ class SMTLIB2 a where
 
   smt2 :: a -> LT.Builder
 
-  runSmt2 :: Int -> SMTEnv -> a -> LT.Builder
-  runSmt2 n env a = smt2 $ evalState (defunc a) (SMTSt n env)
+  runSmt2 :: Int -> Context -> a -> LT.Builder
+  runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt))
