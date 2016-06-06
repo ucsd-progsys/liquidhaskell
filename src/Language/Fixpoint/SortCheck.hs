@@ -95,7 +95,10 @@ sortExpr l γ e = case runCM0 $ checkExpr f e of
     d m = vcat [ "sortExpr failed on expression:"
                , nest 4 (pprint e)
                , "with error:"
-               , nest 4 (text m)]
+               , nest 4 (text m)
+               , "in environment"
+               , nest 4 (pprint γ)
+               ]
 
 checkSortExpr :: SEnv Sort -> Expr -> Maybe Sort
 checkSortExpr γ e = case runCM0 $ checkExpr f e of
@@ -118,7 +121,16 @@ elaborate γ e
     d m = vcat [ "elaborate failed on:"
                , nest 4 (pprint e)
                , "with error"
-               , nest 4 (text m)    ]
+               , nest 4 (text m)
+               , "in environment"
+               , nest 4 (pprint $ subEnv γ' e)
+               ]
+
+subEnv :: (Subable e) => SEnv a -> e -> SEnv a
+subEnv g e = intersectWithSEnv (\t _ -> t) g g'
+  where
+    g' = fromListSEnv $ (, ()) <$> syms e
+
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -478,14 +490,14 @@ checkExprAs f t e
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
--- | Checking function application should be curried, 
--- | consider checking 
--- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x  
+-- | Checking function application should be curried,
+-- | consider checking
+-- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
-checkApp' f to g e 
+checkApp' f to g e
   = do gt       <- checkExpr f g >>= generalize
-       et       <- checkExpr f e 
-       (it, ot) <- checkFunSort gt 
+       et       <- checkExpr f e
+       (it, ot) <- checkFunSort gt
        θ        <- unifys f [it] [et]
        let t     = apply θ ot
        case to of
@@ -495,7 +507,7 @@ checkApp' f to g e
                           _ <- checkExprAs f ti e
                           return (θ', apply θ' t)
 
-{- 
+{-
 checkApp' f to g' e
   = do gt           <- checkExpr f g
        gt'          <- generalize gt
@@ -639,7 +651,7 @@ unifyFast True  _ = uMono
 
 
 unifySorts :: Sort -> Sort -> Maybe TVSubst
-unifySorts = unifyFast False emptyEnv 
+unifySorts = unifyFast False emptyEnv
 -------------------------------------------------------------------------
 unifys :: Env -> [Sort] -> [Sort] -> CheckM TVSubst
 -------------------------------------------------------------------------
@@ -745,11 +757,11 @@ sortMap f t             = f t
 ------------------------------------------------------------------------
 
 checkFunSort :: Sort -> CheckM (Sort, Sort)
-checkFunSort (FAbs _ t)    = checkFunSort t 
+checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2)
-checkFunSort t             = throwError $ errNonFunction 1 t  
+checkFunSort t             = throwError $ errNonFunction 1 t
 
-{- 
+{-
 sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
