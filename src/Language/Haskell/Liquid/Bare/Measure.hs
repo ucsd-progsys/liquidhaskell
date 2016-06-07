@@ -164,8 +164,10 @@ makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
-      | isFunTy t = Nothing
-      | otherwise = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
+      | isFunTy t || autoselectors
+      = Nothing
+      | otherwise 
+      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
       = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i

@@ -30,8 +30,8 @@ map f xs
 map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion f g N
   = (compose (map f) (map g)) N
-        ==! (map f) ((map g) N)
-        ==! map f (map g N)
+        ==! (map f) (map g N)
+--         ==! map f (map g N)
         ==! map f N
         ==! N
         ==! map (compose f g) N
@@ -47,7 +47,7 @@ map_fusion f g (C x xs)
        ==! (map f) (map g (C x xs))
        ==! (map f) ((map g) (C x xs))
        ==! (compose (map f) (map g)) (C x xs)
-       *** QED 
+       *** QED
 
 data L a = N | C a (L a)
 {-@ data L [llen] @-}
