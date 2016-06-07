@@ -166,7 +166,7 @@ solveNative' !cfg !fi0 = do
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll" #-} (\_x _y -> _x) id renameAll $!!
+  let si3  = {-# SCC "renameAll" #-} (\_good _bad -> _bad {- picking _good works -}) id renameAll $!!
                si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename: \n" ++ render (toFixpoint cfg si3)
