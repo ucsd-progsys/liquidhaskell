@@ -23,7 +23,7 @@ renameAll fi2 = fi4
   where
     fi4      = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
     fi3      = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
-    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $ fi2
+    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap fi2
     idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 --------------------------------------------------------------
 
