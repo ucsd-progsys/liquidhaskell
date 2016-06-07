@@ -132,14 +132,16 @@ refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPred be s c
+                   let lhs = F.tracepp ("LHS at " ++ show _i) $ S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks $ tracepp (msg ks rhs kqs) kqs
   where
+    _ci       = F.subcId c
     (ks, rhs) = rhsCands s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
-    msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
+    msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
+                     _i (show _ci) (showpp ks) (length xs) (length ys)
 
 rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
