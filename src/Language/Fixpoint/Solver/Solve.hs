@@ -128,12 +128,12 @@ refineC _i s c
   | otherwise = do be     <- getBinds
                    let lhs = {- tracepp msg $ -} S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
+                   return  $ S.update s ks $ tracepp (msg ks rhs kqs) kqs
   where
     (ks, rhs) = rhsCands s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
-    -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
+    msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
 rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
