@@ -915,9 +915,12 @@ instance SubsTy Symbol RSort Sort where
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, RVar α _) (FObj s)
-    | symbol v == s = FObj $ rTyVarSymbol α
-    | otherwise     = FObj s
-  subt _ s          = s
+    | rtyVarUniqueSymbol v == s 
+    = FObj $ rTyVarSymbol α
+    | otherwise     
+    = FObj s
+  subt _ s         
+    = s
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
   subt su (PVProp t) = PVProp (subt su t)
@@ -1150,8 +1153,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
 
-tyVarUniqueSymbol :: TyVar -> Symbol
-tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)

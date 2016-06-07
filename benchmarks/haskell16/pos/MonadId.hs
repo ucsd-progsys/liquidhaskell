@@ -53,6 +53,7 @@ right_identity (Identity x)
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
+
 {-@ associativity :: m:Identity a -> f: (a -> Identity b) -> g:(b -> Identity c)
   -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
 associativity :: Identity a -> (a -> Identity b) -> (b -> Identity c) -> Proof

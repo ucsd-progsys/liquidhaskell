@@ -197,6 +197,8 @@ module Language.Haskell.Liquid.Types (
   , liquidBegin, liquidEnd
 
   , Axiom(..), HAxiom, LAxiom
+
+  , rtyVarUniqueSymbol, tyVarUniqueSymbol
   )
   where
 
@@ -535,6 +537,7 @@ data BTyCon = BTyCon
   }
   deriving (Generic, Data, Typeable)
 
+
 data RTyCon = RTyCon
   { rtc_tc    :: TyCon         -- ^ GHC Type Constructor
   , rtc_pvars :: ![RPVar]      -- ^ Predicate Parameters
@@ -548,6 +551,13 @@ instance Symbolic BTyCon where
 instance NFData BTyCon
 
 instance NFData RTyCon
+
+rtyVarUniqueSymbol  :: RTyVar -> Symbol 
+rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv 
+
+tyVarUniqueSymbol :: TyVar -> Symbol
+tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+
 
 mkBTyCon :: LocSymbol -> BTyCon
 mkBTyCon = (`BTyCon` False)

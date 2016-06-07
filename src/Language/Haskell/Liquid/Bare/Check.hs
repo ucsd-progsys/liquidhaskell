@@ -418,7 +418,7 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
            -> SpecType
            -> Def (RRType r) DataCon
            -> Maybe Doc
-checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
   where
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
@@ -427,6 +427,7 @@ checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
     su   = checkMBodyUnify (ty_res trep) (last txs)
     txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
+    sort' = dropNArgs (length bs) sort 
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
@@ -449,7 +450,16 @@ checkMBody' emb sort γ body = case body of
   where
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
-    sort' = ty_res $ toRTypeRep sort
+    sort' = dropNArgs 1 sort
+
+dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r 
+dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
+  where
+    xs   = drop i $ ty_binds trep
+    ts   = drop i $ ty_args  trep
+    rs   = drop i $ ty_refts trep
+    trep = toRTypeRep t 
+
 
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
 checkClassMeasures ms = mapMaybe checkOne byTyCon
