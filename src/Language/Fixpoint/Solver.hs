@@ -26,7 +26,7 @@ import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
+-- import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
@@ -166,7 +166,7 @@ solveNative' !cfg !fi0 = do
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll" #-} (\_good _bad -> _good {- picking _good works -}) id renameAll $!!
+  let si3  = -- {-# SCC "renameAll" #-} (\_good _bad -> _good {- picking _good works -}) id renameAll $!!
                si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename: \n" ++ render (toFixpoint cfg si3)

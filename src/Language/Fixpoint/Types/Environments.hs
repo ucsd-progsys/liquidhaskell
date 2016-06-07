@@ -120,7 +120,6 @@ memberSEnv x (SE env)   = M.member x env
 intersectWithSEnv :: (v1 -> v2 -> a) -> SEnv v1 -> SEnv v2 -> SEnv a
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
 
-
 differenceSEnv :: SEnv a -> SEnv w -> SEnv a
 differenceSEnv (SE m1) (SE m2) = SE (M.difference m1 m2)
 

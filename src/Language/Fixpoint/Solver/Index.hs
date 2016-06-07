@@ -73,8 +73,8 @@ import           Language.Fixpoint.Graph            (CDeps (..))
 
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
-import qualified Data.Graph.Inductive as G
-import qualified Data.List            as L
+-- import qualified Data.Graph.Inductive as G
+-- import qualified Data.List            as L
 import           Control.Monad.State
 
 --------------------------------------------------------------------------------
@@ -85,11 +85,11 @@ create :: Config -> F.SInfo a -> [(F.KVar, Hyp)] -> CDeps -> Index
 create _cfg sI kHyps _cDs = FastIdx
   { bindExpr = bE
   , kvUse    = kU
-  , bindPrev = mkBindPrev sI
   , kvDef    = kHypM
-  -- - , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
   , envBinds = F.senv <$> cm
   , envTx    = mkEnvTx kHypM bE cm
+  -- - , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
+  -- , bindPrev = mkBindPrev sI
   }
   where
     kHypM    = M.fromList kHyps
@@ -210,8 +210,9 @@ mkBindExpr sI = (M.fromList ips, M.fromList kSus)
     ips  = [ (i, BP p (fst <$> iks)) | (i, p, iks) <- ipks                     ]
     ipks = [ (i, p, iks)             | (i, x, r)   <- ixrs
                                      , let (p, iks) = mkBindPred i x r         ]
-    ixrs = checkNoDups sI $ F.bindEnvToList (F.bs sI)
+    ixrs = {- checkNoDups sI $ -} F.bindEnvToList (F.bs sI)
 
+{-
 -- TODO: we should not need the below checks once LH issue #724 is resolved.
 checkNoDups :: F.SInfo a -> [(F.BindId, F.Symbol, F.SortedReft)] -> [(F.BindId, F.Symbol, F.SortedReft)]
 checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
@@ -225,6 +226,7 @@ checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
     _consts         = F.lits _sI
     dbErr xis       = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
 
+-}
 
 mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub)])
 mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
@@ -233,6 +235,7 @@ mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
     tx j k@(kv,_) = (KIndex i j kv, k)
 
 --------------------------------------------------------------------------------
+{-
 mkBindPrev :: F.SInfo a -> (BIndex |-> BIndex)
 mkBindPrev sI = M.fromList [(intBIndex i, intBIndex j) | (i, j) <- iDoms]
   where
@@ -263,6 +266,18 @@ envEdges (i,js) = buddies    $ [Root] ++ js' ++ [Cstr i]
   where
     js'         = Bind <$> L.sort js
 
+
+-- TODO: push the `isTree` check into Validate
+isTree :: (EqHash k) => [(k, k, a)] -> Bool
+isTree es    = allMap (sizeLE 1) inEs
+  where
+    inEs     = group [ (j, i) | (i, j, _) <- es]
+    sizeLE n = (<= n) . length . sortNub
+
+buddies :: [a] -> [(a, a)]
+buddies (x:y:zs) = (x, y) : buddies (y:zs)
+buddies _        = []
+
 --------------------------------------------------------------------------------
 -- | Horrible hack.
 --------------------------------------------------------------------------------
@@ -277,17 +292,7 @@ intBIndex i
   | 0 <  i    = Bind (i - 1)
   | otherwise = Cstr (fromIntegral (negate i) - 1)
 
-
--- TODO: push the `isTree` check into Validate
-isTree :: (EqHash k) => [(k, k, a)] -> Bool
-isTree es    = allMap (sizeLE 1) inEs
-  where
-    inEs     = group [ (j, i) | (i, j, _) <- es]
-    sizeLE n = (<= n) . length . sortNub
-
-buddies :: [a] -> [(a, a)]
-buddies (x:y:zs) = (x, y) : buddies (y:zs)
-buddies _        = []
+-}
 
 --------------------------------------------------------------------------------
 -- | Encoding _all_ constraints as a single background predicate ---------------

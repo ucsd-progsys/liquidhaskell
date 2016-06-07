@@ -197,12 +197,12 @@ instance PPrint BindPred where
 --------------------------------------------------------------------------------
 data Index = FastIdx
   { bindExpr   :: !(BindId |-> BindPred) -- ^ BindPred for each BindId
-  , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
   , kvUse      :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
   , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
-  -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
   , envTx      :: !(CMap [SubcId])       -- ^ Transitive closure oof all dependent binders
+  -- , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
+  -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   }
 
 type CMap a  = M.HashMap SubcId a
