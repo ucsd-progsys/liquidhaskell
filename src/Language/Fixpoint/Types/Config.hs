@@ -53,10 +53,11 @@ data Config
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment 
-    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers 
+    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
+    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
+    , oldElim     :: Bool                -- ^ use old eliminate algorithm (deprecate)
     , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
@@ -85,7 +86,8 @@ instance Default Config where
                , allowHO     = False
                , allowHOqs   = False
                , newcheck    = False
-               , eliminate   = def
+               , eliminate   = False
+               , oldElim     = False
                , elimBound   = Nothing
                , elimStats   = def
                , solverStats = False
@@ -98,7 +100,7 @@ instance Default Config where
                , gradual     = False
                }
 defConfig :: Config
-defConfig = def 
+defConfig = def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -163,7 +165,8 @@ config = Config {
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs   = False &= help "Allow higher order qualifiers"
-  , eliminate   = False   &= help "(alpha) Eliminate non-cut KVars"
+  , eliminate   = False   &= help "Eliminate non-cut KVars"
+  , oldElim     = False   &= help "(testing) Use old eliminate algorithm"
   , elimBound   = Nothing &= name "elimBound"
                           &= help "(alpha) Maximum eliminate-chain depth"
   , elimStats   = False   &= help "(alpha) Print eliminate stats"
