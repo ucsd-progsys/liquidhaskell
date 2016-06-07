@@ -404,13 +404,13 @@ initFEnv xts = FE benv0 env0 ienv0
     env0     = F.fromListSEnv (wiredSortedSyms ++ xts)
     ienv0    = F.emptySEnv
 
-removeFEnv :: FEnv -> F.Symbol -> FEnv
-removeFEnv (FE benv env ienv) x = FE benv' env' ienv'
+removeFEnv :: F.Symbol -> FEnv -> FEnv
+removeFEnv x (FE benv env ienv) = FE benv' env' ienv'
   where
     env'   = F.deleteSEnv x env
     ienv'  = F.deleteSEnv x ienv
     benv'  = maybe benv (`F.deleteIBindEnv` benv) (F.lookupSEnv x ienv)
-    
+
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -424,7 +424,7 @@ instance NFData CGEnv where
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData FEnv where
-  rnf (FE x1 _) = rnf x1
+  rnf (FE x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3)
