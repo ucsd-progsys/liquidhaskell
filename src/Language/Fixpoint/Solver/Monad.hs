@@ -98,7 +98,7 @@ runSolverM cfg sI _ s0 act =
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
     ess      = declLiterals fi
-    (xts, p) = background fi s0
+    (xts, p) = background cfg fi s0
     be       = F.SolEnv (F.bs fi) (F.packs fi)
     file     = F.fileName fi
     -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
@@ -108,11 +108,11 @@ runSolverM cfg sI _ s0 act =
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 
-background :: F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
-background fi s0 = (bts ++ xts, p)
+background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
+background cfg fi s0 = (bts ++ xts, p)
   where
-    xts          = either E.die id $ symbolSorts fi -- declSymbols fi
-    (bts, p)     = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
+    xts              = either E.die id $ symbolSorts cfg fi -- declSymbols fi
+    (bts, p)         = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 --    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)		+    (xts, p) = background fi s0
 --    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]

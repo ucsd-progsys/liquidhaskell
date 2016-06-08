@@ -18,6 +18,7 @@ import           Language.Fixpoint.SortCheck     (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc          (fM)
 import qualified Language.Fixpoint.Types  as F
+import           Language.Fixpoint.Types.Config (Config, allowHO)
 import qualified Language.Fixpoint.Types.Errors as E
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict      as M
@@ -183,18 +184,21 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
-symbolSorts :: F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
 --------------------------------------------------------------------------------
-symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
+symbolSorts cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
-    normalize  = fmap (map (unShadow dm))
-    dm         = M.fromList defs
-    defs       = F.toListSEnv $ F.lits fi
+    normalize       = fmap (map (unShadow txFun dm))
+    dm              = M.fromList defs
+    defs            = F.toListSEnv $ F.lits fi
+    txFun
+      | allowHO cfg = id
+      | otherwise   = defuncSort
 
-unShadow :: M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
-unShadow dm (x, t)
+unShadow :: (F.Sort -> F.Sort) -> M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
+unShadow tx dm (x, t)
   | M.member x dm  = (x, t)
-  | otherwise      = (x, defuncSort t)
+  | otherwise      = (x, tx t)
 
 defuncSort :: F.Sort -> F.Sort
 defuncSort (F.FFunc {}) = F.funcSort
