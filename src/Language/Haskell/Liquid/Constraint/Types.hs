@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Constraint.Types
   , FEnv (..)
   , initFEnv
   , insertsFEnv
-  , removeFEnv
+  -- , removeFEnv
 
    -- * Hole Environment
   , HEnv
@@ -404,12 +404,12 @@ initFEnv xts = FE benv0 env0 ienv0
     env0     = F.fromListSEnv (wiredSortedSyms ++ xts)
     ienv0    = F.emptySEnv
 
-removeFEnv :: F.Symbol -> FEnv -> FEnv
-removeFEnv x (FE benv env ienv) = FE benv' env' ienv'
-  where
-    env'   = F.deleteSEnv x env
-    ienv'  = F.deleteSEnv x ienv
-    benv'  = maybe benv (`F.deleteIBindEnv` benv) (F.lookupSEnv x ienv)
+-- removeFEnv :: F.Symbol -> FEnv -> FEnv
+-- removeFEnv x (FE benv env ienv) = FE benv' env' ienv'
+  -- where
+    -- env'   = F.deleteSEnv x env
+    -- ienv'  = F.deleteSEnv x ienv
+    -- benv'  = maybe benv (`F.deleteIBindEnv` benv) (F.lookupSEnv x ienv)
 
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------

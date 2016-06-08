@@ -255,7 +255,7 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 (-=) :: CGEnv -> F.Symbol -> CGEnv
 γ -= x =  γ { renv = deleteREnv x (renv γ)
             , lcb  = M.delete   x (lcb  γ)
-            , fenv = removeFEnv x (fenv γ)
+            -- , fenv = removeFEnv x (fenv γ)
             }
 
 (?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType
