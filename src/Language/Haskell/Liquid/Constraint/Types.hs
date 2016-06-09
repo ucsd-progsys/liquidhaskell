@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Constraint.Types
   , FEnv (..)
   , initFEnv
   , insertsFEnv
+  -- , removeFEnv
 
    -- * Hole Environment
   , HEnv
@@ -255,16 +256,16 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 
 
 addArgument :: CGEnv -> Var -> CGEnv
-addArgument γ v 
+addArgument γ v
  | higherorder $ cgCfg γ
  = γ {fargs = S.insert v (fargs γ) }
  | otherwise
- = γ 
+ = γ
 
 addArguments :: CGEnv -> [Var] -> CGEnv
-addArguments γ vs 
+addArguments γ vs
  | higherorder $ cgCfg γ
- = foldl addArgument γ vs 
+ = foldl addArgument γ vs
  | otherwise
  = γ
 
@@ -383,19 +384,33 @@ makeRecInvariants γ _ = γ
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data FEnv = FE { feBinds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
-               , feEnv   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+data FEnv = FE { feBinds :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
+               , feEnv   :: !(F.SEnv F.Sort)   -- ^ Fixpoint Environment
+               , feIdEnv :: !(F.SEnv F.BindId) -- ^ Map from Symbol to current BindId
                }
 
 insertFEnv :: FEnv -> ((F.Symbol, F.Sort), F.BindId) -> FEnv
-insertFEnv (FE benv env) ((x, t), i)
-  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
+insertFEnv (FE benv env ienv) ((x, t), i)
+  = FE (F.insertsIBindEnv [i] benv)
+       (F.insertSEnv x t      env)
+       (F.insertSEnv x i      ienv)
 
 insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
 initFEnv :: [(F.Symbol, F.Sort)] -> FEnv
-initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
+initFEnv xts = FE benv0 env0 ienv0
+  where
+    benv0    = F.emptyIBindEnv
+    env0     = F.fromListSEnv (wiredSortedSyms ++ xts)
+    ienv0    = F.emptySEnv
+
+-- removeFEnv :: F.Symbol -> FEnv -> FEnv
+-- removeFEnv x (FE benv env ienv) = FE benv' env' ienv'
+  -- where
+    -- env'   = F.deleteSEnv x env
+    -- ienv'  = F.deleteSEnv x ienv
+    -- benv'  = maybe benv (`F.deleteIBindEnv` benv) (F.lookupSEnv x ienv)
 
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
@@ -410,7 +425,7 @@ instance NFData CGEnv where
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData FEnv where
-  rnf (FE x1 _) = rnf x1
+  rnf (FE x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3)

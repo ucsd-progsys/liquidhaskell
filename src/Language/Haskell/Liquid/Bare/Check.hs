@@ -99,9 +99,9 @@ checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
-  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
-        mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
+checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
+  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
+        mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
 checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 checkRefinedClasses definitions instances

@@ -258,6 +258,10 @@ config = cmdArgsMode $ Config {
     = False &= name "no-eliminate"
             &= help "Don't use KVar elimination during solving"
 
+  , oldEliminate
+    = False &= name "old-eliminate"
+            &= help "Use old eliminate algorithm (temp. for benchmarking)"
+
   , noPatternInline
     = False &= name "no-pattern-inline"
             &= help "Don't inline special patterns (e.g. `>>=` and `return`) during constraint generation."
@@ -426,6 +430,7 @@ defConfig = Config { files             = def
                    , timeBinds         = False
                    , untidyCore        = False
                    , noEliminate       = False
+                   , oldEliminate      = False
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    }
