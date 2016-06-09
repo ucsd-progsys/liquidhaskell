@@ -19,7 +19,8 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Typeclass for SMTLIB2 conversion
     , SMTLIB2 (..)
-
+    , runSmt2
+    
     -- * SMTLIB2 Process Context
     , Context (..)
 
@@ -117,5 +118,5 @@ class SMTLIB2 a where
 
   smt2 :: a -> LT.Builder
 
-  runSmt2 :: Int -> Context -> a -> LT.Builder
-  runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt))
+runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
+runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt))

@@ -108,9 +108,7 @@ dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
     kvM                    = kvarDomainM si0
     kvXs k                 = M.lookupDefault S.empty k kvM
     keepSubst k x e        = x `S.member` kvXs k && knownRhs e
-    knownRhs (F.EVar y)
-      | y `S.member` xs    = True
-      | otherwise          = F.tracepp ("unknownRHS " ++ show y) False
+    knownRhs (F.EVar y)    = y `S.member` xs    
     knownRhs _             = False
     xs                     = knownVars si0
 

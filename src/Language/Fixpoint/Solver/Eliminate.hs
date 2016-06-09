@@ -15,7 +15,7 @@ import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.Solver.Index    as Index -- Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
-import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
+import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 
 --------------------------------------------------------------------------------

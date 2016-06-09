@@ -9,7 +9,9 @@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize where
+module Language.Fixpoint.Smt.Serialize
+       ( initSMTEnv )
+       where
 
 import           Language.Fixpoint.Types
 --import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
@@ -193,20 +195,21 @@ defuncBop o e1 e2
 
 
 smt2App :: Expr -> Builder.Builder
-smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ (map smt2 es)
+smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
   where
     (f, es) = splitEApp e
 
 
 defuncApp :: Expr -> SMT2 Expr
-defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of
+defuncApp e = case Thy.smt2App (eliminate f) (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
                 _      -> defuncApp' f' es'
   where
     (f, es)   = splitEApp' e
     (f', es') = splitEApp  e
 
-splitEApp' e          = go [] e
+splitEApp' :: Expr -> (Expr, [Expr])
+splitEApp'            = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc (ECst e _) = go acc e
@@ -373,9 +376,8 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 --------------------------------------------------------------------------------
 
 -- RJ: can't you use the Visitor instead of this?
-
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
-grapLambdas e = go [] e
+grapLambdas = go []
   where
     go acc e@(ELam _ _) = do f <- freshSym
                              return (ECst (EVar f) (exprSort e), (f, e):acc)
@@ -441,7 +443,7 @@ makeApplication e es = defunc e >>= (`go` es)
   where
     go f []     = return f
     go f (e:es) = do df <- defunc $ makeFunSymbol f 1
-                     de <- defunc $ e
+                     de <- defunc e
                      let res = eApps (EVar df) [ECst f (exprSort f), de]
                      let s  = exprSort (EApp f de)
                      go ((`ECst` s) res) es
@@ -483,6 +485,7 @@ dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
 dropArgs str j s
   = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
+{-
 toInt :: Expr -> SMT2 Expr
 toInt e
   |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
@@ -500,6 +503,13 @@ toInt e
   where
     s = exprSort e
 
+castWith :: Symbol -> Expr -> SMT2 Expr
+castWith s e =
+  do bs <- defunc s
+     be <- defunc e
+     return $ EApp (EVar bs) be
+
+-}
 isSMTSort :: Sort -> Bool
 isSMTSort s
   | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
@@ -515,12 +525,6 @@ isSMTSort s
   | otherwise
   = False
 
-
-castWith :: Symbol -> Expr -> SMT2 Expr
-castWith s e =
-  do bs <- defunc s
-     be <- defunc e
-     return $ EApp (EVar bs) be
 
 initSMTEnv :: SEnv Sort
 initSMTEnv = fromListSEnv $
