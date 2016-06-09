@@ -12,7 +12,6 @@ module Language.Fixpoint.Types.Config (
   , SMTSolver (..)
   , GenQualifierSort (..)
   , UeqAllSorts (..)
-  , withTarget
   , defaultMinPartSize
   , defaultMaxPartSize
   , multicore
@@ -32,9 +31,6 @@ class Command a  where
 -- Configuration Options -----------------------------------------------
 ------------------------------------------------------------------------
 
-withTarget        :: Config -> FilePath -> Config
-withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
-
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
 
@@ -44,7 +40,6 @@ defaultMaxPartSize = 700
 data Config
   = Config {
       inFile      :: FilePath            -- ^ target fq-file
-    , outFile     :: FilePath            -- ^ output file
     , srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c)
     , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
     , minPartSize :: Int                 -- ^ Minimum size of a partition
@@ -75,7 +70,6 @@ data Config
 
 instance Default Config where
   def = Config { inFile      = ""
-               , outFile     = def
                , srcFile     = def
                , cores       = def
                , minPartSize = defaultMinPartSize
@@ -103,14 +97,6 @@ instance Default Config where
                }
 defConfig :: Config
 defConfig = def
-
-instance Command Config where
-  command c =  command (genSorts c)
-            ++ command (ueqAllSorts c)
-            ++ command (solver c)
-            ++ " -out "
-            ++ outFile c ++ " "
-            ++ inFile c
 
 ---------------------------------------------------------------------------------------
 newtype GenQualifierSort = GQS Bool
@@ -158,7 +144,6 @@ instance Show SMTSolver where
 config :: Config
 config = Config {
     inFile      = def     &= typ "TARGET"       &= args    &= typFile
-  , outFile     = "out"   &= help "Output file"
   , srcFile     = def     &= help "Source File from which FQ is generated"
   , solver      = def     &= help "Name of SMT Solver"
   , genSorts    = def     &= help "Generalize qualifier sorts"
