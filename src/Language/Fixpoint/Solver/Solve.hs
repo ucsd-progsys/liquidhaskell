@@ -134,7 +134,7 @@ refineC _i s c
   | otherwise = do be     <- getBinds
                    let lhs = {- F.tracepp ("LHS at " ++ show _i) $ -} S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks {- $ tracepp (msg ks rhs kqs) -} kqs
+                   return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
     _ci       = F.subcId c
     (ks, rhs) = rhsCands s c

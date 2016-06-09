@@ -1,5 +1,10 @@
 {-# LANGUAGE FlexibleContexts     #-}
 
+-- | This module exports a single function that computes the dependency
+-- information needed to eliminate non-cut KVars, and then transitively
+-- collapse the resulting constraint dependencies.
+-- See the type of `SolverInfo` for details.
+
 module Language.Fixpoint.Solver.Eliminate (solverInfo) where
 
 import qualified Data.HashSet        as S
@@ -13,6 +18,9 @@ import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 
+--------------------------------------------------------------------------------
+-- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
+--   indices needed by the worklist-based refinement loop
 --------------------------------------------------------------------------------
 solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
