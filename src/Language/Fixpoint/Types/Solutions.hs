@@ -54,7 +54,9 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 -- import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
+
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
@@ -201,6 +203,7 @@ data Index = FastIdx
   , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
   , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
   , envTx      :: !(CMap [SubcId])       -- ^ Transitive closure oof all dependent binders
+  , envSorts   :: !(SEnv Sort)           -- ^ Sorts for all symbols
   -- , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
   -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   }

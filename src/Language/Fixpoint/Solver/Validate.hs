@@ -184,9 +184,11 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
-symbolSorts :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
---------------------------------------------------------------------------------
-symbolSorts cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
+symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
+symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
+
+symbolSorts' :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs

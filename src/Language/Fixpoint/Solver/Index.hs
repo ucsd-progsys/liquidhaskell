@@ -69,12 +69,14 @@ import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Types                 ((&.&))
 import           Language.Fixpoint.Types.Solutions
+import           Language.Fixpoint.Solver.Validate (symbolSorts)
 import           Language.Fixpoint.Graph            (CDeps (..))
 
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 -- import qualified Data.Graph.Inductive as G
 -- import qualified Data.List            as L
+import           Data.Maybe (catMaybes)
 import           Control.Monad.State
 
 --------------------------------------------------------------------------------
@@ -88,6 +90,7 @@ create _cfg sI kHyps _cDs = FastIdx
   , kvDef    = kHypM
   , envBinds = F.senv <$> cm
   , envTx    = mkEnvTx kHypM bE cm
+  , envSorts = F.fromListSEnv $ symbolSorts _cfg sI
   -- - , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
   -- , bindPrev = mkBindPrev sI
   }
@@ -339,11 +342,19 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
 --------------------------------------------------------------------------------
 -- | `eqSubst [X := Y] [X := Z]` takes two substitutions over the SAME params
 --   `X`, typically of a KVar K, and returns the equality predicate `Y = Z`
+--
 --------------------------------------------------------------------------------
-eqSubst :: F.Subst -> F.Subst -> F.Pred
-eqSubst (F.Su yM) (F.Su zM) = F.pAnd (M.elems eM)
+eqSubst :: Index -> F.Subst -> F.Subst -> F.Pred
+eqSubst _me (F.Su yM) (F.Su zM) = F.pAnd $ catMaybes $ M.elems eM
   where
-    eM                      = M.intersectionWith (F.PAtom F.Ueq) yM zM
+    eM                          = M.intersectionWith (eqJoin _me) yM zM
+
+eqJoin :: Index -> F.Expr -> F.Expr -> Maybe F.Pred
+eqJoin _me e1@(F.EVar _x1) e2@(F.EVar _x2)
+  -- / both x1, x2 are in defined in _me
+  = Just $ F.PAtom F.Ueq e1 e2
+eqJoin _   _           _
+  = Nothing
 
     -- [eN, yN, zN]           = M.size <$> [eM, yM, zM]
     -- msg                    = "eqSubst: incompatible substs "
@@ -403,18 +414,18 @@ bindIdPred me s i = ( S.unions js
 kIndexPred :: Index -> Solution -> KIndex -> (S.HashSet F.SubcId, F.Pred)
 kIndexPred me s kI = case lookup s k of
                        Right eqs -> ( mempty
-                                    , qBindPred su eqs             )
-                       Left  cs  -> ( S.fromList (cuId     <$> cs)
-                                    , F.pOr (kIndexCube su <$> cs) )
+                                    , qBindPred su eqs                )
+                       Left  cs  -> ( S.fromList (cuId        <$> cs  )
+                                    , F.pOr (kIndexCube me su <$> cs) )
   where
     (k, su)        = safeLookup msg kI (kvUse me)
     msg            = "kIndexSol: unknown KIndex" ++ show kI
 
-kIndexCube :: F.Subst -> Cube -> F.Pred
-kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
+kIndexCube :: Index -> F.Subst -> Cube -> F.Pred
+kIndexCube me ySu c = bp j &.& eqSubst me ySu zSu
   where
-    zSu          = cuSubst c
-    j            = cuId    c
+    zSu             = cuSubst c
+    j               = cuId    c
 
 
 {-

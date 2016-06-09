@@ -35,7 +35,7 @@ import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
-import qualified Language.Fixpoint.Types.Errors  as E
+-- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
@@ -111,11 +111,8 @@ runSolverM cfg sI _ s0 act =
 background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi s0 = (bts ++ xts, p)
   where
-    xts              = either E.die id $ symbolSorts cfg fi -- declSymbols fi
+    xts              = symbolSorts cfg fi
     (bts, p)         = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
-
---    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)		+    (xts, p) = background fi s0
---    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
