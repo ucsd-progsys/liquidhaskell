@@ -23,7 +23,6 @@ import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
--- DEBUG
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
@@ -32,6 +31,7 @@ import           Data.Maybe (catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
+-- DEBUG
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n s0 act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -75,9 +75,14 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
+
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => Config -> F.SInfo a -> Sol.Solution -> S.HashSet F.KVar -> W.Worklist a
+       => Config
+       -> F.SInfo a
+       -> Sol.Solution
+       -> S.HashSet F.KVar
+       -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
@@ -89,9 +94,10 @@ solve_ cfg fi s0 ks wkl = do
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
--- | tidyResult ensures we replace the temporary kVarArg names
---   introduced to ensure uniqueness with the original names
---   appearing in the supplied WF constraints.
+--------------------------------------------------------------------------------
+-- | tidyResult ensures we replace the temporary kVarArg names introduced to
+--   ensure uniqueness with the original names in the given WF constraints.
+--------------------------------------------------------------------------------
 
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
@@ -126,14 +132,16 @@ refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = {- tracepp msg $ -} S.lhsPred be s c
+                   let lhs = {- F.tracepp ("LHS at " ++ show _i) $ -} S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks $ tracepp (msg ks rhs kqs) kqs
+                   return  $ S.update s ks {- $ tracepp (msg ks rhs kqs) -} kqs
   where
+    _ci       = F.subcId c
     (ks, rhs) = rhsCands s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
-    msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
+    _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
+                     _i (show _ci) (showpp ks) (length xs) (length ys)
 
 rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
@@ -180,14 +188,11 @@ isUnsat s c = do
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
 
-
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do
   putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
   putStrLn $ showpp $ "LHS:" <+> pprint lP
   putStrLn $ showpp $ "RHS:" <+> pprint rP
-
-
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to RHS of constraint in current solution

@@ -150,7 +150,7 @@ sortedReftBind sr = (x, sr)
   where
     Reft (x, _)   = sr_reft sr
 
-subcId :: (TaggedC c a) => c a -> Integer
+subcId :: (TaggedC c a) => c a -> SubcId
 subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
@@ -452,7 +452,7 @@ allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
 data GInfo c a =
-  FI { cm       :: !(M.HashMap Integer (c a)) -- ^ cst id |-> Horn Constraint
+  FI { cm       :: !(M.HashMap SubcId (c a)) -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar   |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind   |-> (Symbol, SortedReft)
      , lits     :: !(SEnv Sort)               -- ^ Constant symbols

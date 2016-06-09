@@ -190,6 +190,9 @@ groupList = M.toList . group
 groupMap   :: (Eq k, Hashable k) => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 
+allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
+allMap p = L.foldl' (\a v -> a && p v) True
+
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
   where

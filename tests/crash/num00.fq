@@ -1,6 +1,8 @@
 // This qualifier saves the day; solve constraints WITHOUT IT
 
 qualif Zog(v:a) : (0 <= v)
+qualif Bog(v:a) : (0 <= 1)
+
 
 bind 0 zog : {v : int | true}
 
@@ -25,4 +27,3 @@ constraint:
 wf:
   env [0]
   reft {v: alpha | $k0}
-

@@ -180,9 +180,9 @@ size t    = n
     szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
 
 kvars :: Visitable t => t -> [KVar]
-kvars                = fold kvVis () []
+kvars                 = fold kvVis () []
   where
-    kvVis            = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
+    kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
     kv' _ (PKVar k _) = [k]
     kv' _ _           = []
 

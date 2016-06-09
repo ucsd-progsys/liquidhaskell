@@ -39,13 +39,13 @@ import           Text.PrettyPrint.HughesPJ (text)
 
 data Worklist a = WL { wCs     :: !WorkSet
                      , wPend   :: !(CMap ())
-                     , wDeps   :: !CSucc
+                     , wDeps   :: !(CMap [F.SubcId])
                      , wCm     :: !(CMap (F.SimpC a))
                      , wRankm  :: !(CMap Rank)
-                     , wLast   :: !(Maybe CId)
+                     , wLast   :: !(Maybe F.SubcId)
                      , wRanks  :: !Int
                      , wTime   :: !Int
-                     , wConcCs :: ![CId]
+                     , wConcCs :: ![F.SubcId]
                      }
 
 data Stats = Stats { numKvarCs  :: !Int
@@ -69,7 +69,7 @@ instance PTable (Worklist a) where
 
 type WorkSet  = S.Set WorkItem
 
-data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
+data WorkItem = WorkItem { wiCId  :: !F.SubcId   -- ^ Constraint Id
                          , wiTime :: !Int   -- ^ Time at which inserted
                          , wiRank :: !Rank  -- ^ Rank of constraint
                          } deriving (Eq, Show)
@@ -129,20 +129,20 @@ pop w = do
        , rank w i
        )
 
-popW :: Worklist a -> CId -> WorkSet -> Worklist a
+popW :: Worklist a -> F.SubcId -> WorkSet -> Worklist a
 popW w i is = w { wCs   = is
                 , wLast = Just i
                 , wPend = remPend (wPend w) i }
 
 
-newSCC :: Worklist a -> CId -> Bool
+newSCC :: Worklist a -> F.SubcId -> Bool
 newSCC oldW i = (rScc <$> oldRank) /= (rScc <$> newRank)
   where
     oldRank   = lookupCMap rankm <$> wLast oldW
     newRank   = Just              $  lookupCMap rankm i
     rankm     = wRankm oldW
 
-rank :: Worklist a -> CId -> Int
+rank :: Worklist a -> F.SubcId -> Int
 rank w i = rScc $ lookupCMap (wRankm w) i
 
 ---------------------------------------------------------------------------
@@ -154,12 +154,12 @@ push c w = w { wCs   = sAdds (wCs w) wis'
              }
   where
     i    = F.subcId c
-    is'  = filter (not . isPend wp) $ wDeps w i
+    is'  = filter (not . isPend wp) $ M.lookupDefault [] i (wDeps w)
     wis' = workItemsAt (wRankm w) t <$> is'
     t    = wTime w
     wp   = wPend w
 
-workItemsAt :: CMap Rank -> Int -> CId -> WorkItem
+workItemsAt :: CMap Rank -> Int -> F.SubcId -> WorkItem
 workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiTime = t
                                 , wiRank = lookupCMap r i }
@@ -178,16 +178,16 @@ stats w = Stats (kn w) (cn w) (wRanks w)
 -- | Pending API
 ---------------------------------------------------------------------------
 
-addPends :: CMap () -> [CId] -> CMap ()
+addPends :: CMap () -> [F.SubcId] -> CMap ()
 addPends = L.foldl' addPend
 
-addPend :: CMap () -> CId -> CMap ()
+addPend :: CMap () -> F.SubcId -> CMap ()
 addPend m i = M.insert i () m
 
-remPend :: CMap () -> CId -> CMap ()
+remPend :: CMap () -> F.SubcId -> CMap ()
 remPend m i = M.delete i m
 
-isPend :: CMap () -> CId -> Bool
+isPend :: CMap () -> F.SubcId -> Bool
 isPend w i = M.member i w
 
 ---------------------------------------------------------------------------
@@ -197,5 +197,5 @@ isPend w i = M.member i w
 sAdds :: WorkSet -> [WorkItem] -> WorkSet
 sAdds = L.foldl' (flip S.insert)
 
-sPop :: WorkSet -> Maybe (CId, WorkSet)
+sPop :: WorkSet -> Maybe (F.SubcId, WorkSet)
 sPop = fmap (first wiCId) . S.minView

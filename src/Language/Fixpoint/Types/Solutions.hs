@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 
 -- | This module contains the top-level SOLUTION data types,
 --   including various indices used for solving.
@@ -16,6 +17,8 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution tables
     Solution
   , Sol
+  , sIdx
+  , CMap
 
   -- * Solution elements
   , Hyp, Cube (..), QBind
@@ -32,6 +35,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Lookup
   , lookupQBind
   , lookup
+  , qBindPred
 
   -- * Conversion for client
   , result
@@ -41,29 +45,28 @@ module Language.Fixpoint.Types.Solutions (
   , Index  (..)
   , KIndex (..)
   , BindPred (..)
-  , BIndex
+  , BIndex (..)
   ) where
 
 import           Prelude hiding (lookup)
+import           GHC.Generics
+import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
-
+-- import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
+
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
-
--- import           Text.PrettyPrint.HughesPJ
--- import qualified Data.HashSet              as S
+import           Text.PrettyPrint.HughesPJ
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
-
 type Solution = Sol QBind
 type QBind    = [EQual]
-
-
 
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
@@ -96,9 +99,12 @@ type Hyp      = ListNE Cube
 data Cube = Cube
   { cuBinds :: IBindEnv  -- ^ Binders       from defining Env
   , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
-  , cuId    :: Integer   -- ^ Id            of   defining Cstr (DEBUG)
+  , cuId    :: SubcId    -- ^ Id            of   defining Cstr
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
   }
+
+instance PPrint Cube where
+  pprintTidy _ c = "Cube" <+> pprint (cuId c)
 
 --------------------------------------------------------------------------------
 result :: Solution -> M.HashMap KVar Expr
@@ -111,6 +117,11 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 --------------------------------------------------------------------------------
 fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe Index -> Sol a
 fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
+
+--------------------------------------------------------------------------------
+qBindPred :: Subst -> QBind -> Pred
+--------------------------------------------------------------------------------
+qBindPred su = subst su . pAnd . fmap eqPred
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
@@ -132,7 +143,7 @@ lookup s k
 
 --------------------------------------------------------------------------------
 insert :: KVar -> a -> Sol a -> Sol a
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 insert k qs s = s { sMap = M.insert k qs (sMap s) }
 
 
@@ -145,22 +156,40 @@ type Cand a   = [(Expr, a)]
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
 --------------------------------------------------------------------------------
-newtype KIndex = KIndex Int
+data KIndex = KIndex { kiBIndex :: !BindId
+                     , kiPos    :: !Int
+                     , kiKVar   :: !KVar
+                     }
+              deriving (Eq, Ord, Show, Generic)
+
+instance Hashable KIndex
+
+instance PPrint KIndex where
+  pprintTidy _ = tshow
 
 --------------------------------------------------------------------------------
 -- | A BIndex is created for each LHS Bind or RHS constraint
 --------------------------------------------------------------------------------
-data BIndex    = Bind !BindId
+data BIndex    = Root
+               | Bind !BindId
                | Cstr !SubcId
-                 deriving (Eq, Ord, Show)
+                 deriving (Eq, Ord, Show, Generic)
+
+instance Hashable BIndex
+
+instance PPrint BIndex where
+  pprintTidy _ = tshow
 
 --------------------------------------------------------------------------------
 -- | Each `Bind` corresponds to a conjunction of a `bpConc` and `bpKVars`
 --------------------------------------------------------------------------------
 data BindPred  = BP
-  { bpConc :: !Pred                   -- ^ Concrete predicate (PTrue o)
-  , bpKVar :: [KIndex]                  -- ^ KVar-Subst pairs
-  }
+  { bpConc :: !Pred                  -- ^ Concrete predicate (PTrue o)
+  , bpKVar :: ![KIndex]              -- ^ KVar-Subst pairs
+  } deriving (Show)
+
+instance PPrint BindPred where
+  pprintTidy _ = tshow
 
 
 --------------------------------------------------------------------------------
@@ -169,8 +198,14 @@ data BindPred  = BP
 --   2. ASSERT each lhs via bits for the subc-id and formulas for dependent cut KVars
 --------------------------------------------------------------------------------
 data Index = FastIdx
-  { bindExpr :: BindId |-> BindPred   -- ^ BindPred for each BindId
-  , bindPrev :: BindId |-> BindId   -- ^ "parent" (immediately dominating) binder
-  , kvUse    :: KIndex |-> KVSub    -- ^ Definition of each `KIndex`
-  , kvDef    :: KVar   |-> Hyp    -- ^ Constraints defining each `KVar`
+  { bindExpr   :: !(BindId |-> BindPred) -- ^ BindPred for each BindId
+  , kvUse      :: !(KIndex |-> KVSub)    -- ^ Definition of each `KIndex`
+  , kvDef      :: !(KVar   |-> Hyp)      -- ^ Constraints defining each `KVar`
+  , envBinds   :: !(CMap IBindEnv)       -- ^ Binders of each Subc
+  , envTx      :: !(CMap [SubcId])       -- ^ Transitive closure oof all dependent binders
+  , envSorts   :: !(SEnv Sort)           -- ^ Sorts for all symbols
+  -- , bindPrev   :: !(BIndex |-> BIndex)   -- ^ "parent" (immediately dominating) binder
+  -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   }
+
+type CMap a  = M.HashMap SubcId a

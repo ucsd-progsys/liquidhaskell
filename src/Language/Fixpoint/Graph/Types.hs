@@ -23,8 +23,7 @@ module Language.Fixpoint.Graph.Types (
   , writeEdges
 
   -- * Constraints
-  , CId
-  , CSucc
+  , F.SubcId
   , KVRead
   , DepEdge
 
@@ -35,7 +34,7 @@ module Language.Fixpoint.Graph.Types (
   , CGraph (..)
 
   -- * Alias for Constraint Maps
-  , CMap
+  , F.CMap
   , lookupCMap
 
   -- * Ranks
@@ -56,7 +55,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements -- Constraints
-import qualified Language.Fixpoint.Types.Solutions as F 
+import qualified Language.Fixpoint.Types.Solutions as F
 -- import           Language.Fixpoint.Misc (safeLookup)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
@@ -130,29 +129,24 @@ txEdges es = concatMap iEs is
 ---------------------------------------------------------------------------
 -- | Dramatis Personae
 ---------------------------------------------------------------------------
+type KVRead  = M.HashMap F.KVar [F.SubcId]
+type DepEdge = (F.SubcId, F.SubcId, [F.SubcId])
 
-type CId     = Integer
-type CSucc   = CId -> [CId]
-type CMap a  = M.HashMap CId a
-type KVRead  = M.HashMap F.KVar [CId]
-type DepEdge = (CId, CId, [CId])
-
-data Slice = Slice { slKVarCs :: [CId]     -- ^ CIds that transitively "reach" below
-                   , slConcCs :: [CId]     -- ^ CIds with Concrete RHS
+data Slice = Slice { slKVarCs :: [F.SubcId]     -- ^ F.SubcIds that transitively "reach" below
+                   , slConcCs :: [F.SubcId]     -- ^ F.SubcIds with Concrete RHS
                    , slEdges  :: [DepEdge] -- ^ Dependencies between slKVarCs
                    } deriving (Eq, Show)
 
 data CGraph = CGraph { gEdges :: [DepEdge]
-                     , gRanks :: !(CMap Int)
-                     , gSucc  :: !CSucc
+                     , gRanks :: !(F.CMap Int)
+                     , gSucc  :: !(F.CMap [F.SubcId])
                      , gSccs  :: !Int
                      }
 
 ---------------------------------------------------------------------------
 -- | CMap API -------------------------------------------------------------
 ---------------------------------------------------------------------------
-
-lookupCMap :: (?callStack :: CallStack) => CMap a -> CId -> a
+lookupCMap :: (?callStack :: CallStack) => F.CMap a -> F.SubcId -> a
 lookupCMap rm i = safeLookup err i rm
   where
     err      = "lookupCMap: cannot find info for " ++ show i
@@ -161,9 +155,10 @@ lookupCMap rm i = safeLookup err i rm
 -- | Constraint Dependencies ---------------------------------------------------
 --------------------------------------------------------------------------------
 
-data CDeps = CDs { cSucc   :: !CSucc
-                 , cRank   :: !(CMap Rank)
-                 , cNumScc :: !Int
+data CDeps = CDs { cSucc   :: !(F.CMap [F.SubcId]) -- ^ Constraints *written by* a SubcId
+                 , cPrev   :: !(F.CMap [F.KVar])   -- ^ (Cut) KVars *read by*    a SubcId
+                 , cRank   :: !(F.CMap Rank)       -- ^ SCC rank of a SubcId
+                 , cNumScc :: !Int               -- ^ Total number of Sccs
                  }
 
 

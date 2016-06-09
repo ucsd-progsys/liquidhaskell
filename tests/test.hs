@@ -20,11 +20,13 @@ main = defaultMain =<< group "Tests" [unitTests]
 
 unitTests
   = group "Unit" [
-      testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"  []  ExitSuccess
-    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"  []  (ExitFailure 1)
-    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  []  ExitSuccess
-    , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim" []  ExitSuccess
-    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"  []  (ExitFailure 1)
+      testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    []  ExitSuccess
+    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    []  (ExitFailure 1)
+    , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []  (ExitFailure 2)
+    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []  ExitSuccess
+    , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []  ExitSuccess
+    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    []  (ExitFailure 1)
+    , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []  (ExitFailure 2)
    ]
 
 ---------------------------------------------------------------------------

@@ -15,10 +15,10 @@ Requirements
 In addition to the .cabal dependencies you require an SMTLIB2 compatible solver binary:
 
 - [Z3](http://z3.codeplex.com)
-- [CVC4](http://cvc4.cs.nyu.edu) 
+- [CVC4](http://cvc4.cs.nyu.edu)
 - [MathSat](http://mathsat.fbk.eu/download.html)
 
-If on Windows, please make sure to place the binary and any associated DLLs somewhere 
+If on Windows, please make sure to place the binary and any associated DLLs somewhere
 in your path.
 
 How To Build and Install
@@ -108,7 +108,7 @@ See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 Options
 -------
 
-`--higherorder` allows higher order binders into the environment 
+`--higherorder` allows higher order binders into the environment
 
 `--extsolver` runs the **deprecated** external solver.
 

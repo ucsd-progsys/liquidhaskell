@@ -61,7 +61,7 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
-  defunc = return . defuncSort 
+  defunc = return . defuncSort
 
 
 defuncSort (FAbs _ t)      = defuncSort t
@@ -167,9 +167,9 @@ instance SMTLIB2 Expr where
   defunc (PAll   bs p)    = do bs' <- mapM defunc bs
                                p'  <- withExtendedEnv bs $ defunc p
                                return $ PAll bs' p'
-  defunc (PAtom r e1 e2)  = do e1' <- defunc e1 
+  defunc (PAtom r e1 e2)  = do e1' <- defunc e1
                                e2' <- defunc e2
-                               defuncPAtom r e1' e2' 
+                               defuncPAtom r e1' e2'
   defunc PGrad            = return PGrad
   defunc  e               = errorstar ("smtlib2 Pred  " ++ show e)
 
@@ -204,13 +204,13 @@ defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of
                 _      -> defuncApp' f' es'
   where
     (f, es)   = splitEApp' e
-    (f', es') = splitEApp  e 
+    (f', es') = splitEApp  e
 
-splitEApp' e          = go [] e 
+splitEApp' e          = go [] e
   where
-    go acc (EApp f e) = go (e:acc) f 
-    go acc (ECst e _) = go acc e 
-    go acc e          = (e, acc) 
+    go acc (EApp f e) = go (e:acc) f
+    go acc (ECst e _) = go acc e
+    go acc e          = (e, acc)
 
 eliminate :: Expr -> Expr
 eliminate (ECst e _) = eliminate e
@@ -222,11 +222,11 @@ defuncApp' f es = makeApplication f es
 -- smt2App' env f es = build "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es
 
 defuncPAtom :: Brel -> Expr -> Expr -> SMT2 Expr
-defuncPAtom Eq e1 e2 
-  | isFun e1, isFun e2 
-  = mkFunEq e1 e2 
-defuncPAtom r e1 e2 
-  = return $ PAtom r e1 e2 
+defuncPAtom Eq e1 e2
+  | isFun e1, isFun e2
+  = mkFunEq e1 e2
+defuncPAtom r e1 e2
+  = return $ PAtom r e1 e2
 
 mkRel :: Brel -> Expr -> Expr -> Builder.Builder
 mkRel Ne  e1 e2 = mkNe e1 e2
@@ -240,15 +240,15 @@ isFun :: Expr -> Bool
 isFun e | FFunc _ _ <- exprSort e = True
         | otherwise               = False
 
-mkFunEq :: Expr -> Expr -> SMT2 Expr 
-mkFunEq e1 e2 
-  = do fflag <- f_ext <$> get 
-       if fflag 
+mkFunEq :: Expr -> Expr -> SMT2 Expr
+mkFunEq e1 e2
+  = do fflag <- f_ext <$> get
+       if fflag
         then return $ PAnd [PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
                          (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
                         , PAtom Eq e1 e2]
-        else return $ PAtom Eq e1 e2 
-  where 
+        else return $ PAtom Eq e1 e2
+  where
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
     xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss]
     (s, ss) = go [] $ exprSort e1
@@ -257,7 +257,6 @@ mkFunEq e1 e2
     go acc s            = (s, reverse acc)
 
     f  = makeFunSymbol e1 $ length xs
-
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
@@ -292,10 +291,10 @@ instance SMTLIB2 Command where
 
   defunc (Define t)  = return $ Define t
   defunc (Assert Nothing p)
-    = do env <- smt2env <$> get
+    = do env      <- smt2env <$> get
          (p', fs) <- grapLambdas $ elaborate env p
-         dfs <- mapM defineFun fs
-         p'' <- defunc p'
+         dfs      <- mapM defineFun fs
+         p''      <- defunc p'
          return $ CMany (concat dfs ++ [Assert Nothing p''])
 
   defunc (Assert (Just i) p)
@@ -328,14 +327,14 @@ defineFun (f, ELam (x, t) (ECst e tr))
        assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
                                   (PAtom Eq (mkApp (EApp (EVar f) (EVar x)) (fst <$> xts)) bd))
-       g <- freshSym            
+       g <- freshSym
        assert2 <- withExtendedEnv [(f, FFunc t tr)] $
-                   defunc $ Assert Nothing 
+                   defunc $ Assert Nothing
         (PAll [(g, FFunc t tr)]
           (PImp
         (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
-       fflag <- f_ext <$> get 
+       fflag <- f_ext <$> get
        if fflag then return [decl, assert1, assert2] else return [decl]
   where
     go acc (ELam (x, t) e) = go ((x,t):acc) e
@@ -436,21 +435,21 @@ grapLambdas e = go [] e
 
 -- s_to_Int :: s -> Int
 
- 
-makeApplication :: Expr -> [Expr] -> SMT2 Expr 
+
+makeApplication :: Expr -> [Expr] -> SMT2 Expr
 makeApplication e es = defunc e >>= (`go` es)
   where
-    go f []     = return f 
-    go f (e:es) = do df <- defunc $ makeFunSymbol f 1  
-                     de <- defunc $ e 
+    go f []     = return f
+    go f (e:es) = do df <- defunc $ makeFunSymbol f 1
+                     de <- defunc $ e
                      let res = eApps (EVar df) [ECst f (exprSort f), de]
-                     let s  = exprSort (EApp f de) 
-                     go ((`ECst` s) res) es 
+                     let s  = exprSort (EApp f de)
+                     go ((`ECst` s) res) es
 
 
-{- 
+{-
 
--- Old application: without currying 
+-- Old application: without currying
 makeApplication e es
   = do df  <- defunc f
        de  <- defunc e
@@ -481,7 +480,7 @@ dropArgs :: String -> Int -> Sort -> Sort
 dropArgs _ 0 t           = t
 dropArgs s j (FAbs _ t)  = dropArgs s j t
 dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
-dropArgs str j s           
+dropArgs str j s
   = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
 toInt :: Expr -> SMT2 Expr
@@ -548,14 +547,14 @@ makeApplies i =
 
 
 exprSort :: Expr -> Sort
-exprSort (ECst _ s)     
+exprSort (ECst _ s)
   = s
-exprSort (ELam (_,s) e) 
-  = FFunc s $ exprSort e    
-exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e  
-  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx 
+exprSort (ELam (_,s) e)
+  = FFunc s $ exprSort e
+exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e
+  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx
   where
-    gen (FAbs _ t) = gen t 
-    gen t          = t 
-exprSort e              
+    gen (FAbs _ t) = gen t
+    gen t          = t
+exprSort e
   = errorstar ("\nexprSort on unexpected expressions" ++ show e)

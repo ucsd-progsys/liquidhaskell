@@ -5,9 +5,9 @@ module Language.Fixpoint.Solver.Eliminate (solverInfo) where
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
-import           Language.Fixpoint.Types.Config    (Config)
+import           Language.Fixpoint.Types.Config    (Config, oldElim)
 import qualified Language.Fixpoint.Types.Solutions as Sol
-import qualified Language.Fixpoint.Solver.Index    as Fast
+import qualified Language.Fixpoint.Solver.Index    as Index -- Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph           -- (depCuts, depNonCuts, elimVars)
@@ -20,13 +20,18 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList    [] kHyps (Just fastI)
+    sHyp           = Sol.fromList    [] kHyps idx
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
-    fastI          = Fast.create  cfg sI
+    idx            = solverIndex cfg sI kHyps cD
 
-cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar ->  SInfo a
+solverIndex :: Config -> SInfo a -> [(KVar, Sol.Hyp)] -> CDeps -> Maybe Sol.Index
+solverIndex cfg sI kHyps cD
+  | oldElim cfg    = Nothing
+  | otherwise      = Just $ Index.create cfg sI kHyps cD
+
+cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
     ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
@@ -63,7 +68,6 @@ nonCutHyp kI si k = nonCutCube <$> cs
 
 nonCutCube :: SimpC a -> Sol.Cube
 nonCutCube c = Sol.Cube (senv c) (rhsSubst c) (subcId c) (stag c)
-
 
 rhsSubst :: SimpC a -> Subst
 rhsSubst             = rsu . crhs

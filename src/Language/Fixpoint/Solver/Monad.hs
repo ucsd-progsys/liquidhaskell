@@ -35,11 +35,12 @@ import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
-import qualified Language.Fixpoint.Types.Errors  as E
+-- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
+import qualified Language.Fixpoint.Solver.Index as Index
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
@@ -85,24 +86,34 @@ instance F.PTable Stats where
                         , (text "# SMT Queries (Total)" , pprint (numChck s))
                         ]
 
----------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
----------------------------------------------------------------------------
-runSolverM cfg sI _ act =
+--------------------------------------------------------------------------------
+runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
+--------------------------------------------------------------------------------
+runSolverM cfg sI _ s0 act =
   bracket acquire release $ \ctx -> do
-    res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
+    res <- runStateT act' (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    acquire = makeContextWithSEnv cfg file env
-    release = cleanupContext
-    be      = F.SolEnv (F.bs fi) (F.packs fi) -- (error "TBD:initialPACKS")
-    file    = F.fileName fi -- (inFile cfg)
-    env     = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
-    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
+    act'     = declareInitEnv >> declare xts ess p >> act
+    acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
+    release  = cleanupContext
+    ess      = declLiterals fi
+    (xts, p) = background cfg fi s0
+    be       = F.SolEnv (F.bs fi) (F.packs fi)
+    file     = F.fileName fi
+    -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
+    -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi      = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+
+
+background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
+background cfg fi s0 = (bts ++ xts, p)
+  where
+    xts              = symbolSorts cfg fi
+    (bts, p)         = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -170,18 +181,26 @@ checkSat p
       smtBracket me $
         smtCheckSat me p
 
----------------------------------------------------------------------------
-declare :: F.GInfo c a -> SolveM ()
----------------------------------------------------------------------------
-declareInitEnv :: SolveM ()
-declareInitEnv = withContext $ \me ->
-                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
+--------------------------------------------------------------------------------
+declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
+--------------------------------------------------------------------------------
+declare xts' ess p = withContext $ \me -> do
+  let xts      = filter (not . isThy . fst) xts'
+  -- xts         <- either E.die return $ declSymbols fi
+  -- let (bts, p) = backgroundPred s0
+  -- let yts      = xts ++ bts
+  -- let ess      = declLiterals fi
+  forM_ xts    $ uncurry $ smtDecl     me
+  forM_ ess    $           smtDistinct me
+  _           <-           smtAssert   me p
+  return ()
+  where
+    isThy   = isJust . Thy.smt2Symbol
 
-declare fi  = withContext $ \me -> do
-  xts      <- either E.die return $ declSymbols fi
-  let ess   = declLiterals fi
-  forM_ xts $ uncurry $ smtDecl     me
-  forM_ ess $           smtDistinct me
+declareInitEnv :: SolveM ()
+declareInitEnv
+  = withContext $ \me ->
+      forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
 
 declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi | F.allowHO fi
@@ -197,11 +216,11 @@ declLiterals fi
     notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
 
-declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
-declSymbols = fmap dropThy . symbolSorts
-  where
-    dropThy = filter (not . isThy . fst)
-    isThy   = isJust . Thy.smt2Symbol
+-- declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
+-- declSymbols = fmap dropThy . symbolSorts
+  -- where
+    -- dropThy = filter (not . isThy . fst)
+    -- isThy   = isJust . Thy.smt2Symbol
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats
