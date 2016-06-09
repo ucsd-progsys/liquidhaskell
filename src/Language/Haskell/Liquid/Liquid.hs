@@ -202,6 +202,7 @@ fixConfig tgt cfg = def
   , FC.elimBound   = elimBound         cfg
   , FC.allowHO     = higherorder       cfg
   , FC.allowHOqs   = higherorderqs     cfg
+  , FC.extensionality = extensionality cfg 
   }
 
 e2u :: F.FixSolution -> Error -> UserError

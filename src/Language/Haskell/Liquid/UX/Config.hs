@@ -29,6 +29,7 @@ data Config = Config {
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
+  , extensionality :: Bool       -- ^ allow function extentionality axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
