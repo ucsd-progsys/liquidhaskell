@@ -97,15 +97,28 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
     ins        = [(k, i) | (Cstr i, KVar k) <- es ]
 
 
+
 --------------------------------------------------------------------------------
--- | remove substitutions `K[x := e]` where `x` is not in the domain of K
+-- | remove substitutions `K[x := e]` where `x` is not in the domain of K or `e`
+--   is not a "known" var, i.e. one corresponding to some binder.
 --------------------------------------------------------------------------------
 dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
 dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
   where
     kvM                    = kvarDomainM si0
     kvXs k                 = M.lookupDefault S.empty k kvM
-    keepSubst k x _        = x `S.member` kvXs k
+    keepSubst k x e        = x `S.member` kvXs k && knownRhs e
+    knownRhs (F.EVar y)
+      | y `S.member` xs    = True
+      | otherwise          = F.tracepp ("unknownRHS " ++ show y) False
+    knownRhs _             = False
+    xs                     = knownVars si0
+
+knownVars :: F.SInfo a -> S.HashSet F.Symbol
+knownVars si = S.fromList vs
+  where
+    vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
+                   , y <- [x, v] ]
 
 type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
 

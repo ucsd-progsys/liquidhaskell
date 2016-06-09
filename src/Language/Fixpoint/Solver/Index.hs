@@ -76,7 +76,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 -- import qualified Data.Graph.Inductive as G
 -- import qualified Data.List            as L
-import           Data.Maybe (catMaybes)
+-- import           Data.Maybe (catMaybes)
 import           Control.Monad.State
 
 --------------------------------------------------------------------------------
@@ -345,16 +345,25 @@ kIndexCube ySu c = bp j &.& (ySu `eqSubst` zSu)
 --
 --------------------------------------------------------------------------------
 eqSubst :: Index -> F.Subst -> F.Subst -> F.Pred
+eqSubst _me (F.Su yM) (F.Su zM) = F.pAnd $ M.elems eM
+  where
+    eM                          = M.intersectionWith (F.PAtom F.Ueq) yM zM
+
+{-
 eqSubst _me (F.Su yM) (F.Su zM) = F.pAnd $ catMaybes $ M.elems eM
   where
     eM                          = M.intersectionWith (eqJoin _me) yM zM
 
 eqJoin :: Index -> F.Expr -> F.Expr -> Maybe F.Pred
-eqJoin _me e1@(F.EVar _x1) e2@(F.EVar _x2)
-  -- / both x1, x2 are in defined in _me
+eqJoin me e1@(F.EVar x1) e2@(F.EVar x2)
+  | all (isKnownVar me) [x1, x2]
   = Just $ F.PAtom F.Ueq e1 e2
 eqJoin _   _           _
   = Nothing
+
+isKnownVar :: Index -> F.Symbol -> Bool
+isKnownVar me x = F.memberSEnv x (envSorts me)
+-}
 
     -- [eN, yN, zN]           = M.size <$> [eM, yM, zM]
     -- msg                    = "eqSubst: incompatible substs "
