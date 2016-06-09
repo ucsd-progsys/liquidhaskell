@@ -242,9 +242,12 @@ isFun e | FFunc _ _ <- exprSort e = True
 
 mkFunEq :: Expr -> Expr -> SMT2 Expr
 mkFunEq e1 e2
-  = return $ PAnd [PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
-                   (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
-                  , PAtom Eq e1 e2]
+  = do fflag <- f_ext <$> get
+       if fflag
+        then return $ PAnd [PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
+                         (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
+                        , PAtom Eq e1 e2]
+        else return $ PAtom Eq e1 e2
   where
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
     xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss]
@@ -254,7 +257,6 @@ mkFunEq e1 e2
     go acc s            = (s, reverse acc)
 
     f  = makeFunSymbol e1 $ length xs
-
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
@@ -332,7 +334,8 @@ defineFun (f, ELam (x, t) (ECst e tr))
           (PImp
         (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
-       return [decl, assert1, assert2]
+       fflag <- f_ext <$> get
+       if fflag then return [decl, assert1, assert2] else return [decl]
   where
     go acc (ELam (x, t) e) = go ((x,t):acc) e
     go acc (ECst e _)      = go acc e
