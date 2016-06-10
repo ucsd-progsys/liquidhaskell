@@ -1023,6 +1023,10 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
+{-
+lowerIdP :: Parser Symbol
+lowerIdP = condIdP symChars (isSmall . head)
+-}
 
 
 dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
