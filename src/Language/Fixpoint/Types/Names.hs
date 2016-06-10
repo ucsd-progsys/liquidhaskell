@@ -330,7 +330,7 @@ numChars = S.fromList ['0' .. '9']
 safeChars :: S.HashSet Char
 safeChars = alphaChars `mappend`
             numChars   `mappend`
-            S.fromList ['_', '.'  ]
+            S.fromList ['_', '.', '\''  ]
 
 symChars :: S.HashSet Char
 symChars =  safeChars `mappend`
