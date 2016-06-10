@@ -531,48 +531,6 @@ See, for example, the contents of
 + The `.spec` mechanism is *only for external modules** without code,
   see below for standalone specifications for **internal** or **home** modules.
 
-Standalone Specifications for Internal Modules
-----------------------------------------------
-
-Recall that the `.spec` mechanism is only for modules whose
-code is absent; if code is present then there can be multiple,
-possibly conflicting specifications. Nevertheless, you may want,
-for one reason or another, to write (assumed) specifications
-outside the file implementing the module.
-
-You can do this as follows.
-
-`Lib.hs`
-
-```haskell
-module Lib (foo) where
-
-foo a = a
-```
-
-now, instead of a `.spec` file, just use a haskell module, e.g. `LibSpec.hs`
-
-```haskell
-module LibSpec ( module Lib ) where
-
-import Lib
-
--- Don't forget to qualify the name!
-
-{-@ Lib.foo :: {v:a | false} -> a @-}
-```
-
-and then here's `Client.hs`
-
-```haskell
-module Client where
-
-import Lib      -- use this if you DON'T want the spec  
-import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
-
-bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
-```
-
 
 Modules WITH code: Data
 -----------------------
@@ -710,6 +668,47 @@ a type inside `lq` which refers to a refined type alias
 for which there is not a plain Haskell type synonym of the
 same name will result in a "not in scope" error from GHC.
 
+Standalone Specifications for Internal Modules
+----------------------------------------------
+
+Recall that the `.spec` mechanism is only for modules whose
+code is absent; if code is present then there can be multiple,
+possibly conflicting specifications. Nevertheless, you may want,
+for one reason or another, to write (assumed) specifications
+outside the file implementing the module.
+
+You can do this as follows.
+
+`Lib.hs`
+
+```haskell
+module Lib (foo) where
+
+foo a = a
+```
+
+now, instead of a `.spec` file, just use a haskell module, e.g. `LibSpec.hs`
+
+```haskell
+module LibSpec ( module Lib ) where
+
+import Lib
+
+-- Don't forget to qualify the name!
+
+{-@ Lib.foo :: {v:a | false} -> a @-}
+```
+
+and then here's `Client.hs`
+
+```haskell
+module Client where
+
+import Lib      -- use this if you DON'T want the spec  
+import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
+
+bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
+```
 Refinement Type Aliases
 -----------------------
 
