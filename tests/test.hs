@@ -96,7 +96,7 @@ unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
-    , testGroup "neg"         <$> dirTests "tests/neg"                            [negIgnored] (ExitFailure 1)
+    , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored   (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
