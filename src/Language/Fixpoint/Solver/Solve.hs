@@ -181,6 +181,7 @@ isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
+  _     <- tickIter True -- newScc
   be    <- getBinds
   let lp = S.lhsPred be s c
   let rp = rhsPred        c

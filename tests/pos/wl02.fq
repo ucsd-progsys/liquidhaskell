@@ -1,3 +1,4 @@
+qualif Nat(v:int) : (0 <= v)
 
 bind 0  x0  : {v: int | [$k0]}
 bind 1  x1  : {v: int | [$k1]}
@@ -19,7 +20,7 @@ bind 16 x16 : {v: int | [$k16]}
 bind 17 x17 : {v: int | [$k17]}
 bind 18 x18 : {v: int | [$k18]}
 bind 19 x19 : {v: int | [$k19]}
-bind 10 x10 : {v: int | [$k20]}
+bind 20 x20 : {v: int | [$k20]}
 
 constraint:
   env [ ]
