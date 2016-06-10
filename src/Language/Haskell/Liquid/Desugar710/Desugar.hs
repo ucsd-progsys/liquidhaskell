@@ -261,7 +261,7 @@ deSugarExpr hsc_env tc_expr
 addExportFlagsAndRules
     :: HscTarget -> NameSet -> NameSet -> [CoreRule]
     -> [(Id, t)] -> [(Id, t)]
-addExportFlagsAndRules target exports keep_alive rules prs
+addExportFlagsAndRules _target exports keep_alive rules prs
   = mapFst add_one prs
   where
     add_one bndr = add_rules name (add_export name bndr)
@@ -297,7 +297,7 @@ addExportFlagsAndRules target exports keep_alive rules prs
         -- isExternalName separates the user-defined top-level names from those
         -- introduced by the type checker.
     is_exported :: Name -> Bool
-    is_exported | targetRetainsAllBindings target = isExternalName
+    is_exported | True {-targetRetainsAllBindings target-} = isExternalName
                 | otherwise                       = (`elemNameSet` exports)
 
 {-

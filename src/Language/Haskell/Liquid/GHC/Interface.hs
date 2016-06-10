@@ -140,9 +140,7 @@ configureDynFlags cfg tmp = do
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
-                 -- FIXME: this *should* be HscNothing, but that prevents us from
-                 -- looking up *unexported* names in another source module..
-                 , hscTarget    = HscInterpreted -- HscNothing
+                 , hscTarget    = HscInterpreted
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -303,6 +301,12 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
+{- OLD CONFLICT @SPINDA
+  _                   <- loadModule' typechecked
+  let specComments     = getSpecComments parsed
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
+=======
+-}
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule typechecked
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
@@ -321,6 +325,33 @@ loadDependenciesOf modName = do
   loadResult <- load $ LoadDependenciesOf modName
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
+
+{- OLD CONFLICT @SPINDA
+loadModule' :: TypecheckedModule -> Ghc TypecheckedModule
+loadModule' tm = loadModule tm'
+  where
+    pm   = tm_parsed_module tm
+    ms   = pm_mod_summary pm
+    df   = ms_hspp_opts ms
+    df'  = df { hscTarget = HscNothing, ghcLink = NoLink }
+    ms'  = ms { ms_hspp_opts = df' }
+    pm'  = pm { pm_mod_summary = ms' }
+    tm'  = tm { tm_parsed_module = pm' }
+
+getSpecComments :: ParsedModule -> [(SourcePos, String)]
+getSpecComments parsed = mapMaybe getSpecComment comments
+  where
+    comments = concat $ M.elems $ snd $ pm_annotations parsed
+
+getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
+getSpecComment (GHC.L span (AnnBlockComment text))
+  | isPrefixOf "{-@" text && isSuffixOf "@-}" text =
+    Just (offsetPos, take (length text - 6) $ drop 3 text)
+  where
+    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+getSpecComment _ = Nothing
+-}
+
 
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
