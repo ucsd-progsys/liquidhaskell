@@ -1018,12 +1018,11 @@ dataConFieldP
   where
     dbTypeP = (,) <$> dummyBindP <*> bareTypeP
 
-
 predTypeDDP :: Parser (Symbol, BareType)
 predTypeDDP = (,) <$> bbindP <*> bareTypeP
 
 bbindP   :: Parser Symbol
-bbindP   = {- lowerIdP -} binderP <* dcolon
+bbindP   = lowerIdP <* dcolon
 
 
 dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
