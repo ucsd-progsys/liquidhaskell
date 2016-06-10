@@ -99,9 +99,9 @@ checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
-  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
-        mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
+checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
+  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
+        mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
 checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 checkRefinedClasses definitions instances
@@ -117,9 +117,10 @@ checkRefinedClasses definitions instances
       = filter ((== cls) . riclass) instances
 
     mkError (cls, conflicts)
-      = ErrRClass (sourcePosSrcSpan $ loc cls) (pprint cls) (ofConflict <$> conflicts)
+      = ErrRClass (sourcePosSrcSpan $ loc $ btc_tc cls)
+                  (pprint cls) (ofConflict <$> conflicts)
     ofConflict
-      = sourcePosSrcSpan . loc . riclass &&& pprint . ritype
+      = sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
 
 checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDuplicateFieldNames = mapMaybe go

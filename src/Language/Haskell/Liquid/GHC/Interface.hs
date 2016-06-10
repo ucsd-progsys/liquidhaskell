@@ -28,6 +28,7 @@ import GHC hiding (Target, desugarModule, Located)
 import qualified GHC
 import GHC.Paths (libdir)
 
+import Annotations
 import Bag
 import Class
 import CoreMonad
@@ -44,6 +45,8 @@ import IdInfo
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
+import Serialized
+import TcRnTypes
 import Var
 import NameSet
 
@@ -51,9 +54,13 @@ import Control.Exception
 import Control.Monad
 
 import Data.Bifunctor
+import Data.Data
 import Data.List hiding (intersperse)
 import Data.Maybe
--- import Data.Function (on)
+
+import Data.Generics.Aliases (mkT)
+import Data.Generics.Schemes (everywhere)
+
 import qualified Data.HashSet as S
 import qualified Data.Map as M
 
@@ -78,6 +85,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
+import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
@@ -291,10 +299,17 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
+  let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
+{- OLD CONFLICT @SPINDA
   _                   <- loadModule' typechecked
   let specComments     = getSpecComments parsed
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
+=======
+-}
+  let specQuotes       = extractSpecQuotes typechecked
+  _                   <- loadModule typechecked
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
@@ -311,6 +326,7 @@ loadDependenciesOf modName = do
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
 
+{- OLD CONFLICT @SPINDA
 loadModule' :: TypecheckedModule -> Ghc TypecheckedModule
 loadModule' tm = loadModule tm'
   where
@@ -334,6 +350,8 @@ getSpecComment (GHC.L span (AnnBlockComment text))
   where
     offsetPos = incSourceColumn (srcSpanSourcePos span) 3
 getSpecComment _ = Nothing
+-}
+
 
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
@@ -419,23 +437,73 @@ checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
       ]
 
 --------------------------------------------------------------------------------
--- Finding & Parsing Files -----------------------------------------------------
+-- | Extract Specifications from GHC -------------------------------------------
+--------------------------------------------------------------------------------
+
+extractSpecComments :: ParsedModule -> [(SourcePos, String)]
+extractSpecComments parsed = mapMaybe extractSpecComment comments
+  where
+    comments = concat $ M.elems $ snd $ pm_annotations parsed
+
+extractSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
+extractSpecComment (GHC.L span (AnnBlockComment text))
+  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
+    Just (offsetPos, take (length text - 6) $ drop 3 text)
+  where
+    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+extractSpecComment _ = Nothing
+
+extractSpecQuotes :: TypecheckedModule -> [BPspec]
+extractSpecQuotes typechecked = mapMaybe extractSpecQuote anns
+  where
+    anns = map ann_value $
+           filter (isOurModTarget . ann_target) $
+           tcg_anns $ fst $ tm_internals_ typechecked
+
+    isOurModTarget (ModuleTarget mod1) = mod1 == mod
+    isOurModTarget _ = False
+
+    mod = ms_mod $ pm_mod_summary $ tm_parsed_module typechecked
+
+extractSpecQuote :: AnnPayload -> Maybe BPspec
+extractSpecQuote payload =
+  case fromSerialized deserializeWithData payload of
+    Nothing -> Nothing
+    Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
+
+refreshSymbols :: Data a => a -> a
+refreshSymbols = everywhere (mkT refreshSymbol)
+
+refreshSymbol :: Symbol -> Symbol
+refreshSymbol = symbol . symbolText
+
+--------------------------------------------------------------------------------
+-- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
 
 -- Handle Spec Files -----------------------------------------------------------
 
-findAndParseSpecFiles :: Config -> [FilePath] -> ModSummary -> [Module]
+findAndParseSpecFiles :: Config
+                      -> [FilePath]
+                      -> ModSummary
+                      -> [Module]
                       -> Ghc [(ModName, Ms.BareSpec)]
 findAndParseSpecFiles cfg paths modSummary reachable = do
   impSumms <- mapM getModSummary (moduleName <$> reachable)
   imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
-  let imps  = moduleNameString . moduleName <$> imps'
+  let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
+  -- liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
+  -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
+  -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
+  -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
   patSpec  <- getPatSpec paths $ totality cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'
   transParseSpecs paths mempty mempty fs
+  where
+    m2s = moduleNameString . moduleName
 
 getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
 getPatSpec paths totalitycheck
@@ -459,7 +527,7 @@ transParseSpecs :: [FilePath]
 transParseSpecs _ _ specs [] = return specs
 transParseSpecs paths seenFiles specs newFiles = do
   newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles Spec paths $specsImports newSpecs
+  impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (second noTerm) newSpecs
   let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
@@ -573,7 +641,7 @@ pprintCBs
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
- 
+
 instance Show GhcInfo where
   show = showpp
 

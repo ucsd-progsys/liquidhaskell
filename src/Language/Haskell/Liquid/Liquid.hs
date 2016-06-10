@@ -192,6 +192,7 @@ fixConfig tgt cfg = def
   , FC.linear      = linear            cfg
   , FC.newcheck    = newcheck          cfg
   , FC.eliminate   = not $ noEliminate cfg
+  , FC.oldElim     = oldEliminate      cfg
   , FC.save        = saveQuery         cfg
   , FC.srcFile     = tgt
   , FC.cores       = cores             cfg
@@ -201,6 +202,7 @@ fixConfig tgt cfg = def
   , FC.elimBound   = elimBound         cfg
   , FC.allowHO     = higherorder       cfg
   , FC.allowHOqs   = higherorderqs     cfg
+  , FC.extensionality = extensionality cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

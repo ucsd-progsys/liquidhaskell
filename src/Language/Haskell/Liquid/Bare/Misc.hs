@@ -15,6 +15,8 @@ module Language.Haskell.Liquid.Bare.Misc (
   , simpleSymbolVar
 
   , hasBoolResult
+
+  , makeDataConChecker, makeDataSelector
   ) where
 
 import           Name
@@ -26,6 +28,7 @@ import           Type
 import           TypeRep
 import           Var
 
+import           DataCon 
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import           Data.Maybe                            (isNothing)
@@ -33,7 +36,7 @@ import           Data.Maybe                            (isNothing)
 import qualified Data.List                             as L
 
 import           Language.Fixpoint.Misc                (sortNub)
-import           Language.Fixpoint.Types               (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft)
+import           Language.Fixpoint.Types               (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft, symbolString)
 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
@@ -42,6 +45,10 @@ import           Language.Haskell.Liquid.Misc          (sortDiff)
 
 import           Language.Haskell.Liquid.Bare.Env
 
+makeDataConChecker :: DataCon -> Symbol 
+makeDataConChecker d = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
+makeDataSelector :: DataCon -> Int -> Symbol 
+makeDataSelector d i = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
@@ -158,7 +165,6 @@ joinVar :: [Var] -> (Var, s, t) -> (Var, s, t)
 joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
                        Just v' -> (v',s,t)
                        Nothing -> (v,s,t)
-
 
 simpleSymbolVar :: Var -> Symbol
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName

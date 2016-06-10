@@ -19,14 +19,16 @@ import Helper
 mempty :: Maybe a
 mempty = Nothing
 
+
 {-@ axiomatize mappend @-}
 mappend :: Maybe a -> Maybe a -> Maybe a
-mappend x y
-  | is_Nothing x = y
-  | otherwise    = x
+mappend Nothing y
+  = y
+mappend (Just x) y
+  = Just x
 
 mempty_left :: Maybe a -> Proof
-{-@ mempty_left :: x:Maybe a -> {mappend mempty x == x}  @-}
+{-@ mempty_left :: x:Maybe a -> { mappend mempty x == x }  @-}
 mempty_left x
   =   mappend mempty x
   ==! mappend Nothing x
@@ -34,7 +36,7 @@ mempty_left x
   *** QED
 
 mempty_right :: Maybe a -> Proof
-{-@ mempty_right :: x:Maybe a -> {mappend x mempty == x}  @-}
+{-@ mempty_right :: x:Maybe a -> { mappend x mempty == x }  @-}
 mempty_right Nothing
   =   mappend Nothing mempty
   ==! mempty
@@ -43,6 +45,7 @@ mempty_right Nothing
 
 mempty_right (Just x)
   = mappend (Just x) mempty
+  ==! mappend (Just x) Nothing
   ==! Just x
   *** QED
 
@@ -69,18 +72,4 @@ mappend_assoc Nothing Nothing z
   *** QED
 
 data Maybe a = Nothing | Just a
-
-{-@ measure from_Just @-}
-from_Just :: Maybe a -> a
-{-@ from_Just :: xs:{Maybe a | is_Just xs } -> a @-}
-from_Just (Just x) = x
-
-{-@ measure is_Nothing @-}
-is_Nothing :: Maybe a -> Bool
-is_Nothing Nothing = True
-is_Nothing _       = False
-
-{-@ measure is_Just @-}
-is_Just :: Maybe a -> Bool
-is_Just (Just _) = True
-is_Just _        = False
+{-@ data Maybe a = Nothing | Just a @-}

@@ -96,7 +96,7 @@ unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
-    , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
+    , testGroup "neg"         <$> dirTests "tests/neg"                            ["Lib.hs"]   (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
@@ -107,14 +107,14 @@ unitTests
 benchTests :: IO TestTree
 benchTests
   = group "Benchmarks" [
-      testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-    , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
-    , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
-    , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-    , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"             ["OverviewListInfix.hs"]                        ExitSuccess
+       testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
+     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
+     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
+     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
+     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
+     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+     , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"             ["OverviewListInfix.hs"]                        ExitSuccess
     , testGroup "haskell16_neg"   <$> dirTests "benchmarks/haskell16/neg"             ["Proves.hs", "Helper.hs"]             (ExitFailure 1)
     ]
 
@@ -253,7 +253,6 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
-              , "Data/Text/Fusion.hs"
               ]
 
 demosIgnored :: [FilePath]

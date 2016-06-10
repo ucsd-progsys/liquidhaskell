@@ -157,7 +157,9 @@ Library
 
    hs-source-dirs:  src, include
 
-   Exposed-Modules: Language.Haskell.Liquid.Prelude,
+   Exposed-Modules: LiquidHaskell,
+
+                    Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.Foreign,
                     Language.Haskell.Liquid.List,
                     Language.Haskell.Liquid.Bare,
@@ -182,6 +184,7 @@ Library
                     Language.Haskell.Liquid.Types.Meet,
                     Language.Haskell.Liquid.UX.ACSS,
                     Language.Haskell.Liquid.UX.DiffCheck,
+                    Language.Haskell.Liquid.UX.QuasiQuoter,
                     Language.Haskell.Liquid.Transforms.Rewrite,
                     Language.Haskell.Liquid.Transforms.ANF,
                     Language.Haskell.Liquid.Transforms.RefSplit,

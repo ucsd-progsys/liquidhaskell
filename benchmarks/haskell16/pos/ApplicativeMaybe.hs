@@ -26,16 +26,13 @@ pure x = Just x
 
 {-@ axiomatize seq @-}
 seq :: Maybe (a -> b) -> Maybe a -> Maybe b
-seq f x
-  | is_Just f, is_Just x = Just (from_Just f (from_Just x))
-  | otherwise            = Nothing
-
+seq (Just f) (Just x) = Just (f x)
+seq _         _       = Nothing
 
 {-@ axiomatize fmap @-}
 fmap :: (a -> b) -> Maybe a -> Maybe b
-fmap f x
-  | is_Just x  = Just (f (from_Just x))
-  | otherwise = Nothing
+fmap f (Just x) = Just (f x)
+fmap f Nothing  = Nothing
 
 {-@ axiomatize id @-}
 id :: a -> a
@@ -105,8 +102,8 @@ composition (Just x) (Just y) (Just z)
         ==! seq (Just (compose x y)) (Just z)
         ==! Just ((compose x y) z)
         ==! Just (x (y z))
-        ==! Just (x (from_Just (Just (y z))))
-        ==! Just (x (from_Just (seq (Just y) (Just z))))
+        ==! Just (x (select_Just_1 (Just (y z))))
+        ==! Just (x (select_Just_1 (seq (Just y) (Just z))))
         ==! seq (Just x) (seq (Just y) (Just z))
 
 
@@ -138,21 +135,22 @@ interchange (Just f) y
   = toProof $
       seq (Just f) (pure y)
          ==! seq (Just f) (Just y)
-         ==! Just (from_Just (Just f) (from_Just (Just y)))
-         ==! Just (from_Just (Just f) y)
-         ==! Just ((from_Just (Just f)) y)
+         ==! Just (select_Just_1 (Just f) (select_Just_1 (Just y)))
+         ==! Just (select_Just_1 (Just f) y)
+         ==! Just ((select_Just_1 (Just f)) y)
          ==! Just (f y)
          ==! Just (idollar y f)
          ==! Just ((idollar y) f)
          ==! seq (Just (idollar y)) (Just f)
          ==! seq (pure (idollar y)) (Just f)
 
+
 data Maybe a = Nothing | Just a
 
-{-@ measure from_Just @-}
-from_Just :: Maybe a -> a
-{-@ from_Just :: xs:{Maybe a | is_Just xs } -> a @-}
-from_Just (Just x) = x
+{-@ measure select_Just_1 @-}
+select_Just_1 :: Maybe a -> a
+{-@ select_Just_1 :: xs:{Maybe a | is_Just xs } -> a @-}
+select_Just_1 (Just x) = x
 
 {-@ measure is_Nothing @-}
 is_Nothing :: Maybe a -> Bool
