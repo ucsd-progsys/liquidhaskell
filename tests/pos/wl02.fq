@@ -1,0 +1,241 @@
+
+bind 0  x0  : {v: int | [$k0]}
+bind 1  x1  : {v: int | [$k1]}
+bind 2  x2  : {v: int | [$k2]}
+bind 3  x3  : {v: int | [$k3]}
+bind 4  x4  : {v: int | [$k4]}
+bind 5  x5  : {v: int | [$k5]}
+bind 6  x6  : {v: int | [$k6]}
+bind 7  x7  : {v: int | [$k7]}
+bind 8  x8  : {v: int | [$k8]}
+bind 9  x9  : {v: int | [$k9]}
+bind 10 x10 : {v: int | [$k10]}
+bind 11 x11 : {v: int | [$k11]}
+bind 12 x12 : {v: int | [$k12]}
+bind 13 x13 : {v: int | [$k13]}
+bind 14 x14 : {v: int | [$k14]}
+bind 15 x15 : {v: int | [$k15]}
+bind 16 x16 : {v: int | [$k16]}
+bind 17 x17 : {v: int | [$k17]}
+bind 18 x18 : {v: int | [$k18]}
+bind 19 x19 : {v: int | [$k19]}
+bind 10 x10 : {v: int | [$k20]}
+
+constraint:
+  env [ ]
+  lhs {v : int | [v = 10]}
+  rhs {v : int | [$k0]}
+  id 0 tag [0]
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | [v = x0]}
+  rhs {v : int | [$k1]}
+  id 1 tag [0]
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | [v = x1]}
+  rhs {v : int | [$k2]}
+  id 2 tag [0]
+
+
+constraint:
+  env [ 2 ]
+  lhs {v : int | [v = x2]}
+  rhs {v : int | [$k3]}
+  id 3 tag [0]
+
+constraint:
+  env [ 3 ]
+  lhs {v : int | [v = x3]}
+  rhs {v : int | [$k4]}
+  id 4 tag [0]
+
+constraint:
+  env [ 4 ]
+  lhs {v : int | [v = x4]}
+  rhs {v : int | [$k5]}
+  id 5 tag [0]
+
+constraint:
+  env [ 5 ]
+  lhs {v : int | [v = x5]}
+  rhs {v : int | [$k6]}
+  id 6 tag [0]
+
+constraint:
+  env [ 6 ]
+  lhs {v : int | [v = x6]}
+  rhs {v : int | [$k7]}
+  id 7 tag [0]
+
+constraint:
+  env [ 7 ]
+  lhs {v : int | [v = x7]}
+  rhs {v : int | [$k8]}
+  id 8 tag [0]
+
+constraint:
+  env [ 8 ]
+  lhs {v : int | [v = x8]}
+  rhs {v : int | [$k9]}
+  id 9 tag [0]
+
+constraint:
+  env [ 9 ]
+  lhs {v : int | [v = x9]}
+  rhs {v : int | [$k10]}
+  id 10 tag [0]
+
+constraint:
+  env [ 10 ]
+  lhs {v : int | [v = x10]}
+  rhs {v : int | [$k11]}
+  id 11 tag [0]
+
+constraint:
+  env [ 11 ]
+  lhs {v : int | [v = x11]}
+  rhs {v : int | [$k12]}
+  id 12 tag [0]
+
+
+constraint:
+  env [ 12 ]
+  lhs {v : int | [v = x12]}
+  rhs {v : int | [$k13]}
+  id 13 tag [0]
+
+constraint:
+  env [ 13 ]
+  lhs {v : int | [v = x13]}
+  rhs {v : int | [$k14]}
+  id 14 tag [0]
+
+constraint:
+  env [ 14 ]
+  lhs {v : int | [v = x14]}
+  rhs {v : int | [$k15]}
+  id 15 tag [0]
+
+constraint:
+  env [ 15 ]
+  lhs {v : int | [v = x15]}
+  rhs {v : int | [$k16]}
+  id 16 tag [0]
+
+constraint:
+  env [ 16 ]
+  lhs {v : int | [v = x16]}
+  rhs {v : int | [$k17]}
+  id 17 tag [0]
+
+constraint:
+  env [ 17 ]
+  lhs {v : int | [v = x17]}
+  rhs {v : int | [$k18]}
+  id 18 tag [0]
+
+constraint:
+  env [ 18 ]
+  lhs {v : int | [v = x18]}
+  rhs {v : int | [$k19]}
+  id 19 tag [0]
+
+constraint:
+  env [ 19 ]
+  lhs {v : int | [v = x19]}
+  rhs {v : int | [$k20]}
+  id 20 tag [0]
+
+constraint:
+  env [ 20 ]
+  lhs {v : int | [v = x20]}
+  rhs {v : int | [0 <= v]}
+  id 100 tag [0]
+
+wf:
+  env [ ]
+  reft {v: int | [$k0]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k1]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k2]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k3]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k4]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k5]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k6]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k7]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k8]}
+
+
+wf:
+  env [ ]
+  reft {v: int | [$k9]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k10]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k11]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k12]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k13]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k14]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k15]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k16]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k17]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k18]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k19]}
+
+wf:
+  env [ ]
+  reft {v: int | [$k20]}

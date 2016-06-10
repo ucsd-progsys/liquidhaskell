@@ -69,7 +69,8 @@ data Config
     , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
-    , extensionality :: Bool             -- ^ allow function extensionality 
+    , extensionality :: Bool             -- ^ allow function extensionality
+    , autoKuts    :: Bool                -- ^ ignore given kut variables
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -99,7 +100,8 @@ instance Default Config where
                , minimize    = def
                , minimizeQs  = def
                , gradual     = False
-               , extensionality = False 
+               , extensionality = False
+               , autoKuts       = False
                }
 defConfig :: Config
 defConfig = def
@@ -184,6 +186,7 @@ config = Config {
   , minimizeQs  = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
   , extensionality = False &= help "Allow function extensionality axioms"
+  , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
   }
   &= verbosity
   &= program "fixpoint"

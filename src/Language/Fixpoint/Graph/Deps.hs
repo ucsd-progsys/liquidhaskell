@@ -220,7 +220,7 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
 elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si {-  trace msg -} es'
+elimDeps si es nonKutVs = graphDeps si es'
   where
     es'                 = graphElim es nonKutVs
     _msg                = "graphElim: " ++ show (length es')
@@ -275,7 +275,7 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
-elimVars cfg si = (es, tracepp "ElimVars" ds)
+elimVars cfg si = (es, ds)
   where
     ds          = edgeDeps cfg si es
     es          = kvEdges si
@@ -287,7 +287,9 @@ removeKutEdges ks = filter (not . isKut . snd)
     isKut         = (`S.member` cutVs)
 
 cutVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> S.HashSet F.KVar
-cutVars _ si = F.ksVars . F.kuts $ si
+cutVars cfg si
+  | autoKuts cfg = S.empty
+  | otherwise    = F.ksVars . F.kuts $ si
 
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
@@ -299,8 +301,8 @@ edgeDeps cfg si  = forceKuts ks
                  . filter isRealEdge
   where
     ks           = givenKs `S.union` nlKs
-    givenKs      = {- tracepp "Given  KVs" $ -} cutVars cfg    si
-    nlKs         = {- tracepp "NonLin KVs" $ -} nonLinearKVars si
+    givenKs      = cutVars cfg    si
+    nlKs         = nonLinearKVars si
 
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
