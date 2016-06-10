@@ -452,18 +452,28 @@ refreshSymbol = symbol . symbolText
 
 -- Handle Spec Files -----------------------------------------------------------
 
-findAndParseSpecFiles :: Config -> [FilePath] -> ModSummary -> [Module]
+findAndParseSpecFiles :: Config
+                      -> [FilePath]
+                      -> ModSummary
+                      -> [Module]
                       -> Ghc [(ModName, Ms.BareSpec)]
 findAndParseSpecFiles cfg paths modSummary reachable = do
   impSumms <- mapM getModSummary (moduleName <$> reachable)
-  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
-  imps'    <- filterM ((not <$>) . isHomeModule) imps''
-  let imps  = moduleNameString . moduleName <$> imps'
+  imps'   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
+  
+  -- imps'    <- filterM ((not <$>) . isHomeModule) imps''
+  let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
+  liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
+  liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
+  liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
+  liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
   patSpec  <- getPatSpec paths $ totality cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'
   transParseSpecs paths mempty mempty fs
+  where
+    m2s = moduleNameString . moduleName
 
 getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
 getPatSpec paths totalitycheck
@@ -487,7 +497,7 @@ transParseSpecs :: [FilePath]
 transParseSpecs _ _ specs [] = return specs
 transParseSpecs paths seenFiles specs newFiles = do
   newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles Spec paths $specsImports newSpecs
+  impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (second noTerm) newSpecs
   let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
@@ -601,7 +611,7 @@ pprintCBs
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
- 
+
 instance Show GhcInfo where
   show = showpp
 
@@ -621,4 +631,3 @@ instance Result SourceError where
 
 errMsgErrors :: ErrMsg -> [TError t]
 errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
-
