@@ -308,7 +308,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
 =======
 -}
   let specQuotes       = extractSpecQuotes typechecked
-  _                   <- loadModule typechecked
+  _                   <- loadModule' typechecked
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
@@ -326,7 +326,6 @@ loadDependenciesOf modName = do
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
    "Failed to load dependencies of module " ++ showPpr modName
 
-{- OLD CONFLICT @SPINDA
 loadModule' :: TypecheckedModule -> Ghc TypecheckedModule
 loadModule' tm = loadModule tm'
   where
@@ -338,6 +337,7 @@ loadModule' tm = loadModule tm'
     pm'  = pm { pm_mod_summary = ms' }
     tm'  = tm { tm_parsed_module = pm' }
 
+{- OLD CONFLICT @SPINDA
 getSpecComments :: ParsedModule -> [(SourcePos, String)]
 getSpecComments parsed = mapMaybe getSpecComment comments
   where
