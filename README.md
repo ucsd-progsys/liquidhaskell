@@ -55,38 +55,38 @@ How to Profile
 --------------
 
 1. Build with profiling on
-   
+
     ```
     $ make pdeps && make prof
     ```
 
 2. Run with profiling
-   
+
     ```
     $ time liquid range.hs +RTS -hc -p
     $ time liquid range.hs +RTS -hy -p
     ```
-   
+
     Followed by this which shows the stats file
-   
+
     ```
     $ more liquid.prof
     ```
-   
+
     or by this to see the graph
-   
+
     ```
     $ hp2ps -e8in -c liquid.hp
     $ gv liquid.ps
     ```
-    
+
     etc.
 
 How to Get Stack Traces On Exceptions
 -------------------------------------
 
 1. Build with profiling on
-    
+
     ```
     $ make pdeps && make prof
     ```
@@ -439,16 +439,16 @@ use the `no-prune-unsorted` flag.
 Case Expansion
 -------------------------
 
-By default LiquidHaskell expands all data constructors to the case statements. 
-For example, 
-if `F = A1 | A2 | .. | A10`, 
-then liquidHAskell will expand the code 
-`case f of {A1 -> True; _ -> False}` 
-to `case f of {A1 -> True; A2 -> False; ...; A10 -> False}`. 
+By default LiquidHaskell expands all data constructors to the case statements.
+For example,
+if `F = A1 | A2 | .. | A10`,
+then liquidHAskell will expand the code
+`case f of {A1 -> True; _ -> False}`
+to `case f of {A1 -> True; A2 -> False; ...; A10 -> False}`.
 This expansion can lead to more precise code analysis
-but it can get really expensive due to code explosion. 
+but it can get really expensive due to code explosion.
 The `no-case-expand` flag prevents this expansion and keeps the user
-provided cases for the case expression. 
+provided cases for the case expression.
 
     liquid --no-case-expand test.hs
 
@@ -460,8 +460,8 @@ The flag `--higherorder` allows reasoning about higher order functions.
 
 Restriction to Linear Arithmetic
 ---------------------------------
-When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic: 
-division and multiplication on integers are interpreted by `z3`. To treat division 
+When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic:
+division and multiplication on integers are interpreted by `z3`. To treat division
 and multiplication as unintepreted functions use the `linear` flag
 
     liquid --linear test.hs
@@ -509,12 +509,12 @@ Writing Specifications
 Modules WITHOUT code
 --------------------
 
-When checking a file `target.hs`, you can specify an _include_ directory by 
+When checking a file `target.hs`, you can specify an _include_ directory by
 
     liquid -i /path/to/include/  target.hs
-    
-Now, to write specifications for some module `Foo.Bar.Baz` for which
-you _do not_ have the code, you can create a `.spec` file at:
+
+Now, to write specifications for some **external module** `Foo.Bar.Baz` for which
+you **do not have the code**, you can create a `.spec` file at:
 
     /path/to/include/Foo/Bar/Baz.spec
 
@@ -523,8 +523,56 @@ See, for example, the contents of
 + [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
 + [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
 + [include/Data/Vector.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec)
-    
-(**Note**: The above directories are part of the LH prelude, and included by default when running `liquid`.)
+
+**Note**:
+
++ The above directories are part of the LH prelude, and included by
+  default when running `liquid`.
++ The `.spec` mechanism is *only for external modules** without code,
+  see below for standalone specifications for **internal** or **home** modules.
+
+Standalone Specifications for Internal Modules
+----------------------------------------------
+
+Recall that the `.spec` mechanism is only for modules whose
+code is absent; if code is present then there can be multiple,
+possibly conflicting specifications. Nevertheless, you may want,
+for one reason or another, to write (assumed) specifications
+outside the file implementing the module.
+
+You can do this as follows.
+
+`Lib.hs`
+
+```haskell
+module Lib (foo) where
+
+foo a = a
+```
+
+now, instead of a `.spec` file, just use a haskell module, e.g. `LibSpec.hs`
+
+```haskell
+module LibSpec ( module Lib ) where
+
+import Lib
+
+-- Don't forget to qualify the name!
+
+{-@ Lib.foo :: {v:a | false} -> a @-}
+```
+
+and then here's `Client.hs`
+
+```haskell
+module Client where
+
+import Lib      -- use this if you DON'T want the spec  
+import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
+
+bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
+```
+
 
 Modules WITH code: Data
 -----------------------
@@ -609,9 +657,9 @@ refined classes.
 Modules WITH code: QuasiQuotation
 ---------------------------------
 
-Instead of writing both a Haskell type signature *and* a 
-LiquidHaskell specification for a function, the `lq` 
-quasiquoter in the `LiquidHaskell` module can be used 
+Instead of writing both a Haskell type signature *and* a
+LiquidHaskell specification for a function, the `lq`
+quasiquoter in the `LiquidHaskell` module can be used
 to generate both from just the LiquidHaskell specification.
 
 ```haskell
@@ -647,18 +695,18 @@ module Nats (Nat, nats) where
 [lq| type Nat = {v:Int | 0 <= v} |]
 
 [lq| nats :: [Nat] |]
-nats = [1,2,3] 
+nats = [1,2,3]
 ```
 
-Here, the `lq` quasiquoter will generate a plain Haskell 
+Here, the `lq` quasiquoter will generate a plain Haskell
 type synonym for `Nat` as well as the refined one.
 
-Note that this is still an experimental feature, and 
-currently requires that one depend on LiquidHaskell 
+Note that this is still an experimental feature, and
+currently requires that one depend on LiquidHaskell
 as a build dependency for your project; the quasiquoter
-will be split out eventually into an independent, 
-dependency-light package. Also, at this time, writing 
-a type inside `lq` which refers to a refined type alias 
+will be split out eventually into an independent,
+dependency-light package. Also, at this time, writing
+a type inside `lq` which refers to a refined type alias
 for which there is not a plain Haskell type synonym of the
 same name will result in a "not in scope" error from GHC.
 
@@ -791,11 +839,11 @@ Inductive Haskell Functions from Data Types to some type can be lifted to logic
     llen []     = 0
     llen (x:xs) = 1 + llen xs
 
-The above definition 
-  - refines list's data constructors types with the llen information, and 
-  - specifies a singleton type for the haskell function 
+The above definition
+  - refines list's data constructors types with the llen information, and
+  - specifies a singleton type for the haskell function
         `llen :: xs:[a] -> {v:Int | v == llen xs}`
-    If the user specifies another type for llen, say 
+    If the user specifies another type for llen, say
         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
     then the auto generated singleton type is overwriten.
 

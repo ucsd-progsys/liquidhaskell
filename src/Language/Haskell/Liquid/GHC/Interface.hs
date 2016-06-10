@@ -459,15 +459,14 @@ findAndParseSpecFiles :: Config
                       -> Ghc [(ModName, Ms.BareSpec)]
 findAndParseSpecFiles cfg paths modSummary reachable = do
   impSumms <- mapM getModSummary (moduleName <$> reachable)
-  imps'   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
-  
-  -- imps'    <- filterM ((not <$>) . isHomeModule) imps''
+  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
+  imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
-  liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
-  liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
-  liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
-  liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
+  -- liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
+  -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
+  -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
+  -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
   patSpec  <- getPatSpec paths $ totality cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'
