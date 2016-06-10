@@ -437,7 +437,7 @@ graphDeps :: F.SInfo a -> [CEdge] -> CDeps
 ---------------------------------------------------------------------------
 graphDeps fi cs = CDs { cSucc   = gSucc cg
                       , cPrev   = cPrevM
-                      , cNumScc = tracepp "Num SCC: " $ gSccs cg
+                      , cNumScc = gSccs cg
                       , cRank   = M.fromList [(i, rf i) | i <- is ]
                       }
   where
