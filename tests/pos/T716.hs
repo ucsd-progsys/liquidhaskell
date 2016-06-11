@@ -1,5 +1,8 @@
 
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/716
+-- due to the wierd case-of thwarting ANF, you need the qualifier from the
+-- output type of `narrow16Word` (apparently we don't scrape assumes?) 
+-- OR you need `eliminate` to do its business.
 
 module Blank where
 
