@@ -1,3 +1,5 @@
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 

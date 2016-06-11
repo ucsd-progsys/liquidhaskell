@@ -3,6 +3,7 @@
 {-# LANGUAGE ExtendedDefaultRules #-}
 
 {-@ LIQUID "--autoproofs"      @-}
+{-@ LIQUID "--higherorder"     @-}
 {- LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 

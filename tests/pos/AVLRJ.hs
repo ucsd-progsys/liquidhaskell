@@ -16,14 +16,15 @@ data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a} deriving Show
   @-}
 
 {-@ measure ht @-}
+{-@ ht          :: Tree a -> Nat @-}
 ht              :: Tree a -> Int
 ht Nil          = 0
 ht (Tree _ l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
-{-@ invariant {v:Tree a | 0 <= ht v} @-}
+{-@ invariant {v:Tree a | 0 <= bFac v + 1 && bFac v <= 1 } @-}
 
 
 {-@ measure bFac @-}
-{-@ bFac :: t:AVLTree a -> {v:Int | v = bFac t && 0 <= v + 1 && v <= 1} @-}
+{-@ bFac :: t:Tree a -> {v:Int | 0 <= v + 1 && v <= 1} @-}
 bFac Nil          = 0
 bFac (Tree _ l r) = ht l - ht r
 

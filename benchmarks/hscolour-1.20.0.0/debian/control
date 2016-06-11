@@ -1,0 +1,14 @@
+Source: hscolour
+Section: main
+Priority: extra
+Maintainer: Adam Sjøgren <asjo@koldfront.dk>
+Build-Depends: debhelper (>= 5), ghc6, haddock
+Standards-Version: 3.7.2
+
+Package: hscolour
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Program to colourise Haskell code
+ hscolour is a small Haskell script to colourise Haskell code. It
+ currently has five output formats: ANSI terminal codes, HTML 3.2 with
+ <font> tags, HTML 4.01 with CSS, LaTeX, and mIRC chat client codes.

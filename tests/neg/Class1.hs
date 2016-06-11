@@ -53,7 +53,7 @@ sum xs = go max 0
     max = size xs
     go (d::Int) i
       | i < max   = index xs i + go (d-1) (i+1)
-      | otherwise = 0
+      | otherwise = index xs i -- should be 0
 
 
 {-@ sumList :: List Int -> Int @-}
@@ -63,6 +63,6 @@ sumList xs = go max 0
     max = size xs
     go (d::Int) i
       | i < max   = index xs i + go (d-1) (i+1)
-      | otherwise = index xs i
+      | otherwise = index xs i -- should be 0
 
 

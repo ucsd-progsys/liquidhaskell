@@ -11,7 +11,7 @@ import Language.Haskell.Liquid.Prelude
 ---------------------------  Official GHC Sort ----------------------------
 ---------------------------------------------------------------------------
 
-{-@ assert sort1 :: (Ord a) => [a] -> OList a  @-}
+{-@ sort1 :: (Ord a) => [a] -> OList a  @-}
 sort1 :: (Ord a) => [a] -> [a]
 sort1 = mergeAll . sequences
   where
@@ -20,12 +20,12 @@ sort1 = mergeAll . sequences
       | otherwise           = ascending  b (a:) xs -- a >= b => (a:) ->   
     sequences [x] = [[x]]
     sequences []  = [[]]
-    {-@ descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
+    {- descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
     descending a as (b:bs)
       | a `compare` b == GT = descending b (a:as) bs
     descending a as bs      = (a:as): sequences bs
 
-    {-@ ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
+    {- ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
     ascending a as (b:bs)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs -- a <= b
     ascending a as bs       = as [a]: sequences bs
@@ -49,7 +49,7 @@ merge1 as []            = as
 ------------------- Mergesort ---------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ assert sort2 :: (Ord a) => [a] -> OList a  @-}
+{-@ sort2 :: (Ord a) => [a] -> OList a  @-}
 sort2 :: (Ord a) => [a] -> [a]
 sort2 = mergesort
 
@@ -81,7 +81,7 @@ wrap x = [x]
 -------------------- QuickSort ---------------------------------------
 ----------------------------------------------------------------------
 
-{-@ assert sort3 :: (Ord a) => w:a -> [{v:a|v<=w}] -> OList a @-}
+{-@ sort3 :: (Ord a) => w:a -> [{v:a|v<=w}] -> OList a @-}
 sort3 :: (Ord a) => a -> [a] -> [a]
 sort3 w ls = qsort w ls []
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
@@ -22,14 +23,19 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
+
+
+import Data.Default 
+
 import Prelude hiding (mapM, error)
-import Control.Arrow ((&&&))
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
+
+-- import TysWiredIn (boolTyCon)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -40,14 +46,15 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub)
-import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..))
+import Language.Fixpoint.Misc (mlookup, sortNub, groupList)
+import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.WiredIn  (propTyCon)
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types
@@ -56,7 +63,7 @@ import Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult)
+import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataSelector)
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
@@ -132,20 +139,43 @@ makeMeasureDefinition tce lmap cbs x
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
-strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas
-  = (val &&& fmap strengthenResult) <$> S.toList hmeas
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellMeasures hmeas sigs 
+  = go <$> groupList ((reverse sigs) ++ hsigs)
+  where
+    hsigs      = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
+    go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
+    -- cmpFst x y = fst x == fst y 
 
-makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = catMaybes (go <$> zip (reverse xts) [1..])
+meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
+meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
+{- 
+meetLoc !t1 !t2 = t1{val = fromRTypeRep $ trep1 
+      { ty_args = zipWith (\t1 t2 -> t1 `meet` F.subst su t2) (ty_args trep1) (ty_args trep2)
+      , ty_res = ty_res trep1 `meet` F.subst su (ty_res trep2)}}
+    where
+      [trep1, trep2] = toRTypeRep . val <$> [t1, t2]
+      su = F.mkSubst [(y, F.EVar x) | (x, y) <- zip (ty_binds trep1) (ty_binds trep2)]
+-}
+
+makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
+  = if autoselectors then checker : (go' <$> zip (reverse xts) [1..]) else []
+    ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
       | isFunTy t = Nothing
       | otherwise = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
+    go' ((_,t), i)
+      = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
+
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
+    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) vs
     n             = length xts
+    bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType 
+
+    checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n 
 
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor
@@ -153,6 +183,15 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
         mkx j = symbol ("xx" ++ show j)
 
+
+-- tyConDataCons
+makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon  
+makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> (filter (/=dc) dcs))}
+  where
+    eqn    = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (P F.PTrue)
+    eqns d = Def x [] d Nothing (((, Nothing) . mkx) <$> [1 .. (length $ dataConOrigArgTys d)]) (P F.PFalse)
+    mkx j  = symbol ("xx" ++ show j)
+    dcs    = tyConDataCons $ dataConTyCon dc 
 
 makeMeasureSpec :: (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeMeasureSpec (mod, spec) = inModule mod mkSpec

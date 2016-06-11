@@ -10,7 +10,10 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   coreToLogic, coreToPred,
   mkLit, runToLogic,
   logicType,
-  strengthenResult
+
+  strengthenResult,
+
+  normalize
 
   ) where
 
@@ -36,10 +39,11 @@ import           Language.Fixpoint.Misc                (snd3)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Bare.Misc     
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Misc          (mapSnd)
-import           Language.Haskell.Liquid.WiredIn
+-- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
 
@@ -57,13 +61,9 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
 
 
     mkResType t
-     | isBool t   = propType
+--      | isBool t   = propType
      | otherwise  = t
 
-
-isBool :: RType RTyCon t t1 -> Bool
-isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
-isBool _ = False
 
 {- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
 
@@ -83,7 +83,7 @@ strengthenResult v
   where rep = toRTypeRep t
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs)))         mempty mempty
+        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
         r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
         vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
@@ -228,6 +228,9 @@ coreToLg (C.Lam x e)
        tce <- ltce <$> getState 
        return $ ELam (symbol x, typeSort tce $ varType x) p
 -- coreToLg p@(C.App _ _) = toPredApp p
+coreToLg (C.Case e b _ alts)
+  = do p <- coreToLg e 
+       casesToLg b p alts 
 coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
@@ -239,6 +242,35 @@ checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
   = return (efalse, etrue)
 checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
+
+casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr 
+casesToLg _v e alts 
+  = (mapM (altToLg e) alts) >>= go
+  where
+    go :: [(DataCon, Expr)] -> LogicM Expr 
+    go [(_,p)]     = return p
+    go ((d,p):dps) = do c <- checkDataCon d e 
+                        e' <- go dps 
+                        return $ EIte c p e' 
+    go []          = throw "Bah"
+
+checkDataCon :: DataCon -> Expr -> LogicM Expr 
+checkDataCon d e 
+  = return $ EApp (EVar $ makeDataConChecker d) e
+  where 
+
+altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
+altToLg de (C.DataAlt d, xs, e)
+  = do p <- coreToLg e 
+       let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]  
+       return (d, subst su p) 
+  where
+    f x i = let t = EApp (EVar $ makeDataSelector d i) de 
+            in [(symbol x, t), (simplesymbol x, t)]
+altToLg _ (C.LitAlt _, _, _)
+  = throw "altToLg on Lit"
+altToLg _ (C.DEFAULT, _, _)
+  = throw "altToLg on Default"
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
@@ -335,7 +367,7 @@ splitArgs e = (f, reverse es)
     (f, es) = go e
 
     go (C.App (C.Var i) e) | ignoreVar i       = go e
-    go (C.App f (C.Var v)) | isErasable v    = go f
+    go (C.App f (C.Var v)) | isErasable v      = go f
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
@@ -380,10 +412,6 @@ mkS                    = Just . ESym . SL  . decodeUtf8
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
-
-
-simpleSymbolVar :: Id -> Symbol
-simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 
 simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = symbol . showPpr . getName

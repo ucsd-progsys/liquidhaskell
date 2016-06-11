@@ -75,6 +75,8 @@ txQuant xss s m p
   | s `elem` (fst <$> xss) = impossible Nothing "Transformable.tx on Pred"
   | otherwise              = tx s m p
 
+instance Transformable a => Transformable (Located a)  where
+  tx s m x = x {val = tx s m (val x)} 
 
 instance Transformable Expr where
   tx s m (EVar s')
