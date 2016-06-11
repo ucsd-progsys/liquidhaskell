@@ -20,7 +20,7 @@ constraint:
   env [3; 4; 5; 6] 
   lhs {v2 : int | []} 
   rhs {v2 : int | [false]}
-  id 1 tag [2]
+  id 2 tag [2]
 
 wf:
   env [10]
