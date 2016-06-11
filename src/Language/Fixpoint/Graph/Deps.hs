@@ -295,14 +295,14 @@ forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
 edgeDeps :: (F.TaggedC c a) => Config -> F.GInfo c a -> [CEdge] -> Elims F.KVar
-edgeDeps cfg si  = forceKuts ks
+edgeDeps cfg si  = forceKuts givenKs
                  . edgeDeps' cfg
                  . removeKutEdges ks
                  . filter isRealEdge
   where
-    ks           = givenKs `S.union` nlKs
     givenKs      = cutVars cfg    si
-    nlKs         = nonLinearKVars si
+    -- ks           = givenKs `S.union` nlKs
+    -- nlKs         = nonLinearKVars si
 
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
