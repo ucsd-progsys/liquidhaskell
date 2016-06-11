@@ -72,6 +72,7 @@ data Config
     , extensionality :: Bool             -- ^ allow function extensionality
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     , pack        :: Bool                -- ^ Use pack annotations
+    , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -104,6 +105,7 @@ instance Default Config where
                , extensionality = False
                , autoKuts       = False
                , pack           = False
+               , nonLinCuts     = False
                }
 defConfig :: Config
 defConfig = def
@@ -190,6 +192,7 @@ config = Config {
   , extensionality = False &= help "Allow function extensionality axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
   , pack           = False &= help "Use pack annotations"
+  , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
   }
   &= verbosity
   &= program "fixpoint"

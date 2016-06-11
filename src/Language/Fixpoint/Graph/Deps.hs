@@ -302,7 +302,9 @@ edgeDeps cfg si  = forceKuts ks
   where
     ks           = givenKs `S.union` nlKs
     givenKs      = cutVars cfg    si
-    nlKs         = nonLinearKVars si
+    nlKs
+      | nonLinCuts cfg = nonLinearKVars si
+      | otherwise      = mempty
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
 edgeDeps' cfg es = Deps (takeK cs) (takeK ns)
