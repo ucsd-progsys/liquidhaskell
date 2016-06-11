@@ -71,7 +71,7 @@ data Config
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     , extensionality :: Bool             -- ^ allow function extensionality
     , autoKuts    :: Bool                -- ^ ignore given kut variables
-    , noPack      :: Bool                -- ^ ignore pack annotations
+    , pack        :: Bool                -- ^ Use pack annotations
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -103,7 +103,7 @@ instance Default Config where
                , gradual     = False
                , extensionality = False
                , autoKuts       = False
-               , noPack         = True
+               , pack           = False
                }
 defConfig :: Config
 defConfig = def
@@ -189,7 +189,7 @@ config = Config {
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
   , extensionality = False &= help "Allow function extensionality axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
-  , noPack        = True  &= help "Ignore pack annotations"
+  , pack           = False &= help "Use pack annotations"
   }
   &= verbosity
   &= program "fixpoint"

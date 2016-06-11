@@ -110,8 +110,8 @@ runSolverM cfg sI _ s0 act =
 
 getPacks :: Config -> F.SInfo a -> F.Packs
 getPacks cfg fi
-  | C.noPack cfg = mempty
-  | otherwise    = F.packs fi
+  | C.pack cfg = F.packs fi
+  | otherwise  = mempty
 
 background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi s0 = (bts ++ xts, p)
