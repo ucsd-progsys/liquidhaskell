@@ -300,9 +300,11 @@ edgeDeps cfg si  = forceKuts ks
                  . removeKutEdges ks
                  . filter isRealEdge
   where
-    ks           = givenKs -- `S.union` nlKs
+    ks           = givenKs `S.union` nlKs
     givenKs      = cutVars cfg    si
-    -- nlKs         = nonLinearKVars si
+    nlKs
+      | nonLinCuts cfg = nonLinearKVars si
+      | otherwise      = mempty
 
 edgeDeps' :: Config -> [CEdge] -> Elims F.KVar
 edgeDeps' cfg es = Deps (takeK cs) (takeK ns)

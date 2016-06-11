@@ -28,7 +28,7 @@ constraint:
 constraint:
   env [3; 4; 5; 6]
   lhs {v3 : int | [v3 = alice + bob]}
-  rhs {v3 : int | [v3 = 0]}
+  rhs {v3 : int | [v3 = 32]}
   id 3 tag [2]
 
 wf:

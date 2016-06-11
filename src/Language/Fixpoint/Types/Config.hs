@@ -71,6 +71,8 @@ data Config
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     , extensionality :: Bool             -- ^ allow function extensionality
     , autoKuts    :: Bool                -- ^ ignore given kut variables
+    , pack        :: Bool                -- ^ Use pack annotations
+    , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -89,7 +91,7 @@ instance Default Config where
                , allowHOqs   = False
                , newcheck    = False
                , eliminate   = False
-               , oldElim     = False
+               , oldElim     = True -- False
                , elimBound   = Nothing
                , elimStats   = def
                , solverStats = False
@@ -102,6 +104,8 @@ instance Default Config where
                , gradual     = False
                , extensionality = False
                , autoKuts       = False
+               , pack           = False
+               , nonLinCuts     = False
                }
 defConfig :: Config
 defConfig = def
@@ -168,9 +172,9 @@ config = Config {
   , newcheck    = False   &= help "(alpha) New liquid-fixpoint sort checking "
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
-  , allowHOqs   = False &= help "Allow higher order qualifiers"
+  , allowHOqs   = False   &= help "Allow higher order qualifiers"
   , eliminate   = False   &= help "Eliminate non-cut KVars"
-  , oldElim     = False   &= help "(testing) Use old eliminate algorithm"
+  , oldElim     = True    &= help "(default) Use old eliminate algorithm"
   , elimBound   = Nothing &= name "elimBound"
                           &= help "(alpha) Maximum eliminate-chain depth"
   , elimStats   = False   &= help "(alpha) Print eliminate stats"
@@ -187,6 +191,8 @@ config = Config {
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
   , extensionality = False &= help "Allow function extensionality axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
+  , pack           = False &= help "Use pack annotations"
+  , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
   }
   &= verbosity
   &= program "fixpoint"
