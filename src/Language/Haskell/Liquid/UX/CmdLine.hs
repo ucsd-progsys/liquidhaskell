@@ -53,7 +53,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
-                                                   getOpts, cores, minPartSize,
+                                                   nonLinCuts, getOpts, cores, minPartSize,
                                                    maxPartSize, newcheck, eliminate, defConfig, extensionality)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
@@ -105,9 +105,9 @@ config = cmdArgsMode $ Config {
  , higherorder
     = def
           &= help "Allow higher order binders into the logic"
- 
+
  , extensionality
-    = def 
+    = def
           &= help "Allow function extentionality axioms"
 
  , higherorderqs
@@ -270,6 +270,14 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
+  , packKVars
+    = False &= name "pack-kvars"
+            &= help "Use kvar packing during elimination"
+
+  , nonLinCuts
+    = True  &= name "non-linear-cuts"
+            &= help "(TRUE) Treat non-linear kvars as cuts"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -393,7 +401,7 @@ defConfig = Config { files             = def
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
-                   , extensionality    = def 
+                   , extensionality    = def
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def
@@ -433,6 +441,8 @@ defConfig = Config { files             = def
                    , oldEliminate      = False
                    , noPatternInline   = False
                    , noSimplifyCore    = False
+                   , packKVars         = False
+                   , nonLinCuts        = True
                    }
 
 ------------------------------------------------------------------------

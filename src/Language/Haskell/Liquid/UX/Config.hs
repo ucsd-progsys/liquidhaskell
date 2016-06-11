@@ -68,6 +68,8 @@ data Config = Config {
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
+  , packKVars       :: Bool       -- ^ pack kvars during elimination
+  , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

@@ -23,15 +23,13 @@ data FHandle = FH Int deriving Eq
 {-@ qualif Write(v:World, x:FHandle): (pwrite (Map_select (caps v) x)) @-}
 {-@ qualif List(v:World, x:FHandle): (pcontents (Map_select (caps v) x)) @-}
 {-@ qualif Lkup(v:World, x:FHandle): (plookup (Map_select (caps v) x)) @-}
-
-{-@ qualif ActiveSub(v:World, w:World): Set_sub (active v) (active w)                         @-}
 {-@ qualif UpdActive(v:World,w1:World,x:FHandle): (active v) = (Set_cup (Set_sng x) (active w1)) @-}
+{-@ qualif Deriv(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (pcreateFilePrivs (Map_select (caps w1) h))) @-}
+{-@ qualif ActiveSub(v:World, w:World): Set_sub (active v) (active w)                         @-}
 {-@ qualif Sto(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (Map_select (caps w1) h)) @-}
-
 {-@ qualif MpEq0(v:World,w:World,x:FHandle): (Map_select (caps v) x) = (Map_select (caps w) x) @-}
 {-@ qualif MpEq0(v:World,b:FHandle,x:FHandle): (Map_select (caps v) x) = (Map_select (caps v) b) @-}
 
-{-@ qualif Deriv(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (pcreateFilePrivs (Map_select (caps w1) h))) @-}
 
 {-@ predicate Active W F = Set_mem F (active W) @-}
 {-@ predicate HasPriv W P F = (Active W F) && (P (Map_select (caps W) F)) @-}
