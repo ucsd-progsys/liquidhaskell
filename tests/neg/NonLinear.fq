@@ -1,0 +1,28 @@
+
+bind 1 pig      : {v: int | []}
+bind 2 pigOut   : {v: int | [v = pig + 1]}
+
+bind 3 argAlice : {v: int | v = 10}
+bind 4 alice    : {v: int | [$k0[vk01 := argAlice][vk02 := v]] }
+
+bind 5 argBob   : {v: int | v = 20}
+bind 6 bob      : {v: int | [$k0[vk01 := argBob][vk02 := v]] }
+
+bind 10 vk01   : {v: int | []}
+
+constraint:
+  env [1; 2] 
+  lhs {v1 : int | [v1 = pigOut]} 
+  rhs {v1 : int | [$k0[vk01 := pig][vk02 := v1]]}
+  id 1 tag [2]
+
+constraint:
+  env [3; 4; 5; 6] 
+  lhs {v2 : int | []} 
+  rhs {v2 : int | [false]}
+  id 1 tag [2]
+
+wf:
+  env [10]
+  reft {vk02: int | [$k0]}
+
