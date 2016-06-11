@@ -30,7 +30,7 @@ unitTests
    ]
 
 skipNativePos :: [FilePath]
-skipNativePos = ["NonLinear-pack.hs"] 
+skipNativePos = ["NonLinear-pack.fq"] 
 
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
