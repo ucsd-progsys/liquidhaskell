@@ -421,7 +421,7 @@ addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks
 
 isKut              :: KVKind -> Bool
 isKut (RecBindE _) = True
--- isKut ProjectE     = True
+isKut ProjectE     = True
 isKut _            = False
 
 caseKVKind ::[Alt Var] -> KVKind

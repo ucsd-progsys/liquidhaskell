@@ -6,12 +6,12 @@ import Control.Applicative
 #endif
 
 {-@ data RIO a <p :: World -> Prop, q :: World -> a -> World -> Prop>
-  = RIO (rs :: (x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}>))
+  = RIO (rs :: (xxx:World<p> -> (a, World)<\w -> {v:World<q xxx w> | true}>))
   @-}
 data RIO a  = RIO {runState :: World -> (a, World)}
 
 {-@ runState :: forall <p :: World -> Prop, q :: World -> a -> World -> Prop>.
-                RIO <p, q> a -> x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}> @-}
+                RIO <p, q> a -> xyy:World<p> -> (a, World)<\w -> {v:World<q xyy w> | true}> @-}
 
 data World  = W
 

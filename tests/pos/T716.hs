@@ -1,8 +1,10 @@
 
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/716
--- due to the wierd case-of thwarting ANF, you need the qualifier from the
--- output type of `narrow16Word` (apparently we don't scrape assumes?) 
--- OR you need `eliminate` to do its business.
+--   due to the wierd case-of thwarting ANF, you need the qualifier from the
+--   output type of `narrow16Word` (apparently we don't scrape assumes?) 
+--   ELIMINATE does not cut it, as the relevant kvar happens to be non-linear...
+
+{-@ LIQUID "--scrape-used-imports" @-}
 
 module Blank where
 
@@ -16,8 +18,10 @@ import GHC.Word
 
 {-@ assume byteSwap16# :: Word# -> {v:Word# | undefinedOffset v = 16} @-}
 
-{-@ assume narrow16Word# :: Word# -> {v:Word# | undefinedOffset v = 64} @-}
+-- We need either the below qualifier, or the one from the refinement of
+-- `Word`.Why are NEITHER generated automatically?
 
+{-@ assume narrow16Word# :: Word# -> {v:Word# | undefinedOffset v = 64} @-}
 
 {-@ data Word = W# (w :: {v:Word# | undefinedOffset v >= 64}) @-}
 
@@ -25,9 +29,6 @@ grabWord16_SAFE (Ptr ip#) = let x = byteSwap16# (indexWord16OffAddr# ip# 0#) in 
 
 grabWord16_UNSAFE (Ptr ip#) = W# (narrow16Word# (byteSwap16# (indexWord16OffAddr# ip# 0#)))
 
+-- mkWord :: {v:Word# | undefinedOffset v >= 64} -> Word
+-- mkWord = W#
 
--- works if you replace calls to narrow16Word# with bob
--- but why does `eliminate` not take care of it?
-{- bob :: Word# -> {v:Word# | undefinedOffset v = 64} @-}
-bob :: Word# -> Word#
-bob = undefined

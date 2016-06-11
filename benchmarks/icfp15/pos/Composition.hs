@@ -57,10 +57,10 @@ plus42 :: Int -> Int
 plus42 = cmp plus2 plus1
 
 
-
-{-@ qualif PLUSMINUS(v:int, x:int, y:int, z:int): (v = (x - y) + z) @-}
-{-@ qualif PLUS     (v:int, x:int, y:int)       : (v = x + y)       @-}
-{-@ qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
+-- not needed due to eliminate
+{- qualif PLUSMINUS(v:int, x:int, y:int, z:int): (v = (x - y) + z) @-}
+{- qualif PLUS     (v:int, x:int, y:int)       : (v = x + y)       @-}
+{- qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
 
 
 
