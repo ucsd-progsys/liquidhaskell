@@ -1,12 +1,12 @@
-module NT where 
+module NT where
 
-{-@ newtype Natural = Natural { toInt :: Int } @-}
-newtype Natural = Natural { toInt :: Int } 
+{- newtype Natural = Natural { toInt :: Nat } @-}
+newtype Natural = Natural { toInt :: Int }
 
-{-@ natural :: Nat -> Natural @-}
-natural = Natural 
+foo :: Int -> Maybe Natural
+foo n
+  | 0 <= n    = Just (Natural n)
+  | otherwise = Nothing
 
-foo :: Int -> Maybe Natural 
-foo n 
-  | 0 <= n    = Just (natural n) 
-  | otherwise = Nothing 
+{-@ bar :: Natural -> Nat @-}
+bar (Natural n) = n

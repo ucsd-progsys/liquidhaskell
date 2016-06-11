@@ -636,8 +636,8 @@ instance PPrint GhcInfo where
 -- RJ: the silly guards below are to silence the unused-var checker
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
-  | otherwise = pprintCBsVerbose
   | otherwise = pprintCBsTidy
+  | otherwise = pprintCBsVerbose
   where
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs

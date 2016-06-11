@@ -39,7 +39,7 @@ import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.GHC.Misc (showPpr)
+import           Language.Haskell.Liquid.GHC.Misc (showCBs) -- howPpr)
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
@@ -116,8 +116,9 @@ liquidOne info = do
   let cbs' = transformScope (cbs info)
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                 --  putStrLn $ render $ pprintCBs cbs'
-                 putStrLn $ showPpr cbs'
+                 putStrLn $ showCBs (untidyCore cfg) cbs'
+                 -- putStrLn $ render $ pprintCBs cbs'
+                 -- putStrLn $ showPpr cbs'
   edcs <- newPrune      cfg cbs' tgt info
   out' <- liquidQueries cfg      tgt info edcs
   DC.saveResult       tgt  out'
