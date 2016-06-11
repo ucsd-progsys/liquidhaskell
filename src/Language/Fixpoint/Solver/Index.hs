@@ -213,12 +213,11 @@ mkBindExpr sI = (M.fromList ips, M.fromList kSus)
     ips  = [ (i, BP p (fst <$> iks)) | (i, p, iks) <- ipks                     ]
     ipks = [ (i, p, iks)             | (i, x, r)   <- ixrs
                                      , let (p, iks) = mkBindPred i x r         ]
-    ixrs = {- checkNoDups sI $ -} F.bindEnvToList (F.bs sI)
+    ixrs = {- _checkNoDups sI $ -} F.bindEnvToList (F.bs sI)
 
-{-
 -- TODO: we should not need the below checks once LH issue #724 is resolved.
-checkNoDups :: F.SInfo a -> [(F.BindId, F.Symbol, F.SortedReft)] -> [(F.BindId, F.Symbol, F.SortedReft)]
-checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
+_checkNoDups :: F.SInfo a -> [(F.BindId, F.Symbol, F.SortedReft)] -> [(F.BindId, F.Symbol, F.SortedReft)]
+_checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
   where
     bads            = [(x, is) | (x, is) <- groupList xis
                                , 2 <= length is               ]
@@ -229,7 +228,6 @@ checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
     _consts         = F.lits _sI
     dbErr xis       = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
 
--}
 
 mkBindPred :: F.BindId -> F.Symbol -> F.SortedReft -> (F.Pred, [(KIndex, F.KVSub)])
 mkBindPred i x sr = (F.pAnd ps, zipWith tx [0..] ks)
@@ -377,12 +375,15 @@ isKnownVar me x = F.memberSEnv x (envSorts me)
 --------------------------------------------------------------------------------
 lhsPred :: Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
-lhsPred s c = F.pAnd $ [subcIdPred me j]
-                    ++ [bp i' `F.PImp` ip'              | (i', ip') <- ips' ]
-                    ++ [bp j' `F.PImp` subcIdPred me j' | j'        <- js'  ]
+lhsPred s c = F.pAnd $ [subcIdPred me nonTrivs j]
+                    ++ [bp i' `F.PImp` ip'    | (i', ip') <- ips'' ]
+                    ++ [bp j' `F.PImp` scp j' | j'        <- js'   ]
    where
      me          = mfromJust "Index.lhsPred" (sIdx s)
      j           = F.subcId c
+     scp         = subcIdPred me nonTrivs
+     nonTrivs    = M.fromList ips''
+     ips''       = filter (not . F.isTautoPred . snd) ips'
      (ips', js') = footprint me s j
 
 footprint :: Index -> Solution -> F.SubcId -> ([(F.BindId, F.Pred)], [F.SubcId])
@@ -398,8 +399,10 @@ txBindIds me j = sortNub $ concatMap (getEnvBinds me) js
   where
     js         = j : getEnvTx me j
 
-subcIdPred :: Index -> F.SubcId -> F.Pred
-subcIdPred me j = F.pAnd (bp <$> getEnvBinds me j)
+subcIdPred :: Index -> M.HashMap F.BindId a -> F.SubcId -> F.Pred
+subcIdPred me nt j = F.pAnd (bp <$> is)
+  where
+    is             = filter (`M.member` nt) $ getEnvBinds me j
 
 getEnvTx :: Index -> F.SubcId -> [F.SubcId]
 getEnvTx me j = safeLookup msg j (envTx me)
