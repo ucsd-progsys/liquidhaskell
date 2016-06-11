@@ -100,7 +100,7 @@ runSolverM cfg sI _ s0 act =
     release  = cleanupContext
     ess      = declLiterals fi
     (xts, p) = background cfg fi s0
-    be       = F.SolEnv (F.bs fi) (F.packs fi)
+    be       = F.SolEnv (F.bs fi) (getPacks cfg fi)
     file     = F.fileName fi
     -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
@@ -108,6 +108,10 @@ runSolverM cfg sI _ s0 act =
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
+getPacks :: Config -> F.SInfo a -> F.Packs
+getPacks cfg fi
+  | C.noPack cfg = mempty
+  | otherwise    = F.packs fi
 
 background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi s0 = (bts ++ xts, p)
