@@ -631,7 +631,7 @@ nats = [1,2,3]
 can be written as
 
 ```haskell
-{-# LANGUAGE QuasiQuoters #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Nats (nats) where
 
 import LiquidHaskell
