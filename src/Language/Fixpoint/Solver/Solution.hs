@@ -33,7 +33,7 @@ import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
-import           Debug.Trace (trace)
+-- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
@@ -69,7 +69,7 @@ update1 s (k, qs) = (change, Sol.insert k qs s)
 --------------------------------------------------------------------------------
 init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init si ks = Sol.fromList keqs [] Nothing
+init si ks = Sol.fromList keqs [] mempty Nothing
   where
     keqs   = map (refine si qs) ws `using` parList rdeepseq
     qs     = F.quals si
@@ -189,18 +189,18 @@ envConcKVars g bs = (concat pss, concat kss)
     be            = F.soeBinds (snd3 g)
 
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyPack g s) F.pAnd mconcat . packKVars g
-  where
-    applyPack :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-    applyPack g s kvs =
-      -- case packable s kvs of
-      --   Nothing           ->
-             applyKVars' g s kvs
-      -- Just (p, [])      -> (p, mempty)
-      -- Just (p, kcs)     -> applyPackCubes g s p kcs
-    _tr kvs kcs
-       | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
-       | otherwise      = kcs
+applyKVars g s = mrExprInfos (applyKVars' g s) F.pAnd mconcat . packKVars g
+
+--   where
+-- PACK applyPack :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
+-- PACK applyPack g s kvs = applyKVars' g s kvs
+-- PACK -- case packable s kvs of
+-- PACK --   Nothing           -> applyKVars' g s kvs
+-- PACK -- Just (p, [])      -> (p, mempty)
+-- PACK -- Just (p, kcs)     -> applyPackCubes g s p kcs
+-- PACK    _tr kvs kcs
+-- PACK       | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
+-- PACK       | otherwise      = kcs
 
 -- --------------------------------------------------------------------------------
 -- applyPackCubes :: CombinedEnv -> Sol.Solution -> F.Expr -> ListNE (F.KVSub, Sol.Cube) -> ExprInfo
@@ -262,8 +262,9 @@ cubePred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Cube -> Expr
 cubePred g s k su c   = ( F.pExist xts (psu &.& p) , kI )
   where
     ((xts,psu,p), kI) = cubePredExc g s k su c bs'
-    bs'               = delCEnv bs g
+    bs'               = delCEnv s k bs g
     bs                = Sol.cuBinds c
+
 
 type Binders = [(F.Symbol, F.Sort)]
 
@@ -350,8 +351,13 @@ combinedSEnv (_, se, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 
-delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
-delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
+-- delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
+-- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
+
+delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> CombinedEnv -> F.IBindEnv
+delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs (F.intersectionIBindEnv bs' kbs)
+  where
+    kbs = safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs

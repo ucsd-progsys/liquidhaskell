@@ -68,7 +68,7 @@ solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
   | eliminate cfg = E.solverInfo cfg fI
-  | otherwise     = SI mempty fI cD (siKvars fI) M.empty
+  | otherwise     = SI mempty fI cD (siKvars fI)
   where
     cD            = elimDeps fI (kvEdges fI) mempty
 

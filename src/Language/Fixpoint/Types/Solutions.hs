@@ -18,6 +18,7 @@ module Language.Fixpoint.Types.Solutions (
     Solution
   , Sol
   , sIdx
+  , sScp
   , CMap
 
   -- * Solution elements
@@ -71,20 +72,23 @@ type QBind    = [EQual]
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
-data Sol a = Sol { sMap  :: !(M.HashMap KVar a)
-                 , sHyp  :: !(M.HashMap KVar Hyp)
-                 , sIdx  :: !(Maybe Index)
-                 }
+data Sol a = Sol
+  { sMap  :: !(M.HashMap KVar a)
+  , sHyp  :: !(M.HashMap KVar Hyp)
+  , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
+  , sIdx  :: !(Maybe Index)
+  }
 
 instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty Nothing
+  mempty        = Sol mempty mempty mempty Nothing
   mappend s1 s2 = Sol { sMap  = mappend (sMap s1) (sMap s2)
                       , sHyp  = mappend (sHyp s1) (sHyp s2)
+                      , sScp  = mappend (sScp s1) (sScp s2)
                       , sIdx  = sIdx s1
                       }
 
 instance Functor Sol where
-  fmap f (Sol s h z) = Sol (f <$> s) h z
+  fmap f (Sol s m1 m2 z) = Sol (f <$> s) m1 m2 z
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k = pprintTidy k . sMap
@@ -114,7 +118,7 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Maybe Index -> Sol a
+fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Maybe Index -> Sol a
 fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
 
 --------------------------------------------------------------------------------

@@ -181,5 +181,4 @@ data SolverInfo a = SI
   , siQuery   :: !(F.SInfo a)                   -- ^ the whole input query
   , siDeps    :: !CDeps                         -- ^ dependencies between constraints/ranks etc.
   , siVars    :: !(S.HashSet F.KVar)            -- ^ set of KVars to actually solve for
-  , siScopes  :: !(M.HashMap F.KVar F.IBindEnv) -- ^ set of allowed binders for kvar
   }
