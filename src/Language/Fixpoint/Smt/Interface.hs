@@ -48,7 +48,8 @@ module Language.Fixpoint.Smt.Interface (
       -- smt_set_funs
 
     -- * Check Validity
-    , checkValid, checkValidWithContext
+    , checkValid
+    , checkValidWithContext
     , checkValids
     , makeZ3Context
 
@@ -108,20 +109,22 @@ makeZ3Context cfg f xts
        return me
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValidWithContext me xts p q
-  = smtBracket me $ do smtDecls me xts
-                       smtAssert me $ pAnd [p, PNot q]
-                       smtCheckUnsat me
-
-
+checkValidWithContext me xts p q =
+  smtBracket me $
+    checkValid' me xts p q
+    
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
 checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValid cfg f xts p q
-  = do me <- makeContext cfg f
-       smtDecls me xts
-       smtAssert me $ pAnd [p, PNot q]
-       smtCheckUnsat me
+checkValid cfg f xts p q = do
+  me <- makeContext cfg f
+  checkValid' me xts p q
+
+checkValid' :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid' me xts p q = do
+  smtDecls me xts
+  smtAssert me $ pAnd [p, PNot q]
+  smtCheckUnsat me
 
 -- | If you already HAVE a context, where all the variables have declared types
 --   (e.g. if you want to make MANY repeated Queries)
@@ -265,7 +268,7 @@ makeProcess cfg
                   , cOut    = hOut
                   , cLog    = Nothing
                   , verbose = loud
-                  , c_ext   = extensionality cfg  
+                  , c_ext   = extensionality cfg
                   , smtenv  = initSMTEnv
                   }
 
@@ -362,7 +365,7 @@ interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
 
 makeMbqi :: Config -> [LT.Text]
-makeMbqi cfg 
+makeMbqi cfg
   | extensionality cfg = [""]
   | otherwise          = ["\n(set-option :smt.mbqi false)"]
 
