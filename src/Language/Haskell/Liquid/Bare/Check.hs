@@ -62,12 +62,12 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
-    errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
-                     ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
-                     ++ mapMaybe (checkBind "class method" emb tcEnv env) (clsSigs    sp)
-                     ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
-                     ++ checkIAl  emb tcEnv env (ialiases   sp)
+    errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
+                     ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (meas       sp)
+                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (asmSigs    sp)
+                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
+                     ++ mapMaybe (checkInv allowHO emb tcEnv env)               (invariants sp)
+                     ++ checkIAl allowHO emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures (measures sp)
                      ++ mapMaybe checkMismatch                     sigs
@@ -81,26 +81,27 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRefinedClasses                        rClasses rInsts
     rClasses         = concatMap (Ms.classes   . snd) specs
     rInsts           = concatMap (Ms.rinstance . snd) specs
-    tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
-    eAliases         =  concat [Ms.ealiases sp | (_, sp) <- specs]
-    dcons spec       =  [(v, Loc l l' t) | (v, t)   <- dataConSpec (dconsP spec)
-                                         | (_, dcp) <- dconsP spec
-                                         , let l     = dc_loc  dcp
-                                         , let l'    = dc_locE dcp ]
-    emb              =  tcEmbeds sp
-    tcEnv            =  tyconEnv sp
-    ms               =  measures sp
-    clsSigs sp       =  [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
-    sigs             =  tySigs sp ++ asmSigs sp
+    tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
+    eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
+    dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (dconsP spec)
+                                        | (_, dcp) <- dconsP spec
+                                        , let l     = dc_loc  dcp
+                                        , let l'    = dc_locE dcp ]
+    emb              = tcEmbeds sp
+    tcEnv            = tyconEnv sp
+    ms               = measures sp
+    clsSigs sp       = [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
+    sigs             = tySigs sp ++ asmSigs sp
+    allowHO          = higherorder $ config sp 
 
 
 checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
-  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
-        mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
+checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
+  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
+        mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
 checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 checkRefinedClasses definitions instances
@@ -116,9 +117,10 @@ checkRefinedClasses definitions instances
       = filter ((== cls) . riclass) instances
 
     mkError (cls, conflicts)
-      = ErrRClass (sourcePosSrcSpan $ loc cls) (pprint cls) (ofConflict <$> conflicts)
+      = ErrRClass (sourcePosSrcSpan $ loc $ btc_tc cls)
+                  (pprint cls) (ofConflict <$> conflicts)
     ofConflict
-      = sourcePosSrcSpan . loc . riclass &&& pprint . ritype
+      = sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
 
 checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDuplicateFieldNames = mapMaybe go
@@ -137,22 +139,23 @@ firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkInv emb tcEnv env t   = checkTy err emb tcEnv env t
+checkInv :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (Maybe Var, Located SpecType) -> Maybe Error
+checkInv allowHO emb tcEnv env (_, t)   = checkTy allowHO err emb tcEnv env t
   where
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
 
-checkIAl :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
-checkIAl emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne emb tcEnv env) ials
+checkIAl :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
+checkIAl allowHO emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO emb tcEnv env) ials
 
-checkIAlOne :: TCEmb TyCon
+checkIAlOne :: Bool 
+            -> TCEmb TyCon
             -> TCEnv
             -> SEnv SortedReft
             -> (Located SpecType, Located SpecType)
             -> [Maybe (TError SpecType)]
-checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+checkIAlOne allowHO emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where
-    tcheck t = checkTy (err t) emb tcEnv env t
+    tcheck t = checkTy allowHO (err t) emb tcEnv env t
     err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t)
     t1'      :: RSort
     t1'      = toRSort $ val t1
@@ -169,8 +172,8 @@ checkRTAliases msg _ as = err1s
   where
     err1s                  = checkDuplicateRTAlias msg as
 
-checkBind :: (PPrint v) => String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
-checkBind s emb tcEnv env (v, t) = checkTy msg emb tcEnv env' t
+checkBind :: (PPrint v) => Bool -> String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
+checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env' t
   where
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
@@ -195,8 +198,8 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le $ expr (0 :: Int) -- zero
 
-checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (val $ txRefSort tcEnv emb t)
+checkTy :: Bool -> (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
+checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (val $ txRefSort tcEnv emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
 checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
@@ -248,14 +251,16 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
+checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t   =  checkAppTys t
-                      <|> checkAbstractRefs t
-                      <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
+checkRType allowHO emb env t   
+  =   checkAppTys t
+  <|> checkAbstractRefs t
+  <|> efoldReft farg cb (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
+    farg _ t           = allowHO || isBase t  -- this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]

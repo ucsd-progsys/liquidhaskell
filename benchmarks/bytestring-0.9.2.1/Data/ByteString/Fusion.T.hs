@@ -1,4 +1,7 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
+
+{-@ LIQUID "--prune-unsorted" @-}
+
 -- |
 -- Module      : Data.ByteString.Fusion
 -- License     : BSD-style

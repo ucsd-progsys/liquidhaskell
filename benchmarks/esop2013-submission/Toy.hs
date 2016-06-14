@@ -1,3 +1,5 @@
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-@ LIQUID "--no-termination" @-}
 
 module Toy () where

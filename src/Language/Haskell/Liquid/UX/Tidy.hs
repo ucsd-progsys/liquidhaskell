@@ -24,6 +24,9 @@ module Language.Haskell.Liquid.UX.Tidy (
     -- * Final result
   , Result (..)
 
+    -- * Error to UserError
+  , errorToUserError
+
     -- * MOVE TO TYPES
   , cinfoError
   ) where
@@ -65,16 +68,16 @@ instance Result UserError where
   result e = Crash [e] ""
 
 instance Result [Error] where
-  result es = Crash (e2u <$> es) ""
+  result es = Crash (errorToUserError <$> es) ""
 
 instance Result Error where
   result e  = result [e] --  Crash [pprint e] ""
 
 instance Result (FixResult Cinfo) where
-  result = fmap (e2u . cinfoError)
+  result = fmap (errorToUserError . cinfoError)
 
-e2u :: Error -> UserError
-e2u = fmap ppSpecTypeErr
+errorToUserError :: Error -> UserError
+errorToUserError = fmap ppSpecTypeErr
 
 -- TODO: move to Types.hs
 cinfoError :: Cinfo -> Error

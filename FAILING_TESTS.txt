@@ -1,0 +1,18 @@
+      
+Language/Haskell/HsColour/Anchors.hs:         FAIL (683.88s)
+  Wrong exit code
+  expected: ExitSuccess
+  but got: ExitFailure 1
+
+Language/Haskell/HsColour/ACSS.hs:            FAIL (1.70s)
+  Wrong exit code
+  expected: ExitSuccess
+  but got: ExitFailure 2
+
+FindRec.hs:                                   FAIL (9.65s)
+  --eliminate crashes due to `cannot unify Tuple with FHandle error`.
+  A cons-gen bug tickled by --eliminate?
+
+CopyRec.hs:                                   FAIL (42.90s)
+  --eliminate seems to blow up (lack of pattern-inline)?
+

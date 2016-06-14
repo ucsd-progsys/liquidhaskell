@@ -23,9 +23,10 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.HashMap.Strict             as M
 import qualified Data.HashSet                    as S
+import qualified Data.List                       as L
 import           Data.Proxy
 import qualified Data.Text                       as ST
-import qualified Data.Text.Lazy                  as T
+import qualified Data.Text.Lazy.Builder          as Builder
 import           Data.Text.Format                hiding (print)
 import           Text.Printf
 
@@ -84,9 +85,10 @@ process f ctx vs xts to = go 0 =<< io (command ctx CheckSat)
           | otherwise -> do
               real <- gets realized
               modify $ \s@(TargetState {..}) -> s { realized = [] }
-              let model = [ format "(= {} {})" (symbolText x, v) | (x,v) <- real ]
+              let model = [ build "(= {} {})" (symbolText x, v) | (x,v) <- real ]
               unless (null model) $
-                void $ io $ smtWrite ctx $ T.toStrict $ format "(assert (not (and {})))"
+                void $ io $ smtWrite ctx $ Builder.toLazyText
+                          $ build "(assert (not (and {})))"
                      $ Only $ smt2many model
               mbKeepGoing xs n'
         Right r -> do
@@ -100,9 +102,10 @@ process f ctx vs xts to = go 0 =<< io (command ctx CheckSat)
           -- refuting the current model forces the solver to return unsat next
           -- time, the solver will return unsat when the HOF queries for an output,
           -- causing us to return a spurious error
-          let model = [ format "(= {} {})" (symbolText x, v) | (x,v) <- real ]
+          let model = [ build "(= {} {})" (symbolText x, v) | (x,v) <- real ]
           unless (null model) $
-            void $ io $ smtWrite ctx $ T.toStrict $ format "(assert (not (and {})))"
+            void $ io $ smtWrite ctx $ Builder.toLazyText
+                 $ build "(assert (not (and {})))"
                  $ Only $ smt2many model
 
           case sat of
@@ -170,38 +173,27 @@ setup = {-# SCC "setup" #-} do
 
    -- declare sorts
    ss  <- S.toList <$> gets sorts
-   let defSort b e = io $ smtWrite ctx (T.toStrict $ format "(define-sort {} () {})" (b,e))
-   -- FIXME: why do i need this??
-   defSort ("GHC.Types.Bool" :: T.Text) ("Int" :: T.Text)
-   defSort ("GHC.Types.Int" :: T.Text) ("Int" :: T.Text)
-   defSort ("GHC.Tuple.$40$$44$$41$" :: T.Text) ("Int" :: T.Text)
-   -- -- FIXME: combine this with the code in `fresh`
-   forM_ ss $ \case
-     -- FObj "Int" -> return ()
-     -- FInt       -> return ()
-     s | smt2 s == "GHC.Types.Bool" || smt2 s == "GHC.Types.Int"
-       || smt2 s == "GHC.Tuple.$40$$44$$41$"
-         -> return ()
-     --     -> defSort ("GHC.Types.Bool" :: T.Text) ("Bool" :: T.Text)
-     -- FObj "CHOICE" -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
-     s | smt2 s == "CHOICE"
-         -> defSort ("CHOICE" :: T.Text) ("Bool" :: T.Text)
-     s        -> defSort (smt2 s) ("Int" :: T.Text)
+   let defSort b e = io $ smtWrite ctx $ Builder.toLazyText
+                   $ build "(define-sort {} () {})" (b,e)
+   defSort ("CHOICE" :: Builder.Builder) ("Bool" :: Builder.Builder)
+          -- FIXME: shouldn't need the nub, wtf?
+   forM_ (L.nub (map smt2 ss)) $ \s ->
+     defSort s ("Int" :: Builder.Builder)
 
    -- declare constructors
    cts <- gets constructors
    mapM_ (\ (c,t) -> do
-             io $ smtWrite ctx $ T.toStrict $ makeDecl (symbol c) t) cts
+             io $ smtWrite ctx . Builder.toLazyText $ makeDecl (symbol c) t) cts
    let nullary = [var c | (c,t) <- cts, not (func t)]
    unless (null nullary) $
-     void $ io $ smtWrite ctx $ T.toStrict $ smt2 $ Distinct nullary
+     void $ io $ smtWrite ctx . Builder.toLazyText $ smt2 $ Distinct nullary
    -- declare variables
    vs <- gets variables
-   let defVar (x,t) = io $ smtWrite ctx $ T.toStrict (makeDecl x (arrowize t))
+   let defVar (x,t) = io $ smtWrite ctx $ Builder.toLazyText (makeDecl x (arrowize t))
    mapM_ defVar vs
    -- declare measures
    ms <- gets measEnv
-   let defFun x t = io $ smtWrite ctx $ T.toStrict (makeDecl x t)
+   let defFun x t = io $ smtWrite ctx $ Builder.toLazyText (makeDecl x t)
    forM_ ms $ \m -> do
      let x = val (name m)
      unless (x `M.member` theorySymbols) $
@@ -211,7 +203,7 @@ setup = {-# SCC "setup" #-} do
    --mapM_ (\c -> do {i <- gets seed; modify $ \s@(GS {..}) -> s { seed = seed + 1 };
    --                 io . command ctx $ Assert (Just i) c})
    --  cs
-   mapM_ (io . smtWrite ctx . T.toStrict . smt2 . Assert Nothing) cs
+   mapM_ (io . smtWrite ctx . Builder.toLazyText . smt2 . Assert Nothing) cs
    -- deps <- V.fromList . map (symbol *** symbol) <$> gets deps
    -- io $ generateDepGraph "deps" deps cs
    -- return (ctx,vs,deps)

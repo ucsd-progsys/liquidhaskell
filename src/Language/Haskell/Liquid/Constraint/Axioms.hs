@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.SpanStack                 (showSpan)
 import Language.Fixpoint.Misc                         hiding (errorstar)
 import Language.Haskell.Liquid.Constraint.ProofToCore
-import Language.Haskell.Liquid.Transforms.CoreToLogic
+import Language.Haskell.Liquid.Transforms.CoreToLogic hiding (normalize)
 import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe

@@ -134,7 +134,7 @@ makeContext l c c' s = vcat [ text ""
                             ]
   where
     lnum n           = text (show n) <+> text "|"
-    cursor           = blanks (c - 1) <> pointer (c' - c)
+    cursor           = blanks (c - 1) <> pointer (max 1 (c' - c))
     blanks n         = text $ replicate n ' '
     pointer n        = text $ replicate n '^'
 
@@ -281,7 +281,7 @@ data TError t =
   | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
                 , var   :: !Doc
                 , hs    :: !Doc
-                , lq    :: !Doc
+                , lqTy  :: !Doc
                 , lqPos :: !SrcSpan -- ^ lq type location
                 } -- ^ Mismatch between Liquid and Haskell types
 
@@ -328,6 +328,9 @@ data TError t =
                 , nam :: !Doc
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
+
+  | ErrFilePragma { pos :: !SrcSpan
+                  }
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -470,7 +473,7 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
+ppReqInContext :: PPrint t => Tidy -> t -> t -> M.HashMap Symbol t -> Doc
 ppReqInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
@@ -478,10 +481,12 @@ ppReqInContext td tA tE c
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprintTidy td tE]
       , nests 2 [ text "In Context"
-                , pprintTidy td c
+                , vsep (map (uncurry (pprintBind td)) (M.toList c))
                 ]
       ]
 
+pprintBind :: PPrint t => Tidy -> Symbol -> t -> Doc
+pprintBind td v t = pprintTidy td v <+> char ':' <+> pprintTidy td t
 
 ppReqModelInContext
   :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
@@ -720,6 +725,10 @@ ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"
         $+$ dCtx
         $+$ {- nest 4 -} s
+
+ppError' _ dSp dCtx (ErrFilePragma _)
+  = dSp <+> text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
+        $+$ dCtx
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."

@@ -1,0 +1,15 @@
+.hs-keyglyph { color: DarkGoldenrod;  }
+.hs-layout   { color: Black;}
+.hs-keyword  { color: PaleGreen;}
+.hs-comment, .hs-comment a { color: Firebrick;}
+.hs-str      { color: RosyBrown; }
+.hs-chr      { color: RosyBrown;}
+.hs-keyword  { color: BlueViolet; }
+.hs-conid    { color: ForestGreen; }
+.hs-varid    { color: black; }
+.hs-num      { color: black; }
+.hs-varop    { color: DarkGoldenrod; }
+.hs-conop    { color: DarkGoldenrod; }
+.hs-sel      { color: Red; }
+.hs-cpp      { color: Red; }
+.hs-definition { color: Blue; }

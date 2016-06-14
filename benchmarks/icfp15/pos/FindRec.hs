@@ -1,11 +1,16 @@
 {-# Language EmptyDataDecls #-}
-module FindRec where
+
+{-@ LIQUID "--no-eliminate" @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-pattern-inline" @-}
+
+module FindRec where
+
 
 import RIO2
 import Data.Map
 import Data.Set
-import Language.Haskell.Liquid.Prelude 
+import Language.Haskell.Liquid.Prelude
 import Privileges
 
 {- ** API ** -}
@@ -16,19 +21,21 @@ import Privileges
 data Path = P String deriving Eq
 data FHandle = FH Int deriving Eq
 
-{-@ qualif Deriv(v:World, x:FHandle): (pwrite (pcreateFilePrivs (Map_select (caps v) x))) @-}
-{-@ qualif Write(v:World, x:FHandle): (pwrite (Map_select (caps v) x)) @-}
-{-@ qualif List(v:World, x:FHandle): (pcontents (Map_select (caps v) x)) @-}
-{-@ qualif Lkup(v:World, x:FHandle): (plookup (Map_select (caps v) x)) @-}
+-- ELIMINATED 
+{- Deriv(v:World, x:FHandle): (pwrite (pcreateFilePrivs (Map_select (caps v) x))) @-}
+{- Write(v:World, x:FHandle): (pwrite (Map_select (caps v) x)) @-}
+{- List(v:World, x:FHandle): (pcontents (Map_select (caps v) x)) @-}
+{- Lkup(v:World, x:FHandle): (plookup (Map_select (caps v) x)) @-}
+{- Deriv(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (pcreateFilePrivs (Map_select (caps w1) h))) @-}
+{- MpEq0(v:World,w:World,x:FHandle): (Map_select (caps v) x) = (Map_select (caps w) x) @-}
+{- ActiveSub(v:World, w:World): Set_sub (active v) (active w)                         @-}
+{- UpdActive(v:World,w1:World,x:FHandle): (active v) = (Set_cup (Set_sng x) (active w1)) @-}
+{- MpEq0(v:World,w:World,x:FHandle,z:FHandle): (Map_select (caps v) x) = (Map_select (caps w) z) @-}
 
-{-@ qualif ActiveSub(v:World, w:World): Set_sub (active v) (active w)                         @-}
-{-@ qualif UpdActive(v:World,w1:World,x:FHandle): (active v) = (Set_cup (Set_sng x) (active w1)) @-}
+-- NEEDED
 {-@ qualif Sto(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (Map_select (caps w1) h)) @-}
-
-{-@ qualif MpEq0(v:World,w:World,x:FHandle): (Map_select (caps v) x) = (Map_select (caps w) x) @-}
 {-@ qualif MpEq0(v:World,b:FHandle,x:FHandle): (Map_select (caps v) x) = (Map_select (caps v) b) @-}
 
-{-@ qualif Deriv(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (pcreateFilePrivs (Map_select (caps w1) h))) @-}
 
 {-@ predicate Active W F = Set_mem F (active W) @-}
 {-@ predicate HasPriv W P F = (Active W F) && (P (Map_select (caps W) F)) @-}
@@ -47,28 +54,28 @@ data FHandle = FH Int deriving Eq
 
 
 {- ** API ** -}
-{-@ contents :: 
-  d:FHandle -> RIO<{v:World | Lst v d},\w1 x -> {v:World | NoChange w1 v}> [Path] 
+{-@ contents ::
+  d:FHandle -> RIO<{v:World | Lst v d},\w1 x -> {v:World | NoChange w1 v}> [Path]
 @-}
 contents :: FHandle -> RIO [Path]
 contents = undefined
 {-@ measure parent :: FHandle -> FHandle @-}
-{-@ flookup :: 
+{-@ flookup ::
   h:FHandle -> Path -> RIO<{v:World | Lkup v h },\w x -> {v:World | UpdActive w v x && UpdCaps w v x h }> FHandle @-}
 flookup :: FHandle -> Path -> RIO FHandle
 flookup = undefined
-          
-{-@ create :: 
+
+{-@ create ::
   h:FHandle -> p:Path -> RIO<{v:World | Cr v h},\w1 x -> {v:World | (UpdActive w1 v x) && DeriveCaps w1 v x h}> FHandle @-}
 create :: FHandle -> Path -> RIO FHandle
-create = undefined          
-          
-{-@ createDir :: 
+create = undefined
+
+{-@ createDir ::
   h:FHandle -> p:Path -> RIO<{w:World | Cr w h},\w1 x -> {w2:World | (UpdActive w1 w2 x) && UpdCaps w1 w2 x h}> FHandle @-}
 createDir :: FHandle -> Path -> RIO FHandle
-createDir = undefined          
+createDir = undefined
 
-{-@ write :: 
+{-@ write ::
   h:FHandle -> s:String -> RIO<{w:World | Wr w h},\w1 x -> {w2:World | NoChange w1 w2}> () @-}
 write :: FHandle -> String -> RIO ()
 write = undefined
@@ -77,7 +84,7 @@ write = undefined
   h:FHandle -> RIO<{w:World | Rd w h},\w1 x -> {w2:World | NoChange w1 w2}> String @-}
 fread :: FHandle -> RIO String
 fread = undefined
-        
+
 {-@ isFile :: h:FHandle -> Bool @-}
 isFile :: FHandle -> Bool
 isFile = undefined
@@ -86,11 +93,11 @@ isFile = undefined
 isDir :: FHandle -> Bool
 isDir = undefined
 
-{-@ 
+{-@
 forM_ :: forall <i :: World -> Prop>.
-         [a] -> 
+         [a] ->
          (a -> RIO <i,\w1 x -> {v:World<i> | true}> b) ->
-         RIO <i,\w1 x -> {v:World<i> | true}> ()          
+         RIO <i,\w1 x -> {v:World<i> | true}> ()
 @-}
 forM_ :: [a] -> (a -> RIO b) -> RIO ()
 forM_ []     _ = return ()
@@ -121,11 +128,11 @@ findExec ::
   { f :: FHandle<q>, z::FHandle |- {v:World<p f> | (Active v z) && (Map_select (caps v) f) == (Map_select (caps v) z)} <: World<p z> }
   f:FHandle<q> ->
   (z:FHandle -> RIO<{v:World<p z> | true },\w x -> {v:World | NoChange w v }> ()) ->
-  RIO <{v:World<i> | FindSpec v f},\w x -> {v:World<i> | FindSpec v f }> () 
+  RIO <{v:World<i> | FindSpec v f},\w x -> {v:World<i> | FindSpec v f }> ()
 @-}
 findExec :: FHandle -> (FHandle -> RIO ()) -> RIO ()
-findExec f cmd = do 
-  when (isFile f) $ 
+findExec f cmd = do
+  when (isFile f) $
        (cmd f >>= return)
   when (isDir f) $ do
     cs <- contents f
@@ -133,8 +140,7 @@ findExec f cmd = do
       h <- flookup f p
       (findExec h cmd >>= return)
 
-{-@ qualif MpEq0(v:World,w:World,x:FHandle,z:FHandle): (Map_select (caps v) x) = (Map_select (caps w) z) @-}
-      
+
 {-@
   prepend :: f:FHandle -> String ->
           RIO <{v:World | Lst v f && Lkup v f && Wr v f} ,True> () @-}

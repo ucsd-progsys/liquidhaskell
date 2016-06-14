@@ -1,5 +1,4 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--diff"           @-}
 
 module Foo where
 

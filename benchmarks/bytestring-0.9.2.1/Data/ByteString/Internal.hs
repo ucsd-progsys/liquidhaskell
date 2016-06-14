@@ -1,11 +1,11 @@
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
 -- If we could, these are what they would be:
 {-# LANGUAGE UnliftedFFITypes, MagicHash,
             UnboxedTuples, DeriveDataTypeable #-}
 {-# OPTIONS_HADDOCK hide #-}
-{-@ LIQUID "--c-files=../../cbits/fpstring.c" @-}
-{-@ LIQUID "-i../../include" @-}
 -- |
 -- Module      : Data.ByteString.Internal
 -- License     : BSD-style
@@ -171,7 +171,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LIQUID (scc<CAF> Data.Typeable.Internal.mkTyCon)
 -- LIQUID               (scc<CAF> __word64 5047387852870479354))
 -- LIQUID               (scc<CAF> __word64 13413741352319211914))
-             
+
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
@@ -181,16 +181,13 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ measure bOffset     :: ByteString -> Int
     bOffset (PS p o l)  = o
-  @-} 
-    
+  @-}
+
 {-@ measure bPayload   :: ByteString -> (ForeignPtr Word8)
     bPayload (PS p o l) = p
-  @-} 
+  @-}
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
-
-
-{- predicate OkIndex B I = ((0 <= I) && (I <= (bLength B))) -}
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
 
@@ -237,7 +234,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 {-@ qualif LTPLen(v: int, p:Ptr a): v < (plen p)                   @-}
 
-{-@ ptrLen :: p:(PtrV a) -> {v:Nat | v = (plen p)} @-}  
+{-@ ptrLen :: p:(PtrV a) -> {v:Nat | v = (plen p)} @-}
 ptrLen :: Ptr a -> Int
 ptrLen = undefined
 
@@ -301,9 +298,9 @@ nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 -- 'Data.ByteString.Unsafe.unsafePackCStringFinalizer' instead.
 --
 
-{-@ fromForeignPtr :: p:(ForeignPtr Word8) 
-                   -> o:{v:Nat | v <= (fplen p)} 
-                   -> l:{v:Nat | (BSValid p o v)} 
+{-@ fromForeignPtr :: p:(ForeignPtr Word8)
+                   -> o:{v:Nat | v <= (fplen p)}
+                   -> l:{v:Nat | (BSValid p o v)}
                    -> ByteStringN l
   @-}
 fromForeignPtr :: ForeignPtr Word8
@@ -315,11 +312,11 @@ fromForeignPtr fp s l = PS fp s l
 
 -- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
 
-{-@ toForeignPtr :: b:ByteString 
-                 -> ( {v:(ForeignPtr Word8) | v = (bPayload b)} 
+{-@ toForeignPtr :: b:ByteString
+                 -> ( {v:(ForeignPtr Word8) | v = (bPayload b)}
                     , {v:Int | v = (bOffset b)}
-                    , {v:Int | v = (bLength b)}               ) 
-  @-} 
+                    , {v:Int | v = (bLength b)}               )
+  @-}
 toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
 toForeignPtr (PS ps s l) = (ps, s, l)
 {-# INLINE toForeignPtr #-}
@@ -358,9 +355,9 @@ create l f = do
 -- ByteString functions, using Haskell or C functions to fill the space.
 
 
-{-@ createAndTrim :: l:Nat 
-                  -> ((PtrN Word8 l) -> IO {v:Nat | v <= l}) 
-                  -> IO {v:ByteString | (bLength v) <= l}   
+{-@ createAndTrim :: l:Nat
+                  -> ((PtrN Word8 l) -> IO {v:Nat | v <= l})
+                  -> IO {v:ByteString | (bLength v) <= l}
   @-}
 createAndTrim :: Int -> (Ptr Word8 -> IO Int) -> IO ByteString
 createAndTrim l f = do
@@ -372,9 +369,9 @@ createAndTrim l f = do
             else create l' $ \p' -> memcpy p' p ({- LIQUID fromIntegral -} intCSize l')
 {-# INLINE createAndTrim #-}
 
-{-@ createAndTrim' :: l:Nat 
-                   -> ((PtrN Word8 l) -> IO ((Nat, Nat, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
-                   -> IO ({v:ByteString | (bLength v) <= l}, a) 
+{-@ createAndTrim' :: l:Nat
+                   -> ((PtrN Word8 l) -> IO ((Nat, Nat, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
+                   -> IO ({v:ByteString | (bLength v) <= l}, a)
   @-}
 createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
 createAndTrim' l f = do
@@ -388,9 +385,9 @@ createAndTrim' l f = do
                     return $! (ps, res)
 
 -- LIQUID DUPLICATECODE
-{-@ createAndTrimEQ :: l:Nat 
-                   -> ((PtrN Word8 l) -> IO ((Nat, {v:Nat | v=l}, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
-                   -> IO ({v:ByteString | (bLength v) = l}, a) 
+{-@ createAndTrimEQ :: l:Nat
+                   -> ((PtrN Word8 l) -> IO ((Nat, {v:Nat | v=l}, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
+                   -> IO ({v:ByteString | (bLength v) = l}, a)
   @-}
 createAndTrimEQ :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
 createAndTrimEQ l f = do
@@ -439,12 +436,12 @@ createAndTrimMEQ l f = do
 -- LIQUID CONSTRUCTIVE VERSION (Till we support pred-applications properly,
 -- cf. tests/pos/cont2.hs
 
-{-@ createAndTrim'' :: forall <p :: Int -> Prop>. 
-                      l:Nat<p> 
-                   -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
-                   -> IO ({v:Nat<p> | v <= l}, ByteString, a)<{\sz v -> (bLength v) = sz},{\o l v -> true}> 
+{-@ createAndTrim'' :: forall <p :: Int -> Prop>.
+                      l:Nat<p>
+                   -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
+                   -> IO ({v:Nat<p> | v <= l}, ByteString, a)<{\sz v -> (bLength v) = sz},{\o l v -> true}>
   @-}
- 
+
 createAndTrim'' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
 createAndTrim'' l f = do
     fp <- mallocByteString l
@@ -462,7 +459,7 @@ createAndTrim'' l f = do
 
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 --
-{-@ mallocByteString :: l:Nat -> IO (ForeignPtrN a l) @-} 
+{-@ mallocByteString :: l:Nat -> IO (ForeignPtrN a l) @-}
 mallocByteString :: Int -> IO (ForeignPtr a)
 mallocByteString l = do
 #ifdef __GLASGOW_HASKELL__
@@ -491,7 +488,7 @@ c2w = fromIntegral . ord
 {-# INLINE c2w #-}
 
 -- | Selects words corresponding to white-space characters in the Latin-1 range
--- ordered by frequency. 
+-- ordered by frequency.
 isSpaceWord8 :: Word8 -> Bool
 isSpaceWord8 w =
     w == 0x20 ||
@@ -532,7 +529,7 @@ inlinePerformIO = unsafePerformIO
 #endif
 
 -- ---------------------------------------------------------------------
--- 
+--
 -- Standard C functions
 --
 
@@ -564,9 +561,9 @@ foreign import ccall unsafe "string.h memcpy" c_memcpy
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 {-@ assume
     memcpy :: dst:(PtrV Word8)
-           -> src:(PtrV Word8) 
-           -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))} 
-           -> IO () 
+           -> src:(PtrV Word8)
+           -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))}
+           -> IO ()
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = c_memcpy p q s >> return ()
@@ -617,9 +614,9 @@ foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
 foreign import ccall unsafe "static fpstring.h fps_count" c_count
     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 {-@ assume
-    c_count :: p:(Ptr Word8) 
+    c_count :: p:(Ptr Word8)
             -> n:{v:CULong | (OkPLen v p)}
-            -> Word8 
+            -> Word8
             -> (IO {v:CULong | ((0 <= v) && (v <= n)) }) @-}
 
 

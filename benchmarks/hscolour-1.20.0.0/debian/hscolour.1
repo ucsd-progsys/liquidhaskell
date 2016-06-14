@@ -1,0 +1,66 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH HSCOLOUR 1 "July 15, 2007"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+hscolour \- colourise Haskell code
+.SH SYNOPSIS
+.B hscolour
+.RI [ options ] " file.hs"
+.SH DESCRIPTION
+Colourises Haskell code. Currently five output formats are supported:
+ANSI terminal codes, HTML 3.2 with <font> tags, HTML 4.01 with CSS,
+LaTeX, and mIRC chat client codes.
+.SH OPTIONS
+.TP
+.B \-oOUTPUT
+.TP
+.B \-html
+Set output to HTML 3.2
+.TP
+.B \-css
+Set output to HTML 4.01 with CSS format
+.TP
+.B \-tty
+Set output to ANSI terminal codes
+.TP
+.B \-latex
+Set output to LaTeX format
+.TP
+.B \-mirc
+Set output to mIRC format
+.TP
+.B \-lit, \-nolit
+Turn on/off skipping of literate parts
+.TP
+.B \-anchor, \-noanchor
+Turn on/off creation of anchors
+.TP
+.B \-partial, -nopartial
+Turn header on/off
+.TP
+.B \-help
+Display usage summary
+.TP
+.B \-version
+Display version
+.SH SEE ALSO
+The full manual is included in /usr/share/doc/hscolour/index.html
+.SH AUTHOR
+hscolour was written by Malcolm Wallace.
+.PP
+This manual page was written by Adam Sjøgren <asjo@koldfront.dk>,
+for anyone to use.

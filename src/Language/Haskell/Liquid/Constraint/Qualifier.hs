@@ -16,8 +16,7 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Types
-
+import Language.Fixpoint.Types hiding (mkQual)
 
 
 -- import Control.Applicative      ((<$>))
@@ -31,7 +30,10 @@ import Debug.Trace
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (inSigs $ spec info) ++ (ctors $ spec info)
+  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
+                  ++ if info `hasOpt` scrapeInternals 
+                       then inSigs $ spec info else []
+                  ++ (ctors $ spec info)
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
@@ -44,7 +46,7 @@ specificationQualifiers k info lEnv
         , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
-        , length (q_params q) <= k + 1
+        , length (qParams q) <= k + 1
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
 

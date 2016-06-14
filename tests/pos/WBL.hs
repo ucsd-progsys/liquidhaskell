@@ -51,8 +51,11 @@ data Heap a   = Empty | Node { pri   :: a
     realRank (Node p k l r) = (1 + realRank l + realRank r)
   @-}
 
+
+{-@ invariant {v:Heap a | rank v == realRank (left v) + realRank (right v) && realRank v >= 0 } @-}  
+
 {-@ measure rank @-}
-{-@ rank :: h:PHeap a -> {v:Nat | v = realRank h} @-}
+{-@ assume rank :: h:Heap a -> {v:Nat | v = realRank h} @-}
 rank Empty          = 0
 rank (Node _ r _ _) = r
 
@@ -66,7 +69,7 @@ singleton p = Node p 1 Empty Empty
 --
 -- We use a two-pass implementation of merging algorithm. One pass,
 -- implemented by merge, performs merging in a top-down manner. Second
--- one, implemented by makeT, ensures that rank invariant of weight
+-- one, implemented by makeT, ensures that rank   riant of weight
 -- biased leftist tree is not violated after merging.
 --
 -- Notation:

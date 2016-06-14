@@ -84,14 +84,11 @@ mkOutput cfg res sol anna
 
 -- | @annotate@ actually renders the output to files
 -------------------------------------------------------------------
-annotate :: Config -> FilePath -> Output Doc -> IO ACSS.AnnMap
+annotate :: Config -> [FilePath] -> Output Doc -> IO ACSS.AnnMap
 -------------------------------------------------------------------
-annotate cfg srcF out
-  = do generateHtml srcF tpHtmlF tplAnnMap
-       generateHtml srcF tyHtmlF typAnnMap
-       writeFile         vimF  $ vimAnnot cfg annTyp
-       B.writeFile       jsonF $ encode typAnnMap
-       when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+annotate cfg srcFs out
+  = do when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+       mapM_ (doGenerate cfg tplAnnMap typAnnMap annTyp) srcFs
        return typAnnMap
     where
        tplAnnMap  = mkAnnMap cfg res annTpl
@@ -100,12 +97,20 @@ annotate cfg srcF out
        annTyp     = o_types  out
        res        = o_result out
        bots       = o_bots   out
+       showWarns  = not $ nowarnings cfg
+
+doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
+doGenerate cfg tplAnnMap typAnnMap annTyp srcF
+  = do generateHtml srcF tpHtmlF tplAnnMap
+       generateHtml srcF tyHtmlF typAnnMap
+       writeFile         vimF  $ vimAnnot cfg annTyp
+       B.writeFile       jsonF $ encode typAnnMap
+    where
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
        _annF      = extFileName Annot srcF
        jsonF      = extFileName Json  srcF
        vimF       = extFileName Vim   srcF
-       showWarns  = not $ nowarnings cfg
 
 mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
@@ -463,10 +468,6 @@ ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
 
 {-@ assume GHC.Exts.sortWith :: Ord b => (a -> b) -> xs:[a] -> ListXs a xs @-}
 {-@ assume GHC.Exts.groupWith :: Ord b => (a -> b) -> [a] -> [ListNE a] @-}
-
-{- junkProp :: ListNE Int @-}
--- junkProp :: [Int]
--- junkProp = [ 8 ]
 
 --------------------------------------------------------------------------------
 -- | A Little Unit Test --------------------------------------------------------
