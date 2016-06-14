@@ -177,8 +177,9 @@ instance PPrint Rank where
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
 data SolverInfo a = SI
-  { siSol   :: !F.Solution         -- ^ the initial solution
-  , siQuery :: !(F.SInfo a)        -- ^ the whole input query
-  , siDeps  :: !CDeps              -- ^ dependencies between constraints/ranks etc.
-  , siVars  :: !(S.HashSet F.KVar) -- ^ set of KVars to actually solve for
+  { siSol     :: !F.Solution                    -- ^ the initial solution
+  , siQuery   :: !(F.SInfo a)                   -- ^ the whole input query
+  , siDeps    :: !CDeps                         -- ^ dependencies between constraints/ranks etc.
+  , siVars    :: !(S.HashSet F.KVar)            -- ^ set of KVars to actually solve for
+  , siScopes  :: !(M.HashMap F.KVar F.IBindEnv) -- ^ set of allowed binders for kvar
   }

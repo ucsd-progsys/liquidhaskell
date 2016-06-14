@@ -40,8 +40,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Conversion for client
   , result
 
-
-  -- * "Fast" Solver
+  -- * "Fast" Solver (DEPRECATED as unsound)
   , Index  (..)
   , KIndex (..)
   , BindPred (..)
