@@ -21,27 +21,14 @@ import           Outputable hiding (showPpr, panic) -- (SrcSpan)
 
 
 import qualified Data.HashMap.Strict as M
--- import qualified Data.HashSet        as S
 import qualified Data.Text           as T
--- import qualified Data.List           as L
-
--- import           Data.Maybe          (fromMaybe) -- catMaybes, fromJust, isJust)
 import           Control.Monad
 import           Control.Monad.State (get, modify)
--- import qualified Language.Fixpoint.Types            as F
 import           Language.Haskell.Liquid.Types hiding (loc)
--- import           Language.Haskell.Liquid.Types.Variance
-
--- import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
--- import           Language.Haskell.Liquid.Constraint.Fresh
--- import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
--- import           Language.Haskell.Liquid.Types.RefType
 import           Language.Fixpoint.Misc hiding (errorstar)
--- import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
-import           Language.Haskell.Liquid.Types.RefType
 
 
 
@@ -64,9 +51,9 @@ pushConsBind act
 addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
-  | toType t1 /= toType t2
-  = panic Nothing $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2
-  | otherwise
+--   | toType t1 /= toType t2
+--   = panic Nothing $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2
+--   | otherwise
   = do modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
        sflag <- scheck                 <$> get
