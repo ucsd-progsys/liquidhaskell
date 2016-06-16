@@ -1853,7 +1853,7 @@ instance PPrint BTyVar where
 
 instance PPrint RTyVar where
   pprintTidy _ (RTV α)
-   | ppTyVar ppEnv  = ppr_tyvar α
+   | True {- ppTyVar ppEnv -} = ppr_tyvar α
    | otherwise      = ppr_tyvar_short α
    where
      ppr_tyvar :: Var -> Doc
