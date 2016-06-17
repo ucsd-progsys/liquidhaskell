@@ -1,4 +1,9 @@
-module Foo where
+module Chunks where
+
+{-@ LIQUID "--scrape-imports" @-}
+
+
+{-@ type SafeChunkSize = {v:Int | 1 < v } @-}
 
 {-@ type Pos = {v:Int | 0 < v} @-}
 
@@ -11,12 +16,5 @@ module Foo where
 
 {-@ chunks :: n:Pos -> xs:[a] -> {v:[[a]] | ValidChunk v xs n } / [len xs] @-}
 chunks :: Int -> [a] -> [[a]]
-chunks _ [] = []
-
-chunks n xs
-  | length xs <= n 
-  = let (x, xs') = splitAt n xs in x:chunks n xs'
-chunks n xs
-  | otherwise
-  = let (x, xs') = splitAt n xs in x:chunks n xs'
-
+chunks _ [] = [] 
+chunks n xs = let (x, xs') = splitAt n xs in x:chunks n xs'
