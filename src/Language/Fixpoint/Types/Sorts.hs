@@ -30,6 +30,7 @@ module Language.Fixpoint.Types.Sorts (
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
+  , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
   , fApp, fApp', fAppTC
   , fObj
@@ -66,9 +67,8 @@ type TCEmb a  = M.HashMap a FTycon
 data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-instance Monoid FTycon where
-  mempty                      = TC (dummyLoc $ dummySymbol) mempty
-  mappend (TC x i1) (TC _ i2) = TC x (mappend i1 i2) 
+mappendFTC :: FTycon -> FTycon -> FTycon
+mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2) 
 
 instance Monoid TCInfo where
   mempty                                   = TCInfo False False
