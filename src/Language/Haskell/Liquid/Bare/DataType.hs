@@ -28,7 +28,7 @@ import           TypeRep
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon)
+import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon)
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
@@ -53,9 +53,9 @@ makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
 makeNumericInfoOne :: TCEmb TyCon -> ClsInst -> TCEmb TyCon
 makeNumericInfoOne m is 
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
-  = M.insertWith mappend tc (ftc tc True True) m 
+  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m 
   | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
-  = M.insertWith mappend tc (ftc tc True False) m
+  = M.insertWith (flip mappendFTC) tc (ftc tc True False) m
   | otherwise
   = m 
   where
