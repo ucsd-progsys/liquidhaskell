@@ -100,7 +100,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (shiftVV, Predicate)
+import Language.Fixpoint.Types hiding (shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
@@ -1147,7 +1147,9 @@ typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
 tyConFTyCon :: M.HashMap TyCon FTycon -> TyCon -> FTycon
-tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
+tyConFTyCon tce c    
+  = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)) 
+              (M.lookup c tce)
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
 typeSortForAll tce τ
