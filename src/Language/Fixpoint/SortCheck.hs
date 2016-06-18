@@ -529,12 +529,7 @@ checkApp' f to g' e
 checkNeg :: Env -> Expr -> CheckM Sort
 checkNeg f e = do
   t <- checkExpr f e
-  case t of
-   FReal    -> return FReal
-   FInt     -> return FInt
-   (FObj l) -> checkNumeric f l >> return t
-   _        -> throwError $ printf "Operand has non-numeric type %s in %s"
-                            (showFix t) (showFix e)
+  checkNumeric f t >> return t
 
 checkOp :: Env -> Expr -> Bop -> Expr -> CheckM Sort
 checkOp f e1 o e2
@@ -556,24 +551,26 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f _ t@(FObj l) (FObj l')
-  | l == l'
-  = checkNumeric f l >> return t
+checkOpTy f _ t t'
+  | t == t'
+  = checkNumeric f t >> return t
 
 checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
-checkFractional :: Env -> Symbol -> CheckM ()
-checkFractional f l
+checkFractional :: Env -> Sort -> CheckM ()
+checkFractional f s@(FObj l)
   = do t <- checkSym f l
-       unless (t == FFrac) (throwError $ errNonFractional l)
-       return ()
+       unless (t == FFrac) (throwError $ errNonFractional s)
+checkFractional _ s 
+  = unless (isReal s) (throwError $ errNonFractional s)
 
-checkNumeric :: Env -> Symbol -> CheckM ()
-checkNumeric f l
+checkNumeric :: Env -> Sort -> CheckM ()
+checkNumeric f s@(FObj l)
   = do t <- checkSym f l
-       unless (t == FNum || t == FFrac) (throwError $ errNonNumeric l)
-       return ()
+       unless (t == FNum || t == FFrac) (throwError $ errNonNumeric s)
+checkNumeric _ s
+  = unless (isNumeric s) (throwError $ errNonNumeric s)
 
 -------------------------------------------------------------------------
 -- | Checking Predicates ------------------------------------------------
@@ -605,15 +602,15 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy _ _ Ueq _ _             = return ()
 checkRelTy _ _ Une _ _             = return ()
-checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
-  = (checkNumeric f l >> checkNumeric f l') `withError` (errNonNumerics l l')
-checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `withError` (errNonNumeric l)
-checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `withError` (errNonNumeric l)
-checkRelTy _ _ _ FReal FReal       = return ()
-checkRelTy _ _ _ FInt  FReal       = return ()
-checkRelTy _ _ _ FReal FInt        = return ()
-checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `withError` (errNonFractional l)
-checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `withError` (errNonFractional l)
+checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
+  = (checkNumeric f s1 >> checkNumeric f s2) `withError` (errNonNumerics l l')
+checkRelTy _ _ _ FReal FReal = return ()
+checkRelTy _ _ _ FInt  FReal = return ()
+checkRelTy _ _ _ FReal FInt  = return ()
+checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` (errNonNumeric s2)
+checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` (errNonNumeric s1)
+checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` (errNonFractional s2)
+checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractional s1)
 
 checkRelTy _ e Eq t1 t2
   | t1 == boolSort ||
@@ -680,17 +677,17 @@ unify1 f θ t1 t2@(FAbs _ _) = do
   t2' <- generalize t2
   unifyMany f θ [t1] [t2']
 
-unify1 f θ t@(FObj l) FInt = do
-  checkNumeric f l `withError` (errUnify t FInt)
-  return θ
-
-unify1 f θ FInt t@(FObj l) = do
-  checkNumeric f l `withError` (errUnify FInt t)
-  return θ
-
 unify1 _ θ FInt  FReal = return θ
 
 unify1 _ θ FReal FInt  = return θ
+
+unify1 f θ t FInt = do
+  checkNumeric f t `withError` (errUnify t FInt)
+  return θ
+
+unify1 f θ FInt t = do
+  checkNumeric f t `withError` (errUnify FInt t)
+  return θ
 
 unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f θ [t1, t2] [t1', t2']
@@ -828,14 +825,14 @@ errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
 errNonFunction :: Int -> Sort -> String
 errNonFunction i t   = printf "Sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
 
-errNonNumeric :: Symbol -> String
-errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
+errNonNumeric :: Sort -> String
+errNonNumeric  l     = printf "Sort %s is not numeric" (show l)
 
 errNonNumerics :: Symbol -> Symbol -> String
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 
-errNonFractional :: Symbol -> String
-errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
+errNonFractional :: Sort -> String
+errNonFractional  l  = printf "Sort %s is not fractional" (showpp l)
 
 errBoolSort :: Expr -> Sort -> String
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)
