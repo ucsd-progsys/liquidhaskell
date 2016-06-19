@@ -61,8 +61,12 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 
 
-data FTycon   = TC LocSymbol TCInfo deriving (Eq, Ord, Show, Data, Typeable, Generic)
+data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 type TCEmb a  = M.HashMap a FTycon
+
+
+instance Eq FTycon where
+  (TC s _) == (TC s' _) = s == s'
 
 data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
