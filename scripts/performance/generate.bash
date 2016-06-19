@@ -10,7 +10,6 @@ SCRIPT_DIR=`dirname $0`;
 SCRIPT_LOGS="$SCRIPT_DIR/logs";
 SCRIPT_REPO="$SCRIPT_LOGS/repository";
 SCRIPT_FIXPOINT="$SCRIPT_REPO/liquid-fixpoint";
-SCRIPT_PROVER="$SCRIPT_REPO/prover";
 REPO_TEST="$SCRIPT_REPO/dist/build/test/test";
 REPO_TEST_ARGS=" --timeout 10m";
 REPO_LOG="$SCRIPT_REPO/tests/logs/cur/summary.csv";

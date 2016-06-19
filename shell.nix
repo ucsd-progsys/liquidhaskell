@@ -5,7 +5,6 @@ let
   inherit (nixpkgs) pkgs;
 
   liquid-fixpoint = import ./liquid-fixpoint { inherit (pkgs) fetchgitLocal; };
-  prover = import ./prover { inherit (pkgs) fetchgitLocal; };
 
   f = import ./default.nix { inherit (pkgs) fetchgitLocal; };
 
@@ -15,7 +14,6 @@ let
                     ).override {
                       overrides = self: super: {
                         liquid-fixpoint = (self.callPackage liquid-fixpoint { inherit (pkgs) z3; }).overrideDerivation (drv: { doCheck = false; });
-                        prover = self.callPackage prover {};
 
                         mkDerivation = drv: super.mkDerivation (drv // { enableLibraryProfiling = profiling; });
                       };
