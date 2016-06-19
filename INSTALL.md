@@ -44,7 +44,6 @@ This requires that you have installed [stack][stack] (which we strongly recommen
 
     cabal sandbox init
     cabal sandbox add-source ./liquid-fixpoint
-    cabal sandbox add-source ./prover
     cabal install
 
 ## Troubleshooting

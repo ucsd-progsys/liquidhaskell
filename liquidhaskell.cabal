@@ -67,7 +67,6 @@ Executable liquid
                , process
                , liquid-fixpoint
                , located-base
-               , prover
                , liquidhaskell
 
   Main-is: src/Liquid.hs
@@ -86,7 +85,6 @@ Executable lhi
                , pretty
                , liquid-fixpoint
                , located-base
-               , prover
                , liquidhaskell
                , network
                , directory
@@ -139,7 +137,6 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint
                 , located-base
-                , prover
                 , aeson >= 0.10
                 , bytestring >= 0.10
                 , fingertree >= 0.1
@@ -264,7 +261,15 @@ Library
                     Test.Target.Targetable.Function,
                     Test.Target.Testable,
                     Test.Target.Types,
-                    Test.Target.Util
+                    Test.Target.Util, 
+
+                    Prover.Constants, 
+                    Prover.Misc, 
+                    Prover.Names, 
+                    Prover.Pretty, 
+                    Prover.SMTInterface, 
+                    Prover.Solve, 
+                    Prover.Types
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
