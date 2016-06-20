@@ -19,6 +19,7 @@ data-files: include/*.hquals
           , include/*.spec
           , include/CoreToLogic.lg
           , include/Control/*.spec
+          , include/Control/Parallel/*.spec
           , include/Data/*.hquals
           , include/Data/*.spec
           , include/Data/Text/*.spec
