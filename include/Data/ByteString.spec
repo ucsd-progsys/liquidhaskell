@@ -43,7 +43,7 @@ last :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
 tail :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
 
 init :: {i:Data.ByteString.ByteString | 1 <= bslen i } 
-     -> {v:Data.ByteString.ByteString | bslen o == bslen i - 1 }
+     -> {o:Data.ByteString.ByteString | bslen o == bslen i - 1 }
 
 null
     :: bs : Data.ByteString.ByteString
