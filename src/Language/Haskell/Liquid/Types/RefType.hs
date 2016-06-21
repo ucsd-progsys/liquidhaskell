@@ -916,6 +916,7 @@ instance SubsTy Symbol RSort Sort where
 instance SubsTy RTyVar RSort Sort where
   subt (v, RVar α _) (FObj s)
     | rtyVarUniqueSymbol v == s 
+    || symbol v == s 
     = FObj $ rTyVarSymbol α
     | otherwise     
     = FObj s
