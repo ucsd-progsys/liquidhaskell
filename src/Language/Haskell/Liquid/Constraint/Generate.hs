@@ -1036,13 +1036,13 @@ cconsE' γ e t
 
 lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
 lambdaSignleton γ tce x e 
-  | higherorder $ cgCfg γ, Just e' <- argExpr γ e
+  | higherorder $ cgCfg γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x 
 
-lambdaSignleton _ _ _ _
-  = mempty
+lambdaSignleton _ _ _ e
+  = traceShow ("No Signleton for " ++ show e ) mempty
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
@@ -1050,12 +1050,12 @@ addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty 
        t'       <- true t
        let truet = RFun y ty' t'  
-       case argExpr γ e of 
-          Just e' -> do tce    <- tyConEmbed <$> get 
-                        let sx  = typeSort tce $ varType x  
-                        let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
-                        addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
-          Nothing ->    addC (SubC γ (truet mempty) $ truet r) "function constraint true"
+       case (lamExpr γ e, higherorder $ cgCfg γ) of 
+          (Just e', True) -> do tce    <- tyConEmbed <$> get 
+                                let sx  = typeSort tce $ varType x  
+                                let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+                                addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
+          _ -> addC (SubC γ (traceShow ("No sig for " ++ show e ++ show (higherorder $ cgCfg γ, lamExpr γ e)) $ truet mempty) $ truet r) "function constraint true"
 addFunctionConstraint γ _ _ _ 
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
@@ -1567,6 +1567,20 @@ argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ _           = Nothing
+
+
+
+lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+lamExpr γ (Var v)     | M.member v $ aenv γ
+                      = F.EVar <$> (M.lookup v $ aenv γ)
+lamExpr _ (Var vy)    = Just $ F.eVar vy
+lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
+lamExpr γ (Tick _ e)  = lamExpr γ e
+lamExpr γ (App e (Type _)) = lamExpr γ e 
+lamExpr γ e@(App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+                           (Just p1, Just p2) -> Just $ F.EApp p1 p2
+                           _  -> traceShow ("2.lamExpr fails on " ++ show e) $  Nothing 
+lamExpr _ e           = traceShow ("1.lamExpr fails on " ++ show e) $ Nothing
 
 
 --------------------------------------------------------------------------------

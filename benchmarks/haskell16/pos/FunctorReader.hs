@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--extensionality"  @-}
+{- LIQUID "--extensionality"  @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}
@@ -33,6 +33,19 @@ id x = x
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
+
+{-@ fmap_id 
+  :: xs:Reader r a -> ys:Reader r a -> x:(r -> a)
+  -> {v:Proof | (\r:r -> id (x r)) ==  (\r:r -> (x r) ) } @-}
+fmap_id :: Reader r a -> Reader r a -> (r -> a) ->  Proof
+fmap_id r1 r2 x
+   =   (\r -> id (x r))
+   ==! (\r -> x r)
+   *** QED   
+
+
+{- 
+
 {-@ fmap_id :: xs:Reader r a -> ys:Reader r a -> { fmap id xs == id xs } @-}
 fmap_id :: Reader r a -> Reader r a ->  Proof
 fmap_id (Reader x) ys 
@@ -55,3 +68,5 @@ fmap_distrib f g (Reader x)
   ==! fmap f (fmap g (Reader x))
   ==! (compose (fmap f) (fmap g)) (Reader x)
   *** QED
+
+-}
