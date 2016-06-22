@@ -1034,6 +1034,16 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
+lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
+lambdaSignleton γ tce x e 
+  | higherorder $ cgCfg γ, Just e' <- argExpr γ e
+  = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+  where
+    sx = typeSort tce $ varType x 
+
+lambdaSignleton _ _ _ _
+  = mempty
+
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r) 
@@ -1201,7 +1211,8 @@ consE γ  e@(Lam x e1)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
-       return   $ rFun (F.symbol x) tx t1
+       tce     <- tyConEmbed <$> get
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton γ tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -1580,17 +1591,19 @@ varRefType γ x = do
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
   | Just tys <- trec γ, Just tr  <- M.lookup x' tys
-  = tr `strengthen` xr
+  = strengthen tr xr
   | otherwise
-  = t' `strengthen` xr
+  = strengthen t' xr
   where
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
-    strengthen 
+    strengthen
       | higherorder (cgCfg γ) 
       = strengthenMeet 
       | otherwise 
       = strengthenTop  
+
+
 
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
@@ -1645,7 +1658,7 @@ strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
 strengthenMeet t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
+topMeet r r' = {- F.tracepp msg $ -} (F.top r `F.meet` r')
   -- where
     -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 

@@ -19,10 +19,11 @@ funEq _ _ = simpleProof
 funIdEq :: a  -> a -> Proof
 funIdEq _ _ = simpleProof
 
-{- 
 {-@ funApp :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) (m1) == ((\x:a -> m2)) (m2) } @-}
 funApp :: a  -> a -> Proof
 funApp _ _ = simpleProof
+
+
 
 {-@ axiomatize bind @-}
 bind :: a -> (a -> b) ->  b
@@ -33,4 +34,3 @@ helper :: a -> a
 helper m = bind m h
   where
     h   =  \x -> m
--}
