@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
-
+{-# LANGUAGE DoAndIfThenElse      #-}
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
 --   typeclass. We split it into a separate module as it depends on
@@ -21,7 +21,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar, traceShow)
+import           Language.Fixpoint.Misc (errorstar)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -332,10 +332,8 @@ smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 {-# INLINE smt2many #-}
 
-defineFun :: (Symbol, Either Expr Sort) -> SMT2 [Command]
-defineFun (x, Right s)
-  = (\s -> [Declare x [] s]) <$> defunc s 
-defineFun (f, Left (ELam (x, t) (ECst e tr)))
+defineFun :: (Symbol, Expr) -> SMT2 [Command]
+defineFun (f, ELam (x, t) (ECst e tr))
   = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr
        assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
@@ -388,19 +386,17 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 --------------------------------------------------------------------------------
 
 -- RJ: can't you use the Visitor instead of this?
-grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Either Expr Sort)])
+grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
 grapLambdas = go []
   where
-    go acc e@(ELam sx bd) = do ext <- f_ext <$> get 
-                               if ext then do 
-                                   f <- freshSym
-                                   return (ECst (EVar f) (exprSort e), (f, Left e):acc)
-                                 else do 
-                                   (bd', acc') <- go acc bd  
-                                   (e', xs')   <- freshLamSym sx bd'
-                                   case xs' of 
-                                    Nothing -> return $ traceShow "grapLambdas 1" (e', acc')
-                                    Just x' -> return $ traceShow "grapLambdas 2" (e', (x', Right $ snd sx):acc')
+    go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get 
+                                  if ext then do 
+                                     f <- freshSym
+                                     return (ECst (EVar f) (exprSort e), (f, e):acc)
+                                  else do 
+                                     (bd', acc') <- go acc bd  
+                                     let x' = makeLamArg s $ debruijnIndex bd' 
+                                     return (ELam (x', s) (bd' `subst1` (x, EVar x')), acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
@@ -443,6 +439,14 @@ grapLambdas = go []
                                return (PExist bs e', fs)
     go acc e@PGrad        = return (e, acc)
     go acc e@(PKVar _ _)  = return (e, acc)
+
+
+-- NIKI TODO: fill up debruijin definition 
+debruijnIndex :: Expr -> Int 
+debruijnIndex (ELam _ e)   = 1 + debruijnIndex e 
+debruijnIndex (ECst e _)   = debruijnIndex e 
+debruijnIndex (EApp e1 e2) = (debruijnIndex e1) + (debruijnIndex e2)
+debruijnIndex _            = 1
 
 -- NIKI: This is new code, check and formalize!
 
@@ -556,6 +560,16 @@ initSMTEnv = fromListSEnv $
   , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
   ++ concatMap makeApplies [1..7]
+  ++ [(makeLamArg s i, s) | i <- [1..7], s <- sorts]
+
+sorts :: [Sort]
+sorts = [intSort]
+
+-- NIKI TODO: allow non integer lambda arguments
+-- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
+
+makeLamArg :: Sort -> Int  -> Symbol
+makeLamArg _ i = intArgName i
 
 makeApplies :: Int -> [(Symbol, Sort)]
 makeApplies i =

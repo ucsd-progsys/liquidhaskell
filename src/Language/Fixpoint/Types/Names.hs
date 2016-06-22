@@ -99,6 +99,7 @@ module Language.Fixpoint.Types.Names (
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
 
   , lambdaName
+  , intArgName
 
 ) where
 
@@ -464,6 +465,9 @@ instance Symbolic Symbol where
 
 lambdaName :: Symbol
 lambdaName = "smt_lambda"
+
+intArgName :: Int -> Symbol
+intArgName = intSymbol "lam_int_arg"
 
 setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
 setToIntName    = "set_to_int"

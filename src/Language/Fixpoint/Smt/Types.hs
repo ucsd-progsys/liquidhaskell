@@ -25,7 +25,7 @@ module Language.Fixpoint.Smt.Types (
     , Context (..)
 
     -- * SMTLIB2 symbol environment
-    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym, freshLamSym
+    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym
 
     -- * Theory Symbol
     , TheorySymbol (..)
@@ -39,8 +39,6 @@ import qualified Data.Text.Lazy.Builder   as LT
 import           System.IO                (Handle)
 import           System.Process
 import           Control.Monad.State
-
-import qualified Data.HashMap.Strict as M 
 
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------
@@ -76,7 +74,6 @@ data Context      = Ctx { pId     :: !ProcessHandle
                         , cLog    :: !(Maybe Handle)
                         , verbose :: !Bool
                         , c_ext   :: !Bool              -- flag to enable function extentionality axioms
-                        , c_lams  :: !LamEnv
                         , smtenv  :: !SMTEnv
                         }
 
@@ -92,8 +89,7 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 --------------------------------------------------------------------------------
 
 type SMTEnv = SEnv Sort
-type LamEnv = M.HashMap Sort [Symbol]
-data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool, globals :: LamEnv }
+data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool}
 
 type SMT2   = State SMTSt
 
@@ -115,6 +111,8 @@ freshSym = do
   modify $ \s -> s{fresh = n + 1}
   return $ intSymbol "lambda_fun_" n
 
+{- 
+-- Proper Handing of Lam Arguments
 freshLamSym :: (Symbol,Sort) -> Expr  -> SMT2 (Expr, Maybe Symbol) 
 freshLamSym (x, s) e = do 
   ss <- M.lookup s . globals <$> get
@@ -135,6 +133,7 @@ freshLamSym (x, s) e = do
     go (ELam _ e)   = go e 
     go (ECst e _)   = go e 
     go (EApp e1 e2) = (go e1) + (go e2)
+    -- go ... 
     go _            = 0 
 
 
@@ -142,56 +141,7 @@ insertLamSym :: Sort -> Symbol -> SMT2 ()
 insertLamSym s y = 
   modify $ \st -> st{globals = M.insertWith (flip (++)) s [y] (globals st)}
 
-
-{-
-    go acc e@(ESym _)   = return (e, acc)
-    go acc e@(ECon _)   = return (e, acc)
-    go acc e@(EVar _)   = return (e, acc)
-    go acc (EApp e1 e2) = do (e1', fs1) <- go [] e1
-                             (e2', fs2) <- go [] e2
-                             return (EApp e1' e2', fs1 ++ fs2 ++ acc)
-    go acc (ENeg e)     = do (e', fs) <- go acc e
-                             return (ENeg e', fs)
-    go acc (PNot e)     = do (e', fs) <- go acc e
-                             return (PNot e', fs)
-    go acc (EBin b e1 e2) = do (e1', fs1) <- go [] e1
-                               (e2', fs2) <- go [] e2
-                               return (EBin b e1' e2', fs1 ++ fs2 ++ acc)
-    go acc (PAtom b e1 e2) = do (e1', fs1) <- go [] e1
-                                (e2', fs2) <- go [] e2
-                                return (PAtom b e1' e2', fs1 ++ fs2 ++ acc)
-    go acc (EIte e e1 e2) = do (e' , fs)  <- go [] e
-                               (e1', fs1) <- go [] e1
-                               (e2', fs2) <- go [] e2
-                               return (EIte e' e1' e2', fs ++ fs1 ++ fs2 ++ acc)
-    go acc (ECst e s)     = do (e', fs) <- go acc e
-                               return (ECst e' s, fs)
-    go acc (ETAbs e s)    = do (e', fs) <- go acc e
-                               return (ETAbs e' s, fs)
-    go acc (ETApp e s)    = do (e', fs) <- go acc e
-                               return (ETApp e' s, fs)
-    go acc (PAnd es)      = do es' <- mapM (go []) es
-                               return (PAnd (fst <$> es'), concat (acc:(snd <$> es')))
-    go acc (POr es)       = do es' <- mapM (go []) es
-                               return (POr (fst <$> es'),  concat (acc:(snd <$> es')))
-    go acc (PImp e1 e2)   = do (e1', fs1) <- go [] e1
-                               (e2', fs2) <- go [] e2
-                               return (PImp e1' e2', fs1 ++ fs2 ++ acc)
-    go acc (PIff e1 e2)   = do (e1', fs1) <- go [] e1
-                               (e2', fs2) <- go [] e2
-                               return (PIff e1' e2', fs1 ++ fs2 ++ acc)
-    go acc (PAll bs e)    = do (e', fs) <- go acc e
-                               return (PAll bs e', fs)
-    go acc (PExist bs e)  = do (e', fs) <- go acc e
-                               return (PExist bs e', fs)
-    go acc e@PGrad        = return (e, acc)
-    go acc e@(PKVar _ _)  = return (e, acc)
-
 -}
-
-
-
-
 -- | Types that can be serialized
 class SMTLIB2 a where
   defunc :: a -> SMT2 a
@@ -200,4 +150,4 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Builder
 
 runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
-runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_lams cxt))
+runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt))
