@@ -267,6 +267,7 @@ makeProcess cfg
                   , verbose = loud
                   , c_ext   = extensionality cfg  
                   , smtenv  = initSMTEnv
+                  , c_lams  = mempty
                   }
 
 --------------------------------------------------------------------------

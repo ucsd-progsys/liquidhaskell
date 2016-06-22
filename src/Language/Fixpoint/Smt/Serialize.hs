@@ -21,7 +21,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar, traceShow)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -139,6 +139,7 @@ instance SMTLIB2 Expr where
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 PGrad            = "true"
+  smt2 (ELam (x, _) e)  = smt2Lam x e 
   smt2  e               = errorstar ("smtlib2 Pred  " ++ show e)
 
 
@@ -173,7 +174,10 @@ instance SMTLIB2 Expr where
                                e2' <- defunc e2
                                defuncPAtom r e1' e2'
   defunc PGrad            = return PGrad
-  defunc  e               = errorstar ("smtlib2 Pred  " ++ show e)
+  defunc (ELam x e)       = ELam x <$> defunc e 
+  defunc  e               = errorstar ("defunc Pred: " ++ show e)
+
+-- This is not defuncionalization, should not happen in defunc
 
 defuncBop :: Bop -> Expr -> Expr -> SMT2 Expr
 defuncBop o e1 e2
@@ -193,6 +197,8 @@ defuncBop o e1 e2
     s1 = exprSort e1
     s2 = exprSort e2
 
+smt2Lam :: Symbol -> Expr -> Builder.Builder
+smt2Lam x e = build "({} {} {})" (smt2 lambdaName, smt2 x, smt2 e)
 
 smt2App :: Expr -> Builder.Builder
 smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
@@ -247,9 +253,11 @@ mkFunEq :: Expr -> Expr -> SMT2 Expr
 mkFunEq e1 e2
   = do fflag <- f_ext <$> get
        if fflag
-        then return $ PAnd [PAll (zip xs (defuncSort <$> ss)) (PAtom Eq
-                         (ECst (eApps (EVar f) (e1:es)) s) (ECst (eApps (EVar f) (e2:es)) s))
-                        , PAtom Eq e1 e2]
+        then return $ PAnd [PAll (zip xs (defuncSort <$> ss)) 
+                             (PAtom Eq
+                                (ECst (eApps (EVar f) (e1:es)) s) 
+                                (ECst (eApps (EVar f) (e2:es)) s))
+                            , PAtom Eq e1 e2]
         else return $ PAtom Eq e1 e2
   where
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
@@ -324,8 +332,10 @@ smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 {-# INLINE smt2many #-}
 
-defineFun :: (Symbol, Expr) -> SMT2 [Command]
-defineFun (f, ELam (x, t) (ECst e tr))
+defineFun :: (Symbol, Either Expr Sort) -> SMT2 [Command]
+defineFun (x, Right s)
+  = (\s -> [Declare x [] s]) <$> defunc s 
+defineFun (f, Left (ELam (x, t) (ECst e tr)))
   = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr
        assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
@@ -338,7 +348,9 @@ defineFun (f, ELam (x, t) (ECst e tr))
         (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
        fflag <- f_ext <$> get
-       if fflag then return [decl, assert1, assert2] else return [decl]
+       if fflag 
+        then return [decl, assert1, assert2] 
+        else errorstar "defineFun on no extensionality flag and with function definition" --  return [decl]
   where
     go acc (ELam (x, t) e) = go ((x,t):acc) e
     go acc (ECst e _)      = go acc e
@@ -376,11 +388,19 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 --------------------------------------------------------------------------------
 
 -- RJ: can't you use the Visitor instead of this?
-grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
+grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Either Expr Sort)])
 grapLambdas = go []
   where
-    go acc e@(ELam _ _) = do f <- freshSym
-                             return (ECst (EVar f) (exprSort e), (f, e):acc)
+    go acc e@(ELam sx bd) = do ext <- f_ext <$> get 
+                               if ext then do 
+                                   f <- freshSym
+                                   return (ECst (EVar f) (exprSort e), (f, Left e):acc)
+                                 else do 
+                                   (bd', acc') <- go acc bd  
+                                   (e', xs')   <- freshLamSym sx bd'
+                                   case xs' of 
+                                    Nothing -> return $ traceShow "grapLambdas 1" (e', acc')
+                                    Just x' -> return $ traceShow "grapLambdas 2" (e', (x', Right $ snd sx):acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
@@ -533,6 +553,7 @@ initSMTEnv = fromListSEnv $
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
+  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
   ++ concatMap makeApplies [1..7]
 
