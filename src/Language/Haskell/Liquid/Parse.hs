@@ -259,7 +259,12 @@ bbaseP
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
-bTyConP = mkBTyCon <$> locUpperIdP
+bTyConP = mkBTyCon <$> tyconP
+  where 
+    tyconP = locUpperIdP
+          <|> do reserved "\'" 
+                 s <- locUpperIdP
+                 return $ s{val = symbol ('\'':symbolString (val s))}
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
