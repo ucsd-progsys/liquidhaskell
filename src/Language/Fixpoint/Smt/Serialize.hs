@@ -21,7 +21,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar, traceShow)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -392,7 +392,7 @@ grapLambdas = go []
     go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get 
                                   if ext then do 
                                      f <- freshSym
-                                     return (ECst (EVar f) (exprSort e), (f, e):acc)
+                                     return (ECst (EVar f) (exprSort e), (traceShow "FRESH FUN SYM\n" f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
                                      let x' = makeLamArg s $ debruijnIndex bd' 
