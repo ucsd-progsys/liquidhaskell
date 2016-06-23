@@ -114,6 +114,7 @@ liquidOne info = do
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
   let cbs' = transformScope (cbs info)
+  whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ showCBs (untidyCore cfg) cbs'
