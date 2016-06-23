@@ -10,7 +10,7 @@ import Prelude hiding (id)
 
 import Proves
 
-{- f and g are declare to be literals 
+{- f and g are declare to be literals see #746
 f :: a -> b 
 f = undefined 
 g :: a -> b 
@@ -22,7 +22,6 @@ g = undefined
 id :: a -> a
 id x = x
 
-{- fmap_id :: () -> { false } @-}
 {-@ fmap_id :: () -> {\r:a -> r == \r:a -> (id r) } @-}
 fmap_id :: () ->  Proof
 fmap_id _ = fun_eq (\r -> r) (\r -> (id r)) (\x -> x ==! id x *** QED)
@@ -32,3 +31,7 @@ fmap_id _ = fun_eq (\r -> r) (\r -> (id r)) (\x -> x ==! id x *** QED)
   @-}   
 fun_eq :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof   
 fun_eq = undefined 
+
+
+
+
