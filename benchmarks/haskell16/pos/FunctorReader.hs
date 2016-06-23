@@ -37,8 +37,8 @@ fmap_id :: Reader r a -> Reader r a ->  Proof
 fmap_id (Reader x) ys 
    =   fmap id (Reader x)
    ==! Reader (\r -> id (x r))
-   ==! Reader (\r -> x r)       ? fun_eq (\r -> x r) (\r -> id (x r)) (\r -> x  r ==! id (x r) *** QED)
-   ==! Reader x                 ? fun_eq (\r -> x r) x (\w -> (\r -> x r) w ==! x w *** QED) 
+   ==! Reader (\r -> x r)       -- ? fun_eq (\r -> x r) (\r -> id (x r)) (\r -> x  r ==! id (x r) *** QED)
+   ==! Reader x                 -- ? fun_eq (\r -> x r) x (\w -> (\r -> x r) w ==! x w *** QED) 
    ==! id (Reader x)
    *** QED
  
