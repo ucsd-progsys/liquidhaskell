@@ -10,18 +10,15 @@
 module Language.Haskell.Liquid.Constraint.Monad  where
 
 
--- import           Text.PrettyPrint.HughesPJ hiding (first)
 import           Prelude hiding (error)
--- import qualified TyCon  as TC
 import           Var
 import           Name (getSrcSpan)
-import           SrcLoc -- (SrcSpan)
-import           Outputable hiding (showPpr, panic) -- (SrcSpan)
-
-
+import           SrcLoc
+import           Outputable hiding (showPpr, panic)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
+
 import           Control.Monad
 import           Control.Monad.State (get, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)

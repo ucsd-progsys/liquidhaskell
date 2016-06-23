@@ -70,7 +70,7 @@ mkOutput :: Config -> ErrorResult -> FixSolution -> AnnInfo (Annot SpecType) -> 
 --------------------------------------------------------------------------------------------
 mkOutput cfg res sol anna
   = O { o_vars   = Nothing
-      , o_errors = []
+      -- , o_errors = []
       , o_types  = toDoc <$> annTy
       , o_templs = toDoc <$> annTmpl
       , o_bots   = mkBots    annTy
