@@ -40,10 +40,17 @@ compose f g x = f (g x)
 fmap_id :: Reader r a -> Reader r a -> (r -> a) ->  Proof
 fmap_id r1 r2 x
    =   (\r -> id (x r))
-   ==! (\r -> x r)
+   ==! (\r -> x r)       ? fun_eq (\r -> x r) (\r -> id (x r)) (\r -> x  r ==! id (x r) *** QED)
    *** QED   
 
 
+
+
+{-@ fun_eq :: f:(a -> b) -> g:(a -> b) 
+   -> (x:a -> {f x == g x}) -> {f == g} 
+  @-}   
+fun_eq :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof   
+fun_eq = undefined 
 {- 
 
 {-@ fmap_id :: xs:Reader r a -> ys:Reader r a -> { fmap id xs == id xs } @-}

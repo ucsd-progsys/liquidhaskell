@@ -1040,8 +1040,7 @@ lambdaSignleton γ tce x e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x 
-
-lambdaSignleton _ _ _ e
+lambdaSignleton _ _ _ _
   = mempty
 
 
@@ -1577,7 +1576,7 @@ lamExpr _ (Var vy)    = Just $ F.eVar vy
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e 
-lamExpr γ e@(App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
                            (Just p1, Just p2) -> Just $ F.EApp p1 p2
                            _  -> Nothing 
 lamExpr _ _           = Nothing

@@ -8,7 +8,7 @@ import           Prelude hiding (error)
 import           Data.Monoid
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Fixpoint.Misc (traceShow)
+-- import           Language.Fixpoint.Misc (traceShow)
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
