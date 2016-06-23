@@ -355,7 +355,8 @@ addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 -- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> CombinedEnv -> F.IBindEnv
-delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs bs' -- (F.intersectionIBindEnv bs' _kbs)
+delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs (F.intersectionIBindEnv bs' _kbs)
+                                                -- ORIG: bs'
   where
     _kbs = safeLookup "delCEnv" k (Sol.sScp s)
 
