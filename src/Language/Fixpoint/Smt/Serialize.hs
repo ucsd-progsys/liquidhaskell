@@ -440,14 +440,6 @@ grapLambdas = go []
     go acc e@PGrad        = return (e, acc)
     go acc e@(PKVar _ _)  = return (e, acc)
 
-
--- NIKI TODO: fill up debruijin definition 
-debruijnIndex :: Expr -> Int 
-debruijnIndex (ELam _ e)   = 1 + debruijnIndex e 
-debruijnIndex (ECst e _)   = debruijnIndex e 
-debruijnIndex (EApp e1 e2) = (debruijnIndex e1) + (debruijnIndex e2)
-debruijnIndex _            = 1
-
 -- NIKI: This is new code, check and formalize!
 
 -- make Application is called on uninterpreted functions
