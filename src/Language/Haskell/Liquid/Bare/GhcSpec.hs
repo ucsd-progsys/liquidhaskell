@@ -39,7 +39,7 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3)
+import           Language.Fixpoint.Misc                     (traceShow, thd3)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -300,7 +300,7 @@ makeGhcSpec4 quals defVars specs name su sp
        mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
        lmap'   <- logicEnv <$> get
-       let msgs = strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp) 
+       let msgs = traceShow "\nHMEAS\n" $ strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp) 
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let f    = fmap $ txRefToLogic lmap inlmap

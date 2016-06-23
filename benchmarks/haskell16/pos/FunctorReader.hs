@@ -32,13 +32,13 @@ id x = x
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
-{-@ fmap_id :: xs:Reader r a -> ys:Reader r a -> { fmap id xs == id xs } @-}
-fmap_id :: Reader r a -> Reader r a ->  Proof
-fmap_id (Reader x) ys 
+{-@ fmap_id :: xs:Reader r a -> { fmap id xs == id xs } @-}
+fmap_id :: Reader r a  ->  Proof
+fmap_id (Reader x) 
    =   fmap id (Reader x)
    ==! Reader (\r -> id (x r))
-   ==! Reader (\r -> x r)       -- ? fun_eq (\r -> x r) (\r -> id (x r)) (\r -> x  r ==! id (x r) *** QED)
-   ==! Reader x                 -- ? fun_eq (\r -> x r) x (\w -> (\r -> x r) w ==! x w *** QED) 
+   ==! Reader (\r -> x r)      
+   ==! Reader x                
    ==! id (Reader x)
    *** QED
  

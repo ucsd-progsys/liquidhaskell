@@ -998,7 +998,7 @@ cconsE' γ (Let b e) t
 
 cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
-       forM_ cases $ cconsCase γ' x t nonDefAlts
+       forM_ cases $ cconsCase (addArgument γ' x) x t nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
@@ -1037,11 +1037,11 @@ cconsE' γ e t
 lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
 lambdaSignleton γ tce x e 
   | higherorder $ cgCfg γ, Just e' <- lamExpr γ e
-  = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+  = traceShow ("lambdaSignleton for " ++ show e) $ uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x 
-lambdaSignleton _ _ _ _
-  = mempty
+lambdaSignleton _ _ _ e
+  = traceShow ("No lambdaSignleton for " ++ show e) mempty
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
@@ -1199,7 +1199,8 @@ consE γ e'@(App e a)
        updateLocA {- πs -}  (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
-       makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       ttt <- makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       return $ traceShow ("TYPE FOR APP ON " ++ show e') ttt
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1452,14 +1453,14 @@ caseEnv γ x _   (DataAlt c) ys pIs
        xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
-       let (rtd,yts', _) = unfoldR tdc xt ys
+       let (rtd,yts', _) = traceShow "\nBINDERS0\n" $ unfoldR tdc xt ys
        yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
-       let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
+       let cbs           = traceShow "\nBINDERS\n" $ safeZip "cconsCase" (x':ys') (xt0 : yts)
        cγ'              <- addBinders γ   x' cbs
-       cγ               <- addBinders cγ' x' [(x', xt)]
+       cγ               <- addBinders cγ' x' $ traceShow "\nTYPE FOR XT\n" [(x', xt)]
        return $ addArguments cγ ys
 
 caseEnv γ x acs a _ _
@@ -1577,16 +1578,16 @@ lamExpr γ (Var v)     | S.member v (fargs γ)
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e 
-lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
-                           (Just p1, Just p2) -> Just $ F.EApp p1 p2
-                           _  -> Nothing 
-lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
-                                    (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
-                                    _  -> Nothing 
-lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of 
-                         Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
-                         _ -> Nothing
-lamExpr _ _           = Nothing
+lamExpr γ ee@(App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+                              (Just p1, Just p2) -> Just $ F.EApp p1 p2
+                              _  -> traceShow ("0.no lamExpr for " ++ show ee)  Nothing 
+lamExpr γ ee@(Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
+                                       (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
+                                       _  -> traceShow ("1.no lamExpr for " ++ show ee) Nothing 
+lamExpr γ ee@(Lam x e)   = case lamExpr (addArgument γ x) e of 
+                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                            _ -> traceShow ("2.no lamExpr for " ++ show ee) Nothing
+lamExpr _ e           = traceShow ("3.no lamExpr for " ++ show e) Nothing
 
 
 --------------------------------------------------------------------------------
