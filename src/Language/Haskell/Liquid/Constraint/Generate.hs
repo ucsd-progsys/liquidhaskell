@@ -1042,7 +1042,7 @@ lambdaSignleton γ tce x e
     sx = typeSort tce $ varType x 
 
 lambdaSignleton _ _ _ e
-  = traceShow ("No Signleton for " ++ show e ) mempty
+  = mempty
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
@@ -1055,7 +1055,7 @@ addFunctionConstraint γ x e (RFun y ty t r)
                                 let sx  = typeSort tce $ varType x  
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
                                 addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
-          _ -> addC (SubC γ (traceShow ("No sig for " ++ show e ++ show (higherorder $ cgCfg γ, lamExpr γ e)) $ truet mempty) $ truet r) "function constraint true"
+          _ -> addC (SubC γ (truet mempty) $ truet r) "function constraint true"
 addFunctionConstraint γ _ _ _ 
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
@@ -1569,7 +1569,7 @@ argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ _           = Nothing
 
 
-
+-- NIKI TODO: merge arg/lam/fun-Expr
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 lamExpr γ (Var v)     | M.member v $ aenv γ
                       = F.EVar <$> (M.lookup v $ aenv γ)
@@ -1579,8 +1579,8 @@ lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e 
 lamExpr γ e@(App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
                            (Just p1, Just p2) -> Just $ F.EApp p1 p2
-                           _  -> traceShow ("2.lamExpr fails on " ++ show e) $  Nothing 
-lamExpr _ e           = traceShow ("1.lamExpr fails on " ++ show e) $ Nothing
+                           _  -> Nothing 
+lamExpr _ _           = Nothing
 
 
 --------------------------------------------------------------------------------
