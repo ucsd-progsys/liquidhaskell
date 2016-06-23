@@ -8,6 +8,7 @@ import           Prelude hiding (error)
 import           Data.Monoid
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Fixpoint.Misc (traceShow)
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
@@ -25,7 +26,7 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks packs qs bi fn aHO aHOqs
     cs                  = fixCs  cgi
     ws                  = fixWfs cgi
     bs                  = binds  cgi
-    ls                  = fEnv cgi
+    ls                  = traceShow "\nLITERALS\n" $ fEnv cgi
     ks                  = kuts cgi
     qs                  = targetQuals info cgi
     bi                  = (`Ci` Nothing) <$> bindSpans cgi
