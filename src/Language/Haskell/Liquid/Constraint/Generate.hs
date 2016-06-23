@@ -1010,7 +1010,7 @@ cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
        cconsE (addArgument γ' x) e t'
-       addFunctionConstraint γ x e (RFun x' ty t' r') 
+       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r') 
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x 
@@ -1211,7 +1211,7 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton γ tce x e1
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton (addArgument γ x) tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -1572,13 +1572,20 @@ argExpr _ _           = Nothing
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 lamExpr γ (Var v)     | M.member v $ aenv γ
                       = F.EVar <$> (M.lookup v $ aenv γ)
-lamExpr _ (Var vy)    = Just $ F.eVar vy
+lamExpr γ (Var v)     | S.member v (fargs γ)
+                      =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e 
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
                            (Just p1, Just p2) -> Just $ F.EApp p1 p2
                            _  -> Nothing 
+lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
+                                    (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
+                                    _  -> Nothing 
+lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of 
+                         Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                         _ -> Nothing
 lamExpr _ _           = Nothing
 
 

@@ -22,17 +22,18 @@ g = undefined
 id :: a -> a
 id x = x
 
+{- 
 {-@ fmap_id :: () -> {\r:a -> r == \r:a -> (id r) } @-}
 fmap_id :: () ->  Proof
 fmap_id _ = fun_eq (\r -> r) (\r -> (id r)) (\x -> x ==! id x *** QED)
-
+-}
 
 {-@ fmap_id' 
   :: x:(r -> a)
   -> {v:Proof | (\r:r -> id (x r)) ==  (\r:r -> (x r) ) } @-}
 fmap_id' :: (r -> a) ->  Proof
 fmap_id' x
-   =   fun_eq (\r -> x r) (\r -> id (x r)) (\r -> x  r ==! id (x r) *** QED)
+   =   fun_eq (\rrr1 -> x rrr1) (\rrr2 -> id (x rrr2)) (\r -> x  r ==! id (x r) *** QED)
 
 
 
