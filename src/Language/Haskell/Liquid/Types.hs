@@ -817,7 +817,6 @@ type OkRT c tv r = ( TyConable c
 -- | TyConable Instances -------------------------------------------------------
 -------------------------------------------------------------------------------
 
--- MOVE TO TYPES
 instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
@@ -830,6 +829,21 @@ instance TyConable RTyCon where
                 (tyConClass_maybe $ rtc_tc c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
                 (tyConClass_maybe $ rtc_tc c)
+
+
+instance TyConable TyCon where
+  isFun      = isFunTyCon 
+  isList     = (listTyCon ==)
+  isTuple    = TyCon.isTupleTyCon
+  isClass c  = isClassTyCon c || c == eqTyCon
+  isEqual    = (eqPrimTyCon ==)
+  ppTycon    = text . showPpr
+
+  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
+                (tyConClass_maybe $ c)
+  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
+                (tyConClass_maybe $ c)
+
 
 isClassOrSubClass :: (Class -> Bool) -> Class -> Bool
 isClassOrSubClass p cls

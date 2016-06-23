@@ -234,6 +234,7 @@ substRCon
       SubsTy tv (RType RTyCon tv ()) r,
       SubsTy tv (RType RTyCon tv ()) (RType RTyCon tv ()),
       SubsTy tv (RType RTyCon tv ()) RTyCon,
+      SubsTy tv (RType RTyCon tv ()) tv,
       Reftable (RType RTyCon tv r),
       FreeVar RTyCon tv)
   => [Char]

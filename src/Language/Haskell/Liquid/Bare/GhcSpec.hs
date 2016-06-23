@@ -21,6 +21,7 @@ import           Var
 import           TysWiredIn
 
 import           DataCon                                    (DataCon)
+import           InstEnv
 
 import           Control.Monad.Reader
 import           Control.Monad.State
@@ -69,6 +70,7 @@ import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 makeGhcSpec :: Config
             -> ModName
             -> [CoreBind]
+            -> Maybe [ClsInst]
             -> [Var]
             -> [Var]
             -> NameSet
@@ -77,13 +79,13 @@ makeGhcSpec :: Config
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 --------------------------------------------------------------------------------
-makeGhcSpec cfg name cbs vars defVars exports env lmap specs
+makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv
        let renv = ghcSpecEnv sp
        throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
-    act       = makeGhcSpec' cfg cbs vars defVars exports specs
+    act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of {Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
@@ -137,12 +139,12 @@ ghcSpecEnv sp        = fromListSEnv binds
     --isString s       = rTypeSort emb stringrSort == s
 
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
+makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' cfg cbs vars defVars exports specs
+makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        makeRTEnv  specs
-       (tycons, datacons, dcSs, recSs, tyi, embs) <- makeGhcSpecCHOP1 cfg specs
+       (tycons, datacons, dcSs, recSs, tyi, embs) <- makeGhcSpecCHOP1 instenv cfg specs
        makeBounds embs name defVars cbs specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -339,16 +341,14 @@ insertHMeasLogicEnv (x, s)
 insertHMeasLogicEnv _ 
   = return ()
 
-
-
 makeGhcSpecCHOP1
-  :: Config -> [(ModName,Ms.Spec ty bndr)]
+  :: Maybe [ClsInst] -> Config -> [(ModName,Ms.Spec ty bndr)]
   -> BareM ([(TyCon,TyConP)],[(DataCon,DataConP)],[Measure SpecType DataCon],[(Var,Located SpecType)],M.HashMap TyCon RTyCon,TCEmb TyCon)
-makeGhcSpecCHOP1 cfg specs
+makeGhcSpecCHOP1 instenv cfg specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let tycons       = tcs        ++ wiredTyCons
        let tyi          = makeTyConInfo tycons
-       embs            <- mconcat <$> mapM makeTyConEmbeds specs
+       embs            <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
        datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
        let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg)) datacons
        recSels         <- makeRecordSelectorSigs datacons

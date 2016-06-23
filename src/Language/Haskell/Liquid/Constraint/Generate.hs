@@ -38,7 +38,6 @@ import           PrelNames
 import           TypeRep
 import           Class                                         (className)
 import           Var
-import           Kind
 import           Id                                           -- hiding (isExportedId)
 import           IdInfo
 import           Name
@@ -1004,10 +1003,7 @@ cconsE' γ (Case e x _ cases) t
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
-cconsE' γ (Lam α e) (RAllT _ t) | isKindVar α
-  = cconsE γ e t
-
-cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
+cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α 
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
@@ -1149,16 +1145,13 @@ consE γ (Var x)
 consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
-consE γ (App e (Type τ)) | isKind τ
-  = consE γ e
-
 consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW         $ WfC γ t
        t'         <- refreshVV t
        addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (α, t') te)
-
+       
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
 

@@ -404,7 +404,7 @@ toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg tgtMod cbs vars letVs exports hsc lm specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath
