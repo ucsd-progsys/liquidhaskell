@@ -32,7 +32,7 @@ module Language.Fixpoint.Smt.Types (
     ) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Misc   (traceShow)
+-- import           Language.Fixpoint.Misc   (traceShow)
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
@@ -110,7 +110,7 @@ freshSym = do
   n  <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
   n' <- fresh <$> get 
-  return $ traceShow  ("FRESHED\n\n" ++ show (n, n')) $ intSymbol "lambda_fun_" n
+  return $ intSymbol "lambda_fun_" n
 
 {- 
 -- Proper Handing of Lam Arguments
