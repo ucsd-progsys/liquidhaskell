@@ -355,9 +355,9 @@ addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 -- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> CombinedEnv -> F.IBindEnv
-delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs (F.intersectionIBindEnv bs' kbs)
+delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs bs' -- (F.intersectionIBindEnv bs' _kbs)
   where
-    kbs = safeLookup "delCEnv" k (Sol.sScp s)
+    _kbs = safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
