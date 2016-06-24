@@ -29,7 +29,7 @@ import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 
-import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan)
+import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, showPpr)
 import Language.Haskell.Liquid.Types.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 
@@ -79,7 +79,10 @@ makePluggedDataCons embs tcEnv dcs
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
 
-plugHoles :: (NamedThing a, PPrint a)
+instance Show Type where
+  show = showPpr 
+
+plugHoles :: (NamedThing a, PPrint a, Show a)
           => TCEmb TyCon
           -> M.HashMap TyCon RTyCon
           -> a
@@ -119,18 +122,19 @@ plugHoles tce tyi x f t (Loc l l' st)
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = return v
-    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
-    go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
-    go (RAllT a t)      t'                 = RAllT a <$> go t t'
-    go t                (RAllP p t')       = RAllP p <$> go t t'
-    go t                (RAllS s t')       = RAllS s <$> go t t'
-    go t                (RAllE b a t')     = RAllE b a <$> go t t'
-    go t                (REx b x t')       = REx b x <$> go t t'
+    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     <$> go i i' <*> go o o' <*> return r
+    go (RAllT _ t)      (RAllT a t')       = RAllT a    <$> go t t'
+    go (RAllT a t)      t'                 = RAllT a    <$> go t t'
+    go t                (RAllP p t')       = RAllP p    <$> go t t'
+    go t                (RAllS s t')       = RAllS s    <$> go t t'
+    go t                (RAllE b a t')     = RAllE b a  <$> go t t'
+    go t                (REx b x t')       = REx b x    <$> go t t'
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
-    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
+    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     <$> go t1 t1' <*> go t2 t2' <*> return r
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
-    go (RApp _ ts _ _)  (RApp c ts' p r)   = RApp c <$> (zipWithDefM go ts ts') <*> return p <*> return r
+    go (RApp _ ts _ _)  (RApp c ts' p r)   -- | length ts == length ts' 
+                                           = RApp c <$> (zipWithDefM go ts $ matchKindArgs ts ts') <*> return p <*> return r
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
