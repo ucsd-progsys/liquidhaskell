@@ -29,7 +29,7 @@ import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 
-import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, showPpr)
+import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
 import Language.Haskell.Liquid.Types.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 
@@ -78,9 +78,6 @@ makePluggedDataCons embs tcEnv dcs
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
-
-instance Show Type where
-  show = showPpr 
 
 plugHoles :: (NamedThing a, PPrint a, Show a)
           => TCEmb TyCon
