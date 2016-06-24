@@ -119,10 +119,10 @@ consAct :: GhcInfo -> CG ()
 consAct info = do
   γ'    <- initEnv      info
   sflag <- scheck   <$> get
-  -- tflag <- trustghc <$> get
+  tflag <- trustghc <$> get
   γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
   cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
-  let trustBinding x = {- tflag && -} (x `elem` derVars info || isInternal x)
+  let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
   foldM_ (consCBTop trustBinding) γ cbs'
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
@@ -365,7 +365,7 @@ initCGI cfg info = CGInfo {
   , specLazy   = dictionaryVar `S.insert` lazy spc
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
-  -- , trustghc   = trustinternals cfg
+  , trustghc   = not $ noTrustInterns cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf

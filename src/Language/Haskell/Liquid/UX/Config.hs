@@ -37,7 +37,7 @@ data Config = Config {
   , notermination  :: Bool       -- ^ disable termination check
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
-  -- , trustinternals :: Bool       -- ^ type all internal variables with true
+  , noTrustInterns :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
