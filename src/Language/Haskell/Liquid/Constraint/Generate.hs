@@ -769,7 +769,6 @@ addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
     (xs, ts, rs, t2) = bkArrow t1
     xts              = zip3 xs ts rs
 
-
 consCB tflag _ γ (Rec xes) | tflag
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
