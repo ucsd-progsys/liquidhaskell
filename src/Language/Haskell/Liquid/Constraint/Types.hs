@@ -50,38 +50,25 @@ module Language.Haskell.Liquid.Constraint.Types
   ) where
 
 import Prelude hiding (error)
-import CoreSyn
-import SrcLoc
-import Unify (tcUnifyTy)
-
+import           CoreSyn
+import           Var
+import           SrcLoc
+import           Unify (tcUnifyTy)
 import qualified TyCon   as TC
 import qualified DataCon as DC
-
-
-import Text.PrettyPrint.HughesPJ hiding (first)
-
+import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
-
-import Control.DeepSeq
--- import Data.Monoid              (mconcat)
-import Data.Maybe               (catMaybes, isJust)
-import Control.Monad.State
-
-
-import Var
-
-
-
-
-
-import Language.Haskell.Liquid.GHC.SpanStack
-import Language.Haskell.Liquid.Types hiding   (binds)
-import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Misc           (fourth4, mapSnd)
-import Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
-import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
+import           Control.DeepSeq
+import           Data.Maybe               (catMaybes, isJust)
+import           Control.Monad.State
+import           Language.Haskell.Liquid.GHC.SpanStack
+import           Language.Haskell.Liquid.Types hiding   (binds)
+import           Language.Haskell.Liquid.Types.Strata
+import           Language.Haskell.Liquid.Misc           (fourth4, mapSnd)
+import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
+import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc
@@ -90,31 +77,31 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
 type CG = State CGInfo
 
-data CGEnv
-  = CGE { cgLoc :: !SpanStack         -- ^ Location in original source file
-        , renv  :: !REnv              -- ^ SpecTypes for Bindings in scope
-        , syenv :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        , denv  :: !RDEnv             -- ^ Dictionary Environment
-        , fenv  :: !FEnv              -- ^ Fixpoint Environment
-        , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-        , fargs :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-        , invs  :: !RTyConInv         -- ^ Datatype invariants
-        , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
-        , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
-        , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
-        , assms :: !REnv              -- ^ Top-level variables with assumed types
-        , intys :: !REnv              -- ^ Top-level variables with auto generated internal types
-        , emb   :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
-        , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
-        , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
-        , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-        , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
-        , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
-        , lcs   :: !LConstraint                           -- ^ Logical Constraints
-        , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
-        , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-        , cgCfg :: !Config                                -- ^ top-level config options
-        } -- deriving (Data, Typeable)
+data CGEnv = CGE
+  { cgLoc :: !SpanStack         -- ^ Location in original source file
+  , renv  :: !REnv              -- ^ SpecTypes for Bindings in scope
+  , syenv :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+  , denv  :: !RDEnv             -- ^ Dictionary Environment
+  , fenv  :: !FEnv              -- ^ Fixpoint Environment
+  , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+  , fargs :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+  , invs  :: !RTyConInv         -- ^ Datatype invariants
+  , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
+  , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
+  , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+  , assms :: !REnv              -- ^ Top-level variables with assumed types
+  , intys :: !REnv              -- ^ Top-level variables with auto generated internal types
+  , emb   :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+  , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
+  , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
+  , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
+  , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
+  , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
+  , lcs   :: !LConstraint                           -- ^ Logical Constraints
+  , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
+  , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
+  , cgCfg :: !Config                                -- ^ top-level config options
+  } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 
@@ -209,9 +196,9 @@ data CGInfo = CGInfo {
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo
 
-pprCGInfo :: a -> CGInfo -> Doc
-pprCGInfo _ _cgi
-  =  text "*********** Constraint Information ***********"
+pprCGInfo :: F.Tidy -> CGInfo -> Doc
+pprCGInfo k _cgi
+  =  "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)
   -- -$$ (text "*********** Haskell WFConstraints ************")
@@ -222,8 +209,8 @@ pprCGInfo _ _cgi
   -- -$$ (F.toFix  $ fixWfs cgi)
   -- -$$ (text "*********** Fixpoint Kut Variables ************")
   -- -$$ (F.toFix  $ kuts cgi)
-  -- -$$ (text "*********** Literals in Source     ************")
-  -- -$$ (pprint $ lits cgi)
+      $$ "*********** Literals in Source     ************"
+      $$ F.pprintKVs k (lits _cgi)
   -- -$$ (text "*********** KVar Distribution *****************")
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
@@ -244,7 +231,6 @@ elemHEnv x (HEnv s) = x `S.member` s
 --------------------------------------------------------------------------------
 -- | Helper Types: Invariants --------------------------------------------------
 --------------------------------------------------------------------------------
-
 data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
                                            -- for all type arguments
                  , _rinv_type :: SpecType
@@ -374,7 +360,7 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
     guard t
       = t
 
-    ref f (F.Reft(v, rr)) 
+    ref f (F.Reft(v, rr))
       = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
 
 makeRecInvariants γ _ = γ
@@ -384,10 +370,11 @@ makeRecInvariants γ _ = γ
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data FEnv = FE { feBinds :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
-               , feEnv   :: !(F.SEnv F.Sort)   -- ^ Fixpoint Environment
-               , feIdEnv :: !(F.SEnv F.BindId) -- ^ Map from Symbol to current BindId
-               }
+data FEnv = FE
+  { feBinds :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
+  , feEnv   :: !(F.SEnv F.Sort)   -- ^ Fixpoint Environment
+  , feIdEnv :: !(F.SEnv F.BindId) -- ^ Map from Symbol to current BindId
+  }
 
 insertFEnv :: FEnv -> ((F.Symbol, F.Sort), F.BindId) -> FEnv
 insertFEnv (FE benv env ienv) ((x, t), i)

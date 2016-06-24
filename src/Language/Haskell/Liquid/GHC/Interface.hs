@@ -301,12 +301,6 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
-{- OLD CONFLICT @SPINDA
-  _                   <- loadModule' typechecked
-  let specComments     = getSpecComments parsed
-  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
-=======
--}
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes

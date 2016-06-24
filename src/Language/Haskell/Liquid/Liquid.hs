@@ -151,6 +151,7 @@ liquidQueries cfg tgt info (Right dcs)
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   when False (dumpCs cgi)
+  -- when True $ putStrLn $ render (pprint cgi)
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
@@ -184,7 +185,6 @@ solveCs cfg tgt cgi info names = do
   let out0        = mkOutput cfg resModel sol (annotMap cgi)
   return          $ out0 { o_vars    = names    }
                          { o_result  = resModel }
-                          -- { o_errors  = e2u sol <$> warns }
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def

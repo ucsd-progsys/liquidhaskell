@@ -116,26 +116,26 @@ infoConfig :: GhcInfo -> Config
 infoConfig = config . spec
 
 consAct :: GhcInfo -> CG ()
-consAct info
-  = do γ'    <- initEnv      info
-       sflag <- scheck   <$> get
-       tflag <- trustghc <$> get
-       γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
-       cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
-       let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
-       foldM_ (consCBTop trustBinding) γ cbs'
-       hcs   <- hsCs  <$> get
-       hws   <- hsWfs <$> get
-       scss  <- sCs   <$> get
-       annot <- annotMap <$> get
-       scs   <- if sflag then concat <$> mapM splitS (hcs ++ scss)
-                         else return []
-       let smap = if sflag then solveStrata scs else []
-       let hcs' = if sflag then subsS smap hcs else hcs
-       fcs <- concat <$> mapM splitC (subsS smap hcs')
-       fws <- concat <$> mapM splitW hws
-       let annot' = if sflag then subsS smap <$> annot else annot
-       modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
+consAct info = do
+  γ'    <- initEnv      info
+  sflag <- scheck   <$> get
+  tflag <- trustghc <$> get
+  γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
+  cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
+  let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
+  foldM_ (consCBTop trustBinding) γ cbs'
+  hcs   <- hsCs  <$> get
+  hws   <- hsWfs <$> get
+  scss  <- sCs   <$> get
+  annot <- annotMap <$> get
+  scs   <- if sflag then concat <$> mapM splitS (hcs ++ scss)
+                    else return []
+  let smap = if sflag then solveStrata scs else []
+  let hcs' = if sflag then subsS smap hcs else hcs
+  fcs <- concat <$> mapM splitC (subsS smap hcs')
+  fws <- concat <$> mapM splitW hws
+  let annot' = if sflag then subsS smap <$> annot else annot
+  modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
@@ -291,32 +291,33 @@ measEnv :: GhcSpec
         -> [F.Symbol]
         -> Config
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs cfg
-  = CGE { cgLoc = Sp.empty
-        , renv  = fromListREnv (second val <$> meas sp) []
-        , syenv = F.fromListSEnv $ freeSyms sp
-        , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
-        , denv  = dicts sp
-        , recs  = S.empty
-        , fargs = S.empty
-        , invs  = mempty
-        , rinvs = mempty
-        , ial   = mkRTyConIAl    $ ialiases   sp
-        , grtys = fromListREnv xts  []
-        , assms = fromListREnv asms []
-        , intys = fromListREnv itys []
-        , emb   = tce
-        , tgEnv = Tg.makeTagEnv cbs
-        , tgKey = Nothing
-        , trec  = Nothing
-        , lcb   = M.empty
-        , holes = fromListHEnv hs
-        , lcs   = mempty
-        , aenv  = axiom_map $ logicMap sp
-        , cerr  = Nothing
-        , cgCfg = cfg
-        }
-    where
+measEnv sp xts cbs lts asms itys hs cfg = CGE
+  { cgLoc = Sp.empty
+  , renv  = fromListREnv (second val <$> meas sp) []
+  , syenv = F.fromListSEnv $ freeSyms sp
+  , fenv  = initFEnv $ (F.tracepp "measEnv 1" lts) ++ 
+                       (F.tracepp "measEnv 2" $ (second (rTypeSort tce . val) <$> meas sp))
+  , denv  = dicts sp
+  , recs  = S.empty
+  , fargs = S.empty
+  , invs  = mempty
+  , rinvs = mempty
+  , ial   = mkRTyConIAl    $ ialiases   sp
+  , grtys = fromListREnv xts  []
+  , assms = fromListREnv asms []
+  , intys = fromListREnv itys []
+  , emb   = tce
+  , tgEnv = Tg.makeTagEnv cbs
+  , tgKey = Nothing
+  , trec  = Nothing
+  , lcb   = M.empty
+  , holes = fromListHEnv hs
+  , lcs   = mempty
+  , aenv  = axiom_map $ logicMap sp
+  , cerr  = Nothing
+  , cgCfg = cfg
+  }
+  where
       tce = tcEmbeds sp
 
 assm :: GhcInfo -> [(Var, SpecType)]
@@ -355,7 +356,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce
   , kuts       = mempty
   , kvPacks    = mempty
-  , lits       = coreBindLits tce info ++  (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
+  , lits       = coreBindLits tce info ++ (mapSnd F.sr_sort <$> (mkSort <$> meas spc))
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
@@ -375,7 +376,7 @@ initCGI cfg info = CGInfo {
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc
-    mkSort = mapSnd (rTypeSortedReft tce . val)
+    mkSort     = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
@@ -768,7 +769,6 @@ addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
     (αs, πs, ls, t1) = bkUniv t
     (xs, ts, rs, t2) = bkArrow t1
     xts              = zip3 xs ts rs
-
 
 consCB tflag _ γ (Rec xes) | tflag
   = do texprs <- termExprs <$> get

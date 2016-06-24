@@ -355,13 +355,14 @@ fixDiffCheck :: Config -> Config
 fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
 envCfg :: IO Config
-envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
-            case so of
-              Nothing -> return defConfig
-              Just s  -> parsePragma $ envLoc s
-         where
-            envLoc  = Loc l l
-            l       = newPos "ENVIRONMENT" 0 0
+envCfg = do
+  so <- lookupEnv "LIQUIDHASKELL_OPTS"
+  case so of
+    Nothing -> return defConfig
+    Just s  -> parsePragma $ envLoc s
+  where
+    envLoc  = Loc l l
+    l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
@@ -468,10 +469,8 @@ consoleResult cfg
 consoleResultFull :: Config -> Output a -> t -> IO ()
 consoleResultFull cfg out _ = do
    let r = o_result out
-   -- print ("CONSOLE-RESULT: " ++ show r)
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
-   -- print ("CONSOLE-CONTEXT-RESULT: " ++ showFix cr)
    writeResult cfg (colorResult r) cr
 
 consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
@@ -481,8 +480,6 @@ consoleResultJson _ _ annm = do
 
 resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
--- resultWithContext (F.Unsafe xs)  = traceShow "RWC-OUT" <$> ( F.Unsafe      <$> mapM errorWithContext xs )
--- resultWithContext (F.Crash xs s) = (`F.Crash` s) <$> mapM errorWithContext xs
 
 instance Show (CtxError Doc) where
   show = showpp
