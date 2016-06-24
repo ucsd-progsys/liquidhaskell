@@ -5,8 +5,9 @@ module Class () where
 import Language.Haskell.Liquid.Prelude
 
 {-@ class measure sz :: forall a. a -> Int @-}
+
 {-@ class Sized s where
-      size :: forall a. x:s a -> {v:Nat | v = (sz x)}
+      size :: forall a. x:s a -> {v:Nat | v = sz x}
   @-}
 class Sized s where
   size :: s a -> Int
@@ -20,7 +21,7 @@ instance Sized [] where
   size (x:xs) = 1 + size xs
 
 {-@ class (Sized s) => Indexable s where
-      index :: forall a. x:s a -> {v:Nat | v < (sz x)} -> a
+      index :: forall a. x:s a -> {v:Nat | v < sz x} -> a
   @-}
 class (Sized s) => Indexable s where
   index :: s a -> Int -> a

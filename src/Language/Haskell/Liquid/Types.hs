@@ -293,8 +293,8 @@ data GhcInfo = GI {
     target   :: !FilePath
   , targetMod:: !ModuleName
   , env      :: !HscEnv
-  , cbs      :: ![CoreBind]
-  , derVars  :: ![Var]
+  , cbs      :: ![CoreBind]     
+  , derVars  :: ![Var]          -- ^ ?
   , impVars  :: ![Var]
   , defVars  :: ![Var]
   , useVars  :: ![Var]
@@ -532,7 +532,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 

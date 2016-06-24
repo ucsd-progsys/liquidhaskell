@@ -360,7 +360,18 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   (spc, imps, incs) <- toGhcSpec cfg coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualsFiles       <- moduleHquals modGuts paths file imps incs
-  return $ GI file (moduleName mod) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualsFiles imps incs spc
+  return GI { target    = file
+            , targetMod = moduleName mod
+            , env       = hscEnv
+            , cbs       = coreBinds
+            , derVars   = traceShow "DERIVED VARS" derVs
+            , impVars   = impVs
+            , defVars   = letVs ++ dataCons
+            , useVars   = useVs
+            , hqFiles   = hqualsFiles
+            , imports   = imps
+            , includes  = incs
+            , spec      = spc                }
 
 toGhcSpec :: GhcMonad m
           => Config
