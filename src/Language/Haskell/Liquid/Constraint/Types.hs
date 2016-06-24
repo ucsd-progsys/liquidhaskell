@@ -185,7 +185,7 @@ data CGInfo = CGInfo {
   , lits       :: !(F.SEnv F.Sort)             -- ^ Literals to be embedded as constants in refinement logic
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
-  , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
+  -- , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars

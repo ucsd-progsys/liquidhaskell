@@ -142,9 +142,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
- , trustinternals
-    = def &= help "Trust all ghc auto generated code"
-          &= name "trust-internals"
+ -- , trustinternals
+ --   = def &= help "Trust all ghc auto generated code"
+ --          &= name "trust-internals"
 
  , nocaseexpand
     = def &= help "Don't expand the default case in a case-expression"
@@ -412,7 +412,7 @@ defConfig = Config { files             = def
                    , notermination     = def
                    , autoproofs        = def
                    , nowarnings        = def
-                   , trustinternals    = def
+                   -- , trustinternals    = def
                    , nocaseexpand      = def
                    , strata            = def
                    , notruetypes       = def
