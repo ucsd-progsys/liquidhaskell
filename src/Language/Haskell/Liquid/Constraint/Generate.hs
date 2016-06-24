@@ -135,11 +135,12 @@ consAct info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
-  modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
+  modify $ \st -> st { fEnv = fixEnv γ, lits = lEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
     fixEnv           = feEnv . fenv
+    lEnv             = litEnv
     mkSigs γ         = toListREnv (renv  γ) ++
                        toListREnv (assms γ) ++
                        toListREnv (intys γ) ++
@@ -181,9 +182,10 @@ initEnv info
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
-       lts      <- lits <$> get
+       lt1s     <- F.toListSEnv . lits <$> get
+       let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) (bs!!5) hs (infoConfig info)
+       let γ0    = measEnv sp (head bs) (cbs info) tcb (lt1s ++ lt2s) (bs!!3) (bs!!5) hs (infoConfig info)
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -278,25 +280,25 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
     tce            = tcEmbeds sp
     tyi            = tyconEnv sp
 
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [CoreBind]
+        -> [(F.Symbol, F.Sort)]
         -> [(F.Symbol, F.Sort)]
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
         -> Config
         -> CGEnv
-measEnv sp xts cbs lts asms itys hs cfg = CGE
-  { cgLoc = Sp.empty
-  , renv  = fromListREnv (second val <$> meas sp) []
-  , syenv = F.fromListSEnv $ freeSyms sp
-  , fenv  = initFEnv $ (F.tracepp "measEnv 1" lts) ++ 
-                       (F.tracepp "measEnv 2" $ (second (rTypeSort tce . val) <$> meas sp))
+measEnv sp xts cbs tcb lts asms itys hs cfg = CGE
+  { cgLoc  = Sp.empty
+  , renv   = fromListREnv (second val <$> meas sp) []
+  , syenv  = F.fromListSEnv $ freeSyms sp
+  , litEnv = F.fromListSEnv lts
+  , fenv   = initFEnv $ tcb ++ lts ++ (second (rTypeSort tce . val) <$> meas sp)
   , denv  = dicts sp
   , recs  = S.empty
   , fargs = S.empty
@@ -356,7 +358,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce
   , kuts       = mempty
   , kvPacks    = mempty
-  , lits       = coreBindLits tce info ++ (mapSnd F.sr_sort <$> (mkSort <$> meas spc))
+  , lits       = F.fromListSEnv $ coreBindLits tce info ++ (mapSnd F.sr_sort <$> (mkSort <$> meas spc))
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc

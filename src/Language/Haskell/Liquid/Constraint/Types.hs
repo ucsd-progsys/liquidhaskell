@@ -78,29 +78,30 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv = CGE
-  { cgLoc :: !SpanStack         -- ^ Location in original source file
-  , renv  :: !REnv              -- ^ SpecTypes for Bindings in scope
-  , syenv :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-  , denv  :: !RDEnv             -- ^ Dictionary Environment
-  , fenv  :: !FEnv              -- ^ Fixpoint Environment
-  , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-  , fargs :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-  , invs  :: !RTyConInv         -- ^ Datatype invariants
-  , rinvs :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
-  , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
-  , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
-  , assms :: !REnv              -- ^ Top-level variables with assumed types
-  , intys :: !REnv              -- ^ Top-level variables with auto generated internal types
-  , emb   :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
-  , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
-  , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
-  , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-  , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
-  , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
-  , lcs   :: !LConstraint                           -- ^ Logical Constraints
-  , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
-  , cerr  :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-  , cgCfg :: !Config                                -- ^ top-level config options
+  { cgLoc  :: !SpanStack         -- ^ Location in original source file
+  , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
+  , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+  , denv   :: !RDEnv             -- ^ Dictionary Environment
+  , litEnv :: !(F.SEnv F.Sort)   -- ^ Literals (to be embedded as constants)
+  , fenv   :: !FEnv              -- ^ Fixpoint Environment
+  , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+  , fargs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+  , invs   :: !RTyConInv         -- ^ Datatype invariants
+  , rinvs  :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
+  , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants
+  , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+  , assms  :: !REnv              -- ^ Top-level variables with assumed types
+  , intys  :: !REnv              -- ^ Top-level variables with auto generated internal types
+  , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+  , tgEnv  :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
+  , tgKey  :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
+  , trec   :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
+  , lcb    :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
+  , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
+  , lcs    :: !LConstraint                           -- ^ Logical Constraints
+  , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
+  , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
+  , cgCfg  :: !Config                                -- ^ top-level config options
   } -- deriving (Data, Typeable)
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
@@ -181,7 +182,7 @@ data CGInfo = CGInfo {
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
-  , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
+  , lits       :: !(F.SEnv F.Sort)             -- ^ Literals to be embedded as constants in refinement logic
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
@@ -197,7 +198,7 @@ instance PPrint CGInfo where
   pprintTidy = pprCGInfo
 
 pprCGInfo :: F.Tidy -> CGInfo -> Doc
-pprCGInfo k _cgi
+pprCGInfo _k _cgi
   =  "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)
@@ -210,7 +211,7 @@ pprCGInfo k _cgi
   -- -$$ (text "*********** Fixpoint Kut Variables ************")
   -- -$$ (F.toFix  $ kuts cgi)
       $$ "*********** Literals in Source     ************"
-      $$ F.pprintKVs k (lits _cgi)
+      $$ F.pprint (lits _cgi)
   -- -$$ (text "*********** KVar Distribution *****************")
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
@@ -407,9 +408,9 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x4 x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
-      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
+      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10 `seq` rnf x4
 
 instance NFData FEnv where
   rnf (FE x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3

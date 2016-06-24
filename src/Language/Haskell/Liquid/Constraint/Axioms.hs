@@ -149,21 +149,21 @@ instance Provable CoreAlt where
 
 expandReWriteProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
 expandReWriteProof inite e' _
-  = do as    <- ae_axioms <$> get 
+  = do as    <- ae_axioms <$> get
        e     <- unANFExpr e'
        cmb   <- ae_cmb     <$> get
-       return $ rewriteToCore cmb inite $ findAxioms as e 
+       return $ rewriteToCore cmb inite $ findAxioms as e
 
 findAxioms :: [T.HAxiom] -> CoreExpr -> [(Id, [CoreExpr])]
-findAxioms axms e = snd4 <$> rewrite axms lhs rhs 
+findAxioms axms e = snd4 <$> rewrite axms lhs rhs
   where
     (lhs, rhs) = grepLhs e
-    snd4 (_, x, _, _) = x 
+    snd4 (_, x, _, _) = x
 
 {-
 data BFS = BFS CoreExpr [(T.HAxiom, CoreExpr, BFS)]  deriving (Show)
 
-takeBFS 1 (BFS e _)  = BFS e [] 
+takeBFS 1 (BFS e _)  = BFS e []
 takeBFS n (BFS e bs) = BFS e (mapThd3 (takeBFS (n-1)) <$> bs)
 
 mapThd3 f (x, y, z) = (x, y, f z)
@@ -174,9 +174,9 @@ mapSnd f (x, y) = (x, f y)
 
 
 instance Eq CoreExpr where
-  (Var x) == (Var y) =  x == y 
-  (App e1 e2) == (App e1' e2') = e1 == e1' && e2 == e2' 
-  _ == _ = False 
+  (Var x) == (Var y) =  x == y
+  (App e1 e2) == (App e1' e2') = e1 == e1' && e2 == e2'
+  _ == _ = False
 
 rewrite :: [T.HAxiom]
         -> Expr CoreBndr
@@ -184,42 +184,42 @@ rewrite :: [T.HAxiom]
         -> [(T.HAxiom, (Id, [CoreExpr]), Expr CoreBndr, Expr CoreBndr)]
 rewrite axms source target = go' 10 source
   where
-    go' _ e | e == target = [] 
-    go' i e | i > 0 = let j = go e in j ++ concatMap (\(_, _, _, e') -> go' (i-1) e') j  
-    go' _ _ = [] 
+    go' _ e | e == target = []
+    go' i e | i > 0 = let j = go e in j ++ concatMap (\(_, _, _, e') -> go' (i-1) e') j
+    go' _ _ = []
 
 
     go e@(App (App f a1) a2) =  [(ax, is, App (App f a1) a2, App (App f a1') a2) | (ax, is, _, a1') <- go a1 ]
-                              ++ [(ax, is, App (App f a1) a2, App (App f a1) a2') | (ax, is, _, a2') <- go a2 ] 
-                              ++ [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]] 
-    go e@(App f a) = [(ax, is, App f a, App f a') | (ax, is, _, a') <- go a ] ++ [(axm, is, e, e') | axm <- axms, Just (is, e') <- [applyAxiom axm e]] 
-    go e = [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]] 
+                              ++ [(ax, is, App (App f a1) a2, App (App f a1) a2') | (ax, is, _, a2') <- go a2 ]
+                              ++ [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]]
+    go e@(App f a) = [(ax, is, App f a, App f a') | (ax, is, _, a') <- go a ] ++ [(axm, is, e, e') | axm <- axms, Just (is, e') <- [applyAxiom axm e]]
+    go e = [(a, is, e, e') | a <- axms, Just (is, e') <- [applyAxiom a e]]
 
 
 grepLhs :: CoreExpr -> (CoreExpr, CoreExpr)
 grepLhs e = lookupANF $ go $ mapSnd untick $ splitLet [] $ untick e
   where
-    splitLet acc (Let (NonRec x ex) e) = splitLet ((x, ex):acc) e 
+    splitLet acc (Let (NonRec x ex) e) = splitLet ((x, ex):acc) e
     splitLet acc e                     = (acc, e)
 
-    go (bs, App (App (App (App (Var v) {- type -} _ ) {- dictionary-} _) e1) e2) |  isEqVar v = (bs, (e1, e2)) 
+    go (bs, App (App (App (App (Var v) {- type -} _ ) {- dictionary-} _) e1) e2) |  isEqVar v = (bs, (e1, e2))
     go (bs, Var v) = go (bs, untick $ fromJust $ L.lookup v bs)
     go (bs, Tick _ e) = go (bs, e)
     go (_ , e) = panic Nothing ("No equality found on the argument of rewrite " ++ show e)
 
-    untick (Tick _ e) = untick e 
+    untick (Tick _ e) = untick e
     untick (App e1 e2) = App (untick e1) (untick e2)
-    untick e = e 
+    untick e = e
 
     lookupANF (bs, (e1, e2)) = (unANF bs e1, unANF bs e2)
 
-    unANF bs (Var x) | Just e <- L.lookup x bs = unANF bs e 
-                     | otherwise               = Var x 
-    unANF bs (App e (Type _)) = unANF bs e 
-    unANF bs (App e (Var x)) | isClassPred (varType x) = unANF bs e 
+    unANF bs (Var x) | Just e <- L.lookup x bs = unANF bs e
+                     | otherwise               = Var x
+    unANF bs (App e (Type _)) = unANF bs e
+    unANF bs (App e (Var x)) | isClassPred (varType x) = unANF bs e
     unANF bs (App e1 e2) = App (unANF bs e1) (unANF bs e2)
-    unANF bs (Tick _ e) = unANF bs e 
-    unANF _ e = e 
+    unANF bs (Tick _ e) = unANF bs e
+    unANF _ e = e
 
 {-
 TODO: merge with Bare/Axiom.hs
@@ -228,7 +228,7 @@ TODO: merge with Bare/Axiom.hs
 class Subable a where
   subst  :: (Var, CoreExpr) -> a -> a
   substs :: [(Var, CoreExpr)] -> a -> a
-  substs [] x = x 
+  substs [] x = x
   substs (s:ss) x = substs ss (subst s x)
 
 instance Subable CoreExpr where
@@ -236,25 +236,25 @@ instance Subable CoreExpr where
                         | otherwise = Var y
   subst su (App f e) = App (subst su f) (subst su e)
   subst su (Lam x e) = Lam x (subst su e)
-  subst _ _          = todo Nothing "Subable" 
+  subst _ _          = todo Nothing "Subable"
 
-applyAxiom :: T.HAxiom -> CoreExpr -> Maybe ((Id, [CoreExpr]), CoreExpr) 
+applyAxiom :: T.HAxiom -> CoreExpr -> Maybe ((Id, [CoreExpr]), CoreExpr)
 applyAxiom axm e'
-  | Just su <- isInstance (abinds axm) e (alhs axm), noFreeVars su 
+  | Just su <- isInstance (abinds axm) e (alhs axm), noFreeVars su
   = Just ((fromJust $ rname axm, (\v -> (fromJust $ L.lookup v su)) <$> abinds axm), substs su (arhs axm))
   | otherwise
-  = Nothing 
+  = Nothing
   where
     noFreeVars su = all (`elem` abinds axm) (fst <$> su)
-    e = simplify e' 
+    e = simplify e'
 
 simplify :: Expr t -> Expr t
-simplify (App e (Type _)) = simplify e 
-simplify e = e 
+simplify (App e (Type _)) = simplify e
+simplify e = e
 
 isInstance :: [Id] -> CoreExpr -> CoreExpr -> Maybe [(Var, CoreExpr)]
 isInstance fv e (Var v) | v `elem` fv = Just [(v, e)]
-isInstance _ (Var v) (Var y) | v == y = Just [] 
+isInstance _ (Var v) (Var y) | v == y = Just []
 isInstance fv (App e1 e2) (App e1' e2') = do
   su1 <- isInstance fv e1 e1'
   su2 <- isInstance fv e2 e2'
@@ -309,7 +309,7 @@ expandAutoProof inite e it
         ds   <- ae_assert  <$> get
         cmb  <- ae_cmb     <$> get
         lmap <- ae_lmap    <$> get
-        isHO <- ae_isHO    <$> get 
+        isHO <- ae_isHO    <$> get
         e'   <- unANFExpr e
 
         foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) x >> (ae_lmap <$> get))) lmap vs'
@@ -362,13 +362,9 @@ insertLogicEnv x ys e
 simpleSymbolVar :: NamedThing a => a -> Symbol
 simpleSymbolVar  x = dropModuleNames $ symbol $ showPpr $ getName x
 
--------------------------------------------------------------------------------
-----------------   From Haskell to Prover  ------------------------------------
--------------------------------------------------------------------------------
-
-
-
-
+--------------------------------------------------------------------------------
+-- | From Haskell to Prover  ---------------------------------------------------
+--------------------------------------------------------------------------------
 
 makeEnvironment :: [Var] -> [Var] -> Pr [P.LVar]
 makeEnvironment avs vs
@@ -381,7 +377,7 @@ makeEnvironment avs vs
 
 
 makeQuery :: FilePath -> Integer -> Bool -> F.Expr -> [HAxiom] -> [HVarCtor] -> [F.Expr] -> [P.LVar] ->  [HVar] -> HQuery
-makeQuery fn i isHO p axioms cts ds env vs 
+makeQuery fn i isHO p axioms cts ds env vs
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p
 
@@ -392,7 +388,7 @@ makeQuery fn i isHO p axioms cts ds env vs
            , q_fname  = fn
            , q_axioms = axioms
            , q_decls  = (P.Pred <$> ds)
-           , q_isHO   = isHO 
+           , q_isHO   = isHO
            }
 
 checkEnv :: P.Var t -> P.Var t
@@ -554,15 +550,15 @@ data AEnv = AE { ae_axioms  :: [T.HAxiom]            -- axiomatized functions
                                                      -- these axioms are guarded to used only with "smaller" arguments
                , ae_assert  :: [F.Expr]              --
                , ae_cmb     :: CoreExpr -> CoreExpr -> CoreExpr  -- how to combine proofs
-               , ae_isHO    :: Bool                  -- allow higher order binders 
+               , ae_isHO    :: Bool                  -- allow higher order binders
                }
 
 
 initAEEnv :: MonadState CGInfo m => GhcInfo -> [(Symbol, SpecType)] -> m AEnv
 initAEEnv info sigs
-    = do tce    <- tyConEmbed  <$> get
-         lts    <- lits        <$> get
-         i      <- freshIndex  <$> get
+    = do tce   <- tyConEmbed  <$> get
+         lts   <- lits        <$> get
+         i     <- freshIndex  <$> get
          modify $ \s -> s{freshIndex = i + 1}
          return $ AE { ae_axioms  = axioms spc
                      , ae_binds   = []
@@ -571,14 +567,14 @@ initAEEnv info sigs
                      , ae_globals = L.nub tp
                      , ae_vars    = []
                      , ae_emb     = tce
-                     , ae_lits    = wiredSortedSyms ++ lts
+                     , ae_lits    = wiredSortedSyms ++ F.toListSEnv lts
                      , ae_index   = i
                      , ae_sigs    = sigs
                      , ae_target  = target info
                      , ae_recs    = []
                      , ae_assert  = []
                      , ae_cmb     = \x y -> (App (App (Var by) x) y)
-                     , ae_isHO    = higherorder $ config spc 
+                     , ae_isHO    = higherorder $ config spc
                      }
     where
       spc        = spec info
@@ -643,7 +639,7 @@ freshFilePath =
 
 
 isBaseSort :: t -> Bool
-isBaseSort _ = True 
+isBaseSort _ = True
 
 
 
