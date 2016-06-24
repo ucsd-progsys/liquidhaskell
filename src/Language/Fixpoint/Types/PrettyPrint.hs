@@ -97,7 +97,7 @@ instance PPrint a => PPrint (Maybe a) where
   pprintTidy k = maybe "Nothing" (("Just" <+>) . pprintTidy k)
 
 instance PPrint a => PPrint [a] where
-  pprintTidy k = brackets . intersperse comma . map (pprintTidy k)
+  pprintTidy k = brackets . sep . punctuate comma . map (pprintTidy k)
 
 instance PPrint a => PPrint (S.HashSet a) where
   pprintTidy k = pprintTidy k . S.toList
