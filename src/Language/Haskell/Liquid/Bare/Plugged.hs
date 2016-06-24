@@ -130,7 +130,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     <$> go t1 t1' <*> go t2 t2' <*> return r
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
-    go (RApp _ ts _ _)  (RApp c ts' p r)   -- | length ts == length ts' 
+    go (RApp _ ts _ _)  (RApp c ts' p r)   --  length ts == length ts' 
                                            = RApp c <$> (zipWithDefM go ts $ matchKindArgs ts ts') <*> return p <*> return r
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
