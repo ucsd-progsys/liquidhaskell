@@ -114,6 +114,7 @@ liquidOne info = do
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
   let cbs' = transformScope (cbs info)
+  whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ showCBs (untidyCore cfg) cbs'
@@ -174,18 +175,16 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
-solveCs cfg tgt cgi info names
-  = do finfo          <- cgInfoFInfo info cgi tgt
-       F.Result r sol <- solve (fixConfig tgt cfg) finfo
-       let warns = logErrors cgi
-       let annm  = annotMap cgi
-       let res_err = fmap (applySolution sol . cinfoError . snd) r
-       res_model  <- fmap (fmap pprint . tidyError sol)
-                      <$> getModels info cfg res_err
-       let out0  = mkOutput cfg res_model sol annm
-       return    $ out0 { o_vars    = names             }
-                        { o_errors  = e2u sol <$> warns }
-                        { o_result  = res_model         }
+solveCs cfg tgt cgi info names = do
+  finfo          <- cgInfoFInfo info cgi tgt
+  F.Result r sol <- solve (fixConfig tgt cfg) finfo
+  let resErr      = applySolution sol . cinfoError . snd <$> r
+  resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
+  let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
+  let out0        = mkOutput cfg resModel sol (annotMap cgi)
+  return          $ out0 { o_vars    = names    }
+                         { o_result  = resModel }
+                          -- { o_errors  = e2u sol <$> warns }
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def

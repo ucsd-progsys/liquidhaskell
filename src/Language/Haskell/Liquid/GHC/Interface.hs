@@ -337,22 +337,6 @@ loadModule' tm = loadModule tm'
     pm'  = pm { pm_mod_summary = ms' }
     tm'  = tm { tm_parsed_module = pm' }
 
-{- OLD CONFLICT @SPINDA
-getSpecComments :: ParsedModule -> [(SourcePos, String)]
-getSpecComments parsed = mapMaybe getSpecComment comments
-  where
-    comments = concat $ M.elems $ snd $ pm_annotations parsed
-
-getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
-getSpecComment (GHC.L span (AnnBlockComment text))
-  | isPrefixOf "{-@" text && isSuffixOf "@-}" text =
-    Just (offsetPos, take (length text - 6) $ drop 3 text)
-  where
-    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
-getSpecComment _ = Nothing
--}
-
-
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
                     -> FilePath -> TypecheckedModule -> Ms.BareSpec
@@ -366,6 +350,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modGuts        = makeMGIModGuts desugared
   hscEnv            <- getSession
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
+  _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs          = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   let defVs          = definedVars coreBinds

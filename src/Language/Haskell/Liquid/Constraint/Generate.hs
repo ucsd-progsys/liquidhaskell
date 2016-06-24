@@ -363,7 +363,7 @@ initCGI cfg info = CGInfo {
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
-  , pruneRefs  = pruneUnsorted cfg 
+  , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
@@ -482,7 +482,7 @@ refreshArgsSub t
        xs      = ty_binds trep
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
-       rs      = ty_refts trep 
+       rs      = ty_refts trep
 
 refreshPs :: SpecType -> CG SpecType
 refreshPs = mapPropM go
@@ -540,7 +540,6 @@ recType autoenv ((vs, indexc), (_, index, t))
         xts  = zip (ty_binds trep) (ty_args trep)
         trep = toRTypeRep $ unOCons t
 
--- checkIndex :: (Var, _, _ , _) -> _
 checkIndex :: (NamedThing t, PPrint t, PPrint [a])
            => (t, [a], Template (RType c tv r), [Int])
            -> CG [Maybe (RType c tv r)]
@@ -829,9 +828,9 @@ consCB _ _ γ (NonRec x def)
     grepDictionary (App (Var w) (Type t))
       = Just (w, t)
     grepDictionary (App e (Var _))
-      = grepDictionary e 
-    grepDictionary _ 
-      = Nothing 
+      = grepDictionary e
+    grepDictionary _
+      = Nothing
 
 
 consCB _ _ γ (NonRec x e)
@@ -1003,17 +1002,17 @@ cconsE' γ (Case e x _ cases) t
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
-cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α 
+cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
        cconsE (addArgument γ' x) e t'
-       addFunctionConstraint γ x e (RFun x' ty t' r') 
+       addFunctionConstraint γ x e (RFun x' ty t' r')
        addIdA x (AnnDef ty)
   where
-    x'  = F.symbol x 
+    x'  = F.symbol x
     t'  = t `F.subst1` (y, F.EVar x')
     r'  = r `F.subst1` (y, F.EVar x')
 
@@ -1036,17 +1035,17 @@ cconsE' γ e t
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
-addFunctionConstraint γ x e (RFun y ty t r) 
-  = do ty'      <- true ty 
+addFunctionConstraint γ x e (RFun y ty t r)
+  = do ty'      <- true ty
        t'       <- true t
-       let truet = RFun y ty' t'  
-       case argExpr γ e of 
-          Just e' -> do tce    <- tyConEmbed <$> get 
-                        let sx  = typeSort tce $ varType x  
+       let truet = RFun y ty' t'
+       case argExpr γ e of
+          Just e' -> do tce    <- tyConEmbed <$> get
+                        let sx  = typeSort tce $ varType x
                         let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
                         addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
           Nothing ->    addC (SubC γ (truet mempty) $ truet r) "function constraint true"
-addFunctionConstraint γ _ _ _ 
+addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
@@ -1151,7 +1150,7 @@ consE γ e'@(App e (Type τ))
        addW         $ WfC γ t
        t'         <- refreshVV t
        addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (α, t') te)
-       
+
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
 
@@ -1586,37 +1585,37 @@ varRefType' γ x t'
   where
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
-    strengthen 
-      | higherorder (cgCfg γ) 
-      = strengthenMeet 
-      | otherwise 
-      = strengthenTop  
+    strengthen
+      | higherorder (cgCfg γ)
+      = strengthenMeet
+      | otherwise
+      = strengthenTop
 
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
   | higherorder (cgCfg γ), App f x <- simplify e
-  = case (funExpr γ f, argExpr γ x) of 
+  = case (funExpr γ f, argExpr γ x) of
       (Just f', Just x') -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
-      _ -> t  
+      _ -> t
   | otherwise
-  = t 
+  = t
 
-funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr 
+funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
 funExpr γ (App e1 e2)
-  = case (funExpr γ e1, argExpr γ e2) of 
+  = case (funExpr γ e1, argExpr γ e2) of
       (Just e1', Just e2') -> Just (F.EApp e1' e2')
       _                    -> Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
   = Just $ F.EVar (F.symbol v)
-funExpr _ _ 
-  = Nothing 
+funExpr _ _
+  = Nothing
 
 simplify :: CoreExpr -> CoreExpr
-simplify (Tick _ e)       = simplify e 
-simplify (App e (Type _)) = simplify e 
+simplify (Tick _ e)       = simplify e
+simplify (App e (Type _)) = simplify e
 simplify (App e1 e2)      = App (simplify e1) (simplify e2)
 simplify e                = e
 
@@ -1646,10 +1645,7 @@ strengthenMeet t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
 topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
-  -- where
-    -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 
-  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
    -- * Exit Function
    , exitWithResult
+   , addErrors
 
    -- * Diff check mode
    , diffcheck
@@ -455,30 +456,36 @@ exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 exitWithResult cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
-  let r = o_result out `addErrors` o_errors out
-  consoleResult cfg out r annm
-  return $ out { o_result = r }
+  -- let r = o_result out -- `addErrors` o_errors out
+  consoleResult cfg out annm
+  return out -- { o_result = r }
 
-consoleResult :: Config -> Output a -> ErrorResult -> ACSS.AnnMap -> IO ()
+consoleResult :: Config -> Output a -> ACSS.AnnMap -> IO ()
 consoleResult cfg
   | json cfg  = consoleResultJson cfg
   | otherwise = consoleResultFull cfg
 
-consoleResultFull :: Config -> Output a -> ErrorResult -> t -> IO ()
-consoleResultFull cfg out r _ = do
+consoleResultFull :: Config -> Output a -> t -> IO ()
+consoleResultFull cfg out _ = do
+   let r = o_result out
+   -- print ("CONSOLE-RESULT: " ++ show r)
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
+   -- print ("CONSOLE-CONTEXT-RESULT: " ++ showFix cr)
    writeResult cfg (colorResult r) cr
-   -- writeFile   (extFileName Result target) (showFix cr)
 
-consoleResultJson :: t -> t1 -> t2 -> ACSS.AnnMap -> IO ()
-consoleResultJson _ _ _ annm = do
+consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
+consoleResultJson _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . ACSS.errors $ annm
 
 resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
+-- resultWithContext (F.Unsafe xs)  = traceShow "RWC-OUT" <$> ( F.Unsafe      <$> mapM errorWithContext xs )
+-- resultWithContext (F.Crash xs s) = (`F.Crash` s) <$> mapM errorWithContext xs
 
+instance Show (CtxError Doc) where
+  show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
@@ -512,8 +519,7 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
    TODO: Never used, do I need to exist?
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
-
-addErrors :: FixResult t -> [t] -> FixResult t
+addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)

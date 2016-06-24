@@ -1,0 +1,6 @@
+{-@ LIQUID "--diff" @-}
+
+module Foo where 
+
+foo :: () -> ()
+foo () = foo ()
