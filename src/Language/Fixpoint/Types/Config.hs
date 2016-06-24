@@ -73,42 +73,8 @@ data Config
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
-
 instance Default Config where
-  def = Config { inFile      = ""
-               , srcFile     = def
-               , cores       = def
-               , minPartSize = defaultMinPartSize
-               , maxPartSize = defaultMaxPartSize
-               , solver      = def
-               , genSorts    = def
-               , ueqAllSorts = def
-               , linear      = def
-               , allowHO     = False
-               , allowHOqs   = False
-               , newcheck    = False
-               , eliminate   = False
-               , oldElim     = True -- False
-               , elimBound   = Nothing
-               , elimStats   = def
-               , solverStats = False
-               , metadata    = def
-               , stats       = def
-               , parts       = def
-               , save        = def
-               , minimize    = def
-               , minimizeQs  = def
-               , gradual     = False
-               , extensionality = False
-               , alphaEquivalence = False
-               , betaEquivalence  = False
-               , normalForm     = False 
-               , autoKuts       = False
-               , pack           = False
-               , nonLinCuts     = False
-               }
-defConfig :: Config
-defConfig = def
+  def = defConfig
 
 ---------------------------------------------------------------------------------------
 newtype GenQualifierSort = GQS Bool
@@ -153,9 +119,9 @@ instance Show SMTSolver where
 
 ---------------------------------------------------------------------------------------
 
-config :: Config
-config = Config {
-    inFile      = def     &= typ "TARGET"       &= args    &= typFile
+defConfig :: Config
+defConfig = Config {
+    inFile      = def     &= args    &= typFile
   , srcFile     = def     &= help "Source File from which FQ is generated"
   , solver      = def     &= help "Name of SMT Solver"
   , genSorts    = def     &= help "Generalize qualifier sorts"
@@ -199,7 +165,7 @@ config = Config {
              ]
 
 getOpts :: IO Config
-getOpts = do md <- cmdArgs config
+getOpts = do md <- cmdArgs defConfig
              putStrLn banner
              return md
 
