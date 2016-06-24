@@ -18,8 +18,6 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
-import Data.Maybe   (fromMaybe)
-import Data.List    (find)
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
@@ -39,8 +37,7 @@ defaultMaxPartSize = 700
 
 data Config
   = Config {
-      inFile      :: FilePath            -- ^ target fq-file
-    , srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c)
+      srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c, or even *.fq or *.bfq)
     , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
     , minPartSize :: Int                 -- ^ Minimum size of a partition
     , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
@@ -121,8 +118,7 @@ instance Show SMTSolver where
 
 defConfig :: Config
 defConfig = Config {
-    inFile      = def     &= args    &= typFile
-  , srcFile     = def     &= help "Source File from which FQ is generated"
+    srcFile     = def     &= args    &= typFile
   , solver      = def     &= help "Name of SMT Solver"
   , genSorts    = def     &= help "Generalize qualifier sorts"
   , ueqAllSorts = def     &= help "Use UEq on all sorts"
@@ -179,4 +175,4 @@ multicore cfg = cores cfg /= Just 1
 queryFile :: Ext -> Config -> FilePath
 queryFile e cfg = extFileName e f
   where
-    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+    f           = if null $ srcFile cfg then "out" else srcFile cfg
