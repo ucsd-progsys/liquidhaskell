@@ -42,7 +42,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Bare Type Constructors and Variables
   , BTyCon(..)
-  , mkBTyCon, mkClassBTyCon
+  , mkBTyCon, mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
   , BTyVar(..)
 
@@ -532,6 +532,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
   }
   deriving (Generic, Data, Typeable)
 
@@ -550,10 +551,14 @@ instance NFData BTyCon
 instance NFData RTyCon
 
 mkBTyCon :: LocSymbol -> BTyCon
-mkBTyCon = (`BTyCon` False)
+mkBTyCon x = BTyCon x False False
 
 mkClassBTyCon :: LocSymbol -> BTyCon
-mkClassBTyCon = (`BTyCon` True)
+mkClassBTyCon x = BTyCon x True False
+
+mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon x = BTyCon x False True
+
 
 -- | Accessors for @RTyCon@
 

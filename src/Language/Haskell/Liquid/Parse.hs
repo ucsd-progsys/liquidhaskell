@@ -259,7 +259,9 @@ bbaseP
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
-bTyConP = mkBTyCon <$> locUpperIdP
+bTyConP 
+  =  (reserved "\'" >> (mkPromotedBTyCon <$> locUpperIdP))
+ <|> mkBTyCon <$> locUpperIdP
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
