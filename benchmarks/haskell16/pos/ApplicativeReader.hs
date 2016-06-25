@@ -94,6 +94,23 @@ homomorphism f x
   ==! pure (f x)
   *** QED 
 
+-- | interchange
+
+interchange :: Reader r (a -> a) -> a -> Proof
+{-@ interchange :: u:(Reader r (a -> a)) -> y:a
+     -> { seq u (pure y) == seq (pure (idollar y)) u }
+  @-}
+interchange (Reader f) x
+  =   seq (Reader f) (pure x)
+  ==! seq (Reader f) (Reader (\r -> x))
+  ==! Reader (\r' -> (f r') ((\r -> x) r'))
+  ==! Reader (\r' -> f r' x)
+  ==! Reader (\r' -> (idollar x) (f r')) 
+  ==! Reader (\r' -> ((\r'' -> (idollar x)) r') (f r')) 
+  ==! seq (Reader (\r'' ->  (idollar x))) (Reader f)
+  ==! seq (pure (idollar x)) (Reader f)
+  *** QED 
+
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
 qual :: (r -> a) -> Reader r a 
 qual = Reader 
