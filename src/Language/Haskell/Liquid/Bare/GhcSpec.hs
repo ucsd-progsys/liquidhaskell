@@ -289,11 +289,15 @@ makeGhcSpec4 quals defVars specs name su sp
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
        asize'  <- S.fromList <$> makeASize
-       hmeas   <- mkThing makeHIMeas
+       hmeas   <- mkThing makeHMeas
+       hinls   <- mkThing makeHInlines
        mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
+       mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hinls
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
+       mapM_ insertHMeasLogicEnv $ S.toList hinls
        lmap'   <- logicEnv <$> get
        let msgs = strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp)
+       let isgs = strengthenHaskellInlines  (S.map fst hinls) (tySigs sp)
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let f    = fmap $ txRefToLogic lmap inlmap
@@ -305,7 +309,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = S.insert dictionaryVar lazies
-                     , tySigs     = tx  <$> msgs
+                     , tySigs     = tx  <$> (msgs ++ isgs)
                      , asmSigs    = tx  <$> asmSigs  sp
                      , inSigs     = tx  <$> inSigs   sp
                      , measures   = mtx <$> measures sp
