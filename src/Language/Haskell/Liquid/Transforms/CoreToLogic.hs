@@ -35,7 +35,7 @@ import           TysWiredIn
 
 
 
-import           Language.Fixpoint.Misc                (snd3, traceShow)
+import           Language.Fixpoint.Misc                (snd3)
 
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
@@ -95,14 +95,18 @@ strengthenResult v
 strengthenResult' :: Var -> SpecType
 strengthenResult' v
   | isBool $ ty_res $ toRTypeRep t 
-  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    go mkProp [] [1..] t 
+  = go mkProp [] [1..] t 
   | otherwise
-  = traceShow ("FULL strengthenResult for " ++ show v) $ go mkExpr [] [1..] t 
+  = go mkExpr [] [1..] t 
   where f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
         -- refine types of meaures: keep going until you find the last data con!
+        -- this code is a hack! we refine the last data constructor, 
+        -- it got complicated to suport both 
+        -- 1. multy parameter measures     (see tests/pos/HasElem.hs)
+        -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
+        -- to simplify, drop support for multi parameter measures
         go f args i (RAllT a t) 
           = RAllT a $ go f args i t
         go f args i (RAllP p t) 
@@ -110,12 +114,16 @@ strengthenResult' v
         go f args i (RFun x t1 t2 r)
           | isClassType t1
           = RFun x t1 (go f args i t2) r 
-        go f args i (RFun _ t1 t2 r)
-          | RApp _ _ _ _ <- t1 
+        go f args i t@(RFun _ t1 t2 r)
+          | hasRApps t
           = let x' = intSymbol (symbol ("x" :: String)) (head i)
             in RFun x' t1 (go f (x':args) (tail i) t2) r
         go f args _ t
-          = traceShow ("strengthenResult for " ++ show v) (t `strengthen` f args)
+          = t `strengthen` f args
+
+        hasRApps (RApp _ _ _ _)   = True
+        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2 
+        hasRApps _                = False  
 
         mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
         mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
