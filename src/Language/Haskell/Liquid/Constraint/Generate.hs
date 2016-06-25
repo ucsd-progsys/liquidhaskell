@@ -405,7 +405,7 @@ freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
 freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
   where
-    t                = F.tracepp ("freshTy_reftype:" ++ show k)  _t
+    t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -955,13 +955,8 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo) = do
   t     <- varTemplate' γ (x, eo)
   t'    <- mapM (topSpecType x) t
-  return $ traceShow ("VAR-TEMPLATE: " ++ show x) t'
+  return {- $ traceShow ("VAR-TEMPLATE: " ++ show x) -} t'
 
--- | @topSpecType@ strips out the top-level refinement of a derived var
-topSpecType :: Var -> SpecType -> CG SpecType
-topSpecType x t = do
-  info  <- ghcI <$> get
-  return $ if derivedVar info x then topRTypeBase t else t
 
 -- | @lazVarTemplate@ is like `varTemplate` but for binders that are *not*
 --   termination checked and hence, the top-level refinement / KVar is
@@ -981,6 +976,12 @@ varTemplate' γ (x, eo)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
+
+-- | @topSpecType@ strips out the top-level refinement of "derived var"
+topSpecType :: Var -> SpecType -> CG SpecType
+topSpecType x t = do
+  info  <- ghcI <$> get
+  return $ if derivedVar info x then topRTypeBase t else t
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Checking -------------------------------------------
