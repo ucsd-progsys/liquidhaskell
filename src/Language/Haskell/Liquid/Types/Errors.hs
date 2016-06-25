@@ -27,7 +27,6 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Panic (unexpected failures)
   , UserError
-  --, HiddenType (..)
   , panic
   , panicDoc
   , todo
@@ -92,9 +91,6 @@ instance Ord (CtxError t) where
 errorWithContext :: TError Doc -> IO (CtxError Doc)
 --------------------------------------------------------------------------------
 errorWithContext e = CtxError e <$> srcSpanContext (pos e)
-  -- where
-    -- e               = tracepp "EWC 1:" e'
-    -- l               = tracepp "EWC 2:" (pos e)
 
 srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext sp
@@ -734,8 +730,9 @@ ppError' _ dSp dCtx (ErrOther _ s)
         $+$ dCtx
         $+$ nest 4 s
 
-ppError' _ dSp _ (ErrTermin _ xs s)
+ppError' _ dSp dCtx (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"
+        $+$ dCtx
         <+> (hsep $ intersperse comma xs) $+$ s
 
 ppError' _ dSp _ (ErrRClass p0 c is)

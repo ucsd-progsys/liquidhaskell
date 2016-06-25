@@ -913,8 +913,7 @@ list is treated as a Stream. To establish this local invariant one can use the
 
 denoting that each list is not empty.
 Then, LiquidHaskell will prove that this invariant holds, by proving that *all
-calls* to List's
-constractos (ie., `:` and `[]`) satisfy it, and
+calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 
