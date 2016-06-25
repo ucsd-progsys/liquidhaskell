@@ -13,25 +13,25 @@ import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 
-cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
+cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi fi = do
   let tgtFI = targetFInfo info cgi fi
   impFI    <- parseFInfo $ hqFiles info
   return    $ tgtFI <> impFI
 
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
-targetFInfo info cgi fn = F.fi cs ws bs ls ks packs qs bi fn aHO aHOqs 
+targetFInfo info cgi fn = F.fi cs ws bs ls ks packs qs bi fn aHO aHOqs
   where
     packs               = F.makePack (kvPacks cgi)
     cs                  = fixCs  cgi
     ws                  = fixWfs cgi
     bs                  = binds  cgi
-    ls                  = fEnv cgi
+    ls                  = lits   cgi -- fEnv cgi
     ks                  = kuts cgi
     qs                  = targetQuals info cgi
     bi                  = (`Ci` Nothing) <$> bindSpans cgi
     aHO                 = allowHO cgi
-    aHOqs               = higherorderqs  $ config $ spec info
+    aHOqs               = higherOrderFlag info
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs

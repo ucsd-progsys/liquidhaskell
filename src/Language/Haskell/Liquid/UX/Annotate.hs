@@ -70,7 +70,7 @@ mkOutput :: Config -> ErrorResult -> FixSolution -> AnnInfo (Annot SpecType) -> 
 --------------------------------------------------------------------------------------------
 mkOutput cfg res sol anna
   = O { o_vars   = Nothing
-      , o_errors = []
+      -- , o_errors = []
       , o_types  = toDoc <$> annTy
       , o_templs = toDoc <$> annTmpl
       , o_bots   = mkBots    annTy
@@ -128,37 +128,35 @@ generateHtml srcF htmlF annm
        copyFile cssFile (dropFileName htmlF </> takeFileName cssFile)
        renderHtml lhs htmlF srcF (takeFileName cssFile) body
 
-renderHtml :: Bool -> FilePath -> [Char] -> [Char] -> [Char] -> IO ()
+renderHtml :: Bool -> FilePath -> String -> String -> String -> IO ()
 renderHtml True  = renderPandoc
 renderHtml False = renderDirect
 
 -------------------------------------------------------------------------
 -- | Pandoc HTML Rendering (for lhs + markdown source) ------------------
 -------------------------------------------------------------------------
+renderPandoc :: FilePath -> String -> String -> String -> IO ()
+renderPandoc htmlFile srcFile css body = do
+  renderFn <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"
+  renderFn htmlFile srcFile css body
 
-renderPandoc :: FilePath -> [Char] -> [Char] -> [Char] -> IO ()
-renderPandoc htmlFile srcFile css body
-  = do renderFn <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"
-       renderFn htmlFile srcFile css body
+renderPandoc' :: FilePath -> FilePath -> FilePath -> String -> String -> IO ()
+renderPandoc' pandocPath htmlFile srcFile css body = do
+  _  <- writeFile mdFile $ pandocPreProc body
+  ec <- executeShellCommand "pandoc" cmd
+  writeFilesOrStrings htmlFile [Right (cssHTML css)]
+  checkExitCode cmd ec
+  where
+    mdFile = extFileName Mkdn srcFile
+    cmd    = pandocCmd pandocPath mdFile htmlFile
 
-renderPandoc' :: PrintfArg t
-              => t -> FilePath -> FilePath -> [Char] -> String -> IO ()
-renderPandoc' pandocPath htmlFile srcFile css body
-  = do _  <- writeFile mdFile $ pandocPreProc body
-       ec <- executeShellCommand "pandoc" cmd
-       writeFilesOrStrings htmlFile [Right (cssHTML css)]
-       checkExitCode cmd ec
-    where mdFile = extFileName Mkdn srcFile
-          cmd    = pandocCmd pandocPath mdFile htmlFile
-
-checkExitCode :: Monad m => [Char] -> ExitCode -> m ()
+checkExitCode :: Monad m => String -> ExitCode -> m ()
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = panic Nothing $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
-pandocCmd :: (PrintfArg t1, PrintfArg t2, PrintfArg t3, PrintfType t)
-          => t1 -> t2 -> t3 -> t
-pandocCmd pandocPath mdFile htmlFile
-  = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile
+pandocCmd :: FilePath -> FilePath -> FilePath -> String
+pandocCmd -- pandocPath mdFile htmlFile
+  = printf "%s -f markdown -t html %s > %s" -- pandocPath mdFile htmlFile
 
 pandocPreProc :: String -> String
 pandocPreProc  = T.unpack
@@ -174,12 +172,6 @@ pandocPreProc  = T.unpack
     code       = "code"
     spec       = "spec"
     strip x y  = T.replace (T.pack $ printf "\\%s{%s}" x y) T.empty
-    -- stripBcode = T.replace (T.pack "\\begin{code}") T.empty
-    -- stripEcode = T.replace (T.pack "\\end{code}")   T.empty
-    -- stripBspec = T.replace (T.pack "\\begin{code}") T.empty
-    -- stripEspec = T.replace (T.pack "\\end{code}")   T.empty
-
-
 
 
 -------------------------------------------------------------------------
@@ -188,21 +180,18 @@ pandocPreProc  = T.unpack
 
 -- More or less taken from hscolour
 
-renderDirect :: FilePath -> [Char] -> [Char] -> [Char] -> IO ()
+renderDirect :: FilePath -> String -> String -> String -> IO ()
 renderDirect htmlFile srcFile css body
-  = writeFile htmlFile $! (top'n'tail full srcFile css $! body)
+  = writeFile htmlFile $! (topAndTail full srcFile css $! body)
     where full = True -- False  -- TODO: command-line-option
 
--- | @top'n'tail True@ is used for standalone HTML,
---   @top'n'tail False@ for embedded HTML
-
-top'n'tail :: Bool -> [Char] -> [Char] -> [Char] -> [Char]
-top'n'tail True  title css = (htmlHeader title css ++) . (++ htmlClose)
-top'n'tail False _    _    = id
+-- | @topAndTail True@ is used for standalone HTML; @topAndTail False@ for embedded HTML
+topAndTail :: Bool -> String -> String -> String -> String
+topAndTail True  title css = (htmlHeader title css ++) . (++ htmlClose)
+topAndTail False _    _    = id
 
 -- Use this for standalone HTML
-
-htmlHeader :: [Char] -> [Char] -> String
+htmlHeader :: String -> String -> String
 htmlHeader title css = unlines
   [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">"
   , "<html>"
@@ -218,7 +207,7 @@ htmlHeader title css = unlines
 htmlClose :: IsString a => a
 htmlClose  = "\n</body>\n</html>"
 
-cssHTML :: [Char] -> String
+cssHTML :: String -> String
 cssHTML css = unlines
   [ "<head>"
   , "<link type='text/css' rel='stylesheet' href='"++ css ++ "' />"
@@ -316,13 +305,13 @@ refToken = Keyword
 
 -- | The top-level function for tokenizing @-block annotations. Used to
 -- tokenize comments by ACSS.
-tokAnnot :: [Char] -> [(TokenType, String)]
+tokAnnot :: String -> [(TokenType, String)]
 tokAnnot s
   = case trimLiquidAnnot s of
       Just (l, body, r) -> [(refToken, l)] ++ tokBody body ++ [(refToken, r)]
       Nothing           -> [(Comment, s)]
 
-trimLiquidAnnot :: [Char] -> Maybe (String, [Char], String)
+trimLiquidAnnot :: String -> Maybe (String, String, String)
 trimLiquidAnnot ('{':'-':'@':ss)
   | drop (length ss - 3) ss == "@-}"
   = Just (liquidBegin, take (length ss - 3) ss, liquidEnd)
@@ -357,23 +346,18 @@ spacePrefix str s@(c:cs)
 spacePrefix _ _ = False
 
 
-tokeniseSpec       ::  String -> [(TokenType, String)]
-tokeniseSpec str   = {- traceShow ("tokeniseSpec: " ++ str) $ -} tokeniseSpec' str
-
-tokeniseSpec' :: String -> [(TokenType, String)]
-tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
+tokeniseSpec :: String -> [(TokenType, String)]
+tokeniseSpec       = tokAlt . chopAltDBG
   where
     tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
     tokAlt _       = []
     tokAlt' (s:ss) = (refToken, s) : tokAlt ss
     tokAlt' _      = []
 
-chopAltDBG :: String -> [[Char]]
-chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -}
-  filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
-  $ chopAlts [("<{", "}>"), ("{", "}")] y
-
-
+chopAltDBG :: String -> [String]
+chopAltDBG y = filter (/= "")
+             $ concatMap (chopAlts [("{", ":"), ("|", "}")])
+             $ chopAlts [("<{", "}>"), ("{", "}")] y
 
 
 ------------------------------------------------------------------------
@@ -392,11 +376,10 @@ data Annot1    = A1  { ident :: String
 ------------------------------------------------------------------------
 -- | Creating Vim Annotations ------------------------------------------
 ------------------------------------------------------------------------
-
 vimAnnot     :: Config -> AnnInfo Doc -> String
 vimAnnot cfg = L.intercalate "\n" . map vimBind . mkAnnMapBinders cfg
 
-vimBind :: (Show a, PrintfType t) => (SrcLoc.RealSrcSpan, ([Char], a)) -> t
+vimBind :: (Show a, PrintfType t) => (SrcLoc.RealSrcSpan, (String, a)) -> t
 vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann)
   where
     l1  = srcSpanStartLine sp

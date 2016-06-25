@@ -42,7 +42,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Bare Type Constructors and Variables
   , BTyCon(..)
-  , mkBTyCon, mkClassBTyCon
+  , mkBTyCon, mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
   , BTyVar(..)
 
@@ -131,6 +131,7 @@ module Language.Haskell.Liquid.Types (
   , rTypeValueVar
   , rTypeReft
   , stripRTypeBase
+  , topRTypeBase
 
   -- * Class for values that can be pretty printed
   , PPrint (..), pprint
@@ -296,7 +297,7 @@ data GhcInfo = GI {
   , targetMod:: !ModuleName
   , env      :: !HscEnv
   , cbs      :: ![CoreBind]
-  , derVars  :: ![Var]
+  , derVars  :: ![Var]          -- ^ ?
   , impVars  :: ![Var]
   , defVars  :: ![Var]
   , useVars  :: ![Var]
@@ -534,6 +535,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -560,10 +562,14 @@ tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 
 mkBTyCon :: LocSymbol -> BTyCon
-mkBTyCon = (`BTyCon` False)
+mkBTyCon x = BTyCon x False False
 
 mkClassBTyCon :: LocSymbol -> BTyCon
-mkClassBTyCon = (`BTyCon` True)
+mkClassBTyCon x = BTyCon x True False
+
+mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon x = BTyCon x False True
+
 
 -- | Accessors for @RTyCon@
 
@@ -842,7 +848,7 @@ instance TyConable RTyCon where
 
 
 instance TyConable TyCon where
-  isFun      = isFunTyCon 
+  isFun      = isFunTyCon
   isList     = (listTyCon ==)
   isTuple    = TyCon.isTupleTyCon
   isClass c  = isClassTyCon c || c == eqTyCon
@@ -1457,6 +1463,9 @@ stripRTypeBase (RAppTy _ _ x)
 stripRTypeBase _
   = Nothing
 
+topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase top
+
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
 mapRBase f (RVar a r)       = RVar a $ f r
@@ -1740,7 +1749,7 @@ instance NFData a => NFData (Annot a)
 
 data Output a = O
   { o_vars   :: Maybe [String]
-  , o_errors :: ![UserError]
+  -- , o_errors :: ![UserError]
   , o_types  :: !(AnnInfo a)
   , o_templs :: !(AnnInfo a)
   , o_bots   :: ![SrcSpan]
@@ -1748,12 +1757,12 @@ data Output a = O
   } deriving (Typeable, Generic, Functor)
 
 emptyOutput :: Output a
-emptyOutput = O Nothing [] mempty mempty [] mempty
+emptyOutput = O Nothing {- [] -} mempty mempty [] mempty
 
 instance Monoid (Output a) where
   mempty        = emptyOutput
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-                    , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
+                    -- , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
                     , o_types  =             mappend (o_types  o1) (o_types  o2)
                     , o_templs =             mappend (o_templs o1) (o_templs o2)
                     , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
@@ -1772,7 +1781,7 @@ data KVKind
   | LamE
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
-  | ProjectE        -- ^ Projecting out field of 
+  | ProjectE        -- ^ Projecting out field of
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind

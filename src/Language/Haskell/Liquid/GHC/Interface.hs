@@ -250,7 +250,7 @@ derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
 derivedVars _   Nothing    = []
 
 derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd = concatMap bindersOf cbs' ++ deps
+derivedVs cbs fd   = concatMap bindersOf cbs' ++ deps
   where
     cbs'           = filter f cbs
     f (NonRec x _) = eqFd x
@@ -301,12 +301,6 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
-{- OLD CONFLICT @SPINDA
-  _                   <- loadModule' typechecked
-  let specComments     = getSpecComments parsed
-  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments
-=======
--}
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
@@ -337,22 +331,6 @@ loadModule' tm = loadModule tm'
     pm'  = pm { pm_mod_summary = ms' }
     tm'  = tm { tm_parsed_module = pm' }
 
-{- OLD CONFLICT @SPINDA
-getSpecComments :: ParsedModule -> [(SourcePos, String)]
-getSpecComments parsed = mapMaybe getSpecComment comments
-  where
-    comments = concat $ M.elems $ snd $ pm_annotations parsed
-
-getSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
-getSpecComment (GHC.L span (AnnBlockComment text))
-  | isPrefixOf "{-@" text && isSuffixOf "@-}" text =
-    Just (offsetPos, take (length text - 6) $ drop 3 text)
-  where
-    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
-getSpecComment _ = Nothing
--}
-
-
 processTargetModule :: Config -> Either Error LogicMap -> DepGraph
                     -> SpecEnv
                     -> FilePath -> TypecheckedModule -> Ms.BareSpec
@@ -366,6 +344,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modGuts        = makeMGIModGuts desugared
   hscEnv            <- getSession
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
+  _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs          = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   let defVs          = definedVars coreBinds
@@ -381,7 +360,18 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   (spc, imps, incs) <- toGhcSpec cfg coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualsFiles       <- moduleHquals modGuts paths file imps incs
-  return $ GI file (moduleName mod) hscEnv coreBinds derVs impVs (letVs ++ dataCons) useVs hqualsFiles imps incs spc
+  return GI { target    = file
+            , targetMod = moduleName mod
+            , env       = hscEnv
+            , cbs       = coreBinds
+            , derVars   = traceShow "DERIVED VARS" derVs
+            , impVars   = impVs
+            , defVars   = letVs ++ dataCons
+            , useVars   = useVs
+            , hqFiles   = hqualsFiles
+            , imports   = imps
+            , includes  = incs
+            , spec      = spc                }
 
 toGhcSpec :: GhcMonad m
           => Config

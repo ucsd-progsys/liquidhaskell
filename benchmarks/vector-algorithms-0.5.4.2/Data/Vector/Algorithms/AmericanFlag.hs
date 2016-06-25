@@ -214,6 +214,7 @@ instance Lexicographic B.ByteString where
   {-# INLINE size #-}
   index i b
     | i >= B.length b = 0
+    | i < 0           = 0  -- JHALA: otherwise error!
     | otherwise       = fromIntegral (B.index b i) + 1
   {-# INLINE index #-}
 
