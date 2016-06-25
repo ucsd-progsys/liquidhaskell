@@ -131,6 +131,7 @@ module Language.Haskell.Liquid.Types (
   , rTypeValueVar
   , rTypeReft
   , stripRTypeBase
+  , topRTypeBase
 
   -- * Class for values that can be pretty printed
   , PPrint (..), pprint
@@ -1451,6 +1452,9 @@ stripRTypeBase (RAppTy _ _ x)
   = Just x
 stripRTypeBase _
   = Nothing
+
+topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase top
 
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r

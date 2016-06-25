@@ -194,6 +194,7 @@ data CGInfo = CGInfo {
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
+  , ghcI       :: !GhcInfo
   }
 
 instance PPrint CGInfo where

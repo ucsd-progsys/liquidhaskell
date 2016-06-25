@@ -367,6 +367,7 @@ initCGI cfg info = CGInfo {
   , bindSpans  = M.empty
   , autoSize   = autosize spc
   , allowHO    = higherOrderFlag cfg
+  , ghcI       = info
   }
   where
     tce        = tcEmbeds spc
@@ -766,7 +767,8 @@ addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
-consCB tflag _ γ (Rec xes) | tflag
+-- do termination checking
+consCB True _ γ (Rec xes)
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
        let xxes = catMaybes $ (`lookup` texprs) <$> xs
@@ -781,8 +783,9 @@ consCB tflag _ γ (Rec xes) | tflag
       loc        = getSrcSpan (head xs)
       lookup k m = (k,) <$> M.lookup k m
 
-consCB _ str γ (Rec xes) | not str
-  = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+-- don't do termination checking, but some strata checks?
+consCB _ False γ (Rec xes)
+  = do xets'   <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
        sflag   <- scheck <$> get
        let cmakeDivType = if sflag then makeDivType else id
        let xets = mapThd3 (fmap cmakeDivType) <$> xets'
@@ -792,6 +795,7 @@ consCB _ str γ (Rec xes) | not str
        mapM_ (consBind True γ') xets
        return γ'
 
+-- don't do termination checking, and don't do any strata checks either?
 consCB _ _ γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -810,29 +814,27 @@ consCB _ _ γ (NonRec x _) | isDictionary x
 
 
 consCB _ _ γ (NonRec x def)
-  | Just (w, τ) <- grepDictionary def, Just d <- dlookup (denv γ) w
-  = do t      <- trueTy τ
-       addW    $ WfC γ t
-       let xts = dmap (f t) d
-       let  γ' = γ{denv = dinsert (denv γ) x xts }
-       t      <- trueTy (varType x)
+  | Just (w, τ) <- grepDictionary def
+  , Just d      <- dlookup (denv γ) w
+  = do t        <- trueTy τ
+       addW      $ WfC γ t
+       let xts   = dmap (f t) d
+       let  γ'   = γ { denv = dinsert (denv γ) x xts }
+       t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
     f t' (RAllT α te) = subsTyVar_meet' (α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
-    grepDictionary (App (Var w) (Type t))
-      = Just (w, t)
-    grepDictionary (App e (Var _))
-      = grepDictionary e
-    grepDictionary _
-      = Nothing
-
-
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
        extender γ (x, to')
+
+grepDictionary :: CoreExpr -> Maybe (Var, Type)
+grepDictionary (App (Var w) (Type t)) = Just (w, t)
+grepDictionary (App e (Var _))        = grepDictionary e
+grepDictionary _                      = Nothing
 
 --------------------------------------------------------------------------------
 consBind :: Bool
@@ -878,7 +880,8 @@ consBind isRec γ (x, e, Assumed spect)
     where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
-  = do t     <- consE (γ `setBind` x) e
+  = do t'    <- consE (γ `setBind` x) e
+       t     <- topSpecType x t'
        addIdA x (defAnn isRec t)
        when (isExportedId x) (addKuts x t)
        return $ Asserted t
@@ -949,7 +952,24 @@ safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
-varTemplate γ (x, eo) = traceShow ("VAR-TEMPLATE: " ++ show x) <$> varTemplate' γ (x, eo)
+varTemplate γ (x, eo) = do
+  t     <- varTemplate' γ (x, eo)
+  t'    <- mapM (topSpecType x) t
+  return $ traceShow ("VAR-TEMPLATE: " ++ show x) t'
+
+-- | @topSpecType@ strips out the top-level refinement of a derived var
+topSpecType :: Var -> SpecType -> CG SpecType
+topSpecType x t = do
+  info  <- ghcI <$> get
+  return $ if derivedVar info x then topRTypeBase t else t
+
+-- | @lazVarTemplate@ is like `varTemplate` but for binders that are *not*
+--   termination checked and hence, the top-level refinement / KVar is
+--   stripped out. e.g. see tests/neg/T743.hs
+-- varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
+-- lazyVarTemplate γ (x, eo) = dbg <$> (topRTypeBase <$>) <$> varTemplate' γ (x, eo)
+--   where
+--    dbg   = traceShow ("LAZYVAR-TEMPLATE: " ++ show x)
 
 varTemplate' :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate' γ (x, eo)
