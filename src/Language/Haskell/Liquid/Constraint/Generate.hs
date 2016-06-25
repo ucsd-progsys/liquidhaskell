@@ -952,11 +952,7 @@ safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
-varTemplate γ (x, eo) = do
-  t     <- varTemplate' γ (x, eo)
-  t'    <- mapM (topSpecType x) t
-  return {- $ traceShow ("VAR-TEMPLATE: " ++ show x) -} t'
-
+varTemplate γ (x, eo) = varTemplate' γ (x, eo) >>= mapM (topSpecType x)
 
 -- | @lazVarTemplate@ is like `varTemplate` but for binders that are *not*
 --   termination checked and hence, the top-level refinement / KVar is
