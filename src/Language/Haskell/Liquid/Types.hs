@@ -293,7 +293,7 @@ data GhcInfo = GI {
     target   :: !FilePath
   , targetMod:: !ModuleName
   , env      :: !HscEnv
-  , cbs      :: ![CoreBind]     
+  , cbs      :: ![CoreBind]
   , derVars  :: ![Var]          -- ^ ?
   , impVars  :: ![Var]
   , defVars  :: ![Var]

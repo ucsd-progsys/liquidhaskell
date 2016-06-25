@@ -101,15 +101,18 @@ data CGEnv = CGE
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
   , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-  , cgCfg  :: !Config                                -- ^ top-level config options
+  -- , cgCfg  :: !Config                                -- ^ top-level config options
+  , cgInfo :: !GhcInfo                               -- ^ top-level GhcInfo
   } -- deriving (Data, Typeable)
+
+instance HasConfig CGEnv where
+  getConfig = getConfig . cgInfo
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
   mempty  = LC []
   mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
-
 
 instance PPrint CGEnv where
   pprintTidy k = pprintTidy k . renv
@@ -177,7 +180,7 @@ data CGInfo = CGInfo {
   , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])    -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
-  , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
+  , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
@@ -185,7 +188,6 @@ data CGInfo = CGInfo {
   , lits       :: !(F.SEnv F.Sort)             -- ^ Literals to be embedded as constants in refinement logic
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
-  , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
@@ -244,14 +246,14 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 
 addArgument :: CGEnv -> Var -> CGEnv
 addArgument γ v
- | higherorder $ cgCfg γ
+ | higherOrderFlag γ
  = γ {fargs = S.insert v (fargs γ) }
  | otherwise
  = γ
 
 addArguments :: CGEnv -> [Var] -> CGEnv
 addArguments γ vs
- | higherorder $ cgCfg γ
+ | higherOrderFlag γ
  = foldl addArgument γ vs
  | otherwise
  = γ
@@ -328,17 +330,16 @@ conjoinInvariant t@(RVar _ r) (RVar _ ir)
 conjoinInvariant t _
   = t
 
-
 removeInvariant  :: CGEnv -> CoreBind -> (CGEnv, RTyConInv)
 removeInvariant γ cbs
-  = (γ{ invs  = M.map (filter f) (invs γ)
-      , rinvs = M.map (filter (not . f)) (invs γ)}, invs γ)
+  = (γ { invs  = M.map (filter f) (invs γ)
+       , rinvs = M.map (filter (not . f)) (invs γ)}
+    , invs γ)
   where
     f i | Just v  <- _rinv_name i, v `elem` binds cbs
         = False
         | otherwise
         = True
-
     binds (NonRec x _) = [x]
     binds (Rec xes)    = fst $ unzip xes
 

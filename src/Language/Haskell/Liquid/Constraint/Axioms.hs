@@ -574,7 +574,7 @@ initAEEnv info sigs
                      , ae_recs    = []
                      , ae_assert  = []
                      , ae_cmb     = \x y -> (App (App (Var by) x) y)
-                     , ae_isHO    = higherorder $ config spc
+                     , ae_isHO    = higherOrderFlag spc
                      }
     where
       spc        = spec info

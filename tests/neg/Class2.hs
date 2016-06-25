@@ -17,8 +17,12 @@ instance Sized [] where
       sz ([])   = 0
       sz (x:xs) = 1 + (sz xs)
     @-}
+
   size []     = 0
   size (x:xs) = 1 + size xs
+
+-- The following is needed to make this work (but are invariants checked?) 
+{- invariant {v:[a] | sz v == len v} @-}
 
 {-@ class (Sized s) => Indexable s where
       index :: forall a. x:s a -> {v:Nat | v < sz x} -> a
@@ -29,6 +33,4 @@ class (Sized s) => Indexable s where
 
 instance Indexable [] where
   index = (!!)
-
-
 

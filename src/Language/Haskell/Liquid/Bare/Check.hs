@@ -92,7 +92,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     ms               = measures sp
     clsSigs sp       = [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = tySigs sp ++ asmSigs sp
-    allowHO          = higherorder $ config sp 
+    allowHO          = higherOrderFlag sp
 
 
 checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
@@ -147,7 +147,7 @@ checkInv allowHO emb tcEnv env (_, t)   = checkTy allowHO err emb tcEnv env t
 checkIAl :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
 checkIAl allowHO emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO emb tcEnv env) ials
 
-checkIAlOne :: Bool 
+checkIAlOne :: Bool
             -> TCEmb TyCon
             -> TCEnv
             -> SEnv SortedReft
@@ -254,7 +254,7 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
-checkRType allowHO emb env t   
+checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (rTypeSortedReft emb) f insertPEnv env Nothing t

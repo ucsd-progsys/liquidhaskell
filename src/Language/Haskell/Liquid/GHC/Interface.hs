@@ -250,7 +250,7 @@ derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
 derivedVars _   Nothing    = []
 
 derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd = concatMap bindersOf cbs' ++ deps
+derivedVs cbs fd   = concatMap bindersOf cbs' ++ deps
   where
     cbs'           = filter f cbs
     f (NonRec x _) = eqFd x

@@ -109,21 +109,16 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct    info
-    cfg                  = infoConfig info
+    act                  = consAct    cfg  info
+    cfg                  = config . spec $ info
 
-infoConfig :: GhcInfo -> Config
-infoConfig = config . spec
-
-consAct :: GhcInfo -> CG ()
-consAct info = do
+consAct :: Config -> GhcInfo -> CG ()
+consAct cfg info = do
   γ'    <- initEnv      info
   sflag <- scheck   <$> get
-  tflag <- trustghc <$> get
   γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
   cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
-  let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
-  foldM_ (consCBTop trustBinding) γ cbs'
+  foldM_ (consCBTop cfg info) γ cbs'
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
   scss  <- sCs   <$> get
@@ -185,7 +180,7 @@ initEnv info
        lt1s     <- F.toListSEnv . lits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) tcb (lt1s ++ lt2s) (bs!!3) (bs!!5) hs (infoConfig info)
+       let γ0    = measEnv sp (head bs) (cbs info) tcb (lt1s ++ lt2s) (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -291,9 +286,9 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
-        -> Config
+        -> GhcInfo
         -> CGEnv
-measEnv sp xts cbs tcb lts asms itys hs cfg = CGE
+measEnv sp xts cbs tcb lts asms itys hs info = CGE
   { cgLoc  = Sp.empty
   , renv   = fromListREnv (second val <$> meas sp) []
   , syenv  = F.fromListSEnv $ freeSyms sp
@@ -315,9 +310,9 @@ measEnv sp xts cbs tcb lts asms itys hs cfg = CGE
   , lcb   = M.empty
   , holes = fromListHEnv hs
   , lcs   = mempty
-  , aenv  = axiom_map $ logicMap sp
-  , cerr  = Nothing
-  , cgCfg = cfg
+  , aenv   = axiom_map $ logicMap sp
+  , cerr   = Nothing
+  , cgInfo = info
   }
   where
       tce = tcEmbeds sp
@@ -365,14 +360,13 @@ initCGI cfg info = CGInfo {
   , specLazy   = dictionaryVar `S.insert` lazy spc
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
-  , trustghc   = not $ noTrustInterns cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
-  , allowHO    = higherorder cfg
+  , allowHO    = higherOrderFlag cfg
   }
   where
     tce        = tcEmbeds spc
@@ -410,7 +404,7 @@ freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
 freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
   where
-    t                = {- F.tracepp "freshTy_reftype" -} _t
+    t                = F.tracepp ("freshTy_reftype:" ++ show k)  _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -498,7 +492,6 @@ refreshPs = mapPropM go
 -------------------------------------------------------------------------------
 -- | TERMINATION TYPE --------------------------------------
 -------------------------------------------------------------------------------
-
 makeDecrIndex :: (Var, Template SpecType)-> CG [Int]
 makeDecrIndex (x, Assumed t)
   = do dindex <- makeDecrIndexTy x t
@@ -628,51 +621,49 @@ consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBLet γ cb
   = do oldtcheck <- tcheck <$> get
-       strict    <- specLazy <$> get
-       let tflag  = oldtcheck
-       let isStr  = tcond cb strict
+       lazyVars  <- specLazy <$> get
+       let isStr  = doTermCheck lazyVars cb
        -- TODO: yuck.
-       modify $ \s -> s { tcheck = tflag && isStr }
-       γ' <- consCB (tflag && isStr) isStr γ cb
+       modify $ \s -> s { tcheck = oldtcheck && isStr }
+       γ' <- consCB (oldtcheck && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Corebind -------------------------------------------
 --------------------------------------------------------------------------------
-consCBTop :: (Var -> Bool) -> CGEnv -> CoreBind -> CG CGEnv
+consCBTop :: Config -> GhcInfo -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
-consCBTop trustBinding γ cb | all trustBinding xs
+consCBTop cfg info γ cb
+  | all (trustVar cfg info) xs
   = do ts <- mapM trueTy (varType <$> xs)
        foldM (\γ xt -> (γ, "derived") += xt) γ (zip xs' ts)
     where
        xs  = bindersOf cb
        xs' = F.symbol <$> xs
 
-consCBTop _ γ cb
+consCBTop _ _ γ cb
   = do oldtcheck <- tcheck <$> get
-       strict    <- specLazy <$> get
-       let tflag  = oldtcheck
-       let isStr  = tcond cb strict
-       modify $ \s -> s { tcheck = tflag && isStr}
-
+       lazyVars  <- specLazy <$> get
+       let isStr  = doTermCheck lazyVars cb
+       modify $ \s -> s { tcheck = oldtcheck && isStr}
        -- remove invariants that came from the cb definition
-       let (γ',i) = removeInvariant γ cb
-       γ'' <- consCB (tflag && isStr) isStr γ' cb
+       let (γ', i) = removeInvariant γ cb                 --- DIFF
+       γ'' <- consCB (oldtcheck && isStr) isStr γ' cb
        modify $ \s -> s { tcheck = oldtcheck}
-       return $ restoreInvariant γ'' i
+       return $ restoreInvariant γ'' i                    --- DIFF
 
+-- HEREHEREHEREHERE
+-- why is consCBTop ALMOST equivalent to consCBLet ? except for this removeInvariant stuff?
 
-tcond :: Bind Var -> S.HashSet Var -> Bool
-tcond cb strict
-  = not $ any (\x -> S.member x strict || isInternal x) (binds cb)
-  where
-    binds (NonRec x _) = [x]
-    binds (Rec xes)    = fst $ unzip xes
+trustVar :: Config -> GhcInfo -> Var -> Bool
+trustVar cfg info x = trustInternals cfg && derivedVar info x
 
---------------------------------------------------------------------------------
-consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
---------------------------------------------------------------------------------
+derivedVar :: GhcInfo -> Var -> Bool
+derivedVar info x = x `elem` derVars info || isInternal x
+
+doTermCheck :: S.HashSet Var -> Bind Var -> Bool
+doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || isInternal x) . bindersOf
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
@@ -772,6 +763,9 @@ addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
     (xs, ts, rs, t2) = bkArrow t1
     xts              = zip3 xs ts rs
 
+--------------------------------------------------------------------------------
+consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
+--------------------------------------------------------------------------------
 consCB tflag _ γ (Rec xes) | tflag
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -955,7 +949,10 @@ safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
-varTemplate γ (x, eo)
+varTemplate γ (x, eo) = traceShow ("VAR-TEMPLATE: " ++ show x) <$> varTemplate' γ (x, eo)
+
+varTemplate' :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
+varTemplate' γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
@@ -1240,9 +1237,6 @@ consE _ e@(Type t)
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
-patternFlag :: CGEnv -> Bool
-patternFlag = not . noPatternInline . cgCfg
-
 consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
 
 {- [NOTE] special type rule for monadic-bind application
@@ -1551,7 +1545,7 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-argExpr γ (Var v)     | M.member v $ aenv γ, higherorder $ cgCfg γ
+argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
                       = F.EVar <$> (M.lookup v $ aenv γ)
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
@@ -1588,7 +1582,7 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
     strengthen
-      | higherorder (cgCfg γ)
+      | higherOrderFlag γ
       = strengthenMeet
       | otherwise
       = strengthenTop
@@ -1596,7 +1590,7 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
-  | higherorder (cgCfg γ), App f x <- simplify e
+  | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argExpr γ x) of
       (Just f', Just x') -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       _ -> t
