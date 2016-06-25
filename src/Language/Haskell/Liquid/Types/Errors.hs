@@ -303,10 +303,9 @@ data TError t =
                        } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
   | ErrAliasApp { pos   :: !SrcSpan
-                , nargs :: !Int
                 , dname :: !Doc
                 , dpos  :: !SrcSpan
-                , dargs :: !Int
+                , msg   :: !Doc 
                 }
 
   | ErrTermin   { pos  :: !SrcSpan
@@ -714,12 +713,12 @@ ppError' _ dSp dCtx (ErrIllegalAliasApp _ dn dl)
         $+$ text "Type alias:" <+> pprint dn
         $+$ text "Defined at:" <+> pprint dl
 
-ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
+ppError' _ dSp dCtx (ErrAliasApp _ name dl s)
   = dSp <+> text "Malformed Type Alias Application"
         $+$ dCtx
         $+$ text "Type alias:" <+> pprint name
         $+$ text "Defined at:" <+> pprint dl
-        $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
+        $+$ s 
 
 ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"

@@ -27,12 +27,15 @@ import Data.Traversable (forM)
 import Text.Parsec.Pos
 import Text.Printf
 
+import Text.PrettyPrint.HughesPJ
+
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 -- import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
                                 subst, symbol, symbolString, mkEApp)
+
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -194,19 +197,46 @@ failRTAliasApp l rta _ _
 
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
-  | length args == length αs + length εs
+  | Just errmsg <- isOK
+    = Ex.throw errmsg  
+  | otherwise
     = do ts <- mapM (ofBareType l) $ take (length αs) args
          es <- mapM (resolve l . exprArg (symbolString $ rtName rta)) $ drop (length αs) args
          let tsu = zipWith (\α t -> (α, toRSort t, t)) αs ts
          let esu = mkSubst $ zip (symbol <$> εs) es
          return $ subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
-  | otherwise
-    = Ex.throw err
+
   where
     αs        = rtTArgs rta
     εs        = rtVArgs rta
-    err       :: Error
-    err       = ErrAliasApp (sourcePosSrcSpan l) (length args) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta) (length αs + length εs)
+    err       :: Doc -> Error
+    err       = ErrAliasApp (sourcePosSrcSpan l) 
+                            (pprint $ rtName rta) 
+                            (sourcePosSrcSpan $ rtPos rta) 
+
+
+    isOK :: Maybe Error
+    isOK
+      | length args /= length targs + length eargs
+      = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments and then" <+> (pprint $ length εs) <+> text "expression arguments")
+      | length αs /= length targs, not (null eargs)
+      = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments before expression arguments")
+      | length αs /= length targs      
+      = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments but is given" <+> (pprint $ length targs))
+      | length εs /= length eargs
+      = Just $ err (text "Expects" <+> (pprint $ length εs) <+> text "expression arguments but is given" <+> (pprint $ length eargs))
+      | otherwise
+      = Nothing
+
+    notIsRExprArg (RExprArg _) = False 
+    notIsRExprArg _            = True
+
+    targs = takeWhile notIsRExprArg args
+    eargs = dropWhile notIsRExprArg args
+
+
+
+
 
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
@@ -244,7 +274,8 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
        nts = length tvs
 
        err :: Error
-       err = ErrAliasApp (sourcePosSrcSpan l) (length ts) (pprint c) (getSrcSpan c) (realTcArity c)
+       err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c) 
+                         (text "Expects " <+> (pprint $ realTcArity c) <+> text "arguments, but is given" <+> (pprint $ length ts))
 
 -- TODO expandTypeSynonyms here to
 bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
