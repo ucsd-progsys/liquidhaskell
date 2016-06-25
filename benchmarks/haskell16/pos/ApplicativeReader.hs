@@ -57,6 +57,43 @@ identity (Reader r)
   ==! Reader r 
   *** QED 
 
+
+-- | Composition
+
+{-@ composition :: x:Reader r (a -> a)
+                -> y:Reader r (a -> a)
+                -> z:Reader r a
+                -> { (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
+composition :: Reader r (a -> a) -> Reader r (a -> a) -> Reader r a -> Proof
+composition (Reader x) (Reader y) (Reader z)
+  =   seq (seq (seq (pure compose) (Reader x)) (Reader y)) (Reader z) 
+  ==! seq (seq (seq (Reader (\r1 -> compose)) (Reader x)) (Reader y)) (Reader z)
+  ==! seq (seq (Reader (\r2 -> ((\r1 -> compose) r2) (x r2))) (Reader y)) (Reader z)
+  ==! seq (seq (Reader (\r2 -> compose (x r2))) (Reader y)) (Reader z)
+  ==! seq (Reader (\r3 -> ((\r2 -> compose (x r2)) r3) (y r3))) (Reader z)
+  ==! seq (Reader (\r3 -> (compose (x r3)) (y r3))) (Reader z)
+  ==! Reader (\r4 -> ((\r3 -> (compose (x r3)) (y r3)) r4) (z r4)) 
+  ==! Reader (\r4 -> (compose (x r4) (y r4)) (z r4)) 
+  ==! Reader (\r4 -> (x r4) ((y r4) (z r4)))
+  ==! Reader (\r4 -> (x r4) ((\r5 -> (y r5) (z r5)) r4))
+  ==! seq (Reader x) (Reader (\r5 -> (y r5) (z r5)))
+  ==! seq (Reader x) (seq (Reader y) (Reader z))
+  *** QED 
+
+
+-- | homomorphism  pure f <*> pure x = pure (f x)
+
+{- homomorphism :: f:(a -> a) -> x:a
+                 -> { seq (pure f) (pure x) == pure (f x) } @-}
+homomorphism :: (a -> a) -> a -> Proof
+homomorphism f x
+  =   seq (pure f) (pure x)
+  ==! seq (Reader (\r2 -> f)) (Reader (\r2 -> x))
+  ==! Reader (\r -> ((\r2 -> f) r ) ((\r2 -> x) r))
+  ==! Reader (\r -> f x)
+  ==! pure (f x)
+  *** QED 
+
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
 qual :: (r -> a) -> Reader r a 
 qual = Reader 
