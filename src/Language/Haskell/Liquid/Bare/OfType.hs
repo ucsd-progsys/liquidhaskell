@@ -218,13 +218,16 @@ expandRTAliasApp l rta args r
     isOK :: Maybe Error
     isOK
       | length args /= length targs + length eargs
-      = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments and then" <+> (pprint $ length εs) <+> text "expression arguments")
+      = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments and then" <+> (pprint $ length εs) <+> text "expression arguments, but is given" <+> (pprint $ length args))
       | length αs /= length targs, not (null eargs)
       = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments before expression arguments")
+--  Many expression arguments are parsed like type arguments
+{- 
       | length αs /= length targs      
       = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments but is given" <+> (pprint $ length targs))
       | length εs /= length eargs
       = Just $ err (text "Expects" <+> (pprint $ length εs) <+> text "expression arguments but is given" <+> (pprint $ length eargs))
+-} 
       | otherwise
       = Nothing
 
