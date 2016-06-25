@@ -97,13 +97,13 @@ plugHoles tce tyi x f t (Loc l l' st)
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
        Loc l l' . mkArrow αs ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
   where
-    (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
+    (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt
 
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint t) (pprint $ toType st) hsSp
+    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toType st) hsSp
     hsSp              = getSrcSpan x
     lqSp              = sourcePos2SrcSpan l l'
 
@@ -135,7 +135,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
-    go _                st                 = return st
+    go st               _                 = return st
 
     makeCls cs t              = foldr (uncurry rFun) t cs
 

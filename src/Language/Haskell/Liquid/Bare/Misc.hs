@@ -132,7 +132,9 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
         mapTyVars τ' t'
 mapTyVars _ (RHole _)
   = return ()
-mapTyVars _ _ 
+mapTyVars k _ | isKind k 
+  = return () 
+mapTyVars _ _
   = throwError =<< errmsg <$> get
 
 mapTyRVar :: MonadError Error m

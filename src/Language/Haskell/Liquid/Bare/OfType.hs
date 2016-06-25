@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Bare.OfType (
 import Prelude hiding (error)
 import BasicTypes
 import Name
+import Kind (isKindVar)
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
@@ -29,6 +30,7 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
+-- import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
                                 subst, symbol, symbolString, mkEApp)
 
@@ -237,7 +239,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
-       tvs = tyConTyVarsDef c
+       tvs = filter (not . isKindVar) $ tyConTyVarsDef c
        su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 
@@ -246,7 +248,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
 
 -- TODO expandTypeSynonyms here to
 bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
-  = return $ expandRTypeSynonyms $ t `strengthen` r
+  = return (expandRTypeSynonyms $ t `strengthen` r)
   where t = rApp c ts rs mempty
 
 bareTCApp r (Loc _ _ c) rs ts
