@@ -202,7 +202,7 @@ fixConfig tgt cfg = def
   , FC.maxPartSize = maxPartSize       cfg
   , FC.elimStats   = elimStats         cfg
   , FC.elimBound   = elimBound         cfg
-  , FC.allowHO     = higherorder       cfg
+  , FC.allowHO     = higherOrderFlag   cfg
   , FC.allowHOqs   = higherorderqs     cfg
   , FC.extensionality = extensionality cfg
   }

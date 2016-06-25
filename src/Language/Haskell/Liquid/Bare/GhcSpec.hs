@@ -117,7 +117,7 @@ postProcess cbs specEnv sp@(SP {..})
     dicts'          = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'           = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
     meas'           = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
-    allowHO         = higherorder config
+    allowHO         = higherOrderFlag config
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -304,7 +304,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , decr       = decr'
                      , lvars      = lvars'
                      , autosize   = asize'
-                     , lazy       = lazies
+                     , lazy       = S.insert dictionaryVar lazies
                      , tySigs     = tx  <$> msgs
                      , asmSigs    = tx  <$> asmSigs  sp
                      , inSigs     = tx  <$> inSigs   sp
@@ -396,13 +396,13 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
 
 
     mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
-    mkInvariant z t tr = (fmap top t) `strengthen` MkUReft reft mempty mempty
+    mkInvariant z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
       where
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
         su    = mkSubst [(v, mkEApp x [EVar v])]
         reft  = Reft (v, subst su p')
 
-        p'    = pAnd $ filter (\e -> not (z `elem` syms e)) $ conjuncts p
+        p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 makeGhcSpecCHOP2 :: [CoreBind]
                  -> [(ModName, Ms.BareSpec)]

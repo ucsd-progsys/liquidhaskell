@@ -131,6 +131,7 @@ module Language.Haskell.Liquid.Types (
   , rTypeValueVar
   , rTypeReft
   , stripRTypeBase
+  , topRTypeBase
 
   -- * Class for values that can be pretty printed
   , PPrint (..), pprint
@@ -294,7 +295,7 @@ data GhcInfo = GI {
   , targetMod:: !ModuleName
   , env      :: !HscEnv
   , cbs      :: ![CoreBind]
-  , derVars  :: ![Var]
+  , derVars  :: ![Var]          -- ^ ?
   , impVars  :: ![Var]
   , defVars  :: ![Var]
   , useVars  :: ![Var]
@@ -532,7 +533,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -1451,6 +1452,9 @@ stripRTypeBase (RAppTy _ _ x)
   = Just x
 stripRTypeBase _
   = Nothing
+
+topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase top
 
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r

@@ -37,7 +37,7 @@ data Config = Config {
   , notermination  :: Bool       -- ^ disable termination check
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
-  , trustinternals :: Bool       -- ^ type all internal variables with true
+  , trustInternals :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
@@ -78,6 +78,15 @@ instance Serialize Config
 
 class HasConfig t where
   getConfig :: t -> Config
+
+  patternFlag :: t -> Bool
+  patternFlag = not . noPatternInline . getConfig
+
+  higherOrderFlag :: t -> Bool
+  higherOrderFlag = higherorder . getConfig
+
+
+
 
 hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)
