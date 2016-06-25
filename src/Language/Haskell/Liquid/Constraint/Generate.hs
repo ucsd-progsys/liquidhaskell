@@ -1051,7 +1051,7 @@ cconsE' γ e t
 
 lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
 lambdaSignleton γ tce x e 
-  | higherorder $ cgCfg γ, Just e' <- lamExpr γ e
+  | higherOrderFlag γ, Just e' <- lamExpr γ e
   = traceShow ("lambdaSignleton for " ++ show e) $ uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x 
@@ -1064,7 +1064,7 @@ addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
        t'       <- true t
        let truet = RFun y ty' t'  
-       case (lamExpr γ e, higherorder $ cgCfg γ) of 
+       case (lamExpr γ e, higherOrderFlag γ) of 
           (Just e', True) -> do tce    <- tyConEmbed <$> get 
                                 let sx  = typeSort tce $ varType x  
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
