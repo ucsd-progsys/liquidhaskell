@@ -296,8 +296,8 @@ makeGhcSpec4 quals defVars specs name su sp
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
        mapM_ insertHMeasLogicEnv $ S.toList hinls
        lmap'   <- logicEnv <$> get
-       let msgs = strengthenHaskellMeasures (S.map fst hmeas) (tySigs sp)
        let isgs = strengthenHaskellInlines  (S.map fst hinls) (tySigs sp)
+       let msgs = strengthenHaskellMeasures (S.map fst hmeas) isgs
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
        let f    = fmap $ txRefToLogic lmap inlmap
@@ -309,7 +309,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = S.insert dictionaryVar lazies
-                     , tySigs     = tx  <$> (msgs ++ isgs)
+                     , tySigs     = tx  <$> msgs
                      , asmSigs    = tx  <$> asmSigs  sp
                      , inSigs     = tx  <$> inSigs   sp
                      , measures   = mtx <$> measures sp
