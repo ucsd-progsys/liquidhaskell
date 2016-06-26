@@ -49,10 +49,16 @@ left_identity x f
 
 -- | Right Identity
 
-{-@ right_identity :: x:Reader r a -> { bind x return == x } @-}
+{- right_identity :: x:Reader r a -> { bind x return == x } @-}
 right_identity :: Reader r a -> Proof
 right_identity (Reader x)
-  =   undefined
+  =   bind (Reader x) return
+  ==! Reader (\r -> fromReader (return (x r)) r)
+  ==! Reader (\r -> fromReader (Reader (\r' ->  (x r))) r)
+  ==! Reader (\r -> (\r' ->  (x r)) r)
+  ==! Reader (\r -> x r)
+  ==! Reader x
+  *** QED 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
