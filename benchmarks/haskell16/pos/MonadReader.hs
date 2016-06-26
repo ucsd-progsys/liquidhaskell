@@ -49,7 +49,7 @@ left_identity x f
 
 -- | Right Identity
 
-{- right_identity :: x:Reader r a -> { bind x return == x } @-}
+{-@ right_identity :: x:Reader r a -> { bind x return == x } @-}
 right_identity :: Reader r a -> Proof
 right_identity (Reader x)
   =   bind (Reader x) return
@@ -67,3 +67,7 @@ right_identity (Reader x)
 associativity :: Reader r a -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
 associativity (Reader x) f g
   =   undefined
+
+{-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
+qual :: (r -> a) -> Reader r a 
+qual = Reader 
