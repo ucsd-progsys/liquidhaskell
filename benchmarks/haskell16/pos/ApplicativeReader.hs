@@ -83,7 +83,7 @@ composition (Reader x) (Reader y) (Reader z)
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
-{- homomorphism :: f:(a -> a) -> x:a
+{-@ homomorphism :: f:(a -> a) -> x:a
                  -> { seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
