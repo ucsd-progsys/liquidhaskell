@@ -66,7 +66,32 @@ right_identity (Reader x)
   -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
 associativity :: Reader r a -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
 associativity (Reader x) f g
-  =   undefined
+  =   bind (bind (Reader x) f) g
+  -- unfold inner bind 
+  ==! bind (Reader (\r1 -> fromReader (f (x r1)) r1)) g
+  -- unfold outer bind 
+  ==! Reader (\r2 -> fromReader (g ((\r1 -> fromReader (f (x r1)) r1) r2)) r2)
+  -- apply    r1 := r2
+  ==! Reader (\r2 -> fromReader (g (fromReader (f (x r2)) r2) )  r2)
+  -- abstract r3 := r2 
+  ==! Reader (\r2 -> 
+          (\r3 -> fromReader (g ((fromReader (f (x r2))) r3) ) r3)
+         r2)
+  -- apply measure fromReader (Reader f) == f 
+  ==! Reader (\r2 -> fromReader (
+          (Reader (\r3 -> fromReader (g ((fromReader (f (x r2))) r3) ) r3))
+        ) r2)
+  -- abstract r4 := x r2 
+  ==! Reader (\r2 -> fromReader ((\r4 -> 
+          (Reader (\r3 -> fromReader (g ((fromReader (f r4)) r3) ) r3))
+        ) (x r2)) r2)
+  -- fold (bind (f r4) g)
+  ==! Reader (\r2 -> fromReader ((\r4 -> 
+           (bind (f r4) g)
+        ) (x r2)) r2)
+  -- fold bind 
+  ==! bind (Reader x) (\r4 ->(bind (f r4) g))
+  *** QED  
 
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
 qual :: (r -> a) -> Reader r a 
