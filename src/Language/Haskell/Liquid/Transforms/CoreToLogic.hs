@@ -35,7 +35,7 @@ import           TysWiredIn
 
 
 
-import           Language.Fixpoint.Misc                (snd3, traceShow)
+import           Language.Fixpoint.Misc                (snd3)
 
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
