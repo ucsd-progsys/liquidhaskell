@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.Measure (
   , makeClassMeasureSpec
   , makeMeasureSelectors
   , strengthenHaskellMeasures
+  , strengthenHaskellInlines
   , varMeasures
   ) where
 
@@ -140,23 +141,18 @@ simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas sigs 
-  = go <$> (traceShow "\nGrouped List\n" $ groupList ((reverse sigs) ++ hsigs))
+strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellInlines  = strengthenHaskell strengthenResult
+strengthenHaskellMeasures = strengthenHaskell strengthenResult'
+strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskell strengthen hmeas sigs 
+  = go <$> groupList ((reverse sigs) ++ hsigs)
   where
-    hsigs      = traceShow "HAskell measures" [(val x, x {val = strengthenResult' $ val x}) | x <- S.toList hmeas]
+    hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
-    -- cmpFst x y = fst x == fst y 
 
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
-{- 
-meetLoc !t1 !t2 = t1{val = fromRTypeRep $ trep1 
-      { ty_args = zipWith (\t1 t2 -> t1 `meet` F.subst su t2) (ty_args trep1) (ty_args trep2)
-      , ty_res = ty_res trep1 `meet` F.subst su (ty_res trep2)}}
-    where
-      [trep1, trep2] = toRTypeRep . val <$> [t1, t2]
-      su = F.mkSubst [(y, F.EVar x) | (x, y) <- zip (ty_binds trep1) (ty_binds trep2)]
--}
 
 makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))

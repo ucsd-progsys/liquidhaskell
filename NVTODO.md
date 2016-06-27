@@ -1,8 +1,5 @@
-<HERE> FunctorReader
 
-
-- ApplicativeReader
-- MonadReader
+HERE MonadReader
 
 
 
