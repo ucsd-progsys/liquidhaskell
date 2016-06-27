@@ -343,7 +343,7 @@ defineFun (f, ELam (x, t) (ECst e tr))
                    defunc $ Assert Nothing
         (PAll [(g, FFunc t tr)]
           (PImp
-        (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar f) (EVar x))))
+        (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar g) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
        fflag <- f_ext <$> get
        if fflag 
@@ -385,6 +385,16 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
+
+normalizeLams :: Expr -> Expr 
+normalizeLams = go 1
+  where
+    go i (ELam (x, s) e) = let x' = makeLamArg s i
+                           in ELam (x', s) (go (i+1) e `subst1` (x, EVar x'))
+    go i (EApp e1 e2)    = EApp (go i e1) (go i e2)
+    go i (ECst e s)      = ECst (go i e) s
+    go _ e               = e 
+
 -- RJ: can't you use the Visitor instead of this?
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
 grapLambdas = go []
@@ -396,7 +406,7 @@ grapLambdas = go []
                                   else do 
                                      (bd', acc') <- go acc bd  
                                      let x' = makeLamArg s $ debruijnIndex bd' 
-                                     return (ELam (x', s) (bd' `subst1` (x, EVar x')), acc')
+                                     return $ (normalizeLams $ ELam (x', s) (bd' `subst1` (x, EVar x')), acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
