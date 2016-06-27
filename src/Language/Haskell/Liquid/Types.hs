@@ -535,7 +535,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
   }
   deriving (Generic, Data, Typeable)
 

@@ -1688,7 +1688,7 @@ strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
 strengthenMeet t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
+topMeet r r' = {- F.tracepp msg $ -} (F.top r `F.meet` r')
 
 
 --------------------------------------------------------------------------------
