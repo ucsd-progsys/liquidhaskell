@@ -1,3 +1,13 @@
+- HERE  ApplicativeReader
+- MonadReader
+
+
+
+
+
+
+
+
 Equational Reasoning 
 --------------------
 

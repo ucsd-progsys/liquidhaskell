@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.Measure (
   , makeClassMeasureSpec
   , makeMeasureSelectors
   , strengthenHaskellMeasures
+  , strengthenHaskellInlines
   , varMeasures
   ) where
 
@@ -140,10 +141,14 @@ simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas sigs 
+strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellInlines  = strengthenHaskell strengthenResult
+strengthenHaskellMeasures = strengthenHaskell strengthenResult'
+strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskell strengthen hmeas sigs 
   = go <$> groupList ((reverse sigs) ++ hsigs)
   where
-    hsigs      = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
+    hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
     -- cmpFst x y = fst x == fst y 
 
@@ -164,8 +169,10 @@ makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
-      | isFunTy t = Nothing
-      | otherwise = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
+      | isFunTy t || autoselectors
+      = Nothing
+      | otherwise 
+      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
       = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
