@@ -340,6 +340,7 @@ defineFun (f, ELam (x, t) (ECst e tr))
                                   (PAtom Eq (mkApp (EApp (EVar f) (EVar x)) (fst <$> xts)) bd))
        g <- freshSym
        assert2 <- withExtendedEnv [(f, FFunc t tr)] $
+                  withNoExtensionality $ 
                    defunc $ Assert Nothing
         (PAll [(g, FFunc t tr)]
           (PImp
