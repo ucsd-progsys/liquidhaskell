@@ -1,3 +1,16 @@
+<HERE> FunctorReader
+
+
+- ApplicativeReader
+- MonadReader
+
+
+
+
+
+
+
+
 Equational Reasoning 
 --------------------
 

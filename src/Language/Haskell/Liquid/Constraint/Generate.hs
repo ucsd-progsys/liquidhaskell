@@ -1013,7 +1013,7 @@ cconsE' γ (Let b e) t
 
 cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
-       forM_ cases $ cconsCase γ' x t nonDefAlts
+       forM_ cases $ cconsCase (addArgument γ' x) x t nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
@@ -1025,7 +1025,7 @@ cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
        cconsE (addArgument γ' x) e t'
-       addFunctionConstraint γ x e (RFun x' ty t' r')
+       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r') 
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -1049,19 +1049,28 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
+lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
+lambdaSignleton γ tce x e 
+  | higherorder $ cgCfg γ, Just e' <- lamExpr γ e
+  = traceShow ("lambdaSignleton for " ++ show e) $ uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+  where
+    sx = typeSort tce $ varType x 
+lambdaSignleton _ _ _ e
+  = traceShow ("No lambdaSignleton for " ++ show e) mempty
+
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
        t'       <- true t
-       let truet = RFun y ty' t'
-       case argExpr γ e of
-          Just e' -> do tce    <- tyConEmbed <$> get
-                        let sx  = typeSort tce $ varType x
-                        let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
-                        addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
-          Nothing ->    addC (SubC γ (truet mempty) $ truet r) "function constraint true"
-addFunctionConstraint γ _ _ _
+       let truet = RFun y ty' t'  
+       case (lamExpr γ e, higherorder $ cgCfg γ) of 
+          (Just e', True) -> do tce    <- tyConEmbed <$> get 
+                                let sx  = typeSort tce $ varType x  
+                                let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+                                addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
+          _ -> addC (SubC γ (truet mempty) $ truet r) "function constraint true"
+addFunctionConstraint γ _ _ _ 
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
@@ -1205,7 +1214,8 @@ consE γ e'@(App e a)
        updateLocA {- πs -}  (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
-       makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       ttt <- makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       return $ traceShow ("TYPE FOR APP ON " ++ show e') ttt
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1216,7 +1226,8 @@ consE γ  e@(Lam x e1)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
-       return   $ rFun (F.symbol x) tx t1
+       tce     <- tyConEmbed <$> get
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton (addArgument γ x) tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -1454,14 +1465,14 @@ caseEnv γ x _   (DataAlt c) ys pIs
        xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
-       let (rtd,yts', _) = unfoldR tdc xt ys
+       let (rtd,yts', _) = traceShow "\nBINDERS0\n" $ unfoldR tdc xt ys
        yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
-       let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
+       let cbs           = traceShow "\nBINDERS\n" $ safeZip "cconsCase" (x':ys') (xt0 : yts)
        cγ'              <- addBinders γ   x' cbs
-       cγ               <- addBinders cγ' x' [(x', xt)]
+       cγ               <- addBinders cγ' x' $ traceShow "\nTYPE FOR XT\n" [(x', xt)]
        return $ addArguments cγ ys
 
 caseEnv γ x acs a _ _
@@ -1570,6 +1581,27 @@ argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ _           = Nothing
 
 
+-- NIKI TODO: merge arg/lam/fun-Expr
+lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+lamExpr γ (Var v)     | M.member v $ aenv γ
+                      = F.EVar <$> (M.lookup v $ aenv γ)
+lamExpr γ (Var v)     | S.member v (fargs γ)
+                      =  Just $ F.eVar v
+lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
+lamExpr γ (Tick _ e)  = lamExpr γ e
+lamExpr γ (App e (Type _)) = lamExpr γ e 
+lamExpr γ ee@(App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+                              (Just p1, Just p2) -> Just $ F.EApp p1 p2
+                              _  -> traceShow ("0.no lamExpr for " ++ show ee)  Nothing 
+lamExpr γ ee@(Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
+                                       (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
+                                       _  -> traceShow ("1.no lamExpr for " ++ show ee) Nothing 
+lamExpr γ ee@(Lam x e)   = case lamExpr (addArgument γ x) e of 
+                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                            _ -> traceShow ("2.no lamExpr for " ++ show ee) Nothing
+lamExpr _ e           = traceShow ("3.no lamExpr for " ++ show e) Nothing
+
+
 --------------------------------------------------------------------------------
 (??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
@@ -1592,9 +1624,9 @@ varRefType γ x = do
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
   | Just tys <- trec γ, Just tr  <- M.lookup x' tys
-  = tr `strengthen` xr
+  = strengthen tr xr
   | otherwise
-  = t' `strengthen` xr
+  = strengthen t' xr
   where
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
@@ -1657,7 +1689,7 @@ strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
 strengthenMeet t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} (r `F.meet` r')
+topMeet r r' = {- F.tracepp msg $ -} (F.top r `F.meet` r')
 
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------

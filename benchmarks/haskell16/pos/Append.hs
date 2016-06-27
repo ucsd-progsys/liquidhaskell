@@ -15,9 +15,8 @@ import Proves
 
 {-@ axiomatize append @-}
 append :: L a -> L a -> L a
-append xs ys
-  | llen xs == 0 = ys
-  | otherwise    = hd xs ::: append (tl xs) ys
+append Emp      ys = ys
+append (x:::xs) ys = x ::: append xs ys
 
 {-@ axiomatize map @-}
 map :: (a -> b) -> L a -> L b
@@ -113,7 +112,7 @@ prop_concatMap f (x ::: xs)
 
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] @-}
+{-@ data L [llen] a = Emp | (:::) {x::a, xs :: L a } @-}
 
 
 {-@ measure llen @-}
