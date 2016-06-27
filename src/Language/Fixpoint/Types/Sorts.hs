@@ -176,12 +176,14 @@ isNumeric :: Sort -> Bool
 isNumeric FInt           = True 
 isNumeric (FApp s _)     = isNumeric s 
 isNumeric (FTC (TC _ i)) = tc_isNum i
+isNumeric (FAbs _ s)     = isNumeric s 
 isNumeric _              = False 
 
 isReal :: Sort -> Bool 
 isReal FReal          = True 
 isReal (FApp s _)     = isReal s 
 isReal (FTC (TC _ i)) = tc_isReal i
+isReal (FAbs _ s)     = isReal s 
 isReal _              = False 
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}

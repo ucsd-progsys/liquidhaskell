@@ -82,6 +82,8 @@ module Language.Fixpoint.Types.Refinements (
   -- * Transforming
   , mapPredReft
   , pprintReft
+
+  , debruijnIndex
   ) where
 
 import qualified Data.Binary as B
@@ -250,6 +252,31 @@ splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
+
+debruijnIndex :: Expr -> Int 
+debruijnIndex = go 
+  where
+    go (ELam _ e)      = 1 + go e 
+    go (ECst e _)      = go e 
+    go (EApp e1 e2)    = go e1 + go e2
+    go (ESym _)        = 1 
+    go (ECon _)        = 1 
+    go (EVar _)        = 1 
+    go (ENeg e)        = go e 
+    go (EBin _ e1 e2)  = go e1 + go e2
+    go (EIte e e1 e2)  = go e + go e1 + go e2
+    go (ETAbs e _)     = go e 
+    go (ETApp e _)     = go e 
+    go (PAnd es)       = foldl (\n e -> n + go e) 0 es
+    go (POr es)        = foldl (\n e -> n + go e) 0 es
+    go (PNot e)        = go e 
+    go (PImp e1 e2)    = go e1 + go e2
+    go (PIff e1 e2)    = go e1 + go e2 
+    go (PAtom _ e1 e2) = go e1 + go e2 
+    go (PAll _ e)      = go e 
+    go (PExist _ e)    = go e 
+    go (PKVar _ _)     = 1 
+    go PGrad           = 1 
 
 
 newtype Reft = Reft (Symbol, Expr)

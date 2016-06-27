@@ -61,7 +61,10 @@ hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 ---------------------------------------------------------------
 
 getUniqueInt :: IO Int
-getUniqueInt = hashUnique <$> newUnique
+getUniqueInt = do 
+  n1 <- hashUnique <$> newUnique
+  n2 <- hashUnique <$> newUnique
+  return (n1 * n2) 
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------

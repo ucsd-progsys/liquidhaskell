@@ -89,7 +89,7 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 --------------------------------------------------------------------------------
 
 type SMTEnv = SEnv Sort
-data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool }
+data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool}
 
 type SMT2   = State SMTSt
 
@@ -107,10 +107,41 @@ withExtendedEnv bs act = do
 
 freshSym :: SMT2 Symbol
 freshSym = do
-  n <- fresh <$> get
+  n  <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
   return $ intSymbol "lambda_fun_" n
 
+{- 
+-- Proper Handing of Lam Arguments
+freshLamSym :: (Symbol,Sort) -> Expr  -> SMT2 (Expr, Maybe Symbol) 
+freshLamSym (x, s) e = do 
+  ss <- M.lookup s . globals <$> get
+  case ss of 
+    Nothing -> do y <- freshSym
+                  modify $ \st -> st{globals = M.insert s [y] (globals st)}
+                  return (ELam (y, s) $ e `subst1` (x, EVar y), Just y)
+    Just xs -> 
+               if length xs <= i then do 
+                  y <- freshSym
+                  insertLamSym s y 
+                  return (ELam (y, s) $ e `subst1` (x, EVar y), Just y)
+               else 
+                  return (ELam (xs!!i, s) $ e `subst1` (x, EVar (xs!!i)), Nothing)
+  where
+    i  = go e
+    go (ELam (_, s') e) | s == s' = 1 + go e 
+    go (ELam _ e)   = go e 
+    go (ECst e _)   = go e 
+    go (EApp e1 e2) = (go e1) + (go e2)
+    -- go ... 
+    go _            = 0 
+
+
+insertLamSym :: Sort -> Symbol -> SMT2 () 
+insertLamSym s y = 
+  modify $ \st -> st{globals = M.insertWith (flip (++)) s [y] (globals st)}
+
+-}
 -- | Types that can be serialized
 class SMTLIB2 a where
   defunc :: a -> SMT2 a

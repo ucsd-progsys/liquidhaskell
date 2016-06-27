@@ -98,6 +98,9 @@ module Language.Fixpoint.Types.Names (
   , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
 
+  , lambdaName
+  , intArgName
+
 ) where
 
 import           Control.DeepSeq             (NFData (..))
@@ -459,6 +462,12 @@ instance Symbolic Symbol where
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
+
+lambdaName :: Symbol
+lambdaName = "smt_lambda"
+
+intArgName :: Int -> Symbol
+intArgName = intSymbol "lam_int_arg"
 
 setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
 setToIntName    = "set_to_int"
