@@ -992,12 +992,10 @@ cconsE g e t = do
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
-       if (x `S.member` sp) -- // || isDefLazyVar x
-        then cconsLazyLet γ e t
-        else do γ'  <- consCBLet γ b
-                cconsE γ' ee t
-    -- where
-    --   isDefLazyVar = L.isPrefixOf "fail" . showPpr
+       if (x `S.member` sp)
+         then cconsLazyLet γ e t
+         else do γ'  <- consCBLet γ b
+                 cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
