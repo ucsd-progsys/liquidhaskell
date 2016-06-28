@@ -50,7 +50,7 @@ addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
   | toType t1 /= toType t2
-  = panic Nothing $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 ++ showPpr (toType t1, toType t2)
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 ++ showPpr (toType t1, toType t2)
   | otherwise
   = do modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
