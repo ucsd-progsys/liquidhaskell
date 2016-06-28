@@ -49,7 +49,7 @@ import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg = fmap (rewriteBindWith safeSimplifyPatTuple)
+  | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
   | otherwise        = id
 
 simplifyCore :: Config -> Bool
@@ -150,8 +150,8 @@ rewriteWith tx           = go
 
 -}
 
-safeSimplifyPatTuple :: RewriteRule
-safeSimplifyPatTuple e 
+_safeSimplifyPatTuple :: RewriteRule
+_safeSimplifyPatTuple e 
   = find ((CoreUtils.exprType e ==) . CoreUtils.exprType) (simplifyPatTuple e)  
 
 --------------------------------------------------------------------------------
