@@ -992,12 +992,10 @@ cconsE g e t = do
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
-       if (x `S.member` sp) || isDefLazyVar x
-        then cconsLazyLet γ e t
-        else do γ'  <- consCBLet γ b
-                cconsE γ' ee t
-  where
-       isDefLazyVar = L.isPrefixOf "fail" . showPpr
+       if (x `S.member` sp)
+         then cconsLazyLet γ e t
+         else do γ'  <- consCBLet γ b
+                 cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
@@ -1025,7 +1023,7 @@ cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
        cconsE (addArgument γ' x) e t'
-       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r') 
+       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r')
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -1049,12 +1047,12 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
-lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
-lambdaSignleton γ tce x e 
+lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
+lambdaSignleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
-    sx = typeSort tce $ varType x 
+    sx = typeSort tce $ varType x
 lambdaSignleton _ _ _ _
   = mempty
 
@@ -1063,14 +1061,14 @@ addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
        t'       <- true t
-       let truet = RFun y ty' t'  
-       case (lamExpr γ e, higherOrderFlag γ) of 
-          (Just e', True) -> do tce    <- tyConEmbed <$> get 
-                                let sx  = typeSort tce $ varType x  
+       let truet = RFun y ty' t'
+       case (lamExpr γ e, higherOrderFlag γ) of
+          (Just e', True) -> do tce    <- tyConEmbed <$> get
+                                let sx  = typeSort tce $ varType x
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
                                 addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
           _ -> addC (SubC γ (truet mempty) $ truet r) "function constraint true"
-addFunctionConstraint γ _ _ _ 
+addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
@@ -1588,14 +1586,14 @@ lamExpr γ (Var v)     | S.member v (fargs γ)
                       =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
-lamExpr γ (App e (Type _)) = lamExpr γ e 
-lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+lamExpr γ (App e (Type _)) = lamExpr γ e
+lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
                               (Just p1, Just p2) -> Just $ F.EApp p1 p2
-                              _  -> Nothing 
-lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
+                              _  -> Nothing
+lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
-                                       _  -> Nothing 
-lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of 
+                                       _  -> Nothing
+lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of
                             Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
