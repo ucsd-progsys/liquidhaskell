@@ -92,7 +92,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     ms               = measures sp
     clsSigs sp       = [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = tySigs sp ++ asmSigs sp
-    allowHO          = higherorder $ config sp 
+    allowHO          = higherOrderFlag sp
 
 
 checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
@@ -147,7 +147,7 @@ checkInv allowHO emb tcEnv env (_, t)   = checkTy allowHO err emb tcEnv env t
 checkIAl :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
 checkIAl allowHO emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO emb tcEnv env) ials
 
-checkIAlOne :: Bool 
+checkIAlOne :: Bool
             -> TCEmb TyCon
             -> TCEnv
             -> SEnv SortedReft
@@ -254,7 +254,7 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
-checkRType allowHO emb env t   
+checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (rTypeSortedReft emb) f insertPEnv env Nothing t
@@ -418,7 +418,7 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
            -> SpecType
            -> Def (RRType r) DataCon
            -> Maybe Doc
-checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
   where
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
@@ -427,6 +427,7 @@ checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
     su   = checkMBodyUnify (ty_res trep) (last txs)
     txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
+    sort' = dropNArgs (length bs) sort 
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
@@ -449,7 +450,16 @@ checkMBody' emb sort γ body = case body of
   where
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
-    sort' = ty_res $ toRTypeRep sort
+    sort' = dropNArgs 1 sort
+
+dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r 
+dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
+  where
+    xs   = drop i $ ty_binds trep
+    ts   = drop i $ ty_args  trep
+    rs   = drop i $ ty_refts trep
+    trep = toRTypeRep t 
+
 
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
 checkClassMeasures ms = mapMaybe checkOne byTyCon

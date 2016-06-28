@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHints
   , makeLVar
   , makeLazy
-  , makeHIMeas
+  , makeHMeas, makeHInlines
   , makeTExpr
   , makeTargetVars
   , makeAssertSpec
@@ -115,11 +115,21 @@ makeHBounds vs spec = varSymbols id vs [(v, v ) | v <- S.toList $ Ms.hbounds spe
 makeTExpr :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Located F.Expr])]
 makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
 
-makeHIMeas :: [Var]
+
+makeHInlines :: [Var]
+             -> Ms.Spec ty bndr
+             -> BareM [(Located Var, LocSymbol)]
+makeHMeas :: [Var]
            -> Ms.Spec ty bndr
            -> BareM [(Located Var, LocSymbol)]
-makeHIMeas  vs spec 
-  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (Ms.hmeas spec) ++ S.toList (Ms.inlines spec)]
+makeHInlines = makeHIMeas Ms.inlines
+makeHMeas    = makeHIMeas Ms.hmeas
+makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
+           -> [Var]
+           -> Ms.Spec ty bndr
+           -> BareM [(Located Var, LocSymbol)]
+makeHIMeas f vs spec 
+  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (f spec)]
   where
     tx (x,(l, l', s))  = (Loc l l' x, s)
 

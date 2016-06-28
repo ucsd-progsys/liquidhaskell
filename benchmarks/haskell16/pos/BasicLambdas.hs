@@ -3,7 +3,7 @@
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--extensionality"  @-}
+{- LIQUID "--extensionality"  @-}
 module Append where
 
 import Proves
@@ -14,9 +14,16 @@ import Prelude hiding (map)
 funEq :: a  -> a -> Proof
 funEq _ _ = simpleProof
 
+
+{-@ funIdEq :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\x:a -> (\y:a -> y)) == (\z:a -> (\x:a -> x))} @-}
+funIdEq :: a  -> a -> Proof
+funIdEq _ _ = simpleProof
+
 {-@ funApp :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) (m1) == ((\x:a -> m2)) (m2) } @-}
 funApp :: a  -> a -> Proof
 funApp _ _ = simpleProof
+
+
 
 {-@ axiomatize bind @-}
 bind :: a -> (a -> b) ->  b

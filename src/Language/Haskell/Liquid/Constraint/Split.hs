@@ -360,8 +360,8 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
-splitC (SubC _ t1 t2)
-  = panic Nothing $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
+splitC (SubC γ t1 t2)
+  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get

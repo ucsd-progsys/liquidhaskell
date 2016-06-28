@@ -42,7 +42,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Bare Type Constructors and Variables
   , BTyCon(..)
-  , mkBTyCon, mkClassBTyCon
+  , mkBTyCon, mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
   , BTyVar(..)
 
@@ -131,6 +131,7 @@ module Language.Haskell.Liquid.Types (
   , rTypeValueVar
   , rTypeReft
   , stripRTypeBase
+  , topRTypeBase
 
   -- * Class for values that can be pretty printed
   , PPrint (..), pprint
@@ -197,6 +198,8 @@ module Language.Haskell.Liquid.Types (
   , liquidBegin, liquidEnd
 
   , Axiom(..), HAxiom, LAxiom
+
+  , rtyVarUniqueSymbol, tyVarUniqueSymbol
   )
   where
 
@@ -294,7 +297,7 @@ data GhcInfo = GI {
   , targetMod:: !ModuleName
   , env      :: !HscEnv
   , cbs      :: ![CoreBind]
-  , derVars  :: ![Var]
+  , derVars  :: ![Var]          -- ^ ?
   , impVars  :: ![Var]
   , defVars  :: ![Var]
   , useVars  :: ![Var]
@@ -532,8 +535,10 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
   }
   deriving (Generic, Data, Typeable)
+
 
 data RTyCon = RTyCon
   { rtc_tc    :: TyCon         -- ^ GHC Type Constructor
@@ -549,11 +554,22 @@ instance NFData BTyCon
 
 instance NFData RTyCon
 
+rtyVarUniqueSymbol  :: RTyVar -> Symbol 
+rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv 
+
+tyVarUniqueSymbol :: TyVar -> Symbol
+tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+
+
 mkBTyCon :: LocSymbol -> BTyCon
-mkBTyCon = (`BTyCon` False)
+mkBTyCon x = BTyCon x False False
 
 mkClassBTyCon :: LocSymbol -> BTyCon
-mkClassBTyCon = (`BTyCon` True)
+mkClassBTyCon x = BTyCon x True False
+
+mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon x = BTyCon x False True
+
 
 -- | Accessors for @RTyCon@
 
@@ -817,7 +833,6 @@ type OkRT c tv r = ( TyConable c
 -- | TyConable Instances -------------------------------------------------------
 -------------------------------------------------------------------------------
 
--- MOVE TO TYPES
 instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
@@ -830,6 +845,21 @@ instance TyConable RTyCon where
                 (tyConClass_maybe $ rtc_tc c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
                 (tyConClass_maybe $ rtc_tc c)
+
+
+instance TyConable TyCon where
+  isFun      = isFunTyCon
+  isList     = (listTyCon ==)
+  isTuple    = TyCon.isTupleTyCon
+  isClass c  = isClassTyCon c || c == eqTyCon
+  isEqual    = (eqPrimTyCon ==)
+  ppTycon    = text . showPpr
+
+  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
+                (tyConClass_maybe $ c)
+  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
+                (tyConClass_maybe $ c)
+
 
 isClassOrSubClass :: (Class -> Bool) -> Class -> Bool
 isClassOrSubClass p cls
@@ -1433,6 +1463,9 @@ stripRTypeBase (RAppTy _ _ x)
 stripRTypeBase _
   = Nothing
 
+topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase top
+
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
 mapRBase f (RVar a r)       = RVar a $ f r
@@ -1716,7 +1749,7 @@ instance NFData a => NFData (Annot a)
 
 data Output a = O
   { o_vars   :: Maybe [String]
-  , o_errors :: ![UserError]
+  -- , o_errors :: ![UserError]
   , o_types  :: !(AnnInfo a)
   , o_templs :: !(AnnInfo a)
   , o_bots   :: ![SrcSpan]
@@ -1724,12 +1757,12 @@ data Output a = O
   } deriving (Typeable, Generic, Functor)
 
 emptyOutput :: Output a
-emptyOutput = O Nothing [] mempty mempty [] mempty
+emptyOutput = O Nothing {- [] -} mempty mempty [] mempty
 
 instance Monoid (Output a) where
   mempty        = emptyOutput
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-                    , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
+                    -- , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
                     , o_types  =             mappend (o_types  o1) (o_types  o2)
                     , o_templs =             mappend (o_templs o1) (o_templs o2)
                     , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
@@ -1748,7 +1781,7 @@ data KVKind
   | LamE
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
-  | ProjectE        -- ^ Projecting out field of 
+  | ProjectE        -- ^ Projecting out field of
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 
 instance Hashable KVKind

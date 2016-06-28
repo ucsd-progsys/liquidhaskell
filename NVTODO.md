@@ -1,3 +1,13 @@
+
+HERE MonadReader
+
+
+
+
+
+
+
+
 Equational Reasoning 
 --------------------
 
