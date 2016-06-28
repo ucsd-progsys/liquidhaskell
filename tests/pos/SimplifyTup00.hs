@@ -6,9 +6,11 @@ module FOO (mkSessData) where
 mkSessData :: TcpEndPoint -> Bool
 mkSessData = isSrcTCP
 
-{-
- With the safeSimplifyPatTuple rewrite rule, the body of the below expression
- become a case with type (Port, Port) because the case is becoming the outer-most body expression
+{- With the safeSimplifyPatTuple rewrite rule,
+   the body of the below expression become a
+   case with type (Port, Port) because the
+   case is becoming the outer-most
+   body expression
 -}
 
 isSrcTCP :: TcpEndPoint -> Bool

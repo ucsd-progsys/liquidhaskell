@@ -150,13 +150,14 @@ rewriteWith tx           = go
 -}
 
 --------------------------------------------------------------------------------
-simplifyPatTuple :: RewriteRule
-simplifyPatTuple e =
-  case simplifyPatTuple' e of
-    Just e' -> if CoreUtils.exprType e == CoreUtils.exprType e'
-                 then Just e'
-                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
-    Nothing -> Nothing
+
+-- simplifyPatTuple :: RewriteRule
+-- simplifyPatTuple e =
+--  case simplifyPatTuple' e of
+--    Just e' -> if CoreUtils.exprType e == CoreUtils.exprType e'
+--                 then Just e'
+--                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
+--    Nothing -> Nothing
 
 
 _safeSimplifyPatTuple :: RewriteRule
@@ -168,9 +169,9 @@ _safeSimplifyPatTuple e
   = Nothing
 
 --------------------------------------------------------------------------------
-simplifyPatTuple' :: RewriteRule
+simplifyPatTuple :: RewriteRule
 --------------------------------------------------------------------------------
-simplifyPatTuple' (Let (NonRec x e) rest)
+simplifyPatTuple (Let (NonRec x e) rest)
   | Just (n, ts  ) <- varTuple x
   , 2 <= n
   , Just (yes, e') <- takeBinds n rest
@@ -179,7 +180,7 @@ simplifyPatTuple' (Let (NonRec x e) rest)
   , matchTypes yes ts
   = replaceTuple ys e e'
 
-simplifyPatTuple' _
+simplifyPatTuple _
   = Nothing
 
 varTuple :: Var -> Maybe (Int, [Type])
