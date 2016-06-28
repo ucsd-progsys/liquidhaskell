@@ -1,11 +1,10 @@
 
 -- See: https://github.com/ucsd-progsys/liquidhaskell/pull/752
 
-module FOO () where
+module FOO (mkSessData) where
 
-mkSessData :: TcpEndPoint -> Bool 
-mkSessData x = isSrcTCP x
-
+mkSessData :: TcpEndPoint -> Bool
+mkSessData = isSrcTCP
 
 {-
  With the safeSimplifyPatTuple rewrite rule, the body of the below expression
@@ -27,4 +26,4 @@ data TcpEndPoint = TcpEndPoint { addrTE :: Port, portTE :: Port }
 data Port = P deriving (Eq)
 
 idTCP :: TcpEndPoint -> TCPId --  (PortId, PortId)
-idTCP tcp = undefined 
+idTCP tcp = undefined

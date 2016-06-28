@@ -39,7 +39,7 @@ import           Control.Monad  (msum)
 -- import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId)
+import           Language.Haskell.Liquid.GHC.Misc (showPpr, tracePpr, isTupleId)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
 
@@ -151,8 +151,26 @@ rewriteWith tx           = go
 
 --------------------------------------------------------------------------------
 simplifyPatTuple :: RewriteRule
+simplifyPatTuple e =
+  case simplifyPatTuple' e of
+    Just e' -> if CoreUtils.exprType e == CoreUtils.exprType e'
+                 then Just e'
+                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
+    Nothing -> Nothing
+
+
+_safeSimplifyPatTuple :: RewriteRule
+_safeSimplifyPatTuple e
+  | Just e' <- simplifyPatTuple e
+  , CoreUtils.exprType e' == CoreUtils.exprType e
+  = Just e'
+  | otherwise
+  = Nothing
+
 --------------------------------------------------------------------------------
-simplifyPatTuple (Let (NonRec x e) rest)
+simplifyPatTuple' :: RewriteRule
+--------------------------------------------------------------------------------
+simplifyPatTuple' (Let (NonRec x e) rest)
   | Just (n, ts  ) <- varTuple x
   , 2 <= n
   , Just (yes, e') <- takeBinds n rest
@@ -161,7 +179,7 @@ simplifyPatTuple (Let (NonRec x e) rest)
   , matchTypes yes ts
   = replaceTuple ys e e'
 
-simplifyPatTuple _
+simplifyPatTuple' _
   = Nothing
 
 varTuple :: Var -> Maybe (Int, [Type])
@@ -227,8 +245,24 @@ replaceTuple ys e e'            = stepE e
     stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
     stepA (c, xs, e)            = (c, xs,)   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
-    go (Case e x t cs)          = Case e x t <$> mapM stepA cs
+    go (Case e x t cs)          = _reCase e x t <$> mapM stepA cs
     go _                        = Nothing
+
+
+-- | The substitution can change the type of the overall case-expression,
+--   so we must update the its type: see
+--   https://github.com/ucsd-progsys/liquidhaskell/pull/752#issuecomment-228946210
+
+_reCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
+_reCase e x _t cs' = Case e x t' cs'
+  where
+    t'            = CoreUtils.exprType body
+    (_,_,body)    = c
+    c:_           = cs'
+
+{-@  type ListNE a = {v:[a] | len v > 0} @-}
+type ListNE a = [a]
+
 
 replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
 replaceIrrefutPat t (App (Lam z e) eVoid)
