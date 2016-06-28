@@ -245,16 +245,17 @@ replaceTuple ys e e'            = stepE e
     stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
     stepA (c, xs, e)            = (c, xs,)   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
-    go (Case e x t cs)          = _reCase e x t <$> mapM stepA cs
+    go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
 
 
--- | The substitution can change the type of the overall case-expression,
---   so we must update the its type: see
+-- | The substitution (`substTuple`) can change the type of the overall
+--   case-expression, so we must update the type of each `Case` with its
+--   new, possibly updated type. See:
 --   https://github.com/ucsd-progsys/liquidhaskell/pull/752#issuecomment-228946210
 
-_reCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
-_reCase e x _t cs' = Case e x t' cs'
+fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
+fixCase e x _t cs' = Case e x t' cs'
   where
     t'            = CoreUtils.exprType body
     (_,_,body)    = c
