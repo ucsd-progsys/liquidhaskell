@@ -3,15 +3,13 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--extensionality"  @-}
 
-
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
-module FunctorList where
+module ApplicativeReader where
 
 import Prelude hiding (fmap, id, seq, pure)
 
 import Proves
-import Helper
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v
@@ -60,7 +58,7 @@ identity (Reader r)
 
 -- | Composition
 
-{-@ composition :: x:Reader r (a -> a)
+{- composition :: x:Reader r (a -> a)
                 -> y:Reader r (a -> a)
                 -> z:Reader r a
                 -> { (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
@@ -83,7 +81,7 @@ composition (Reader x) (Reader y) (Reader z)
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
-{-@ homomorphism :: f:(a -> a) -> x:a
+{- homomorphism :: f:(a -> a) -> x:a
                  -> { seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
@@ -97,7 +95,7 @@ homomorphism f x
 -- | interchange
 
 interchange :: Reader r (a -> a) -> a -> Proof
-{-@ interchange :: u:(Reader r (a -> a)) -> y:a
+{- interchange :: u:(Reader r (a -> a)) -> y:a
      -> { seq u (pure y) == seq (pure (idollar y)) u }
   @-}
 interchange (Reader f) x

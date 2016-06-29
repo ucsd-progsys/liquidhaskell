@@ -54,12 +54,6 @@ eq_fun :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
   -> (r:a -> {f r == g r}) -> {f == g}@-}
 eq_fun = undefined 
 
-class Arg a where 
-
-
-
-
-
 
 
 {-@ fmap_id' ::  f:(r -> a) -> g:(r -> a) 
