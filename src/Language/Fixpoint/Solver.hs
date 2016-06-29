@@ -194,12 +194,13 @@ parseFInfo :: [FilePath] -> IO (FInfo a)
 --------------------------------------------------------------------------------
 parseFInfo fs = mconcat <$> mapM parseFI fs
 
-parseFI :: FilePath -> IO (FInfo a) --[Qualifier]
+parseFI :: FilePath -> IO (FInfo a)
 parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
-                  , lits  = lits   fi }
+                  , gLits = gLits  fi
+                  , dLits = dLits  fi }
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do

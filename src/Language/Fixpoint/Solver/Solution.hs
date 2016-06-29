@@ -84,7 +84,7 @@ refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
     env        = wenv <> genv
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
-    genv       = F.lits fi
+    genv       = F.gLits fi
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
 refineK ho env qs (v, t, k) = {- tracepp msg -} (k, eqs')
@@ -369,15 +369,17 @@ _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars
 
 --------------------------------------------------------------------------------
--- TODO: nuke PACK
 packKVars :: CombinedEnv -> [F.KVSub] -> [[F.KVSub]]
 --------------------------------------------------------------------------------
-packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
-  where
-    sm                 = F.soePacks se
-    kF (k, _)          = F.getPack k sm
-    eF (Just _,  xs)   = [xs]
-    eF (Nothing, xs)   = singleton <$> xs
+packKVars _ = map singleton
+
+-- TODO: nuke PACK
+-- packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
+  -- where
+    -- sm                 = F.soePacks se
+    -- kF (k, _)          = F.getPack k sm
+    -- eF (Just _,  xs)   = [xs]
+    -- eF (Nothing, xs)   = singleton <$> xs
 
 --------------------------------------------------------------------------------
 -- TODO: nuke PACK

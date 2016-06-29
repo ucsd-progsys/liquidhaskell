@@ -108,7 +108,7 @@ dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
     kvM                    = kvarDomainM si0
     kvXs k                 = M.lookupDefault S.empty k kvM
     keepSubst k x e        = x `S.member` kvXs k && knownRhs e
-    knownRhs (F.EVar y)    = y `S.member` xs    
+    knownRhs (F.EVar y)    = y `S.member` xs
     knownRhs _             = False
     xs                     = knownVars si0
 
@@ -142,8 +142,8 @@ banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
 cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
 cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
   where
-    be = F.bs fi
-    lits = fst <$> F.toListSEnv (F.lits fi)
+    be   = F.bs fi
+    lits = fst <$> F.toListSEnv (F.gLits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
@@ -160,7 +160,7 @@ banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    lits   = fst <$> F.toListSEnv (F.lits fi)
+    lits   = fst <$> F.toListSEnv (F.gLits fi)
     free q = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (fst <$> F.qParams q))
 
 
@@ -203,7 +203,7 @@ symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
-    defs            = F.toListSEnv $ F.lits fi
+    defs            = F.toListSEnv $ F.gLits fi
     txFun
       | allowHO cfg = id
       | otherwise   = defuncSort
@@ -269,7 +269,7 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
     f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
-    defs   = M.fromList $ F.toListSEnv $ F.lits fi
+    defs   = M.fromList $ F.toListSEnv $ F.gLits fi
 
 --------------------------------------------------------------------------------
 -- | Drop irrelevant binders from WfC Environments
@@ -287,7 +287,7 @@ conjKF fs x t = and [f x t | f <- fs]
 nonConstantF :: F.SInfo a -> KeepBindF
 nonConstantF si = \x _ -> not (x `F.memberSEnv` cEnv)
   where
-    cEnv        = F.lits si
+    cEnv        = F.gLits si
 
 nonFunctionF :: F.SInfo a -> KeepBindF
 nonFunctionF si
@@ -299,16 +299,16 @@ nonFunctionF si
 --------------------------------------------------------------------------------
 dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-dropBinders f g fi  = fi { F.bs = bs'
-                         , F.cm = cm'
-                         , F.ws = ws'
-                         , F.lits = lits' }
+dropBinders f g fi  = fi { F.bs    = bs'
+                         , F.cm    = cm'
+                         , F.ws    = ws'
+                         , F.gLits = lits' }
   where
     discards        = diss
     (bs', diss)     = filterBindEnv f $ F.bs fi
     cm'             = deleteSubCBinds discards   <$> F.cm fi
     ws'             = deleteWfCBinds  discards   <$> F.ws fi
-    lits'           = F.filterSEnv g (F.lits fi)
+    lits'           = F.filterSEnv g (F.gLits fi)
 
 type KeepBindF = F.Symbol -> F.Sort -> Bool
 type KeepSortF = F.Sort -> Bool

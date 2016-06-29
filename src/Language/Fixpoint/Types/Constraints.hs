@@ -411,21 +411,21 @@ fi :: [SubC a]
    -> [WfC a]
    -> BindEnv
    -> SEnv Sort
+   -> SEnv Sort
    -> Kuts
-   -> Packs
    -> [Qualifier]
    -> M.HashMap BindId a
    -> FilePath
    -> Bool
    -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ks pm qs bi fn aHO aHOq
+fi cs ws binds ls ds ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
-       , lits     = ls
+       , gLits    = ls
+       , dLits    = ds
        , kuts     = ks
-       , packs    = pm
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
@@ -455,9 +455,10 @@ data GInfo c a =
   FI { cm       :: !(M.HashMap SubcId (c a)) -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
-     , lits     :: !(SEnv Sort)               -- ^ Constant symbols
+     , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
+     , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
-     , packs    :: !Packs                     -- ^ Pack-sets of related KVars
+  --    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , fileName :: FilePath                   -- ^ Source file name
@@ -476,9 +477,10 @@ instance Monoid (GInfo c a) where
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
-                     , lits     = mappend (lits i1)     (lits i2)
+                     , gLits    = mappend (gLits i1)    (gLits i2)
+                     , dLits    = mappend (dLits i1)    (dLits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
-                     , packs    = mappend (packs i1)    (packs i2)
+                     -- , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
@@ -497,19 +499,21 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
-                  $++$ packsDoc x'
-                  $++$ conDoc   x'
+                --   $++$ packsDoc x'
+                  $++$ gConDoc   x'
+                  $++$ dConDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
-    conDoc        = vcat     . map toFixConstant . toListSEnv . lits
+    gConDoc       = sEnvDoc "constant"             . gLits
+    dConDoc       = sEnvDoc "distinct"             . dLits
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
-    packsDoc      = toFix    . packs
+    -- packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
@@ -521,8 +525,10 @@ toFixpoint cfg x' =    qualsDoc x'
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixConstant :: (Fixpoint a, Fixpoint b) => (a, b) -> Doc
-toFixConstant (c, so) = "constant" <+> toFix c <+> ":" <+> parens (toFix so)
+sEnvDoc :: Doc -> SEnv Sort -> Doc
+sEnvDoc d       = vcat . map kvD . toListSEnv
+  where
+    kvD (c, so) = d <+> toFix c <+> ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)

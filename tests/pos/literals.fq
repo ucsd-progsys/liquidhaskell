@@ -3,6 +3,9 @@
 constant lit#bar : (Str)
 constant lit#foo : (Str)
 
+distinct lit#bar : (Str)
+distinct lit#foo : (Str)
+
 constraint:
   env []
   lhs {VV#F1 : int | []}

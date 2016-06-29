@@ -46,7 +46,7 @@ import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
-import           Data.Char            (isUpper)
+-- import           Data.Char            (isUpper)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
@@ -99,9 +99,9 @@ runSolverM cfg sI _ s0 act =
     act'     = declareInitEnv >> declare xts ess p >> act
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
-    ess      = declLiterals fi
+    ess      = distinctLiterals fi
     (xts, p) = background cfg fi s0
-    be       = F.SolEnv (F.bs fi) (getPacks cfg fi)
+    be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
     file     = F.fileName fi
     -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
     -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
@@ -109,10 +109,10 @@ runSolverM cfg sI _ s0 act =
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
-getPacks :: Config -> F.SInfo a -> F.Packs
-getPacks cfg fi
-  | C.pack cfg = F.packs fi
-  | otherwise  = mempty
+-- getPacks :: Config -> F.SInfo a -> F.Packs
+-- getPacks cfg fi
+-- /   | C.pack cfg = F.packs fi
+-- /   | otherwise  = mempty
 
 background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi s0 = (bts ++ xts, p)
@@ -222,10 +222,6 @@ declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
 --------------------------------------------------------------------------------
 declare xts' ess p = withContext $ \me -> do
   let xts      = filter (not . isThy . fst) xts'
-  -- xts         <- either E.die return $ declSymbols fi
-  -- let (bts, p) = backgroundPred s0
-  -- let yts      = xts ++ bts
-  -- let ess      = declLiterals fi
   forM_ xts    $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
   _           <-           smtAssert   me p
@@ -238,25 +234,26 @@ declareInitEnv
   = withContext $ \me ->
       forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
 
-declLiterals :: F.GInfo c a -> [[F.Expr]]
-declLiterals fi | F.allowHO fi
-  = [es | (_, es) <- tess ]
-  where
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x), isConstant x]
-    isThy       = isJust . Thy.smt2Symbol
-    isConstant  = isUpper . head . F.symbolString
+-- | `distinctLiterals` is used solely to determine the set of literals
+--   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
+--   or string literals "cat", "dog", "mouse". These should only include
+--   non-function sorted values.
 
-declLiterals fi
-  = [es | (_, es) <- tess ]
-   where
-    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
-
--- declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
--- declSymbols = fmap dropThy . symbolSorts
+distinctLiterals :: F.GInfo c a -> [[F.Expr]]
+-- distinctLiterals fi | F.allowHO fi = [ es | (_, es) <- tess ]
   -- where
-    -- dropThy = filter (not . isThy . fst)
-    -- isThy   = isJust . Thy.smt2Symbol
+    -- tess         = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.gLits fi)
+                                            -- , isNotThy x
+                                            -- , isConstant x                      ]
+    -- isNotThy     = isNothing . Thy.smt2Symbol
+    -- isConstant   = isUpper . head . F.symbolString
+
+
+distinctLiterals fi  = [ es | (_, es) <- tess ]
+   where
+    tess             = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.dLits fi)
+                                                , notFun t]
+    notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats

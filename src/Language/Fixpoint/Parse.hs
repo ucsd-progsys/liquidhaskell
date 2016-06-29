@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Fixpoint.Parse (
@@ -522,6 +521,7 @@ data Def a
   | Cst !(SubC a)
   | Wfc !(WfC a)
   | Con !Symbol !Sort
+  | Dis !Symbol !Sort
   | Qul !Qualifier
   | Kut !KVar
   | Pack !KVar !Int
@@ -539,6 +539,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Cst   <$> (reserved "constraint" >> colon >> {-# SCC "subCP" #-} subCP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> {-# SCC "wfCP"  #-} wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
+    <|> Dis   <$> (reserved "distinct"   >> symbolP) <*> (colon >> sortP)
     <|> Pack  <$> (reserved "pack"       >> kvarP)   <*> (colon >> intP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
@@ -597,14 +598,15 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts pks qs mempty mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty
   where
     cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
     ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
     bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
+    dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
-    pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
+    -- pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
     qs         =                    [q                  | Qul q       <- defs]
     cid        = fromJust . sid
     -- msg    = show $ "#Lits = " ++ (show $ length consts)

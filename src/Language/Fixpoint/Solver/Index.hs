@@ -225,7 +225,7 @@ _checkNoDups _sI ixrs = applyNonNull ixrs dbErr bads
                                , F.isNonTrivial r
                                -- TODO (Fix LH issue #724 and remove spl. case. on consts)
                                , not (F.memberSEnv x _consts) ]
-    _consts         = F.lits _sI
+    _consts         = F.gLits _sI
     dbErr xis       = error $ "Malformed Constraints! Duplicate Binders:\n" ++ show xis
 
 
