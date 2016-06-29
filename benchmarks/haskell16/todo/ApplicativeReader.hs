@@ -45,7 +45,7 @@ id x = x
 -- | Identity
 
 {-@ identity :: x:Reader r a -> { seq (pure id) x == x } @-}
-identity :: Reader r a -> Proof
+identity :: Arg r => Reader r a -> Proof
 identity (Reader r)
   =   seq (pure id) (Reader r)
   ==! seq (Reader (\w -> id)) (Reader r)
@@ -56,16 +56,41 @@ identity (Reader r)
   *** QED 
 
 
-id_helper2 :: (r -> a) -> Proof 
+-- NV: The following are the required helper functions as 
+-- we have no other way to prove equalities burried in lambdas. 
+-- This should be simplified
+
+id_helper2 :: Arg r => (r -> a) -> Proof 
 {-@ id_helper2 :: r:(r -> a) 
   -> { (\q:r -> r q) == (\q:r -> (id) (r q)) } @-}
-id_helper2 = undefined 
+id_helper2 r 
+  = ((\q -> r q) =*=! (\q -> (id) (r q))) (id_helper2_body r)
+  *** QED 
 
 
-id_helper1 :: (r -> a) -> Proof 
+id_helper2_body :: Arg r => (r -> a) -> r ->  Proof 
+{-@ id_helper2_body :: r:(r -> a) -> q:r
+  -> { r q == (id) (r q) } @-}
+id_helper2_body r q
+  = r q ==! id (r q) *** QED 
+
+
+id_helper1 :: Arg r => (r -> a) -> Proof 
 {-@ id_helper1 :: r:(r -> a) 
-  -> { (\qqqq:r -> (((\w:r -> id) (qqqq)) (r qqqq))) == (\q:r -> (id) (r q)) } @-}
-id_helper1 = undefined 
+  -> { (\q:r -> (((\w:r -> id) (q)) (r q))) == (\q:r -> (id) (r q)) } @-}
+id_helper1 r 
+  = ((\q -> (((\w -> id) q) (r q))) =*=! (\q -> id (r q))) (id_helper1_body r)
+  *** QED 
+
+
+{-@ id_helper1_body :: r:(r -> a) -> q:r
+  -> {(((\w:r -> id) (q)) (r q)) == (id) (r q) } @-}
+id_helper1_body :: Arg r => (r -> a) -> r -> Proof 
+id_helper1_body r q 
+  =   ((\w -> id) q) (r q)
+  ==! id (r q)
+  *** QED   
+
 
 
 -- | Composition
@@ -93,7 +118,7 @@ composition (Reader x) (Reader y) (Reader z)
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
-{- homomorphism :: f:(a -> a) -> x:a
+{-@ homomorphism :: f:(a -> a) -> x:a
                  -> { seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
