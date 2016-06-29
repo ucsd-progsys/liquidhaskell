@@ -130,7 +130,11 @@ consAct cfg info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
-  modify $ \st -> st { fEnv = fixEnv γ, lits = F.tracepp "LitEnv:" $ litEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
+  modify $ \st -> st { fEnv     = fixEnv γ
+                     , cgLits   = F.tracepp "LitEnv" $ litEnv γ
+                     , fixCs    = fcs
+                     , fixWfs   = fws
+                     , annotMap = annot' }
   where
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
@@ -176,10 +180,11 @@ initEnv info
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
-       lt1s     <- F.toListSEnv . lits <$> get
+       lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) tcb (F.tracepp "lt1s" lt1s ++ F.tracepp "lt2s" lt2s) (bs!!3) (bs!!5) hs info
+       let γ0    = measEnv sp (head bs) (cbs info) tcb (F.tracepp "lt1s" lt1s ++ F.tracepp "lt2s" lt2s)
+                           (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -293,22 +298,22 @@ measEnv sp xts cbs tcb lts asms itys hs info = CGE
   , syenv  = F.fromListSEnv $ freeSyms sp
   , litEnv = F.fromListSEnv lts
   , fenv   = initFEnv $ tcb ++ lts ++ (second (rTypeSort tce . val) <$> meas sp)
-  , denv  = dicts sp
-  , recs  = S.empty
-  , fargs = S.empty
-  , invs  = mempty
-  , rinvs = mempty
-  , ial   = mkRTyConIAl    $ ialiases   sp
-  , grtys = fromListREnv xts  []
-  , assms = fromListREnv asms []
-  , intys = fromListREnv itys []
-  , emb   = tce
-  , tgEnv = Tg.makeTagEnv cbs
-  , tgKey = Nothing
-  , trec  = Nothing
-  , lcb   = M.empty
-  , holes = fromListHEnv hs
-  , lcs   = mempty
+  , denv   = dicts sp
+  , recs   = S.empty
+  , fargs  = S.empty
+  , invs   = mempty
+  , rinvs  = mempty
+  , ial    = mkRTyConIAl    $ ialiases   sp
+  , grtys  = fromListREnv xts  []
+  , assms  = fromListREnv asms []
+  , intys  = fromListREnv itys []
+  , emb    = tce
+  , tgEnv  = Tg.makeTagEnv cbs
+  , tgKey  = Nothing
+  , trec   = Nothing
+  , lcb    = M.empty
+  , holes  = fromListHEnv hs
+  , lcs    = mempty
   , aenv   = axiom_map $ logicMap sp
   , cerr   = Nothing
   , cgInfo = info
@@ -349,7 +354,7 @@ infoLits info = (F.tracepp "cbLits"   $ F.fromListSEnv cbLits)
 infoConsts :: GhcInfo -> F.SEnv F.Sort
 infoConsts info = (F.tracepp "cbConsts" $ F.fromListSEnv cbLits)
                 `mappend`
-                (F.tracepp "measConsts" $ F.fromListSEnv spLits)
+                (F.tracepp "measConsts" $ F.fromListSEnv measLits)
   where
     cbLits    = filter (notFn . snd) $ coreBindLits tce info
     measLits  = filter (notFn . snd) $ mkSort <$> spLits spc
@@ -375,7 +380,7 @@ initCGI cfg info = CGInfo {
   , kuts       = mempty
   , kvPacks    = mempty
   , cgLits     = infoLits   info
-  , cgConsts   = infoConsts info  
+  , cgConsts   = infoConsts info
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
