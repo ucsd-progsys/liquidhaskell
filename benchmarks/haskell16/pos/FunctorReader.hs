@@ -64,19 +64,43 @@ fmap_id_helper_body f r
 
 
 
-
-{- fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Reader r a
+{-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Reader r a
                -> { fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
-fmap_distrib :: (a -> a) -> (a -> a) -> Reader r a -> Proof
+fmap_distrib :: Arg r => (a -> a) -> (a -> a) -> Reader r a -> Proof
 fmap_distrib f g (Reader x)
   =   fmap (compose f g) (Reader x)
-  ==! Reader (\r -> (compose f g) (x r))
-  ==! Reader (\r -> f ( g (x r)))
+  ==! Reader (\r -> (compose f g) (x r))     
+  ==! Reader (\r -> f ( g (x r)))            ? fmap_distrib_helper f g x 
   ==! Reader (\r -> f ((\w -> g (x w)) r))
   ==! fmap f (Reader (\w -> g (x w)))
   ==! fmap f (fmap g (Reader x))
   ==! (compose (fmap f) (fmap g)) (Reader x)
   *** QED
+
+
+
+
+
+fmap_distrib_helper :: Arg r => (a -> a) -> (a -> a) -> (r -> a) -> Proof 
+{-@ fmap_distrib_helper
+  :: f:(a -> a) -> g:(a -> a) -> x:(r -> a) 
+  -> {(\r:r -> (compose f g) (x r)) == (\r:r -> (f (g (x r))) ) } @-}
+fmap_distrib_helper f g x 
+  =   ((\r -> (compose f g) (x r)) 
+  =*=! (\r -> f (g (x r)))) (fmap_distrib_helper' f g x)
+  *** QED 
+
+
+
+fmap_distrib_helper' :: Arg r => (a -> a) -> (a -> a) -> (r -> a) -> r -> Proof 
+{-@ fmap_distrib_helper' 
+  :: f:(a -> a) -> g:(a -> a) -> x:(r -> a) -> r:r
+  -> { (compose f g) (x r) == (f (g (x r))) } @-}
+fmap_distrib_helper' f g x r  
+  =   (compose f g) (x r) 
+  ==! f (g (x r))
+  *** QED 
+
 
 
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
