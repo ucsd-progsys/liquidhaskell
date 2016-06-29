@@ -9,12 +9,11 @@ import Prelude hiding (plus)
 
 import Proves
 
--- | Why do we need these?
-
+-- Why do we need these?
 zeroR     :: Peano -> Proof
-zeroL      :: Peano -> Proof
-plusAssoc     :: Peano -> Peano -> Peano -> Proof
-plusComm      :: Peano -> Peano -> Proof
+zeroL     :: Peano -> Proof
+plusAssoc :: Peano -> Peano -> Peano -> Proof
+plusComm  :: Peano -> Peano -> Proof
 plusSuccR :: Peano -> Peano -> Proof
 
 data Peano = Z | S Peano
@@ -78,7 +77,6 @@ plusComm (S a) b
   ==! S (plus b a) ? plusComm a b
   ==! plus b (S a) ? plusSuccR b a
   *** QED
-
 
 {-@ plusAssoc :: a:_ -> b:_ -> c:_ -> {plus (plus a b) c == plus a (plus b c) } @-}
 plusAssoc Z b c
