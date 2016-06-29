@@ -319,6 +319,8 @@ data GhcSpec = SP {
   , asmSigs    :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
   , inSigs     :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
   , ctors      :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
+  , spLits     :: ![(Symbol, LocSpecType)]       -- ^ Literals/Constants
+                                                 -- e.g. datacons: EQ, GT, string lits: "zombie",...
   , meas       :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
   , invariants :: ![(Maybe Var, LocSpecType)]    -- ^ Data Type Invariants that came from the definition of var measure
@@ -344,10 +346,8 @@ data GhcSpec = SP {
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
-  , dicts      :: DEnv Var SpecType
-    -- ^ Dictionary Environment
-  , axioms     :: [HAxiom]
-    -- ^ Axioms from axiomatized functions
+  , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , axioms     :: [HAxiom]                       -- ^ Axioms from axiomatized functions
   , logicMap   :: LogicMap
   , proofType  :: Maybe Type
   }
@@ -535,7 +535,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -554,8 +554,8 @@ instance NFData BTyCon
 
 instance NFData RTyCon
 
-rtyVarUniqueSymbol  :: RTyVar -> Symbol 
-rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv 
+rtyVarUniqueSymbol  :: RTyVar -> Symbol
+rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)

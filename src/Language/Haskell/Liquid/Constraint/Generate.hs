@@ -130,12 +130,11 @@ consAct cfg info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
-  modify $ \st -> st { fEnv = fixEnv γ, lits = lEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
+  modify $ \st -> st { fEnv = fixEnv γ, lits = F.tracepp "LitEnv:" $ litEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
     fixEnv           = feEnv . fenv
-    lEnv             = litEnv
     mkSigs γ         = toListREnv (renv  γ) ++
                        toListREnv (assms γ) ++
                        toListREnv (intys γ) ++
@@ -165,7 +164,7 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty
+       f1'      <- refreshArgs' $ makedcs dcsty              -- data constructors
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
@@ -180,7 +179,7 @@ initEnv info
        lt1s     <- F.toListSEnv . lits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) tcb (lt1s ++ lt2s) (bs!!3) (bs!!5) hs info
+       let γ0    = measEnv sp (head bs) (cbs info) tcb (F.tracepp "lt1s" lt1s ++ F.tracepp "lt2s" lt2s) (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -336,6 +335,18 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
     isTop v      = isExportedVar info v && not (v `S.member` sigVs)
     sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
 
+infoLits :: GhcInfo -> F.SEnv F.Sort
+infoLits info = (F.tracepp "cbLits"   $ F.fromListSEnv cbLits)
+                `mappend`
+                (F.tracepp "measLits" $ F.fromListSEnv measLits)
+  where
+    cbLits    = filter (notFn . snd) $ coreBindLits tce info
+    measLits  = filter (notFn . snd) $ (mkSort <$> spLits spc)
+    spc       = spec info
+    tce       = tcEmbeds spc
+    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
+    notFn     = not . isJust . F.functionSort
+
 
 initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -353,7 +364,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce
   , kuts       = mempty
   , kvPacks    = mempty
-  , lits       = F.fromListSEnv $ coreBindLits tce info ++ (mapSnd F.sr_sort <$> (mkSort <$> meas spc))
+  , lits       = infoLits info
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
@@ -373,7 +384,6 @@ initCGI cfg info = CGInfo {
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc
-    mkSort     = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
