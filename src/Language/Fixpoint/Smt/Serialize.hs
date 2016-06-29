@@ -332,8 +332,8 @@ smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 {-# INLINE smt2many #-}
 
-defineFun :: (Symbol, Expr) -> SMT2 [Command]
-defineFun (f, ELam (x, t) (ECst e tr))
+defineFun :: Either (Symbol, Expr) Expr -> SMT2 [Command]
+defineFun (Left (f, ELam (x, t) (ECst e tr)))
   = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr
        assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
@@ -359,6 +359,9 @@ defineFun (f, ELam (x, t) (ECst e tr))
     -- mkApp e' []     = e'
     -- mkApp e' (x:xs) = mkApp (EApp e' (EVar x)) xs
 
+defineFun (Right e)
+  = do e' <- defunc e 
+       return [Assert Nothing e']
 defineFun  _
   = errorstar "die"
 
@@ -386,10 +389,11 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-
-normalizeLams :: Expr -> Expr 
-normalizeLams = go 1
+normalizeLams :: (Symbol, Sort) -> Expr -> Expr 
+normalizeLams (x, s) e = ELam (x', s) (bd `subst1` (x, EVar x'))
   where
+    x' = makeLamArg s $ debruijnIndex e
+    bd = go 1 e 
     go i (ELam (x, s) e) = let x' = makeLamArg s i
                            in ELam (x', s) (go (i+1) e `subst1` (x, EVar x'))
     go i (EApp e1 e2)    = EApp (go i e1) (go i e2)
@@ -397,23 +401,22 @@ normalizeLams = go 1
     go _ e               = e 
 
 -- RJ: can't you use the Visitor instead of this?
-grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
+grapLambdas :: Expr -> SMT2 (Expr, [Either (Symbol, Expr) Expr])
 grapLambdas = go []
   where
     go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get 
                                   if ext then do 
                                      f <- freshSym
-                                     return (ECst (EVar f) (exprSort e), (f, e):acc)
+                                     return (ECst (EVar f) (exprSort e), Left (f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
-                                     let x' = makeLamArg s $ debruijnIndex bd' 
-                                     return $ (normalizeLams $ ELam (x', s) (bd' `subst1` (x, EVar x')), acc')
+                                     return $ (normalizeLams (x, s) bd', acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
     go acc (EApp e1 e2) = do (e1', fs1) <- go [] e1
                              (e2', fs2) <- go [] e2
-                             return (EApp e1' e2', fs1 ++ fs2 ++ acc)
+                             return (EApp e1' e2', (Right <$> makeLamAxiom e1 e2) ++ fs1 ++ fs2 ++ acc)
     go acc (ENeg e)     = do (e', fs) <- go acc e
                              return (ENeg e', fs)
     go acc (PNot e)     = do (e', fs) <- go acc e
@@ -463,6 +466,17 @@ grapLambdas = go []
 -- toInt e = s_to_Int (e), otherwise
 
 -- s_to_Int :: s -> Int
+
+makeLamAxiom :: Expr -> Expr -> [Expr]
+makeLamAxiom f ex
+  | (ELam (x, s) e) <-  uncst f  
+  = [PAtom Eq (EApp (normalizeLams (x, s) e) ex) (e `subst1` (x, ex))]
+  where
+    uncst (ECst e _) = uncst e 
+    uncst e          = e 
+makeLamAxiom _ _ 
+  = []
+
 
 
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
