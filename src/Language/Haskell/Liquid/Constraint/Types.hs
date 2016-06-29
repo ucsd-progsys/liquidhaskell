@@ -401,7 +401,8 @@ instance NFData RInv where
 
 instance NFData CGEnv where
   rnf (CGE x1 _ x3 _ x4 x5  x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
-    = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5
+    = x1 `seq` {- rnf x2 `seq` -} seq x3
+         `seq` rnf x5
          `seq` rnf x6
          `seq` x7
          `seq` rnf x8
