@@ -81,7 +81,7 @@ type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
 data SolEnv        = SolEnv { soeBinds :: !BindEnv
-                            , soePacks :: !Packs
+                            -- , soePacks :: !Packs
                             } deriving (Eq, Show, Generic)
 
 instance PPrint a => PPrint (SEnv a) where
