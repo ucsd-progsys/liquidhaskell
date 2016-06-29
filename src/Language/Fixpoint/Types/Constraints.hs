@@ -411,21 +411,21 @@ fi :: [SubC a]
    -> [WfC a]
    -> BindEnv
    -> SEnv Sort
+   -> SEnv Sort
    -> Kuts
-   -> Packs
    -> [Qualifier]
    -> M.HashMap BindId a
    -> FilePath
    -> Bool
    -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ks pm qs bi fn aHO aHOq
+fi cs ws binds ls ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
        , lits     = ls
        , kuts     = ks
-       , packs    = pm
+       -- , packs    = pm
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
