@@ -78,11 +78,12 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv = CGE
-  { cgLoc  :: !SpanStack         -- ^ Location in original source file
-  , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
-  , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-  , denv   :: !RDEnv             -- ^ Dictionary Environment
-  , litEnv :: !(F.SEnv F.Sort)   -- ^ Global distinct literals
+  { cgLoc    :: !SpanStack         -- ^ Location in original source file
+  , renv     :: !REnv              -- ^ SpecTypes for Bindings in scope
+  , syenv    :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+  , denv     :: !RDEnv             -- ^ Dictionary Environment
+  , litEnv   :: !(F.SEnv F.Sort)   -- ^ Global  literals
+  , constEnv :: !(F.SEnv F.Sort)   -- ^ Distinct literals
   , fenv   :: !FEnv              -- ^ Fixpoint Environment
   , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
   , fargs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
@@ -400,9 +401,10 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x4 x5  x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3
          `seq` rnf x5
+         `seq` rnf x55
          `seq` rnf x6
          `seq` x7
          `seq` rnf x8
