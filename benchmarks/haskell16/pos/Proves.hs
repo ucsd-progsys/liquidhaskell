@@ -233,6 +233,6 @@ instance (c~(a -> b)) => FunEq a b ((a -> Proof) -> c) where
 class Arg a where 
 
 
-{-@ (=*=!) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
+{-@ assume (=*=!) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
 (=*=!) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
 (=*=!) = undefined
