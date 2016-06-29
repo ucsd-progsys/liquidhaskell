@@ -335,8 +335,8 @@ smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 {-# INLINE smt2many #-}
 
-defineFun :: Either (Symbol, Expr) Expr -> SMT2 [Command]
-defineFun (Left (f, ELam (x, t) (ECst e tr)))
+defineFun :: (Symbol, Expr) -> SMT2 [Command]
+defineFun (f, ELam (x, t) (ECst e tr))
   = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr
        assert1 <- withExtendedEnv [(f, FFunc t tr)] $
                    defunc $ Assert Nothing (PAll ((x,t):xts)
@@ -362,9 +362,6 @@ defineFun (Left (f, ELam (x, t) (ECst e tr)))
     -- mkApp e' []     = e'
     -- mkApp e' (x:xs) = mkApp (EApp e' (EVar x)) xs
 
-defineFun (Right e)
-  = do e' <- defunc e 
-       return [Assert Nothing e']
 defineFun  _
   = errorstar "die"
 
@@ -405,13 +402,13 @@ normalizeLams (x, s) e = ELam (x', s) (bd `subst1` su)
     go _ e               = e 
 
 -- RJ: can't you use the Visitor instead of this?
-grapLambdas :: Expr -> SMT2 (Expr, [Either (Symbol, Expr) Expr])
+grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
 grapLambdas = go []
   where
     go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get 
                                   if ext then do 
                                      f <- freshSym
-                                     return (ECst (EVar f) (exprSort e), Left (f, e):acc)
+                                     return (ECst (EVar f) (exprSort e),(f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
                                      return (normalizeLams (x, s) bd', acc')
@@ -470,19 +467,6 @@ grapLambdas = go []
 -- toInt e = s_to_Int (e), otherwise
 
 -- s_to_Int :: s -> Int
-
-{- 
-makeLamAxiom :: Expr -> Expr -> Maybe ((Symbol, Expr), Expr)
-makeLamAxiom f ex
-  | (ELam (x, s) e) <-  uncst f  
-  = let (su, e') = normalizeLams (x, s) e 
-    in Just (su, PAtom Eq (EApp e' ex) (e `subst1` (x, ex)))
-  where
-    uncst (ECst e _) = uncst e 
-    uncst e          = e 
-makeLamAxiom _ _ 
-  = Nothing 
--}
 
 
 makeBetaReductionAsserts :: Expr -> SMT2 [Expr]

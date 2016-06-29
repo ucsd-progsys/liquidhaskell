@@ -1,8 +1,6 @@
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
 --   be in the same place as the @Term@ definitions.
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.Fixpoint.Types.Substitutions (
     mkSubst
   , isEmptySubst
@@ -150,19 +148,6 @@ disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
     suSyms = S.fromList $ syms (M.elems su) ++ syms (M.keys su)
     bsSyms = S.fromList $ syms $ fst <$> bs
-
-instance Subable (Either (Symbol, Expr) Expr) where
-  syms (Left (x, e)) = x:syms e 
-  syms (Right e)     = syms e
-
-  substa f (Left (x, e)) = Left (f x, substa f e)
-  substa f (Right e)     = Right (substa f e)  
-
-  substf f (Left (x, e)) = Left  (x, substf f e)
-  substf f (Right e)     = Right (substf f e)
-
-  subst su (Left (x, e)) = Left (x, subst su e)
-  subst su (Right e)     = Right (subst su e)
 
 instance Monoid Expr where
   mempty      = PTrue
