@@ -14,6 +14,7 @@ module Language.Fixpoint.Smt.Serialize
        where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types.Visitor hiding (mapSort)
 --import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -198,7 +199,7 @@ defuncBop o e1 e2
     s2 = exprSort e2
 
 smt2Lam :: Symbol -> Expr -> Builder.Builder
-smt2Lam x e = build "({} {} {})" (smt2 lambdaName, smt2 x, smt2 e)
+smt2Lam _ e = build "({} {})" (smt2 lambdaName, smt2 e)
 
 smt2App :: Expr -> Builder.Builder
 smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
@@ -305,15 +306,17 @@ instance SMTLIB2 Command where
     = do env      <- smt2env <$> get
          (p', fs) <- grapLambdas $ elaborate env p
          dfs      <- mapM defineFun fs
+         baxioms  <- makeBetaReductionAsserts p' 
          p''      <- defunc p'
-         return $ CMany (concat dfs ++ [Assert Nothing p''])
+         return $ CMany ((Assert Nothing <$> baxioms) ++ concat dfs ++ [Assert Nothing p''])
 
   defunc (Assert (Just i) p)
     = do env <- smt2env <$> get
          (p', fs) <- grapLambdas $ elaborate env p
          dfs <- mapM defineFun fs
+         baxioms  <- makeBetaReductionAsserts p' 
          p'' <- defunc p'
-         return $ CMany (concat dfs ++ [Assert (Just i) p''])
+         return $ CMany ((Assert Nothing <$> baxioms) ++ concat dfs ++ [Assert (Just i) p''])
 --   smt2 env (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 env $ elaborate env p, i)
   defunc (Distinct az)       = Distinct <$> mapM defunc az
   defunc (Push)              = return Push
@@ -389,14 +392,14 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-normalizeLams :: (Symbol, Sort) -> Expr -> ((Symbol, Expr), Expr) 
-normalizeLams (x, s) e = (su, ELam (x', s) (bd `subst1` su))
+normalizeLams :: (Symbol, Sort) -> Expr -> Expr 
+normalizeLams (x, s) e = ELam (x', s) (bd `subst1` su)
   where
     su = (x, EVar x')
-    x' = makeLamArg s $ debruijnIndex e
-    bd = go 1 e 
-    go i (ELam (x, s) e) = let x' = makeLamArg s i
-                           in ELam (x', s) (go (i+1) e `subst1` (x, EVar x'))
+    x' = makeLamArg s 1 -- $ debruijnIndex e
+    bd = go 2 e 
+    go i (ELam (y, sy) e) = let y' = makeLamArg sy i
+                            in ELam (y', sy) (go (i+1) e `subst1` (y, EVar y'))
     go i (EApp e1 e2)    = EApp (go i e1) (go i e2)
     go i (ECst e s)      = ECst (go i e) s
     go _ e               = e 
@@ -411,17 +414,13 @@ grapLambdas = go []
                                      return (ECst (EVar f) (exprSort e), Left (f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
-                                     let (su, e') = normalizeLams (x, s) bd'
-                                     return $ (e', acc' `subst1` su)
+                                     return (normalizeLams (x, s) bd', acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
     go acc (EApp e1 e2) = do (e1', fs1) <- go [] e1
                              (e2', fs2) <- go [] e2
-                             ext <- f_ext <$> get 
-                             case (makeLamAxiom e1 e2, ext) of 
-                              (Just (su, a), False) -> return (EApp e1' e2', (Right a:(fs1 ++ fs2 ++ acc)) `subst1` su)
-                              _ ->      return (EApp e1' e2', fs1 ++ fs2 ++ acc)
+                             return (EApp e1' e2', fs1 ++ fs2 ++ acc)
     go acc (ENeg e)     = do (e', fs) <- go acc e
                              return (ENeg e', fs)
     go acc (PNot e)     = do (e', fs) <- go acc e
@@ -472,6 +471,7 @@ grapLambdas = go []
 
 -- s_to_Int :: s -> Int
 
+{- 
 makeLamAxiom :: Expr -> Expr -> Maybe ((Symbol, Expr), Expr)
 makeLamAxiom f ex
   | (ELam (x, s) e) <-  uncst f  
@@ -482,8 +482,20 @@ makeLamAxiom f ex
     uncst e          = e 
 makeLamAxiom _ _ 
   = Nothing 
+-}
 
 
+makeBetaReductionAsserts :: Expr -> SMT2 [Expr]
+makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e)
+  where
+    betaVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go }
+    go _ e@(EApp f ex)
+      | ELam (x, _) bd <- uncst f
+      = [PAtom Eq e (bd `subst1` (x, ex))] -- :(go acc f ++ go acc ex)
+    go _ _ = [] 
+
+    uncst (ECst e _) = uncst e 
+    uncst e          = e 
 
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
 makeApplication e es = defunc e >>= (`go` es)
@@ -580,7 +592,7 @@ initSMTEnv = fromListSEnv $
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
+  , (lambdaName   ,   FFunc intSort intSort)
   ]
   ++ concatMap makeApplies [1..7]
   ++ [(makeLamArg s i, s) | i <- [1..7], s <- sorts]
