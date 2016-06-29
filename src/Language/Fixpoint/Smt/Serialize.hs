@@ -389,9 +389,10 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-normalizeLams :: (Symbol, Sort) -> Expr -> Expr 
-normalizeLams (x, s) e = ELam (x', s) (bd `subst1` (x, EVar x'))
+normalizeLams :: (Symbol, Sort) -> Expr -> ((Symbol, Expr), Expr) 
+normalizeLams (x, s) e = (su, ELam (x', s) (bd `subst1` su))
   where
+    su = (x, EVar x')
     x' = makeLamArg s $ debruijnIndex e
     bd = go 1 e 
     go i (ELam (x, s) e) = let x' = makeLamArg s i
@@ -410,13 +411,17 @@ grapLambdas = go []
                                      return (ECst (EVar f) (exprSort e), Left (f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
-                                     return $ (normalizeLams (x, s) bd', acc')
+                                     let (su, e') = normalizeLams (x, s) bd'
+                                     return $ (e', acc' `subst1` su)
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
     go acc (EApp e1 e2) = do (e1', fs1) <- go [] e1
                              (e2', fs2) <- go [] e2
-                             return (EApp e1' e2', (Right <$> makeLamAxiom e1 e2) ++ fs1 ++ fs2 ++ acc)
+                             ext <- f_ext <$> get 
+                             case (makeLamAxiom e1 e2, ext) of 
+                              (Just (su, a), False) -> return (EApp e1' e2', (Right a:(fs1 ++ fs2 ++ acc)) `subst1` su)
+                              _ ->      return (EApp e1' e2', fs1 ++ fs2 ++ acc)
     go acc (ENeg e)     = do (e', fs) <- go acc e
                              return (ENeg e', fs)
     go acc (PNot e)     = do (e', fs) <- go acc e
@@ -467,15 +472,16 @@ grapLambdas = go []
 
 -- s_to_Int :: s -> Int
 
-makeLamAxiom :: Expr -> Expr -> [Expr]
+makeLamAxiom :: Expr -> Expr -> Maybe ((Symbol, Expr), Expr)
 makeLamAxiom f ex
   | (ELam (x, s) e) <-  uncst f  
-  = [PAtom Eq (EApp (normalizeLams (x, s) e) ex) (e `subst1` (x, ex))]
+  = let (su, e') = normalizeLams (x, s) e 
+    in Just (su, PAtom Eq (EApp e' ex) (e `subst1` (x, ex)))
   where
     uncst (ECst e _) = uncst e 
     uncst e          = e 
 makeLamAxiom _ _ 
-  = []
+  = Nothing 
 
 
 
