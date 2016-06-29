@@ -50,10 +50,22 @@ identity (Reader r)
   =   seq (pure id) (Reader r)
   ==! seq (Reader (\w -> id)) (Reader r)
   ==! Reader (\q -> ((\w -> id) q) (r q))
-  ==! Reader (\q -> (id) (r q))
-  ==! Reader (\q -> r q)
+  ==! Reader (\q -> (id) (r q))            ? id_helper1 r
+  ==! Reader (\q -> r q)                   ? id_helper2 r 
   ==! Reader r 
   *** QED 
+
+
+id_helper2 :: (r -> a) -> Proof 
+{-@ id_helper2 :: r:(r -> a) 
+  -> { (\q:r -> r q) == (\q:r -> (id) (r q)) } @-}
+id_helper2 = undefined 
+
+
+id_helper1 :: (r -> a) -> Proof 
+{-@ id_helper1 :: r:(r -> a) 
+  -> { (\qqqq:r -> (((\w:r -> id) (qqqq)) (r qqqq))) == (\q:r -> (id) (r q)) } @-}
+id_helper1 = undefined 
 
 
 -- | Composition
