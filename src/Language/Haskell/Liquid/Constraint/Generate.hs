@@ -340,13 +340,23 @@ infoLits info = (F.tracepp "cbLits"   $ F.fromListSEnv cbLits)
                 `mappend`
                 (F.tracepp "measLits" $ F.fromListSEnv measLits)
   where
+    cbLits    = coreBindLits tce info
+    measLits  = mkSort   <$> meas spc
+    spc       = spec info
+    tce       = tcEmbeds spc
+    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
+
+infoConsts :: GhcInfo -> F.SEnv F.Sort
+infoConsts info = (F.tracepp "cbConsts" $ F.fromListSEnv cbLits)
+                `mappend`
+                (F.tracepp "measConsts" $ F.fromListSEnv spLits)
+  where
     cbLits    = filter (notFn . snd) $ coreBindLits tce info
-    measLits  = filter (notFn . snd) $ (mkSort <$> spLits spc)
+    measLits  = filter (notFn . snd) $ mkSort <$> spLits spc
     spc       = spec info
     tce       = tcEmbeds spc
     mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
     notFn     = not . isJust . F.functionSort
-
 
 initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -364,7 +374,8 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce
   , kuts       = mempty
   , kvPacks    = mempty
-  , lits       = infoLits info
+  , cgLits     = infoLits   info
+  , cgConsts   = infoConsts info  
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc

@@ -185,7 +185,8 @@ data CGInfo = CGInfo {
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
-  , lits       :: !(F.SEnv F.Sort)             -- ^ Literals to be embedded as constants in refinement logic
+  , cgLits     :: !(F.SEnv F.Sort)             -- ^ Global symbols in the refinement logic
+  , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Subset of global symbols that are distinct constants
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
@@ -214,7 +215,7 @@ pprCGInfo _k _cgi
   -- -$$ (text "*********** Fixpoint Kut Variables ************")
   -- -$$ (F.toFix  $ kuts cgi)
       $$ "*********** Literals in Source     ************"
-      $$ F.pprint (lits _cgi)
+      $$ F.pprint (cgLits _cgi)
   -- -$$ (text "*********** KVar Distribution *****************")
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
@@ -436,6 +437,7 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))      `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))    `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (cgLits x))     `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (cgConsts x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x))
