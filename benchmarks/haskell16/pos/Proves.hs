@@ -11,7 +11,7 @@ module Proves (
 
   , (==!), (<=!), (<!), (>!), (>=!)
 
-  , (?), (***)
+  , (?), (∵), (***)
 
   , (==>), (&&&)
 
@@ -34,6 +34,7 @@ infixl 3 ==!, <=!, <!, >!, >=!
 
 -- provide the proof terms after ?
 infixl 3 ?
+infixl 3 ∵
 
 infixl 2 ***
 
@@ -47,6 +48,11 @@ byTheorem a _ = a
 
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
+
+(∵) :: (Proof -> a) -> Proof -> a
+f ∵ y = f y
+
+
 
 data QED = QED
 
