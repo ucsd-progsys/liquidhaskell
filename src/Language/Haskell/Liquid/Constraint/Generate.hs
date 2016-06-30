@@ -1624,7 +1624,7 @@ argExpr _ _           = Nothing
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 lamExpr γ (Var v)     | M.member v $ aenv γ
                       = F.EVar <$> (M.lookup v $ aenv γ)
-lamExpr γ (Var v)     | S.member v (fargs γ) || isDataConId v 
+lamExpr γ (Var v)     | S.member v (fargs γ)
                       =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
