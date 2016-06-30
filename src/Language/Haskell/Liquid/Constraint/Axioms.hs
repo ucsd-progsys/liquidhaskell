@@ -557,7 +557,7 @@ data AEnv = AE { ae_axioms  :: [T.HAxiom]            -- axiomatized functions
 initAEEnv :: MonadState CGInfo m => GhcInfo -> [(Symbol, SpecType)] -> m AEnv
 initAEEnv info sigs
     = do tce   <- tyConEmbed  <$> get
-         lts   <- lits        <$> get
+         lts   <- cgLits      <$> get
          i     <- freshIndex  <$> get
          modify $ \s -> s{freshIndex = i + 1}
          return $ AE { ae_axioms  = axioms spc
