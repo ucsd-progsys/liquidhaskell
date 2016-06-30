@@ -104,25 +104,77 @@ id_helper1_body r q
 
 -- | Composition
 
-{- composition :: x:Reader r (a -> a)
+{-@ composition :: x:Reader r (a -> a)
                 -> y:Reader r (a -> a)
                 -> z:Reader r a
-                -> { (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
-composition :: Reader r (a -> a) -> Reader r (a -> a) -> Reader r a -> Proof
+                -> { ((seq (seq (seq (pure compose) x) y) z) 
+                  == seq (seq (Reader (\r2:r -> (compose) ( fromReader x r2)))     (y)
+                         ) (z)) && (
+                  seq (seq (Reader (\r2:r -> (compose) ( fromReader x r2)))     (y)
+                         ) (z)                 
+                  == 
+                  seq (Reader (\r3:r -> (compose (fromReader x r3)) (fromReader y r3))
+                         ) (z))
+                   } @-}
+composition :: Arg r => Reader r (a -> a) -> Reader r (a -> a) -> Reader r a -> Proof
 composition (Reader x) (Reader y) (Reader z)
-  =   seq (seq (seq (pure compose) (Reader x)) (Reader y)) (Reader z) 
-  ==! seq (seq (seq (Reader (\r1 -> compose)) (Reader x)) (Reader y)) (Reader z)
+  =   seq (seq (seq (pure compose)            (Reader x))     (Reader y)) (Reader z) 
+  ==! seq (seq (seq (Reader (\r1 -> compose)) (Reader x))     (Reader y)) (Reader z)
   ==! seq (seq (Reader (\r2 -> ((\r1 -> compose) r2) (x r2))) (Reader y)) (Reader z)
-  ==! seq (seq (Reader (\r2 -> compose (x r2))) (Reader y)) (Reader z)
-  ==! seq (Reader (\r3 -> ((\r2 -> compose (x r2)) r3) (y r3))) (Reader z)
-  ==! seq (Reader (\r3 -> (compose (x r3)) (y r3))) (Reader z)
+  ==! seq (seq (Reader (\r2 -> compose (x r2)))               (Reader y)) (Reader z)
+      ? composition_helper0 x 
+  ==! seq (Reader (\r3 -> ((\r2 -> compose (x r2)) (r3)) (y r3)))           (Reader z)
+  ==! seq (Reader (\r3 -> (compose (x r3))               (y r3)))           (Reader z)
+      ? composition_helper00 x y 
   ==! Reader (\r4 -> ((\r3 -> (compose (x r3)) (y r3)) r4) (z r4)) 
   ==! Reader (\r4 -> (compose (x r4) (y r4)) (z r4)) 
+      ? composition_helper1 x y z 
   ==! Reader (\r4 -> (x r4) ((y r4) (z r4)))
-  ==! Reader (\r4 -> (x r4) ((\r5 -> (y r5) (z r5)) r4))
+      ? composition_helper2 x y z
+  ==! Reader (\r4 -> (x r4) ((\r5 -> (y r5) (z r5)) (r4)))
   ==! seq (Reader x) (Reader (\r5 -> (y r5) (z r5)))
   ==! seq (Reader x) (seq (Reader y) (Reader z))
   *** QED 
+
+
+{-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
+beta_application :: b -> (a -> b) -> a -> Proof  
+beta_application bd f x 
+  = f x ==! bd *** QED  
+
+
+composition_helper0 :: Arg r => (r -> (a -> a)) -> Proof 
+{-@ composition_helper0 
+    :: x:(r -> (a -> a))  
+    -> {(\r2:r -> ((\r1:r -> compose) (r2)) (x r2))  == (\r2:r -> compose (x r2)) }
+  @-}
+composition_helper0 x = simpleProof 
+
+composition_helper00 :: Arg r => (r -> (a -> a)) -> (r -> (a -> a)) -> Proof 
+{-@ composition_helper00 
+    :: x:(r -> (a -> a)) -> y:(r -> (a -> a))
+    -> {  (\r3:r -> ((\r2:r -> compose (x r2)) (r3)) (y r3))  
+       == (\r3:r -> (compose (x r3))               (y r3))
+       }
+  @-}
+composition_helper00 x y = simpleProof 
+
+
+
+composition_helper1 :: Arg r => (r -> (a -> a)) -> (r -> (a -> a)) -> (r -> a) -> Proof 
+{-@ composition_helper1 
+    :: x:(r -> (a -> a)) -> y:(r -> (a -> a)) -> z:(r -> a) 
+    -> {(\r4:r -> (compose (x r4) (y r4)) (z r4))  == (\r4:r -> (x r4) ((y r4) (z r4))) }
+  @-}
+composition_helper1 x y z = undefined  
+
+
+composition_helper2 :: Arg r => (r -> (a -> a)) -> (r -> (a -> a)) -> (r -> a) -> Proof 
+{-@ composition_helper2 
+    :: x:(r -> (a -> a)) -> y:(r -> (a -> a)) -> z:(r -> a) 
+    -> {(\r4:r -> (x r4) ((\r5:r -> (y r5) (z r5)) (r4)))  == (\r4:r -> (x r4) ((y r4) (z r4))) }
+  @-}
+composition_helper2 x y z = undefined  
 
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
