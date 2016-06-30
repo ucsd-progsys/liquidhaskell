@@ -12,17 +12,22 @@ module Helper (
     gen_increasing, gen_increasing2
 
   , gen_incr
+
+  , lambda_expand
   ) where
 
 import Proves
 
--- | Function abstractio: We cannot prove this....
-{-
-{- abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> { f x == g x })
-             -> { f == g } @-}
-abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
-abstract _ _ _ = simpleProof
--}
+
+lambda_expand :: Arg r => (r -> a) -> Proof 
+{-@ lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
+lambda_expand r 
+  = ( r =*=! \x -> r x) (body_lambda_expand r) *** QED 
+
+
+body_lambda_expand :: Arg r => (r -> a) -> r -> Proof 
+{-@ body_lambda_expand :: r:(r -> a) -> y:r -> { (\x:r -> r x) (y)  == r y } @-}
+body_lambda_expand r y = simpleProof 
 
 
 

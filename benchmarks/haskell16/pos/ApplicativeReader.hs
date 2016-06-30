@@ -1,17 +1,15 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--extensionality"  @-}
-
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
-module FunctorList where
+module ApplicativeReader where
 
 import Prelude hiding (fmap, id, seq, pure)
 
 import Proves
-import Helper
+import Helper (lambda_expand)
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v
@@ -21,6 +19,10 @@ import Helper
 
 {-@ data Reader r a = Reader { runIdentity :: r -> a } @-}
 data Reader r a     = Reader { runIdentity :: r -> a }
+
+{-@ measure fromReader @-}
+fromReader :: Reader r a -> (r -> a)
+fromReader (Reader f) = f 
 
 
 {-@ axiomatize pure @-}
@@ -43,24 +45,66 @@ compose f g x = f (g x)
 id :: a -> a
 id x = x
 
-
 -- | Identity
 
-{-@ identity :: x:Reader r a -> { seq (pure id) x == x } @-}
-identity :: Reader r a -> Proof
+{-@ identity :: x:Reader r a 
+  -> { seq (pure id) x == x } @-}
+identity :: Arg r => Reader r a -> Proof
 identity (Reader r)
   =   seq (pure id) (Reader r)
   ==! seq (Reader (\w -> id)) (Reader r)
-  ==! Reader (\q -> ((\w -> id) q) (r q))
-  ==! Reader (\q -> (id) (r q))
-  ==! Reader (\q -> r q)
-  ==! Reader r 
+  ==! Reader (\q -> ((\w -> id) (q)) (r q))   
+  ==! Reader (\q -> (id) (r q))            ? id_helper1 r
+  ==! Reader (\q -> r q)                   ? id_helper2 r 
+  ==! Reader r                             ? lambda_expand r 
   *** QED 
+
+
+-- NV: The following are the required helper functions as 
+-- we have no other way to prove equalities burried in lambdas. 
+-- This should be simplified
+
+ 
+
+id_helper2 :: Arg r => (r -> a) -> Proof 
+{-@ id_helper2 :: r:(r -> a) 
+  -> { (\q:r -> r q) == (\q:r -> (id) (r q)) } @-}
+id_helper2 r 
+  = ((\q -> r q) =*=! (\q -> (id) (r q))) (id_helper2_body r)
+  *** QED 
+
+
+id_helper2_body :: Arg r => (r -> a) -> r ->  Proof 
+{-@ id_helper2_body :: r:(r -> a) -> q:r
+  -> { (r q == (id) (r q)) 
+    && (( (\q:r -> r q) (q)) == r q)
+    && (((\q:r -> (id) (r q)) (q)) == id (r q))
+     } @-}
+id_helper2_body r q
+  = r q ==! id (r q) *** QED 
+
+
+id_helper1 :: Arg r => (r -> a) -> Proof 
+{-@ id_helper1 :: r:(r -> a) 
+  -> { (\q:r -> (((\w:r -> id) (q)) (r q))) == (\q:r -> (id) (r q)) } @-}
+id_helper1 r 
+  = ((\q -> (((\w -> id) q) (r q))) =*=! (\q -> id (r q))) (id_helper1_body r)
+  *** QED 
+
+
+{-@ id_helper1_body :: r:(r -> a) -> q:r
+  -> {(((\w:r -> id) (q)) (r q)) == (id) (r q) } @-}
+id_helper1_body :: Arg r => (r -> a) -> r -> Proof 
+id_helper1_body r q 
+  =   ((\w -> id) q) (r q)
+  ==! id (r q)
+  *** QED   
+
 
 
 -- | Composition
 
-{-@ composition :: x:Reader r (a -> a)
+{- composition :: x:Reader r (a -> a)
                 -> y:Reader r (a -> a)
                 -> z:Reader r a
                 -> { (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
@@ -96,7 +140,7 @@ homomorphism f x
 
 -- | interchange
 
-interchange :: Reader r (a -> a) -> a -> Proof
+interchange :: Arg r => Reader r (a -> a) -> a -> Proof
 {-@ interchange :: u:(Reader r (a -> a)) -> y:a
      -> { seq u (pure y) == seq (pure (idollar y)) u }
   @-}
@@ -104,12 +148,67 @@ interchange (Reader f) x
   =   seq (Reader f) (pure x)
   ==! seq (Reader f) (Reader (\r -> x))
   ==! Reader (\r' -> (f r') ((\r -> x) r'))
-  ==! Reader (\r' -> f r' x)
-  ==! Reader (\r' -> (idollar x) (f r')) 
-  ==! Reader (\r' -> ((\r'' -> (idollar x)) r') (f r')) 
+  ==! Reader (\r' -> (f r') x)                           ? interchange_helper_0 f x -- this is not required
+  ==! Reader (\r' -> (idollar x) (f r'))                 ? interchange_helper_1 f x 
+  ==! Reader (\r' -> ((\r'' -> (idollar x)) r') (f r'))  ? interchange_helper_2 f x 
   ==! seq (Reader (\r'' ->  (idollar x))) (Reader f)
   ==! seq (pure (idollar x)) (Reader f)
   *** QED 
+
+
+{-@ interchange_helper_0
+  :: f:(r -> (a -> a)) -> x:a 
+  -> {(\r':r -> (f r') (x)) == (\r':r -> (f r') ((\r:r -> x) (r')) )}
+  @-} 
+interchange_helper_0 :: Arg r => (r -> (a -> a)) -> a -> Proof 
+interchange_helper_0 f x
+  = (((\r -> (f r) x) =*=! (\r -> (f r) ((\r' -> x) r))) 
+    (\_ -> simpleProof)) *** QED  
+
+
+{-@ interchange_helper_1 
+  :: f:(r -> (a -> a)) -> x:a 
+  -> {(\r':r -> (f r') (x)) == (\r':r -> (idollar x) (f r'))}
+  @-} 
+interchange_helper_1 :: Arg r => (r -> (a -> a)) -> a -> Proof 
+interchange_helper_1 f x 
+  =  (((\r -> (f r) x) =*=! (\r -> (idollar x) (f r))) (interchange_helper_1_body f x)) *** QED 
+
+{-@ interchange_helper_1_body 
+  :: f:(r -> (a -> a)) -> x:a -> r':r
+  -> {((f r') (x) == (idollar x) (f r'))
+     && ((\r':r -> (f r') (x)) (r')  ==  (f r') (x))
+     && ((\r':r -> (idollar x) (f r')) (r') == (idollar x) (f r'))
+     }
+  @-} 
+interchange_helper_1_body :: Arg r => (r -> (a -> a)) -> a -> r -> Proof 
+interchange_helper_1_body f x r 
+  = f r x ==! (idollar x) (f r) *** QED 
+
+
+{-@ interchange_helper_2 
+  :: f:(r -> (a -> a)) -> x:a 
+  -> {(\r':r -> ((\r'':r -> (idollar x)) (r')) (f r')) == (\r':r -> (idollar x) (f r'))}
+  @-} 
+interchange_helper_2 :: Arg r => (r -> (a -> a)) -> a -> Proof 
+interchange_helper_2 f x 
+  =    (((\r' -> ((\r'' -> (idollar x)) (r')) (f r')) ) 
+  =*=! (\r' -> (idollar x) (f r'))
+       ) (interchange_helper_2_body f x) *** QED 
+
+{-@ interchange_helper_2_body 
+  :: f:(r -> (a -> a)) -> x:a -> r':r
+  -> {(\r':r -> ((\r'':r -> (idollar x)) (r')) (f r')) == (\r':r -> (idollar x) (f r'))}
+  @-} 
+interchange_helper_2_body :: Arg r => (r -> (a -> a)) -> a -> r -> Proof 
+interchange_helper_2_body f x r'
+  =    ((\r'' -> (idollar x)) (r')) (f r')
+  ==!  (idollar x) (f r')
+  *** QED 
+
+
+
+
 
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
 qual :: (r -> a) -> Reader r a 
