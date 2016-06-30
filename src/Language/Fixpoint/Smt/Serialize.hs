@@ -389,17 +389,23 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
+normalizeLamsFromTo :: Int -> (Symbol, Sort) -> Expr -> (Int, Expr)
+
 normalizeLams :: (Symbol, Sort) -> Expr -> Expr 
-normalizeLams (x, s) e = ELam (x', s) (bd `subst1` su)
+normalizeLams x e = snd $ normalizeLamsFromTo 1 x e
+
+normalizeLamsFromTo i (x, s) e = go $ ELam (x, s) e
   where
-    su = (x, EVar x')
-    x' = makeLamArg s 1 -- debruijnIndex e
-    bd = go 2 e 
-    go i (ELam (y, sy) e) = let y' = makeLamArg sy i
-                            in ELam (y', sy) (go (i+1) e `subst1` (y, EVar y'))
-    go i (EApp e1 e2)    = EApp (go i e1) (go i e2)
-    go i (ECst e s)      = ECst (go i e) s
-    go _ e               = e 
+    go (ELam (y, sy) e) = let (i, e') = go e
+                              y'      = makeLamArg sy i   
+                          in (i+1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (EApp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2 
+                          in (max i1 i2, EApp e1' e2')
+    go (ECst e s)       = mapSnd (`ECst` s) (go e)
+    go e                = (i, e) 
+
+    mapSnd f (x, y) = (x, f y)
 
 -- RJ: can't you use the Visitor instead of this?
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
@@ -470,7 +476,7 @@ grapLambdas = go []
 
 
 makeBetaReductionAsserts :: Expr -> SMT2 [Expr]
-makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e)
+makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e ++ fold lamVis () [] e)
   where
     betaVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go }
     go _ e@(EApp f ex)
@@ -480,6 +486,16 @@ makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e)
 
     uncst (ECst e _) = uncst e 
     uncst e          = e 
+
+
+    lamVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go' }
+    go' _ ee@(ELam (x, s) e)
+      -- optimization: do it for each lambda once
+      -- | notElem ee cxt 
+      = [PAtom Eq ee ee' | (i, ee') <- map (\j -> normalizeLamsFromTo j (x, s) e) [1..maxLamArg-1] , i <= maxLamArg ]
+    go' _ _ = [] 
+
+
 
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
 makeApplication e es = defunc e >>= (`go` es)
@@ -578,8 +594,11 @@ initSMTEnv = fromListSEnv $
   , (realToIntName,   FFunc realSort   intSort)
   , (lambdaName   ,   FFunc intSort intSort)
   ]
-  ++ concatMap makeApplies [1..7]
-  ++ [(makeLamArg s i, s) | i <- [1..7], s <- sorts]
+  ++ concatMap makeApplies [1..maxLamArg]
+  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
+
+maxLamArg :: Int 
+maxLamArg = 7 
 
 sorts :: [Sort]
 sorts = [intSort]
