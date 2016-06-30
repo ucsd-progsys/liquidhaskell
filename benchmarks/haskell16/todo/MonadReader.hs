@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--extensionality"  @-}
+{- LIQUID "--extensionality"  @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}
