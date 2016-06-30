@@ -1,6 +1,8 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--alphaequivalence" @-}
+{-@ LIQUID "--betaequivalence" @-}
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -124,9 +126,6 @@ composition (Reader x) (Reader y) (Reader z)
   ==! seq (Reader x) (Reader (\r5 -> (y r5) (z r5)))
   ==! seq (Reader x) (seq (Reader y) (Reader z))
   *** QED 
-
- 
-
 
 composition_helper1 :: Arg r => (r -> (a -> a)) -> (r -> (a -> a)) -> (r -> a) -> Proof 
 {-@ composition_helper1 

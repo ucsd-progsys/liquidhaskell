@@ -30,6 +30,8 @@ data Config = Config {
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , extensionality :: Bool       -- ^ allow function extentionality axioms
+  , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
+  , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
