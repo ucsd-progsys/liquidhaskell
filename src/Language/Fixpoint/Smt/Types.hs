@@ -25,7 +25,7 @@ module Language.Fixpoint.Smt.Types (
     , Context (..)
 
     -- * SMTLIB2 symbol environment
-    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym
+    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym, withNoExtensionality
 
     -- * Theory Symbol
     , TheorySymbol (..)
@@ -104,6 +104,15 @@ withExtendedEnv bs act = do
   r <- act
   modify $ \s -> s{smt2env = env}
   return r
+
+withNoExtensionality :: SMT2 a -> SMT2 a
+withNoExtensionality act = do 
+  extFlag <- f_ext <$> get 
+  modify $ \s -> s{f_ext = False}
+  x <- act
+  modify $ \s -> s{f_ext = extFlag}
+  return x 
+
 
 freshSym :: SMT2 Symbol
 freshSym = do
