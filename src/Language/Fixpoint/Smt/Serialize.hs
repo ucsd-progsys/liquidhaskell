@@ -393,7 +393,7 @@ normalizeLams :: (Symbol, Sort) -> Expr -> Expr
 normalizeLams (x, s) e = ELam (x', s) (bd `subst1` su)
   where
     su = (x, EVar x')
-    x' = makeLamArg s 1 -- $ debruijnIndex e
+    x' = makeLamArg s 1 -- debruijnIndex e
     bd = go 2 e 
     go i (ELam (y, sy) e) = let y' = makeLamArg sy i
                             in ELam (y', sy) (go (i+1) e `subst1` (y, EVar y'))
