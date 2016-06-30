@@ -65,6 +65,8 @@ data Config
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     , extensionality :: Bool             -- ^ allow function extensionality
+    , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
+    , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
@@ -97,6 +99,8 @@ instance Default Config where
                , minimizeQs  = def
                , gradual     = False
                , extensionality = False
+               , alphaEquivalence = False
+               , betaEquivalence  = False
                , autoKuts       = False
                , pack           = False
                , nonLinCuts     = False
@@ -175,6 +179,8 @@ config = Config {
   , minimizeQs  = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
   , extensionality = False &= help "Allow function extensionality axioms"
+  , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
+  , betaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
   , pack           = False &= help "Use pack annotations"
   , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"

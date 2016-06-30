@@ -55,7 +55,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality)
+import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality, alphaEquivalence, betaEquivalence)
 import           Language.Fixpoint.Misc   (errorstar, getUniqueInt)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -269,6 +269,8 @@ makeProcess cfg
                   , cLog    = Nothing
                   , verbose = loud
                   , c_ext   = extensionality cfg
+                  , c_aeq   = alphaEquivalence cfg  
+                  , c_beq   = betaEquivalence  cfg  
                   , smtenv  = initSMTEnv
                   }
 

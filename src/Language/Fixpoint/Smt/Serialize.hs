@@ -476,7 +476,12 @@ grapLambdas = go []
 
 
 makeBetaReductionAsserts :: Expr -> SMT2 [Expr]
-makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e ++ fold lamVis () [] e)
+makeBetaReductionAsserts e 
+  = do aFlag <- a_eq <$> get
+       bFlag <- b_eq <$> get 
+       let as1 = if aFlag then fold lamVis  () [] e else []
+       let as2 = if bFlag then fold betaVis () [] e else []
+       mapM defunc (as1 ++ as2)
   where
     betaVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go }
     go _ e@(EApp f ex)
