@@ -100,23 +100,22 @@ listLMap  = toLogicMap [ (nilName , []     , hNil)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs     = tySigs'
+  = sp { tySigs     = mapSnd addTCI <$> sigs
+       , inSigs     = mapSnd addTCI <$> insigs
+       , asmSigs    = mapSnd addTCI <$> assms
+       , invariants = mapSnd addTCI <$> invariants
+       , spLits     = txSort        <$> spLits
+       , meas       = txSort        <$> meas
+       , dicts      = dmapty addTCI'    dicts
        , texprs     = ts
-       , asmSigs    = asmSigs'
-       , dicts      = dicts'
-       , invariants = invs'
-       , meas       = meas'
-       , inSigs     = inSigs' }
+       }
   where
     (sigs, ts')     = replaceLocalBinds allowHO tcEmbeds tyconEnv tySigs texprs specEnv cbs
     (assms, ts'')   = replaceLocalBinds allowHO tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
     (insigs, ts)    = replaceLocalBinds allowHO tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
-    tySigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
-    asmSigs'        = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
-    inSigs'         = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> insigs
-    dicts'          = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
-    invs'           = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
-    meas'           = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
+    txSort          = mapSnd (addTCI . txRefSort tyconEnv tcEmbeds)
+    addTCI          = (addTCI' <$>)
+    addTCI'         = addTyConInfo tcEmbeds tyconEnv
     allowHO         = higherOrderFlag config
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
@@ -201,13 +200,46 @@ makeAxioms tce cbs spec sp
   = do lmap          <- logicEnv <$> get
        (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
        lmap'         <- logicEnv <$> get
-       return $ spec { meas     = ms         ++  meas   spec
+       return $ spec { meas     = ms         ++ meas spec
                      , asmSigs  = concat tys ++ asmSigs spec
-                     , axioms   = concat as  ++ axioms spec
+                     , axioms   = concat as  ++ axioms  spec
                      , logicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
+-- emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
+emptySpec cfg = SP
+  { tySigs     = mempty
+  , asmSigs    = mempty
+  , inSigs     = mempty
+  , ctors      = mempty
+  , spLits     = mempty
+  , meas       = mempty
+  , invariants = mempty
+  , ialiases   = mempty
+  , dconsP     = mempty
+  , tconsP     = mempty
+  , freeSyms   = mempty
+  , tcEmbeds   = mempty
+  , qualifiers = mempty
+  , tgtVars    = mempty
+  , decr       = mempty
+  , texprs     = mempty
+  , lvars      = mempty
+  , lazy       = mempty
+  , autosize   = mempty
+  , config     = cfg
+  , exports    = mempty
+  , measures   = mempty
+  , tyconEnv   = mempty
+  , dicts      = mempty
+  , axioms     = mempty
+  , logicMap   = mempty
+  , proofType  = Nothing
+  }
+
+
+
+
 
 
 makeGhcSpec0 :: Config
@@ -243,11 +275,14 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
        return $ sp { tySigs     = filter (\(v,_) -> v `elem` vs) tySigs
                    , asmSigs    = filter (\(v,_) -> v `elem` vs) asmSigs
                    , ctors      = filter (\(v,_) -> v `elem` vs) ctors
-                   , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
+                   , meas       = measSyms
+                   , spLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
+                   }
     where
-      tx   = fmap . mapSnd . subst $ su
-      tx'  = fmap (mapSnd $ fmap uRType)
-      vs   = vars ++ defVars
+      tx       = fmap . mapSnd . subst $ su
+      tx'      = fmap (mapSnd $ fmap uRType)
+      vs       = vars ++ defVars
+      measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'
 
 makeGhcSpec2 :: Monad m
              => [(Maybe Var, LocSpecType)]

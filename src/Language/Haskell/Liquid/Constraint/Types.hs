@@ -78,11 +78,12 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv = CGE
-  { cgLoc  :: !SpanStack         -- ^ Location in original source file
-  , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
-  , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-  , denv   :: !RDEnv             -- ^ Dictionary Environment
-  , litEnv :: !(F.SEnv F.Sort)   -- ^ Literals (to be embedded as constants)
+  { cgLoc    :: !SpanStack         -- ^ Location in original source file
+  , renv     :: !REnv              -- ^ SpecTypes for Bindings in scope
+  , syenv    :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+  , denv     :: !RDEnv             -- ^ Dictionary Environment
+  , litEnv   :: !(F.SEnv F.Sort)   -- ^ Global  literals
+  , constEnv :: !(F.SEnv F.Sort)   -- ^ Distinct literals
   , fenv   :: !FEnv              -- ^ Fixpoint Environment
   , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
   , fargs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
@@ -185,7 +186,8 @@ data CGInfo = CGInfo {
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
-  , lits       :: !(F.SEnv F.Sort)             -- ^ Literals to be embedded as constants in refinement logic
+  , cgLits     :: !(F.SEnv F.Sort)             -- ^ Global symbols in the refinement logic
+  , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
@@ -214,7 +216,7 @@ pprCGInfo _k _cgi
   -- -$$ (text "*********** Fixpoint Kut Variables ************")
   -- -$$ (F.toFix  $ kuts cgi)
       $$ "*********** Literals in Source     ************"
-      $$ F.pprint (lits _cgi)
+      $$ F.pprint (cgLits _cgi)
   -- -$$ (text "*********** KVar Distribution *****************")
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
@@ -347,8 +349,6 @@ removeInvariant γ cbs
 restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
 restoreInvariant γ is = γ {invs = is}
 
-
-
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
@@ -367,7 +367,6 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
       = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
 
 makeRecInvariants γ _ = γ
-
 
 --------------------------------------------------------------------------------
 -- | Fixpoint Environment ------------------------------------------------------
@@ -395,24 +394,23 @@ initFEnv xts = FE benv0 env0 ienv0
     env0     = F.fromListSEnv (wiredSortedSyms ++ xts)
     ienv0    = F.emptySEnv
 
--- removeFEnv :: F.Symbol -> FEnv -> FEnv
--- removeFEnv x (FE benv env ienv) = FE benv' env' ienv'
-  -- where
-    -- env'   = F.deleteSEnv x env
-    -- ienv'  = F.deleteSEnv x ienv
-    -- benv'  = maybe benv (`F.deleteIBindEnv` benv) (F.lookupSEnv x ienv)
-
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
-
 instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x4 x5 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
-    = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
-      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10 `seq` rnf x4
+  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
+    = x1 `seq` {- rnf x2 `seq` -} seq x3
+         `seq` rnf x5
+         `seq` rnf x55
+         `seq` rnf x6
+         `seq` x7
+         `seq` rnf x8
+         `seq` rnf x9
+         `seq` rnf x10
+         `seq` rnf x4
 
 instance NFData FEnv where
   rnf (FE x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
@@ -436,6 +434,7 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))      `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvPacks x))    `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (cgLits x))     `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (cgConsts x))   `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x))

@@ -130,12 +130,16 @@ consAct cfg info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
-  modify $ \st -> st { fEnv = fixEnv γ, lits = lEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
+  modify $ \st -> st { fEnv     = fixEnv γ
+                     , cgLits   = litEnv   γ
+                     , cgConsts = (cgConsts st) `mappend` (constEnv γ)
+                     , fixCs    = fcs
+                     , fixWfs   = fws
+                     , annotMap = annot' }
   where
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
     fixEnv           = feEnv . fenv
-    lEnv             = litEnv
     mkSigs γ         = toListREnv (renv  γ) ++
                        toListREnv (assms γ) ++
                        toListREnv (intys γ) ++
@@ -165,7 +169,7 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty
+       f1'      <- refreshArgs' $ makedcs dcsty              -- data constructors
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
@@ -177,10 +181,10 @@ initEnv info
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
-       lt1s     <- F.toListSEnv . lits <$> get
+       lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) tcb (lt1s ++ lt2s) (bs!!3) (bs!!5) hs info
+       let γ0    = measEnv sp (head bs) (cbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -190,7 +194,6 @@ initEnv info
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
     is autoinv   = mkRTyConInv    $ (invariants sp ++ ((Nothing,) <$> autoinv))
-
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
@@ -283,39 +286,42 @@ measEnv :: GhcSpec
         -> [CoreBind]
         -> [(F.Symbol, F.Sort)]
         -> [(F.Symbol, F.Sort)]
+        -> [(F.Symbol, F.Sort)]
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
         -> GhcInfo
         -> CGEnv
-measEnv sp xts cbs tcb lts asms itys hs info = CGE
-  { cgLoc  = Sp.empty
-  , renv   = fromListREnv (second val <$> meas sp) []
-  , syenv  = F.fromListSEnv $ freeSyms sp
-  , litEnv = F.fromListSEnv lts
-  , fenv   = initFEnv $ tcb ++ lts ++ (second (rTypeSort tce . val) <$> meas sp)
-  , denv  = dicts sp
-  , recs  = S.empty
-  , fargs = S.empty
-  , invs  = mempty
-  , rinvs = mempty
-  , ial   = mkRTyConIAl    $ ialiases   sp
-  , grtys = fromListREnv xts  []
-  , assms = fromListREnv asms []
-  , intys = fromListREnv itys []
-  , emb   = tce
-  , tgEnv = Tg.makeTagEnv cbs
-  , tgKey = Nothing
-  , trec  = Nothing
-  , lcb   = M.empty
-  , holes = fromListHEnv hs
-  , lcs   = mempty
-  , aenv   = axiom_map $ logicMap sp
-  , cerr   = Nothing
-  , cgInfo = info
+measEnv sp xts cbs tcb lt1s lt2s asms itys hs info = CGE
+  { cgLoc    = Sp.empty
+  , renv     = fromListREnv (second val <$> meas sp) []
+  , syenv    = F.fromListSEnv $ freeSyms sp
+  , litEnv   = F.fromListSEnv lts
+  , constEnv = F.fromListSEnv lt2s
+  , fenv     = initFEnv $ tcb ++ lts ++ (second (rTypeSort tce . val) <$> meas sp)
+  , denv     = dicts sp
+  , recs     = S.empty
+  , fargs    = S.empty
+  , invs     = mempty
+  , rinvs    = mempty
+  , ial      = mkRTyConIAl    $ ialiases   sp
+  , grtys    = fromListREnv xts  []
+  , assms    = fromListREnv asms []
+  , intys    = fromListREnv itys []
+  , emb      = tce
+  , tgEnv    = Tg.makeTagEnv cbs
+  , tgKey    = Nothing
+  , trec     = Nothing
+  , lcb      = M.empty
+  , holes    = fromListHEnv hs
+  , lcs      = mempty
+  , aenv     = axiom_map $ logicMap sp
+  , cerr     = Nothing
+  , cgInfo   = info
   }
   where
       tce = tcEmbeds sp
+      lts = lt1s ++ lt2s
 
 assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars
@@ -336,6 +342,41 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
     isTop v      = isExportedVar info v && not (v `S.member` sigVs)
     sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info) ++ inSigs (spec info)]
 
+{-
+infoLits :: GhcInfo -> F.SEnv F.Sort
+infoLits = infoLits meas (const True)
+
+infoLits info = F.fromListSEnv $ cbLits ++ measLits
+  where
+    cbLits    = coreBindLits tce info
+    measLits  = mkSort   <$> meas spc
+    spc       = spec info
+    tce       = tcEmbeds spc
+    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
+
+infoConsts :: GhcInfo -> F.SEnv F.Sort
+infoConsts = infoConsts spLits notFn
+  where
+    notFn  = not . isJust . F.functionSort
+
+  F.fromListSEnv $ cbLits ++ measLits
+  where
+    cbLits    = filter (notFn . snd) $ coreBindLits tce info
+    measLits  = filter (notFn . snd) $ mkSort <$> spLits spc
+    notFn     = not . isJust . F.functionSort
+    spc       = spec info
+    tce       = tcEmbeds spc
+    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
+-}
+
+infoLits :: (GhcSpec -> [(F.Symbol, LocSpecType)]) -> (F.Sort -> Bool) -> GhcInfo -> F.SEnv F.Sort
+infoLits litF selF info = F.fromListSEnv $ cbLits ++ measLits
+  where
+    cbLits    = filter (selF . snd) $ coreBindLits tce info
+    measLits  = filter (selF . snd) $ mkSort <$> litF spc
+    spc       = spec info
+    tce       = tcEmbeds spc
+    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
 
 initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -353,7 +394,8 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce
   , kuts       = mempty
   , kvPacks    = mempty
-  , lits       = F.fromListSEnv $ coreBindLits tce info ++ (mapSnd F.sr_sort <$> (mkSort <$> meas spc))
+  , cgLits     = infoLits meas   (const True) info
+  , cgConsts   = infoLits spLits notFn info
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
@@ -373,7 +415,7 @@ initCGI cfg info = CGInfo {
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc
-    mkSort     = mapSnd (rTypeSortedReft tce . val)
+    notFn      = not . isJust . F.functionSort
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
@@ -992,12 +1034,10 @@ cconsE g e t = do
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
-       if (x `S.member` sp) || isDefLazyVar x
-        then cconsLazyLet γ e t
-        else do γ'  <- consCBLet γ b
-                cconsE γ' ee t
-  where
-       isDefLazyVar = L.isPrefixOf "fail" . showPpr
+       if (x `S.member` sp)
+         then cconsLazyLet γ e t
+         else do γ'  <- consCBLet γ b
+                 cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
@@ -1025,7 +1065,7 @@ cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (x', ty)
        cconsE (addArgument γ' x) e t'
-       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r') 
+       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r')
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -1049,12 +1089,12 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
-lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft 
-lambdaSignleton γ tce x e 
+lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
+lambdaSignleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
-    sx = typeSort tce $ varType x 
+    sx = typeSort tce $ varType x
 lambdaSignleton _ _ _ _
   = mempty
 
@@ -1063,14 +1103,14 @@ addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
        t'       <- true t
-       let truet = RFun y ty' t'  
-       case (lamExpr γ e, higherOrderFlag γ) of 
-          (Just e', True) -> do tce    <- tyConEmbed <$> get 
-                                let sx  = typeSort tce $ varType x  
+       let truet = RFun y ty' t'
+       case (lamExpr γ e, higherOrderFlag γ) of
+          (Just e', True) -> do tce    <- tyConEmbed <$> get
+                                let sx  = typeSort tce $ varType x
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
                                 addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
           _ -> addC (SubC γ (truet mempty) $ truet r) "function constraint true"
-addFunctionConstraint γ _ _ _ 
+addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
@@ -1588,14 +1628,14 @@ lamExpr γ (Var v)     | S.member v (fargs γ)
                       =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
-lamExpr γ (App e (Type _)) = lamExpr γ e 
-lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of 
+lamExpr γ (App e (Type _)) = lamExpr γ e
+lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
                               (Just p1, Just p2) -> Just $ F.EApp p1 p2
-                              _  -> Nothing 
-lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of 
+                              _  -> Nothing
+lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
-                                       _  -> Nothing 
-lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of 
+                                       _  -> Nothing
+lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of
                             Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
