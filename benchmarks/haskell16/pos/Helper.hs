@@ -2,9 +2,10 @@
 -- | Proving ackermann properties from
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
-{-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--autoproofs"    @-}
-{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--autoproofs"      @-}
+{-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--betaequivalence" @-}
 
 
 module Helper (
@@ -13,11 +14,17 @@ module Helper (
 
   , gen_incr
 
-  , lambda_expand
+  , lambda_expand, beta_application
   ) where
 
 import Proves
 
+
+
+{-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
+beta_application :: b -> (a -> b) -> a -> Proof  
+beta_application bd f x 
+  = f x ==! bd *** QED 
 
 lambda_expand :: Arg r => (r -> a) -> Proof 
 {-@ lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
