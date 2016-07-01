@@ -204,7 +204,11 @@ fixConfig tgt cfg = def
   , FC.elimBound   = elimBound         cfg
   , FC.allowHO     = higherOrderFlag   cfg
   , FC.allowHOqs   = higherorderqs     cfg
-  , FC.extensionality = extensionality cfg
+
+  , FC.extensionality   = extensionality   cfg
+  , FC.alphaEquivalence = alphaEquivalence cfg
+  , FC.betaEquivalence  = betaEquivalence  cfg
+  , FC.normalForm       = normalForm       cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

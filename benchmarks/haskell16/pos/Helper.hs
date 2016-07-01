@@ -2,9 +2,10 @@
 -- | Proving ackermann properties from
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
-{-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--autoproofs"    @-}
-{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--autoproofs"      @-}
+{-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--betaequivalence" @-}
 
 
 module Helper (
@@ -12,17 +13,28 @@ module Helper (
     gen_increasing, gen_increasing2
 
   , gen_incr
+
+  , lambda_expand, beta_application
   ) where
 
 import Proves
 
--- | Function abstractio: We cannot prove this....
-{-
-{- abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> { f x == g x })
-             -> { f == g } @-}
-abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
-abstract _ _ _ = simpleProof
--}
+
+
+{-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
+beta_application :: b -> (a -> b) -> a -> Proof  
+beta_application bd f x 
+  = f x ==! bd *** QED 
+
+lambda_expand :: Arg r => (r -> a) -> Proof 
+{-@ lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
+lambda_expand r 
+  = ( r =*=! \x -> r x) (body_lambda_expand r) *** QED 
+
+
+body_lambda_expand :: Arg r => (r -> a) -> r -> Proof 
+{-@ body_lambda_expand :: r:(r -> a) -> y:r -> { (\x:r -> r x) (y)  == r y } @-}
+body_lambda_expand r y = simpleProof 
 
 
 
