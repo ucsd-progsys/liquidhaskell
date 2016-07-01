@@ -1617,6 +1617,8 @@ argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
+argExpr γ e           | higherOrderFlag γ
+                      = lamExpr γ e
 argExpr _ _           = Nothing
 
 

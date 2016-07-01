@@ -1,8 +1,9 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--alphaequivalence"  @-}
+{-@ LIQUID "--higherorder"      @-}
+{-@ LIQUID "--totality"         @-}
+{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
+{-@ LIQUID "--normalform"       @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}
@@ -48,6 +49,7 @@ readerId (Reader f)
   =   Reader (fromReader (Reader f))
   ==! Reader f 
   *** QED 
+
 
 -- | Left Identity
 {-@ left_identity :: x:a -> f:(a -> Reader r b) -> { bind (return x) f == f x } @-}
@@ -128,19 +130,18 @@ right_identity_helper_body x r
   ==! fromReader (reader (\r' ->  (x r))) r
   *** QED 
 
-{- 
-
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
-
-{- associativity :: m:Reader r a -> f: (a -> Reader r b) -> g:(b -> Reader r c)
-  -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
-associativity :: Reader r a -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
+{-@ associativity :: x:Reader r a -> f: (a -> Reader r a) -> g:(a -> Reader r a) 
+  -> {bind (bind x f) g      ==  
+Reader (\r2:r -> (\r3:r -> fromReader (g (fromReader (f (fromReader x r2)) r3)) (r3)) (r2))
+      } @-}
+associativity :: (Arg r, Arg a) =>  Reader r a -> (a -> Reader r a) -> (a -> Reader r a) -> Proof
 associativity (Reader x) f g
   =   bind (bind (Reader x) f) g
   -- unfold inner bind 
-  ==! bind (Reader (\r1 -> fromReader (f (x r1)) r1)) g
+  ==! bind (Reader (\r1 -> fromReader (f (x r1)) r1)) g 
   -- unfold outer bind 
-  ==! Reader (\r2 -> fromReader (g ((\r1 -> fromReader (f (x r1)) r1) r2)) r2)
+  ==! Reader (\r2 -> fromReader (g ((\r1 -> fromReader (f (x r1)) r1) (r2))) (r2))
   -- apply    r1 := r2
   ==! Reader (\r2 -> fromReader (g (fromReader (f (x r2)) r2) )  r2)
   -- abstract r3 := r2 
@@ -149,20 +150,128 @@ associativity (Reader x) f g
          r2)
   -- apply measure fromReader (Reader f) == f 
   ==! Reader (\r2 -> fromReader (
-          (Reader (\r3 -> fromReader (g ((fromReader (f (x r2))) r3) ) r3))
+          (reader (\r3 -> fromReader (g ((fromReader (f (x r2))) r3) ) r3))
         ) r2)
+        ? associativity_helper0 x f g 
   -- abstract r4 := x r2 
   ==! Reader (\r2 -> fromReader ((\r4 -> 
-          (Reader (\r3 -> fromReader (g ((fromReader (f r4)) r3) ) r3))
-        ) (x r2)) r2)
+          (reader (\r3 -> fromReader (g ((fromReader (f r4)) r3) ) r3))
+        ) (x r2)) r2) 
+      ? associativity_helper2 x f g 
   -- fold (bind (f r4) g)
   ==! Reader (\r2 -> fromReader ((\r4 -> 
            (bind (f r4) g)
-        ) (x r2)) r2)
+        ) (x r2)) r2)  
+     ? associativity_helper1 x f g 
   -- fold bind 
   ==! bind (Reader x) (\r4 ->(bind (f r4) g))
   *** QED  
--}
+
+{-@ associativity_helper0 :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) 
+  -> {  (\r2:r -> (\r3:r -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2)) 
+      ==   (\r2:r -> (fromReader (reader (\r3:r -> fromReader (g (fromReader (f (x r2)) r3)) (r3)))) (r2)) 
+          } @-}
+associativity_helper0 :: Arg r => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
+associativity_helper0 x f g
+  =    ((\r2 -> (\r3 -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2)) 
+  =*=!  (\r2 -> fromReader (reader (\r3 -> fromReader (g (fromReader (f (x r2)) r3)) (r3))) (r2)))
+         (associativity_helper0_body x f g) *** QED 
+          
+associativity_helper0_body :: (r -> a) -> (a -> Reader r b) -> (b -> Reader r c)-> r  -> Proof
+{-@ associativity_helper0_body :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r
+  -> {    (\r3:r -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2)
+      ==  (fromReader (reader (\r3:r -> fromReader (g (fromReader (f (x r2)) r3)) (r3)))) (r2)
+       && 
+           ((\r2:r -> (\r3:r -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2))) (r2) == (\r3:r -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2)
+       && 
+           (\r2:r -> (fromReader (reader (\r3:r -> fromReader (g (fromReader (f (x r2)) r3)) (r3)))) (r2)) (r2) == (fromReader (reader (\r3:r -> fromReader (g (fromReader (f (x r2)) r3)) (r3)))) (r2)
+          } @-}
+associativity_helper0_body x f g r2
+  = readerId' (\r3 -> fromReader (g (fromReader (f ( x r2)) r3)) (r3))
+
+{-@ readerId' :: x:(r -> a) -> {x == fromReader (reader x)} @-} 
+readerId' :: (r -> a) -> Proof 
+readerId' x  
+  =   fromReader (reader x)
+  ==! fromReader (Reader x)
+  ==! x 
+  *** QED 
+
+
+{-@ associativity_helper2 :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) 
+  -> {  (\r2:r -> fromReader (reader (\r3:r -> fromReader (g (fromReader (f (x r2)) r3)) (r3))) (r2))  
+      ==   (\r2:r -> fromReader ( (\r4:a -> ( reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2))  
+         } @-}
+associativity_helper2 :: (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
+associativity_helper2 x f g = simpleProof
+
+{-@ associativity_helper1 :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) 
+  -> {   (\r2:r -> fromReader ( (\r4:a -> ( reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2))  
+      ==    (\r2:r -> fromReader ( (\r4:a -> ( bind (f r4) g))  (x r2)) (r2))  
+    } @-}
+associativity_helper1 :: (Arg r, Arg a) => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
+associativity_helper1 x f g
+  = ((\r2 -> fromReader ( (\r4 -> ( reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2))  
+      =*=!    (\r2 -> fromReader ( (\r4 -> ( bind (f r4) g))  (x r2)) (r2))  
+    ) (associativity_helper1_body x f g)  *** QED 
+
+{-@ associativity_helper1_body :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r
+  -> {  fromReader ( (\r4:a -> ( reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2)  
+      ==   fromReader ( (\r4:a -> ( bind (f r4) g))  (x r2)) (r2)
+      && 
+        ((\r2:r -> fromReader ( (\r4:a -> ( reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2))) (r2)
+        == fromReader ( (\r4:a -> ( reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2)
+      && 
+        (\r2:r -> fromReader ( (\r4:a -> ( bind (f r4) g))  (x r2)) (r2)) (r2)
+        == fromReader ( (\r4:a -> ( bind (f r4) g))  (x r2)) (r2)
+    } @-}
+associativity_helper1_body :: (Arg r, Arg a ) => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> r -> Proof
+associativity_helper1_body x f g r2 
+  =   fromReader ( (\r4 -> ( reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2)
+  ==! fromReader ( (\r4 -> ( bind (f r4) g))  (x r2)) (r2)
+      ? helper_of_helper x f g r2
+  *** QED 
+
+
+{-@ helper_of_helper :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r
+  -> {   \r4:a -> (reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3)))
+      == \r4:a -> (bind (f r4) g)
+    } @-}
+helper_of_helper :: (Arg r, Arg a) => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> r -> Proof
+helper_of_helper x f g r2 
+  =  ( (\r4 -> (reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3))))
+      =*=! (\r4 -> (bind (f r4) g))) (helper_of_helper_body x f g r2) *** QED 
+
+{-@ helper_of_helper_body :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r -> r4:a
+  -> {   (reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3)))
+      == (bind (f r4) g)
+      && 
+         (\r4:a -> (reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3)))) (r4)
+      ==  (reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3)))
+      && 
+         (\r4:a -> (bind (f r4) g)) (r4) == (bind (f r4) g)
+
+    } @-}
+helper_of_helper_body :: Arg r => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> r -> a -> Proof
+helper_of_helper_body x f g r2 r4 
+  = case f r4 of 
+      Reader _ -> reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3)) 
+                  ==! bind (f r4) g 
+                   *** QED 
+
+
+
+{-@ helper_of_helper_body' :: x:(r -> a) -> y:(Reader r b) -> g:(b -> Reader r c) -> r2:r -> r4:a
+  -> {   (Reader (\r3:r -> fromReader (g ( (fromReader y) (r3))) (r3)))
+      == (bind y g)
+    } @-}
+helper_of_helper_body' :: Arg r => (r -> a) -> (Reader r b) -> (b -> Reader r c) -> r -> a -> Proof
+helper_of_helper_body' x y@(Reader _) g r2 r4  
+  =   reader (\r3 -> fromReader (g ( (fromReader y) r3)) (r3)) 
+  ==! bind y g 
+  *** QED 
+
+
 
 {-@ qual :: f:(r -> a) -> {v:Reader r a | v == Reader f} @-}
 qual :: (r -> a) -> Reader r a 

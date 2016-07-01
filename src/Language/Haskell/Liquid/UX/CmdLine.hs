@@ -56,7 +56,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
                                                    maxPartSize, newcheck, eliminate, defConfig, 
-                                                   extensionality, alphaEquivalence, betaEquivalence)
+                                                   extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -119,6 +119,10 @@ config = cmdArgsMode $ Config {
  , betaEquivalence
     = def
           &= help "Allow lambda beta-equivalence axioms"
+
+ , normalForm
+    = def
+          &= help "Allow lambda normalization-equivalence axioms"
 
  , higherorderqs
     = def
@@ -415,6 +419,7 @@ defConfig = Config { files             = def
                    , extensionality    = def
                    , alphaEquivalence  = def
                    , betaEquivalence   = def
+                   , normalForm        = def 
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def
