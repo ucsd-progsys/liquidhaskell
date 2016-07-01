@@ -501,7 +501,7 @@ makeBetaReductionAsserts e
     lamVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go' }
     go' _ ee@(ELam (x, s) e)
       -- optimization: do it for each lambda once
-      -- | notElem ee cxt 
+      --  notElem ee cxt 
       = [mkEq ee ee' | (i, ee') <- map (\j -> normalizeLamsFromTo j (ELam (x, s) e)) [1..maxLamArg-1], i <= maxLamArg ]
     go' _ _ = []
 
