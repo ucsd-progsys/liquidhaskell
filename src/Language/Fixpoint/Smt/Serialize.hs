@@ -530,20 +530,6 @@ makeBetaReductionAsserts e
       | otherwise = PAtom Eq e1 e2    
 
 
-{- 
-
-maxList :: [Int] -> Int -> Int -> Int 
-maxList [] _ _ = error ""
-maxList (i:is) i1 i2 
-  | i == i1 = i2 
-  | i == i2 = i1 
-  | otherwise = maxList is i1 i2 
-
-
-next :: [Int] -> (Int -> Int)
-next is j = traceShow (" NEXT ON  " ++ show (is, j)) $ head $ tail $ dropWhile (j/=) is  
--}
-
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
 makeApplication e es = defunc e >>= (`go` es)
   where
