@@ -67,6 +67,7 @@ data Config
     , extensionality :: Bool             -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
+    , normalForm  :: Bool                -- ^ allow lambda normal-form equivalence axioms
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
@@ -101,6 +102,7 @@ instance Default Config where
                , extensionality = False
                , alphaEquivalence = False
                , betaEquivalence  = False
+               , normalForm     = False 
                , autoKuts       = False
                , pack           = False
                , nonLinCuts     = False
@@ -181,6 +183,7 @@ config = Config {
   , extensionality = False &= help "Allow function extensionality axioms"
   , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
   , betaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
+  , normalForm     = False  &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
   , pack           = False &= help "Use pack annotations"
   , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
