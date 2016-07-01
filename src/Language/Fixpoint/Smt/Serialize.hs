@@ -509,7 +509,7 @@ makeBetaReductionAsserts e
     normVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go'' }
     go'' _ ee@(ELam _ _)
       -- optimization: do it for each lambda once
-      -- | notElem ee cxt 
+      --  notElem ee cxt 
       = [mkEq ee (normalizeLams $  normalForm ee)]
     go'' _ _ = []
 
