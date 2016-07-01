@@ -73,6 +73,7 @@ id_helper2 :: Arg r => (r -> a) -> Proof
   -> { (\q:r -> r q) == (\q:r -> (id) (r q)) } @-}
 id_helper2 r 
   = ((\q -> r q) =*=! (\q -> (id) (r q))) (id_helper2_body r)
+<<<<<<< HEAD
   *** QED 
 
 
@@ -94,6 +95,29 @@ id_helper1 r
   *** QED 
 
 
+=======
+  *** QED 
+
+
+id_helper2_body :: Arg r => (r -> a) -> r ->  Proof 
+{-@ id_helper2_body :: r:(r -> a) -> q:r
+  -> { (r q == (id) (r q)) 
+    && (( (\q:r -> r q) (q)) == r q)
+    && (((\q:r -> (id) (r q)) (q)) == id (r q))
+     } @-}
+id_helper2_body r q
+  = r q ==! id (r q) *** QED 
+
+
+id_helper1 :: Arg r => (r -> a) -> Proof 
+{-@ id_helper1 :: r:(r -> a) 
+  -> { (\q:r -> (((\w:r -> id) (q)) (r q))) == (\q:r -> (id) (r q)) } @-}
+id_helper1 r 
+  = ((\q -> (((\w -> id) q) (r q))) =*=! (\q -> id (r q))) (id_helper1_body r)
+  *** QED 
+
+
+>>>>>>> 661809cb0aeba8f8e658c0b9e0ad54938d60cb36
 {-@ id_helper1_body :: r:(r -> a) -> q:r
   -> {(((\w:r -> id) (q)) (r q)) == (id) (r q) } @-}
 id_helper1_body :: Arg r => (r -> a) -> r -> Proof 
@@ -106,7 +130,7 @@ id_helper1_body r q
 
 -- | Composition
 
-{-@ composition :: x:Reader r (a -> a)
+{- composition :: x:Reader r (a -> a)
                 -> y:Reader r (a -> a)
                 -> z:Reader r a
                 -> { seq (seq (seq (pure compose) x) y) z == seq x (seq y z) } @-}

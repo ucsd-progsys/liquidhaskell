@@ -2,9 +2,10 @@
 -- | Proving ackermann properties from
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
-{-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--autoproofs"    @-}
-{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--autoproofs"      @-}
+{-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--betaequivalence" @-}
 
 
 module Helper (
