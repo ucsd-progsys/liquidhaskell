@@ -30,8 +30,10 @@ import           Control.Monad.State
 
 import           Data.Maybe (fromMaybe)
 
+
 import Text.PrettyPrint.HughesPJ (text)
 {-
+
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
         ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
@@ -199,7 +201,7 @@ defuncBop o e1 e2
     s2 = exprSort e2
 
 smt2Lam :: Symbol -> Expr -> Builder.Builder
-smt2Lam _ e = build "({} {})" (smt2 lambdaName, smt2 e)
+smt2Lam x e = build "({} {} {})" (smt2 lambdaName, smt2 x, smt2 e)
 
 smt2App :: Expr -> Builder.Builder
 smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
@@ -389,17 +391,24 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- | Defunctionalization -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-normalizeLams :: (Symbol, Sort) -> Expr -> Expr 
-normalizeLams (x, s) e = ELam (x', s) (bd `subst1` su)
+normalizeLamsFromTo :: Int ->  Expr -> (Int, Expr)
+
+normalizeLams :: Expr -> Expr 
+normalizeLams e = snd $ normalizeLamsFromTo 1 e
+
+normalizeLamsFromTo i e = go e
   where
-    su = (x, EVar x')
-    x' = makeLamArg s 1 -- debruijnIndex e
-    bd = go 2 e 
-    go i (ELam (y, sy) e) = let y' = makeLamArg sy i
-                            in ELam (y', sy) (go (i+1) e `subst1` (y, EVar y'))
-    go i (EApp e1 e2)    = EApp (go i e1) (go i e2)
-    go i (ECst e s)      = ECst (go i e) s
-    go _ e               = e 
+    go (ELam (y, sy) e) = let (i', e') = go e
+                              y'      = makeLamArg sy i' 
+                          in (i'+1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (EApp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2 
+                          in (max i1 i2, EApp e1' e2')
+    go (ECst e s)       = mapSnd (`ECst` s) (go e)
+    go e                = (i, e) 
+
+    mapSnd f (x, y) = (x, f y)
+
 
 -- RJ: can't you use the Visitor instead of this?
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
@@ -411,7 +420,7 @@ grapLambdas = go []
                                      return (ECst (EVar f) (exprSort e),(f, e):acc)
                                   else do 
                                      (bd', acc') <- go acc bd  
-                                     return (normalizeLams (x, s) bd', acc')
+                                     return (normalizeLams $ ELam (x, s) bd', acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
     go acc e@(EVar _)   = return (e, acc)
@@ -470,16 +479,56 @@ grapLambdas = go []
 
 
 makeBetaReductionAsserts :: Expr -> SMT2 [Expr]
-makeBetaReductionAsserts e = mapM defunc (fold betaVis () [] e)
+makeBetaReductionAsserts e 
+  = do aFlag <- a_eq   <$> get
+       bFlag <- b_eq   <$> get 
+       nFlag <- f_norm <$> get 
+       let as1 = if aFlag then fold lamVis  () [] e else []
+       let as2 = if bFlag then fold betaVis () [] e else []
+       let as3 = if nFlag then fold normVis () [] e else []
+       mapM defunc (as1 ++ as2 ++ as3)
   where
     betaVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go }
     go _ e@(EApp f ex)
       | ELam (x, _) bd <- uncst f
-      = [PAtom Eq e (bd `subst1` (x, ex))] -- :(go acc f ++ go acc ex)
+      = [mkEq e (bd `subst1` (x, ex))] -- :(go acc f ++ go acc ex)
     go _ _ = [] 
 
     uncst (ECst e _) = uncst e 
     uncst e          = e 
+
+
+    lamVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go' }
+    go' _ ee@(ELam (x, s) e)
+      -- optimization: do it for each lambda once
+      --  notElem ee cxt 
+      = [mkEq ee ee' | (i, ee') <- map (\j -> normalizeLamsFromTo j (ELam (x, s) e)) [1..maxLamArg-1], i <= maxLamArg ]
+    go' _ _ = []
+
+
+    normVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go'' }
+    go'' _ ee@(ELam _ _)
+      -- optimization: do it for each lambda once
+      --  notElem ee cxt 
+      = [mkEq ee (normalizeLams $  normalForm ee)]
+    go'' _ _ = []
+
+    normalForm (ELam x e) 
+      = ELam x (normalForm e)
+    normalForm (EApp f ex)
+      | ELam (x, _) bd <- uncst f 
+      = bd `subst1` (x, normalForm ex)
+    normalForm (EApp e1 e2)
+      = EApp (normalForm e1) (normalForm e2)
+    normalForm (ECst e s)
+      = ECst (normalForm e) s 
+    normalForm e 
+      = e 
+
+    mkEq e1 e2 
+      | e1 == e2  = PTrue
+      | otherwise = PAtom Eq e1 e2    
+
 
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
 makeApplication e es = defunc e >>= (`go` es)
@@ -576,10 +625,13 @@ initSMTEnv = fromListSEnv $
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort intSort)
+  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
-  ++ concatMap makeApplies [1..7]
-  ++ [(makeLamArg s i, s) | i <- [1..7], s <- sorts]
+  ++ concatMap makeApplies [1..maxLamArg]
+  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
+
+maxLamArg :: Int 
+maxLamArg = 7 
 
 sorts :: [Sort]
 sorts = [intSort]

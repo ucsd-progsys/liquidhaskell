@@ -74,6 +74,9 @@ data Context      = Ctx { pId     :: !ProcessHandle
                         , cLog    :: !(Maybe Handle)
                         , verbose :: !Bool
                         , c_ext   :: !Bool              -- flag to enable function extentionality axioms
+                        , c_aeq   :: !Bool              -- flag to enable lambda a-equivalence axioms
+                        , c_beq   :: !Bool              -- flag to enable lambda b-equivalence axioms
+                        , c_norm  :: !Bool              -- flag to enable lambda normal form equivalence axioms
                         , smtenv  :: !SMTEnv
                         }
 
@@ -89,7 +92,14 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 --------------------------------------------------------------------------------
 
 type SMTEnv = SEnv Sort
-data SMTSt  = SMTSt {fresh :: !Int , smt2env :: !SMTEnv, f_ext :: !Bool}
+data SMTSt  
+  = SMTSt { fresh   :: !Int 
+          , smt2env :: !SMTEnv
+          , f_ext   :: !Bool   -- enable extensionality axioms
+          , a_eq    :: !Bool   -- enable alpha equivalence axioms
+          , b_eq    :: !Bool   -- enable beta equivalence axioms
+          , f_norm  :: !Bool   -- enable normal form axioms
+          }
 
 type SMT2   = State SMTSt
 
@@ -159,4 +169,4 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Builder
 
 runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
-runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt))
+runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt))
