@@ -132,9 +132,7 @@ right_identity_helper_body x r
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: x:Reader r a -> f: (a -> Reader r a) -> g:(a -> Reader r a) 
-  -> {bind (bind x f) g      ==  
-Reader (\r2:r -> (\r3:r -> fromReader (g (fromReader (f (fromReader x r2)) r3)) (r3)) (r2))
-      } @-}
+  -> {bind (bind x f) g      ==  bind x (\r4:a ->(bind (f r4) g)) } @-}
 associativity :: (Arg r, Arg a) =>  Reader r a -> (a -> Reader r a) -> (a -> Reader r a) -> Proof
 associativity (Reader x) f g
   =   bind (bind (Reader x) f) g
