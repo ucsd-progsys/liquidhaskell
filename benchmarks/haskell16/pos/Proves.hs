@@ -45,7 +45,6 @@ type Proof = ()
 byTheorem :: a -> Proof -> a
 byTheorem a _ = a
 
-
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
 

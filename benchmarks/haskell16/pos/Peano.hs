@@ -7,7 +7,9 @@ module Peano where
 
 import Prelude hiding (plus)
 
-import Proves
+-- import Proves
+
+import ProofCombinators
 
 -- Why do we need these?
 zeroR     :: Peano -> Proof
@@ -15,6 +17,11 @@ zeroL     :: Peano -> Proof
 plusAssoc :: Peano -> Peano -> Peano -> Proof
 plusComm  :: Peano -> Peano -> Proof
 plusSuccR :: Peano -> Peano -> Proof
+
+infixl 3 ==.
+
+(==.) :: a -> a -> a
+x ==. _ = x 
 
 data Peano = Z | S Peano
 
@@ -47,7 +54,7 @@ zeroR Z
 zeroR (S n)
   =   plus (S n) Z
   ==! S (plus n Z)
-  ==! S n                     ∵ zeroR n
+  ==! S n                      ∵ zeroR n
   *** QED
 
 {-@ plusSuccR :: n:Peano -> m:Peano -> { plus n (S m) = S (plus n m) } @-}
@@ -67,8 +74,7 @@ plusSuccR (S n) m
 {-@ plusComm :: a:_ -> b:_  -> {plus a b == plus b a} @-}
 plusComm Z b
   =   plus Z b
-  ==! b
-  ==! plus b Z  ∵ zeroR b
+  ==! plus b Z                ∵ zeroR b
   *** QED
 
 plusComm (S a) b
