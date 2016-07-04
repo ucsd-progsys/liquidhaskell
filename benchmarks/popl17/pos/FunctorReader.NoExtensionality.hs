@@ -40,10 +40,10 @@ compose f g x = f (g x)
 fmap_id :: (Arg r) => Reader r a ->  Proof
 fmap_id x@(Reader f) 
    =   fmap id (Reader f) 
-   ==! Reader (\r -> id (f r)) 
-   ==! Reader (\r -> f r) ? fmap_id_helper1 x
-   ==! Reader f           ? fmap_id_helper2 x 
-   ==! id (Reader f) 
+   ==. Reader (\r -> id (f r)) 
+   ==. Reader (\r -> f r) ? fmap_id_helper1 x
+   ==. Reader f           ? fmap_id_helper2 x 
+   ==. id (Reader f) 
    *** QED 
 
 
@@ -53,7 +53,7 @@ fmap_id x@(Reader f)
 fmap_id_helper2 :: (Arg r) => Reader r a ->  Proof
 fmap_id_helper2 x@(Reader f) 
    =   ((fromReader x) 
-   =*=! (\r -> fromReader x r)) (helper2 x)
+   =*=. (\r -> fromReader x r)) (helper2 x)
    *** QED 
 
 {-@ helper2 :: x:Reader r a  
@@ -69,7 +69,7 @@ helper2 _ _ = simpleProof
 fmap_id_helper1 :: (Arg r) => Reader r a ->  Proof
 fmap_id_helper1 x@(Reader f) 
    =    ((\r -> id (fromReader x r)) 
-   =*=! (\r -> fromReader x r)) (helper x)
+   =*=. (\r -> fromReader x r)) (helper x)
    *** QED 
 
 
@@ -83,7 +83,7 @@ fmap_id_helper1 x@(Reader f)
 helper :: Arg r => (Reader r a) -> r -> Proof 
 helper f r 
   =   id (fromReader f r)
-  ==! fromReader f r 
+  ==. fromReader f r 
   *** QED 
 
 

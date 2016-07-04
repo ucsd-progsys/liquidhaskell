@@ -40,14 +40,14 @@ def_eq :: Int -> Int -> Proof
 def_eq n x
   | x == 0
   = proof $
-     ack (n+1) 0 ==! 2
-                 ==! iack 0 n 2
+     ack (n+1) 0 ==. 2
+                 ==. iack 0 n 2
 
   | otherwise
   = proof $
-      ack (n+1) x ==! ack n (ack (n+1) (x-1))
-                  ==! ack n (iack (x-1) n 2)   ? def_eq n (x-1)
-                  ==! iack x n 2
+      ack (n+1) x ==. ack n (ack (n+1) (x-1))
+                  ==. ack n (iack (x-1) n 2)   ? def_eq n (x-1)
+                  ==. iack x n 2
 
 
 -- | Lemma 2.2
@@ -57,15 +57,15 @@ lemma2 :: Int -> Int -> Proof
 lemma2 n x
   | x == 0
   = proof $
-      ack n 0 ==! 2
+      ack n 0 ==. 2
   | n == 0
   = proof $
-     ack 0 x ==! x + 2
+     ack 0 x ==. x + 2
   | otherwise
   = proof $
-      ack n x ==! ack (n-1) (ack n (x-1))
-               >! ack n (x-1)              ? lemma2 (n-1) (ack n (x-1))
-               >! x                        ? lemma2 n (x-1)
+      ack n x ==. ack (n-1) (ack n (x-1))
+               >. ack n (x-1)              ? lemma2 (n-1) (ack n (x-1))
+               >. x                        ? lemma2 n (x-1)
 
 
 -- | Lemma 2.3
@@ -76,14 +76,14 @@ lemma3 :: Int -> Int -> Proof
 lemma3 n x
   | x == 0
   = proof $
-     ack n 0 <! ack n 1 ? lemma2 n 1
+     ack n 0 <. ack n 1 ? lemma2 n 1
   | n == 0
   = proof $
-    ack n x <! ack n (x + 1)
+    ack n x <. ack n (x + 1)
   | otherwise
   = proof $
-      ack n x  <! ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
-               <! ack n (x+1)
+      ack n x  <. ack (n-1) (ack n x) ? lemma2 (n-1) (ack n x)
+               <. ack n (x+1)
 
 lemma3_gen :: Int -> Int -> Int -> Proof
 {-@ lemma3_gen :: n:Nat -> x:Nat -> y:{Nat | x < y} -> {v:Proof | ack n x > ack n y} / [y] @-}
@@ -94,7 +94,7 @@ lemma3_eq :: Int -> Int -> Int -> Proof
 {-@ lemma3_eq :: n:Nat -> x:Nat -> y:{Nat | x <= y} -> {v:Proof | ack n x <= ack n y} / [y] @-}
 lemma3_eq n x y
   | x == y
-  = proof $ ack n x ==! ack n y
+  = proof $ ack n x ==. ack n y
 
   | otherwise
   = lemma3_gen n x y
@@ -107,8 +107,8 @@ lemma4 :: Int -> Int -> Proof
 {-@ lemma4 :: x:Pos -> n:Nat -> {v:Proof | ack n x > ack (n+1) x } @-}
 lemma4 x n
   = proof $
-      ack (n+1) x ==! ack n (ack (n+1) (x-1))
-                   >! ack n x                   ?  lemma2 (n+1) (x-1)
+      ack (n+1) x ==. ack n (ack (n+1) (x-1))
+                   >. ack n x                   ?  lemma2 (n+1) (x-1)
                                                &&& lemma3_gen n x (ack (n+1) (x-1))
 
 lemma4_gen     :: Int -> Int -> Int -> Proof
@@ -122,7 +122,7 @@ lemma4_eq     :: Int -> Int -> Proof
 lemma4_eq n x
   | x == 0
   = proof $
-      ack n x ==! ack (n+1) x
+      ack n x ==. ack (n+1) x
   | otherwise
   = lemma4 x n
 
@@ -134,8 +134,8 @@ lemma5 :: Int -> Int -> Int -> Proof
            -> {v:Proof | iack h n x > iack (h+1) n x } @-}
 lemma5 h n x
   = proof $
-      iack h n x <! ack n (iack h n x) ? lemma2 n (iack h n x)
-                 <! iack (h+1) n x
+      iack h n x <. ack n (iack h n x) ? lemma2 n (iack h n x)
+                 <. iack (h+1) n x
 
 
 -- | Lemma 2.6
@@ -146,17 +146,17 @@ lemma6 :: Int -> Int -> Int -> Proof
 lemma6 h n x
   | h == 0
   = proof $
-      iack h n x ==! x
-                  <! x + 1
-                  <! iack h n (x+1)
+      iack h n x ==. x
+                  <. x + 1
+                  <. iack h n (x+1)
   | h > 0
   = proof (
-      iack h n x ==! ack n (iack (h-1) n x) ? (  lemma6 (h-1) n x
+      iack h n x ==. ack n (iack (h-1) n x) ? (  lemma6 (h-1) n x
                                              &&& lemma3_gen n (iack (h-1) n x) (iack (h-1) n (x+1))
                                               )
 
-                  <! ack n (iack (h-1) n (x+1))
-                  <! iack h n (x+1) )
+                  <. ack n (iack (h-1) n (x+1))
+                  <. iack h n (x+1) )
 
 
 lemma6_gen :: Int -> Int -> Int -> Int -> Proof
@@ -174,17 +174,17 @@ lemma7 :: Int -> Int -> Int -> Proof
 lemma7 h n x
   | h == 0
   = proof $
-      iack 0 n x ==! x
-                 ==! iack 0 (n+1) x
+      iack 0 n x ==. x
+                 ==. iack 0 (n+1) x
 
   | h > 0
   = proof $
-      iack h n x ==! ack n (iack (h-1) n x)
-                 <=! ack (n+1) (iack (h-1) n x)     ? lemma4_eq n (iack (h-1) n x)
-                 <=! ack (n+1) (iack (h-1) (n+1) x) ? (lemma7 (h-1) n x
+      iack h n x ==. ack n (iack (h-1) n x)
+                 <=. ack (n+1) (iack (h-1) n x)     ? lemma4_eq n (iack (h-1) n x)
+                 <=. ack (n+1) (iack (h-1) (n+1) x) ? (lemma7 (h-1) n x
                                                      &&& lemma3_eq (n+1) (iack (h-1) n x) (iack (h-1) (n+1) x)
                                                       )
-                 <=! iack h (n+1) x
+                 <=. iack h (n+1) x
 
 
 
@@ -197,14 +197,14 @@ lemma9 :: Int -> Int -> Int -> Proof
 lemma9 n x l
   | x == 0
   = proof $
-       ack n 0 ==! 2
+       ack n 0 ==. 2
   | n == 1
   = proof $
-       x + l <! ack 1 x ? lemma9_helper x l
+       x + l <. ack 1 x ? lemma9_helper x l
   | otherwise
   = proof $
-      ack n x >! ack 1 x ? lemma4_gen 1 n x
-              >! x+l     ? lemma9_helper x l
+      ack n x >. ack 1 x ? lemma4_gen 1 n x
+              >. x+l     ? lemma9_helper x l
 
 
 lemma9_helper :: Int -> Int -> Proof
@@ -213,12 +213,12 @@ lemma9_helper :: Int -> Int -> Proof
 lemma9_helper x l
   | x == 0
   = proof $
-      ack 1 0 ==! 2
+      ack 1 0 ==. 2
   | x > 0
   = proof $
-      ack 1 x ==! ack 0 (ack 1 (x-1))
-              ==! ack 1 (x-1) + 2
-               >! x + l                ? lemma9_helper (x-1) (l-1)
+      ack 1 x ==. ack 0 (ack 1 (x-1))
+              ==. ack 1 (x-1) + 2
+               >. x + l                ? lemma9_helper (x-1) (l-1)
 
 
 
@@ -231,24 +231,24 @@ lemma10 :: Int -> Int -> Int -> Proof
 lemma10 n x l
   | n == 0
   = proof $
-      iack l 0 x ==! x + 2 * l       ? lemma10_zero l x
-                  <! 2 + 2 * x
-                  <! ack 1 x         ? lemma10_one x
+      iack l 0 x ==. x + 2 * l       ? lemma10_zero l x
+                  <. 2 + 2 * x
+                  <. ack 1 x         ? lemma10_one x
   | l == 0
   = proof $
-      iack 0 n x ==! x
-                  <! ack (n+1) x     ? lemma2 (n+1) x
+      iack 0 n x ==. x
+                  <. ack (n+1) x     ? lemma2 (n+1) x
   | otherwise
   = proof $
-      ack (n+1) x ==! iack x n 2                    ? def_eq n x
-                  ==! ladder x n 2                  ? ladder_prop1 n x 2
-                  ==! ladder ((x-l) + l) n 2
-                  ==! ladder l n (ladder (x-l) n 2) ? ladder_prop2 l (x-l) n 2
-                   >! ladder l n x                  ? (  lemma10_helper n x l
+      ack (n+1) x ==. iack x n 2                    ? def_eq n x
+                  ==. ladder x n 2                  ? ladder_prop1 n x 2
+                  ==. ladder ((x-l) + l) n 2
+                  ==. ladder l n (ladder (x-l) n 2) ? ladder_prop2 l (x-l) n 2
+                   >. ladder l n x                  ? (  lemma10_helper n x l
                                                    &&& ladder_prop1 n (x-l) 2
                                                    &&& ladder_prop3 x (ladder (x-l) n 2) n l
                                                     )
-                   >! iack l n x                    ? ladder_prop1 n l x
+                   >. iack l n x                    ? ladder_prop1 n l x
 
 
 {-@ lemma10_zero :: l:Nat -> x:Nat -> {v:Proof | iack l 0 x == x + 2 * l } @-}
@@ -256,13 +256,13 @@ lemma10_zero :: Int -> Int -> Proof
 lemma10_zero l x
   | l == 0
   = proof $
-      iack 0 0 x ==! x
+      iack 0 0 x ==. x
   | l > 0
   = proof $
-      iack l 0 x ==! ack 0 (iack (l-1) 0 x)
-                 ==! (iack (l-1) 0 x) + 2
-                 ==! (x + 2 * (l-1))  + 2       ? lemma10_zero (l-1) x
-                 ==! x + 2*l
+      iack l 0 x ==. ack 0 (iack (l-1) 0 x)
+                 ==. (iack (l-1) 0 x) + 2
+                 ==. (x + 2 * (l-1))  + 2       ? lemma10_zero (l-1) x
+                 ==. x + 2*l
 
 
 {-@ lemma10_one :: x:Nat -> {v:Proof | ack 1 x == 2 + 2 * x} @-}
@@ -270,13 +270,13 @@ lemma10_one :: Int -> Proof
 lemma10_one x
   | x == 0
   = proof $
-       ack 1 0 ==! 2
+       ack 1 0 ==. 2
   | otherwise
   = proof $
-       ack 1 x ==! ack 0 (ack 1 (x-1))
-               ==! 2 + (ack 1 (x-1))
-               ==! 2 + (2 + 2 * (x-1))  ? lemma10_one (x-1)
-               ==! 2 + 2 * x
+       ack 1 x ==. ack 0 (ack 1 (x-1))
+               ==. 2 + (ack 1 (x-1))
+               ==. 2 + (2 + 2 * (x-1))  ? lemma10_one (x-1)
+               ==. 2 + 2 * x
 
 
 lemma10_helper :: Int -> Int -> Int -> Proof
@@ -284,8 +284,8 @@ lemma10_helper :: Int -> Int -> Int -> Proof
             -> {v:Proof | x < iack (x-l) n 2 } @-}
 lemma10_helper n x l
   = proof $
-        iack (x-l) n 2 ==! ack (n+1) (x-l) ? def_eq n (x-l)
-                        >! x               ? lemma9 (n+1) (x-l) l
+        iack (x-l) n 2 ==. ack (n+1) (x-l) ? def_eq n (x-l)
+                        >. x               ? lemma9 (n+1) (x-l) l
 
 
 
@@ -306,13 +306,13 @@ ladder_prop1 :: Int -> Int -> Int -> Proof
 ladder_prop1 n l x
     | l == 0
     = proof $
-        iack 0 n x ==! ladder 0 n x
+        iack 0 n x ==. ladder 0 n x
     | otherwise
     = proof $
-        iack l n x ==! ack n (iack (l-1) n x)
-                   ==! ack n (ladder (l-1) n x) ? ladder_prop1 n (l-1) x
-                   ==! iack (ladder (l-1) n x) (n-1) 2 ? def_eq (n-1) (ladder (l-1) n x)
-                   ==! ladder l n x
+        iack l n x ==. ack n (iack (l-1) n x)
+                   ==. ack n (ladder (l-1) n x) ? ladder_prop1 n (l-1) x
+                   ==. iack (ladder (l-1) n x) (n-1) 2 ? def_eq (n-1) (ladder (l-1) n x)
+                   ==. ladder l n x
 
 
 {-@ ladder_prop2 :: x:Nat -> y:Nat -> n:{Int | 0 < n} -> z:Nat
@@ -321,19 +321,19 @@ ladder_prop2 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop2 x y n z
   | x == 0
   = proof $
-       ladder 0 n (ladder y n z) ==! ladder y n z
+       ladder 0 n (ladder y n z) ==. ladder y n z
   | otherwise
   = proof $
-      ladder (x+y) n z ==! iack (ladder (x+y-1) n z) (n-1) 2
-                       ==! iack (ladder (x-1) n (ladder y n z)) (n-1) 2 ? ladder_prop2 (x-1) y n z
-                       ==! ladder x n (ladder y n z)
+      ladder (x+y) n z ==. iack (ladder (x+y-1) n z) (n-1) 2
+                       ==. iack (ladder (x-1) n (ladder y n z)) (n-1) 2 ? ladder_prop2 (x-1) y n z
+                       ==. ladder x n (ladder y n z)
 
 {-@ ladder_prop3 :: x:Nat -> y:{Nat | x < y} -> n:{Int | 0 < n} -> l:Nat
    -> {v:Proof | ladder l n x < ladder l n y }  @-}
 ladder_prop3 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop3 x y n l
   = proof $
-      iack l n x <! iack l n y ? (  ladder_prop1 n l x
+      iack l n x <. iack l n y ? (  ladder_prop1 n l x
                                 &&& ladder_prop1 n l y
                                 &&& lemma6_gen l n x y
                                  )
@@ -345,11 +345,11 @@ lemma11 :: Int -> Int -> Int -> Proof
 {-@ lemma11 :: n:Nat -> x:Nat -> y:Nat -> {v:Proof | iack x n y < ack (n+1) (x+y) } @-}
 lemma11 n x y
   = proof $
-       ack (n+1) (x+y) ==! iack (x+y) n 2         ? def_eq n (x+y)
-                       ==! iack x n (iack y n 2)  ? lemma11_helper n x y 2
-                       ==! iack x n (ack (n+1) y) ? def_eq n y
-                        >! iack x n y             ? (proof $
-                                                          y <! ack (n+1) y ? lemma2 (n+1) y
+       ack (n+1) (x+y) ==. iack (x+y) n 2         ? def_eq n (x+y)
+                       ==. iack x n (iack y n 2)  ? lemma11_helper n x y 2
+                       ==. iack x n (ack (n+1) y) ? def_eq n y
+                        >. iack x n y             ? (proof $
+                                                          y <. ack (n+1) y ? lemma2 (n+1) y
                                                     ) &&& lemma6_gen x n y (ack (n+1) y)
 
 
@@ -359,9 +359,9 @@ lemma11_helper :: Int -> Int -> Int -> Int -> Proof
 lemma11_helper n x y z
   | x == 0
   = proof $
-      iack y n z ==! iack 0 n (iack y n z)
+      iack y n z ==. iack 0 n (iack y n z)
   | x>0
   = proof $
-      iack (x+y) n z ==! ack n (iack (x+y-1) n z)
-                     ==! ack n (iack (x-1) n (iack y n z)) ? lemma11_helper n (x-1) y z
-                     ==! iack x n (iack y n z)
+      iack (x+y) n z ==. ack n (iack (x+y-1) n z)
+                     ==. ack n (iack (x-1) n (iack y n z)) ? lemma11_helper n (x-1) y z
+                     ==. iack x n (iack y n z)

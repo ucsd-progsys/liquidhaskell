@@ -19,7 +19,7 @@ id x = x
 {-
 fmap_id'' x 
    =   (\r -> id x)
-   ==! (\r -> x) -- (helper f)
+   ==. (\r -> x) -- (helper f)
    *** QED 
 -}
 
@@ -35,7 +35,7 @@ fmap_id'' x
 
 {-@ helper' :: a ->  r:a -> {(\r:a -> id r) (r)  == (\r:a -> r) (r)} @-}
 helper' :: Arg a => a -> a -> Proof
-helper' _ r = id r ==! r *** QED 
+helper' _ r = id r ==. r *** QED 
 
 -- | Sound example
 
@@ -61,7 +61,7 @@ fmap_id f g
 helper :: Arg r => (r -> a) -> r -> Proof 
 helper f r 
   =   id (f r)
-  ==! f r 
+  ==. f r 
   *** QED 
 
 -- Function equality can be decided only by the following function

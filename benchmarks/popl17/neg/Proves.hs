@@ -9,7 +9,7 @@ module Proves (
 
   , (==?)
 
-  , (==!), (<=!), (<!), (>!), (>=!)
+  , (==.), (<=.), (<.), (>.), (>=.)
 
   , (?), (***)
 
@@ -30,7 +30,7 @@ module Proves (
 infixl 3 ==:, <=:, <:, >:, ==?
 
 -- | proof operators with optional proof terms
-infixl 3 ==!, <=!, <!, >!, >=!
+infixl 3 ==., <=., <., >., >=.
 
 -- provide the proof terms after ?
 infixl 3 ?
@@ -127,80 +127,80 @@ instance (a~b) => ToProve a (Proof -> b) where
 
 
 class OptEq a r where
-  (==!) :: a -> a -> r
+  (==.) :: a -> a -> r
 
 instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Proof -> b) where
-  ==! :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
+  ==. :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
   @-}
-  (==!) x _ _ = x
+  (==.) x _ _ = x
 
 instance (a~b) => OptEq a b where
 {-@ instance OptEq a b where
-  ==! :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
+  ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
-  (==!) x _ = x
+  (==.) x _ = x
 
 
 class OptLEq a r where
-  (<=!) :: a -> a -> r
+  (<=.) :: a -> a -> r
 
 
 instance (a~b) => OptLEq a (Proof -> b) where
 {-@ instance OptLEq a (Proof -> b) where
-  <=! :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ x }
+  <=. :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ x }
   @-}
-  (<=!) x _ _ = x
+  (<=.) x _ _ = x
 
 instance (a~b) => OptLEq a b where
 {-@ instance OptLEq a b where
-  <=! :: x:a -> y:{a | x <= y} -> {v:b | v ~~ x }
+  <=. :: x:a -> y:{a | x <= y} -> {v:b | v ~~ x }
   @-}
-  (<=!) x _ = x
+  (<=.) x _ = x
 
 class OptGEq a r where
-  (>=!) :: a -> a -> r
+  (>=.) :: a -> a -> r
 
 instance OptGEq a (Proof -> a) where
 {-@ instance OptGEq a (Proof -> a) where
-  >=! :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == x }
+  >=. :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == x }
   @-}
-  (>=!) x _ _ = x
+  (>=.) x _ _ = x
 
 instance OptGEq a a where
 {-@ instance OptGEq a a where
-  >=! :: x:a -> y:{a| x >= y} -> {v:a | v == x  }
+  >=. :: x:a -> y:{a| x >= y} -> {v:a | v == x  }
   @-}
-  (>=!) x _ = x
+  (>=.) x _ = x
 
 
 class OptLess a r where
-  (<!) :: a -> a -> r
+  (<.) :: a -> a -> r
 
 instance (a~b) => OptLess a (Proof -> b) where
 {-@ instance OptLess a (Proof -> b) where
-  <! :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ x  }
+  <. :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ x  }
   @-}
-  (<!) x _ _ = x
+  (<.) x _ _ = x
 
 instance (a~b) => OptLess a b where
 {-@ instance OptLess a b where
-  <! :: x:a -> y:{a| x < y} -> {v:b | v ~~ x  }
+  <. :: x:a -> y:{a| x < y} -> {v:b | v ~~ x  }
   @-}
-  (<!) x _ = x
+  (<.) x _ = x
 
 
 class OptGt a r where
-  (>!) :: a -> a -> r
+  (>.) :: a -> a -> r
 
 instance (a~b) => OptGt a (Proof -> b) where
 {-@ instance OptGt a (Proof -> b) where
-  >! :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ x }
+  >. :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ x }
   @-}
-  (>!) x _ _ = x
+  (>.) x _ _ = x
 
 instance (a~b) => OptGt a b where
 {-@ instance OptGt a b where
-  >! :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
+  >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
   @-}
-  (>!) x y = x
+  (>.) x y = x

@@ -44,15 +44,15 @@ fmap_id' = abstract (fmap id) id fmap_id
 fmap_id :: L a -> Proof
 fmap_id N
   = toProof $
-      fmap id N ==! N
-                ==! id N
+      fmap id N ==. N
+                ==. id N
 fmap_id (C x xs)
   = toProof $
-      fmap id (C x xs) ==! C (id x) (fmap id xs)
-                       ==! C x (fmap id xs)
-                       ==! C x (id xs)            ? fmap_id xs
-                       ==! C x xs
-                       ==! id (C x xs)
+      fmap id (C x xs) ==. C (id x) (fmap id xs)
+                       ==. C x (fmap id xs)
+                       ==. C x (id xs)            ? fmap_id xs
+                       ==. C x xs
+                       ==. id (C x xs)
 
 
 -- | Distribution
@@ -71,23 +71,23 @@ fmap_distrib :: (a -> a) -> (a -> a) -> L a -> Proof
 fmap_distrib f g N
   = toProof $
       (compose (fmap f) (fmap g)) N
-        ==! (fmap f) ((fmap g) N)
-        ==! fmap f (fmap g N)
-        ==! fmap f N
-        ==! N
-        ==! fmap (compose f g) N
+        ==. (fmap f) ((fmap g) N)
+        ==. fmap f (fmap g N)
+        ==. fmap f N
+        ==. N
+        ==. fmap (compose f g) N
 fmap_distrib f g (C x xs)
   = toProof $
       fmap (compose f g) (C x xs)
-       ==! C ((compose f g) x) (fmap (compose f g) xs)
-       ==! C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
-       ==! C ((compose f g) x) (fmap f (fmap g xs))
-       ==! C (f (g x)) (fmap f (fmap g xs))
-       ==! fmap f (C (g x) (fmap g xs))
-       ==! (fmap f) (C (g x) (fmap g xs))
-       ==! (fmap f) (fmap g (C x xs))
-       ==! (fmap f) ((fmap g) (C x xs))
-       ==! (compose (fmap f) (fmap g)) (C x xs)
+       ==. C ((compose f g) x) (fmap (compose f g) xs)
+       ==. C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
+       ==. C ((compose f g) x) (fmap f (fmap g xs))
+       ==. C (f (g x)) (fmap f (fmap g xs))
+       ==. fmap f (C (g x) (fmap g xs))
+       ==. (fmap f) (C (g x) (fmap g xs))
+       ==. (fmap f) (fmap g (C x xs))
+       ==. (fmap f) ((fmap g) (C x xs))
+       ==. (compose (fmap f) (fmap g)) (C x xs)
 
 
 data L a = N | C a (L a)

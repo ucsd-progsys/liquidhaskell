@@ -41,10 +41,10 @@ append xs ys
 left_identity :: a -> (a -> L b) -> Proof
 left_identity x f
   =   bind (return x) f
-  ==! bind (x ::: Emp) f
-  ==! append (f x) (bind Emp f)
-  ==! append (f x) Emp
-  ==! f x                      ? prop_append_neutral (f x)
+  ==. bind (x ::: Emp) f
+  ==. append (f x) (bind Emp f)
+  ==. append (f x) Emp
+  ==. f x                      ? prop_append_neutral (f x)
   *** QED
 
 -- | Right Identity
@@ -53,16 +53,16 @@ left_identity x f
 right_identity :: L a -> Proof
 right_identity Emp
   = bind Emp return
-  ==! Emp
+  ==. Emp
   *** QED
 
 right_identity (x ::: xs)
   =   bind (x ::: xs) return
-  ==! append (return x)   (bind xs return)
-  ==! append (x ::: Emp)    (bind xs return)
-  ==! x ::: append Emp (bind xs return)
-  ==! x ::: bind xs return
-  ==! x ::: xs                              ? right_identity xs
+  ==. append (return x)   (bind xs return)
+  ==. append (x ::: Emp)    (bind xs return)
+  ==. x ::: append Emp (bind xs return)
+  ==. x ::: bind xs return
+  ==. x ::: xs                              ? right_identity xs
   *** QED
 
 
@@ -72,17 +72,17 @@ right_identity (x ::: xs)
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity Emp f g
   =   bind (bind Emp f) g
-  ==! bind Emp g
-  ==! Emp
-  ==! bind Emp (\x -> (bind (f x) g))
+  ==. bind Emp g
+  ==. Emp
+  ==. bind Emp (\x -> (bind (f x) g))
   *** QED
 associativity (x ::: xs) f g
   =   bind (bind (x ::: xs) f) g
-  ==! bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
-  ==! append (bind (f x) g) (bind (bind xs f) g)
-  ==! append (bind (f x) g) (bind xs (\y -> bind (f y) g)) ? associativity xs f g
-  ==! append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) ? βequivalence f g x 
-  ==! bind (x ::: xs) (\y -> bind (f y) g)
+  ==. bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
+  ==. append (bind (f x) g) (bind (bind xs f) g)
+  ==. append (bind (f x) g) (bind xs (\y -> bind (f y) g)) ? associativity xs f g
+  ==. append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) ? βequivalence f g x 
+  ==. bind (x ::: xs) (\y -> bind (f y) g)
   *** QED
 
 
@@ -99,17 +99,17 @@ bind_append :: L a -> L a -> (a -> L b) -> Proof
 
 bind_append Emp ys f
   =   bind (append Emp ys) f
-  ==! bind ys f
-  ==! append Emp (bind ys f)
-  ==! append (bind Emp f) (bind ys f)
+  ==. bind ys f
+  ==. append Emp (bind ys f)
+  ==. append (bind Emp f) (bind ys f)
   *** QED
 bind_append (x ::: xs) ys f
   =   bind (append (x ::: xs) ys) f
-  ==! bind (x ::: append xs ys) f
-  ==! append (f x) (bind (append xs ys) f)
-  ==! append (f x) (append (bind xs f) (bind ys f)) ? bind_append xs ys f
-  ==! append (append (f x) (bind xs f)) (bind ys f) ? prop_assoc (f x) (bind xs f) (bind ys f)
-  ==! append (bind (x ::: xs) f) (bind ys f)
+  ==. bind (x ::: append xs ys) f
+  ==. append (f x) (bind (append xs ys) f)
+  ==. append (f x) (append (bind xs f) (bind ys f)) ? bind_append xs ys f
+  ==. append (append (f x) (bind xs f)) (bind ys f) ? prop_assoc (f x) (bind xs f) (bind ys f)
+  ==. append (bind (x ::: xs) f) (bind ys f)
   *** QED
 
 data L a = Emp | a ::: L a
@@ -138,12 +138,12 @@ tl (_ ::: xs) = xs
 prop_append_neutral :: L a -> Proof
 {-@ prop_append_neutral :: xs:L a -> { append xs Emp == xs }  @-}
 prop_append_neutral Emp
-  = append Emp Emp ==! Emp
+  = append Emp Emp ==. Emp
   *** QED
 prop_append_neutral (x ::: xs)
   =   append (x ::: xs) Emp
-  ==! x ::: append xs Emp
-  ==! x ::: xs             ? prop_append_neutral xs
+  ==. x ::: append xs Emp
+  ==. x ::: xs             ? prop_append_neutral xs
   *** QED
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -151,14 +151,14 @@ prop_append_neutral (x ::: xs)
 prop_assoc :: L a -> L a -> L a -> Proof
 prop_assoc Emp ys zs
   =   append (append Emp ys) zs
-  ==! append ys zs
-  ==! append Emp (append ys zs)
+  ==. append ys zs
+  ==. append Emp (append ys zs)
   *** QED
 
 prop_assoc (x ::: xs) ys zs
   =   append (append (x ::: xs) ys) zs
-  ==! append (x ::: append xs ys) zs
-  ==! x ::: append (append xs ys) zs
-  ==! x ::: append xs (append ys zs)  ? prop_assoc xs ys zs
-  ==! append (x ::: xs) (append ys zs)
+  ==. append (x ::: append xs ys) zs
+  ==. x ::: append (append xs ys) zs
+  ==. x ::: append xs (append ys zs)  ? prop_assoc xs ys zs
+  ==. append (x ::: xs) (append ys zs)
   *** QED

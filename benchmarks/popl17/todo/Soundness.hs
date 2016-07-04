@@ -186,16 +186,16 @@ typing γ (EApp e1 e2)
 bar :: Eq b =>  Maybe b -> Proof
 {-@ bar :: m:Maybe b -> {m == Nothing => not (is_Just m) } @-}
 bar Nothing
-  = is_Just Nothing ==! False ==! not True *** QED
+  = is_Just Nothing ==. False ==. not True *** QED
 bar (Just x) = simpleProof
 
 foo :: Int -> Proof
 {-@ foo :: v:Int -> { not (is_Just (typing empty (EVar v))) } @-}
 foo v
   =   is_Just (typing empty (EVar v))
-  ==! is_Just (empty v)
-  ==! is_Just ((\_-> Nothing) v)
-  ==! is_Just Nothing          ? bar (typing empty (EVar v))
+  ==. is_Just (empty v)
+  ==. is_Just ((\_-> Nothing) v)
+  ==. is_Just Nothing          ? bar (typing empty (EVar v))
   *** QED
 
 -- | Soundness proofs

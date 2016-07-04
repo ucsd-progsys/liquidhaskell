@@ -42,10 +42,10 @@ This cannot be verified, as it creates the query
 composition :: Arg r => (r -> (a -> a)) -> (r-> a) -> Proof
 composition x y
   =   (seq ((\r2 ->  (x r2)))          y
-  ===! Reader (\r3 -> ((\r2 ->  (x r2)) (r3)) ( y r3)) )         
+  ===. Reader (\r3 -> ((\r2 ->  (x r2)) (r3)) ( y r3)) )         
 
 
 
-{-@ assume (===!) :: x:a -> y:{a | x == y} -> {x == y} @-}
-(===!) :: a -> a -> Proof 
-_ ===! _ = undefined 
+{-@ assume (===.) :: x:a -> y:{a | x == y} -> {x == y} @-}
+(===.) :: a -> a -> Proof 
+_ ===. _ = undefined 

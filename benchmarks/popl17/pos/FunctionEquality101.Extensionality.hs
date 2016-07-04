@@ -23,7 +23,7 @@ id x = x
             -> { (\r:r -> (id (f r))) == (\r:r-> (f r)) } @-}
 fmap_id :: Arg r => (r -> a) -> (r -> a) ->  Proof
 fmap_id f g 
-   = ((\r -> id (f r)) =*=! (\r -> f r)) (helper f)
+   = ((\r -> id (f r)) =*=. (\r -> f r)) (helper f)
    *** QED 
 
 
@@ -34,5 +34,5 @@ fmap_id f g
 helper :: Arg r => (r -> a) -> r -> Proof 
 helper f r 
   =   id (f r)
-  ==! f r 
+  ==. f r 
   *** QED 

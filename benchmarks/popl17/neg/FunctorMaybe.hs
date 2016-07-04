@@ -40,13 +40,13 @@ fmap_id' = abstract (fmap id) id fmap_id
 fmap_id :: Maybe a -> Proof
 fmap_id Nothing
   = toProof $
-      fmap id Nothing ==! Nothing
-                      ==! id Nothing
+      fmap id Nothing ==. Nothing
+                      ==. id Nothing
 fmap_id (Just x)
   = toProof $
-      fmap id (Just x) ==! Just (id x)
-                       ==! Just x
-                       ==! id (Just x)
+      fmap id (Just x) ==. Just (id x)
+                       ==. Just x
+                       ==. id (Just x)
 
 
 -- | Distribution
@@ -65,20 +65,20 @@ fmap_distrib :: (a -> a) -> (a -> a) -> Maybe a -> Proof
 fmap_distrib f g Nothing
   = toProof $
       (compose (fmap f) (fmap g)) Nothing
-        ==! (fmap f) ((fmap g) Nothing)
-        ==! fmap f (fmap g Nothing)
-        ==! fmap f Nothing
-        ==! Nothing
-        ==! fmap (compose f g) Nothing
+        ==. (fmap f) ((fmap g) Nothing)
+        ==. fmap f (fmap g Nothing)
+        ==. fmap f Nothing
+        ==. Nothing
+        ==. fmap (compose f g) Nothing
 fmap_distrib f g (Just x)
   = toProof $
       fmap (compose f g) (Just x)
-       ==! Just ((compose f g) x)
-       ==! Just (f (g x))
-       ==! (fmap f) (Just (g x))
-       ==! (fmap f) (fmap g (Just x))
-       ==! (fmap f) ((fmap g) (Just x))
-       ==! (compose (fmap f) (fmap g)) (Just x)
+       ==. Just ((compose f g) x)
+       ==. Just (f (g x))
+       ==. (fmap f) (Just (g x))
+       ==. (fmap f) (fmap g (Just x))
+       ==. (fmap f) ((fmap g) (Just x))
+       ==. (compose (fmap f) (fmap g)) (Just x)
 
 
 data Maybe a = Nothing | Just a

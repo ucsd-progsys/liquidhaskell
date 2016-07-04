@@ -39,14 +39,14 @@ foldrUniversal
     -> Proof
 foldrUniversal f h e Emp base step
   =   h Emp
-  ==! e               -- ? base
-  ==! foldr f e Emp
+  ==. e               -- ? base
+  ==. foldr f e Emp
   *** QED
 foldrUniversal f h e (C x xs) base step
   =   h (C x xs)
-  ==! f x (h xs)         ? step x xs
-  ==! f x (foldr f e xs) ? foldrUniversal f h e xs base step
-  ==! foldr f e (C x xs)
+  ==. f x (h xs)         ? step x xs
+  ==. f x (foldr f e xs) ? foldrUniversal f h e xs base step
+  ==. foldr f e (C x xs)
   *** QED
 
 -- | foldrFunsion
@@ -73,23 +73,23 @@ fuse_step :: (b -> c) -> (a -> b -> b) -> b -> (a -> c -> c)
   @-}
 fuse_step h f e g thm x Emp
   =   (compose h (foldr f e)) (C x Emp)
-  ==! h (foldr f e (C x Emp))
-  ==! h (f x (foldr f e Emp))
-  ==! h (f x e)
-  ==! g x (h e)  ? thm x e
-  ==! g x (h (foldr f e Emp))
-  ==! g x ((compose h (foldr f e)) Emp)
+  ==. h (foldr f e (C x Emp))
+  ==. h (f x (foldr f e Emp))
+  ==. h (f x e)
+  ==. g x (h e)  ? thm x e
+  ==. g x (h (foldr f e Emp))
+  ==. g x ((compose h (foldr f e)) Emp)
   *** QED
 
 fuse_step h f e g thm x (C y ys)
   =   (compose h (foldr f e)) (C x (C y ys))
-  ==! h (foldr f e (C x (C y ys)))
-  ==! h (f x (foldr f e (C y ys)))
-  ==! h (f x (f y (foldr f e ys)))
-  ==! g x (h (f y (foldr f e ys)))
+  ==. h (foldr f e (C x (C y ys)))
+  ==. h (f x (foldr f e (C y ys)))
+  ==. h (f x (f y (foldr f e ys)))
+  ==. g x (h (f y (foldr f e ys)))
         ? thm x (f y (foldr f e ys))
-  ==! g x (h (foldr f e (C y ys)))
-  ==! g x ((compose h (foldr f e)) (C y ys))
+  ==. g x (h (foldr f e (C y ys)))
+  ==. g x ((compose h (foldr f e)) (C y ys))
   *** QED
 
 fuse_base :: (b->c) -> (a -> b -> b) -> b -> Proof
@@ -97,8 +97,8 @@ fuse_base :: (b->c) -> (a -> b -> b) -> b -> Proof
               -> { (compose h (foldr f e)) (Emp) == h e } @-}
 fuse_base h f e
   =   (compose h (foldr f e)) Emp
-  ==! h (foldr f e Emp)
-  ==! h e
+  ==. h (foldr f e Emp)
+  ==. h e
   *** QED
 
 {-@ axiomatize compose @-}
