@@ -18,10 +18,7 @@ plusAssoc :: Peano -> Peano -> Peano -> Proof
 plusComm  :: Peano -> Peano -> Proof
 plusSuccR :: Peano -> Peano -> Proof
 
-infixl 3 ==.
 
-(==.) :: a -> a -> a
-x ==. _ = x 
 
 data Peano = Z | S Peano
 

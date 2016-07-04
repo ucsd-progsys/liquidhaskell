@@ -40,6 +40,7 @@ infixl 3 ==:, <=:, <:, >:, ==?
 infixl 3 ==., <=., <., >., >=., =*=.
 
 -- provide the proof terms after ?
+infixl 3 ?
 infixl 3 ∵
 
 infixl 2 ***
@@ -50,6 +51,9 @@ type Proof = ()
 
 byTheorem :: a -> Proof -> a
 byTheorem a _ = a
+
+(?) :: (Proof -> a) -> Proof -> a
+f ? y = f y
 
 (∵) :: (Proof -> a) -> Proof -> a
 f ∵ y = f y
