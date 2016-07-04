@@ -104,7 +104,7 @@ id_helper1_body r q
 
 -- | Composition
 
-{- composition :: x:Reader r (a -> a)
+{-@ composition :: x:Reader r (a -> a)
                 -> y:Reader r (a -> a)
                 -> z:Reader r a
                 -> { seq (seq (seq (pure compose) x) y) z == seq x (seq y z) } @-}

@@ -16,6 +16,26 @@ import Proves
 id :: a -> a
 id x = x
 
+{-
+fmap_id'' x 
+   =   (\r -> id x)
+   ==! (\r -> x) -- (helper f)
+   *** QED 
+-}
+
+{-@ fmap_id'' ::  x:a
+            -> { (\r:a -> (id r)) == (\r:a -> r) } @-}
+fmap_id'' :: Arg a => a  ->  Proof
+fmap_id'' x 
+   =  eq_fun (\r -> id r)
+             (\r -> r) 
+             (helper' x )
+   *** QED 
+
+
+{-@ helper' :: a ->  r:a -> {(\r:a -> id r) (r)  == (\r:a -> r) (r)} @-}
+helper' :: Arg a => a -> a -> Proof
+helper' _ r = id r ==! r *** QED 
 
 -- | Sound example
 

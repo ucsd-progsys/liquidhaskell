@@ -81,16 +81,16 @@ associativity (x ::: xs) f g
   ==! bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
   ==! append (bind (f x) g) (bind (bind xs f) g)
   ==! append (bind (f x) g) (bind xs (\y -> bind (f y) g)) ? associativity xs f g
-  ==! append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) ? betaequivalence f g x 
+  ==! append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) ? βequivalence f g x 
   ==! bind (x ::: xs) (\y -> bind (f y) g)
   *** QED
 
 
 
-{-@ betaequivalence :: f:(a -> L b) -> g:(b -> L c) -> x:a -> 
+{-@ βequivalence :: f:(a -> L b) -> g:(b -> L c) -> x:a -> 
      {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
-betaequivalence :: (a -> L b) -> (b -> L c) -> a -> Proof
-betaequivalence f g x = simpleProof 
+βequivalence :: (a -> L b) -> (b -> L c) -> a -> Proof
+βequivalence f g x = simpleProof 
 
 bind_append :: L a -> L a -> (a -> L b) -> Proof
 {-@ bind_append :: xs:L a -> ys:L a -> f:(a -> L b)

@@ -240,4 +240,4 @@ class Arg a where
 
 {-@ assume (=*=!) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
 (=*=!) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
-(=*=!) = undefined
+(=*=!) f g p = f
