@@ -27,21 +27,21 @@ mempty_left :: L a -> Proof
 {-@ mempty_left :: x:L a -> { mappend mempty x == x }  @-}
 mempty_left xs
   =   mappend mempty xs
-  ==! mappend Emp xs
-  ==! xs
+  ==. mappend Emp xs
+  ==. xs
   *** QED
 
 mempty_right :: L a -> Proof
 {-@ mempty_right :: x:L a -> { mappend x mempty == x}  @-}
 mempty_right Emp
-  = mappend Emp mempty ==! Emp
+  = mappend Emp mempty ==. Emp
   *** QED
 
 mempty_right (x ::: xs)
   =   mappend (x ::: xs) mempty
-  ==! mappend (x:::xs) Emp
-  ==! x ::: (mappend xs Emp)
-  ==! x ::: xs             ? mempty_right xs
+  ==. mappend (x:::xs) Emp
+  ==. x ::: (mappend xs Emp)
+  ==. x ::: xs             ? mempty_right xs
   *** QED
 
 {-@ mappend_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -49,16 +49,16 @@ mempty_right (x ::: xs)
 mappend_assoc :: L a -> L a -> L a -> Proof
 mappend_assoc Emp ys zs
   =   mappend (mappend Emp ys) zs
-  ==! mappend ys zs
-  ==! mappend Emp (mappend ys zs)
+  ==. mappend ys zs
+  ==. mappend Emp (mappend ys zs)
   *** QED
 
 mappend_assoc (x ::: xs) ys zs
   =   mappend (mappend (x ::: xs) ys) zs
-  ==! mappend (x ::: mappend xs ys) zs
-  ==! x ::: mappend (mappend xs ys) zs
-  ==! x ::: mappend xs (mappend ys zs)  ? mappend_assoc xs ys zs
-  ==! mappend (x ::: xs) (mappend ys zs)
+  ==. mappend (x ::: mappend xs ys) zs
+  ==. x ::: mappend (mappend xs ys) zs
+  ==. x ::: mappend xs (mappend ys zs)  ? mappend_assoc xs ys zs
+  ==. mappend (x ::: xs) (mappend ys zs)
   *** QED
 
 data L a = Emp | a ::: L a
