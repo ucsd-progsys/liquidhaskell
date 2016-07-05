@@ -36,10 +36,10 @@ compose f g x = f (g x)
 fmap_id :: Arg r => Reader r a  ->  Proof
 fmap_id (Reader x) 
    =   fmap id (Reader x)
-   ==! Reader (\r -> id (x r))
-   ==! Reader (\r -> x r)       ? fmap_id_helper x  
-   ==! Reader x                
-   ==! id (Reader x)
+   ==. Reader (\r -> id (x r))
+   ==. Reader (\r -> x r)       ? fmap_id_helper x  
+   ==. Reader x                
+   ==. id (Reader x)
    *** QED
  
 
@@ -48,7 +48,7 @@ fmap_id (Reader x)
 fmap_id_helper :: (Arg r) => (r -> a) ->  Proof
 fmap_id_helper f
    =    ((\r -> id (f r)) 
-   =*=! (\r -> f r)) (fmap_id_helper_body f)
+   =*=. (\r -> f r)) (fmap_id_helper_body f)
    *** QED 
 
 
@@ -60,7 +60,7 @@ fmap_id_helper f
       } @-} 
 fmap_id_helper_body :: Arg r => (r -> a) -> r -> Proof 
 fmap_id_helper_body f r 
-  = id (f r) ==! f r *** QED 
+  = id (f r) ==. f r *** QED 
 
 
 
@@ -69,12 +69,12 @@ fmap_id_helper_body f r
 fmap_distrib :: Arg r => (a -> a) -> (a -> a) -> Reader r a -> Proof
 fmap_distrib f g (Reader x)
   =   fmap (compose f g) (Reader x)
-  ==! Reader (\r -> (compose f g) (x r))     
-  ==! Reader (\r -> f ( g (x r)))            ? fmap_distrib_helper f g x 
-  ==! Reader (\r -> f ((\w -> g (x w)) r))
-  ==! fmap f (Reader (\w -> g (x w)))
-  ==! fmap f (fmap g (Reader x))
-  ==! (compose (fmap f) (fmap g)) (Reader x)
+  ==. Reader (\r -> (compose f g) (x r))     
+  ==. Reader (\r -> f ( g (x r)))            ? fmap_distrib_helper f g x 
+  ==. Reader (\r -> f ((\w -> g (x w)) r))
+  ==. fmap f (Reader (\w -> g (x w)))
+  ==. fmap f (fmap g (Reader x))
+  ==. (compose (fmap f) (fmap g)) (Reader x)
   *** QED
 
 
@@ -87,7 +87,7 @@ fmap_distrib_helper :: Arg r => (a -> a) -> (a -> a) -> (r -> a) -> Proof
   -> {(\r:r -> (compose f g) (x r)) == (\r:r -> (f (g (x r))) ) } @-}
 fmap_distrib_helper f g x 
   =   ((\r -> (compose f g) (x r)) 
-  =*=! (\r -> f (g (x r)))) (fmap_distrib_helper' f g x)
+  =*=. (\r -> f (g (x r)))) (fmap_distrib_helper' f g x)
   *** QED 
 
 
@@ -98,7 +98,7 @@ fmap_distrib_helper' :: Arg r => (a -> a) -> (a -> a) -> (r -> a) -> r -> Proof
   -> { (compose f g) (x r) == (f (g (x r))) } @-}
 fmap_distrib_helper' f g x r  
   =   (compose f g) (x r) 
-  ==! f (g (x r))
+  ==. f (g (x r))
   *** QED 
 
 

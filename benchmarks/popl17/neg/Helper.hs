@@ -42,13 +42,13 @@ gen_increasing f thm x y
 
   | x + 1 == y
   = proof $
-      f y ==! f (x + 1)
-           >! f x       ?  thm x
+      f y ==. f (x + 1)
+           >. f x       ?  thm x
 
   | x + 1 < y
   = proof $
-      f x  <! f (y-1)   ?   gen_increasing f thm x (y-1)
-           <! f y       ?   thm (y-1)
+      f x  <. f (y-1)   ?   gen_increasing f thm x (y-1)
+           <. f y       ?   thm (y-1)
 
 
 gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int -> Proof)
@@ -58,11 +58,11 @@ gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int 
 gen_increasing2 f thm c x y
   | x + 1 == y
   = proof $
-      f y c ==! f (x + 1) c
-             >! f x c        ? thm c x
+      f y c ==. f (x + 1) c
+             >. f x c        ? thm c x
 
   | x + 1 < y
   = proof $
-      f x c <! f (y-1) c    ? gen_increasing2 f thm c x (y-1)
-            <! f y c        ? thm c (y-1)
+      f x c <. f (y-1) c    ? gen_increasing2 f thm c x (y-1)
+            <. f y c        ? thm c (y-1)
 

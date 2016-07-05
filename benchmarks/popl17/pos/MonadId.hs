@@ -35,8 +35,8 @@ data Identity a = Identity a
 left_identity :: a -> (a -> Identity b) -> Proof
 left_identity x f
   =   bind (return x) f
-  ==! bind (Identity x) f
-  ==! f x
+  ==. bind (Identity x) f
+  ==. f x
   *** QED
 
 
@@ -47,8 +47,8 @@ left_identity x f
 right_identity :: Identity a -> Proof
 right_identity (Identity x)
   =   bind (Identity x) return
-  ==! return x
-  ==! Identity x
+  ==. return x
+  ==. Identity x
   *** QED
 
 
@@ -59,7 +59,7 @@ right_identity (Identity x)
 associativity :: Identity a -> (a -> Identity b) -> (b -> Identity c) -> Proof
 associativity (Identity x) f g
   =   bind (bind (Identity x) f) g
-  ==! bind (f x) g
-  ==! (\x -> (bind (f x) g)) x
-  ==! bind (Identity x) (\x -> (bind (f x) g))
+  ==. bind (f x) g
+  ==. (\x -> (bind (f x) g)) x
+  ==. bind (Identity x) (\x -> (bind (f x) g))
   *** QED

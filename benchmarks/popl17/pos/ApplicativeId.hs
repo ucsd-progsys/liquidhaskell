@@ -49,9 +49,9 @@ data Identity a = Identity a
 identity :: Identity a -> Proof
 identity (Identity x)
   =   seq (pure id) (Identity x)
-  ==! seq (Identity id) (Identity x)
-  ==! Identity (id x)
-  ==! Identity x
+  ==. seq (Identity id) (Identity x)
+  ==. Identity (id x)
+  ==. Identity x
   *** QED
 
 -- | Composition
@@ -63,12 +63,12 @@ identity (Identity x)
 composition :: Identity (a -> a) -> Identity (a -> a) -> Identity a -> Proof
 composition (Identity x) (Identity y) (Identity z)
   =   seq (seq (seq (pure compose) (Identity x)) (Identity y)) (Identity z)
-  ==! seq (seq (seq (Identity compose) (Identity x)) (Identity y)) (Identity z)
-  ==! seq (seq (Identity (compose x)) (Identity y)) (Identity z)
-  ==! seq (Identity (compose x y)) (Identity z)
-  ==! Identity (compose x y z)
-  ==! seq (Identity x) (Identity (y z))
-  ==! seq (Identity x) (seq (Identity y) (Identity z))
+  ==. seq (seq (seq (Identity compose) (Identity x)) (Identity y)) (Identity z)
+  ==. seq (seq (Identity (compose x)) (Identity y)) (Identity z)
+  ==. seq (Identity (compose x y)) (Identity z)
+  ==. Identity (compose x y z)
+  ==. seq (Identity x) (Identity (y z))
+  ==. seq (Identity x) (seq (Identity y) (Identity z))
   *** QED
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
@@ -78,9 +78,9 @@ composition (Identity x) (Identity y) (Identity z)
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
   =   seq (pure f) (pure x)
-  ==! seq (Identity f) (Identity x)
-  ==! Identity (f x)
-  ==! pure (f x)
+  ==. seq (Identity f) (Identity x)
+  ==. Identity (f x)
+  ==. pure (f x)
   *** QED
 
 interchange :: Identity (a -> a) -> a -> Proof
@@ -89,9 +89,9 @@ interchange :: Identity (a -> a) -> a -> Proof
   @-}
 interchange (Identity f) x
   =   seq (Identity f) (pure x)
-  ==! seq (Identity f) (Identity x)
-  ==! Identity (f x)
-  ==! Identity ((idollar x) f)
-  ==! seq (Identity (idollar x)) (Identity f)
-  ==! seq (pure (idollar x)) (Identity f)
+  ==. seq (Identity f) (Identity x)
+  ==. Identity (f x)
+  ==. Identity ((idollar x) f)
+  ==. seq (Identity (idollar x)) (Identity f)
+  ==. seq (pure (idollar x)) (Identity f)
   *** QED

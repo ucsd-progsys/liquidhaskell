@@ -39,11 +39,11 @@ fromReader (Reader f) = f
 left_identity :: a -> (a -> Reader r b) -> Proof
 left_identity x f
   =   bind (return x) f 
-  ==! bind (Reader (\r -> x)) f
-  ==! Reader (\r' -> fromReader (f ((\r -> x) r')) r')
-  ==! Reader (\r' -> fromReader (f x) r')
-  ==! Reader (fromReader (f x))
-  ==! f x 
+  ==. bind (Reader (\r -> x)) f
+  ==. Reader (\r' -> fromReader (f ((\r -> x) r')) r')
+  ==. Reader (\r' -> fromReader (f x) r')
+  ==. Reader (fromReader (f x))
+  ==. f x 
   *** QED 
 
 
@@ -53,11 +53,11 @@ left_identity x f
 right_identity :: Reader r a -> Proof
 right_identity (Reader x)
   =   bind (Reader x) return
-  ==! Reader (\r -> fromReader (return (x r)) r)
-  ==! Reader (\r -> fromReader (Reader (\r' ->  (x r))) r)
-  ==! Reader (\r -> (\r' ->  (x r)) r)
-  ==! Reader (\r -> x r)
-  ==! Reader x
+  ==. Reader (\r -> fromReader (return (x r)) r)
+  ==. Reader (\r -> fromReader (Reader (\r' ->  (x r))) r)
+  ==. Reader (\r -> (\r' ->  (x r)) r)
+  ==. Reader (\r -> x r)
+  ==. Reader x
   *** QED 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)

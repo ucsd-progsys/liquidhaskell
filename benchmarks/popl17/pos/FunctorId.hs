@@ -38,9 +38,9 @@ compose f g x = f (g x)
 fmap_id :: Identity a -> Proof
 fmap_id (Identity x)
   =   fmap id (Identity x)
-  ==! Identity (id x)
-  ==! Identity x
-  ==! id (Identity x)
+  ==. Identity (id x)
+  ==. Identity x
+  ==. id (Identity x)
   *** QED
 
 
@@ -49,9 +49,9 @@ fmap_id (Identity x)
 fmap_distrib :: (a -> a) -> (a -> a) -> Identity a -> Proof
 fmap_distrib f g (Identity x)
   =   fmap (compose f g) (Identity x)
-  ==! Identity ((compose f g) x)
-  ==! Identity (f (g x))
-  ==! fmap f (Identity (g x))
-  ==! (fmap f) (fmap g (Identity x))
-  ==! (compose (fmap f) (fmap g)) (Identity x)
+  ==. Identity ((compose f g) x)
+  ==. Identity (f (g x))
+  ==. fmap f (Identity (g x))
+  ==. (fmap f) (fmap g (Identity x))
+  ==. (compose (fmap f) (fmap g)) (Identity x)
   *** QED 

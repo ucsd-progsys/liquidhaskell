@@ -34,21 +34,21 @@ unsafe () = ()
 {-@ safe :: () -> { fib 2 == 1 } @-}
 safe :: () -> Proof
 safe () =
-  fib 2 ==! fib 0 + fib 1
+  fib 2 ==. fib 0 + fib 1
   *** QED
 
 -- | fib 2 == fib 1 + fib 0
 
 -- | Adding some structure to proofs
--- | ==! :: x:a -> y:{a | x == y} -> {v:a | v == x && x == y}
+-- | ==. :: x:a -> y:{a | x == y} -> {v:a | v == x && x == y}
 -- | proofs are unit
 -- | toProof :: a -> Proof
 -- | type Proof = ()
 
 {-@ safe' :: () ->  { fib 3 == 2 } @-}
 safe' () =
-  fib 3 ==! fib 2 + fib 1 ? safe ()
-        ==! 2
+  fib 3 ==. fib 2 + fib 1 ? safe ()
+        ==. 2
         *** QED
 
 
@@ -66,20 +66,20 @@ fib_incr :: Int -> Proof
 {-@ fib_incr :: n:Nat -> {fib n <= fib (n+1)} @-}
 fib_incr n
    | n == 0
-   = fib 0 <! fib 1
+   = fib 0 <. fib 1
    *** QED
 
    | n == 1
    = fib 1
-       <=! fib 1 + fib 0
-       <=! fib 2
+       <=. fib 1 + fib 0
+       <=. fib 2
        *** QED
    | otherwise
    = fib n
-       ==! fib (n-1) + fib (n-2)
-       <=! fib n     + fib (n-2)
+       ==. fib (n-1) + fib (n-2)
+       <=. fib n     + fib (n-2)
            ? fib_incr (n-1)
-       <=! fib n     + fib (n-1)
+       <=. fib n     + fib (n-1)
            ? fib_incr (n-2)
-       <=! fib (n+1)
+       <=. fib (n+1)
        *** QED

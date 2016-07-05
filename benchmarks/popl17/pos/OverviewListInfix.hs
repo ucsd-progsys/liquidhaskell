@@ -28,16 +28,16 @@ xs ++ ys
 associative :: L a -> L a -> L a -> Proof
 associative N ys zs
   = toProof $
-       (N ++ ys) ++ zs ==! ys ++ zs
-                       ==! N ++ (ys ++ zs)
+       (N ++ ys) ++ zs ==. ys ++ zs
+                       ==. N ++ (ys ++ zs)
 
 associative (C x xs) ys zs
   = toProof $
       (C x xs ++ ys) ++ zs
-        ==! (C x (xs ++ ys)) ++ zs
-        ==! C x ((xs ++ ys) ++ zs)
-        ==! C x (xs ++ (ys ++ zs))  ? associative xs ys zs
-        ==! (C x xs) ++ (ys ++ zs)
+        ==. (C x (xs ++ ys)) ++ zs
+        ==. C x ((xs ++ ys) ++ zs)
+        ==. C x (xs ++ (ys ++ zs))  ? associative xs ys zs
+        ==. (C x xs) ++ (ys ++ zs)
 
 
 
@@ -58,23 +58,23 @@ map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion f g N
   = toProof $
       ((map f) . (map g)) N
-        ==! (map f) ((map g) N)
-        ==! map f (map g N)
-        ==! map f N
-        ==! N
-        ==! map (f . g) N
+        ==. (map f) ((map g) N)
+        ==. map f (map g N)
+        ==. map f N
+        ==. N
+        ==. map (f . g) N
 map_fusion f g (C x xs)
   = toProof $
       map (f . g) (C x xs)
-       ==! C ((f . g) x) (map (f . g) xs)
-       ==! C ((f . g) x) ((map f . map g) xs) ? map_fusion f g xs
-       ==! C ((f . g) x) (map f (map g xs))
-       ==! C (f (g x)) (map f (map g xs))
-       ==! map f (C (g x) (map g xs))
-       ==! (map f) (C (g x) (map g xs))
-       ==! (map f) (map g (C x xs))
-       ==! (map f) ((map g) (C x xs))
-       ==! ((map f) . (map g)) (C x xs)
+       ==. C ((f . g) x) (map (f . g) xs)
+       ==. C ((f . g) x) ((map f . map g) xs) ? map_fusion f g xs
+       ==. C ((f . g) x) (map f (map g xs))
+       ==. C (f (g x)) (map f (map g xs))
+       ==. map f (C (g x) (map g xs))
+       ==. (map f) (C (g x) (map g xs))
+       ==. (map f) (map g (C x xs))
+       ==. (map f) ((map g) (C x xs))
+       ==. ((map f) . (map g)) (C x xs)
 
 data L a = N | C a (L a)
 {-@ data L [llen] @-}

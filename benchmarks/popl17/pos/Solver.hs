@@ -2,7 +2,7 @@
 -- | http://www.seas.upenn.edu/~sweirich/papers/popl14-trellys.pdf
 
 
--- | This code is terrible!
+-- | This code is terrible.
 -- | Should use cases and auto translate like in the paper's theory
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
 module Solver where

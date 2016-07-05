@@ -88,20 +88,20 @@ theoremFun :: Term -> Term -> Term -> Term -> Substitution -> Substitution -> Pr
   @-}
 theoremFun t11 t12 t21 t22 θ1 θ2
   =   apply (append θ2 θ1) (TFun t11 t12)
-  ==! TFun (apply (append θ2 θ1) t11) (apply (append θ2 θ1) t12)
+  ==. TFun (apply (append θ2 θ1) t11) (apply (append θ2 θ1) t12)
       ? split_fun t11 t12 (append θ2 θ1)
-  ==! TFun (apply θ2 (apply θ1 t11))  (apply (append θ2 θ1) t12)
+  ==. TFun (apply θ2 (apply θ1 t11))  (apply (append θ2 θ1) t12)
       ? append_apply θ2 θ1 t11
-  ==! TFun (apply θ2 (apply θ1 t21))  (apply θ2 (apply θ1 t12))
+  ==. TFun (apply θ2 (apply θ1 t21))  (apply θ2 (apply θ1 t12))
       ? append_apply θ2 θ1 t12
-  ==! TFun (apply θ2 (apply θ1 t21))  (apply θ2 (apply θ1 t22))
-  ==! TFun (apply (append θ2 θ1) t21) (apply θ2 (apply θ1 t22))
+  ==. TFun (apply θ2 (apply θ1 t21))  (apply θ2 (apply θ1 t22))
+  ==. TFun (apply (append θ2 θ1) t21) (apply θ2 (apply θ1 t22))
       ? append_apply θ2 θ1 t21
-  ==! TFun (apply (append θ2 θ1) t21) (apply (append θ2 θ1) t22)
+  ==. TFun (apply (append θ2 θ1) t21) (apply (append θ2 θ1) t22)
       ? append_apply θ2 θ1 t22
-  ==! TFun (apply (append θ2 θ1) t21) (apply (append θ2 θ1) t22)
+  ==. TFun (apply (append θ2 θ1) t21) (apply (append θ2 θ1) t22)
       ? split_fun t21 t22 (append θ2 θ1)
-  ==! apply (append θ2 θ1) (TFun t21 t22)
+  ==. apply (append θ2 θ1) (TFun t21 t22)
   *** QED
 
 split_fun :: Term -> Term -> Substitution -> Proof
@@ -109,16 +109,16 @@ split_fun :: Term -> Term -> Substitution -> Proof
    -> {apply θ (TFun t1 t2) == TFun (apply θ t1) (apply θ t2)} / [llen θ] @-}
 split_fun t1 t2 Emp
   =   apply Emp (TFun t1 t2)
-  ==! TFun t1 t2
-  ==! TFun (apply Emp t1) (apply Emp t2)
+  ==. TFun t1 t2
+  ==. TFun (apply Emp t1) (apply Emp t2)
   *** QED
 split_fun t1 t2 (C su θ)
     =   apply (C su θ) (TFun t1 t2)
-    ==! applyOne su (apply θ (TFun t1 t2))
-    ==! applyOne su (TFun (apply θ t1) (apply θ t2))
+    ==. applyOne su (apply θ (TFun t1 t2))
+    ==. applyOne su (TFun (apply θ t1) (apply θ t2))
         ? split_fun t1 t2 θ
-    ==! TFun (applyOne su (apply θ t1)) (applyOne su (apply θ t2))
-    ==! TFun (apply (C su θ) t1) (apply (C su θ) t2)
+    ==. TFun (applyOne su (apply θ t1)) (applyOne su (apply θ t2))
+    ==. TFun (apply (C su θ) t1) (apply (C su θ) t2)
     *** QED
 
 append_apply :: Substitution -> Substitution -> Term -> Proof
@@ -130,16 +130,16 @@ append_apply :: Substitution -> Substitution -> Term -> Proof
   @-}
 append_apply Emp θ2 t
   =   apply Emp (apply θ2 t)
-  ==! apply θ2 t
-  ==! apply (append Emp θ2) t
+  ==. apply θ2 t
+  ==. apply (append Emp θ2) t
   *** QED
 append_apply (C su θ) θ2 t
   =   apply (C su θ) (apply θ2 t)
-  ==! applyOne su (apply θ (apply θ2 t))
-  ==! applyOne su (apply (append θ θ2) t)
+  ==. applyOne su (apply θ (apply θ2 t))
+  ==. applyOne su (apply (append θ θ2) t)
        ? append_apply θ θ2 t
-  ==! apply (C su (append θ θ2)) t
-  ==! apply (append (C su θ) θ2) t
+  ==. apply (C su (append θ θ2)) t
+  ==. apply (append (C su θ) θ2) t
   *** QED
 
 
@@ -149,13 +149,13 @@ append_apply (C su θ) θ2 t
 theoremVar :: Term -> Int ->Proof
 theoremVar t i
   =   apply (C (P i t) Emp) (TVar i)
-  ==! applyOne (P i t) (apply Emp (TVar i))
-  ==! applyOne (P i t) (TVar i)
-  ==! t
-  ==! applyOne (P i t) t
+  ==. applyOne (P i t) (apply Emp (TVar i))
+  ==. applyOne (P i t) (TVar i)
+  ==. t
+  ==. applyOne (P i t) t
        ? theoremVarOne t i t
-  ==! applyOne (P i t) (apply Emp t)
-  ==! apply (C (P i t) Emp) t
+  ==. applyOne (P i t) (apply Emp t)
+  ==. apply (C (P i t) Emp) t
   *** QED
 
 {-@ theoremVarOne :: t:Term
@@ -165,15 +165,15 @@ theoremVar t i
 theoremVarOne :: Term -> Int -> Term -> Proof
 theoremVarOne (TFun t1 t2) i ti
   =   applyOne (P i ti) (TFun t1 t2)
-  ==! TFun (applyOne (P i ti) t1) (applyOne (P i ti) t2)
-  ==! TFun t1 (applyOne (P i ti) t2)
+  ==. TFun (applyOne (P i ti) t1) (applyOne (P i ti) t2)
+  ==. TFun t1 (applyOne (P i ti) t2)
       ? theoremVarOne t1 i ti
-  ==! TFun t1 t2
+  ==. TFun t1 t2
       ? theoremVarOne t2 i ti
   *** QED
 theoremVarOne t i ti
   =   applyOne (P i ti) t
-  ==! t
+  ==. t
   *** QED
 
 

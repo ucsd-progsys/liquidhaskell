@@ -35,9 +35,9 @@ left_identity :: a -> (a -> Maybe b) -> Proof
 left_identity x f
   = toProof $
        bind (return x) f
-         ==! bind (Just x) f
-         ==! f (from_Just (Just x))
-         ==! f x
+         ==. bind (Just x) f
+         ==. f (from_Just (Just x))
+         ==. f x
 
 
 
@@ -48,13 +48,13 @@ right_identity :: Maybe a -> Proof
 right_identity Nothing
   = toProof $
       bind Nothing return
-        ==! Nothing
+        ==. Nothing
 
 right_identity (Just x)
   = toProof $
        bind (Just x) return
-        ==! return x
-        ==! Just x
+        ==. return x
+        ==. Just x
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
@@ -64,15 +64,15 @@ associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g
   = toProof $
        bind (bind Nothing f) g
-         ==! bind Nothing g
-         ==! Nothing
-         ==! bind Nothing (\x -> bind (f x) g)
+         ==. bind Nothing g
+         ==. Nothing
+         ==. bind Nothing (\x -> bind (f x) g)
 associativity (Just x) f g
   = toProof $
        bind (bind (Just x) f) g
-         ==! bind (f x) g
-         ==! (\x -> bind (f x) g) x
-         ==! bind (Just x) (\x -> bind (f x) g)
+         ==. bind (f x) g
+         ==. (\x -> bind (f x) g) x
+         ==. bind (Just x) (\x -> bind (f x) g)
 
 
 

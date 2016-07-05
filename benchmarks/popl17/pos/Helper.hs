@@ -24,12 +24,12 @@ import Proves
 {-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
 beta_application :: b -> (a -> b) -> a -> Proof  
 beta_application bd f x 
-  = f x ==! bd *** QED 
+  = f x ==. bd *** QED 
 
 lambda_expand :: Arg r => (r -> a) -> Proof 
 {-@ lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
 lambda_expand r 
-  = ( r =*=! \x -> r x) (body_lambda_expand r) *** QED 
+  = ( r =*=. \x -> r x) (body_lambda_expand r) *** QED 
 
 
 body_lambda_expand :: Arg r => (r -> a) -> r -> Proof 
@@ -51,14 +51,14 @@ gen_increasing :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 gen_increasing f thm x y
 
   | x + 1 == y
-  = f y ==! f (x + 1)
-         >! f x       ?  thm x
+  = f y ==. f (x + 1)
+         >. f x       ?  thm x
         *** QED
 
   | x + 1 < y
   = f x
-  <!  f (y-1)   ?   gen_increasing f thm x (y-1)
-  <!  f y       ?   thm (y-1)
+  <.  f (y-1)   ?   gen_increasing f thm x (y-1)
+  <.  f y       ?   thm (y-1)
   *** QED
 revgen_increasing :: (Int -> Int) -> (Int -> Int -> Proof) -> (Int -> Proof)
 {-@ revgen_increasing :: f:(Nat -> Int)
@@ -74,13 +74,13 @@ gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
 gen_incr f thm x y
 
   | x + 1 == y
-  = f x <=! f (x + 1) ? thm x
-        <=! f y
+  = f x <=. f (x + 1) ? thm x
+        <=. f y
         *** QED
 
   | x + 1 < y
-  = f x  <=! f (y-1)   ?   gen_incr f thm x (y-1)
-         <=! f y       ?   thm (y-1)
+  = f x  <=. f (y-1)   ?   gen_incr f thm x (y-1)
+         <=. f y       ?   thm (y-1)
          *** QED
 
 
@@ -90,11 +90,11 @@ gen_increasing2 :: (Int -> a -> Int) -> (a -> Int -> Proof) -> (a -> Int -> Int 
                     ->  c:a -> x:Nat -> y:Greater x -> {v:Proof | f x c < f y c } / [y] @-}
 gen_increasing2 f thm c x y
   | x + 1 == y
-  = f y c ==! f (x + 1) c
-           >! f x c        ? thm c x
+  = f y c ==. f (x + 1) c
+           >. f x c        ? thm c x
           *** QED
 
   | x + 1 < y
-  = f x c <!  f (y-1) c    ? gen_increasing2 f thm c x (y-1)
-          <!  f y c        ? thm c (y-1)
+  = f x c <.  f (y-1) c    ? gen_increasing2 f thm c x (y-1)
+          <.  f y c        ? thm c (y-1)
           *** QED
