@@ -8,10 +8,7 @@ module Language.Fixpoint.Types.Config (
     Config  (..)
   , defConfig
   , getOpts
-  , Command (..)
   , SMTSolver (..)
-  , GenQualifierSort (..)
-  , UeqAllSorts (..)
   , defaultMinPartSize
   , defaultMaxPartSize
   , multicore
@@ -21,9 +18,6 @@ module Language.Fixpoint.Types.Config (
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
-
-class Command a  where
-  command :: a -> String
 
 ------------------------------------------------------------------------
 -- Configuration Options -----------------------------------------------
@@ -42,14 +36,11 @@ data Config
     , minPartSize :: Int                 -- ^ Minimum size of a partition
     , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver           -- ^ which SMT solver to use
-    , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
-    , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
-    , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
-    , oldElim     :: Bool                -- ^ use old eliminate algorithm (deprecate)
+    -- , oldElim     :: Bool                -- ^ use old eliminate algorithm (deprecate)
     , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
@@ -67,7 +58,7 @@ data Config
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
     , normalForm  :: Bool                -- ^ allow lambda normal-form equivalence axioms
     , autoKuts    :: Bool                -- ^ ignore given kut variables
-    , pack        :: Bool                -- ^ Use pack annotations
+    -- , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -75,37 +66,9 @@ instance Default Config where
   def = defConfig
 
 ---------------------------------------------------------------------------------------
-newtype GenQualifierSort = GQS Bool
-    deriving (Eq, Data,Typeable,Show)
-
-instance Default GenQualifierSort where
-  def = GQS False
-
-instance Command GenQualifierSort where
-  command (GQS True)  = ""
-  command (GQS False) = "-no-gen-qual-sorts"
-
-newtype UeqAllSorts = UAS Bool
-    deriving (Eq, Data,Typeable,Show)
-
-instance Default UeqAllSorts where
-  def = UAS False
-
-instance Command UeqAllSorts where
-  command (UAS True)  = " -ueq-all-sorts "
-  command (UAS False) = ""
-
--- instance Command Cores where
---   command (C n) = " --cores=" ++ show n
-
-
----------------------------------------------------------------------------------------
 
 data SMTSolver = Z3 | Cvc4 | Mathsat
                  deriving (Eq, Data, Typeable, Generic)
-
-instance Command SMTSolver where
-  command s = " -smtsolver " ++ show s
 
 instance Default SMTSolver where
   def = Z3
@@ -121,14 +84,11 @@ defConfig :: Config
 defConfig = Config {
     srcFile     = def     &= args    &= typFile
   , solver      = def     &= help "Name of SMT Solver"
-  , genSorts    = def     &= help "Generalize qualifier sorts"
-  , ueqAllSorts = def     &= help "Use UEq on all sorts"
-  , newcheck    = False   &= help "(alpha) New liquid-fixpoint sort checking "
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs   = False   &= help "Allow higher order qualifiers"
   , eliminate   = False   &= help "Eliminate non-cut KVars"
-  , oldElim     = True    &= help "(default) Use old eliminate algorithm"
+  -- , oldElim     = True    &= help "(default) Use old eliminate algorithm"
   , elimBound   = Nothing &= name "elimBound"
                           &= help "(alpha) Maximum eliminate-chain depth"
   , elimStats   = False   &= help "(alpha) Print eliminate stats"
@@ -149,7 +109,7 @@ defConfig = Config {
   , betaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
   , normalForm     = False  &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
-  , pack           = False &= help "Use pack annotations"
+  -- , pack           = False &= help "Use pack annotations"
   , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
   }
   &= verbosity
