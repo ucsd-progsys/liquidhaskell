@@ -24,7 +24,6 @@ import GHC.Generics
 data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
@@ -57,7 +56,7 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
-  , oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
+  --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
@@ -71,7 +70,7 @@ data Config = Config {
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  , packKVars       :: Bool       -- ^ pack kvars during elimination
+  --, packKVars       :: Bool       -- ^ pack kvars during elimination
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   } deriving (Generic, Data, Typeable, Show, Eq)
 
