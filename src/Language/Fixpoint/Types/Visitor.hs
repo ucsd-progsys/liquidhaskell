@@ -2,6 +2,7 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
@@ -103,14 +104,20 @@ instance Visitable BindEnv where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
--- Warning: these instances were written for mapKVars over SInfos only;
+-- Warning: these instances were written for mapKVars over GInfos only;
 --  check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do
     rhs' <- visit v c (_crhs x)
     return x { _crhs = rhs' }
 
-instance Visitable (SInfo a) where
+instance Visitable (SubC a) where
+  visit v c x = do
+    lhs' <- visit v c (slhs x)
+    rhs' <- visit v c (srhs x)
+    return x { slhs = lhs', srhs = rhs' }
+
+instance (Visitable (c a)) => Visitable (GInfo c a) where
   visit v c x = do
     cm' <- mapM (visit v c) (cm x)
     bs' <- visit v c (bs x)
