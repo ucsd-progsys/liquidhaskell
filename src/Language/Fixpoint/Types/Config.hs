@@ -18,8 +18,6 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
-import Data.Maybe   (fromMaybe)
-import Data.List    (find)
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
@@ -39,8 +37,7 @@ defaultMaxPartSize = 700
 
 data Config
   = Config {
-      inFile      :: FilePath            -- ^ target fq-file
-    , srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c)
+      srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c, or even *.fq or *.bfq)
     , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
     , minPartSize :: Int                 -- ^ Minimum size of a partition
     , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
@@ -73,42 +70,8 @@ data Config
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
-
 instance Default Config where
-  def = Config { inFile      = ""
-               , srcFile     = def
-               , cores       = def
-               , minPartSize = defaultMinPartSize
-               , maxPartSize = defaultMaxPartSize
-               , solver      = def
-               , genSorts    = def
-               , ueqAllSorts = def
-               , linear      = def
-               , allowHO     = False
-               , allowHOqs   = False
-               , newcheck    = False
-               , eliminate   = False
-               , oldElim     = True -- False
-               , elimBound   = Nothing
-               , elimStats   = def
-               , solverStats = False
-               , metadata    = def
-               , stats       = def
-               , parts       = def
-               , save        = def
-               , minimize    = def
-               , minimizeQs  = def
-               , gradual     = False
-               , extensionality = False
-               , alphaEquivalence = False
-               , betaEquivalence  = False
-               , normalForm     = False 
-               , autoKuts       = False
-               , pack           = False
-               , nonLinCuts     = False
-               }
-defConfig :: Config
-defConfig = def
+  def = defConfig
 
 ---------------------------------------------------------------------------------------
 newtype GenQualifierSort = GQS Bool
@@ -153,10 +116,9 @@ instance Show SMTSolver where
 
 ---------------------------------------------------------------------------------------
 
-config :: Config
-config = Config {
-    inFile      = def     &= typ "TARGET"       &= args    &= typFile
-  , srcFile     = def     &= help "Source File from which FQ is generated"
+defConfig :: Config
+defConfig = Config {
+    srcFile     = def     &= args    &= typFile
   , solver      = def     &= help "Name of SMT Solver"
   , genSorts    = def     &= help "Generalize qualifier sorts"
   , ueqAllSorts = def     &= help "Use UEq on all sorts"
@@ -199,7 +161,7 @@ config = Config {
              ]
 
 getOpts :: IO Config
-getOpts = do md <- cmdArgs config
+getOpts = do md <- cmdArgs defConfig
              putStrLn banner
              return md
 
@@ -213,4 +175,4 @@ multicore cfg = cores cfg /= Just 1
 queryFile :: Ext -> Config -> FilePath
 queryFile e cfg = extFileName e f
   where
-    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+    f           = if null $ srcFile cfg then "out" else srcFile cfg

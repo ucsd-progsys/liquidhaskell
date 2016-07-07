@@ -55,7 +55,7 @@ solveFQ cfg = do
     whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
     return $ eCode r
   where
-    file    = inFile       cfg
+    file    = srcFile      cfg
     eCode   = resultExit . resStatus
     statStr = render . resultDoc . fmap fst
 
