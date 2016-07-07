@@ -5,10 +5,11 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Fixpoint.Minimize ( minQuery, minQuals ) where
+module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 
 import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
+import           Language.Fixpoint.Types.Visitor    (mapKVars)
 import           Language.Fixpoint.Types.Config     (Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files      hiding (Result)
@@ -58,13 +59,10 @@ minQuery cfg solve fi = do
   -- TODO: the minFileName call here is useless because filenames are stored in
   -- both fi and cfg, and it's cfg's one that's used next. Could fix that here, but
   -- it may be better to refactor so that filename is stored only once
-  let minFi = fi { cm = M.fromList failCs, fileName = minFileName fi }
+  let minFi = fi { cm = M.fromList failCs, fileName = addExt Min fi }
   saveQuery cfg' minFi
   putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
   return mempty
-
-minFileName :: FInfo a -> FilePath
-minFileName = extFileName Min . fileName
 
 type ConsList a = [(Integer, SubC a)]
 
@@ -88,14 +86,11 @@ minQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
 minQuals cfg solve fi = do
   let cfg'  = cfg { minimizeQs = False }
   qs <- getMinPassingQuals cfg' solve fi
-  let minFi = fi { quals = qs, fileName = minQualsName fi }
+  let minFi = fi { quals = qs, fileName = addExt MinQuals fi }
   saveQuery cfg' minFi
   putStrLn $ "Required Qualifiers: " ++ show (length qs)
           ++ "; Total Qualifiers: "  ++ show (length $ quals fi)
   return mempty
-
-minQualsName :: FInfo a -> FilePath
-minQualsName = extFileName Min . fileName
 
 -- run delta debugging on a passing partition to find minimal set of necessary qualifiers
 getMinPassingQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO [Qualifier]
@@ -110,6 +105,40 @@ testQuals cfg solve fi qs = do
   return $ isSafe res
 
 ---------------------------------------------------------------------------
+minKvars :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
+         -> IO (Result (Integer, a))
+---------------------------------------------------------------------------
+minKvars cfg solve fi = do
+  let cfg'  = cfg { minimizeKs = False }
+  ks <- getMinPassingKs cfg' solve fi
+  let minFi = (removeOtherKs ks fi) { fileName = addExt MinKVars fi }
+  saveQuery cfg' minFi
+  putStrLn $ "Required KVars: " ++ show (length ks)
+          ++ "; Total KVars: "    ++ show (length $ ws fi)
+  return mempty
+
+-- run delta debugging on a passing partition to find minimal set of necessary kvars (set others to True)
+getMinPassingKs :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO [KVar]
+getMinPassingKs cfg solve fi = do
+  let ks = M.keys $ ws fi
+  deltaDebug False testKs cfg solve fi ks []
+
+testKs :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> [KVar] -> IO Bool
+testKs cfg solve fi ks = do
+  let fi' = removeOtherKs ks fi
+  res <- solve cfg fi'
+  return $ isSafe res
+
+removeOtherKs :: (Fixpoint a) => [KVar] -> FInfo a -> FInfo a
+removeOtherKs ks fi0 = fi1 { ws = ws', cm = cm' }
+  where
+    fi1 = mapKVars go fi0
+    go k | k `elem` ks = Nothing
+         | otherwise   = Just PTrue
+    ws' = M.filterWithKey (\k _ -> k `elem` ks) $ ws fi1
+    cm' = M.filter (isNonTrivial . srhs) $ cm fi1
+
+---------------------------------------------------------------------------
 -- Helper functions
 ---------------------------------------------------------------------------
 isSafe :: Result a -> Bool
@@ -118,3 +147,6 @@ isSafe _               = False
 
 concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = fmap concat . mapM f
+
+addExt :: Ext -> FInfo a -> FilePath
+addExt ext = extFileName ext . fileName

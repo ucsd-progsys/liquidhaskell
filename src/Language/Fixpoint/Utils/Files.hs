@@ -91,6 +91,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Smt2     -- ^ SMTLIB2 query file
          | Min      -- ^ filter constraints with delta debug
          | MinQuals -- ^ filter qualifiers with delta debug
+         | MinKVars -- ^ filter kvars with delta debug
          deriving (Eq, Ord, Show)
 
 extMap :: Ext -> FilePath
@@ -125,6 +126,7 @@ extMap          = go
     go (Part n) = "." ++ show n
     go Min      = ".minfq"
     go MinQuals = ".minquals"
+    go MinKVars = ".minkvars"
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath
