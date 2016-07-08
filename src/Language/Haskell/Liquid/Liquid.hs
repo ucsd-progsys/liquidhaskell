@@ -190,10 +190,9 @@ fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
   { FC.solver      = fromJust (smtsolver cfg)
   , FC.linear      = linear            cfg
-  , FC.newcheck    = newcheck          cfg
   , FC.eliminate   = not $ noEliminate cfg
-  , FC.oldElim     = True -- oldEliminate      cfg
-  , FC.pack        = packKVars cfg
+  --, FC.oldElim     = True -- oldEliminate      cfg
+  --, FC.pack        = packKVars cfg
   , FC.nonLinCuts  = True -- nonLinCuts        cfg
   , FC.save        = saveQuery         cfg
   , FC.srcFile     = tgt

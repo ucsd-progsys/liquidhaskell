@@ -55,7 +55,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate, defConfig, 
+                                                   maxPartSize, eliminate, defConfig, 
                                                    extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
@@ -186,9 +186,6 @@ config = cmdArgsMode $ Config {
  , smtsolver
     = def &= help "Name of SMT-Solver"
 
- , newcheck
-    = True &= help "New fixpoint check"
-
  , noCheckUnknown
     = def &= explicit
           &= name "no-check-unknown"
@@ -272,9 +269,9 @@ config = cmdArgsMode $ Config {
     = False &= name "no-eliminate"
             &= help "Don't use KVar elimination during solving"
 
-  , oldEliminate
-    = False &= name "old-eliminate"
-            &= help "Use old eliminate algorithm (temp. for benchmarking)"
+  --, oldEliminate
+  --  = False &= name "old-eliminate"
+  --          &= help "Use old eliminate algorithm (temp. for benchmarking)"
 
   , noPatternInline
     = False &= name "no-pattern-inline"
@@ -284,9 +281,9 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , packKVars
-    = False &= name "pack-kvars"
-            &= help "Use kvar packing during elimination"
+  --, packKVars
+  --  = False &= name "pack-kvars"
+  --          &= help "Use kvar packing during elimination"
 
   , nonLinCuts
     = True  &= name "non-linear-cuts"
@@ -412,7 +409,7 @@ parsePragma = withPragma defConfig
 defConfig :: Config
 defConfig = Config { files             = def
                    , idirs             = def
-                   , newcheck          = True
+                   --, newcheck          = True
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
@@ -456,10 +453,10 @@ defConfig = Config { files             = def
                    , timeBinds         = False
                    , untidyCore        = False
                    , noEliminate       = False
-                   , oldEliminate      = False
+                   --, oldEliminate      = False
                    , noPatternInline   = False
                    , noSimplifyCore    = False
-                   , packKVars         = False
+                   --, packKVars         = False
                    , nonLinCuts        = True
                    }
 
