@@ -69,7 +69,6 @@ module Language.Fixpoint.Types.Refinements (
   , isNonTrivial
   , isTautoPred
   , isSingletonReft
-  , isEVar
   , isFalse
 
   -- * Destructing
@@ -414,10 +413,6 @@ isTautoPred z  = z == PTop || z == PTrue || eqT z
     eqT (PAtom Une (ECon x) (ECon y))
                = x /= y
     eqT _      = False
-
-isEVar :: Expr -> Bool
-isEVar (EVar _) = True
-isEVar _        = False
 
 isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
