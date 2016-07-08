@@ -114,8 +114,8 @@ benchTests
      , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
      , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-     , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"         proverIgnored             ExitSuccess
-     , testGroup "haskell16_neg"   <$> dirTests "benchmarks/haskell16/neg"         proverIgnored             (ExitFailure 1)
+     , testGroup "popl17_pos"   <$> dirTests "benchmarks/popl17/pos"         proverIgnored             ExitSuccess
+     , testGroup "popl17_neg"   <$> dirTests "benchmarks/popl17/neg"         proverIgnored             (ExitFailure 1)
      ]
 
 selfTests :: IO TestTree
