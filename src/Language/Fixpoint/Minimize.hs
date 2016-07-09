@@ -1,7 +1,9 @@
 -- | This module implements a "delta-debugging" based query minimizer.
 --   Exported clients of that minimizer include one that attempts to
---   shrink UNSAT queries down to a minimal subset of constraints, and
---   one that shrinks SAT queries down to a minimal subset of qualifiers.
+--   shrink UNSAT queries down to a minimal subset of constraints,
+--   one that shrinks SAT queries down to a minimal subset of qualifiers,
+--   and one that shrinks SAT queries down to a minimal subset of KVars
+--   (replacing all others by True).
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -12,6 +14,7 @@ import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
 import           Language.Fixpoint.Types.Config     (Config (..))
 import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Misc             (safeHead)
 import           Language.Fixpoint.Utils.Files      hiding (Result)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Types
@@ -45,6 +48,24 @@ deltaDebug1 False testSet cfg solve finfo set r = do
 
 type Oracle a c = (Config -> Solver a -> FInfo a -> [c] -> IO Bool)
 
+commonDebug :: (NFData a, Fixpoint a) => (FInfo a -> [c])
+                                      -> (FInfo a -> [c] -> FInfo a)
+                                      -> (Result (Integer, a) -> Bool)
+                                      -> Bool
+                                      -> Config
+                                      -> Solver a
+                                      -> FInfo a
+                                      -> Ext
+                                      -> (FInfo a -> [c] -> String)
+                                      -> IO (Result (Integer, a))
+commonDebug init updateFi checkRes min cfg solve fi ext formatter = do
+  let cs0 = init fi
+  let oracle = mkOracle updateFi checkRes
+  cs <- deltaDebug min oracle cfg solve fi cs0 []
+  let minFi = updateFi fi cs
+  saveQuery (addExt ext cfg) minFi
+  putStrLn $ formatter fi cs
+  return mempty
 
 ---------------------------------------------------------------------------
 minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
@@ -54,30 +75,10 @@ minQuery cfg solve fi = do
   let cfg'  = cfg { minimize = False }
   let fis   = partition' Nothing fi
   failFis  <- filterM (fmap (not . isSafe) . solve cfg') fis
-  -- TODO: why concatMap? isn't the first (or smallest) set of failing cs good enough?
-  failCs   <- concatMapM (getMinFailingCons cfg' solve) failFis
-  -- TODO: the minFileName call here is useless because filenames are stored in
-  -- both fi and cfg, and it's cfg's one that's used next. Could fix that here, but
-  -- it may be better to refactor so that filename is stored only once
-  let minFi = fi { cm = M.fromList failCs, fileName = addExt Min fi }
-  saveQuery cfg' minFi
-  putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
-  return mempty
-
-type ConsList a = [(Integer, SubC a)]
-
-testConstraints :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> ConsList a -> IO Bool
-testConstraints cfg solve fi cons  = do
-  let fi' = fi { cm = M.fromList cons }
-  res <- solve cfg fi'
-  return $ not $ isSafe res
-
--- run delta debugging on a failing partition to find minimal set of failing constraints
-getMinFailingCons :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO (ConsList a)
-getMinFailingCons cfg solve fi = do
-  let cons = M.toList $ cm fi
-  deltaDebug True testConstraints cfg solve fi cons []
-
+  let failFi = safeHead "--minimize can only be called on UNSAT fq" failFis
+  let format _ cs = "Minimized Constraints: " ++ show (fst <$> cs)
+  let update fi cs = fi { cm = M.fromList cs }
+  commonDebug (M.toList . cm) update (not . isSafe) True cfg' solve failFi Min format
 
 ---------------------------------------------------------------------------
 minQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
@@ -85,24 +86,10 @@ minQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
 ---------------------------------------------------------------------------
 minQuals cfg solve fi = do
   let cfg'  = cfg { minimizeQs = False }
-  qs <- getMinPassingQuals cfg' solve fi
-  let minFi = fi { quals = qs, fileName = addExt MinQuals fi }
-  saveQuery cfg' minFi
-  putStrLn $ "Required Qualifiers: " ++ show (length qs)
-          ++ "; Total Qualifiers: "  ++ show (length $ quals fi)
-  return mempty
-
--- run delta debugging on a passing partition to find minimal set of necessary qualifiers
-getMinPassingQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO [Qualifier]
-getMinPassingQuals cfg solve fi = do
-  let qs = quals fi
-  deltaDebug False testQuals cfg solve fi qs []
-
-testQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> [Qualifier] -> IO Bool
-testQuals cfg solve fi qs = do
-  let fi' = fi { quals = qs }
-  res <- solve cfg fi'
-  return $ isSafe res
+  let format fi qs = "Required Qualifiers: " ++ show (length qs)
+                  ++ "; Total Qualifiers: "  ++ show (length $ quals fi)
+  let update fi qs = fi { quals = qs }
+  commonDebug quals update isSafe False cfg' solve fi MinQuals format
 
 ---------------------------------------------------------------------------
 minKvars :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
@@ -110,27 +97,12 @@ minKvars :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
 ---------------------------------------------------------------------------
 minKvars cfg solve fi = do
   let cfg'  = cfg { minimizeKs = False }
-  ks <- getMinPassingKs cfg' solve fi
-  let minFi = (removeOtherKs ks fi) { fileName = addExt MinKVars fi }
-  saveQuery cfg' minFi
-  putStrLn $ "Required KVars: " ++ show (length ks)
-          ++ "; Total KVars: "    ++ show (length $ ws fi)
-  return mempty
+  let format fi ks = "Required KVars: " ++ show (length ks)
+                  ++ "; Total KVars: "  ++ show (length $ ws fi)
+  commonDebug (M.keys . ws) removeOtherKs isSafe False cfg' solve fi MinKVars format
 
--- run delta debugging on a passing partition to find minimal set of necessary kvars (set others to True)
-getMinPassingKs :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO [KVar]
-getMinPassingKs cfg solve fi = do
-  let ks = M.keys $ ws fi
-  deltaDebug False testKs cfg solve fi ks []
-
-testKs :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> [KVar] -> IO Bool
-testKs cfg solve fi ks = do
-  let fi' = removeOtherKs ks fi
-  res <- solve cfg fi'
-  return $ isSafe res
-
-removeOtherKs :: (Fixpoint a) => [KVar] -> FInfo a -> FInfo a
-removeOtherKs ks fi0 = fi1 { ws = ws', cm = cm' }
+removeOtherKs :: FInfo a -> [KVar] -> FInfo a
+removeOtherKs fi0 ks = fi1 { ws = ws', cm = cm' }
   where
     fi1 = mapKVars go fi0
     go k | k `elem` ks = Nothing
@@ -145,8 +117,13 @@ isSafe :: Result a -> Bool
 isSafe (Result Safe _) = True
 isSafe _               = False
 
-concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = fmap concat . mapM f
+addExt :: Ext -> Config -> Config
+addExt ext cfg = cfg { srcFile = extFileName ext $ srcFile cfg }
 
-addExt :: Ext -> FInfo a -> FilePath
-addExt ext = extFileName ext . fileName
+mkOracle :: (NFData a, Fixpoint a) => (FInfo a -> [c] -> FInfo a)
+                                   -> (Result (Integer, a) -> Bool)
+                                   -> Oracle a c
+mkOracle updateFi checkRes cfg solve fi qs = do
+  let fi' = updateFi fi qs
+  res <- solve cfg fi'
+  return $ checkRes res
