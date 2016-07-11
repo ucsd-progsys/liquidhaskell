@@ -72,7 +72,7 @@ addPost γ (RRTy e r OInv t)
        addC (SubR γ' OInv r) "precondition" >> return t
 
 addPost γ (RRTy e r OTerm t)
-  = do γ' <- foldM (\γ (x, t) -> γ ++= ("addPost", x,t)) γ e
+  = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) γ e
        addC (SubR γ' OTerm r) "precondition" >> return t
 
 addPost _ (RRTy _ _ OCons t)

@@ -148,11 +148,11 @@ consAct cfg info = do
 addCombine :: Maybe Type -> CGEnv -> CG CGEnv
 addCombine τ γ
   = do t <- trueTy combineType
-       γ ++= ("combineProofs", combineSymbol, t)
-  where
-    combineType   = makeCombineType τ
-    combineVar    = makeCombineVar  combineType
-    combineSymbol = F.symbol combineVar
+       γ += ("combineProofs", combineSymbol, t)
+    where
+       combineType   = makeCombineType τ
+       combineVar    = makeCombineVar  combineType
+       combineSymbol = F.symbol combineVar
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
@@ -185,7 +185,7 @@ initEnv info
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       γ  <- globalize <$> foldM (+=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
@@ -679,11 +679,14 @@ consCBTop :: Config -> GhcInfo -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBTop cfg info γ cb
   | all (trustVar cfg info) xs
-  = do ts <- mapM trueTy (varType <$> xs)
-       foldM (\γ xt -> (γ, "derived") += xt) γ (zip xs' ts)
+  = foldM addB γ xs
+   -- do ts <- mapM trueTy (varType <$> xs)
+   -- (\γ (x, t) -> γ += ("derived", x, t)) γ (zip xs' ts)
+   -- xs'  = F.symbol <$> xs
     where
-       xs  = bindersOf cb
-       xs' = F.symbol <$> xs
+       xs   = bindersOf cb
+       tt   = trueTy . varType
+       addB γ x = tt x >>= (\t -> γ += ("derived", F.symbol x, t))
 
 consCBTop _ _ γ cb
   = do oldtcheck <- tcheck <$> get
@@ -952,16 +955,16 @@ defAnn False = AnnDef
 addPToEnv :: CGEnv
           -> PVar RSort -> CG CGEnv
 addPToEnv γ π
-  = do γπ <- γ ++= ("addSpec1", pname π, pvarRType π)
-       foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
+  = do γπ <- γ += ("addSpec1", pname π, pvarRType π)
+       foldM (+=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
 extender γ (x, Asserted t)
   = case lookupREnv (F.symbol x) (assms γ) of
-      Just t' -> γ ++= ("extender", F.symbol x, t')
-      _       -> γ ++= ("extender", F.symbol x, t)
+      Just t' -> γ += ("extender", F.symbol x, t')
+      _       -> γ += ("extender", F.symbol x, t)
 extender γ (x, Assumed t)
-  = γ ++= ("extender", F.symbol x, t)
+  = γ += ("extender", F.symbol x, t)
 extender γ _
   = return γ
 
@@ -1063,7 +1066,7 @@ cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
 
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
-  = do γ' <- (γ, "cconsE") += (x', ty)
+  = do γ' <- γ += ("cconsE", x', ty)
        cconsE (addArgument γ' x) e t'
        addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r')
        addIdA x (AnnDef ty)
@@ -1261,7 +1264,7 @@ consE γ (Lam α e) | isTyVar α
 
 consE γ  e@(Lam x e1)
   = do tx      <- freshTy_type LamE (Var x) τx
-       γ'      <- ((γ, "consE") += (F.symbol x, tx))
+       γ'      <- γ += ("consE", F.symbol x, tx)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
@@ -1315,7 +1318,7 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
 
 consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
   tx <- checkMonad (msg, e1) γ <$> consE γ e1
-  γ' <- ((γ, "consPattern") += (F.symbol x, tx))
+  γ' <- γ += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
   mt <- consE γ' e2
   return mt
@@ -1433,7 +1436,7 @@ checkUnbound γ e x t a
 
 
 dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
-dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
+dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
@@ -1600,7 +1603,7 @@ freshPredRef γ e (PV _ (PVProp τ) _ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
-       γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
+       γ' <- foldM (+=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
        return $ RProp targs t
 
