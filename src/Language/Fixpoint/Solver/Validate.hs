@@ -280,7 +280,7 @@ sanitizeWfC si = si { F.ws = ws' }
     ws'        = deleteWfCBinds drops <$> F.ws si
     drops      = F.tracepp "sanitizeWfC: dropping" $ L.sort drops'
     (_,drops') = filterBindEnv keepF   $  F.bs si
-    keepF      = conjKF [nonConstantF si, nonFunctionF si, nonDerivedLH]
+    keepF      = conjKF [nonConstantF si, nonFunctionF si {-, nonDerivedLH -}]
 
 conjKF :: [KeepBindF] -> KeepBindF
 conjKF fs x t = and [f x t | f <- fs]
@@ -288,11 +288,11 @@ conjKF fs x t = and [f x t | f <- fs]
 
 -- | `nonDerivedLH` keeps a bind x if it does not start with `$` which is used
 --   typically for names that are automatically "derived" by GHC (and which can)
---   blow up the environments thereby clogging instantiation, etc. 
+--   blow up the environments thereby clogging instantiation, etc.
 --   NOTE: This is an LH specific hack and should be moved there.
 
-nonDerivedLH :: KeepBindF
-nonDerivedLH x _ = not . T.isPrefixOf "$" . last . T.split ('.' ==) . F.symbolText $ x
+_nonDerivedLH :: KeepBindF
+_nonDerivedLH x _ = not . T.isPrefixOf "$" . last . T.split ('.' ==) . F.symbolText $ x
 
 nonConstantF :: F.SInfo a -> KeepBindF
 nonConstantF si = \x _ -> not (x `F.memberSEnv` cEnv)
