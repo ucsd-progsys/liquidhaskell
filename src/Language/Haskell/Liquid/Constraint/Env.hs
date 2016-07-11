@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Constraint.Env (
 
   -- * Insert
     (+++=)
-  , (++=)
+  -- , (++=)
   , (+=)
   , extendEnvWithVV
   , addBinders
@@ -151,7 +151,7 @@ extendEnvWithVV :: CGEnv -> SpecType -> CG CGEnv
 --------------------------------------------------------------------------------
 extendEnvWithVV γ t
   | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
-  = (γ, "extVV") += (vv, t)
+  = γ += ("extVV", vv, t)
   | otherwise
   = return γ
   where
@@ -172,10 +172,10 @@ addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (eMsg, x, REx y tyy tyx)
-  = do y' <- fresh
-       γ' <- addCGEnv tx γ (eMsg, y', tyy)
-       addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
+addCGEnv tx γ (eMsg, x, REx y tyy tyx) = do
+  y' <- fresh
+  γ' <- addCGEnv tx γ (eMsg, y', tyy)
+  addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
 
 addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (eMsg, x, t)
@@ -215,22 +215,23 @@ normalizeVV idx t@(RApp _ _ _ _)
 normalizeVV _ t
   = t
 
-
 --------------------------------------------------------------------------------
-(+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
+(+=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(γ, eMsg) += (x, r)
+γ += (eMsg, x, r)
   | x == F.dummySymbol
   = return γ
-  | x `memberREnv` (renv γ)
-  = err
+  -- // | x `memberREnv` (renv γ)
+  -- // = _dupBindErr x γ
   | otherwise
   =  γ ++= (eMsg, x, r)
-  where err = panic Nothing $ eMsg ++ " Duplicate binding for "
-                                  ++ F.symbolString x
-                                  ++ "\n New: " ++ showpp r
-                                  ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
 
+_dupBindError :: String -> F.Symbol -> CGEnv -> SpecType -> a
+_dupBindError eMsg x γ r = panic Nothing s
+  where
+    s = unlines [ eMsg ++ " Duplicate binding for " ++ F.symbolString x
+                , "   New: " ++ showpp r
+                , "   Old: " ++ showpp (x `lookupREnv` (renv γ)) ]
 
 --------------------------------------------------------------------------------
 globalize :: CGEnv -> CGEnv
@@ -241,8 +242,7 @@ globalize γ = γ {renv = globalREnv (renv γ)}
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
 (++=) γ (eMsg, x, t)
-  = -- trace ("++= " ++ show x) $
-    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
+  = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -250,7 +250,7 @@ addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
-(γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }, "+++=") += (x, t)
+(γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }) += ("+++=", x, t)
 
 (-=) :: CGEnv -> F.Symbol -> CGEnv
 γ -= x =  γ { renv = deleteREnv x (renv γ)
