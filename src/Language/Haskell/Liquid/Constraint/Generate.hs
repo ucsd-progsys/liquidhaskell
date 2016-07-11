@@ -41,6 +41,7 @@ import           Var
 import           Id                                           -- hiding (isExportedId)
 import           IdInfo
 import           Name
+import           FastString (fastStringToByteString)
 -- import           NameSet
 import           Unify
 import           VarSet
@@ -1209,12 +1210,17 @@ consE γ (Var x)
 consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
-consE γ e'@(App e (Type τ))
+consE γ e'@(App e a@(Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW         $ WfC γ t
        t'         <- refreshVV t
-       addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       tt <- addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+
+       -- NV TODO: embed this step with subsTyVar_meet'
+       case rTVarToBind α of 
+        Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
+        Nothing     -> return tt
 
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
@@ -1610,6 +1616,14 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
+
+argType :: Type -> Maybe F.Expr
+argType (LitTy (NumTyLit i)) = mkI i 
+argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
+argType _                    = Nothing  
+
+
+
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ

@@ -8,7 +8,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   coreToDef , coreToFun,
   coreToLogic, coreToPred,
-  mkLit, runToLogic,
+  mkLit, mkI, mkS, 
+
+  runToLogic,
   logicType,
 
   strengthenResult,
