@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE RecordWildCards     #-}
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
@@ -48,7 +49,7 @@ import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
 
-import           Debug.Trace
+import           Debug.Trace (trace)
 
 
 ----------------------------------------------------------------------------------------------
@@ -258,15 +259,19 @@ checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) =
 checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
-  <|> efoldReft farg tyBind cb tyToBind (rTypeSortedReft emb) f insertPEnv env Nothing t
+  <|> efoldReft farg cb (tyToBind t emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
-    tyBind _           = False -- todo1
-    tyToBind _         = []    -- todo2 
     farg _ t           = allowHO || isBase t  -- this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
+
+tyToBind :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) =>  RRType (UReft r) -> TCEmb TyCon -> RTVar RTyVar RSort  -> [(Symbol, SortedReft)]
+tyToBind t emb = go . ty_var_info
+  where
+    go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
+    go RTVNoInfo      = [] 
 
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go

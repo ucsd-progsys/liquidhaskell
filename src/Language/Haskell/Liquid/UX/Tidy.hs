@@ -160,7 +160,7 @@ bindersTx ds   = \y -> M.lookupDefault y y m
 tyVars :: RType t a t1 -> [a]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllS _ t)     = tyVars t
-tyVars (RAllT α t)     = α : tyVars t
+tyVars (RAllT α t)     = ty_var_value α : tyVars t
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
@@ -177,12 +177,13 @@ subsTyVarsAll
       SubsTy k (RType c k ()) r,
       SubsTy k (RType c k ()) k,
       SubsTy k (RType c k ()) (RType c k ()),
+      SubsTy k (RType c k ()) (RTVar k (RType c k ())), 
       FreeVar c k)
    => [(k, RType c k (), RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
-    go (RAllT a t) = RAllT (M.lookupDefault a a abm) (go t)
+    go (RAllT a t) = RAllT (makeRTVar $ M.lookupDefault (ty_var_value a) (ty_var_value a) abm) (go t)
     go t           = subsTyVars_meet ats t
 
 

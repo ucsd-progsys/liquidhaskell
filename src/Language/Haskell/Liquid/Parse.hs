@@ -345,7 +345,7 @@ bareAllP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
-       return $ foldr RAllT (foldr RAllP t ps) as
+       return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP 

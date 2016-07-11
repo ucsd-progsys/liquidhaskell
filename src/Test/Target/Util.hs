@@ -117,7 +117,7 @@ applyPreds sp' dc = -- trace ("sp : " ++ showpp sp') $ trace ("dc : " ++ showpp 
     (as, ps, _, t) = bkUniv dc
     (xs, ts, _, _) = bkArrow . snd $ bkClass t
     -- args  = reverse tyArgs
-    su    = [(tv, toRSort t, t) | tv <- as | t <- rt_args sp]
+    su    = [(ty_var_value tv, toRSort t, t) | tv <- as | t <- rt_args sp]
     sup   = [(p, r) | p <- ps | r <- rt_pargs sp]
     tx    = (\t -> replacePreds "applyPreds" t sup)
           . everywhere (mkT $ propPsToProp sup)

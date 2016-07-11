@@ -128,7 +128,7 @@ ofBRType appRTAlias resolveReft
     go (RVar a r)
       = RVar (bareRTyVar a) <$> resolveReft r
     go (RAllT a t)
-      = RAllT (bareRTyVar a) <$> go t
+      = RAllT (dropTyVarInfo $ mapTyVarValue bareRTyVar a) <$> go t
     go (RAllP a t)
       = RAllP <$> ofBPVar a <*> go t
     go (RAllS x t)

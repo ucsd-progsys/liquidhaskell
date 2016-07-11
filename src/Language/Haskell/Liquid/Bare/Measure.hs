@@ -168,8 +168,8 @@ makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     go' ((_,t), i)
       = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
 
-    dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
-    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) vs
+    dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
+    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
     n             = length xts
     bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType 
 

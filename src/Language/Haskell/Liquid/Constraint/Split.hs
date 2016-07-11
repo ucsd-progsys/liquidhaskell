@@ -186,7 +186,7 @@ splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitS $ SubC γ t1 t2
   | otherwise
   = splitS $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
+  where t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
 
 splitS (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
@@ -338,7 +338,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2
   | otherwise
   = splitC $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
+  where t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
 
 
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2

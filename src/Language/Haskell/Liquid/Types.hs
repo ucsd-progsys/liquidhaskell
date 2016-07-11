@@ -67,6 +67,9 @@ module Language.Haskell.Liquid.Types (
   , TyConable (..)
   , SubsTy (..)
 
+  -- * Type Variables
+  , RTVar (..), RTVInfo (..), makeRTVar, mapTyVarValue, dropTyVarInfo
+
   -- * Predicate Variables
   , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
   , PVKind (..)
@@ -665,7 +668,7 @@ data RType c tv r
     }
 
   | RAllT {
-      rt_tvbind :: !tv -- !(TVar tv (RType c tv ()))
+      rt_tvbind :: !(RTVar tv (RType c tv ()))
     , rt_ty     :: !(RType c tv r)
     }
 
@@ -724,8 +727,40 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 
+makeRTVar :: tv -> RTVar tv s 
+makeRTVar a = RTVar a RTVNoInfo
+
+instance (Eq tv) => Eq (RTVar tv s) where
+  t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
+
+data RTVar tv s 
+  = RTVar { ty_var_value :: tv 
+          , ty_var_info  :: RTVInfo s  
+          } deriving (Generic, Data, Typeable)
+
+mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s 
+mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
+
+dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2 
+dropTyVarInfo v = v{ty_var_info = RTVNoInfo}
+
+data RTVInfo s 
+  = RTVNoInfo
+  | RTVInfo { rtv_name   :: Symbol
+            , rtv_kind   :: s
+            , rtv_is_val :: Bool 
+            } deriving (Generic, Data, Typeable)
 
 
+ty_var_is_val :: RTVar tv s -> Bool
+ty_var_is_val = rtvinfo_is_val . ty_var_info 
+
+rtvinfo_is_val :: RTVInfo s -> Bool
+rtvinfo_is_val RTVNoInfo      = False
+rtvinfo_is_val (RTVInfo {..}) = rtv_is_val
+
+instance (NFData tv, NFData s) => NFData (RTVar tv s) where
+instance (NFData s) => NFData (RTVInfo s) where
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
 --   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
@@ -1013,7 +1048,7 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
 ------------------------------------------------------------------------
 
 data RTypeRep c tv r
-  = RTypeRep { ty_vars   :: [tv]
+  = RTypeRep { ty_vars   :: [RTVar tv (RType c tv ())]
              , ty_preds  :: [PVar (RType c tv ())]
              , ty_labels :: [Symbol]
              , ty_binds  :: [Symbol]
@@ -1035,7 +1070,7 @@ toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
     (xs, ts, rs, t'') = bkArrow t'
 
 mkArrow :: (Foldable t, Foldable t1, Foldable t2, Foldable t3)
-        => t tv
+        => t  (RTVar tv (RType c tv ()))
         -> t1 (PVar (RType c tv ()))
         -> t2 Symbol
         -> t3 (Symbol, RType c tv r, r)
@@ -1063,14 +1098,14 @@ safeBkArrow (RAllS _ t) = safeBkArrow t
 safeBkArrow t           = bkArrow t
 
 mkUnivs :: (Foldable t, Foldable t1, Foldable t2)
-        => t tv
+        => t  (RTVar tv (RType c tv ()))
         -> t1 (PVar (RType c tv ()))
         -> t2 Symbol
         -> RType c tv r
         -> RType c tv r
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs
 
-bkUniv :: RType t1 a t2 -> ([a], [PVar (RType t1 a ())], [Symbol], RType t1 a t2)
+bkUniv :: RType t1 a t2 -> ([RTVar a (RType t1 a ())], [PVar (RType t1 a ())], [Symbol], RType t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t')
 bkUniv (RAllP π t)      = let (αs, πs, ls, t') = bkUniv t in  (αs, π:πs, ls, t')
 bkUniv (RAllS s t)      = let (αs, πs, ss, t') = bkUniv t in  (αs, πs, s:ss, t')
@@ -1333,16 +1368,15 @@ foldReft' :: (Reftable r, TyConable c)
           -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind g f = efoldReft logicBind (const $ False) (\_ _ -> []) (\_ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
+foldReft' logicBind g f = efoldReft logicBind (\_ _ -> []) (\_ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
 
 
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
-          -> (tv -> Bool)
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
-          -> (tv -> [(Symbol, a)])
+          -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
           -> (RType c tv r -> a)
           -> (SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
           -> (PVar (RType c tv ()) -> SEnv a -> SEnv a)
@@ -1350,12 +1384,12 @@ efoldReft :: (Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind typeBind cb dty g f fp = go
+efoldReft logicBind cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
     go γ z (RAllT a t)
-       | typeBind a                     = go (insertsSEnv γ (dty a)) z t 
+       | ty_var_is_val a                = go (insertsSEnv γ (dty a)) z t 
        | otherwise                      = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RAllS _ t)                  = go γ z t
