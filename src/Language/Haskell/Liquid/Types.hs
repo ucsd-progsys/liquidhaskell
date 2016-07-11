@@ -665,7 +665,7 @@ data RType c tv r
     }
 
   | RAllT {
-      rt_tvbind :: !tv
+      rt_tvbind :: !tv -- !(TVar tv (RType c tv ()))
     , rt_ty     :: !(RType c tv r)
     }
 
@@ -722,6 +722,9 @@ instance (NFData c, NFData tv, NFData r) => NFData (RType c tv r)
 ignoreOblig :: RType t t1 t2 -> RType t t1 t2
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
+
+
+
 
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
@@ -1330,14 +1333,16 @@ foldReft' :: (Reftable r, TyConable c)
           -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind g f = efoldReft logicBind (\_ _ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
+foldReft' logicBind g f = efoldReft logicBind (const $ False) (\_ _ -> []) (\_ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
 
 
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
-          -> (c -> [RType c tv r] -> [(Symbol, a)])
+          -> (tv -> Bool)
+          -> (c  -> [RType c tv r] -> [(Symbol, a)])
+          -> (tv -> [(Symbol, a)])
           -> (RType c tv r -> a)
           -> (SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
           -> (PVar (RType c tv ()) -> SEnv a -> SEnv a)
@@ -1345,11 +1350,13 @@ efoldReft :: (Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind cb g f fp = go
+efoldReft logicBind typeBind cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
-    go γ z (RAllT _ t)                  = go γ z t
+    go γ z (RAllT a t)
+       | typeBind a                     = go (insertsSEnv γ (dty a)) z t 
+       | otherwise                      = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RAllS _ t)                  = go γ z t
     go γ z me@(RFun _ (RApp c ts _ _) t' r)

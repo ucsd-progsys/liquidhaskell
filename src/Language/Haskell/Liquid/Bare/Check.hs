@@ -258,9 +258,11 @@ checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) =
 checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
-  <|> efoldReft farg cb (rTypeSortedReft emb) f insertPEnv env Nothing t
+  <|> efoldReft farg tyBind cb tyToBind (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
+    tyBind _           = False -- todo1
+    tyToBind _         = []    -- todo2 
     farg _ t           = allowHO || isBase t  -- this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
