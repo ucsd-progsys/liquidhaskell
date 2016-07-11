@@ -278,13 +278,12 @@ sanitizeWfC :: F.SInfo a -> F.SInfo a
 sanitizeWfC si = si { F.ws = ws' }
   where
     ws'        = deleteWfCBinds drops <$> F.ws si
-    drops      = F.tracepp "sanitizeWfC: dropping" $ L.sort drops'
-    (_,drops') = filterBindEnv keepF   $  F.bs si
-    keepF      = conjKF [nonConstantF si, nonFunctionF si {-, nonDerivedLH -}]
+    (_,drops)  = filterBindEnv keepF   $  F.bs si
+    keepF      = conjKF [nonConstantF si, nonFunctionF si, _nonDerivedLH]
+    -- drops   = F.tracepp "sanitizeWfC: dropping" $ L.sort drops'
 
 conjKF :: [KeepBindF] -> KeepBindF
 conjKF fs x t = and [f x t | f <- fs]
-
 
 -- | `nonDerivedLH` keeps a bind x if it does not start with `$` which is used
 --   typically for names that are automatically "derived" by GHC (and which can)

@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Names (
   , isPrefixOfSym
   , isSuffixOfSym
   , isNonSymbol
+  , isLitSymbol
   , isNontrivialVV
   , isDummy
 
@@ -391,6 +392,9 @@ dummySymbol = dummyName
 
 litSymbol :: Symbol -> Symbol
 litSymbol s = litPrefix `mappendSym` s
+
+isLitSymbol :: Symbol -> Bool
+isLitSymbol = isPrefixOfSym litPrefix
 
 unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
