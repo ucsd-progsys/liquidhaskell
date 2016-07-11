@@ -32,7 +32,7 @@ import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
-import Text.Printf (printf)
+-- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -79,16 +79,16 @@ init si ks = Sol.fromList keqs [] mempty Nothing
 refine :: F.SInfo a -> [F.Qualifier] -> F.WfC a -> (F.KVar, Sol.QBind)
 refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
-    env        = if True then F.differenceSEnv wenv genv else wenv <> genv
+    env        = if True then wenv else wenv <> genv
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.gLits fi
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = F.tracepp _msg (k, eqs')
+refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = filter (okInst env v t) eqs
-    _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool

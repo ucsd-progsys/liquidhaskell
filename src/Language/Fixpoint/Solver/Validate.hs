@@ -15,15 +15,15 @@ module Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
 import           Language.Fixpoint.SortCheck     (isFirstOrder)
-import qualified Language.Fixpoint.Misc   as Misc
-import           Language.Fixpoint.Misc          (fM)
-import qualified Language.Fixpoint.Types  as F
+import qualified Language.Fixpoint.Misc                            as Misc
+import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
-import qualified Language.Fixpoint.Types.Errors as E
+import qualified Language.Fixpoint.Types.Errors                    as E
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
-import qualified Data.HashMap.Strict      as M
-import qualified Data.HashSet             as S
-import qualified Data.List as L
+import qualified Data.HashMap.Strict                               as M
+import qualified Data.HashSet                                      as S
+import qualified Data.List                                         as L
+import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
@@ -34,13 +34,13 @@ type ValidateM a = Either E.Error a
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize   =    -- banIllScopedKvars
-             fM dropFuncSortedShadowedBinders
-         >=> fM sanitizeWfC
-         >=> fM replaceDeadKvars
-         >=> fM dropBogusSubstitutions
-         >=>    banMixedRhs
-         >=>    banQualifFreeVars
-         >=>    banConstraintFreeVars
+             Misc.fM dropFuncSortedShadowedBinders
+         >=> Misc.fM sanitizeWfC
+         >=> Misc.fM replaceDeadKvars
+         >=> Misc.fM dropBogusSubstitutions
+         >=>         banMixedRhs
+         >=>         banQualifFreeVars
+         >=>         banConstraintFreeVars
 
 
 --------------------------------------------------------------------------------
@@ -278,11 +278,21 @@ sanitizeWfC :: F.SInfo a -> F.SInfo a
 sanitizeWfC si = si { F.ws = ws' }
   where
     ws'        = deleteWfCBinds drops <$> F.ws si
-    (_, drops) = filterBindEnv keepF   $  F.bs si
-    keepF      = conjKF [nonConstantF si, nonFunctionF si]
+    drops      = F.tracepp "sanitizeWfC: dropping" $ L.sort drops'
+    (_,drops') = filterBindEnv keepF   $  F.bs si
+    keepF      = conjKF [nonConstantF si, nonFunctionF si, nonDerivedLH]
 
 conjKF :: [KeepBindF] -> KeepBindF
 conjKF fs x t = and [f x t | f <- fs]
+
+
+-- | `nonDerivedLH` keeps a bind x if it does not start with `$` which is used
+--   typically for names that are automatically "derived" by GHC (and which can)
+--   blow up the environments thereby clogging instantiation, etc. 
+--   NOTE: This is an LH specific hack and should be moved there.
+
+nonDerivedLH :: KeepBindF
+nonDerivedLH x _ = not . T.isPrefixOf "$" . last . T.split ('.' ==) . F.symbolText $ x
 
 nonConstantF :: F.SInfo a -> KeepBindF
 nonConstantF si = \x _ -> not (x `F.memberSEnv` cEnv)
