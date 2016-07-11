@@ -72,8 +72,10 @@ splitW (WfC γ t@(RAppTy t1 t2 _))
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ (RAllT _ r))
-  = splitW (WfC γ r)
+splitW (WfC γ (RAllT a r))
+  = do γ' <- updateEnv γ a 
+       splitW (WfC γ' r)
+
 
 splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
@@ -181,12 +183,20 @@ splitS (SubC γ t1 (RAllP p t))
 splitS (SubC _ t1@(RAllP _ _) t2)
   = panic Nothing $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
+
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = splitS $ SubC γ t1 t2
+  = do γ' <- updateEnv γ α2 
+       splitS $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = splitS $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+  = do γ' <- updateEnv γ α2 
+       splitS $ SubC γ' t1 (F.subst su t2')
+  where 
+    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    su = case (rTVarToBind α1, rTVarToBind α2) of 
+          (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
+          _                            -> F.mkSubst []
+
 
 splitS (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
@@ -259,6 +269,12 @@ splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
 splitfWithVariance f t1 t2 Contravariant = f t2 t1
 
+updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv 
+updateEnv γ a 
+  | Just (x, s) <- rTVarToBind a 
+  = (γ, "splitS RAllT") += (x, fmap (const mempty) s)
+  | otherwise
+  = return γ 
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -335,11 +351,16 @@ splitC (SubC γ t1@(RAllP _ _) t2)
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = splitC $ SubC γ t1 t2
+  = do γ' <- updateEnv γ α2 
+       splitC $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = splitC $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
-
+  = do γ' <- updateEnv γ α2 
+       splitC $ SubC γ' t1 (F.subst su t2')
+  where 
+    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    su = case (rTVarToBind α1, rTVarToBind α2) of 
+          (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
+          _                            -> F.mkSubst []
 
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []

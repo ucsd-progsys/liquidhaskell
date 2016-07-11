@@ -68,7 +68,7 @@ module Language.Haskell.Liquid.Types (
   , SubsTy (..)
 
   -- * Type Variables
-  , RTVar (..), RTVInfo (..), makeRTVar, mapTyVarValue, dropTyVarInfo
+  , RTVar (..), RTVInfo (..), makeRTVar, mapTyVarValue, dropTyVarInfo, rTVarToBind
 
   -- * Predicate Variables
   , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
@@ -751,6 +751,12 @@ data RTVInfo s
             , rtv_is_val :: Bool 
             } deriving (Generic, Data, Typeable)
 
+
+rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
+rTVarToBind = go . ty_var_info
+  where
+    go (RTVInfo {..}) = Just (rtv_name, rtv_kind)
+    go RTVNoInfo      = Nothing 
 
 ty_var_is_val :: RTVar tv s -> Bool
 ty_var_is_val = rtvinfo_is_val . ty_var_info 
