@@ -26,7 +26,7 @@ data MI (s :: Symbol)
   = Small { mi_input :: String  }
 
 
-{- Small :: forall (s :: Symbol). {v:String | s == v } -> MI s @-}
+{-@ Small :: forall s. {v:String | s == v } -> MI s @-}
 
 -- OR 
 
