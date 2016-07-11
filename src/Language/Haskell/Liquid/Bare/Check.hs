@@ -65,7 +65,6 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (meas       sp)
-                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (tySigs     sp)
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (asmSigs    sp)
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)               (invariants sp)
@@ -259,7 +258,7 @@ checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) =
 checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
-  <|> efoldReft farg cb (tyToBind t emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
+  <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- this check should be the same as the one in addCGEnv
@@ -267,8 +266,8 @@ checkRType allowHO emb env t
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
-tyToBind :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) =>  RRType (UReft r) -> TCEmb TyCon -> RTVar RTyVar RSort  -> [(Symbol, SortedReft)]
-tyToBind t emb = go . ty_var_info
+tyToBind :: TCEmb TyCon -> RTVar RTyVar RSort  -> [(Symbol, SortedReft)]
+tyToBind emb = go . ty_var_info
   where
     go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
     go RTVNoInfo      = [] 
