@@ -240,20 +240,12 @@ declareInitEnv
 --   non-function sorted values.
 
 distinctLiterals :: F.GInfo c a -> [[F.Expr]]
--- distinctLiterals fi | F.allowHO fi = [ es | (_, es) <- tess ]
-  -- where
-    -- tess         = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.gLits fi)
-                                            -- , isNotThy x
-                                            -- , isConstant x                      ]
-    -- isNotThy     = isNothing . Thy.smt2Symbol
-    -- isConstant   = isUpper . head . F.symbolString
-
-
 distinctLiterals fi  = [ es | (_, es) <- tess ]
    where
     tess             = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.dLits fi)
-                                                , notFun t]
+                                                , notFun t                            ]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
+    _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats

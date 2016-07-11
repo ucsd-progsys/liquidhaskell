@@ -71,27 +71,31 @@ init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
 init si ks = Sol.fromList keqs [] mempty Nothing
   where
-    keqs   = map (refine si qs) ws `using` parList rdeepseq
+    keqs   = map (refine si qs genv) ws `using` parList rdeepseq
     qs     = F.quals si
     ws     = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
+    genv   = instConstants si
 
 --------------------------------------------------------------------------------
-refine :: F.SInfo a
-       -> [F.Qualifier]
-       -> F.WfC a
-       -> (F.KVar, Sol.QBind)
-refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
+refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
+refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
-    env        = wenv <> genv
-    wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
-    genv       = F.gLits fi
+    env             = wenv <> genv
+    wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
+
+instConstants :: F.SInfo a -> F.SEnv F.Sort
+-- instConstants fi = F.gLits fi
+instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
+  where
+    notLit    = not . F.isLitSymbol . fst
+
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = {- tracepp msg -} (k, eqs')
+refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
-    eqs                  = instK ho env v t qs
-    eqs'                 = filter (okInst env v t) eqs
-    -- msg                  = printf "refineK: k = %s, eqs = %s" (showpp k) (showpp eqs)
+    eqs                     = instK ho env v t qs
+    eqs'                    = filter (okInst env v t) eqs
+    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
