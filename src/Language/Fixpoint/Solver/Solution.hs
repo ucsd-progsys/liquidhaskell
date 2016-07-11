@@ -79,7 +79,7 @@ init si ks = Sol.fromList keqs [] mempty Nothing
 refine :: F.SInfo a -> [F.Qualifier] -> F.WfC a -> (F.KVar, Sol.QBind)
 refine fi qs w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
-    env        = if True then wenv else wenv <> genv
+    env        = if True then F.differenceSEnv wenv genv else wenv <> genv
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.gLits fi
 
