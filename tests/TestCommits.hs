@@ -17,7 +17,7 @@ import Data.Maybe           (fromMaybe)
      $ ./TestCommit.hs NUMBER
 
      which will get the last N(UMBER) of commits from the `branch`
-      
+
  -}
 
 --------------------------------------------------------------------------------
@@ -30,14 +30,18 @@ project = "liquidhaskell"
 branch :: String
 branch = "develop"
 
--- size :: Int
--- size = 10
-
 tmpFile :: FilePath
 tmpFile = "/tmp/commits"
 
+--------------------------------------------------------------------------------
 main :: IO ()
-main = param >>= commits >>= mapM_ runCommit
+--------------------------------------------------------------------------------
+main = do
+  is <- commits =<< param
+  putStrLn "Generating test summaries for:"
+  mapM_ (putStrLn . ("  " ++)) is
+  runCmd setupCmd
+  mapM_ runCommit is
 
 param :: IO Param
 param = strParam . head <$> getArgs
@@ -47,6 +51,9 @@ strParam s
   | ".txt" `isSuffixOf` s = File s
   | otherwise             = Size (read s)
 
+--------------------------------------------------------------------------------
+-- | Types
+--------------------------------------------------------------------------------
 data Param = File FilePath
            | Size Int
 
@@ -72,14 +79,17 @@ strCommit s = fromMaybe s (stripPrefix "commit " s)
 
 
 --------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
 runCommit :: CommitId -> IO ()
 --------------------------------------------------------------------------------
-runCommit = runCmd . commitCmd
+runCommit i = do
+  putStrLn ("Running commit: " ++ i)
+  runCmd (commitCmd i)
 
 runCmd :: Command -> IO ()
 runCmd = mapM_ system
+
+setupCmd :: Command
+setupCmd = [ printf "git checkout %s" branch ]
 
 commitCmd :: CommitId -> Command
 commitCmd i =
