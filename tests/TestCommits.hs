@@ -31,7 +31,7 @@ branch :: String
 branch = "develop"
 
 tmpFile :: FilePath
-tmpFile = "/tmp/commits"
+tmpFile = "/tmp/commits.txt"
 
 --------------------------------------------------------------------------------
 main :: IO ()
