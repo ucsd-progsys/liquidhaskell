@@ -69,7 +69,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   , isBaseTy
 
-  , updateRTVar
+  , updateRTVar, isValKind, kindToRType
 
   ) where
 
@@ -367,16 +367,18 @@ rTVar a = RTVar (RTV a) (rTVarInfo a)
 
 rTVarInfo :: Monoid r => TyVar -> RTVInfo (RType RTyCon RTyVar r) 
 rTVarInfo a = RTVInfo { rtv_name   = symbol $ varName a 
-                      , rtv_kind   = ofType $ kindToType $ tyVarKind a
+                      , rtv_kind   = kindToRType $ tyVarKind a
                       , rtv_is_val = isValKind $ tyVarKind a 
                       }
 
 
-kindToType :: Type -> Type 
-kindToType t 
-  | t == typeSymbolKind = stringTy
-  | t == typeNatKind    = intTy
-  | otherwise           = t 
+kindToRType :: Monoid r => Type -> RType RTyCon RTyVar r 
+kindToRType = ofType . go
+  where
+    go t 
+     | t == typeSymbolKind = stringTy
+     | t == typeNatKind    = intTy
+     | otherwise           = t 
 
 isValKind :: Kind -> Bool 
 isValKind x = x == typeNatKind || x == typeSymbolKind

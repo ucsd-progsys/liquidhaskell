@@ -40,7 +40,7 @@ import           Class                                         (className)
 import           Var
 import           Id                                           -- hiding (isExportedId)
 import           IdInfo
-import           Name
+import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 -- import           NameSet
 import           Unify
@@ -1060,7 +1060,8 @@ cconsE' γ (Case e x _ cases) t
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
-  = cconsE γ e $ subsTyVar_meet' (ty_var_value α', rVar α) t
+  = do γ' <- updateEnvironment γ α
+       cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
@@ -1263,7 +1264,8 @@ consE γ e'@(App e a)
        makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
 
 consE γ (Lam α e) | isTyVar α
-  = liftM (RAllT (makeRTVar $ rTyVar α)) (consE γ e)
+  = do γ' <- updateEnvironment γ α 
+       liftM (RAllT (makeRTVar $ rTyVar α)) (consE γ' e)
 
 consE γ  e@(Lam x e1)
   = do tx      <- freshTy_type LamE (Var x) τx
@@ -1306,6 +1308,13 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
+
+updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv 
+updateEnvironment γ a 
+  | isValKind (tyVarKind a)
+  = ((γ, "varType") += (F.symbol $ varName a, kindToRType $ tyVarKind a))
+  | otherwise
+  = return γ
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
@@ -1620,10 +1629,8 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i)) = mkI i 
 argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
-argType (TyVarTy x)          = F.eVar x 
+argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x 
 argType _                    = Nothing  
-
-
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
