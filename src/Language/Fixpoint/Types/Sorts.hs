@@ -24,9 +24,9 @@ module Language.Fixpoint.Types.Sorts (
   , Sub (..)
   , FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
+  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, charFTyCon  -- TODO: hide these
 
-  , intSort, realSort, boolSort, strSort, funcSort
+  , intSort, realSort, boolSort, strSort, funcSort, charSort
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
@@ -40,7 +40,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkFFunc
   , bkFFunc
 
-  , isNumeric, isReal
+  , isNumeric, isReal, isString 
   ) where
 
 import qualified Data.Binary as B
@@ -66,32 +66,35 @@ type TCEmb a  = M.HashMap a FTycon
 
 
 instance Eq FTycon where
-  (TC s _) == (TC s' _) = s == s'
+  (TC s _) == (TC s' _) = val s == val s'
 
-data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool }
+data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2) 
 
 instance Monoid TCInfo where
-  mempty                                   = TCInfo False False
-  mappend (TCInfo i1 i2)  (TCInfo i1' i2') = TCInfo (i1 || i1') (i2 || i2')
+  mempty                                          = TCInfo False False False 
+  mappend (TCInfo i1 i2 i3)  (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
 
-defTcInfo  = TCInfo defNumInfo defRealInfo 
-numTcInfo  = TCInfo True       defRealInfo 
-realTcInfo = TCInfo True       True 
+defTcInfo  = TCInfo defNumInfo defRealInfo defStringInfo 
+numTcInfo  = TCInfo True       defRealInfo defStringInfo 
+realTcInfo = TCInfo True       True        defStringInfo
+strTcInfo  = TCInfo defNumInfo defRealInfo True  
 
-defNumInfo  = False 
-defRealInfo = False 
+defNumInfo    = False 
+defRealInfo   = False 
+defStringInfo = False 
 
 intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
 boolFTyCon = TC (dummyLoc "bool"     ) defTcInfo
 realFTyCon = TC (dummyLoc "real"     ) realTcInfo
 numFTyCon  = TC (dummyLoc "num"      ) numTcInfo
+charFTyCon = TC (dummyLoc "Char"     ) defTcInfo
 funcFTyCon = TC (dummyLoc "function" ) defTcInfo
-strFTyCon  = TC (dummyLoc strConName ) defTcInfo
+strFTyCon  = TC (dummyLoc strConName ) strTcInfo
 listFTyCon = TC (dummyLoc listConName) defTcInfo
 
 isListConName :: LocSymbol -> Bool
@@ -186,6 +189,21 @@ isReal (FTC (TC _ i)) = tc_isReal i
 isReal (FAbs _ s)     = isReal s 
 isReal _              = False 
 
+
+isString :: Sort -> Bool 
+isString (FApp l c)     = (isList l && isChar c) || isString l  
+isString (FTC (TC _ i)) = tc_isString i 
+isString (FAbs _ s)     = isString s 
+isString s              = False 
+
+isList :: Sort -> Bool
+isList (FTC c) = isListTC c
+isList s       = False 
+
+isChar :: Sort -> Bool 
+isChar (FTC c) = c == charFTyCon
+isChar s       = False
+
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
 mkFFunc :: Int -> [Sort] -> Sort
@@ -263,6 +281,7 @@ strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
+charSort = fTyconSort charFTyCon
 
 setSort :: Sort -> Sort
 setSort    = FApp (FTC $ symbolFTycon' "Set_Set")

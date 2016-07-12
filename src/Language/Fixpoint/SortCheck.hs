@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PatternGuards         #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -689,6 +690,9 @@ unify1 f θ FInt t = do
   checkNumeric f t `withError` (errUnify FInt t)
   return θ
 
+unify1 _ θ t1 t2 | isString t1, isString t2
+  = return θ
+
 unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f θ [t1, t2] [t1', t2']
 
@@ -791,8 +795,7 @@ errElabExpr    :: Expr -> String
 errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
 
 errUnify :: Sort -> Sort -> String
-errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
-
+errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2) 
 
 errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
