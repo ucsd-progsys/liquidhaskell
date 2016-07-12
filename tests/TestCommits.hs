@@ -37,14 +37,23 @@ tmpFile = "/tmp/commits"
 main :: IO ()
 --------------------------------------------------------------------------------
 main = do
-  is <- commits =<< param
+  p <- strParam . head <$> getArgs
+  case p of
+    File f -> testCommits f
+    Size n -> makeCommits n
+
+makeCommits :: Int -> IO ()
+makeCommits n = do
+  system (genCommand n)
+  putStrLn $ "Wrote commits into: " ++ tmpFile
+
+testCommits :: FilePath -> IO ()
+testCommits f = do
+  is <- readCommits f
   putStrLn "Generating test summaries for:"
   mapM_ (putStrLn . ("  " ++)) is
   runCmd setupCmd
   mapM_ runCommit is
-
-param :: IO Param
-param = strParam . head <$> getArgs
 
 strParam :: String -> Param
 strParam s
@@ -62,10 +71,10 @@ type Command  = [String]
 
 
 --------------------------------------------------------------------------------
-commits :: Param -> IO [CommitId]
+_commits :: Param -> IO [CommitId]
 --------------------------------------------------------------------------------
-commits (File f) = readCommits f
-commits (Size n) = system (genCommand n) >> readCommits tmpFile
+_commits (File f) = readCommits f
+_commits (Size n) = system (genCommand n) >> readCommits tmpFile
 
 genCommand :: Int -> String
 genCommand n = printf "git log -n %d --walk-reflogs %s | grep \"commit \" > %s"
