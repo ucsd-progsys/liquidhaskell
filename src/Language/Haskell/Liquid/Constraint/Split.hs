@@ -73,7 +73,7 @@ splitW (WfC γ t@(RAppTy t1 t2 _))
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ (RAllT a r))
-  = do γ' <- updateEnv γ a 
+  = do γ' <- updateEnv γ a
        splitW (WfC γ' r)
 
 
@@ -188,14 +188,14 @@ splitS (SubC _ t1@(RAllP _ _) t2)
 
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = do γ' <- updateEnv γ α2 
+  = do γ' <- updateEnv γ α2
        splitS $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = do γ' <- updateEnv γ α2 
+  = do γ' <- updateEnv γ α2
        splitS $ SubC γ' t1 (F.subst su t2')
-  where 
+  where
     t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
-    su = case (rTVarToBind α1, rTVarToBind α2) of 
+    su = case (rTVarToBind α1, rTVarToBind α2) of
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
 
@@ -271,12 +271,12 @@ splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
 splitfWithVariance f t1 t2 Contravariant = f t2 t1
 
-updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv 
-updateEnv γ a 
-  | Just (x, s) <- rTVarToBind a 
-  = (γ, "splitS RAllT") += (x, fmap (const mempty) s)
+updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv
+updateEnv γ a
+  | Just (x, s) <- rTVarToBind a
+  = γ += ("splitS RAllT", x, fmap (const mempty) s)
   | otherwise
-  = return γ 
+  = return γ
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -353,14 +353,14 @@ splitC (SubC γ t1@(RAllP _ _) t2)
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = do γ' <- updateEnv γ α2 
+  = do γ' <- updateEnv γ α2
        splitC $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = do γ' <- updateEnv γ α2 
+  = do γ' <- updateEnv γ α2
        splitC $ SubC γ' t1 (F.subst su t2')
-  where 
+  where
     t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
-    su = case (rTVarToBind α1, rTVarToBind α2) of 
+    su = case (rTVarToBind α1, rTVarToBind α2) of
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
 

@@ -1222,7 +1222,7 @@ consE γ e'@(App e a@(Type τ))
        tt <- addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
 
        -- NV TODO: embed this step with subsTyVar_meet'
-       case rTVarToBind α of 
+       case rTVarToBind α of
         Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
         Nothing     -> return tt
 
@@ -1267,7 +1267,7 @@ consE γ e'@(App e a)
        makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
 
 consE γ (Lam α e) | isTyVar α
-  = do γ' <- updateEnvironment γ α 
+  = do γ' <- updateEnvironment γ α
        liftM (RAllT (makeRTVar $ rTyVar α)) (consE γ' e)
 
 consE γ  e@(Lam x e1)
@@ -1312,10 +1312,10 @@ consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
 
-updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv 
-updateEnvironment γ a 
+updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv
+updateEnvironment γ a
   | isValKind (tyVarKind a)
-  = ((γ, "varType") += (F.symbol $ varName a, kindToRType $ tyVarKind a))
+  = γ += ("varType", F.symbol $ varName a, kindToRType $ tyVarKind a)
   | otherwise
   = return γ
 
@@ -1630,10 +1630,10 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 
 argType :: Type -> Maybe F.Expr
-argType (LitTy (NumTyLit i)) = mkI i 
+argType (LitTy (NumTyLit i)) = mkI i
 argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
-argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x 
-argType _                    = Nothing  
+argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
+argType _                    = Nothing
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
@@ -1808,7 +1808,7 @@ extendγ γ xts
 
 isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
-  where classConstrs t = [(c, ty_var_value α') 
+  where classConstrs t = [(c, ty_var_value α')
                                   | (c, ts) <- tyClasses t
                                   , t'      <- ts
                                   , α'      <- freeTyVars t']
