@@ -755,8 +755,8 @@ data RTVInfo s
 rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
 rTVarToBind = go . ty_var_info
   where
-    go (RTVInfo {..}) = Just (rtv_name, rtv_kind)
-    go RTVNoInfo      = Nothing 
+    go (RTVInfo {..}) | rtv_is_val = Just (rtv_name, rtv_kind)
+    go _                           = Nothing 
 
 ty_var_is_val :: RTVar tv s -> Bool
 ty_var_is_val = rtvinfo_is_val . ty_var_info 
