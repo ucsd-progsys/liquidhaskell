@@ -64,6 +64,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (meas       sp)
+                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (tySigs     sp)
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (asmSigs    sp)
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)               (invariants sp)
