@@ -1620,6 +1620,7 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i)) = mkI i 
 argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
+argType (TyVarTy x)          = F.eVar x 
 argType _                    = Nothing  
 
 

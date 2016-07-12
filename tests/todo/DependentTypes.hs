@@ -14,8 +14,8 @@ misafe   :: MI "blaa"
 misafe   = Small "blaa"
 
 -- THIS SHOULD BE UNSAFE
--- miunsafe1 :: forall s. MI s 
--- miunsafe1 = Small "blaa"
+miunsafe1 :: forall s. MI s 
+miunsafe1 = Small "blaa"
 
 -- THIS SHOULD BE UNSAFE 
 miunsafe2 :: MI "bla0" 
