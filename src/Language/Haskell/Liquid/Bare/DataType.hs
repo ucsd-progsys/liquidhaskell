@@ -210,7 +210,7 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return (fs `zip` ts)
     where
-    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) [] (freeLabels dcp)
+    ts   = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
                                (dropPreds (subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct

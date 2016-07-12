@@ -40,7 +40,8 @@ import           Class                                         (className)
 import           Var
 import           Id                                           -- hiding (isExportedId)
 import           IdInfo
-import           Name
+import           Name        hiding (varName)
+import           FastString (fastStringToByteString)
 -- import           NameSet
 import           Unify
 import           VarSet
@@ -868,7 +869,7 @@ consCB _ _ γ (NonRec x def)
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
-    f t' (RAllT α te) = subsTyVar_meet' (α, t') te
+    f t' (RAllT α te) = subsTyVar_meet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
@@ -1062,7 +1063,8 @@ cconsE' γ (Case e x _ cases) t
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
-  = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
+  = do γ' <- updateEnvironment γ α
+       cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
@@ -1186,10 +1188,10 @@ consE γ e
 
 consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
        return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 {-
@@ -1212,12 +1214,17 @@ consE γ (Var x)
 consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
-consE γ e'@(App e (Type τ))
+consE γ e'@(App e a@(Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW         $ WfC γ t
        t'         <- refreshVV t
-       addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (α, t') te)
+       tt <- addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+
+       -- NV TODO: embed this step with subsTyVar_meet'
+       case rTVarToBind α of 
+        Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
+        Nothing     -> return tt
 
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
@@ -1260,7 +1267,8 @@ consE γ e'@(App e a)
        makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
 
 consE γ (Lam α e) | isTyVar α
-  = liftM (RAllT (rTyVar α)) (consE γ e)
+  = do γ' <- updateEnvironment γ α 
+       liftM (RAllT (makeRTVar $ rTyVar α)) (consE γ' e)
 
 consE γ  e@(Lam x e1)
   = do tx      <- freshTy_type LamE (Var x) τx
@@ -1303,6 +1311,13 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
+
+updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv 
+updateEnvironment γ a 
+  | isValKind (tyVarKind a)
+  = ((γ, "varType") += (F.symbol $ varName a, kindToRType $ tyVarKind a))
+  | otherwise
+  = return γ
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
@@ -1564,7 +1579,7 @@ unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 instantiateTys :: (Foldable t)
                => SpecType -> t (SpecType) -> SpecType
 instantiateTys = L.foldl' go
-  where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
+  where go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
         go _ _               = panic Nothing "Constraint.instanctiateTy"
 
 instantiatePvs :: Foldable t => SpecType -> t SpecProp -> SpecType
@@ -1613,6 +1628,13 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
+
+argType :: Type -> Maybe F.Expr
+argType (LitTy (NumTyLit i)) = mkI i 
+argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
+argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x 
+argType _                    = Nothing  
+
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
@@ -1756,7 +1778,7 @@ exprRefType_ γ (Let b e)
   = exprRefType_ (bindRefType_ γ b) e
 
 exprRefType_ γ (Lam α e) | isTyVar α
-  = RAllT (rTyVar α) (exprRefType_ γ e)
+  = RAllT (makeRTVar $ rTyVar α) (exprRefType_ γ e)
 
 exprRefType_ γ (Lam x e)
   = rFun (F.symbol x) (ofType $ varType x) (exprRefType_ γ e)
@@ -1786,7 +1808,8 @@ extendγ γ xts
 
 isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
-  where classConstrs t = [(c, α') | (c, ts) <- tyClasses t
+  where classConstrs t = [(c, ty_var_value α') 
+                                  | (c, ts) <- tyClasses t
                                   , t'      <- ts
                                   , α'      <- freeTyVars t']
         isOrd          = (ordClassName ==) . className

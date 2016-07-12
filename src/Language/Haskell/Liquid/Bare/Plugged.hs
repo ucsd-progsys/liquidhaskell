@@ -30,7 +30,7 @@ import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 
 import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
-import Language.Haskell.Liquid.Types.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
+import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 
 import Language.Haskell.Liquid.Misc (zipWithDefM)
@@ -95,7 +95,7 @@ plugHoles tce tyi x f t (Loc l l' st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow αs ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt

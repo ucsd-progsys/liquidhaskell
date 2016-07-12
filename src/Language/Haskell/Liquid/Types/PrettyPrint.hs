@@ -307,12 +307,15 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
-    dαs αs                    = sep $ pprint <$> αs
+    dαs αs                    = ppr_rtvar_def αs
 
     -- dπs :: Bool -> [PVar a] -> Doc
     dπs _ []                  = empty
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ ppr_pvar_def bb p <$> πs
+
+ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc 
+ppr_rtvar_def = sep . map (pprint . ty_var_value)
 
 ppr_symbols :: [Symbol] -> Doc
 ppr_symbols [] = empty
