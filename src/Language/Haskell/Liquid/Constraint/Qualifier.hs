@@ -30,10 +30,7 @@ import Debug.Trace
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
-                  ++ if info `hasOpt` scrapeInternals 
-                       then inSigs $ spec info else []
-                  ++ (ctors $ spec info)
+  = [ q | (x, t) <- specBinders info
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
@@ -43,12 +40,21 @@ specificationQualifiers k info lEnv
                                      else if info `hasOpt` scrapeImports
                                      then impVars info
                                      else [])
-        , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
+        , q <- refTypeQuals lEnv (getSourcePos x) (gsTcEmbeds $ spec info) (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
+
+specBinders :: GhcInfo -> [(_, LocSpecType)]
+specBinders info = mconcat
+  [ gsTySigs sp
+  , gsAsmSigs sp
+  , gsCtors sp
+  , if (info `hasOpt` scrapeInternals) then (gsInSigs sp) else []
+  ]
+  where sp = spec info
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs

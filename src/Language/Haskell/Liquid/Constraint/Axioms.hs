@@ -578,10 +578,10 @@ initAEEnv info sigs
                      }
     where
       spc        = spec info
-      vs         = filter validVar (snd <$> freeSyms spc)
+      vs         = filter validVar (snd <$> gsFreeSyms spc)
       tp         = filter validExp (defVars info)
 
-      isExported = flip elemNameSet (exports $ spec info) . getName
+      isExported = flip elemNameSet (gsExports $ spec info) . getName
       validVar   = not . canIgnore
       validExp x = validVar x && isExported x
       by         = makeCombineVar $ makeCombineType τProof

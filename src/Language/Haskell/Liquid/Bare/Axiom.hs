@@ -71,7 +71,7 @@ makeAxiom' tce lmap cbs spec x v def = do
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  let t = makeAssumeType tce lmap x v (tySigs spec) anames  def
+  let t = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
   return ( (val x, mkType x v)
          , (v, t) : vts
          , defAxioms anames v def )
@@ -208,16 +208,18 @@ defAxioms vs v e = go [] $ normalize e
 
      mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then mkConApp c (Var <$> ys) else Var y) <$> bs)
 
+     getSimpleName v = filterSingle (isSimple v) vs
+     getConName v c  = filterSingle (isCon v c) vs
 
-     getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of
-                        [x] -> Just x
-                        _   -> Nothing
-     getConName v c  = case filter (\n -> let aname = symbolString $ dropModuleNames $ simplesymbol n
-                                              dname = "axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v) ++ "_" ++ (symbolString $ dropModuleNames $ simplesymbol $ dataConWorkId c)
-                                          in (aname == dname)) vs of
-                        [x] -> Just x
-                        _   -> Nothing
+     isSimple v n    = simpleString n == axiomString v
+     simpleString    = symbolString . dropModuleNames . simplesymbol
+     axiomString     = ("axiom_" ++) . simpleString
+     isCon v c n     = simpleString n == axiomString v ++ "_" ++ simpleString (dataConWorkId c)
 
+filterSingle :: (a -> Bool) -> [a] -> Maybe a
+filterSingle  f xs = case filter f xs of
+                      [x] -> Just x
+                      _   -> Nothing
 {-
 
 unANF :: Bind Var -> Expr Var -> Expr Var
