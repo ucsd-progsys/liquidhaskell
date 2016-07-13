@@ -3,10 +3,11 @@
 constant foo : (func(0, [int; int]))
 
 bind 0 x     : {v: Str | true}
+bind 1 y     : {v: Str | true}
 
 constraint:
-  env [ 0 ]
-  lhs {v : int | (foo x = foo x)}
+  env [ 0; 1 ]
+  lhs {v : int | (foo x = foo y)}
   rhs {v : int | (3 = 1 + 2) }
   id 1 tag []
 

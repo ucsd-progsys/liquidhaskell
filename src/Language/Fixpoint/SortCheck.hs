@@ -375,7 +375,7 @@ elab f (POr ps) = do
 elab f e@(PAtom Eq e1 e2) = do
   t1        <- checkExpr f e1
   t2        <- checkExpr f e2
-  (t1',t2') <- unite f  t1 t2 `withError` (errElabExpr e)
+  (t1',t2') <- unite f e  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
@@ -412,7 +412,8 @@ elabAppAs f t g e = do
   gT       <- generalize =<< checkExpr f g
   eT       <- checkExpr f e
   (iT, oT) <- checkFunSort gT
-  su       <- HEREHEREHERE unifys f [oT,iT] [t,eT] -- (snd gTios : fst gTios) (t:eTs)
+  let ge    = Just (EApp g e)
+  su       <- unifys f ge [oT, iT] [t, eT]
   let tg    = apply su gT
   g'       <- elabAs f tg g
   let te    = apply su eT
@@ -437,12 +438,12 @@ elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
-  s         <- elabAppSort f s1 s2
+  s         <- elabAppSort f e1 e2 s1 s2
   return (e1', s1, e2', s2, s)
 
-unite :: Env -> Sort -> Sort -> CheckM (Sort, Sort)
-unite f t1 t2 = do
-  su <- unifys f [t1] [t2]
+unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
+unite f e t1 t2 = do
+  su <- unifys f (Just e) [t1] [t2]
   return (apply su t1, apply su t2)
 
 
@@ -455,11 +456,13 @@ checkSym f x
 
 -- | Helper for checking if-then-else expressions
 checkIte :: Env -> Expr -> Expr -> Expr -> CheckM Sort
-checkIte f p e1 e2
-  = do checkPred f p
-       t1 <- checkExpr f e1
-       t2 <- checkExpr f e2
-       ((`apply` t1) <$> unifys f [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+checkIte f p e1 e2 = do
+  checkPred f p
+  t1 <- checkExpr f e1
+  t2 <- checkExpr f e2
+  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+  where
+    e' = Just (EIte  p e1 e2)
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -467,15 +470,15 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f [t] [t']) `withError` (errCast e t' t)
+       ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` (errCast e t' t)
 
-elabAppSort :: Env -> Sort -> Sort -> CheckM Sort
-elabAppSort f s1 s2 =
-  do s1' <- generalize s1
-     case s1' of
-        FFunc sx s -> do θ <- unifys f [sx] [s2]
-                         return $ apply θ s
-        _ -> errorstar "Foo"
+elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
+elabAppSort f e1 e2 s1 s2 = do
+  s1'  <- generalize s1
+  let e = Just (EApp e1 e2)
+  case s1' of
+    FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
+    _          -> errorstar "elabAppSort"
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -486,7 +489,7 @@ checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
   = do t' <- checkExpr f e
-       θ  <- unifys f [t'] [t]
+       θ  <- unifys f (Just e) [t'] [t]
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
@@ -495,18 +498,19 @@ checkExprAs f t e
 -- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x
 
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
-checkApp' f to g e
-  = do gt       <- checkExpr f g >>= generalize
-       et       <- checkExpr f e
-       (it, ot) <- checkFunSort gt
-       θ        <- unifys f [it] [et]
-       let t     = apply θ ot
-       case to of
-         Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ti = apply θ' et
-                          _ <- checkExprAs f ti e
-                          return (θ', apply θ' t)
+checkApp' f to g e = do
+  gt       <- checkExpr f g >>= generalize
+  et       <- checkExpr f e
+  (it, ot) <- checkFunSort gt
+  let ge    = Just (EApp g e)
+  θ        <- unifys f ge [it] [et]
+  let t     = apply θ ot
+  case to of
+    Nothing    -> return (θ, t)
+    Just t'    -> do θ' <- unifyMany f ge θ [t] [t']
+                     let ti = apply θ' et
+                     _ <- checkExprAs f ti e
+                     return (θ', apply θ' t)
 
 {-
 checkApp' f to g' e
@@ -588,17 +592,20 @@ checkBoolSort e s
 
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
-checkRel f Eq e1 e2                = do t1 <- checkExpr f e1
-                                        t2 <- checkExpr f e2
-                                        su <- (unifys f [t1] [t2]) `withError` (errRel e t1 t2)
-                                        _  <- checkExprAs f (apply su t1) e1
-                                        _  <- checkExprAs f (apply su t2) e2
-                                        checkRelTy f e Eq t1 t2
-                                     where
-                                        e = PAtom Eq e1 e2
-checkRel f r  e1 e2                = do t1 <- checkExpr f e1
-                                        t2 <- checkExpr f e2
-                                        checkRelTy f (PAtom r e1 e2) r t1 t2
+checkRel f Eq e1 e2 = do
+  t1 <- checkExpr f e1
+  t2 <- checkExpr f e2
+  su <- (unifys f (Just e) [t1] [t2]) `withError` (errRel e t1 t2)
+  _  <- checkExprAs f (apply su t1) e1
+  _  <- checkExprAs f (apply su t2) e2
+  checkRelTy f e Eq t1 t2
+  where
+    e = PAtom Eq e1 e2
+
+checkRel f r  e1 e2 = do
+  t1 <- checkExpr f e1
+  t2 <- checkExpr f e2
+  checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy _ _ Ueq _ _             = return ()
@@ -644,7 +651,7 @@ unifySorts = unifyFast False emptyEnv
 --------------------------------------------------------------------------------
 unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
-unifyFast False f = unify f
+unifyFast False f = unify f Nothing
 unifyFast True  _ = uMono
   where
     uMono t1 t2
@@ -685,11 +692,11 @@ unify1 _ _ θ FInt  FReal = return θ
 unify1 _ _ θ FReal FInt  = return θ
 
 unify1 f e θ t FInt = do
-  checkNumeric f t `withError` (errUnify t FInt)
+  checkNumeric f t `withError` (errUnify e t FInt)
   return θ
 
 unify1 f e θ FInt t = do
-  checkNumeric f t `withError` (errUnify FInt t)
+  checkNumeric f t `withError` (errUnify e FInt t)
   return θ
 
 unify1 f e θ (FFunc t1 t2) (FFunc t1' t2') = do
@@ -699,7 +706,7 @@ unify1 _ e θ t1 t2
   | t1 == t2
   = return θ
   | otherwise
-  = throwError $ errUnify t1 t2
+  = throwError $ errUnify e t1 t2
 
 subst :: (Int, Sort) -> Sort -> Sort
 subst (j,tj) t@(FVar i)
@@ -794,9 +801,13 @@ emptySubst = Th M.empty
 errElabExpr    :: Expr -> String
 errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
 
-errUnify :: Sort -> Sort -> String
-errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
+errUnify :: Maybe Expr -> Sort -> Sort -> String
+errUnify eo t1 t2 = printf "Cannot unify %s with %s %s"
+                      (showpp t1) (showpp t2) (unifyExpr eo)
 
+unifyExpr :: Maybe Expr -> String
+unifyExpr Nothing  = ""
+unifyExpr (Just e) = "in expression: " ++ showpp e
 
 errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
@@ -827,16 +838,16 @@ errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
 
 errNonFunction :: Int -> Sort -> String
-errNonFunction i t   = printf "Sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
+errNonFunction i t   = printf "The sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
 
 errNonNumeric :: Sort -> String
-errNonNumeric  l     = printf "Sort %s is not numeric" (show l)
+errNonNumeric  l     = printf "The sort %s is not numeric" (showpp l)
 
 errNonNumerics :: Symbol -> Symbol -> String
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 
 errNonFractional :: Sort -> String
-errNonFractional  l  = printf "Sort %s is not fractional" (showpp l)
+errNonFractional  l  = printf "The sort %s is not fractional" (showpp l)
 
 errBoolSort :: Expr -> Sort -> String
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)
