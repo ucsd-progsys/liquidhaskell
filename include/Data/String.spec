@@ -6,7 +6,7 @@ embed GHC.Types.Char as Char
 // ----------------------------------------------------------------------------------------------
 
 // len
-measure str.len    :: String -> Int 
+measure stringLen    :: String -> Int 
 
 // substr
-measure str.substr :: String -> Int -> Int -> String 
+measure subString :: String -> Int -> Int -> String 
