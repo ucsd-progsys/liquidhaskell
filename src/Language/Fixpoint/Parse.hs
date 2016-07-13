@@ -38,6 +38,7 @@ module Language.Fixpoint.Parse (
   , bindP       -- Binder (lowerIdP <* colon)
   , sortP       -- Sort
   , mkQual      -- constructing qualifiers
+  , fTyConP
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
@@ -379,6 +380,8 @@ fTyConP
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
+  <|> (reserved "Char"    >> return charFTyCon)
+  <|> (reserved "String"  >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
 bvSortP :: Parser Sort

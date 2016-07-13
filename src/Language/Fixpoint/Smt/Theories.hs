@@ -21,6 +21,9 @@ module Language.Fixpoint.Smt.Theories
      , isTheorySymbol
      , theoryEnv
 
+       -- * String 
+     , strLen, genLen
+
        -- * Theories
      , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
@@ -28,6 +31,7 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
@@ -81,6 +85,26 @@ setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
+
+strLen, strSubstr, genLen :: Symbol 
+strLen    = "stringLen"
+strSubstr = "subString"
+
+genLen = "len"
+
+
+strlen, strsubstr :: Raw 
+strlen    = "stringLen"
+strsubstr = "subString"
+
+
+z3strlen, z3strsubstr :: Raw 
+z3strlen    = "str.len"
+z3strsubstr = "str.substr"
+
+string :: Raw
+string = "String" 
+
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
   = [ format "(define-sort {} () Int)"
@@ -109,6 +133,10 @@ z3Preamble u
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
+    , format "(define-fun {} ((s {})) Int ({} s))"
+        (strlen, string, z3strlen)
+    , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
+        (strsubstr, string, string, z3strsubstr)
     , uifDef u (symbolText mulFuncName) ("*"::T.Text)
     , uifDef u (symbolText divFuncName) ("div"::T.Text)
     ]
@@ -127,6 +155,7 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic ALL_SUPPORTED)"
     , format "(define-sort {} () Int)"       (Only elt)
     , format "(define-sort {} () Int)"       (Only set)
+    , format "(define-sort {} () Int)"       (Only string)
     , format "(declare-fun {} () {})"        (emp, set)
     , format "(declare-fun {} ({} {}) {})"   (add, set, elt, set)
     , format "(declare-fun {} ({} {}) {})"   (cup, set, set, set)
@@ -156,6 +185,7 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) Bool)" (mem, elt, set)
     , format "(define-sort {} () Int)"       (Only map)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
+    , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     ]
 
@@ -197,6 +227,9 @@ theorySymbols = M.fromList
   , tSym mapSto sto   mapStoSort
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
+
+  , tSym strLen strlen (FFunc strSort intSort)
+  , tSym strSubstr strsubstr (mkFFunc 0 [strSort, intSort, intSort, strSort])
   ]
   where
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
@@ -241,6 +274,8 @@ smt2Sort (FApp (FApp (FTC c) _) _)
 smt2Sort (FApp (FTC bv) (FTC s))
   | isBv bv
   , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
+smt2Sort s 
+  | isString s                  = Just $ build "{}" (Only string)
 smt2Sort _                      = Nothing
 
 smt2App :: Expr -> [Builder.Builder] -> Maybe Builder.Builder

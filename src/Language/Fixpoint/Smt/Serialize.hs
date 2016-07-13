@@ -62,6 +62,8 @@ instance SMTLIB2 Sort where
   smt2 FReal                   = "Real"
   smt2 t
     | t == boolSort            = "Bool"
+  smt2 t 
+    | isString t               = "String"
   smt2 t
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
@@ -71,6 +73,7 @@ instance SMTLIB2 Sort where
 
 defuncSort (FAbs _ t)      = defuncSort t
 defuncSort (FFunc _ _)     = intSort
+defuncSort t | isString t  = strSort
 defuncSort t | isSMTSort t = t
 defuncSort _               = intSort
 
@@ -89,7 +92,7 @@ instance SMTLIB2 (Symbol, Sort) where
 
 
 instance SMTLIB2 SymConst where
-  smt2   = smt2   . symbol
+  smt2 (SL t)  = build "\"{}\"" (Only t) -- smt2   . symbol
 
 
 instance SMTLIB2 Constant where
@@ -120,7 +123,7 @@ instance SMTLIB2 Brel where
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
+  smt2 (ESym z)         = smt2 z
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
   smt2 e@(EApp _ _)     = smt2App e
@@ -212,10 +215,14 @@ smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (elimin
 defuncApp :: Expr -> SMT2 Expr
 defuncApp e = case Thy.smt2App (eliminate f) (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
-                _      -> defuncApp' f' es'
+                _      -> if stringLen es'
+                           then EApp (EVar Thy.strLen) <$> defunc (head es')  
+                           else defuncApp' f' es'
   where
     (f, es)   = splitEApp' e
     (f', es') = splitEApp  e
+    stringLen [e] = (isString $ exprSort e) && (f == EVar Thy.genLen)
+    stringLen _   = False 
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
@@ -565,6 +572,8 @@ makeFunSymbol e i
   = boolApplyName i
   | s == FReal
   = realApplyName i
+  | isString s 
+  = strApplyName i 
   | otherwise
   = intApplyName i
   where
@@ -615,7 +624,7 @@ isSMTSort s
   | s == FReal
   = True
   | otherwise
-  = False
+  = isString s 
 
 
 initSMTEnv :: SEnv Sort
@@ -624,6 +633,7 @@ initSMTEnv = fromListSEnv $
   , (bitVecToIntName, FFunc bitVecSort intSort)
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
+  , (strToIntName,    FFunc strSort    intSort)
   , (realToIntName,   FFunc realSort   intSort)
   , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
@@ -650,6 +660,7 @@ makeApplies i =
   , (mapApplyName i,    go i $ mapSort intSort intSort)
   , (realApplyName i,   go i realSort)
   , (boolApplyName i,   go i boolSort)
+  , (strApplyName i,    go i strSort)
   ]
   where
     go 0 s = FFunc intSort s

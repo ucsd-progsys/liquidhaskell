@@ -24,7 +24,7 @@ module Language.Fixpoint.Types.Sorts (
   , Sub (..)
   , FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, charFTyCon  -- TODO: hide these
+  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, charFTyCon, strFTyCon -- TODO: hide these
 
   , intSort, realSort, boolSort, strSort, funcSort, charSort
   , setSort, bitVecSort, mapSort
@@ -192,17 +192,17 @@ isReal _              = False
 
 isString :: Sort -> Bool 
 isString (FApp l c)     = (isList l && isChar c) || isString l  
-isString (FTC (TC _ i)) = tc_isString i 
+isString (FTC (TC _ i)) = tc_isString i  
 isString (FAbs _ s)     = isString s 
-isString s              = False 
+isString _              = False 
 
 isList :: Sort -> Bool
-isList (FTC c) = isListTC c
-isList s       = False 
+isList (FTC c) = isListTC c 
+isList _       = False 
 
 isChar :: Sort -> Bool 
 isChar (FTC c) = c == charFTyCon
-isChar s       = False
+isChar _       = False
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
