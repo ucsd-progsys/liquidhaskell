@@ -114,6 +114,7 @@ liquidOne info = do
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
   let cbs' = transformScope (cbs info)
+  whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                  putStrLn $ showCBs (untidyCore cfg) cbs'
@@ -150,6 +151,7 @@ liquidQueries cfg tgt info (Right dcs)
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   when False (dumpCs cgi)
+  -- when True $ putStrLn $ render (pprint cgi)
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $ mconcat [oldOut, out]
   where
@@ -174,27 +176,23 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
-solveCs cfg tgt cgi info names
-  = do finfo          <- cgInfoFInfo info cgi tgt
-       F.Result r sol <- solve (fixConfig tgt cfg) finfo
-       let warns = logErrors cgi
-       let annm  = annotMap cgi
-       let res_err = fmap (applySolution sol . cinfoError . snd) r
-       res_model  <- fmap (fmap pprint . tidyError sol)
-                      <$> getModels info cfg res_err
-       let out0  = mkOutput cfg res_model sol annm
-       return    $ out0 { o_vars    = names             }
-                        { o_errors  = e2u sol <$> warns }
-                        { o_result  = res_model         }
+solveCs cfg tgt cgi info names = do
+  finfo          <- cgInfoFInfo info cgi tgt
+  F.Result r sol <- solve (fixConfig tgt cfg) finfo
+  let resErr      = applySolution sol . cinfoError . snd <$> r
+  resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
+  let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
+  let out0        = mkOutput cfg resModel sol (annotMap cgi)
+  return          $ out0 { o_vars    = names    }
+                         { o_result  = resModel }
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
   { FC.solver      = fromJust (smtsolver cfg)
   , FC.linear      = linear            cfg
-  , FC.newcheck    = newcheck          cfg
   , FC.eliminate   = not $ noEliminate cfg
-  , FC.oldElim     = True -- oldEliminate      cfg
-  , FC.pack        = packKVars cfg
+  --, FC.oldElim     = True -- oldEliminate      cfg
+  --, FC.pack        = packKVars cfg
   , FC.nonLinCuts  = True -- nonLinCuts        cfg
   , FC.save        = saveQuery         cfg
   , FC.srcFile     = tgt
@@ -203,9 +201,14 @@ fixConfig tgt cfg = def
   , FC.maxPartSize = maxPartSize       cfg
   , FC.elimStats   = elimStats         cfg
   , FC.elimBound   = elimBound         cfg
-  , FC.allowHO     = higherorder       cfg
+  , FC.allowHO     = higherOrderFlag   cfg
   , FC.allowHOqs   = higherorderqs     cfg
-  , FC.extensionality = extensionality cfg
+
+  , FC.extensionality   = extensionality   cfg
+  , FC.alphaEquivalence = alphaEquivalence cfg
+  , FC.betaEquivalence  = betaEquivalence  cfg
+  , FC.stringTheory     = stringTheory     cfg 
+  , FC.normalForm       = normalForm       cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

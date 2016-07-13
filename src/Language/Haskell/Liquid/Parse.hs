@@ -259,7 +259,9 @@ bbaseP
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
-bTyConP = mkBTyCon <$> locUpperIdP
+bTyConP 
+  =  (reserved "\'" >> (mkPromotedBTyCon <$> locUpperIdP))
+ <|> mkBTyCon <$> locUpperIdP
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
@@ -339,16 +341,29 @@ bareAllS
 bareAllP :: Parser (RType BTyCon BTyVar RReft)
 bareAllP
   = do reserved "forall"
-       as <- many (bTyVar <$> tyVarIdP)
+       as <- tyVarDefsP 
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
-       return $ foldr RAllT (foldr RAllP t ps) as
+       return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+
+tyVarDefsP :: Parser [BTyVar]
+tyVarDefsP 
+  = try (parens $ many (bTyVar <$> tyKindVarIdP))
+ <|> many (bTyVar <$> tyVarIdP)
 
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
-           where
-             alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+  where
+    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+
+tyKindVarIdP :: Parser Symbol
+tyKindVarIdP 
+   =  try ( do s <- tyVarIdP; reserved "::"; _ <- kindP; return s)
+  <|> tyVarIdP
+
+kindP :: Parser (RType BTyCon BTyVar RReft)
+kindP = bareAtomP (refBindP bindP)
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
@@ -1078,19 +1093,6 @@ dataDeclFullP
        whiteSpace
        return $ D x ts ps [] dcs pos fsize
 
----------------------------------------------------------------------
--- | Parsing Qualifiers ---------------------------------------------
----------------------------------------------------------------------
-
-fTyConP :: Parser FTycon
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
 
 ---------------------------------------------------------------
 -- | Bundling Parsers into a Typeclass ------------------------

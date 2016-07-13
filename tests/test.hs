@@ -95,7 +95,7 @@ instance IsOption LiquidOpts where
 unitTests :: IO TestTree
 unitTests
   = group "Unit" [
-      testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
+      testGroup "pos"         <$> dirTests "tests/pos"                            posIgnored   ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored   (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
@@ -114,9 +114,9 @@ benchTests
      , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
      , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-     , testGroup "haskell16_pos"   <$> dirTests "benchmarks/haskell16/pos"             ["OverviewListInfix.hs"]                        ExitSuccess
-    , testGroup "haskell16_neg"   <$> dirTests "benchmarks/haskell16/neg"             ["Proves.hs", "Helper.hs"]             (ExitFailure 1)
-    ]
+     , testGroup "popl17_pos"   <$> dirTests "benchmarks/popl17/pos"         proverIgnored             ExitSuccess
+     , testGroup "popl17_neg"   <$> dirTests "benchmarks/popl17/neg"         proverIgnored             (ExitFailure 1)
+     ]
 
 selfTests :: IO TestTree
 selfTests
@@ -219,6 +219,14 @@ icfpIgnored = [ "RIO.hs"
               , "DataBase.hs" 
               ]
 
+proverIgnored  :: [FilePath]
+proverIgnored = [ "OverviewListInfix.hs"
+                , "Proves.hs"
+                , "Helper.hs"
+                , "ApplicativeList.hs"
+                ]
+
+
 hscIgnored :: [FilePath]
 hscIgnored = [ "HsColour.hs"
              , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
@@ -230,6 +238,11 @@ negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
              , "LibSpec.hs" 
              ]
+
+posIgnored :: [FilePath]
+posIgnored = [ "StringIndexing0.hs"
+             ]
+
 
 textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"
