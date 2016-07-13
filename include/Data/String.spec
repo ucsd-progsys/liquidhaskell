@@ -10,4 +10,4 @@ embed GHC.Types.Char as Char
 // measure stringLen    :: String -> Int 
 
 // substr
-measure subString :: String -> Int -> Int -> String 
+measure subString :: String -> GHC.Types.Int -> GHC.Types.Int -> String 
