@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Measure (
   , dataConTypes
   , defRefType
   , stringLen
-  , wiredInMeasures
   ) where
 
 import           DataCon
@@ -381,6 +380,3 @@ stringLen = M { name = dummyLoc "stringLen"
               , sort = ofType (mkFunTy addrPrimTy intTy)
               , eqns = []
               }
-
-wiredInMeasures :: MSpec SpecType DataCon
-wiredInMeasures = mkMSpec' [stringLen]

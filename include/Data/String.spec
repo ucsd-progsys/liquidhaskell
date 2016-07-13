@@ -6,7 +6,7 @@ embed GHC.Types.Char as Char
 // ----------------------------------------------------------------------------------------------
 
 // len
-// stringLen was already hard-coded
+// Move this definition to Prelude.hquals to make sure it is always imported
 // measure stringLen    :: String -> Int 
 
 // substr

@@ -30,6 +30,8 @@ qualif True1(v:GHC.Types.Bool)   : (Prop(v))
 qualif False1(v:GHC.Types.Bool)  : (~ Prop(v))
 
 
+constant stringLen : func(0,[String; int])
+
 constant papp1 : func(1, [Pred @(0); @(0); bool])
 qualif Papp(v:a,p:Pred a) : (papp1(p, v))
 
