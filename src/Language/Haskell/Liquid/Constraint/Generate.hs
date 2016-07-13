@@ -76,8 +76,8 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
-
 generateConstraints      :: GhcInfo -> CGInfo
+--------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
     act                  = consAct cfg info
@@ -441,8 +441,8 @@ consCB _ _ γ (Rec xes)
 consCB _ _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (varType x)
        extender γ (x, Assumed t)
-  where
-    isDictionary = isJust . dlookup (denv γ)
+    where
+       isDictionary = isJust . dlookup (denv γ)
 
 
 consCB _ _ γ (NonRec x def)
@@ -527,10 +527,6 @@ killSubstReft = trans kv () ()
     kv    = defaultVisitor { txExpr = ks }
     ks _ (F.PKVar k _) = F.PKVar k mempty
     ks _ p             = p
-
-    -- tx (F.Reft (s, rs)) = F.Reft (s, map f rs)
-    -- f (F.RKvar k _)     = F.RKvar k mempty
-    -- f (F.RConc p)       = F.RConc p
 
 defAnn :: Bool -> t -> Annot t
 defAnn True  = AnnRDf
@@ -777,16 +773,6 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
        tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
        return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
-{-
-consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
-       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
-       addW        $ WfC γ t
-       t'         <- refreshVV t
-       tt  <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       return $ RAllT (rTyVar β)
-                  $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
--}
 -- NV END HACK
 
 consE γ (Var x)
@@ -800,18 +786,16 @@ consE _ (Lit c)
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
-       addW         $ WfC γ t
+       addW        $ WfC γ t
        t'         <- refreshVV t
        tt         <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
-
        -- NV TODO: embed this step with subsTyVar_meet'
        case rTVarToBind α of
-        Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
-        Nothing     -> return tt
+         Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
+         Nothing     -> return tt
 
 -- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
 -- out to the top-level.
-
 consE γ e'@(App e a) | isDictionary a
   = if isJust tt
       then return $ fromJust tt
@@ -825,18 +809,18 @@ consE γ e'@(App e a) | isDictionary a
               pushConsBind      $ cconsE γ' a tx
               addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
   where
+    tt                           = dhasinfo dinfo $ grepfunname e
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
     grepfunname e                = panic Nothing $ "grepfunname on \t" ++ showPpr e
+    isDictionary _               = isJust (mdict a)
     mdict w                      = case w of
                                      Var x          -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
                                      Tick _ e       -> mdict e
                                      App a (Type _) -> mdict a
                                      _              -> Nothing
-    isDictionary _               = isJust (mdict a)
-    d     = fromJust (mdict a)
-    dinfo = dlookup (denv γ) d
-    tt    = dhasinfo dinfo $ grepfunname e
+    dinfo                        = dlookup (denv γ) (fromJust (mdict a))
+
 
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
@@ -844,7 +828,7 @@ consE γ e'@(App e a)
        te'              <- instantiateStrata ls te0
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
-       updateLocA {- πs -}  (exprLoc e) te''
+       updateLocA (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
        makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
@@ -874,14 +858,13 @@ consE γ e@(Case _ _ _ [_])
 consE γ e@(Case _ _ _ cs)
   = cconsFreshE (caseKVKind cs) γ e
 
-
 consE γ (Tick tt e)
   = do t <- consE (setLocation γ (Sp.Tick tt)) e
        addLocA Nothing (tickSrcSpan tt) (AnnUse t)
        return t
 
+-- See Note [Type classes with a single method]
 consE γ (Cast e co)
-  -- See Note [Type classes with a single method]
   | Just f <- isClassConCo co
   = consE γ (f e)
 
@@ -979,9 +962,6 @@ castTy _ _ e
 isClassConCo :: Coercion -> Maybe (Expr Var -> Expr Var)
 -- See Note [Type classes with a single method]
 isClassConCo co
-  --- | trace ("isClassConCo: " ++ showPpr (coercionKind co)) False
-  --- = undefined
-
   | Pair t1 t2 <- coercionKind co
   , isClassPred t2
   , (tc,ts) <- splitTyConApp t2
