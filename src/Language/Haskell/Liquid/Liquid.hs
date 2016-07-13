@@ -151,9 +151,10 @@ liquidQueries cfg tgt info (Right dcs)
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   when False (dumpCs cgi)
-  -- when True $ putStrLn $ render (pprint cgi)
+  -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
+                            -- , render (pprint cgi)                            ]
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
-  return $ mconcat [oldOut, out]
+  return $  mconcat [oldOut, out]
   where
     cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
     cbs''  = either id              DC.newBinds                        edc

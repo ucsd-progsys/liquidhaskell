@@ -18,7 +18,6 @@ import TypeRep
 
 import Prelude hiding (mapM)
 
-
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
@@ -27,36 +26,45 @@ import Text.PrettyPrint.HughesPJ (text)
 
 
 import qualified Data.List as L
-import Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 
-import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Transforms.CoreToLogic
-import Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
-import Language.Haskell.Liquid.Types
-
-
 import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Transforms.CoreToLogic
+import           Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Misc (mapSnd)
 
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Misc (mapSnd)
-
-
-makeAxiom :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec
+--------------------------------------------------------------------------------
+makeAxiom :: F.TCEmb TyCon
+          -> LogicMap
+          -> [CoreBind]
+          -> GhcSpec
+          -> Ms.BareSpec
           -> LocSymbol
           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+--------------------------------------------------------------------------------
 makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
         (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
         (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
         _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
-makeAxiom' :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec
-           -> LocSymbol -> Var -> CoreExpr
+--------------------------------------------------------------------------------
+makeAxiom' :: F.TCEmb TyCon
+           -> LogicMap
+           -> [CoreBind]
+           -> GhcSpec
+           -> LocSymbol
+           -> Var
+           -> CoreExpr
            -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+--------------------------------------------------------------------------------
 makeAxiom' tce lmap cbs spec x v def = do
   let anames = findAxiomNames x cbs
   vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
@@ -68,15 +76,11 @@ makeAxiom' tce lmap cbs spec x v def = do
          , (v, t) : vts
          , defAxioms anames v def )
 
-
-
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
-
-
 
 makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> Located SpecType
 makeAssumeType tce lmap x v xts ams def
@@ -202,7 +206,7 @@ defAxioms vs v e = go [] $ normalize e
      goalt _ _  (LitAlt _,  _,  _) = todo Nothing "defAxioms: goalt Lit"
      goalt _ _  (DEFAULT,   _,  _) = todo Nothing "defAxioms: goalt Def"
 
-     mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
+     mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then mkConApp c (Var <$> ys) else Var y) <$> bs)
 
 
      getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of
