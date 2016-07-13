@@ -236,7 +236,8 @@ hscIgnored = [ "HsColour.hs"
 
 negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
-             , "LibSpec.hs" 
+             , "LibSpec.hs"
+             , "StringIndexing0.hs" 
              ]
 
 posIgnored :: [FilePath]

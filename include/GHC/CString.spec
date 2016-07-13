@@ -7,4 +7,4 @@ embed GHC.Types.Char as Char
 
 GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#
-  -> {v:[Char] | v ~~ x }
+  -> {v:[Char] | v ~~ x && stringLen x == stringLen v }

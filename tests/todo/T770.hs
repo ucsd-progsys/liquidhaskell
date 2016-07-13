@@ -14,7 +14,7 @@ if we UNCOMMENT import (1) then we get the error
 ```
  /Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/lts-5.9/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/CString.spec:7:10: Error: GHC Error
 
- 7 |   -> {v:[Char] | v ~~ x && len v == strLen x}
+ 7 |   -> {v:[Char] | v ~~ x && len v == stringLen x}
               ^
 
      Not in scope: type constructor or class `Char'

@@ -6,7 +6,8 @@ embed GHC.Types.Char as Char
 // ----------------------------------------------------------------------------------------------
 
 // len
-measure stringLen    :: String -> Int 
+// stringLen was already hard-coded
+// measure stringLen    :: String -> Int 
 
 // substr
 measure subString :: String -> Int -> Int -> String 
