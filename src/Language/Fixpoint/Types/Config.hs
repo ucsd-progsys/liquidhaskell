@@ -60,6 +60,7 @@ data Config
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     -- , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
+    , stringTheory     :: Bool           -- ^ Strings are interpreted by SMT 
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -111,6 +112,7 @@ defConfig = Config {
   , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
   -- , pack           = False &= help "Use pack annotations"
   , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
+  , stringTheory   = False &= help "Use SAT solver string interpretation"
   }
   &= verbosity
   &= program "fixpoint"

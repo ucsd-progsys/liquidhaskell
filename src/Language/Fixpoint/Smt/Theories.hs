@@ -102,12 +102,18 @@ z3strlen, z3strsubstr :: Raw
 z3strlen    = "str.len"
 z3strsubstr = "str.substr"
 
+strLenSort, substrSort :: Sort
+strLenSort = FFunc strSort intSort
+substrSort = mkFFunc 0 [strSort, intSort, intSort, strSort]
+
+
 string :: Raw
 string = "String" 
 
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
-  = [ format "(define-sort {} () Int)"
+  = stringPrealble u ++ 
+    [ format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
         (set, elt)
@@ -187,6 +193,17 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
+    ] 
+
+
+stringPrealble :: Config -> [T.Text]
+stringPrealble cfg | stringTheory cfg
+  = [] 
+stringPrealble _ 
+  = [
+      format "(define-sort {} () Int)" (Only string)
+    , format "(declare-fun {} ({}) Int)" (z3strlen, string)
+    , format "(declare-fun {} ({} Int Int) {})" (z3strsubstr, string, string)
     ]
 
 {-
@@ -228,8 +245,8 @@ theorySymbols = M.fromList
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
 
-  , tSym strLen strlen (FFunc strSort intSort)
-  , tSym strSubstr strsubstr (mkFFunc 0 [strSort, intSort, intSort, strSort])
+  , tSym strLen    strlen    strLenSort
+  , tSym strSubstr strsubstr substrSort
   ]
   where
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)

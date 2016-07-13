@@ -92,7 +92,8 @@ instance SMTLIB2 (Symbol, Sort) where
 
 
 instance SMTLIB2 SymConst where
-  smt2 (SL t)  = build "\"{}\"" (Only t) -- smt2   . symbol
+  -- smt2 (SL t)  = build "\"{}\"" (Only t) -- smt2   . symbol
+  smt2 = smt2 . symbol
 
 
 instance SMTLIB2 Constant where

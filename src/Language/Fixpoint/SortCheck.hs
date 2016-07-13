@@ -700,7 +700,7 @@ unify1 f e θ FInt t = do
   checkNumeric f t `withError` (errUnify e FInt t)
   return θ
 
-unify1 _ θ t1 t2 | isString t1, isString t2
+unify1 _ _ θ t1 t2 | isString t1, isString t2
   = return θ
 
 unify1 f e θ (FFunc t1 t2) (FFunc t1' t2') = do
