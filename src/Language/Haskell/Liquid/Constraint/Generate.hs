@@ -20,7 +20,6 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-import           Data.Hashable
 import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error, undefined)
 
@@ -389,71 +388,6 @@ coreBindLits tce info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
-
--------------------------------------------------------------------
--- | Generation: Freshness ---------------------------------------
--------------------------------------------------------------------
-
--- | Right now, we generate NO new pvars. Rather than clutter code
---   with `uRType` calls, put it in one place where the above
---   invariant is /obviously/ enforced.
---   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
-
-freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type k _ τ  = freshTy_reftype k $ ofType τ
-
-freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
-
-freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
-  where
-    t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
-
--- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
---   definitions, and also to update the KVar profile.
-addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
-                     when (isKut k) $ addKuts k t
-                     when (True)    $ addKvPack t
-  where
-     ks         = F.KS $ S.fromList $ specTypeKVars t
-
-isKut              :: KVKind -> Bool
-isKut (RecBindE _) = True
-isKut ProjectE     = True
-isKut _            = False
-
-caseKVKind ::[Alt Var] -> KVKind
-caseKVKind [(DataAlt _, _, Var _)] = ProjectE
-caseKVKind cs                      = CaseE (length cs)
-
-addKuts :: (PPrint a) => a -> SpecType -> CG ()
-addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
-  where
-     ks'     = S.fromList $ specTypeKVars t
-     ks
-       | S.null ks' = ks'
-       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
-
-addKvPack :: SpecType -> CG ()
-addKvPack t = modify $ \s -> s { kvPacks = ks : kvPacks s}
-  where
-    ks      = S.fromList $ specTypeKVars t
-
-specTypeKVars :: SpecType -> [F.KVar]
-specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
-
-trueTy  :: Type -> CG SpecType
-trueTy = ofType' >=> true
-
-ofType' :: Type -> CG SpecType
-ofType' = fixTy . ofType
-
-fixTy :: SpecType -> CG SpecType
-fixTy t = do tyi   <- tyConInfo  <$> get
-             tce   <- tyConEmbed <$> get
-             return $ addTyConInfo tce tyi t
 
 
 --------------------------------------------------------------------------------
@@ -1137,7 +1071,7 @@ consE γ e'@(App e a@(Type τ))
        t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW         $ WfC γ t
        t'         <- refreshVV t
-       tt <- addKvPack <<= instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       tt         <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
 
        -- NV TODO: embed this step with subsTyVar_meet'
        case rTVarToBind α of
@@ -1229,6 +1163,9 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
+caseKVKind ::[Alt Var] -> KVKind
+caseKVKind [(DataAlt _, _, Var _)] = ProjectE
+caseKVKind cs                      = CaseE (length cs)
 
 updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv
 updateEnvironment γ a
@@ -1489,7 +1426,6 @@ varAnn γ x t
 -----------------------------------------------------------------------
 -- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
-
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV _ (PVProp τ) _ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
@@ -1505,7 +1441,6 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
-
 argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i)) = mkI i
 argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
@@ -1645,41 +1580,6 @@ isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
 
 
-exprRefType :: CoreExpr -> SpecType
-exprRefType = exprRefType_ M.empty
-
-exprRefType_ :: M.HashMap Var SpecType -> CoreExpr -> SpecType
-exprRefType_ γ (Let b e)
-  = exprRefType_ (bindRefType_ γ b) e
-
-exprRefType_ γ (Lam α e) | isTyVar α
-  = RAllT (makeRTVar $ rTyVar α) (exprRefType_ γ e)
-
-exprRefType_ γ (Lam x e)
-  = rFun (F.symbol x) (ofType $ varType x) (exprRefType_ γ e)
-
-exprRefType_ γ (Tick _ e)
-  = exprRefType_ γ e
-
-exprRefType_ γ (Var x)
-  = M.lookupDefault (ofType $ varType x) x γ
-
-exprRefType_ _ e
-  = ofType $ exprType e
-
-bindRefType_ :: M.HashMap Var SpecType -> Bind Var -> M.HashMap Var SpecType
-bindRefType_ γ (Rec xes)
-  = extendγ γ [(x, exprRefType_ γ e) | (x,e) <- xes]
-
-bindRefType_ γ (NonRec x e)
-  = extendγ γ [(x, exprRefType_ γ e)]
-
-extendγ :: (Eq k, Foldable t, Hashable k)
-        => M.HashMap k v
-        -> t (k, v)
-        -> M.HashMap k v
-extendγ γ xts
-  = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
