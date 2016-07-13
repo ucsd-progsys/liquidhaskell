@@ -72,19 +72,22 @@ data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool 
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 mappendFTC :: FTycon -> FTycon -> FTycon
-mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2) 
+mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
 
 instance Monoid TCInfo where
   mempty                                          = TCInfo False False False 
   mappend (TCInfo i1 i2 i3)  (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
 
-defTcInfo  = TCInfo defNumInfo defRealInfo defStringInfo 
-numTcInfo  = TCInfo True       defRealInfo defStringInfo 
+
+defTcInfo, numTcInfo, realTcInfo, strTcInfo :: TCInfo
+defTcInfo  = TCInfo defNumInfo defRealInfo defStringInfo
+numTcInfo  = TCInfo True       defRealInfo defStringInfo
 realTcInfo = TCInfo True       True        defStringInfo
 strTcInfo  = TCInfo defNumInfo defRealInfo True  
 
-defNumInfo    = False 
-defRealInfo   = False 
+defNumInfo, defRealInfo, defStringInfo :: Bool
+defNumInfo    = False
+defRealInfo   = False
 defStringInfo = False 
 
 intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
@@ -110,9 +113,9 @@ fTyconSymbol (TC s _) = s
 
 
 symbolNumInfoFTyCon :: LocSymbol -> Bool -> Bool -> FTycon
-symbolNumInfoFTyCon c isNum isReal 
+symbolNumInfoFTyCon c isNum isReal
   | isListConName c
-  = TC (fmap (const listConName) c) tcinfo 
+  = TC (fmap (const listConName) c) tcinfo
   | otherwise
   = TC c tcinfo
   where
@@ -121,7 +124,7 @@ symbolNumInfoFTyCon c isNum isReal
 
 
 symbolFTycon :: LocSymbol -> FTycon
-symbolFTycon c = symbolNumInfoFTyCon c defNumInfo defRealInfo 
+symbolFTycon c = symbolNumInfoFTyCon c defNumInfo defRealInfo
 
 fApp :: Sort -> [Sort] -> Sort
 fApp = foldl' FApp
@@ -175,19 +178,19 @@ data Sort = FInt
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 
-isNumeric :: Sort -> Bool 
-isNumeric FInt           = True 
-isNumeric (FApp s _)     = isNumeric s 
+isNumeric :: Sort -> Bool
+isNumeric FInt           = True
+isNumeric (FApp s _)     = isNumeric s
 isNumeric (FTC (TC _ i)) = tc_isNum i
-isNumeric (FAbs _ s)     = isNumeric s 
-isNumeric _              = False 
+isNumeric (FAbs _ s)     = isNumeric s
+isNumeric _              = False
 
-isReal :: Sort -> Bool 
-isReal FReal          = True 
-isReal (FApp s _)     = isReal s 
+isReal :: Sort -> Bool
+isReal FReal          = True
+isReal (FApp s _)     = isReal s
 isReal (FTC (TC _ i)) = tc_isReal i
-isReal (FAbs _ s)     = isReal s 
-isReal _              = False 
+isReal (FAbs _ s)     = isReal s
+isReal _              = False
 
 
 isString :: Sort -> Bool 
