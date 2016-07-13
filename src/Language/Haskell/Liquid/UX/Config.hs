@@ -31,6 +31,7 @@ data Config = Config {
   , extensionality :: Bool       -- ^ allow function extentionality axioms
   , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
   , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms
+  , stringTheory   :: Bool       -- ^ allow string interpretation by SMT 
   , normalForm     :: Bool       -- ^ allow lambda normalization-equivalence axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query

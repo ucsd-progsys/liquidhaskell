@@ -207,6 +207,7 @@ fixConfig tgt cfg = def
   , FC.extensionality   = extensionality   cfg
   , FC.alphaEquivalence = alphaEquivalence cfg
   , FC.betaEquivalence  = betaEquivalence  cfg
+  , FC.stringTheory     = stringTheory     cfg 
   , FC.normalForm       = normalForm       cfg
   }
 

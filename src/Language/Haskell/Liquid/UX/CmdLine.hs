@@ -56,7 +56,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
                                                    maxPartSize, eliminate, defConfig, 
-                                                   extensionality, alphaEquivalence, betaEquivalence, normalForm)
+                                                   extensionality, alphaEquivalence, betaEquivalence, normalForm, stringTheory)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -119,6 +119,10 @@ config = cmdArgsMode $ Config {
  , betaEquivalence
     = def
           &= help "Allow lambda beta-equivalence axioms"
+
+ , stringTheory
+    = def 
+         &= help "Allow string interpetation by SMT. ATTENTION: not yet supporteb by Z3 released versions"
 
  , normalForm
     = def
@@ -416,6 +420,7 @@ defConfig = Config { files             = def
                    , extensionality    = def
                    , alphaEquivalence  = def
                    , betaEquivalence   = def
+                   , stringTheory      = def 
                    , normalForm        = def 
                    , higherorderqs     = def
                    , diffcheck         = def
