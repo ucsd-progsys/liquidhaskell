@@ -95,7 +95,7 @@ instance IsOption LiquidOpts where
 unitTests :: IO TestTree
 unitTests
   = group "Unit" [
-      testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
+      testGroup "pos"         <$> dirTests "tests/pos"                            posIgnored   ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored   (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
@@ -238,6 +238,11 @@ negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
              , "LibSpec.hs" 
              ]
+
+posIgnored :: [FilePath]
+posIgnored = [ "StringIndexing0.hs"
+             ]
+
 
 textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"

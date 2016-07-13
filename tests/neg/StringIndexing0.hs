@@ -4,7 +4,6 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs               #-}
-
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--stringtheory"    @-}
 
@@ -32,19 +31,8 @@ data MI (tagret :: Symbol) s where
 -- CHALLENGE: String interepretations from SMT 
 
 
+misafe :: MI "dog" String
+misafe = MI "catdogcatsdots" [3]
 
--- THESE SHOULD BE SAFE 
-misafe1 :: MI "cat" String 
-misafe1 = MI "catdogcatsdots" []
-
-misafe2 :: MI "cat" String
-misafe2 = MI "catdogcatsdots" [0]
-
-misafe3 :: MI "cat" String
-misafe3 = MI "catdogcatsdots" [0, 6]
-
-misafe4 :: MI "cat" String
-misafe4 = MI "catdogcatsdots" [6, 0]
-
-misafe5 :: MI "cat" String
-misafe5 = MI "catdogcatsdots" [6]
+miunsafe :: MI "dog" String
+miunsafe = MI "catdogcatsdots" [1]
