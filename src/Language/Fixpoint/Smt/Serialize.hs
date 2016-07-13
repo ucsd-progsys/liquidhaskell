@@ -92,9 +92,7 @@ instance SMTLIB2 (Symbol, Sort) where
 
 
 instance SMTLIB2 SymConst where
-  -- smt2 (SL t)  = build "\"{}\"" (Only t) -- smt2   . symbol
-  smt2 = smt2 . symbol
-
+  smt2 (SL s)  = build "\"{}\"" (Only s) -- smt2   . symbol
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = build "{}" (Only n)
@@ -151,7 +149,7 @@ instance SMTLIB2 Expr where
 
 
 -- new version
-  defunc e@(ESym _)       = return e
+  defunc (ESym s)         = defuncESym s
   defunc e@(ECon _)       = return e
   defunc e@(EVar _)       = return e
   defunc e@(EApp _ _)     = defuncApp e
@@ -184,6 +182,13 @@ instance SMTLIB2 Expr where
   defunc (ELam x e)       = ELam x <$> defunc e 
   defunc  e               = errorstar ("defunc Pred: " ++ show e)
 
+
+defuncESym :: SymConst -> SMT2 Expr
+defuncESym s = do 
+    istr <- istring <$> get 
+    if istr 
+      then return $ ESym s 
+      else return $ eVar s 
 -- This is not defuncionalization, should not happen in defunc
 
 defuncBop :: Bop -> Expr -> Expr -> SMT2 Expr

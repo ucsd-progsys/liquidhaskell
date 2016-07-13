@@ -56,10 +56,9 @@ data Config
     , extensionality :: Bool             -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
-    , normalForm  :: Bool                -- ^ allow lambda normal-form equivalence axioms
-    , autoKuts    :: Bool                -- ^ ignore given kut variables
-    -- , pack        :: Bool                -- ^ Use pack annotations
-    , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
+    , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
+    , autoKuts         :: Bool           -- ^ ignore given kut variables
+    , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
     , stringTheory     :: Bool           -- ^ Strings are interpreted by SMT 
     } deriving (Eq,Data,Typeable,Show)
 

@@ -96,10 +96,11 @@ runSolverM cfg sI _ s0 act =
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    act'     = declareInitEnv >> declare xts ess p >> act
+    act'     = declareInitEnv >> declare cfg xts ess cs p >> act
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
     ess      = distinctLiterals fi
+    cs       = F.symconst fi 
     (xts, p) = background cfg fi s0
     be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
     file     = F.fileName fi
@@ -218,16 +219,23 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
+declare :: Config -> [(F.Symbol, F.Sort)] -> [[F.Expr]] -> [F.SymConst] -> F.Pred -> SolveM ()
 --------------------------------------------------------------------------------
-declare xts' ess p = withContext $ \me -> do
+declare cfg xts' ess cs p = withContext $ \me -> do
   let xts      = filter (not . isThy . fst) xts'
   forM_ xts    $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
   _           <-           smtAssert   me p
+  declareConst cfg cs me 
   return ()
   where
     isThy   = isJust . Thy.smt2Symbol
+
+declareConst :: Config -> [F.SymConst] -> Context -> IO ()
+declareConst cfg cs me | C.stringTheory cfg
+  = return () 
+declareConst _ cs me
+  = smtDistinct me (F.eVar <$> cs) 
 
 declareInitEnv :: SolveM ()
 declareInitEnv
