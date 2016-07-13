@@ -242,21 +242,8 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
       | otherwise = yt : merge (xt : xs) ys
     mXY x tx y ty = meetVarTypes (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
-refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)
-             => [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
-refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
+----
 
-refreshHoles' :: (F.Symbolic a, F.Reftable r, TyConable c, Freshable m r)
-              => (a, RType c tv r) -> m (Maybe F.Symbol, a, RType c tv r)
-refreshHoles' (x,t)
-  | noHoles t = return (Nothing, x, t)
-  | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
-  where
-    tx r | hasHole r = refresh r
-         | otherwise = return r
-
-extract :: (t, t1, t2) -> (t, (t1, t2))
-extract (a,b,c) = (a,(b,c))
 
 refreshArgs' :: [(a, SpecType)] -> CG [(a, SpecType)]
 refreshArgs' = mapM (mapSndM refreshArgs)
@@ -865,9 +852,6 @@ consBind isRec γ (x, e, Unknown)
        addIdA x (defAnn isRec t)
        when (isExportedId x) (addKuts x t)
        return $ Asserted t
-
-noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
 
 killSubst :: RReft -> RReft
 killSubst = fmap killSubstReft

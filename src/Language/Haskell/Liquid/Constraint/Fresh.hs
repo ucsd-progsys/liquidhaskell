@@ -13,9 +13,12 @@ module Language.Haskell.Liquid.Constraint.Fresh
   , refreshVV
   , refreshArgs
   , refreshArgsTop
+  , refreshHoles
   )
   where
 
+import           Data.Maybe                    (catMaybes) -- , fromJust, isJust)
+import           Data.Bifunctor
 import qualified Data.List                      as L
 import qualified Data.HashMap.Strict            as M
 import           Control.Monad.State            (get, put, modify)
@@ -205,13 +208,17 @@ refreshVVRef (RProp ss t)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        (RProp (zip xs (snd <$> ss)) . F.subst su) <$> refreshVV t
 
+--------------------------------------------------------------------------------
 refreshArgsTop :: (Var, SpecType) -> CG SpecType
+--------------------------------------------------------------------------------
 refreshArgsTop (x, t)
   = do (t', su) <- refreshArgsSub t
        modify $ \s -> s {termExprs = M.adjust (F.subst su <$>) x $ termExprs s}
        return t'
 
+--------------------------------------------------------------------------------
 refreshArgs :: SpecType -> CG SpecType
+--------------------------------------------------------------------------------
 refreshArgs t = fst <$> refreshArgsSub t
 
 
@@ -237,7 +244,28 @@ refreshArgsSub t
 refreshPs :: SpecType -> CG SpecType
 refreshPs = mapPropM go
   where
-    go (RProp s t) = do t'    <- refreshPs t
-                        xs    <- mapM (const fresh) s
-                        let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
-                        return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t'
+    go (RProp s t) = do
+      t'    <- refreshPs t
+      xs    <- mapM (const fresh) s
+      let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
+      return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t'
+
+--------------------------------------------------------------------------------
+refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)
+             => [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
+refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
+  where
+  --   extract :: (t, t1, t2) -> (t, (t1, t2))
+    extract (a,b,c) = (a,(b,c))
+
+refreshHoles' :: (F.Symbolic a, F.Reftable r, TyConable c, Freshable m r)
+              => (a, RType c tv r) -> m (Maybe F.Symbol, a, RType c tv r)
+refreshHoles' (x,t)
+  | noHoles t = return (Nothing, x, t)
+  | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
+  where
+    tx r | hasHole r = refresh r
+         | otherwise = return r
+
+noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
+noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
