@@ -232,7 +232,7 @@ declare cfg xts' ess cs p = withContext $ \me -> do
     isThy   = isJust . Thy.smt2Symbol
 
 declareConst :: Config -> [F.SymConst] -> Context -> IO ()
-declareConst cfg cs me | C.stringTheory cfg
+declareConst cfg _ _ | C.stringTheory cfg
   = return () 
 declareConst _ cs me
   = smtDistinct me (F.eVar <$> cs) 
