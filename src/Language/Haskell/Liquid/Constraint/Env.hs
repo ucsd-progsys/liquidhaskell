@@ -83,13 +83,6 @@ import           Language.Haskell.Liquid.Transforms.RefSplit
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 
 -- import Debug.Trace (trace)
-
-instance Freshable CG Integer where
-  fresh = do s <- get
-             let n = freshIndex s
-             put $ s { freshIndex = n + 1 }
-             return n
-
 --------------------------------------------------------------------------------
 -- | Refinement Type Environments ----------------------------------------------
 --------------------------------------------------------------------------------

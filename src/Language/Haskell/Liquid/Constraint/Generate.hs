@@ -155,9 +155,9 @@ addCombine τ γ
        combineVar    = makeCombineVar  combineType
        combineSymbol = F.symbol combineVar
 
-------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
-------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 initEnv info
   = do let tce   = gsTcEmbeds sp
        let fVars = impVars info
@@ -280,8 +280,6 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
     tyi            = gsTyconEnv sp
 
 --------------------------------------------------------------------------------
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
 measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [CoreBind]
@@ -293,6 +291,7 @@ measEnv :: GhcSpec
         -> [F.Symbol]
         -> GhcInfo
         -> CGEnv
+--------------------------------------------------------------------------------
 measEnv sp xts cbs tcb lt1s lt2s asms itys hs info = CGE
   { cgLoc    = Sp.empty
   , renv     = fromListREnv (second val <$> gsMeas sp) []
@@ -469,47 +468,10 @@ fixTy t = do tyi   <- tyConInfo  <$> get
              tce   <- tyConEmbed <$> get
              return $ addTyConInfo tce tyi t
 
-refreshArgsTop :: (Var, SpecType) -> CG SpecType
-refreshArgsTop (x, t)
-  = do (t', su) <- refreshArgsSub t
-       modify $ \s -> s {termExprs = M.adjust (F.subst su <$>) x $ termExprs s}
-       return t'
 
-refreshArgs :: SpecType -> CG SpecType
-refreshArgs t
-  = fst <$> refreshArgsSub t
-
-
--- NV TODO: this does not refresh args if they are wrapped in an RRTy
-refreshArgsSub :: SpecType -> CG (SpecType, F.Subst)
-refreshArgsSub t
-  = do ts     <- mapM refreshArgs ts_u
-       xs'    <- mapM (\_ -> fresh) xs
-       let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
-       let su  = last sus
-       ts'    <- mapM refreshPs $ zipWith F.subst sus ts
-       let rs' = zipWith F.subst sus rs
-       tr     <- refreshPs $ F.subst su tbd
-       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = tr, ty_refts = rs'}
-       return (t', su)
-    where
-       trep    = toRTypeRep t
-       xs      = ty_binds trep
-       ts_u    = ty_args  trep
-       tbd     = ty_res   trep
-       rs      = ty_refts trep
-
-refreshPs :: SpecType -> CG SpecType
-refreshPs = mapPropM go
-  where
-    go (RProp s t) = do t'    <- refreshPs t
-                        xs    <- mapM (\_ -> fresh) s
-                        let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
-                        return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t'
-
--------------------------------------------------------------------------------
--- | TERMINATION TYPE --------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | TERMINATION TYPE ----------------------------------------------------------
+--------------------------------------------------------------------------------
 makeDecrIndex :: (Var, Template SpecType)-> CG [Int]
 makeDecrIndex (x, Assumed t)
   = do dindex <- makeDecrIndexTy x t
@@ -637,15 +599,15 @@ checkValidHint x ts f n
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
-consCBLet γ cb
-  = do oldtcheck <- tcheck <$> get
-       lazyVars  <- specLazy <$> get
-       let isStr  = doTermCheck lazyVars cb
-       -- TODO: yuck.
-       modify $ \s -> s { tcheck = oldtcheck && isStr }
-       γ' <- consCB (oldtcheck && isStr) isStr γ cb
-       modify $ \s -> s{tcheck = oldtcheck}
-       return γ'
+consCBLet γ cb = do
+  oldtcheck <- tcheck <$> get
+  lazyVars  <- specLazy <$> get
+  let isStr  = doTermCheck lazyVars cb
+  -- TODO: yuck.
+  modify $ \s -> s { tcheck = oldtcheck && isStr }
+  γ' <- consCB (oldtcheck && isStr) isStr γ cb
+  modify $ \s -> s{tcheck = oldtcheck}
+  return γ'
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Corebind -------------------------------------------
@@ -674,8 +636,6 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
 
--- HEREHEREHEREHERE
--- why is consCBTop ALMOST equivalent to consCBLet ? except for this removeInvariant stuff?
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
 trustVar cfg info x = trustInternals cfg && derivedVar info x
@@ -1447,47 +1407,6 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
---------------------------------------------------------------------------------
-refreshTy :: SpecType -> CG SpecType
---------------------------------------------------------------------------------
-refreshTy t = refreshVV t >>= refreshArgs
-
-refreshVV :: Freshable m Integer
-          => SpecType -> m SpecType
-refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
-refreshVV (RAllP p t) = liftM (RAllP p) (refreshVV t)
-
-refreshVV (REx x t1 t2)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       liftM (shiftVV (REx x t1' t2')) fresh
-
-refreshVV (RFun x t1 t2 r)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       liftM (shiftVV (RFun x t1' t2' r)) fresh
-
-refreshVV (RAppTy t1 t2 r)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       liftM (shiftVV (RAppTy t1' t2' r)) fresh
-
-refreshVV (RApp c ts rs r)
-  = do ts' <- mapM refreshVV ts
-       rs' <- mapM refreshVVRef rs
-       liftM (shiftVV (RApp c ts' rs' r)) fresh
-
-refreshVV t
-  = return t
-
-refreshVVRef :: Freshable m Integer
-             => Ref b (RType RTyCon RTyVar RReft)
-             -> m (Ref b (RType RTyCon RTyVar RReft))
-refreshVVRef (RProp ss (RHole r))
-  = return $ RProp ss (RHole r)
-
-refreshVVRef (RProp ss t)
-  = do xs    <- mapM (\_ -> fresh) (fst <$> ss)
-       let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
-       liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
-
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
@@ -1732,9 +1651,7 @@ topMeet r r' = {- F.tracepp msg $ -} ({- F.top -} r `F.meet` r')
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------
-
 exprLoc                         :: CoreExpr -> Maybe SrcSpan
-
 exprLoc (Tick tt _)             = Just $ tickSrcSpan tt
 exprLoc (App e a) | isType a    = exprLoc e
 exprLoc _                       = Nothing
