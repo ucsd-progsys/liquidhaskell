@@ -63,7 +63,7 @@ instance SMTLIB2 Sort where
   smt2 t
     | t == boolSort            = "Bool"
   smt2 t 
-    | isString t               = "String"
+    | isString t               = build "{}" (Only Thy.string)
   smt2 t
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"

@@ -22,6 +22,7 @@ module Language.Fixpoint.Smt.Theories
      , theoryEnv
 
        -- * String 
+     , string
      , strLen, genLen
 
        -- * Theories
@@ -108,7 +109,7 @@ substrSort = mkFFunc 0 [strSort, intSort, intSort, strSort]
 
 
 string :: Raw
-string = "String" 
+string = "Str" 
 
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
@@ -139,10 +140,6 @@ z3Preamble u
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
-    , format "(define-fun {} ((s {})) Int ({} s))"
-        (strlen, string, z3strlen)
-    , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
-        (strsubstr, string, string, z3strsubstr)
     , uifDef u (symbolText mulFuncName) ("*"::T.Text)
     , uifDef u (symbolText divFuncName) ("div"::T.Text)
     ]
@@ -198,13 +195,24 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
 
 stringPrealble :: Config -> [T.Text]
 stringPrealble cfg | stringTheory cfg
-  = [] 
+  = [
+      format "(define-sort {} () String)" (Only string)
+    , format "(define-fun {} ((s {})) Int ({} s))"
+        (strlen, string, z3strlen)
+    , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
+        (strsubstr, string, string, z3strsubstr)
+    ] 
 stringPrealble _ 
   = [
       format "(define-sort {} () Int)" (Only string)
-    , format "(declare-fun {} ({}) Int)" (z3strlen, string)
-    , format "(declare-fun {} ({} Int Int) {})" (z3strsubstr, string, string)
+    , format "(declare-fun {} ({}) Int)"
+        (strlen, string)
+    , format "(declare-fun {} ({} Int Int) {})"
+        (strsubstr, string, string)
     ]
+
+
+
 
 {-
 mkSetSort _ _  = set
