@@ -8,10 +8,11 @@
 {-# LANGUAGE UndecidableInstances  #-}
 
 module Language.Haskell.Liquid.Constraint.Fresh
-  (
-  -- * Types that can be refreshed
-    Freshable(..)
-
+  ( Freshable(..)
+  , refreshTy
+  , refreshVV
+  , refreshArgs
+  , refreshArgsTop
   )
   where
 
@@ -211,8 +212,7 @@ refreshArgsTop (x, t)
        return t'
 
 refreshArgs :: SpecType -> CG SpecType
-refreshArgs t
-  = fst <$> refreshArgsSub t
+refreshArgs t = fst <$> refreshArgsSub t
 
 
 -- NV TODO: this does not refresh args if they are wrapped in an RRTy
