@@ -68,7 +68,7 @@ instance SMTLIB2 Sort where
 
   defunc = return . defuncSort
 
-
+defuncSort :: Sort -> Sort
 defuncSort (FAbs _ t)      = defuncSort t
 defuncSort (FFunc _ _)     = intSort
 defuncSort t | isSMTSort t = t
@@ -142,7 +142,7 @@ instance SMTLIB2 Expr where
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 PGrad            = "true"
-  smt2 (ELam (x, _) e)  = smt2Lam x e 
+  smt2 (ELam (x, _) e)  = smt2Lam x e
   smt2  e               = errorstar ("smtlib2 Pred  " ++ show e)
 
 
@@ -177,7 +177,7 @@ instance SMTLIB2 Expr where
                                e2' <- defunc e2
                                defuncPAtom r e1' e2'
   defunc PGrad            = return PGrad
-  defunc (ELam x e)       = ELam x <$> defunc e 
+  defunc (ELam x e)       = ELam x <$> defunc e
   defunc  e               = errorstar ("defunc Pred: " ++ show e)
 
 -- This is not defuncionalization, should not happen in defunc
@@ -256,9 +256,9 @@ mkFunEq :: Expr -> Expr -> SMT2 Expr
 mkFunEq e1 e2
   = do fflag <- f_ext <$> get
        if fflag
-        then return $ PAnd [PAll (zip xs (defuncSort <$> ss)) 
+        then return $ PAnd [PAll (zip xs (defuncSort <$> ss))
                              (PAtom Eq
-                                (ECst (eApps (EVar f) (e1:es)) s) 
+                                (ECst (eApps (EVar f) (e1:es)) s)
                                 (ECst (eApps (EVar f) (e2:es)) s))
                             , PAtom Eq e1 e2]
         else return $ PAtom Eq e1 e2
@@ -308,7 +308,7 @@ instance SMTLIB2 Command where
     = do env      <- smt2env <$> get
          (p', fs) <- grapLambdas $ elaborate env p
          dfs      <- mapM defineFun fs
-         baxioms  <- makeBetaReductionAsserts p' 
+         baxioms  <- makeBetaReductionAsserts p'
          p''      <- defunc p'
          return $ CMany ((Assert Nothing <$> baxioms) ++ concat dfs ++ [Assert Nothing p''])
 
@@ -316,7 +316,7 @@ instance SMTLIB2 Command where
     = do env <- smt2env <$> get
          (p', fs) <- grapLambdas $ elaborate env p
          dfs <- mapM defineFun fs
-         baxioms  <- makeBetaReductionAsserts p' 
+         baxioms  <- makeBetaReductionAsserts p'
          p'' <- defunc p'
          return $ CMany ((Assert Nothing <$> baxioms) ++ concat dfs ++ [Assert (Just i) p''])
 --   smt2 env (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 env $ elaborate env p, i)
@@ -345,15 +345,15 @@ defineFun (f, ELam (x, t) (ECst e tr))
                                   (PAtom Eq (mkApp (EApp (EVar f) (EVar x)) (fst <$> xts)) bd))
        g <- freshSym
        assert2 <- withExtendedEnv [(f, FFunc t tr)] $
-                  withNoExtensionality $ 
+                  withNoExtensionality $
                    defunc $ Assert Nothing
         (PAll [(g, FFunc t tr)]
           (PImp
         (PAll [(x,t)] (PAtom Eq (EApp (EVar f) (EVar x)) (EApp (EVar g) (EVar x))))
         (PAtom Eq (EVar f) (EVar g))))
        fflag <- f_ext <$> get
-       if fflag 
-        then return [decl, assert1, assert2] 
+       if fflag
+        then return [decl, assert1, assert2]
         else errorstar "defineFun on no extensionality flag and with function definition" --  return [decl]
   where
     go acc (ELam (x, t) e) = go ((x,t):acc) e
@@ -393,19 +393,19 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 
 normalizeLamsFromTo :: Int ->  Expr -> (Int, Expr)
 
-normalizeLams :: Expr -> Expr 
+normalizeLams :: Expr -> Expr
 normalizeLams e = snd $ normalizeLamsFromTo 1 e
 
 normalizeLamsFromTo i e = go e
   where
     go (ELam (y, sy) e) = let (i', e') = go e
-                              y'      = makeLamArg sy i' 
+                              y'      = makeLamArg sy i'
                           in (i'+1, ELam (y', sy) (e' `subst1` (y, EVar y')))
     go (EApp e1 e2)     = let (i1, e1') = go e1
-                              (i2, e2') = go e2 
+                              (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
     go (ECst e s)       = mapSnd (`ECst` s) (go e)
-    go e                = (i, e) 
+    go e                = (i, e)
 
     mapSnd f (x, y) = (x, f y)
 
@@ -414,12 +414,12 @@ normalizeLamsFromTo i e = go e
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
 grapLambdas = go []
   where
-    go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get 
-                                  if ext then do 
+    go acc e@(ELam (x,s) bd) = do ext <- f_ext <$> get
+                                  if ext then do
                                      f <- freshSym
                                      return (ECst (EVar f) (exprSort e),(f, e):acc)
-                                  else do 
-                                     (bd', acc') <- go acc bd  
+                                  else do
+                                     (bd', acc') <- go acc bd
                                      return (normalizeLams $ ELam (x, s) bd', acc')
     go acc e@(ESym _)   = return (e, acc)
     go acc e@(ECon _)   = return (e, acc)
@@ -479,10 +479,10 @@ grapLambdas = go []
 
 
 makeBetaReductionAsserts :: Expr -> SMT2 [Expr]
-makeBetaReductionAsserts e 
+makeBetaReductionAsserts e
   = do aFlag <- a_eq   <$> get
-       bFlag <- b_eq   <$> get 
-       nFlag <- f_norm <$> get 
+       bFlag <- b_eq   <$> get
+       nFlag <- f_norm <$> get
        let as1 = if aFlag then fold lamVis  () [] e else []
        let as2 = if bFlag then fold betaVis () [] e else []
        let as3 = if nFlag then fold normVis () [] e else []
@@ -492,16 +492,16 @@ makeBetaReductionAsserts e
     go _ e@(EApp f ex)
       | ELam (x, _) bd <- uncst f
       = [mkEq e (bd `subst1` (x, ex))] -- :(go acc f ++ go acc ex)
-    go _ _ = [] 
+    go _ _ = []
 
-    uncst (ECst e _) = uncst e 
-    uncst e          = e 
+    uncst (ECst e _) = uncst e
+    uncst e          = e
 
 
     lamVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go' }
     go' _ ee@(ELam (x, s) e)
       -- optimization: do it for each lambda once
-      --  notElem ee cxt 
+      --  notElem ee cxt
       = [mkEq ee ee' | (i, ee') <- map (\j -> normalizeLamsFromTo j (ELam (x, s) e)) [1..maxLamArg-1], i <= maxLamArg ]
     go' _ _ = []
 
@@ -509,25 +509,25 @@ makeBetaReductionAsserts e
     normVis = (defaultVisitor :: Visitor [Expr] ()) {accExpr = go'' }
     go'' _ ee@(ELam _ _)
       -- optimization: do it for each lambda once
-      --  notElem ee cxt 
+      --  notElem ee cxt
       = [mkEq ee (normalizeLams $  normalForm ee)]
     go'' _ _ = []
 
-    normalForm (ELam x e) 
+    normalForm (ELam x e)
       = ELam x (normalForm e)
     normalForm (EApp f ex)
-      | ELam (x, _) bd <- uncst f 
+      | ELam (x, _) bd <- uncst f
       = bd `subst1` (x, normalForm ex)
     normalForm (EApp e1 e2)
       = EApp (normalForm e1) (normalForm e2)
     normalForm (ECst e s)
-      = ECst (normalForm e) s 
-    normalForm e 
-      = e 
+      = ECst (normalForm e) s
+    normalForm e
+      = e
 
-    mkEq e1 e2 
+    mkEq e1 e2
       | e1 == e2  = PTrue
-      | otherwise = PAtom Eq e1 e2    
+      | otherwise = PAtom Eq e1 e2
 
 
 makeApplication :: Expr -> [Expr] -> SMT2 Expr
@@ -630,8 +630,8 @@ initSMTEnv = fromListSEnv $
   ++ concatMap makeApplies [1..maxLamArg]
   ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
 
-maxLamArg :: Int 
-maxLamArg = 7 
+maxLamArg :: Int
+maxLamArg = 7
 
 sorts :: [Sort]
 sorts = [intSort]

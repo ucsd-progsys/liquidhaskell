@@ -144,7 +144,6 @@ newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
 
 type Env      = Symbol -> SESearch Sort
 
-emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -644,7 +643,9 @@ unify f e t1 t2
 --------------------------------------------------------------------------------
 unifySorts :: Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
-unifySorts = unifyFast False emptyEnv
+unifySorts   = unifyFast False emptyEnv
+  where
+    emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
 
 --------------------------------------------------------------------------------
 -- | Fast Unification; `unifyFast True` is just equality

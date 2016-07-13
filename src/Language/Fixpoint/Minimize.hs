@@ -41,6 +41,9 @@ deltaDebug min testSet cfg solve finfo set r = do
               d2 <- deltaDebug min testSet cfg solve finfo s2 (d1 ++ r)
               return (d1 ++ d2)
 
+deltaDebug1 :: Bool -> (a -> b -> c -> d -> IO Bool)
+            -> a -> b -> c -> [e] -> d
+            -> IO [e]
 deltaDebug1 True  _       _   _     _     set _ = return set
 deltaDebug1 False testSet cfg solve finfo set r = do
   test <- testSet cfg solve finfo r
