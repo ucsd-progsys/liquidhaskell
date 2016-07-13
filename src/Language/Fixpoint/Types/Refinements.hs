@@ -88,6 +88,7 @@ module Language.Fixpoint.Types.Refinements (
 
   , symbolSymConst
   , isSymbolSymConst
+  , symConstLenEquality
   ) where
 
 import qualified Data.Binary as B
@@ -322,6 +323,9 @@ symbolSymConst = fromJust . decodeSymConst
 
 isSymbolSymConst :: (Symbol, Sort) -> Bool 
 isSymbolSymConst (x, t) = isString t && isJust (decodeSymConst x)
+
+symConstLenEquality :: Expr -> SymConst -> Expr 
+symConstLenEquality f e@(SL t) = PAtom Eq (EApp f $ ESym e) (ECon $ I (toEnum $ T.length t))
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst

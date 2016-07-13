@@ -222,7 +222,7 @@ defuncApp :: Expr -> SMT2 Expr
 defuncApp e = case Thy.smt2App (eliminate f) (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
                 _      -> if stringLen es'
-                           then EApp (EVar Thy.strLen) <$> defunc (head es')  
+                           then defunc $ EApp (EVar Thy.strLen) (head es')  
                            else defuncApp' f' es'
   where
     (f, es)   = splitEApp' e
