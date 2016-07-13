@@ -318,45 +318,45 @@ instance HasConfig GhcInfo where
 -- parsing the target source and dependent libraries
 
 data GhcSpec = SP {
-    tySigs     :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
-  , asmSigs    :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
-  , inSigs     :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
-  , ctors      :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
-  , spLits     :: ![(Symbol, LocSpecType)]       -- ^ Literals/Constants
+    gsTySigs   :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
+  , gsAsmSigs  :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
+  , gsInSigs   :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
+  , gsCtors    :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
+  , gsLits     :: ![(Symbol, LocSpecType)]       -- ^ Literals/Constants
                                                  -- e.g. datacons: EQ, GT, string lits: "zombie",...
-  , meas       :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
+  , gsMeas     :: ![(Symbol, LocSpecType)]       -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
-  , invariants :: ![(Maybe Var, LocSpecType)]    -- ^ Data Type Invariants that came from the definition of var measure
+  , gsInvariants :: ![(Maybe Var, LocSpecType)]  -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
-  , ialiases   :: ![(LocSpecType, LocSpecType)]  -- ^ Data Type Invariant Aliases
-  , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
+  , gsIaliases   :: ![(LocSpecType, LocSpecType)]-- ^ Data Type Invariant Aliases
+  , gsDconsP     :: ![(DataCon, DataConP)]       -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
-  , tconsP     :: ![(TyCon, TyConP)]             -- ^ Predicated Type-Constructors
+  , gsTconsP     :: ![(TyCon, TyConP)]           -- ^ Predicated Type-Constructors
                                                  -- eg.  see tests/pos/Map.hs
-  , freeSyms   :: ![(Symbol, Var)]               -- ^ List of `Symbol` free in spec and corresponding GHC var
+  , gsFreeSyms   :: ![(Symbol, Var)]             -- ^ List of `Symbol` free in spec and corresponding GHC var
                                                  -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , tcEmbeds   :: TCEmb TyCon                    -- ^ How to embed GHC Tycons into fixpoint sorts
+  , gsTcEmbeds   :: TCEmb TyCon                  -- ^ How to embed GHC Tycons into fixpoint sorts
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
-  , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
+  , gsQualifiers :: ![Qualifier]                 -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
-  , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
-  , texprs     :: ![(Var, [Located Expr])]       -- ^ Lexicographically ordered expressions for termination
-  , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
-  , autosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
-  , config     :: !Config                        -- ^ Configuration Options
-  , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
-  , measures   :: [Measure SpecType DataCon]
-  , tyconEnv   :: M.HashMap TyCon RTyCon
-  , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , axioms     :: [HAxiom]                       -- ^ Axioms from axiomatized functions
-  , logicMap   :: LogicMap
-  , proofType  :: Maybe Type
+  , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
+  , gsTexprs     :: ![(Var, [Located Expr])]     -- ^ Lexicographically ordered expressions for termination
+  , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
+  , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
+  , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
+  , gsConfig     :: !Config                        -- ^ Configuration Options
+  , gsExports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , gsMeasures  :: [Measure SpecType DataCon]
+  , gsTyconEnv  :: M.HashMap TyCon RTyCon
+  , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , gsAxioms    :: [HAxiom]                       -- ^ Axioms from axiomatized functions
+  , gsLogicMap  :: LogicMap
+  , gsProofType :: Maybe Type
   }
 
 instance HasConfig GhcSpec where
-  getConfig = config
+  getConfig = gsConfig
 
 data LogicMap = LM { logic_map :: M.HashMap Symbol LMap
                    , axiom_map :: M.HashMap Var Symbol
@@ -538,7 +538,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -727,28 +727,28 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 
-makeRTVar :: tv -> RTVar tv s 
+makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a RTVNoInfo
 
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
 
-data RTVar tv s 
-  = RTVar { ty_var_value :: tv 
-          , ty_var_info  :: RTVInfo s  
+data RTVar tv s
+  = RTVar { ty_var_value :: tv
+          , ty_var_info  :: RTVInfo s
           } deriving (Generic, Data, Typeable)
 
-mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s 
+mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
 
-dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2 
+dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2
 dropTyVarInfo v = v{ty_var_info = RTVNoInfo}
 
-data RTVInfo s 
+data RTVInfo s
   = RTVNoInfo
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
-            , rtv_is_val :: Bool 
+            , rtv_is_val :: Bool
             } deriving (Generic, Data, Typeable)
 
 
@@ -756,10 +756,10 @@ rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
 rTVarToBind = go . ty_var_info
   where
     go (RTVInfo {..}) | rtv_is_val = Just (rtv_name, rtv_kind)
-    go _                           = Nothing 
+    go _                           = Nothing
 
 ty_var_is_val :: RTVar tv s -> Bool
-ty_var_is_val = rtvinfo_is_val . ty_var_info 
+ty_var_is_val = rtvinfo_is_val . ty_var_info
 
 rtvinfo_is_val :: RTVInfo s -> Bool
 rtvinfo_is_val RTVNoInfo      = False
@@ -1395,7 +1395,7 @@ efoldReft logicBind cb dty g f fp = go
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
     go γ z (RAllT a t)
-       | ty_var_is_val a                = go (insertsSEnv γ (dty a)) z t 
+       | ty_var_is_val a                = go (insertsSEnv γ (dty a)) z t
        | otherwise                      = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RAllS _ t)                  = go γ z t

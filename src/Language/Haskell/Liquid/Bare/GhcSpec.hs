@@ -19,7 +19,6 @@ import           Name
 import           TyCon
 import           Var
 import           TysWiredIn
-
 import           DataCon                                    (DataCon)
 import           InstEnv
 
@@ -100,31 +99,31 @@ listLMap  = toLogicMap [ (nilName , []     , hNil)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { tySigs     = mapSnd addTCI <$> sigs
-       , inSigs     = mapSnd addTCI <$> insigs
-       , asmSigs    = mapSnd addTCI <$> assms
-       , invariants = mapSnd addTCI <$> invariants
-       , spLits     = txSort        <$> spLits
-       , meas       = txSort        <$> meas
-       , dicts      = dmapty addTCI'    dicts
-       , texprs     = ts
+  = sp { gsTySigs     = mapSnd addTCI <$> sigs
+       , gsInSigs     = mapSnd addTCI <$> insigs
+       , gsAsmSigs    = mapSnd addTCI <$> assms
+       , gsInvariants = mapSnd addTCI <$> gsInvariants
+       , gsLits       = txSort        <$> gsLits
+       , gsMeas       = txSort        <$> gsMeas
+       , gsDicts      = dmapty addTCI'    gsDicts
+       , gsTexprs     = ts
        }
   where
-    (sigs, ts')     = replaceLocalBinds allowHO tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    (assms, ts'')   = replaceLocalBinds allowHO tcEmbeds tyconEnv asmSigs ts'   specEnv cbs
-    (insigs, ts)    = replaceLocalBinds allowHO tcEmbeds tyconEnv inSigs  ts''  specEnv cbs
-    txSort          = mapSnd (addTCI . txRefSort tyconEnv tcEmbeds)
+    (sigs, ts')     = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsTySigs  gsTexprs specEnv cbs
+    (assms, ts'')   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsAsmSigs ts'   specEnv cbs
+    (insigs, ts)    = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsInSigs  ts''  specEnv cbs
+    txSort          = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
     addTCI          = (addTCI' <$>)
-    addTCI'         = addTyConInfo tcEmbeds tyconEnv
-    allowHO         = higherOrderFlag config
+    addTCI'         = addTyConInfo gsTcEmbeds gsTyconEnv
+    allowHO         = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
   where
-    emb              = tcEmbeds sp
-    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
-                     ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+    emb              = gsTcEmbeds sp
+    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v) <- gsFreeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -161,12 +160,12 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
 addProofType :: GhcSpec -> BareM GhcSpec
 addProofType spec = do
   tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
-  return $ spec { proofType = (`TyConApp` []) <$> tycon }
+  return $ spec { gsProofType = (`TyConApp` []) <$> tycon }
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons n flag vs spec
-  | flag      = return $ spec {tySigs = tySigs spec ++ xts}
+  | flag      = return $ spec { gsTySigs = gsTySigs spec ++ xts}
   | otherwise = return spec
   where
     xts       = makeExact <$> filter f vs
@@ -201,41 +200,41 @@ makeAxioms tce cbs spec sp
   = do lmap          <- logicEnv <$> get
        (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
        lmap'         <- logicEnv <$> get
-       return $ spec { meas     = ms         ++ meas spec
-                     , asmSigs  = concat tys ++ asmSigs spec
-                     , axioms   = concat as  ++ axioms  spec
-                     , logicMap = lmap' }
+       return $ spec { gsMeas     = ms         ++ gsMeas     spec
+                     , gsAsmSigs  = concat tys ++ gsAsmSigs  spec
+                     , gsAxioms   = concat as  ++ gsAxioms spec
+                     , gsLogicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
 -- emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 emptySpec cfg = SP
-  { tySigs     = mempty
-  , asmSigs    = mempty
-  , inSigs     = mempty
-  , ctors      = mempty
-  , spLits     = mempty
-  , meas       = mempty
-  , invariants = mempty
-  , ialiases   = mempty
-  , dconsP     = mempty
-  , tconsP     = mempty
-  , freeSyms   = mempty
-  , tcEmbeds   = mempty
-  , qualifiers = mempty
-  , tgtVars    = mempty
-  , decr       = mempty
-  , texprs     = mempty
-  , lvars      = mempty
-  , lazy       = mempty
-  , autosize   = mempty
-  , config     = cfg
-  , exports    = mempty
-  , measures   = mempty
-  , tyconEnv   = mempty
-  , dicts      = mempty
-  , axioms     = mempty
-  , logicMap   = mempty
-  , proofType  = Nothing
+  { gsTySigs     = mempty
+  , gsAsmSigs    = mempty
+  , gsInSigs     = mempty
+  , gsCtors      = mempty
+  , gsLits     = mempty
+  , gsMeas       = mempty
+  , gsInvariants = mempty
+  , gsIaliases   = mempty
+  , gsDconsP     = mempty
+  , gsTconsP     = mempty
+  , gsFreeSyms   = mempty
+  , gsTcEmbeds   = mempty
+  , gsQualifiers = mempty
+  , gsTgtVars    = mempty
+  , gsDecr       = mempty
+  , gsTexprs     = mempty
+  , gsLvars      = mempty
+  , gsLazy       = mempty
+  , gsAutosize   = mempty
+  , gsConfig     = cfg
+  , gsExports    = mempty
+  , gsMeasures   = mempty
+  , gsTyconEnv   = mempty
+  , gsDicts      = mempty
+  , gsAxioms     = mempty
+  , gsLogicMap   = mempty
+  , gsProofType  = Nothing
   }
 
 
@@ -251,9 +250,9 @@ makeGhcSpec0 :: Config
              -> BareM GhcSpec
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ checks cfg
-       return      $ sp { config = cfg
-                        , exports = exports
-                        , tgtVars = targetVars }
+       return      $ sp { gsConfig  = cfg
+                        , gsExports = exports
+                        , gsTgtVars = targetVars }
 
 makeGhcSpec1 :: [Var]
              -> [Var]
@@ -273,11 +272,11 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
-       return $ sp { tySigs     = filter (\(v,_) -> v `elem` vs) tySigs
-                   , asmSigs    = filter (\(v,_) -> v `elem` vs) asmSigs
-                   , ctors      = filter (\(v,_) -> v `elem` vs) ctors
-                   , meas       = measSyms
-                   , spLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
+       return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
+                   , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
+                   , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
+                   , gsMeas     = measSyms
+                   , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where
       tx       = fmap . mapSnd . subst $ su
@@ -293,9 +292,9 @@ makeGhcSpec2 :: Monad m
              -> GhcSpec
              -> m GhcSpec
 makeGhcSpec2 invs ialias measures su sp
-  = return $ sp { invariants = mapSnd (subst su) <$> invs
-                , ialiases   = subst su ialias
-                , measures   = subst su
+  = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
+                , gsIaliases   = subst su ialias
+                , gsMeasures   = subst su
                                  <$> M.elems (Ms.measMap measures)
                                   ++ Ms.imeas measures
                 }
@@ -306,11 +305,11 @@ makeGhcSpec3 datacons tycons embs syms sp
        lmap        <- logicEnv <$> get
        inlmap      <- inlines  <$> get
        let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
-       return  $ sp { tyconEnv   = tcEnv
-                    , dconsP     = dcons'
-                    , tconsP     = tycons
-                    , tcEmbeds   = embs
-                    , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
+       return  $ sp { gsTyconEnv = tcEnv
+                    , gsDconsP   = dcons'
+                    , gsTconsP   = tycons
+                    , gsTcEmbeds = embs
+                    , gsFreeSyms = [(symbol v, v) | (_, v) <- syms] }
 
 makeGhcSpec4 :: [Qualifier]
              -> [Var]
@@ -332,7 +331,7 @@ makeGhcSpec4 quals defVars specs name su sp
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
        mapM_ insertHMeasLogicEnv $ S.toList hinls
        lmap'   <- logicEnv <$> get
-       let isgs = strengthenHaskellInlines  (S.map fst hinls) (tySigs sp)
+       let isgs = strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
        let msgs = strengthenHaskellMeasures (S.map fst hmeas) isgs
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
@@ -340,21 +339,21 @@ makeGhcSpec4 quals defVars specs name su sp
        let tx   = mapSnd f
        let mtx  = txRefToLogic lmap inlmap
        let txdcons d = d{tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
-       return   $ sp { qualifiers = subst su quals
-                     , decr       = decr'
-                     , lvars      = lvars'
-                     , autosize   = asize'
-                     , lazy       = S.insert dictionaryVar lazies
-                     , tySigs     = tx  <$> msgs
-                     , asmSigs    = tx  <$> asmSigs  sp
-                     , inSigs     = tx  <$> inSigs   sp
-                     , measures   = mtx <$> measures sp
-                     , logicMap   = lmap'
-                     , invariants = tx <$> invariants sp
-                     , ctors      = tx <$> ctors      sp
-                     , ialiases   = tx <$> ialiases   sp
-                     , dconsP     = mapSnd txdcons <$> dconsP sp
-                     , texprs     = mapSnd f <$> texprs'
+       return   $ sp { gsQualifiers = subst su quals
+                     , gsDecr       = decr'
+                     , gsLvars      = lvars'
+                     , gsAutosize   = asize'
+                     , gsLazy       = S.insert dictionaryVar lazies
+                     , gsTySigs     = tx  <$> msgs
+                     , gsAsmSigs    = tx  <$> gsAsmSigs  sp
+                     , gsInSigs     = tx  <$> gsInSigs   sp
+                     , gsMeasures = mtx <$> gsMeasures sp
+                     , gsLogicMap = lmap'
+                     , gsInvariants = tx <$> gsInvariants sp
+                     , gsCtors      = tx <$> gsCtors      sp
+                     , gsIaliases   = tx <$> gsIaliases   sp
+                     , gsDconsP     = mapSnd txdcons <$> gsDconsP sp
+                     , gsTexprs     = mapSnd f <$> texprs'
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
@@ -505,8 +504,7 @@ replaceLocalBinds allowHO emb tyi sigs texprs senv cbs
                                    (RE M.empty senv emb tyi))
                        (M.fromList sigs, M.fromList texprs)
 
-traverseExprs
-  :: Bool -> CoreSyn.Expr Var -> ReaderT ReplaceEnv (State ReplaceState) ()
+traverseExprs :: Bool -> CoreSyn.Expr Var -> ReplaceM ()
 traverseExprs allowHO (Let b e)
   = traverseBinds allowHO b (traverseExprs allowHO e)
 traverseExprs allowHO (Lam b e)
@@ -522,22 +520,13 @@ traverseExprs allowHO (Tick _ e)
 traverseExprs _ _
   = return ()
 
-traverseBinds
-  :: Bool
-  -> Bind Var
-  -> ReaderT ReplaceEnv (State ReplaceState) b
-  -> ReaderT ReplaceEnv (State ReplaceState) b
+traverseBinds :: Bool -> Bind Var -> ReplaceM b -> ReplaceM b
 traverseBinds allowHO b k = withExtendedEnv allowHO (bindersOf b) $ do
   mapM_ (traverseExprs allowHO) (rhssOfBind b)
   k
 
 -- RJ: this function is incomprehensible, what does it do?!
-withExtendedEnv
-  :: Foldable t
-  => Bool
-  -> t Var
-  -> ReaderT ReplaceEnv (State ReplaceState) b
-  -> ReaderT ReplaceEnv (State ReplaceState) b
+withExtendedEnv :: Bool -> [Var] -> ReplaceM b -> ReplaceM b
 withExtendedEnv allowHO vs k
   = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs

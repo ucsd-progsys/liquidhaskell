@@ -5,7 +5,6 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -238,7 +237,7 @@ isExportedVar :: GhcInfo -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns
   where
     n                = getName v
-    ns               = exports (spec info)
+    ns               = gsExports (spec info)
 
 
 classCons :: Maybe [ClsInst] -> [Id]
@@ -598,15 +597,15 @@ makeLogicMap = do
 instance PPrint GhcSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
-    , pprintTidy k $ tgtVars spec
+    , pprintTidy k $ gsTgtVars spec
     , "******* Type Signatures *********************"
-    , pprintLongList k (tySigs spec)
+    , pprintLongList k (gsTySigs spec)
     , "******* Assumed Type Signatures *************"
-    , pprintLongList k (asmSigs spec)
+    , pprintLongList k (gsAsmSigs spec)
     , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList k (ctors spec)
+    , pprintLongList k (gsCtors spec)
     , "******* Measure Specifications **************"
-    , pprintLongList k (meas spec)                   ]
+    , pprintLongList k (gsMeas spec)                   ]
 
 instance PPrint GhcInfo where
   pprintTidy k info = vcat

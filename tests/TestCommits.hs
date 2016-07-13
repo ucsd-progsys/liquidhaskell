@@ -26,15 +26,13 @@ import Data.Maybe           (fromMaybe)
 
 project :: String
 project = "liquidhaskell"
+-- project = "liquidhaskell --fast --test-arguments=\"-p Peano\""
 
 branch :: String
 branch = "develop"
 
 tmpFile :: FilePath
-tmpFile = "/tmp/commits.txt"
-
-logDir :: FilePath 
-logDir = "/tmp/summary-"
+tmpFile = "/tmp/commits"
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -57,6 +55,7 @@ testCommits f = do
   mapM_ (putStrLn . ("  " ++)) is
   runCmd setupCmd
   mapM_ runCommit is
+  runCmd setupCmd
 
 strParam :: String -> Param
 strParam s
@@ -108,5 +107,5 @@ commitCmd i =
   [ printf "git checkout %s"       i
   ,        "git submodule update"
   , printf "stack test %s"         project
-  , printf "cp tests/logs/cur/summary.csv %s-%s.csv" logDir i
+  , printf "cp tests/logs/cur/summary.csv ~/tmp/summary-%s.csv" i
   ]

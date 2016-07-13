@@ -204,7 +204,7 @@ instance PPrint CGInfo where
 
 pprCGInfo :: F.Tidy -> CGInfo -> Doc
 pprCGInfo _k _cgi
-  =  "*********** Constraint Information ***********"
+  =  "*********** Constraint Information (omitted) *************"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)
   -- -$$ (text "*********** Haskell WFConstraints ************")
@@ -215,8 +215,8 @@ pprCGInfo _k _cgi
   -- -$$ (F.toFix  $ fixWfs cgi)
   -- -$$ (text "*********** Fixpoint Kut Variables ************")
   -- -$$ (F.toFix  $ kuts cgi)
-      $$ "*********** Literals in Source     ************"
-      $$ F.pprint (cgLits _cgi)
+  -- -$$ "*********** Literals in Source     ************"
+  -- -$$ F.pprint (cgLits _cgi)
   -- -$$ (text "*********** KVar Distribution *****************")
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
