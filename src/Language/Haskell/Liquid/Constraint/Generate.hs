@@ -36,7 +36,6 @@ import           PrelNames
 import           TypeRep
 import           Class                                         (className)
 import           Var
-import           Id                                           -- hiding (isExportedId)
 import           IdInfo
 import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
@@ -48,49 +47,35 @@ import           Data.Maybe                                    (fromMaybe, catMa
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
-
-import           Data.Bifunctor
 import qualified Data.Foldable                                 as F
 import qualified Data.Traversable                              as T
-import qualified Language.Haskell.Liquid.UX.CTags              as Tg
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
+import qualified Language.Fixpoint.Types                       as F
 import           Language.Haskell.Liquid.Constraint.Fresh
+import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
-
-import qualified Language.Fixpoint.Types                       as F
-
-import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import           Language.Haskell.Liquid.Types.Dictionaries
-
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Types.Names
-
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
 import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
-import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                           , hasBaseTypeVar, showPpr, isDataConId
-                                                           )
+import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
-import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
-
 import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
 -- import Debug.Trace (trace)
 
------------------------------------------------------------------------
-------------- Constraint Generation: Toplevel -------------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Constraint Generation: Toplevel -------------------------------------------
+--------------------------------------------------------------------------------
 
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
@@ -139,7 +124,7 @@ addCombine τ γ
        combineType   = makeCombineType τ
        combineVar    = makeCombineVar  combineType
        combineSymbol = F.symbol combineVar
-       
+
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -287,9 +272,6 @@ consCBTop :: Config -> GhcInfo -> CGEnv -> CoreBind -> CG CGEnv
 consCBTop cfg info γ cb
   | all (trustVar cfg info) xs
   = foldM addB γ xs
-   -- do ts <- mapM trueTy (varType <$> xs)
-   -- (\γ (x, t) -> γ += ("derived", x, t)) γ (zip xs' ts)
-   -- xs'  = F.symbol <$> xs
     where
        xs   = bindersOf cb
        tt   = trueTy . varType
@@ -980,6 +962,7 @@ checkMonad x g = go . unRRTy
 unRRTy :: SpecType -> SpecType
 unRRTy (RRTy _ _ _ t) = unRRTy t
 unRRTy t              = t
+
 --------------------------------------------------------------------------------
 castTy :: t -> Type -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
@@ -1051,7 +1034,7 @@ checkUnbound γ e x t a
   | otherwise              = panic (Just $ getLocation γ) msg
   where
     msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
-                         , "In", showPpr e, "Arg = " , show a ]
+                  , "In", showPpr e, "Arg = " , show a ]
 
 
 dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
@@ -1100,7 +1083,6 @@ caseEnv γ x acs a _ _
        xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
-
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those

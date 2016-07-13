@@ -12,71 +12,40 @@
 
 module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI ) where
 
-import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error, undefined)
-import           GHC.Stack
-import           CoreUtils                                     (exprType)
-import           MkCore
 import           Coercion
 import           DataCon
-import           Pair
 import           CoreSyn
-import           SrcLoc                                 hiding (Located)
 import           Type
 import           TyCon
-import           PrelNames
-import           TypeRep
-import           Class                                         (className)
 import           Var
 import           Id                                           -- hiding (isExportedId)
 import           IdInfo
 import           Name        hiding (varName)
-import           FastString (fastStringToByteString)
-import           Unify
-import           VarSet
-import           Text.PrettyPrint.HughesPJ                     hiding (first)
 import           Control.Monad.State
-import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes, fromJust, isJust)
+import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
-
 import           Data.Bifunctor
-import qualified Data.Foldable                                 as F
-import qualified Data.Traversable                              as T
-import qualified Language.Haskell.Liquid.UX.CTags              as Tg
-import           Language.Fixpoint.Types.Visitor
-import           Language.Haskell.Liquid.Constraint.Fresh
-import           Language.Haskell.Liquid.Constraint.Env
-import           Language.Haskell.Liquid.Constraint.Monad
-import           Language.Haskell.Liquid.Constraint.Split
-
 import qualified Language.Fixpoint.Types                       as F
 
+import qualified Language.Haskell.Liquid.UX.CTags              as Tg
+import           Language.Haskell.Liquid.Constraint.Fresh
+import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
-import           Language.Haskell.Liquid.Types.Dictionaries
-
-import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
-import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.Names
-
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
-import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
-                                                           , hasBaseTypeVar, showPpr, isDataConId
-                                                           )
+import           Language.Haskell.Liquid.GHC.Misc          ( hasBaseTypeVar, isDataConId )
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
-
-import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Constraint.Constraint
 
 -- import Debug.Trace (trace)
 
@@ -119,7 +88,7 @@ initEnv info
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
-    is autoinv   = mkRTyConInv    $ (gsInvariants sp ++ ((Nothing,) <$> autoinv))
+    is autoinv   = mkRTyConInv    (gsInvariants sp ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
