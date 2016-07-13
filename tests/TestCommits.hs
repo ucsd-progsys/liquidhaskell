@@ -33,6 +33,9 @@ branch = "develop"
 tmpFile :: FilePath
 tmpFile = "/tmp/commits.txt"
 
+logDir :: FilePath 
+logDir = "/tmp/summary-"
+
 --------------------------------------------------------------------------------
 main :: IO ()
 --------------------------------------------------------------------------------
@@ -105,5 +108,5 @@ commitCmd i =
   [ printf "git checkout %s"       i
   ,        "git submodule update"
   , printf "stack test %s"         project
-  , printf "cp tests/logs/cur/summary.csv test/logs/summary-%s.csv" i
+  , printf "cp tests/logs/cur/summary.csv %s-%s.csv" logDir i
   ]
