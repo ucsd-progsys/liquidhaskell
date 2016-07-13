@@ -100,7 +100,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
-    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
+    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"
+  eqPosIgnored ExitSuccess
     , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
 
@@ -244,6 +245,10 @@ posIgnored :: [FilePath]
 posIgnored = [ "StringIndexing0.hs"
              ]
 
+
+eqPosIgnored :: [FilePath]
+eqPosIgnored
+  = ["Axiomatize.hs", "Equational.hs", "MonadicLawsMaybe.hs", "MonadicLaws.hs"]
 
 textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"
