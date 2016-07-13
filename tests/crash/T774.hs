@@ -5,6 +5,6 @@ module LiquidR where
 
 {-@ measure goober :: String -> Int @-}
 
-{-@ incr :: x:Int -> {v:Bool | goober x == goober x} @-}
-incr :: Int -> Bool
+{-@ incr :: x:Int -> y:Int -> {v:Bool | goober x == goober y} @-}
+incr :: Int -> Int -> Bool
 incr = undefined
