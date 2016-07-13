@@ -108,7 +108,7 @@ liquidOne :: GhcInfo -> IO (Output Doc)
 ------------------------------------------------------------------------------
 liquidOne info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
-  let cfg   = config $ spec info
+  let cfg   = getConfig info
   let tgt   = target info
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
@@ -132,7 +132,7 @@ newPrune cfg cbs tgt info
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return  (Left cbs)
   where
-    vs            = tgtVars sp
+    vs            = gsTgtVars sp
     sp            = spec    info
 
 -- topLevelBinders :: GhcSpec -> [Var]

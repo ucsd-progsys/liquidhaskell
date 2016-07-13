@@ -55,7 +55,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
-                                                   maxPartSize, eliminate, defConfig, 
+                                                   maxPartSize, eliminate, defConfig,
                                                    extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
@@ -66,7 +66,7 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
-import Language.Haskell.Liquid.Types       hiding (config, name, typ)
+import Language.Haskell.Liquid.Types       hiding (name, typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
@@ -416,7 +416,7 @@ defConfig = Config { files             = def
                    , extensionality    = def
                    , alphaEquivalence  = def
                    , betaEquivalence   = def
-                   , normalForm        = def 
+                   , normalForm        = def
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def

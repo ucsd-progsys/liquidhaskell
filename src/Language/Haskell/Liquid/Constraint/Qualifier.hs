@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
   ) where
 
 import TyCon
-
+import Var (Var)
 import Prelude hiding (error)
 
 import Language.Haskell.Liquid.Bare
@@ -47,7 +47,7 @@ specificationQualifiers k info lEnv
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
 
-specBinders :: GhcInfo -> [(_, LocSpecType)]
+specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
   [ gsTySigs sp
   , gsAsmSigs sp
