@@ -26,7 +26,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Unify
   , unifyFast
   , unifySorts
-  , unify
+  -- , unify
 
   -- * Apply Substitution
   , apply
@@ -562,7 +562,7 @@ checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
   = do t <- checkSym f l
        unless (t == FFrac) (throwError $ errNonFractional s)
-checkFractional _ s 
+checkFractional _ s
   = unless (isReal s) (throwError $ errNonFractional s)
 
 checkNumeric :: Env -> Sort -> CheckM ()
@@ -634,11 +634,16 @@ unify f t1 t2
       Right su -> Just su
 
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+unifySorts :: Sort -> Sort -> Maybe TVSubst
+--------------------------------------------------------------------------------
+unifySorts = unifyFast False emptyEnv
+
+--------------------------------------------------------------------------------
 -- | Fast Unification; `unifyFast True` is just equality
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 unifyFast False f = unify f
 unifyFast True  _ = uMono
   where
@@ -647,11 +652,9 @@ unifyFast True  _ = uMono
      | otherwise  = Nothing
 
 
-unifySorts :: Sort -> Sort -> Maybe TVSubst
-unifySorts = unifyFast False emptyEnv
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 unifys :: Env -> [Sort] -> [Sort] -> CheckM TVSubst
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 unifys f = unifyMany f emptySubst
 
 unifyMany :: Env -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
