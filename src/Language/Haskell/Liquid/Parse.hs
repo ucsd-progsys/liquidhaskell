@@ -35,7 +35,7 @@ import           Data.List                              (foldl', partition)
 import           Data.Either
 
 import           GHC                                    (ModuleName, mkModuleName)
-import           Text.PrettyPrint.HughesPJ              (text)
+import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
@@ -60,7 +60,6 @@ hsSpecificationP :: ModuleName
                  -> [(SourcePos, String)] -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
-
 hsSpecificationP modName specComments specQuotes =
   case partitionEithers $ parseComment <$> specComments of
     ([], specs) ->
@@ -101,8 +100,7 @@ parseWithError parser p s =
     Right (r, "", _)  -> Right r
     Right (_, rem, _) -> Left  $ parseErrorError $ remParseError p s rem
   where
-    doParse =
-      setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
+    doParse = setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
 
 
 ---------------------------------------------------------------------------
@@ -259,7 +257,7 @@ bbaseP
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
-bTyConP 
+bTyConP
   =  (reserved "\'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
 
@@ -341,14 +339,14 @@ bareAllS
 bareAllP :: Parser (RType BTyCon BTyVar RReft)
 bareAllP
   = do reserved "forall"
-       as <- tyVarDefsP 
+       as <- tyVarDefsP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
        return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
 
 tyVarDefsP :: Parser [BTyVar]
-tyVarDefsP 
+tyVarDefsP
   = try (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
 
@@ -358,7 +356,7 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 tyKindVarIdP :: Parser Symbol
-tyKindVarIdP 
+tyKindVarIdP
    =  try ( do s <- tyVarIdP; reserved "::"; _ <- kindP; return s)
   <|> tyVarIdP
 
@@ -406,18 +404,36 @@ xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
 data ArrowSym = ArrowFun | ArrowPred
 
+
+-- arrowP :: EBind -> Parser ArrowSym
+-- arrowP eb = do
+  -- a <- arrowP'
+  -- case (a, eb) of
+    -- (ArrowPred, Left x) -> parserFail $ "Cannot use binder " ++ showpp x ++ " at class constraint"
+    -- (_        , _     ) -> return a
+
+
 arrowP :: Parser ArrowSym
 arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
 
 bareFunP :: Parser (RType BTyCon BTyVar (UReft Reft))
-bareFunP
-  = do b  <- try funBindP <|> dummyBindP
-       t1 <- bareArgP b
-       a  <- arrowP
-       t2 <- bareTypeP
-       return $ bareArrow b t1 a t2
+bareFunP = do
+  eb   <- eBindP -- try (Left <$> funBindP) <|> (Right <$> dummyBindP)
+  let b = eBindSym eb
+  t1   <- bareArgP b
+  a    <- arrowP
+  t2   <- bareTypeP
+  return $ bareArrow eb t1 a t2
+
+type EBind = Located (Either Symbol Symbol)
+
+eBindSym :: EBind -> Symbol
+eBindSym = either id id . val
+
+eBindP :: Parser EBind
+eBindP = locParserP (try (Left <$> funBindP) <|> (Right <$> dummyBindP))
 
 funBindP :: Parser Symbol
 funBindP = lowerIdP <* colon
@@ -426,13 +442,16 @@ dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
 bareArrow :: (Monoid r)
-          => Symbol -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
+          => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
           -> RType BTyCon tv r
-bareArrow b t1 ArrowFun t2
-  = rFun b t1 t2
-bareArrow _ t1 ArrowPred t2
-  = foldr (rFun dummySymbol) t2 (getClasses t1)
-
+bareArrow eb t1 ArrowFun t2
+  = rFun (eBindSym eb) t1 t2
+bareArrow eb t1 ArrowPred t2
+  = case val eb of
+      Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
+      Left x  -> uError $ ErrOther sp ("Invalid class constraint binder:" <+> pprint x)
+    where
+      sp = fSrcSpanSrcSpan . srcSpan $ eb
 
 isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType propConName
