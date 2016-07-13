@@ -58,13 +58,13 @@ import           Text.Printf
 
 -- import Debug.Trace
 
--------------------------------------------------------------------------
--- | Predicates on Sorts ------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Predicates on Sorts -------------------------------------------------------
+--------------------------------------------------------------------------------
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isFirstOrder :: Sort -> Bool
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isFirstOrder (FAbs _ t)    = isFirstOrder t
 isFirstOrder (FFunc s1 s2) = noFun s1 && isFirstOrder s2
 isFirstOrder _             = True
@@ -74,17 +74,17 @@ noFun (FFunc _ _) = False
 noFun (FAbs _ _)  = False
 noFun _           = True
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isMono :: Sort -> Bool
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isMono             = null . foldSort fv []
   where
     fv vs (FVar i) = i : vs
     fv vs _        = vs
 
--------------------------------------------------------------------------
--- | Sort Inference       -----------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Sort Inference ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
 sortExpr l γ e = case runCM0 $ checkExpr f e of
@@ -132,9 +132,9 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
     g' = fromListSEnv $ (, ()) <$> syms e
 
 
--------------------------------------------------------------------------
--- | Checking Refinements -----------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Checking Refinements ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Types used throughout checker
 
@@ -191,9 +191,9 @@ instance Freshable [Int] where
   fresh   = mapM (const fresh) [0..]
   refresh = mapM refresh
 
--------------------------------------------------------------------------
--- | Checking Refinements -----------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Checking Refinements ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
@@ -258,9 +258,9 @@ instance Checkable SortedReft where
    where
      γ' = insertSEnv v s γ
 
--------------------------------------------------------------------------
--- | Checking Expressions -----------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Checking Expressions ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
@@ -412,7 +412,7 @@ elabAppAs f t g e = do
   gT       <- generalize =<< checkExpr f g
   eT       <- checkExpr f e
   (iT, oT) <- checkFunSort gT
-  su       <- unifys f [oT,iT] [t,eT] -- (snd gTios : fst gTios) (t:eTs)
+  su       <- HEREHEREHERE unifys f [oT,iT] [t,eT] -- (snd gTios : fst gTios) (t:eTs)
   let tg    = apply su gT
   g'       <- elabAs f tg g
   let te    = apply su eT
@@ -493,6 +493,7 @@ checkExprAs f t e
 -- | Checking function application should be curried,
 -- | consider checking
 -- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x
+
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e
   = do gt       <- checkExpr f g >>= generalize
@@ -572,9 +573,9 @@ checkNumeric f s@(FObj l)
 checkNumeric _ s
   = unless (isNumeric s) (throwError $ errNonNumeric s)
 
--------------------------------------------------------------------------
--- | Checking Predicates ------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Checking Predicates -------------------------------------------------------
+--------------------------------------------------------------------------------
 
 checkPred                  :: Env -> Expr -> CheckM ()
 checkPred f e = checkExpr f e >>= checkBoolSort e
@@ -618,21 +619,20 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy f e Eq t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
-checkRelTy f e Ne t1 t2            = void (unifys f [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f e Eq t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f e Ne t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Sort Unification
--------------------------------------------------------------------------
-unify :: Env -> Sort -> Sort -> Maybe TVSubst
--------------------------------------------------------------------------
-unify f t1 t2
-  = case runCM0 $ unify1 f emptySubst t1 t2 of
+--------------------------------------------------------------------------------
+unify :: Env -> Maybe Expr -> Sort -> Sort -> Maybe TVSubst
+--------------------------------------------------------------------------------
+unify f e t1 t2
+  = case runCM0 $ unify1 f e emptySubst t1 t2 of
       Left _   -> Nothing
       Right su -> Just su
-
 
 --------------------------------------------------------------------------------
 unifySorts :: Sort -> Sort -> Maybe TVSubst
@@ -653,49 +653,49 @@ unifyFast True  _ = uMono
 
 
 --------------------------------------------------------------------------------
-unifys :: Env -> [Sort] -> [Sort] -> CheckM TVSubst
+unifys :: Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------
-unifys f = unifyMany f emptySubst
+unifys f e = unifyMany f e emptySubst
 
-unifyMany :: Env -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
-unifyMany f θ ts ts'
-  | length ts == length ts' = foldM (uncurry . unify1 f) θ $ zip ts ts'
+unifyMany :: Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
+unifyMany f e θ ts ts'
+  | length ts == length ts' = foldM (uncurry . unify1 f e) θ $ zip ts ts'
   | otherwise               = throwError $ errUnifyMany ts ts'
 
 
-unify1 :: Env -> TVSubst -> Sort -> Sort -> CheckM TVSubst
-unify1 f θ (FVar i) t
-  = unifyVar f θ i t
-unify1 f θ t (FVar i)
-  = unifyVar f θ i t
-unify1 f θ (FApp t1 t2) (FApp t1' t2')
-  = unifyMany f θ [t1, t2] [t1', t2']
-unify1 _ θ (FTC l1) (FTC l2)
+unify1 :: Env -> Maybe Expr -> TVSubst -> Sort -> Sort -> CheckM TVSubst
+unify1 f e θ (FVar i) t
+  = unifyVar f e θ i t
+unify1 f e θ t (FVar i)
+  = unifyVar f e θ i t
+unify1 f e θ (FApp t1 t2) (FApp t1' t2')
+  = unifyMany f e θ [t1, t2] [t1', t2']
+unify1 _ _ θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2
   = return θ
-unify1 f θ t1@(FAbs _ _) t2 = do
+unify1 f e θ t1@(FAbs _ _) t2 = do
   t1'<- generalize t1
-  unifyMany f θ [t1'] [t2]
-unify1 f θ t1 t2@(FAbs _ _) = do
+  unifyMany f e θ [t1'] [t2]
+unify1 f e θ t1 t2@(FAbs _ _) = do
   t2' <- generalize t2
-  unifyMany f θ [t1] [t2']
+  unifyMany f e θ [t1] [t2']
 
-unify1 _ θ FInt  FReal = return θ
+unify1 _ _ θ FInt  FReal = return θ
 
-unify1 _ θ FReal FInt  = return θ
+unify1 _ _ θ FReal FInt  = return θ
 
-unify1 f θ t FInt = do
+unify1 f e θ t FInt = do
   checkNumeric f t `withError` (errUnify t FInt)
   return θ
 
-unify1 f θ FInt t = do
+unify1 f e θ FInt t = do
   checkNumeric f t `withError` (errUnify FInt t)
   return θ
 
-unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
-  unifyMany f θ [t1, t2] [t1', t2']
+unify1 f e θ (FFunc t1 t2) (FFunc t1' t2') = do
+  unifyMany f e θ [t1, t2] [t1', t2']
 
-unify1 _ θ t1 t2
+unify1 _ e θ t1 t2
   | t1 == t2
   = return θ
   | otherwise
@@ -722,39 +722,39 @@ generalize (FAbs i t) = do
 generalize t =
   return t
 
-unifyVar :: Env -> TVSubst -> Int -> Sort -> CheckM TVSubst
-unifyVar _ θ i t@(FVar j)
+unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
+unifyVar _ _ θ i t@(FVar j)
   = case lookupVar i θ of
       Just t'       -> if t == t' then return θ else return $ updateVar j t' θ
       Nothing       -> return $ updateVar i t θ
 
-unifyVar f θ i t
+unifyVar f e θ i t
   = case lookupVar i θ of
       Just (FVar j) -> return $ updateVar i t $ updateVar j t θ
-      Just t'       -> if t == t' then return θ else unify1 f θ t t'
+      Just t'       -> if t == t' then return θ else unify1 f e θ t t'
       Nothing       -> return $ updateVar i t θ
 
--------------------------------------------------------------------------
--- | Applying a Type Substitution ---------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Applying a Type Substitution ----------------------------------------------
+--------------------------------------------------------------------------------
 apply :: TVSubst -> Sort -> Sort
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 apply θ          = sortMap f
   where
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
 
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 sortMap :: (Sort -> Sort) -> Sort -> Sort
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 sortMap f (FAbs i t)    = FAbs i (sortMap f t)
 sortMap f (FFunc t1 t2) = FFunc (sortMap f t1) (sortMap f t2)
 sortMap f (FApp t1 t2)  = FApp  (sortMap f t1) (sortMap f t2)
 sortMap f t             = f t
 
-------------------------------------------------------------------------
--- | Deconstruct a function-sort ---------------------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Deconstruct a function-sort -----------------------------------------------
+--------------------------------------------------------------------------------
 
 checkFunSort :: Sort -> CheckM (Sort, Sort)
 checkFunSort (FAbs _ t)    = checkFunSort t
@@ -772,9 +772,9 @@ sortFunction i t
                                in return (its, foldl FFunc t' ots)
 -}
 
-------------------------------------------------------------------------
--- | API for manipulating Sort Substitutions ---------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | API for manipulating Sort Substitutions -----------------------------------
+--------------------------------------------------------------------------------
 
 newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
 
@@ -787,9 +787,10 @@ updateVar i t (Th m) = Th (M.insert i t m)
 emptySubst :: TVSubst
 emptySubst = Th M.empty
 
--------------------------------------------------------------------------
--- | Error messages -----------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Error messages ------------------------------------------------------------
+--------------------------------------------------------------------------------
+
 errElabExpr    :: Expr -> String
 errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
 
