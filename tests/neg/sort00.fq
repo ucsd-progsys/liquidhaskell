@@ -1,0 +1,12 @@
+// for LH Issue 773
+
+constant foo : (func(0, [int; int]))
+
+bind 0 x     : {v: Str | true}
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | (foo x = 0)}
+  rhs {v : int | (3 = 1 + 2) }
+  id 1 tag []
+
