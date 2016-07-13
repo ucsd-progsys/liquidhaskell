@@ -347,12 +347,12 @@ data GhcSpec = SP {
   , autosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
-  , measures   :: [Measure SpecType DataCon]
-  , tyconEnv   :: M.HashMap TyCon RTyCon
-  , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , axioms     :: [HAxiom]                       -- ^ Axioms from axiomatized functions
-  , logicMap   :: LogicMap
-  , proofType  :: Maybe Type
+  , gsMeasures  :: [Measure SpecType DataCon]
+  , gsTyconEnv  :: M.HashMap TyCon RTyCon
+  , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , gsAxioms    :: [HAxiom]                       -- ^ Axioms from axiomatized functions
+  , gsLogicMap  :: LogicMap
+  , gsProofType :: Maybe Type
   }
 
 instance HasConfig GhcSpec where
@@ -538,7 +538,7 @@ instance Symbolic RTyVar where
 data BTyCon = BTyCon
   { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con? 
+  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -727,28 +727,28 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 
-makeRTVar :: tv -> RTVar tv s 
+makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a RTVNoInfo
 
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
 
-data RTVar tv s 
-  = RTVar { ty_var_value :: tv 
-          , ty_var_info  :: RTVInfo s  
+data RTVar tv s
+  = RTVar { ty_var_value :: tv
+          , ty_var_info  :: RTVInfo s
           } deriving (Generic, Data, Typeable)
 
-mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s 
+mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
 
-dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2 
+dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2
 dropTyVarInfo v = v{ty_var_info = RTVNoInfo}
 
-data RTVInfo s 
+data RTVInfo s
   = RTVNoInfo
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
-            , rtv_is_val :: Bool 
+            , rtv_is_val :: Bool
             } deriving (Generic, Data, Typeable)
 
 
@@ -756,10 +756,10 @@ rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
 rTVarToBind = go . ty_var_info
   where
     go (RTVInfo {..}) | rtv_is_val = Just (rtv_name, rtv_kind)
-    go _                           = Nothing 
+    go _                           = Nothing
 
 ty_var_is_val :: RTVar tv s -> Bool
-ty_var_is_val = rtvinfo_is_val . ty_var_info 
+ty_var_is_val = rtvinfo_is_val . ty_var_info
 
 rtvinfo_is_val :: RTVInfo s -> Bool
 rtvinfo_is_val RTVNoInfo      = False
@@ -1395,7 +1395,7 @@ efoldReft logicBind cb dty g f fp = go
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
     go γ z (RAllT a t)
-       | ty_var_is_val a                = go (insertsSEnv γ (dty a)) z t 
+       | ty_var_is_val a                = go (insertsSEnv γ (dty a)) z t
        | otherwise                      = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RAllS _ t)                  = go γ z t
