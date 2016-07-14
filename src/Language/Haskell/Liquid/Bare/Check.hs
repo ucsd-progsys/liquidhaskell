@@ -64,35 +64,35 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (meas       sp)
-                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (asmSigs    sp)
+                     ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
-                     ++ mapMaybe (checkInv allowHO emb tcEnv env)               (invariants sp)
-                     ++ checkIAl allowHO emb tcEnv env (ialiases   sp)
+                     ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
+                     ++ checkIAl allowHO emb tcEnv env (gsIaliases   sp)
                      ++ checkMeasures emb env ms
-                     ++ checkClassMeasures (measures sp)
+                     ++ checkClassMeasures (gsMeasures sp)
                      ++ mapMaybe checkMismatch                     sigs
-                     ++ checkDuplicate                             (tySigs sp)
-                     ++ checkQualifiers env                        (qualifiers sp)
-                     ++ checkDuplicate                             (asmSigs sp)
-                     ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
+                     ++ checkDuplicate                             (gsTySigs sp)
+                     ++ checkQualifiers env                        (gsQualifiers sp)
+                     ++ checkDuplicate                             (gsAsmSigs sp)
+                     ++ checkDupIntersect                          (gsTySigs sp) (gsAsmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
-                     ++ checkDuplicateFieldNames                   (dconsP sp)
+                     ++ checkDuplicateFieldNames                   (gsDconsP sp)
                      ++ checkRefinedClasses                        rClasses rInsts
     rClasses         = concatMap (Ms.classes   . snd) specs
     rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
-    dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (dconsP spec)
-                                        | (_, dcp) <- dconsP spec
+    dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
+                                        | (_, dcp) <- gsDconsP spec
                                         , let l     = dc_loc  dcp
                                         , let l'    = dc_locE dcp ]
-    emb              = tcEmbeds sp
-    tcEnv            = tyconEnv sp
-    ms               = measures sp
-    clsSigs sp       = [ (v, t) | (v, t) <- tySigs sp, isJust (isClassOpId_maybe v) ]
-    sigs             = tySigs sp ++ asmSigs sp
+    emb              = gsTcEmbeds sp
+    tcEnv            = gsTyconEnv sp
+    ms               = gsMeasures sp
+    clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
+    sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
 
 
@@ -270,7 +270,7 @@ tyToBind :: TCEmb TyCon -> RTVar RTyVar RSort  -> [(Symbol, SortedReft)]
 tyToBind emb = go . ty_var_info
   where
     go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
-    go RTVNoInfo      = [] 
+    go RTVNoInfo      = []
 
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go
@@ -428,13 +428,13 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
   where
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
-    ats  = (mapSnd (rTypeSortedReft emb) <$> as)
+    ats  = mapSnd (rTypeSortedReft emb) <$> as
     xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
     su   = checkMBodyUnify (ty_res trep) (last txs)
     txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
-    sort' = dropNArgs (length bs) sort 
+    sort' = dropNArgs (length bs) sort
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
@@ -459,13 +459,13 @@ checkMBody' emb sort γ body = case body of
     sty   = rTypeSortedReft emb sort'
     sort' = dropNArgs 1 sort
 
-dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r 
+dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
 dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
   where
     xs   = drop i $ ty_binds trep
     ts   = drop i $ ty_args  trep
     rs   = drop i $ ty_refts trep
-    trep = toRTypeRep t 
+    trep = toRTypeRep t
 
 
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]

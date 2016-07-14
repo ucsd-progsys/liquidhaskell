@@ -560,9 +560,9 @@ initAEEnv info sigs
          lts   <- cgLits      <$> get
          i     <- freshIndex  <$> get
          modify $ \s -> s{freshIndex = i + 1}
-         return $ AE { ae_axioms  = axioms spc
+         return $ AE { ae_axioms  = gsAxioms spc
                      , ae_binds   = []
-                     , ae_lmap    = logicMap spc
+                     , ae_lmap    = gsLogicMap spc
                      , ae_consts  = L.nub vs
                      , ae_globals = L.nub tp
                      , ae_vars    = []
@@ -578,14 +578,14 @@ initAEEnv info sigs
                      }
     where
       spc        = spec info
-      vs         = filter validVar (snd <$> freeSyms spc)
+      vs         = filter validVar (snd <$> gsFreeSyms spc)
       tp         = filter validExp (defVars info)
 
-      isExported = flip elemNameSet (exports $ spec info) . getName
+      isExported = flip elemNameSet (gsExports $ spec info) . getName
       validVar   = not . canIgnore
       validExp x = validVar x && isExported x
       by         = makeCombineVar $ makeCombineType τProof
-      τProof     = proofType $ spec info
+      τProof     = gsProofType $ spec info
 
 
 

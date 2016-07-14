@@ -128,7 +128,7 @@ makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
            -> [Var]
            -> Ms.Spec ty bndr
            -> BareM [(Located Var, LocSymbol)]
-makeHIMeas f vs spec 
+makeHIMeas f vs spec
   = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (f spec)]
   where
     tx (x,(l, l', s))  = (Loc l l' x, s)
@@ -274,7 +274,7 @@ makeSpecDictionaries :: F.TCEmb TyCon -> [Var] -> [(a, Ms.BareSpec)] -> GhcSpec
                      -> BareM GhcSpec
 makeSpecDictionaries embs vars specs sp
   = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
-       return $ sp { dicts = ds }
+       return $ sp { gsDicts = ds }
 
 
 
@@ -284,7 +284,7 @@ makeSpecDictionary embs vars (_, spec)
   = (catMaybes . resolveDictionaries vars) <$> mapM (makeSpecDictionaryOne embs) (Ms.rinstance spec)
 
 
-makeSpecDictionaryOne :: F.TCEmb TyCon -> (RInstance (Located BareType))
+makeSpecDictionaryOne :: F.TCEmb TyCon -> RInstance (Located BareType)
                       -> BareM (F.Symbol, M.HashMap F.Symbol SpecType)
 makeSpecDictionaryOne embs (RI x t xts)
   = do t'  <- mapM mkLSpecType t
@@ -298,7 +298,7 @@ makeSpecDictionaryOne embs (RI x t xts)
 
 resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol SpecType)] -> [Maybe (Var, M.HashMap F.Symbol SpecType)]
 resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
- where 
+ where
     go (x,is)           = addIndex 0 x $ reverse is
 
     -- GHC internal postfixed same name dictionaries with ints
@@ -306,7 +306,7 @@ resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
     addIndex _ x [i]    = [(x,i)]
     addIndex j x (i:is) = (F.symbol (F.symbolString x ++ show j),i):addIndex (j+1) x is
 
-    lookupVar (s, i)    = ((,i) <$> lookupName s) 
+    lookupVar (s, i)    = ((,i) <$> lookupName s)
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x
