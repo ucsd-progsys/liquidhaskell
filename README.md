@@ -828,6 +828,10 @@ Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
         size (Node x l r) = 1 + (size l) + (size r)
     @-}
 
+**Note:** Measure names **do not** have to be the same as 
+field name, e.g. we could call the measure `sz` in the above
+as shown in [tests/pos/Class2.hs](tests/pos/Class2.hs).
+
 
 Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/HaskellMeasure.hs)
 
