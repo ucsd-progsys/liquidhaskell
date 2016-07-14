@@ -8,8 +8,8 @@ class Pos s where
 
 instance Pos [] where
   {-@ instance measure allPos :: [Int] -> Bool
-        allPos []     = true
-        allPos (x:xs) = ((x > 0) && (allPos xs))
+        allPos []     = (0 < 1)
+        allPos (x:xs) = (0 < 1)
     @-}
   allPos []     = True
   allPos (x:xs) = (x > 0) && (allPos xs)
