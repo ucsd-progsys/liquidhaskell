@@ -549,7 +549,8 @@ makeApplication e es = defunc e >>= (`go` es)
     go f []     = return f
     go f (e:es) = do df <- defunc $ makeFunSymbol f 1
                      de <- defunc e
-                     let res = eApps (EVar df) [ECst f (exprSort f), de]
+                     de' <- toInt de 
+                     let res = eApps (EVar df) [ECst f (exprSort f), de']
                      let s  = exprSort (EApp f de)
                      go ((`ECst` s) res) es
 
@@ -592,7 +593,6 @@ dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
 dropArgs str j s
   = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
-{-
 toInt :: Expr -> SMT2 Expr
 toInt e
   |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
@@ -605,6 +605,8 @@ toInt e
   = castWith boolToIntName e
   | FTC c                     <- s, c == realFTyCon
   = castWith realToIntName e
+  | isString s 
+  = castWith strToIntName e 
   | otherwise
   = defunc e
   where
@@ -616,7 +618,7 @@ castWith s e =
      be <- defunc e
      return $ EApp (EVar bs) be
 
--}
+
 isSMTSort :: Sort -> Bool
 isSMTSort s
   | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
