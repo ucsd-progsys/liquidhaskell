@@ -11,5 +11,6 @@ instance Pos [] where
         allPos []     = (0 < 1)
         allPos (x:xs) = (0 < 1)
     @-}
+  allPos :: [a]
   allPos []     = True
   allPos (x:xs) = (x > 0) && (allPos xs)
