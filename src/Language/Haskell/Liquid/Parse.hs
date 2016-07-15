@@ -735,6 +735,7 @@ specP
     <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
+    <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
