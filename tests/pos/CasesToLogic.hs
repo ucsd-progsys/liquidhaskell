@@ -1,5 +1,4 @@
 {-@ LIQUID "--totality"          @-}
-{-@ LIQUID "--stringtheory"      @-}
 {-@ LIQUID "--exact-data-cons"     @-}
 {-@ LIQUID "--higherorder"        @-}
 
