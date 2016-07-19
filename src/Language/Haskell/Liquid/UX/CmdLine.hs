@@ -157,7 +157,7 @@ config = cmdArgsMode $ Config {
 
  , noannotations
     = def &= help "Don't create intermediate annotation files"
-          &= name "no-annotate"
+          &= name "no-annotations"
 
  , trustInternals
     = False &= help "Trust GHC generated code"
