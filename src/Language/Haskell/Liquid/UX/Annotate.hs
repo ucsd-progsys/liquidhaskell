@@ -98,8 +98,8 @@ annotate cfg srcFs out
        annTyp     = o_types  out
        res        = o_result out
        bots       = o_bots   out
-       showWarns  = not $ nowarnings cfg
-       doAnnotate = not $ noannotate cfg
+       showWarns  = not $ nowarnings    cfg
+       doAnnotate = not $ noannotations cfg
 
 doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
 doGenerate cfg tplAnnMap typAnnMap annTyp srcF
