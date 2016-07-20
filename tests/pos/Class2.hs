@@ -5,9 +5,6 @@ module Class () where
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
 
-{- qualif Size(v:Int, xs:a): v = size xs @-}
-{- qualif Size(v:Int, xs:MList a): v = size xs @-}
-
 data MList a = Nil | Cons a (MList a)
 
 {-@ (!!) :: xs:MList a -> {v:Nat | v < sz xs} -> a @-}
