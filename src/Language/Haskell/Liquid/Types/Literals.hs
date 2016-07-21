@@ -41,16 +41,18 @@ literalFRefType :: Literal -> RType RTyCon RTyVar F.Reft
 literalFRefType l
   = makeRTypeBase (literalType l) (literalFReft l)
 
+
 literalFReft :: Literal -> F.Reft
 literalFReft l = maybe mempty mkReft $ mkLit l
 
 mkReft :: F.Expr -> F.Reft
 mkReft e = case e of
+
             F.ESym (F.SL str) ->
               -- FIXME: unsorted equality is shady, better to not embed Add# as int..
               F.meet (F.uexprReft e)
                      (F.reft "v" (F.PAtom F.Eq
-                                  (F.mkEApp (name strLen) [F.EVar "v"])
+                                  (F.mkEApp (name stringLen) [F.EVar "v"])
                                   (F.ECon (F.I (fromIntegral (T.length str))))))
             _ -> F.exprReft e
 

@@ -19,6 +19,8 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , insertLogicEnv
   , insertAxiom
+
+  , setEmbeds
   ) where
 
 import           HscTypes
@@ -35,7 +37,7 @@ import qualified Control.Exception                    as Ex
 import qualified Data.HashMap.Strict                  as M
 
 
-import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
 -- import           Language.Fixpoint.Misc (traceShow)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
@@ -70,8 +72,12 @@ data BareEnv = BE { modName  :: !ModName
                   , logicEnv :: LogicMap
                   , inlines  :: InlnEnv
                   , bounds   :: RBEnv
+                  , embeds   :: TCEmb TyCon
                   }
 
+
+setEmbeds :: MonadState BareEnv m => TCEmb TyCon -> m () 
+setEmbeds emb = modify $ \be -> be {embeds = emb}
 
 insertLogicEnv
   :: MonadState BareEnv m => Symbol -> [Symbol] -> Expr -> m ()
