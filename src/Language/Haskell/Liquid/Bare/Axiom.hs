@@ -109,13 +109,16 @@ makeAssumeType tce lmap x v xts ams def
 
     (xs, def') = grapBody $ normalize def
     su = F.mkSubst $
-             zip (F.symbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
-             ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
+             zip (F.symbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
+             ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
 
 
     grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e')
     grapBody (Tick _ e) = grapBody e
     grapBody e          = ([], e)
+
+
+    ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
 
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
@@ -265,13 +268,13 @@ instance Subable CoreAlt where
 
 -- | Specification for Haskell function
 axiomType :: LocSymbol -> SpecType -> SpecType
-axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
+axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs'}
   where
-    t  = toRTypeRep t'
-    ys = dropWhile isClassType $ ty_args t
-    xs = if isUnique (ty_binds t)
-             then ty_binds t
-             else (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
+    t   = toRTypeRep t'
+    xs  = fst $ unzip $ (dropWhile (isClassType . snd) $ zip xs' (ty_args t))
+    xs' = if isUnique (ty_binds t)
+            then ty_binds t
+             else (\i -> symbol ("xa" ++ show i)) <$> [1..(length $ ty_binds t)]
     x  = F.vv_
 
     res = ty_res t `strengthen` MkUReft ref mempty mempty
@@ -279,7 +282,7 @@ axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
     ref = if isBool (ty_res t) then bref else eref
 
     eref  = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
-    bref = F.Reft (x, F.PIff (F.mkProp (F.EVar x)) (mkApp xs))
+    bref  = F.Reft (x, F.PIff (F.mkProp (F.EVar x)) (mkApp xs))
 
     mkApp = F.mkEApp s . map F.EVar
 

@@ -284,15 +284,17 @@ checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
 
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr 
-casesToLg _v e alts 
+casesToLg v e alts 
   = (mapM (altToLg e) alts) >>= go
   where
     go :: [(DataCon, Expr)] -> LogicM Expr 
-    go [(_,p)]     = return p
+    go [(_,p)]     = return (p `subst1` su)
     go ((d,p):dps) = do c <- checkDataCon d e 
                         e' <- go dps 
-                        return $ EIte c p e' 
+                        return $ (EIte c p e' `subst1` su) 
     go []          = throw "Bah"
+
+    su = (symbol v, e)
 
 checkDataCon :: DataCon -> Expr -> LogicM Expr 
 checkDataCon d e 
