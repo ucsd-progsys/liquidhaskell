@@ -16,7 +16,6 @@ import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos
 
 import qualified Data.List                           as L
-import           Data.Maybe                          (fromMaybe)
 
 import qualified Data.HashMap.Strict                 as M
 
@@ -104,10 +103,7 @@ instance Resolvable Sort where
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
     | tcs' `elem` prims   = FTC <$> return c
-    | otherwise           = do ty     <- lookupGhcTyCon tcs
-                               emb    <- embeds <$> get
-                               let ftc = symbolFTycon $ Loc l l' $ symbol ty
-                               return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
+    | otherwise           = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
