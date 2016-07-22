@@ -8,21 +8,17 @@ import qualified Data.Vector as V
 
 {-@ measure mvlen :: forall a. (MVector s a) -> Int @-}
 {-@ invariant {mv:MVector s a | 0 <= mvlen mv } @-}
-{-@ assume M.new :: PrimMonad m => n:Nat -> m ({vs:MVector (PrimState m) a | mvlen vs == n }) @-}
+{-@ assume Data.Vector.Mutable.new :: PrimMonad m => n:Nat -> m ({vs:MVector (PrimState m) a | mvlen vs == n }) @-}
 
 {-@ minimal :: v:Vector a -> Vector a @-}
 minimal :: Vector a -> Vector a
-minimal v = create (M.new (V.length v) >>=  go )
-    {-@ go :: in:{in:MVector (PrimState m) a | mvlen in == vlen v + 1000 } -> m (MVector (PrimState m) a) @-}
-  where go :: (PrimMonad m) => MVector (PrimState m) a -> m (MVector (PrimState m) a)
-        go mv = pure mv
+minimal v = create (M.new n >>= (\x -> go n x))
+  where
+    {-@ n :: {n:Nat | n == vlen v} @-}
+    n = V.length v
+    {-@ go :: n:Nat -> {mv:MVector (PrimState m) a | mvlen mv == n} -> m (MVector (PrimState m) a) @-}
+    go :: (PrimMonad m) => Int -> MVector (PrimState m) a -> m (MVector (PrimState m) a)
+    go _ mv = pure mv
 
-
-{-@ minimal1 :: v:Vector a -> Vector a @-}
-minimal1 :: Vector a -> Vector a
-minimal1 mickey = create (M.new 0 >>=  go )
-    {-@ go :: in:{in:MVector (PrimState m) a | mvlen in == vlen mickey + 1000 } -> m (MVector (PrimState m) a) @-}
-  where go :: (PrimMonad m) => MVector (PrimState m) a -> m (MVector (PrimState m) a)
-        go mv = pure mv
-
-
+{-@ qualif EqLen(v:MVector s a, x:Vector b): (mvlen v == vlen x) @-}
+{-@ qualif MVLen(v:MVector s a, n:Int): (mvlen v == n) @-}
