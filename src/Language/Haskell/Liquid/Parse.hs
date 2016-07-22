@@ -735,6 +735,7 @@ specP
     <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
+    <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
@@ -1112,19 +1113,6 @@ dataDeclFullP
        whiteSpace
        return $ D x ts ps [] dcs pos fsize
 
----------------------------------------------------------------------
--- | Parsing Qualifiers ---------------------------------------------
----------------------------------------------------------------------
-
-fTyConP :: Parser FTycon
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
 
 ---------------------------------------------------------------
 -- | Bundling Parsers into a Typeclass ------------------------
