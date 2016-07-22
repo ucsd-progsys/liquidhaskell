@@ -4,7 +4,6 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE BangPatterns               #-}
 
 {- LIQUID "--diffcheck" @-}
 
@@ -103,8 +102,8 @@ annotate cfg srcFs out
 
 doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
 doGenerate cfg tplAnnMap typAnnMap annTyp srcF
-  = do generateHtml (traceShow "FILEPATH = " srcF) tpHtmlF tplAnnMap
-       generateHtml (traceShow "FILEPATH = " srcF) tyHtmlF typAnnMap
+  = do generateHtml srcF tpHtmlF tplAnnMap
+       generateHtml srcF tyHtmlF typAnnMap
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
     where
@@ -122,7 +121,7 @@ writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`)
 
 generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
-generateHtml !srcF htmlF annm
+generateHtml srcF htmlF annm
   = do src     <- readFile srcF
        let lhs  = isExtFile LHs srcF
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
