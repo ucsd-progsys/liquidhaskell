@@ -412,6 +412,7 @@ fi :: [SubC a]
    -> BindEnv
    -> SEnv Sort
    -> SEnv Sort
+   -> [SymConst]
    -> Kuts
    -> [Qualifier]
    -> M.HashMap BindId a
@@ -419,12 +420,13 @@ fi :: [SubC a]
    -> Bool
    -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi fn aHO aHOq
+fi cs ws binds ls ds ss ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
        , gLits    = ls
        , dLits    = ds
+       , symconst = ss 
        , kuts     = ks
        , quals    = qs
        , bindInfo = bi
@@ -457,6 +459,7 @@ data GInfo c a =
      , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
      , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
      , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
+     , symconst :: ![SymConst]                -- ^ Symbols unsed in the logic 
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
   --    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
      , quals    :: ![Qualifier]               -- ^ Abstract domain
@@ -473,12 +476,13 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
                      , gLits    = mappend (gLits i1)    (gLits i2)
                      , dLits    = mappend (dLits i1)    (dLits i2)
+                     , symconst = mappend (symconst i1) (symconst i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
                      -- , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)

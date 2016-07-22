@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PatternGuards         #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -699,6 +700,9 @@ unify1 f e θ t FInt = do
 unify1 f e θ FInt t = do
   checkNumeric f t `withError` (errUnify e FInt t)
   return θ
+
+unify1 _ _ θ t1 t2 | isString t1, isString t2
+  = return θ
 
 unify1 f e θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f e θ [t1, t2] [t1', t2']

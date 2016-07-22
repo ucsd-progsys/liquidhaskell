@@ -38,6 +38,7 @@ module Language.Fixpoint.Parse (
   , bindP       -- Binder (lowerIdP <* colon)
   , sortP       -- Sort
   , mkQual      -- constructing qualifiers
+  , fTyConP
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
@@ -379,6 +380,8 @@ fTyConP
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
+  <|> (reserved "Char"    >> return charFTyCon)
+  <|> (reserved "String"  >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
 bvSortP :: Parser Sort
@@ -598,12 +601,13 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts ss kts qs mempty mempty mempty
   where
     cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
     ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
     bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
-    lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
+    lts        = fromListSEnv       [(x, t)             | Con x t     <- defs, not (isSymbolSymConst (x, t))]
+    ss         =                    [symbolSymConst x   | Con x t     <- defs, isSymbolSymConst (x, t)]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
     -- pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]

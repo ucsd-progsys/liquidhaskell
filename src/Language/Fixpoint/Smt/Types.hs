@@ -78,6 +78,7 @@ data Context      = Ctx { pId     :: !ProcessHandle
                         , c_beq   :: !Bool              -- flag to enable lambda b-equivalence axioms
                         , c_norm  :: !Bool              -- flag to enable lambda normal form equivalence axioms
                         , smtenv  :: !SMTEnv
+                        , c_str   :: !Bool              -- enable string interpretation 
                         }
 
 -- | Theory Symbol
@@ -99,6 +100,7 @@ data SMTSt
           , a_eq    :: !Bool   -- enable alpha equivalence axioms
           , b_eq    :: !Bool   -- enable beta equivalence axioms
           , f_norm  :: !Bool   -- enable normal form axioms
+          , istring :: !Bool   -- allow string interpretation  
           }
 
 type SMT2   = State SMTSt
@@ -169,4 +171,5 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Builder
 
 runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
-runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt))
+runSmt2 n cxt a = smt2 $ evalState (defunc a) 
+   (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt) (c_str cxt))

@@ -55,7 +55,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality, alphaEquivalence, betaEquivalence, normalForm)
+import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality, alphaEquivalence, betaEquivalence, normalForm, stringTheory)
 import           Language.Fixpoint.Misc   (errorstar, getUniqueInt)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -272,6 +272,7 @@ makeProcess cfg
                   , c_aeq   = alphaEquivalence cfg  
                   , c_beq   = betaEquivalence  cfg  
                   , c_norm  = normalForm       cfg 
+                  , c_str   = stringTheory     cfg 
                   , smtenv  = initSMTEnv
                   }
 
@@ -298,20 +299,23 @@ smtPreamble :: Config -> SMTSolver -> Context -> IO [LT.Text]
 smtPreamble cfg Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
-       if T.splitOn "." v `versionGreater` ["4", "3", "2"]
+       if (stringTheory cfg && not (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"])) 
+         then errorstar "String Theory is not supported by z3 <= 4.4.1" 
+         else return ()
+       if T.splitOn "." v `versionGreaterEq` ["4", "3", "2"]
          then return $ z3_432_options ++ makeMbqi cfg ++ preamble cfg Z3
          else return $ z3_options     ++ makeMbqi cfg ++ preamble cfg Z3
 smtPreamble cfg s _
   = return $ preamble cfg s
 
-versionGreater :: Ord a => [a] -> [a] -> Bool
-versionGreater (x:xs) (y:ys)
+versionGreaterEq :: Ord a => [a] -> [a] -> Bool
+versionGreaterEq (x:xs) (y:ys)
   | x >  y = True
-  | x == y = versionGreater xs ys
+  | x == y = versionGreaterEq xs ys
   | x <  y = False
-versionGreater _  [] = True
-versionGreater [] _  = False
-versionGreater _ _ = errorstar "Interface.versionGreater called with bad arguments"
+versionGreaterEq _  [] = True
+versionGreaterEq [] _  = False
+versionGreaterEq _ _ = errorstar "Interface.versionGreater called with bad arguments"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------

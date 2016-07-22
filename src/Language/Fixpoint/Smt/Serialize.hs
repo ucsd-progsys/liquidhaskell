@@ -62,6 +62,8 @@ instance SMTLIB2 Sort where
   smt2 FReal                   = "Real"
   smt2 t
     | t == boolSort            = "Bool"
+  smt2 t 
+    | isString t               = build "{}" (Only Thy.string)
   smt2 t
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
@@ -71,6 +73,7 @@ instance SMTLIB2 Sort where
 defuncSort :: Sort -> Sort
 defuncSort (FAbs _ t)      = defuncSort t
 defuncSort (FFunc _ _)     = intSort
+defuncSort t | isString t  = strSort
 defuncSort t | isSMTSort t = t
 defuncSort _               = intSort
 
@@ -89,8 +92,7 @@ instance SMTLIB2 (Symbol, Sort) where
 
 
 instance SMTLIB2 SymConst where
-  smt2   = smt2   . symbol
-
+  smt2 (SL s)  = build "\"{}\"" (Only s) -- smt2   . symbol
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = build "{}" (Only n)
@@ -120,7 +122,7 @@ instance SMTLIB2 Brel where
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
+  smt2 (ESym z)         = smt2 z
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
   smt2 e@(EApp _ _)     = smt2App e
@@ -147,7 +149,7 @@ instance SMTLIB2 Expr where
 
 
 -- new version
-  defunc e@(ESym _)       = return e
+  defunc (ESym s)         = defuncESym s
   defunc e@(ECon _)       = return e
   defunc e@(EVar _)       = return e
   defunc e@(EApp _ _)     = defuncApp e
@@ -180,6 +182,13 @@ instance SMTLIB2 Expr where
   defunc (ELam x e)       = ELam x <$> defunc e
   defunc  e               = errorstar ("defunc Pred: " ++ show e)
 
+
+defuncESym :: SymConst -> SMT2 Expr
+defuncESym s = do 
+    istr <- istring <$> get 
+    if istr 
+      then return $ ESym s 
+      else return $ eVar s 
 -- This is not defuncionalization, should not happen in defunc
 
 defuncBop :: Bop -> Expr -> Expr -> SMT2 Expr
@@ -212,10 +221,14 @@ smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (elimin
 defuncApp :: Expr -> SMT2 Expr
 defuncApp e = case Thy.smt2App (eliminate f) (smt2 <$> es) of
                 Just _ -> eApps f <$> mapM defunc es
-                _      -> defuncApp' f' es'
+                _      -> if stringLen es'
+                           then defunc $ EApp (EVar Thy.strLen) (head es')  
+                           else defuncApp' f' es'
   where
     (f, es)   = splitEApp' e
     (f', es') = splitEApp  e
+    stringLen [e] = (isString $ exprSort e) && (f == EVar Thy.genLen)
+    stringLen _   = False 
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
@@ -536,7 +549,8 @@ makeApplication e es = defunc e >>= (`go` es)
     go f []     = return f
     go f (e:es) = do df <- defunc $ makeFunSymbol f 1
                      de <- defunc e
-                     let res = eApps (EVar df) [ECst f (exprSort f), de]
+                     de' <- toInt de 
+                     let res = eApps (EVar df) [ECst f (exprSort f), de']
                      let s  = exprSort (EApp f de)
                      go ((`ECst` s) res) es
 
@@ -565,6 +579,8 @@ makeFunSymbol e i
   = boolApplyName i
   | s == FReal
   = realApplyName i
+  | isString s 
+  = strApplyName i 
   | otherwise
   = intApplyName i
   where
@@ -577,7 +593,6 @@ dropArgs s j (FFunc _ t) = dropArgs s (j-1) t
 dropArgs str j s
   = die $ err dummySpan $ text (str ++ "  dropArgs: the impossible happened" ++ show (j, s))
 
-{-
 toInt :: Expr -> SMT2 Expr
 toInt e
   |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
@@ -590,6 +605,8 @@ toInt e
   = castWith boolToIntName e
   | FTC c                     <- s, c == realFTyCon
   = castWith realToIntName e
+  | isString s 
+  = castWith strToIntName e 
   | otherwise
   = defunc e
   where
@@ -601,7 +618,7 @@ castWith s e =
      be <- defunc e
      return $ EApp (EVar bs) be
 
--}
+
 isSMTSort :: Sort -> Bool
 isSMTSort s
   | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
@@ -615,7 +632,7 @@ isSMTSort s
   | s == FReal
   = True
   | otherwise
-  = False
+  = isString s 
 
 
 initSMTEnv :: SEnv Sort
@@ -624,6 +641,7 @@ initSMTEnv = fromListSEnv $
   , (bitVecToIntName, FFunc bitVecSort intSort)
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
+  , (strToIntName,    FFunc strSort    intSort)
   , (realToIntName,   FFunc realSort   intSort)
   , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
@@ -650,6 +668,7 @@ makeApplies i =
   , (mapApplyName i,    go i $ mapSort intSort intSort)
   , (realApplyName i,   go i realSort)
   , (boolApplyName i,   go i boolSort)
+  , (strApplyName i,    go i strSort)
   ]
   where
     go 0 s = FFunc intSort s
