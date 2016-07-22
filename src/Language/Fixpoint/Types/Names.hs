@@ -96,8 +96,8 @@ module Language.Fixpoint.Types.Names (
   , divFuncName
 
   -- * Casting function names
-  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, strToIntName, realToIntName
-  , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, strApplyName, realApplyName, intApplyName
+  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
+  , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
 
   , lambdaName
   , intArgName
@@ -473,21 +473,19 @@ lambdaName = "smt_lambda"
 intArgName :: Int -> Symbol
 intArgName = intSymbol "lam_int_arg"
 
-setToIntName, bitVecToIntName, mapToIntName, boolToIntName, strToIntName, realToIntName:: Symbol
+setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
 boolToIntName   = "bool_to_int"
-strToIntName    = "str_to_int"
 realToIntName   = "real_to_int"
 
 
-setApplyName, bitVecApplyName, mapApplyName, boolApplyName, strApplyName, realApplyName, intApplyName :: Int -> Symbol
+setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName :: Int -> Symbol
 setApplyName    = intSymbol "set_apply_"
 bitVecApplyName = intSymbol "bitvec_apply"
 mapApplyName    = intSymbol "map_apply_"
 boolApplyName   = intSymbol "bool_apply_"
-strApplyName    = intSymbol "str_apply_"
 realApplyName   = intSymbol "real_apply_"
 intApplyName    = intSymbol "int_apply_"
 
