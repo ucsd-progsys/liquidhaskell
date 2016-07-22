@@ -104,6 +104,17 @@ type Dim = Numeric
 instance Mode Logical
 instance Mode Numeric
 
+class (Mode a) => IntoNumeric a where
+  intoNumeric :: a -> Numeric
+
+instance IntoNumeric Numeric where
+  intoNumeric = id
+
+instance IntoNumeric Logical where
+  intoNumeric Nothing = Nothing
+  intoNumeric (Just True)  = Just 1 -- (1.0 :: Double)
+  intoNumeric (Just False) = Just 0 -- (0.0 :: Double)
+
 -- Constructor for Arrays ------------------------------------------------------
 
 array :: (R sh, R el, Mode v) => sh Dim -> el v -> Array v
