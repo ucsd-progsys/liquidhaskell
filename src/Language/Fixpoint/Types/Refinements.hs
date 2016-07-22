@@ -83,12 +83,6 @@ module Language.Fixpoint.Types.Refinements (
   , pprintReft
 
   , debruijnIndex
-
-  -- * Symbol Constants
-
-  , symbolSymConst
-  , isSymbolSymConst
-  , symConstLenEquality
   ) where
 
 import qualified Data.Binary as B
@@ -101,7 +95,7 @@ import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Control.DeepSeq
-import           Data.Maybe                (isJust, fromJust)
+import           Data.Maybe                (isJust)
 -- import           Text.Printf               (printf)
 -- import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
@@ -197,10 +191,7 @@ type KVSub       = (KVar, Subst)
 -- | Expressions ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | SymConstant: If Config.stringTheory flag is set, 
--- | SymConsts are interpreted as String by Z3, 
--- | otherwise, they are uninterpreted constants embedded as  
--- | "constant symbol : String"
+-- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
 data SymConst = SL !Text
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -316,16 +307,6 @@ encodeSymConst (SL s) = litSymbol $ symbol s
 
 decodeSymConst :: Symbol -> Maybe SymConst
 decodeSymConst = fmap (SL . symbolText) . unLitSymbol
-
-
-symbolSymConst :: Symbol -> SymConst
-symbolSymConst = fromJust . decodeSymConst 
-
-isSymbolSymConst :: (Symbol, Sort) -> Bool 
-isSymbolSymConst (x, t) = isString t && isJust (decodeSymConst x)
-
-symConstLenEquality :: Expr -> SymConst -> Expr 
-symConstLenEquality f e@(SL t) = PAtom Eq (EApp f $ ESym e) (ECon $ I (toEnum $ T.length t))
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
