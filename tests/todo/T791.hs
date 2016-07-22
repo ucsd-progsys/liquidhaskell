@@ -20,7 +20,7 @@ minimal v = create (M.new (V.length v) >>=  go )
 
 {-@ minimal1 :: v:Vector a -> Vector a @-}
 minimal1 :: Vector a -> Vector a
-minimal1 mickey = create (M.new (V.length mickey) >>=  go )
+minimal1 mickey = create (M.new 0 >>=  go )
     {-@ go :: in:{in:MVector (PrimState m) a | mvlen in == vlen mickey + 1000 } -> m (MVector (PrimState m) a) @-}
   where go :: (PrimMonad m) => MVector (PrimState m) a -> m (MVector (PrimState m) a)
         go mv = pure mv
