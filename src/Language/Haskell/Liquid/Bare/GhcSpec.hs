@@ -85,7 +85,7 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 listLMap :: LogicMap
@@ -141,7 +141,6 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       setEmbeds embs 
        quals   <- mconcat <$> mapM makeQualifiers specs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
@@ -460,7 +459,7 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        name        <- gets modName
        mapM_ (makeHaskellInlines embs cbs name) specs
        hmeans      <- mapM (makeHaskellMeasures embs cbs name) specs
-       let measures = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
+       let measures = mconcat (Ms.wiredInMeasures:measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms) = makeMeasureSpec' measures
        let cms      = makeClassMeasureSpec measures
        let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
