@@ -22,7 +22,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar, traceShow)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -70,7 +70,7 @@ instance SMTLIB2 Sort where
 
 defuncSort :: Sort -> Sort
 defuncSort (FAbs _ t)      = defuncSort t
-defuncSort (FFunc _ _)     = intSort
+-- defuncSort (FFunc _ _)     = intSort
 defuncSort t | isSMTSort t = t
 defuncSort _               = intSort
 
@@ -206,7 +206,7 @@ smt2Lam x e = build "({} {} {})" (smt2 lambdaName, smt2 x, smt2 e)
 smt2App :: Expr -> Builder.Builder
 smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
   where
-    (f, es) = splitEApp e
+    (f, es) = splitEApp' e
 
 
 defuncApp :: Expr -> SMT2 Expr
@@ -274,7 +274,7 @@ mkFunEq e1 e2
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
-  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 x, smt2s ts, smt2 t)
+  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 x, smt2s (traceShow ("ARGS FOR " ++ show x ++ " RES = " ++ show t ++ checkFun x (t:ts)) ts), smt2 t)
   smt2 (Define t)          = build "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
@@ -289,6 +289,7 @@ instance SMTLIB2 Command where
   smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
 
 
+{- 
   defunc (Declare x ts t)
      | isSMTSymbol x
      = do dx  <- defunc x
@@ -302,7 +303,8 @@ instance SMTLIB2 Command where
      | otherwise
      = do dx <- defunc x
           return $ Declare dx [] intSort
-
+-}
+  defunc (Declare x ts t) = return $ Declare x ts t 
   defunc (Define t)  = return $ Define t
   defunc (Assert Nothing p)
     = do env      <- smt2env <$> get
@@ -367,8 +369,8 @@ defineFun (f, ELam (x, t) (ECst e tr))
 defineFun  _
   = errorstar "die"
 
-isSMTSymbol :: Symbol -> Bool
-isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
+-- isSMTSymbol :: Symbol -> Bool
+-- isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 
 {-
 (declare-fun x () Int)
@@ -409,6 +411,14 @@ normalizeLamsFromTo i e = go e
 
     mapSnd f (x, y) = (x, f y)
 
+
+checkFun :: Symbol -> [Sort] -> String 
+checkFun x ts | any isFunSort ts = errorstar ("Func args found " ++ show (x, ts))
+  where
+   isFunSort (FFunc _ _) = True 
+   isFunSort (FAbs _ t)  = isFunSort t 
+   isFunSort _           = False  
+checkFun _ _ = "OK"
 
 -- RJ: can't you use the Visitor instead of this?
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])

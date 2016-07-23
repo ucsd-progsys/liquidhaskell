@@ -27,6 +27,7 @@ import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
+import           Language.Fixpoint.Solver.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
@@ -139,7 +140,7 @@ inParallelUsing f xs = do
    return $ mconcat rs
 
 --------------------------------------------------------------------------------
--- | Native Haskell Solver----- ------------------------------------------------
+-- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 --------------------------------------------------------------------------------
@@ -170,7 +171,8 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si3
+  let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res

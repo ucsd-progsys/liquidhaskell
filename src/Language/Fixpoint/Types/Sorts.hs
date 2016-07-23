@@ -30,6 +30,7 @@ module Language.Fixpoint.Types.Sorts (
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
+  , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
   , fApp, fApp', fAppTC
@@ -173,6 +174,17 @@ data Sort = FInt
           | FApp  !Sort !Sort    -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+
+isFirstOrder, isFunction :: Sort -> Bool
+ 
+isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s 
+isFirstOrder (FAbs _ s)   = isFirstOrder s 
+isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
+isFirstOrder _            = True 
+
+isFunction (FAbs _ s)  = isFunction s 
+isFunction (FFunc _ _) = True 
+isFunction _           = False
 
 isNumeric :: Sort -> Bool
 isNumeric FInt           = True

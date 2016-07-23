@@ -91,6 +91,7 @@ data TheorySymbol  = Thy { tsSym  :: !Symbol
 -- | AST Conversion: Types that can be serialized ------------------------------
 --------------------------------------------------------------------------------
 
+-- NV remove all these 
 type SMTEnv = SEnv Sort
 data SMTSt  
   = SMTSt { fresh   :: !Int 
@@ -129,6 +130,8 @@ freshSym = do
   n  <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
   return $ intSymbol "lambda_fun_" n
+
+-- end remove 
 
 {- 
 -- Proper Handing of Lam Arguments
@@ -169,4 +172,5 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Builder
 
 runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
-runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt))
+runSmt2 _ _ = smt2 
+-- runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt))

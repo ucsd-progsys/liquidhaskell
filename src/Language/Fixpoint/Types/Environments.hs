@@ -17,7 +17,7 @@ module Language.Fixpoint.Types.Environments (
   -- * Environments
     SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv
-  , mapSEnvWithKey, mapSEnv
+  , mapSEnvWithKey, mapSEnv, mapMSEnv 
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv
   , intersectWithSEnv
   , differenceSEnv
@@ -29,8 +29,9 @@ module Language.Fixpoint.Types.Environments (
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
   , BindEnv, beBinds
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
+  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, mapMBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
+  , elemsBindEnv
   , unionIBindEnv, diffIBindEnv, intersectionIBindEnv, nullIBindEnv
 
   -- * Information needed to lookup and update Solutions
@@ -98,6 +99,9 @@ fromMapSEnv             = SE
 
 mapSEnv                 :: (a -> b) -> SEnv a -> SEnv b
 mapSEnv f (SE env)      = SE (fmap f env)
+
+mapMSEnv                :: (Monad m) => (a -> m b) -> SEnv a -> m (SEnv b)
+mapMSEnv f env          = fromListSEnv <$> (mapM (secondM f) $ toListSEnv env)
 
 mapSEnvWithKey          :: ((Symbol, a) -> (Symbol, b)) -> SEnv a -> SEnv b
 mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
@@ -173,11 +177,17 @@ bindEnvFromList bs = BE (1 + maxId) be
     maxId          = maximum $ fst3 <$> bs
     be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
 
+elemsBindEnv :: BindEnv -> [BindId]
+elemsBindEnv be = fst3 <$> bindEnvToList be 
+
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
 
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = BE n $ M.map f m
+
+mapMBindEnv :: (Monad m) => ((Symbol, SortedReft) -> m (Symbol, SortedReft)) -> BindEnv -> m BindEnv
+mapMBindEnv f (BE n m) = (BE n . M.fromList) <$> mapM (secondM f) (M.toList m)
 
 lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)

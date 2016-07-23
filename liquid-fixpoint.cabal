@@ -91,6 +91,7 @@ Library
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
+                   Language.Fixpoint.Solver.Defunctionalize,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Index,
                    Language.Fixpoint.Solver.Worklist,
