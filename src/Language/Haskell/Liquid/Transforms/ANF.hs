@@ -58,6 +58,8 @@ anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts
   = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
+                     putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
+                     putStrLn "***************************** REC CoreBinds ***************************"
                      putStrLn $ showCBs (untidyCore cfg) orig_cbs
                      putStrLn "***************************** RWR CoreBinds ***************************"
                      putStrLn $ showCBs (untidyCore cfg) rwr_cbs
