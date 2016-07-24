@@ -2,9 +2,8 @@ import Prelude hiding (null, head, tail, notElem, empty)
 
 import Data.Vector hiding (singleton, empty)
 import qualified Data.Vector.Mutable as M
-import Control.Monad.Primitive
 import qualified Data.Vector as V
-
+import Control.Monad.Primitive
 
 {-@ measure mvlen :: forall a. (MVector s a) -> Int @-}
 {-@ invariant {mv:MVector s a | 0 <= mvlen mv } @-}
