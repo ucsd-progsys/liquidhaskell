@@ -10,7 +10,7 @@
 
 module Language.Fixpoint.Solver.Defunctionalize (defunctionalize) where
 
-import           Language.Fixpoint.Misc            (secondM, errorstar)
+import           Language.Fixpoint.Misc            (secondM, errorstar, traceShow)
 import           Language.Fixpoint.Solver.Validate (symbolSorts)
 import           Language.Fixpoint.Types hiding    (allowHO)
 import           Language.Fixpoint.Types.Config hiding (eliminate)
@@ -53,10 +53,10 @@ funSort s1 s2 = FApp (FApp funcSort s1) s2
 -------------------------------------------------------------------------------
 
 instance Defunc Expr where
-  defunc _   e = do env    <- dfenv <$> get 
+  defunc str e = do env    <- dfenv <$> get 
                     hoFlag <- dfHO  <$> get
                     exFlag <- f_ext <$> get  
-                    tx hoFlag exFlag $ elaborate env  e
+                    tx hoFlag exFlag $ elaborate env  (traceShow ("toelaborate " ++ str) e)
    where 
      tx hoFlag exFlag e
        | exFlag && hoFlag
@@ -96,15 +96,16 @@ defuncExpr = go
                              return $ PAll bs' p'
     go (PAtom r e1 e2)  = PAtom r <$> go e1 <*> go e2 
     go PGrad            = return PGrad
-    go e@(ELam x ex)    = logLam e >> defuncELam x <$> go ex
+    go (ELam x ex)      = defuncELam x ex
     go  e               = errorstar ("defunc Pred: " ++ show e)
 
 
 
-defuncELam :: (Symbol, Sort) -> Expr -> Expr 
+defuncELam :: (Symbol, Sort) -> Expr -> DF Expr 
 defuncELam (x, s) e 
   | i <= maxLamArg
-  = ELam (x', s) $ subst1 e (x, EVar x')
+  = do de <- defuncExpr $ subst1 e (x, EVar x')
+       logLam $ ELam (x', s) $ de
   | otherwise
   = errorstar "TOO MANY LAMBDAS"
   where
@@ -191,7 +192,6 @@ toInt e
 castWith :: Symbol -> Expr -> Expr
 castWith s = EApp (EVar s)
 
-
 eliminate :: Expr -> Expr
 eliminate = mapExpr go 
   where
@@ -203,18 +203,60 @@ splitArgs = go []
   where
     go acc (EApp e1 e) = go (e:acc) e1 
     go acc (ECst e _)  = go acc e 
-    go acc e           = (e, reverse acc)
+    go acc e           = (e, acc)
 
+
+
+makeAxioms :: DF [Expr]
+makeAxioms = do 
+  alphaFlag <- a_eq <$> get 
+  betaFlag  <- b_eq <$> get 
+  asa <- if alphaFlag then makeAlphaAxioms else return [] 
+  asb <- if betaFlag  then withNoEquivalence (makeBetaAxioms >>= mapM (defuncExpr)) else return []
+  return (asa ++ asb)
 
 
 -------------------------------------------------------------------------------
 --------  Alpha Equivalence  --------------------------------------------------
 -------------------------------------------------------------------------------
 
-logLam :: Expr -> DF ()
-logLam e@(ELam _ _) = modify $ \s -> s{dfLams = e:dfLams s} 
-logLam _            = return () 
+logLam :: Expr -> DF Expr 
+logLam e@(ELam _ _) 
+  = do aEq <- a_eq <$> get 
+       if aEq then modify $ \s -> s{dfLams = traceShow ("alpha logged " ++ showpp (eliminate e)) e:dfLams s} else return ()
+       return e 
+logLam e            
+  = return e 
 
+makeAlphaAxioms :: DF [Expr]
+makeAlphaAxioms = do 
+  lams <- dfLams <$> get 
+  return $ concatMap makeAlphaEq lams
+
+makeAlphaEq :: Expr -> [Expr]
+makeAlphaEq ee@(ELam (x, s) e)
+  = [makeEq (normalizeLams ee) ee' 
+     | (i, ee') <- map (\j -> normalizeLamsFromTo j (ELam (x, s) e)) [1..maxLamArg-1]
+     , i <= maxLamArg ]
+makeAlphaEq _ 
+  = [] 
+
+normalizeLams :: Expr -> Expr
+normalizeLams e = snd $ normalizeLamsFromTo 1 e
+
+normalizeLamsFromTo :: Int ->  Expr -> (Int, Expr)
+normalizeLamsFromTo i e = go e
+  where
+    go (ELam (y, sy) e) = let (i', e') = go e
+                              y'      = makeLamArg sy i'
+                          in (i'+1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (EApp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, EApp e1' e2')
+    go (ECst e s)       = mapSnd (`ECst` s) (go e)
+    go e                = (i, e)
+
+    mapSnd f (x, y) = (x, f y)
 -------------------------------------------------------------------------------
 --------  Beta Equivalence  ---------------------------------------------------
 -------------------------------------------------------------------------------
@@ -222,9 +264,30 @@ logLam _            = return ()
 logRedex :: Expr -> DF ()
 logRedex e@(EApp f _) 
   | (ELam _ _) <- eliminate f
-  = modify $ \s -> s{dfRedex = e:dfRedex s}
+  = do bEq <- b_eq <$> get 
+       if bEq then modify $ \s -> s{dfRedex = ( traceShow ("REDEX LOGGED " ++ showpp (eliminate e)) e):dfRedex s} else return ()
 logRedex _
   = return ()
+
+makeBetaAxioms :: DF [Expr]
+makeBetaAxioms = do 
+  red <- dfRedex <$> get 
+  return $ (makeBetaEq <$> red)
+
+makeBetaEq :: Expr -> Expr
+makeBetaEq e@(EApp f ex)
+  | ELam (x, _) bd <- unECst f
+  = makeEq e (bd `subst1` (x, ex))
+  where
+    unECst (ECst e _) = unECst e 
+    unECst e          = e 
+makeBetaEq _ 
+  = PTop
+
+makeEq :: Expr -> Expr -> Expr
+makeEq e1 e2
+  | e1 == e2  = PTrue
+  | otherwise = EEq e1 e2
 
 -------------------------------------------------------------------------------
 --------  Numeric Overloading  ------------------------------------------------
@@ -303,12 +366,14 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
                      dLits' <- defunc (str ++ "gll.") $ dLits fi 
                      bs'    <- defunc (str ++ "bs.") $ bs    fi 
                      quals' <- defunc (str ++ "qs.") $ quals fi 
-                     return $ fi { cm    = cm'
-                                 , ws    = ws'
-                                 , gLits = gLits'
-                                 , dLits = dLits'
-                                 , bs    = bs'
-                                 , quals = quals' 
+                     axioms <- makeAxioms  
+                     return $ fi { cm      = cm'
+                                 , ws      = ws'
+                                 , gLits   = gLits'
+                                 , dLits   = dLits'
+                                 , bs      = bs'
+                                 , quals   = quals' 
+                                 , asserts = axioms
                                  }
 
 instance Defunc (SimpC a) where
@@ -321,7 +386,7 @@ instance Defunc (WfC a)   where
 
 instance Defunc Qualifier where
   defunc str q = do qParams' <- defunc (str ++ "qp.") $ qParams q 
-                    withExtendedEnv (qParams q) $ do 
+                    withExtendedEnv (qParams q) $ withNoEquivalence $ do 
                      qBody'   <- defunc (str ++ "qbdof . " ++ show ( q)) $ qBody   q
                      return    $ q {qParams = qParams', qBody = qBody'}
 
@@ -407,6 +472,16 @@ withExtendedEnv bs act = do
   modify $ \s -> s{dfenv = env'}
   r <- act
   modify $ \s -> s{dfenv = env}
+  return r
+
+
+withNoEquivalence :: DF a -> DF a
+withNoEquivalence act = do
+  aEq <- a_eq <$> get
+  bEq <- b_eq <$> get
+  modify $ \s -> s{a_eq = False, b_eq = False}
+  r <- act
+  modify $ \s -> s{a_eq = aEq,   b_eq = bEq}
   return r
 
 

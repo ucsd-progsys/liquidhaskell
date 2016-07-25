@@ -22,7 +22,7 @@ import           Data.Monoid
 import qualified Data.List                      as L
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar, traceShow)
+import           Language.Fixpoint.Misc (errorstar)
 
 import           Language.Fixpoint.SortCheck (elaborate, unifySorts, apply)
 
@@ -274,7 +274,7 @@ mkFunEq e1 e2
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
-  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 $ traceShow ("DECLARE FOR " ++ show (x, ts, t) ++ "\n\n smt2" ++ show (smt2s ts, smt2 t)) x, smt2s ts, smt2 t)
+  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 x, smt2s ts, smt2 t)
   smt2 (Define t)          = build "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
