@@ -17,20 +17,20 @@ import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types hiding (mkQual)
-
+import Language.Fixpoint.SortCheck
 
 -- import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
-import Data.Maybe               (catMaybes, fromMaybe)
+import Data.Maybe               (catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet as S
 -- import Data.Bifunctor           (second)
-import Debug.Trace
+import Debug.Trace (trace)
 
 -----------------------------------------------------------------------------------
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- specBinders info
+  =trace "QUALS"  [ q | (x, t) <- specBinders info
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
@@ -108,6 +108,7 @@ refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
                    , not $ isHole pa
+                   , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
@@ -118,7 +119,7 @@ refTopQuals lEnv l tce t0 γ t
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
-
+      γ'    = unionSEnv' γ lEnv
 
 mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
         => SEnv Sort
