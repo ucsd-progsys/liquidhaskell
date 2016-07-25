@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -87,8 +87,8 @@ mkOutput cfg res sol anna
 annotate :: Config -> [FilePath] -> Output Doc -> IO ACSS.AnnMap
 -------------------------------------------------------------------
 annotate cfg srcFs out
-  = do when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
-       mapM_ (doGenerate cfg tplAnnMap typAnnMap annTyp) srcFs
+  = do when showWarns  $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+       when doAnnotate $ mapM_ (doGenerate cfg tplAnnMap typAnnMap annTyp) srcFs
        return typAnnMap
     where
        tplAnnMap  = mkAnnMap cfg res annTpl
@@ -97,7 +97,8 @@ annotate cfg srcFs out
        annTyp     = o_types  out
        res        = o_result out
        bots       = o_bots   out
-       showWarns  = not $ nowarnings cfg
+       showWarns  = not $ nowarnings    cfg
+       doAnnotate = not $ noannotations cfg
 
 doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
 doGenerate cfg tplAnnMap typAnnMap annTyp srcF
