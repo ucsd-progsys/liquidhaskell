@@ -25,6 +25,9 @@ module Language.Fixpoint.Smt.Theories
      , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
+
+       -- * Query Theories 
+     , isSmt2App
      ) where
 
 import           Prelude hiding (map)
@@ -32,7 +35,10 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
+
 import Data.Monoid
+import Data.Maybe (isJust)
+
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
@@ -252,6 +258,17 @@ smt2App (EVar f) (d:ds)
   | Just s <- M.lookup f theorySymbols
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
+
+
+isSmt2App :: Expr -> [a] -> Bool 
+isSmt2App (EVar f) [_]
+  | f == setEmpty = True 
+  | f == setEmp   = True 
+  | f == setSng   = True 
+isSmt2App (EVar f) _
+  =  isJust $ M.lookup f theorySymbols
+isSmt2App _ _ 
+  = False
 
 
 preamble :: Config -> SMTSolver -> [T.Text]

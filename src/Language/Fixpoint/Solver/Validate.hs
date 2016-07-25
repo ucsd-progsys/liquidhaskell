@@ -140,7 +140,7 @@ banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
     bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
 
 cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
-cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
+cNoFreeVars fi c = S.null (cRng `nubDiff` (lits ++ cDom ++ F.prims))
   where
     be   = F.bs fi
     lits = fst <$> F.toListSEnv (F.gLits fi)
@@ -195,10 +195,10 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
-symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
+symbolSorts :: F.TaggedC c a => Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
-symbolSorts' :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts' :: F.TaggedC c a => Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
 symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
@@ -227,14 +227,14 @@ compact xts
     binds     = M.toList . M.map Misc.sortNub . Misc.group
 
 --------------------------------------------------------------------------------
-bindSorts  :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
+bindSorts  ::F.TaggedC c a => F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 --------------------------------------------------------------------------------
 bindSorts fi
   | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
   | otherwise  = Left $ dupBindErrors [ (x, ts) | (x, ts) <- bad]
   where
     (bad, ok)  = L.partition multiSorted . binds $ fi
-    binds      = symBinds . F.bs
+    binds      = symBinds fi . F.bs
 
 
 multiSorted :: (x, [t]) -> Bool
@@ -247,18 +247,23 @@ dupBindErrors = foldr1 E.catError . map dbe
                                          , nest 4 (pprint y) ]
 
 --------------------------------------------------------------------------------
-symBinds  :: F.BindEnv -> [SymBinds]
+symBinds  :: F.TaggedC c a => F.GInfo c a -> F.BindEnv -> [SymBinds]
 --------------------------------------------------------------------------------
-symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
+symBinds fi = {- THIS KILLS ELEM: tracepp "symBinds" . -}
             M.toList
           . M.map Misc.groupList
           . Misc.group
-          . binders
+          . binders fi 
 
 type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
-binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
-binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
+-- only declare relevant binders. 
+-- if 1.x:a, 2.x:b and 2 does not appear in any constraint
+-- 1.x:a will not be renamed and both 1 and 2 will be declared in the smt environemnt 
+binders :: F.TaggedC c a => F.GInfo c a -> F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
+binders fi be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be, i `F.memberIBindEnv` bs]
+  where
+    bs = mconcat ((F.senv <$> (M.elems $ F.cm fi)) ++ (F.wenv <$> (M.elems $ F.ws fi)))
 
 
 --------------------------------------------------------------------------------

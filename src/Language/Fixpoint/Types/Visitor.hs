@@ -23,7 +23,7 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , kvars
-  , size
+  , size, lamSize
   , envKVars
   , envKVarsN
   , rhsKVars
@@ -189,6 +189,16 @@ size t    = n
   where
     MInt n = fold szV () mempty t
     szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
+
+
+lamSize :: Visitable t => t -> Integer
+lamSize t    = n
+  where
+    MInt n = fold szV () mempty t
+    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = accum }
+    accum _ (ELam _ _) = MInt 1
+    accum _ _          = MInt 0 
+
 
 kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []

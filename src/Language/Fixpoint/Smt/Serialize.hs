@@ -274,7 +274,7 @@ mkFunEq e1 e2
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
-  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 x, smt2s (traceShow ("ARGS FOR " ++ show x ++ " RES = " ++ show t ++ checkFun x (t:ts)) ts), smt2 t)
+  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 $ traceShow ("DECLARE FOR " ++ show (x, ts, t) ++ "\n\n smt2" ++ show (smt2s ts, smt2 t)) x, smt2s ts, smt2 t)
   smt2 (Define t)          = build "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
@@ -410,15 +410,6 @@ normalizeLamsFromTo i e = go e
     go e                = (i, e)
 
     mapSnd f (x, y) = (x, f y)
-
-
-checkFun :: Symbol -> [Sort] -> String 
-checkFun x ts | any isFunSort ts = errorstar ("Func args found " ++ show (x, ts))
-  where
-   isFunSort (FFunc _ _) = True 
-   isFunSort (FAbs _ t)  = isFunSort t 
-   isFunSort _           = False  
-checkFun _ _ = "OK"
 
 -- RJ: can't you use the Visitor instead of this?
 grapLambdas :: Expr -> SMT2 (Expr, [(Symbol, Expr)])
@@ -640,6 +631,8 @@ initSMTEnv = fromListSEnv $
   ++ concatMap makeApplies [1..maxLamArg]
   ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
 
+
+-- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION 
 maxLamArg :: Int
 maxLamArg = 7
 

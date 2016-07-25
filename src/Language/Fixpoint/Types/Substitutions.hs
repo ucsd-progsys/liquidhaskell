@@ -259,6 +259,7 @@ exprSymbols = go
   where
     go (EVar x)           = [x]
     go (EApp f e)         = go f ++ go e
+    go (ELam (x,_) e)     = filter (/= x) (go e)
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = go e1 ++ go e2
     go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2

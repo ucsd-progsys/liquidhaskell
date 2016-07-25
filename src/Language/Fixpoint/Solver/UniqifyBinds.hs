@@ -6,7 +6,7 @@
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Misc          (fst3, mlookup, traceShow)
+import           Language.Fixpoint.Misc          (fst3, mlookup)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -44,37 +44,24 @@ type RenameMap = M.HashMap Symbol [(Sort, Maybe Symbol)]
 --------------------------------------------------------------
 mkIdMap :: SInfo a -> IdMap
 --------------------------------------------------------------
-mkIdMap fi = foldl' (insertIdIdLinks be) csmap (elemsBindEnv be)  
-  where
-    csmap = M.foldlWithKey' (updateIdMap be) M.empty $ cm fi 
-    be    = bs fi 
+mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
 updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
-updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m
+updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids     = elemsIBindEnv $ senv s
     nameMap = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
+    m'      = foldl' (insertIdIdLinks be nameMap) m ids
 
     symSet  = S.fromList $ syms $ crhs s
     refSet  = namesToIds symSet nameMap
 
-{- 
-updateIdMap be m (RB scId) s = insertIdIdLinks be nameMap m scId
+insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
+insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
-    ids = elemsIBindEnv $ senv s
-    nameMap = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
-
-    symSet = S.fromList $ syms $ crhs s
+    sr     = snd $ lookupBindEnv i be
+    symSet = reftFreeVars $ sr_reft sr
     refSet = namesToIds symSet nameMap
--}
-
-insertIdIdLinks :: BindEnv -> IdMap -> BindId -> IdMap
-insertIdIdLinks be m i = M.insertWith S.union (RB i) refSet m
-  where
-    nameMap = M.fromList [(fst $ lookupBindEnv j be, j) | j <- [0..i] ]
-    sr      = snd $ lookupBindEnv i be
-    symSet  = reftFreeVars $ sr_reft sr
-    refSet  = traceShow ("REFSET FOR " ++ show i) $ namesToIds symSet nameMap
 
 namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
 namesToIds xs m = S.fromList $ catMaybes [M.lookup x m | x <- S.toList xs] --TODO why any Nothings?
@@ -120,11 +107,11 @@ mkSubUsing m (sym, t) = do
 applySub :: Subst -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
-    go (sym, sr)        = (sym, subst sub sr)
+    go (sym, sr)       = (sym, subst sub sr)
 
 applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
-    go c                = c { _crhs = subst sub (_crhs c) }
+    go c               = c { _crhs = subst sub (_crhs c) }
 --------------------------------------------------------------
 
 --------------------------------------------------------------

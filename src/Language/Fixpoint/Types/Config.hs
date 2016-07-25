@@ -53,10 +53,10 @@ data Config
     , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
-    , extensionality :: Bool             -- ^ allow function extensionality
+    , extensionality   :: Bool           -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
-    , normalForm  :: Bool                -- ^ allow lambda normal-form equivalence axioms
+    , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     -- , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
