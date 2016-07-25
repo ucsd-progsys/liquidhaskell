@@ -1,6 +1,6 @@
 module spec GHC.Real where
 
-(GHC.Real.^) :: (Num a, Integral b) => a:a -> n:b -> {v:a | v == 0 <=> a == 0 }
+(GHC.Real.^) :: (GHC.Num.Num a, GHC.Real.Integral b) => a:a -> n:b -> {v:a | v == 0 <=> a == 0 }
 
 GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
