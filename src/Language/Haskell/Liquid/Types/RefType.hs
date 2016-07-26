@@ -1276,10 +1276,11 @@ expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar (
 expandProductType x t
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
-           τs         = fst $ splitFunTys $ toType t
-           trep       = toRTypeRep t
-           (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
+     where 
+      t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
+      τs         = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      trep       = toRTypeRep t
+      (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
 
 mkProductTy :: (Monoid t, Monoid r)
             => (Type, Symbol, RType RTyCon RTyVar r, t)
