@@ -7,5 +7,5 @@ newtype Foo a = Bar Int
 fromFoo :: Foo a -> Int 
 fromFoo (Bar n) = n 
 
-bar = Bar 0 
+bar = Bar (-1)
 
