@@ -948,36 +948,24 @@ unRRTy (RRTy _ _ _ t) = unRRTy t
 unRRTy t              = t
 
 --------------------------------------------------------------------------------
-castTy, castTy' :: t -> Type -> CoreExpr -> Coercion -> CG SpecType
+castTy  :: t -> Type -> CoreExpr -> Coercion -> CG SpecType
+castTy' :: t -> Type -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
-castTy g t e c@(AxiomInstCo ca _ _)
-  = fromMaybe <$> castTy' g t e c <*> lookupNewType (coAxiomTyCon ca)
+castTy g t e (AxiomInstCo ca _ _)
+  = fromMaybe <$> castTy' g t e <*> lookupNewType (coAxiomTyCon ca)
 
-castTy g t e c 
-  = castTy' g t e c  
+castTy g t e _ 
+  = castTy' g t e  
 
-
-castTy' _ τ (Var x) c 
+castTy' _ τ (Var x)
   = do t <- trueTy τ
-       return $  traceShow ("\nCOERCION\n" ++ showCoercion c) (t `strengthen` (uTop $ F.uexprReft $ F.expr x))
+       return (t `strengthen` (uTop $ F.uexprReft $ F.expr x))
 
-castTy' g t (Tick _ e) c 
-  = castTy g t e c
+castTy' g t (Tick _ e) 
+  = castTy' g t e
 
-castTy' _ _ e _ 
+castTy' _ _ e
   = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
-
-
-showCoercion :: Coercion -> String 
-showCoercion (AxiomInstCo co1 co2 co3) 
-  = "AxiomInstCo " ++ showPpr co1 ++ "\t\t " ++ showPpr co2 ++ "\t\t" ++ showPpr co3 ++ "\n\n" ++ 
-    "COAxiom Tycon = "  ++ showPpr (coAxiomTyCon co1) ++ "\nBRANCHES\n" ++ concatMap showBranch bs  
-  where 
-    bs = fromBranchList $ co_ax_branches co1 
-    showBranch ab = "\nCoAxiom \nLHS = " ++ showPpr (coAxBranchLHS ab) ++ 
-                    "\nRHS = " ++ showPpr (coAxBranchRHS ab)  
-showCoercion c 
-  = "Coercion " ++ showPpr c
 
 
 isClassConCo :: Coercion -> Maybe (Expr Var -> Expr Var)
