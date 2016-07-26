@@ -32,6 +32,7 @@ import           CoreSyn
 import           SrcLoc                                 hiding (Located)
 import           Type
 import           TyCon
+import           CoAxiom
 import           PrelNames
 import           TypeRep
 import           Class                                         (className)
@@ -664,8 +665,8 @@ cconsE' γ (Cast e co) t
   | Just f <- isClassConCo co
   = cconsE γ (f e) t
 
-cconsE' γ e@(Cast e' _) t
-  = do t' <- castTy γ (exprType e) e'
+cconsE' γ e@(Cast e' c) t
+  = do t' <- castTy γ (exprType e) e' c 
        addC (SubC γ t' t) ("cconsE Cast: " ++ showPpr e)
 
 cconsE' γ e t
@@ -868,8 +869,8 @@ consE γ (Cast e co)
   | Just f <- isClassConCo co
   = consE γ (f e)
 
-consE γ e@(Cast e' _)
-  = castTy γ (exprType e) e'
+consE γ e@(Cast e' c)
+  = castTy γ (exprType e) e' c
 
 consE _ e@(Coercion _)
    = trueTy $ exprType e
@@ -947,17 +948,37 @@ unRRTy (RRTy _ _ _ t) = unRRTy t
 unRRTy t              = t
 
 --------------------------------------------------------------------------------
-castTy :: t -> Type -> CoreExpr -> CG SpecType
+castTy, castTy' :: t -> Type -> CoreExpr -> Coercion -> CG SpecType
 --------------------------------------------------------------------------------
-castTy _ τ (Var x)
+castTy g t e c@(AxiomInstCo ca _ _)
+  = fromMaybe <$> castTy' g t e c <*> lookupNewType (coAxiomTyCon ca)
+
+castTy g t e c 
+  = castTy' g t e c  
+
+
+castTy' _ τ (Var x) c 
   = do t <- trueTy τ
-       return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
+       return $  traceShow ("\nCOERCION\n" ++ showCoercion c) (t `strengthen` (uTop $ F.uexprReft $ F.expr x))
 
-castTy g t (Tick _ e)
-  = castTy g t e
+castTy' g t (Tick _ e) c 
+  = castTy g t e c
 
-castTy _ _ e
+castTy' _ _ e _ 
   = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
+
+
+showCoercion :: Coercion -> String 
+showCoercion (AxiomInstCo co1 co2 co3) 
+  = "AxiomInstCo " ++ showPpr co1 ++ "\t\t " ++ showPpr co2 ++ "\t\t" ++ showPpr co3 ++ "\n\n" ++ 
+    "COAxiom Tycon = "  ++ showPpr (coAxiomTyCon co1) ++ "\nBRANCHES\n" ++ concatMap showBranch bs  
+  where 
+    bs = fromBranchList $ co_ax_branches co1 
+    showBranch ab = "\nCoAxiom \nLHS = " ++ showPpr (coAxBranchLHS ab) ++ 
+                    "\nRHS = " ++ showPpr (coAxBranchRHS ab)  
+showCoercion c 
+  = "Coercion " ++ showPpr c
+
 
 isClassConCo :: Coercion -> Maybe (Expr Var -> Expr Var)
 -- See Note [Type classes with a single method]

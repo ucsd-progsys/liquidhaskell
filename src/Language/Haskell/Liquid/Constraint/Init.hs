@@ -241,6 +241,7 @@ initCGI cfg info = CGInfo {
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
+  , newTyEnv   = mempty
   , tyConInfo  = tyi
   , tyConEmbed = tce
   , kuts       = mempty

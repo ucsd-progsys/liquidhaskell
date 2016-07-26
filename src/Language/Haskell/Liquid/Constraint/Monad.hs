@@ -16,6 +16,8 @@ import           Name (getSrcSpan)
 import           SrcLoc
 import           Outputable hiding (showPpr, panic)
 
+import qualified TyCon as TC 
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
 
@@ -133,3 +135,8 @@ addA !l xo@Nothing  !t (AI m)
   = AI $ inserts l (T.pack . showPpr <$> xo, t) m
 addA _ _ _ !a
   = a
+
+
+lookupNewType :: TC.TyCon -> CG (Maybe SpecType)
+lookupNewType tc 
+  = M.lookup tc . newTyEnv <$> get 

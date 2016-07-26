@@ -179,7 +179,8 @@ data CGInfo = CGInfo {
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
-  , termExprs  :: !(M.HashMap Var [F.Located F.Expr])    -- ^ Terminating Metrics for Recursive functions
+  , newTyEnv   :: !(M.HashMap TC.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types. 
+  , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
