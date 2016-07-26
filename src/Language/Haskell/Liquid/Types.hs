@@ -342,6 +342,7 @@ data GhcSpec = SP {
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [Located Expr])]     -- ^ Lexicographically ordered expressions for termination
+  , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking

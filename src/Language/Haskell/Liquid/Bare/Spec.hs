@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeDefaultMethods
   , makeIAliases
   , makeInvariants
+  , makeNewTypes
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
@@ -259,6 +260,23 @@ makeIAliases'     = mapM mkIA
   where
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
     mkI t         = fmap generalize <$> mkLSpecType t
+
+makeNewTypes :: (ModName, Ms.Spec (Located BareType) bndr)
+               -> BareM [(TyCon, Located SpecType)]
+makeNewTypes (mod,spec)
+  = inModule mod $ makeNewTypes' $ Ms.newtyDecls spec
+
+makeNewTypes' :: [DataDecl] -> BareM [(TyCon, Located SpecType)]
+makeNewTypes' = mapM mkNT
+  where
+    mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
+    mkNT d       = (,) <$> (lookupGhcTyCon $ tycName d) 
+                       <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
+    getTy l [(_,[(_,t)])] = return $ withLoc l t 
+    getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+
+    withLoc s = Loc s s 
+
 
 makeInvariants :: (ModName, Ms.Spec (Located BareType) bndr)
                -> BareM [(Maybe Var, Located SpecType)]

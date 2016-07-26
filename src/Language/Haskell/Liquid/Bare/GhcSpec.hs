@@ -140,13 +140,13 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
-       (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
+       (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        quals   <- mconcat <$> mapM makeQualifiers specs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
          >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
-         >>= makeGhcSpec2 invs ialias measures su
+         >>= makeGhcSpec2 invs ntys ialias measures su
          >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms embs cbs name specs
@@ -211,7 +211,7 @@ emptySpec cfg = SP
   , gsAsmSigs    = mempty
   , gsInSigs     = mempty
   , gsCtors      = mempty
-  , gsLits     = mempty
+  , gsLits       = mempty
   , gsMeas       = mempty
   , gsInvariants = mempty
   , gsIaliases   = mempty
@@ -223,6 +223,7 @@ emptySpec cfg = SP
   , gsTgtVars    = mempty
   , gsDecr       = mempty
   , gsTexprs     = mempty
+  , gsNewTypes   = mempty
   , gsLvars      = mempty
   , gsLazy       = mempty
   , gsAutosize   = mempty
@@ -285,13 +286,15 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
 
 makeGhcSpec2 :: Monad m
              => [(Maybe Var, LocSpecType)]
+             -> [(TyCon, LocSpecType)]
              -> [(LocSpecType,LocSpecType)]
              -> MSpec SpecType DataCon
              -> Subst
              -> GhcSpec
              -> m GhcSpec
-makeGhcSpec2 invs ialias measures su sp
+makeGhcSpec2 invs ntys ialias measures su sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
+                , gsNewTypes   = mapSnd (subst su) <$> ntys 
                 , gsIaliases   = subst su ialias
                 , gsMeasures   = subst su
                                  <$> M.elems (Ms.measMap measures)
@@ -389,6 +392,7 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]
                  -> TCEmb TyCon
                  -> BareM ( [(Maybe Var, LocSpecType)]
+                          , [(TyCon, LocSpecType)]
                           , [(LocSpecType, LocSpecType)]
                           , [(Var, LocSpecType)]
                           , [(Var, LocSpecType)] )
@@ -397,13 +401,14 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        asms'    <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs     <- mconcat <$> mapM makeInvariants specs
        ialias   <- mconcat <$> mapM makeIAliases   specs
+       ntys     <- mconcat <$> mapM makeNewTypes   specs
        let dms   = makeDefaultMethods vars mts
        tyi      <- gets tcEnv
        let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
        let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
        let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
        let minvs = makeMeasureInvariants sigs hms
-       return     (invs ++ minvs, ialias, sigs, asms)
+       return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 
 symbol' :: Var -> Symbol
