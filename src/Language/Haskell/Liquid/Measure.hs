@@ -59,6 +59,7 @@ data Spec ty bndr  = Spec
   , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
+  , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
@@ -140,6 +141,7 @@ instance Monoid (Spec ty bndr) where
            , ialiases   =           ialiases s1   ++ ialiases s2
            , imports    = sortNub $ imports s1    ++ imports s2
            , dataDecls  = dataDecls s1            ++ dataDecls s2
+           , newtyDecls = newtyDecls s1           ++ newtyDecls s2
            , includes   = sortNub $ includes s1   ++ includes s2
            , aliases    =           aliases s1    ++ aliases s2
            , ealiases   =           ealiases s1   ++ ealiases s2
@@ -172,6 +174,7 @@ instance Monoid (Spec ty bndr) where
            , ialiases   = []
            , imports    = []
            , dataDecls  = []
+           , newtyDecls = []
            , includes   = []
            , aliases    = []
            , ealiases   = []

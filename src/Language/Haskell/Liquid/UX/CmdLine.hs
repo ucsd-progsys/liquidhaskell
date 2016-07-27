@@ -155,6 +155,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
+ , noannotations
+    = def &= help "Don't create intermediate annotation files"
+          &= name "no-annotations"
+
  , trustInternals
     = False &= help "Trust GHC generated code"
             &= name "trust-internals"
@@ -425,6 +429,7 @@ defConfig = Config { files             = def
                    , notermination     = def
                    , autoproofs        = def
                    , nowarnings        = def
+                   , noannotations     = def
                    , trustInternals    = False
                    , nocaseexpand      = def
                    , strata            = def

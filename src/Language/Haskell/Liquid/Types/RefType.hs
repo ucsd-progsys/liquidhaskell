@@ -1276,10 +1276,11 @@ expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar (
 expandProductType x t
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
-           τs         = fst $ splitFunTys $ toType t
-           trep       = toRTypeRep t
-           (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
+     where 
+      t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
+      τs         = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      trep       = toRTypeRep t
+      (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
 
 mkProductTy :: (Monoid t, Monoid r)
             => (Type, Symbol, RType RTyCon RTyVar r, t)
@@ -1450,14 +1451,19 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
 
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
-dataConsOfTyCon c = mconcat $ go <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+dataConsOfTyCon = dcs S.empty
   where
-    go (ForAllTy _ t)  = go t
-    go (TyVarTy _)     = S.empty
-    go (AppTy t1 t2)   = go t1 `S.union` go t2
-    go (TyConApp c ts) = S.insert c $ mconcat $ go <$> ts
-    go (FunTy t1 t2)   = go t1 `S.union` go t2
-    go (LitTy _)       = S.empty
+    dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+    go  vis (ForAllTy _ t)  = go vis t
+    go  _   (TyVarTy _)     = S.empty
+    go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2
+    go  vis (TyConApp c ts)
+      | c `S.member` vis
+      = S.empty
+      | otherwise
+      = (S.insert c $ mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
+    go  vis (FunTy t1 t2)   = go vis t1 `S.union` go vis t2
+    go  _   (LitTy _)       = S.empty
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------
