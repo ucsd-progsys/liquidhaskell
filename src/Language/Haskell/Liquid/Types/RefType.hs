@@ -628,9 +628,7 @@ rtPropPV :: (Fixpoint a, Reftable r)
          -> [PVar (RType c tv ())]
          -> [Ref (RType c tv ()) (RType c tv r)]
          -> [Ref (RType c tv ()) (RType c tv r)]
-rtPropPV rc = safeZipWith msg mkRTProp
-  where
-    msg     = "appRefts: " ++ showFix rc
+rtPropPV rc = zipWith mkRTProp
 
 mkRTProp :: Reftable r
          => PVar (RType c tv ())
