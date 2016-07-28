@@ -17,7 +17,6 @@ dependencies:
     - cabal sandbox init
     - cabal sandbox add-source ./liquid-fixpoint
     - cabal sandbox add-source ./prover
-    - cabal sandbox add-source ./liquiddesugar
     - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
     # - cabal install hpc-coveralls
     # - cabal configure --enable-tests --enable-library-coverage -finclude -fdevel
