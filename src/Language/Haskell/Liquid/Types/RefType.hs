@@ -628,7 +628,7 @@ rtPropPV :: (Fixpoint a, Reftable r)
          -> [PVar (RType c tv ())]
          -> [Ref (RType c tv ()) (RType c tv r)]
          -> [Ref (RType c tv ()) (RType c tv r)]
-rtPropPV rc = zipWith mkRTProp
+rtPropPV _rc = zipWith mkRTProp
 
 mkRTProp :: Reftable r
          => PVar (RType c tv ())
