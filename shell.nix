@@ -6,7 +6,6 @@ let
 
   liquid-fixpoint = import ./liquid-fixpoint { inherit (pkgs) fetchgitLocal; };
   prover = import ./prover { inherit (pkgs) fetchgitLocal; };
-  liquiddesugar = import ./liquiddesugar { inherit (pkgs) fetchgitLocal; };
 
   f = import ./default.nix { inherit (pkgs) fetchgitLocal; };
 
