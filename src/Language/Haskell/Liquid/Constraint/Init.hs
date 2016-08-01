@@ -243,6 +243,7 @@ initCGI cfg info = CGInfo {
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
+  , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes spc)   
   , tyConInfo  = tyi
   , tyConEmbed = tce
   , kuts       = mempty

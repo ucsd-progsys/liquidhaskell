@@ -638,6 +638,7 @@ data Pspec ty ctor
   | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))
   | Impt    Symbol
   | DDecl   DataDecl
+  | NTDecl  DataDecl
   | Incl    FilePath
   | Invt    ty
   | IAlias  (ty, ty)
@@ -671,6 +672,7 @@ instance Show (Pspec a b) where
   show (Asrts  _) = "Asrts"
   show (Impt   _) = "Impt"
   show (DDecl  _) = "DDecl"
+  show (NTDecl _) = "NTDecl"
   show (Incl   _) = "Incl"
   show (Invt   _) = "Invt"
   show (IAlias _) = "IAlias"
@@ -704,7 +706,8 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.invariants = [t | Invt   t <- xs]
   , Measure.ialiases   = [t | IAlias t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
-  , Measure.dataDecls  = [d | DDecl  d <- xs]
+  , Measure.dataDecls  = [d | DDecl  d <- xs] ++ [d | NTDecl d <- xs]
+  , Measure.newtyDecls = [d | NTDecl d <- xs]
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
@@ -748,6 +751,7 @@ specP
     <|> (reservedToken "import"    >> liftM Impt   symbolP   )
     <|> try (reservedToken "data" >> reserved "variance " >> liftM Varia datavarianceP)
     <|> (reservedToken "data"      >> liftM DDecl  dataDeclP )
+    <|> (reservedToken "newtype"   >> liftM NTDecl newtypeP )
     <|> (reservedToken "include"   >> liftM Incl   filePathP )
     <|> (reservedToken "invariant" >> liftM Invt   invariantP)
     <|> (reservedToken "using"     >> liftM IAlias invaliasP )
@@ -1090,6 +1094,8 @@ dataSizeP
 dataDeclP :: Parser DataDecl
 dataDeclP = try dataDeclFullP <|> dataDeclSizeP
 
+newtypeP :: Parser DataDecl
+newtypeP = dataDeclP
 
 dataDeclSizeP :: Parser DataDecl
 dataDeclSizeP
