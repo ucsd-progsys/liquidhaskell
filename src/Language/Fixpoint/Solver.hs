@@ -27,7 +27,7 @@ import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
-import           Language.Fixpoint.Solver.Defunctionalize (defunctionalize)
+import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
