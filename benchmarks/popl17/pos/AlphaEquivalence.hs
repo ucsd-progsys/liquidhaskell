@@ -30,19 +30,21 @@ This cannot be verified, as it creates the query
 
 -}
 
-{-@ composition :: x: (r -> (a -> a))
+
+
+
+{-@ composition' :: x: (r -> (a -> a))
                 -> y:(r -> a)
-                -> { (
-                 (seq ( (\r2:r ->  (x r2)))     (y)
-                         )                  
+                -> { ((
+                   (\r2:r -> ((\r1:r ->  (x r1)) (r2)) (y r2))
+                         )                                    
                   == 
-                   (Reader (\r3:r ->  (x r3) ( y r3))
+                   ((\r3:r ->  (x r3) ( y r3))
                          ) )
                    } @-}
-composition :: Arg r => (r -> (a -> a)) -> (r-> a) -> Proof
-composition x y
-  =   (seq ((\r2 ->  (x r2)))          y
-  ===. Reader (\r3 -> ((\r2 ->  (x r2)) (r3)) ( y r3)) )         
+composition' :: Arg r => (r -> (a -> a)) -> (r-> a) -> Proof
+composition' x y
+  =   simpleProof 
 
 
 

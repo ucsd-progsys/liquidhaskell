@@ -58,10 +58,17 @@ left_identity x f
   =   bind (return x) f 
   ==. bind (Reader (\r -> x)) f
   ==. Reader (\r' -> fromReader (f ((\r -> x) r')) r')
-  ==. Reader (\r' -> fromReader (f x) r')
+  ==. Reader (\r' -> fromReader (f x) r') ? left_identity_helper x f 
   ==. Reader (fromReader (f x)) ? lambda_expand (fromReader (f x))
   ==. f x                       ? readerId (f x)
   *** QED 
+
+
+{-@ left_identity_helper :: x:a -> f:(a -> Reader r b) 
+  -> {  (\r':r -> (fromReader (f ((\r:r -> x) (r')) ) (r'))) ==  (\r':r -> (fromReader (f x) (r')))  } @-}
+left_identity_helper :: Arg r => a -> (a -> Reader r b) -> Proof
+left_identity_helper x f
+  =   simpleProof
 
 -- | Right Identity
 

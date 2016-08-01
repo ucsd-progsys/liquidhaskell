@@ -30,7 +30,7 @@ import Debug.Trace (trace)
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  =trace "QUALS"  [ q | (x, t) <- specBinders info
+  =[ q | (x, t) <- specBinders info
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
