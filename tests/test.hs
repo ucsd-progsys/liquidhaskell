@@ -100,8 +100,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
-    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
-    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
+    -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
+    -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
 
 benchTests :: IO TestTree
@@ -112,8 +112,8 @@ benchTests
      , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
      , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
      , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         hscIgnored                ExitSuccess
-     -- , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-     -- , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      , testGroup "popl17_pos"   <$> dirTests "benchmarks/popl17/pos"         proverIgnored             ExitSuccess
      , testGroup "popl17_neg"   <$> dirTests "benchmarks/popl17/neg"         proverIgnored             (ExitFailure 1)
      ]
