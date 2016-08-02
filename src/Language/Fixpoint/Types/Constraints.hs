@@ -17,7 +17,7 @@
 module Language.Fixpoint.Types.Constraints (
 
    -- * Top-level Queries
-    FInfo, SInfo, GInfo (..)
+    FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
   , Solver
 
@@ -439,6 +439,8 @@ fi cs ws binds ls ds ks qs bi fn aHO aHOq
 ------------------------------------------------------------------------
 -- | Top-level Queries
 ------------------------------------------------------------------------
+
+data FInfoWithOpts a = FIO {fioFI :: FInfo a, fioOpts :: [String]}
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a

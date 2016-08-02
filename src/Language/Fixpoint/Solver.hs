@@ -30,7 +30,7 @@ import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
-import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
+import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..), withPragmas)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
@@ -48,9 +48,10 @@ import           Control.DeepSeq
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg = do
-    fi      <- readFInfo file
-    r       <- solve cfg fi
-    let stat = resStatus $!! r
+    (fi, opts) <- readFInfo file
+    cfg'       <- withPragmas cfg opts
+    r          <- solve cfg' fi
+    let stat    = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
     whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
@@ -84,22 +85,22 @@ configSW cfg
   | otherwise     = solveSeqWith
 
 ---------------------------------------------------------------------------
-readFInfo :: FilePath -> IO (FInfo ())
+readFInfo :: FilePath -> IO (FInfo (), [String])
 ---------------------------------------------------------------------------
-readFInfo f        = fixFileName <$> act
+readFInfo f        = mapFst fixFileName <$> act
   where
     fixFileName q  = q {fileName = f}
     act
       | isBinary f = readBinFq f
       | otherwise  = readFq f
 
-readFq :: FilePath -> IO (FInfo ())
+readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do
   str   <- readFile file
-  let q = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  return q
+  let q  = {-# SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
+  return (fioFI q, fioOpts q)
 
-readBinFq :: FilePath -> IO (FInfo ())
+readBinFq :: FilePath -> IO (FInfo (), [String])
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 
 ---------------------------------------------------------------------------

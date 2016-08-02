@@ -330,3 +330,9 @@ exitColorStrLn c s = do
   putStrLn "\n"
   colorStrLn c s
 -}
+
+mapFst :: (a -> c) -> (a, b) -> (c, b)
+mapFst f (x, y) = (f x, y)
+
+mapSnd :: (b -> c) -> (a, b) -> (a, c)
+mapSnd f (x, y) = (x, f y)

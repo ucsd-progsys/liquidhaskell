@@ -10,7 +10,7 @@
 
 module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 
-import           Language.Fixpoint.Misc            (secondM, errorstar)
+import           Language.Fixpoint.Misc            (secondM, errorstar, mapSnd)
 import           Language.Fixpoint.Solver.Validate (symbolSorts)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config hiding (eliminate)
@@ -279,7 +279,7 @@ normalize = snd . go
     go (ECst e s)       = mapSnd (`ECst` s) (go e)
     go (PAll bs e)      = mapSnd (PAll bs)  (go e)
     go e                = (1, e)
-    mapSnd f (x, y) = (x, f y)
+
     unECst (ECst e _) = unECst e 
     unECst e          = e 
 
@@ -299,9 +299,6 @@ normalizeLamsFromTo i e = go e
     go (ECst e s)       = mapSnd (`ECst` s) (go e)
     go (PAll bs e)      = mapSnd (PAll bs) (go e)
     go e                = (i, e)
-
-    mapSnd f (x, y) = (x, f y)
-
 
 -------------------------------------------------------------------------------
 --------  Beta Equivalence  ---------------------------------------------------
@@ -372,7 +369,6 @@ txnumOverloading = mapExpr go
       = ERDiv   e1 e2 
     go e 
       = e 
-
 
 -------------------------------------------------------------------------------
 --------  Extensionality  -----------------------------------------------------
@@ -526,7 +522,7 @@ makeInitDFState cfg si
          , a_eq    = alphaEquivalence cfg 
          , b_eq    = betaEquivalence  cfg 
          , f_norm  = normalForm       cfg  
-         , dfHO    = allowHO          cfg 
+         , dfHO    = (allowHO         cfg  || defunction cfg)
          , lamNorm = True 
          -- INVARIANT: lambads and redexes are not defunctionalized 
          , dfLams  = [] 

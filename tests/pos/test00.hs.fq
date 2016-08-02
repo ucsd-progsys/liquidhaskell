@@ -54,7 +54,6 @@ constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool
 
 
 constant Prop : func(0, [GHC.Types.Bool; bool])
-qualif Zog(v : Test0.FooBar, fix##126#X : Test0.FooBar): (v = (fix##126#X + 29)) // "test00.hs" (line 5, column 12)
 qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
 qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
 

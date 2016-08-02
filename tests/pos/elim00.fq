@@ -1,3 +1,5 @@
+fixpoint "--defunct"
+
 // trick is to do it without these
 qualif Cmp(v : @(0), x : @(0)): ((v > x)) // "tests/todo/elim00.hs.fq" (line 1, column 8)
 qualif Cmp(v : @(0), x : @(0)): ((v = x)) // "tests/todo/elim00.hs.fq" (line 2, column 8)
