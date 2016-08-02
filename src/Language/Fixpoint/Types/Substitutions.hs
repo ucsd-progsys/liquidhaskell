@@ -134,10 +134,12 @@ instance Subable Expr where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
-  subst _  (PAll _ _)      = errorstar "subst: FORALL"
+  subst su (PAll bs p)
+          | disjoint su bs = PAll bs $ subst su p --(substExcept su (fst <$> bs)) p
+          | otherwise      = errorstar "subst: PAll (without disjoint binds)"
   subst su (PExist bs p)
           | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
-          | otherwise      = errorstar "subst: EXISTS (without disjoint binds)"
+          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su))
   subst _  p               = p
 
 removeSubst :: Subst -> Symbol -> Subst

@@ -69,36 +69,36 @@ instance Defunc Expr where
 
 
 defuncExpr :: Expr -> DF Expr
-defuncExpr = go
+defuncExpr e = writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> go Nothing e 
   where
-    go e@(ESym _)       = return e
-    go e@(ECon _)       = return e
-    go e@(EVar _)       = return e
-    go e@(PKVar _ _)    = return e 
-    go e@(EApp e1 e2)   = logRedex e >> defuncEApp e1 e2 
-    go (ENeg e)         = ENeg <$> go e
-    go (EBin o e1 e2)   = EBin o <$> go e1 <*> go e2
-    go (EIte e1 e2 e3)  = EIte <$> go e1 <*> go e2 <*> go e3 
-    go (ECst e t)       = (`ECst` t) <$> go e
-    go (PTrue)          = return PTrue
-    go (PFalse)         = return PFalse
-    go (PAnd [])        = return PTrue
-    go (PAnd ps)        = PAnd <$> mapM go ps
-    go (POr [])         = return PFalse
-    go (POr ps)         = POr <$> mapM go ps
-    go (PNot p)         = PNot <$> go  p
-    go (PImp p q)       = PImp <$> go p <*> go q
-    go (PIff p q)       = PIff <$> go p <*> go q
-    go (PExist bs p)    = do bs' <- mapM defunc bs
-                             p'  <- withExtendedEnv bs $ go p
-                             return $ PExist bs' p'
-    go (PAll   bs p)    = do bs' <- mapM defunc bs
-                             p'  <- withExtendedEnv bs $ go p
-                             return $ PAll bs' p'
-    go (PAtom r e1 e2)  = PAtom r <$> go e1 <*> go e2 
-    go PGrad            = return PGrad
-    go (ELam x ex)      = (df_lam <$> get) >>= defuncELam x ex
-    go  e               = errorstar ("defunc Pred: " ++ show e)
+    go _ e@(ESym _)       = return e
+    go _ e@(ECon _)       = return e
+    go _ e@(EVar _)       = return e
+    go _ e@(PKVar _ _)    = return e 
+    go s e@(EApp e1 e2)   = logRedex e >> defuncEApp s e1 e2 
+    go s (ENeg e)         = ENeg <$> go s e
+    go _ (EBin o e1 e2)   = EBin o <$> go Nothing e1 <*> go Nothing e2
+    go s (EIte e1 e2 e3)  = EIte <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3 
+    go _ (ECst e t)       = (`ECst` t) <$> go (Just t) e
+    go _ (PTrue)          = return PTrue
+    go _ (PFalse)         = return PFalse
+    go _ (PAnd [])        = return PTrue
+    go _ (PAnd ps)        = PAnd <$> mapM (go (Just boolSort)) ps
+    go _ (POr [])         = return PFalse
+    go _ (POr ps)         = POr <$> mapM (go (Just boolSort)) ps
+    go _ (PNot p)         = PNot <$> go (Just boolSort) p
+    go _ (PImp p q)       = PImp <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PIff p q)       = PIff <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PExist bs p)    = do bs' <- mapM defunc bs
+                               p'  <- withExtendedEnv bs $ go (Just boolSort) p
+                               return $ PExist bs' p'
+    go _ (PAll   bs p)    = do bs' <- mapM defunc bs
+                               p'  <- withExtendedEnv bs $ go (Just boolSort) p
+                               return $ PAll bs' p'
+    go _ (PAtom r e1 e2)  = PAtom r <$> go Nothing e1 <*> go Nothing e2 
+    go _ PGrad            = return PGrad
+    go _ (ELam x ex)      = (df_lam <$> get) >>= defuncELam x ex
+    go _ e                = errorstar ("defunc Pred: " ++ show e)
 
 
 
@@ -121,22 +121,27 @@ makeLamArg :: Sort -> Int  -> Symbol
 makeLamArg _ i = intArgName i
 
 
-defuncEApp :: Expr -> Expr -> DF Expr
-defuncEApp e1 e2 
+defuncEApp :: Maybe Sort -> Expr -> Expr -> DF Expr
+defuncEApp ms e1 e2 
   | Thy.isSmt2App (eliminate f) es 
   = eApps f <$> mapM defuncExpr es 
   | otherwise
-  = makeApplication <$> defuncExpr e1 <*> defuncExpr e2
+  = makeApplication ms <$> (dfLog <$> get) <*> defuncExpr e1 <*> defuncExpr e2
   where
     (f, es) = splitArgs $ EApp e1 e2 
 
 
 -- e1 e2 => App (App runFun e1) (toInt e2) 
-makeApplication :: Expr -> Expr -> Expr
-makeApplication e1 e2 = ECst (EApp (EApp (EVar f) e1') (toInt e2')) s
+makeApplication :: Maybe Sort -> String -> Expr -> Expr -> Expr
+makeApplication Nothing str e1 e2 = ECst (EApp (EApp (EVar f) e1') (toInt e2')) s
   where
     f   = makeFunSymbol $ specify s 
-    s   = resultType e1 
+    s   = resultType str e1 e2  
+    e1' = e1 
+    e2' = e2 
+makeApplication (Just s) _ e1 e2 = ECst (EApp (EApp (EVar f) e1') (toInt e2')) s
+  where
+    f   = makeFunSymbol $ specify s 
     e1' = e1 
     e2' = e2 
 
@@ -144,13 +149,13 @@ specify :: Sort -> Sort
 specify (FAbs _ s) = specify s
 specify s          = s 
 
-resultType :: Expr -> Sort
-resultType e = go $ exprSort e 
+resultType :: String -> Expr -> Expr -> Sort
+resultType str e _ = go $ exprSort e 
   where
     go (FAbs i s)               = FAbs i $ go s 
     go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
     go (FFunc _ sx)             = sx
-    go sj          = errorstar ("makeFunSymbol on non Fun " ++ show (e, sj))
+    go sj          = errorstar (str ++ "\nmakeFunSymbol on non Fun " ++ showpp (eliminate e, sj) ++ "\nuneliminated\n" ++ showpp e)
 
 
 makeFunSymbol :: Sort -> Symbol
@@ -328,7 +333,7 @@ makeEq e1 e2
 
 makeEqForAll :: Expr -> Expr -> [Expr]
 makeEqForAll e1 e2 = 
-  [makeEq (closeLam su1 e1') (closeLam su2 e2') | su1 <- instantiate xs, su2 <- instantiate xs]
+  [ makeEq (closeLam su e1') (closeLam su e2') | su <- instantiate xs] -- , su2 <- instantiate xs]
   where
     (xs1, e1') = splitPAll [] e1
     (xs2, e2') = splitPAll [] e2
@@ -508,6 +513,7 @@ data DFST
          , lamNorm :: !Bool 
          , dfLams  :: ![Expr] -- lambda expressions appearing in the expressions
          , dfRedex :: ![Expr] -- redexes appearing in the expressions
+         , dfLog   :: !String 
          }
 
 makeInitDFState :: Config -> SInfo a -> DFST
@@ -525,6 +531,7 @@ makeInitDFState cfg si
          -- INVARIANT: lambads and redexes are not defunctionalized 
          , dfLams  = [] 
          , dfRedex = []
+         , dfLog   = ""
          }
   where
     xs = symbolSorts cfg si ++ concat [ [(x,s), (y,s)] | (_, x, RR s (Reft (y, _))) <- bindEnvToList $ bs si]
@@ -532,6 +539,10 @@ makeInitDFState cfg si
 
 setBinds :: IBindEnv -> DF ()
 setBinds e = modify $ \s -> s{dfbenv = e}
+
+
+writeLog :: String -> DF ()
+writeLog str = modify $ \s -> s{dfLog =  (dfLog s) ++ "\n" ++ str}
 
 withExtendedEnv ::  [(Symbol, Sort)] -> DF a -> DF a
 withExtendedEnv bs act = do
