@@ -38,7 +38,6 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.Misc (mapSnd)
 
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon

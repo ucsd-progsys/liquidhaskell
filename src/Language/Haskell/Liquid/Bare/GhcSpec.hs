@@ -46,7 +46,7 @@ import           Language.Haskell.Liquid.GHC.Misc           (dropModuleNames, sh
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Misc               (mapSnd)
+import           Language.Fixpoint.Misc               (mapSnd)
 import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure            as Ms

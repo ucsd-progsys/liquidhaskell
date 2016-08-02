@@ -56,6 +56,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
                                                    maxPartSize, eliminate, defConfig,
+                                                   withPragmas,
                                                    extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc

@@ -34,7 +34,7 @@ import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 

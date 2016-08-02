@@ -169,10 +169,6 @@ takeBFS n (BFS e bs) = BFS e (mapThd3 (takeBFS (n-1)) <$> bs)
 mapThd3 f (x, y, z) = (x, y, f z)
 -}
 
-mapSnd :: (t -> t2) -> (t1, t) -> (t1, t2)
-mapSnd f (x, y) = (x, f y)
-
-
 instance Eq CoreExpr where
   (Var x) == (Var y) =  x == y
   (App e1 e2) == (App e1' e2') = e1 == e1' && e2 == e2'
