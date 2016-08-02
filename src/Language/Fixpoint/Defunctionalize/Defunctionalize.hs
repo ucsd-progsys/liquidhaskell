@@ -379,7 +379,7 @@ txnumOverloading = mapExpr go
 -------------------------------------------------------------------------------
 
 txExtensionality :: Expr -> Expr
-txExtensionality = mapExpr go 
+txExtensionality = mapExpr' go 
   where
     go (EEq e1 e2)
       | FFunc _ _ <- exprSort e1, FFunc _ _ <- exprSort e2
@@ -577,3 +577,29 @@ freshSym = do
   n  <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
   return $ intSymbol "lambda_fun_" n
+
+
+mapExpr' :: (Expr -> Expr) -> Expr -> Expr 
+mapExpr' f e = go e 
+  where
+    go (ELam bs e)     = f (ELam bs (go e)) 
+    go (ECst e s)      = f (ECst (go e) s) 
+    go (EApp e1 e2)    = f (EApp (go e1) (go e2))
+    go e@(ESym _)      = f e
+    go e@(ECon _)      = f e 
+    go e@(EVar _)      = f e
+    go (ENeg e)        = f $ ENeg (go e) 
+    go (EBin b e1 e2)  = f $ EBin b (go e1) (go e2)
+    go (EIte e e1 e2)  = f $ EIte (go e) (go e1) (go e2)
+    go (ETAbs e t)     = f $ ETAbs (go e) t  
+    go (ETApp e t)     = f $ ETApp (go e) t  
+    go (PAnd es)       = f $ PAnd $ map go es 
+    go (POr es)        = f $ POr  $ map go es  
+    go (PNot e)        = f $ PNot $ go e 
+    go (PImp e1 e2)    = f $ PImp (go e1) (go e2)
+    go (PIff e1 e2)    = f $ PIff (go e1) (go e2) 
+    go (PAtom a e1 e2) = f $ PAtom a (go e1) (go e2) 
+    go (PAll bs e)     = f $ PAll bs   $  go e 
+    go (PExist bs e)   = f $ PExist bs $ go e 
+    go e@(PKVar _ _ )  = f e  
+    go e@PGrad         = f e  
