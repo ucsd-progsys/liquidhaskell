@@ -209,6 +209,7 @@ fixConfig tgt cfg = def
   , FC.alphaEquivalence = alphaEquivalence cfg
   , FC.betaEquivalence  = betaEquivalence  cfg
   , FC.normalForm       = normalForm       cfg
+  , FC.stringTheory     = stringTheory     cfg 
   }
 
 e2u :: F.FixSolution -> Error -> UserError

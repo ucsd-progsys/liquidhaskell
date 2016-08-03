@@ -56,6 +56,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
                                                    maxPartSize, eliminate, defConfig,
+                                                   stringTheory,
                                                    withPragmas,
                                                    extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
@@ -132,6 +133,10 @@ config = cmdArgsMode $ Config {
  , linear
     = def
           &= help "Use uninterpreted integer multiplication and division"
+
+ , stringTheory
+    = def
+          &= help "Interpretation of Strings by z3"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -417,6 +422,7 @@ defConfig = Config { files             = def
                    --, newcheck          = True
                    , fullcheck         = def
                    , linear            = def
+                   , stringTheory      = def 
                    , higherorder       = def
                    , extensionality    = def
                    , alphaEquivalence  = def
