@@ -41,7 +41,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkFFunc
   , bkFFunc
 
-  , isNumeric, isReal
+  , isNumeric, isReal, isString 
   ) where
 
 import qualified Data.Binary as B
@@ -67,26 +67,28 @@ type TCEmb a  = M.HashMap a FTycon
 
 
 instance Eq FTycon where
-  (TC s _) == (TC s' _) = s == s'
+  (TC s _) == (TC s' _) = val s == val s'
 
-data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool }
+data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
 
 instance Monoid TCInfo where
-  mempty                                   = TCInfo False False
-  mappend (TCInfo i1 i2)  (TCInfo i1' i2') = TCInfo (i1 || i1') (i2 || i2')
+  mempty                                          = TCInfo defNumInfo defRealInfo defStrInfo
+  mappend (TCInfo i1 i2 i3)  (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
 
-defTcInfo, numTcInfo, realTcInfo :: TCInfo
-defTcInfo  = TCInfo defNumInfo defRealInfo
-numTcInfo  = TCInfo True       defRealInfo
-realTcInfo = TCInfo True       True
+defTcInfo, numTcInfo, realTcInfo, strTcInfo :: TCInfo
+defTcInfo  = TCInfo defNumInfo defRealInfo defStrInfo
+numTcInfo  = TCInfo True       defRealInfo defStrInfo
+realTcInfo = TCInfo True       True        defStrInfo
+strTcInfo  = TCInfo defNumInfo defRealInfo True 
 
-defNumInfo, defRealInfo :: Bool
+defNumInfo, defRealInfo, defStrInfo :: Bool
 defNumInfo  = False
 defRealInfo = False
+defStrInfo  = False 
 
 intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
@@ -94,8 +96,9 @@ boolFTyCon = TC (dummyLoc "bool"     ) defTcInfo
 realFTyCon = TC (dummyLoc "real"     ) realTcInfo
 numFTyCon  = TC (dummyLoc "num"      ) numTcInfo
 funcFTyCon = TC (dummyLoc "function" ) defTcInfo
-strFTyCon  = TC (dummyLoc strConName ) defTcInfo
+strFTyCon  = TC (dummyLoc strConName ) strTcInfo
 listFTyCon = TC (dummyLoc listConName) defTcInfo
+charFTyCon = TC (dummyLoc "Char"     ) defTcInfo
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"
@@ -199,6 +202,21 @@ isReal (FApp s _)     = isReal s
 isReal (FTC (TC _ i)) = tc_isReal i
 isReal (FAbs _ s)     = isReal s
 isReal _              = False
+
+
+isString :: Sort -> Bool 
+isString (FApp l c)     = (isList l && isChar c) || isString l  
+isString (FTC (TC _ i)) = tc_isString i  
+isString (FAbs _ s)     = isString s 
+isString _              = False 
+
+isList :: Sort -> Bool
+isList (FTC c) = isListTC c 
+isList _       = False 
+
+isChar :: Sort -> Bool 
+isChar (FTC c) = c == charFTyCon
+isChar _       = False
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
