@@ -526,9 +526,14 @@ data Def a
   | Kut !KVar
   | Pack !KVar !Int
   | IBind !Int !Symbol !SortedReft
+  | Opt !String 
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
+
+fInfoOptP :: Parser (FInfoWithOpts ())
+fInfoOptP = do ps <- many defP
+               return $ FIO (defsFInfo ps) [s | Opt s <- ps]
 
 fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> {-# SCC "many-defP" #-} many defP
@@ -544,6 +549,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
+    <|> Opt   <$> (reserved "fixpoint"   >> stringLiteral)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -598,7 +604,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty mempty
   where
     cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
     ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
@@ -729,6 +735,9 @@ instance Inputable (FixResult Integer, FixSolution) where
 
 instance Inputable (FInfo ()) where
   rr' = {-# SCC "fInfoP" #-} doParse' fInfoP
+
+instance Inputable (FInfoWithOpts ()) where
+  rr' = {-# SCC "fInfoWithOptsP" #-} doParse' fInfoOptP
 
 instance Inputable Command where
   rr' = doParse' commandP

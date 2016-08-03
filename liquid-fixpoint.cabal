@@ -79,6 +79,7 @@ Library
                    Language.Fixpoint.Graph.Partition,
                    Language.Fixpoint.Graph.Deps,
                    Language.Fixpoint.Graph,
+                   Language.Fixpoint.Defunctionalize.Defunctionalize,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,

@@ -23,11 +23,12 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , kvars
-  , size
+  , size, lamSize
   , envKVars
   , envKVarsN
   , rhsKVars
   , mapKVars, mapKVars', mapKVarSubsts
+  , mapExpr 
 
   -- * Predicates on Constraints
   , isConcC , isKvarC
@@ -167,6 +168,9 @@ mapKVars' f            = trans kvVis () []
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
+mapExpr :: (Expr -> Expr) -> Expr -> Expr 
+mapExpr f = trans (defaultVisitor {txExpr = const f}) () []
+
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []
   where
@@ -185,6 +189,16 @@ size t    = n
   where
     MInt n = fold szV () mempty t
     szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
+
+
+lamSize :: Visitable t => t -> Integer
+lamSize t    = n
+  where
+    MInt n = fold szV () mempty t
+    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = accum }
+    accum _ (ELam _ _) = MInt 1
+    accum _ _          = MInt 0 
+
 
 kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []

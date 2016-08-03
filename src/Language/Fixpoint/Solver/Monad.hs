@@ -96,7 +96,7 @@ runSolverM cfg sI _ s0 act =
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    act'     = declareInitEnv >> declare xts ess p >> act
+    act'     = declareInitEnv >> declare xts ess p >> assumes (F.asserts fi) >> act
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
     ess      = distinctLiterals fi
@@ -114,7 +114,7 @@ runSolverM cfg sI _ s0 act =
 -- /   | C.pack cfg = F.packs fi
 -- /   | otherwise  = mempty
 
-background :: Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
+background :: F.TaggedC c a => Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi s0 = (bts ++ xts, p)
   where
     xts              = symbolSorts cfg fi
@@ -228,6 +228,10 @@ declare xts' ess p = withContext $ \me -> do
   return ()
   where
     isThy   = isJust . Thy.smt2Symbol
+
+assumes :: [F.Expr] -> SolveM ()
+assumes es = withContext $ \me -> 
+  forM_  es $ smtAssert me 
 
 declareInitEnv :: SolveM ()
 declareInitEnv

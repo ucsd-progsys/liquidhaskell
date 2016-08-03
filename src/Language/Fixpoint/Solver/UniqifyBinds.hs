@@ -49,17 +49,17 @@ mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
-    ids = elemsIBindEnv $ senv s
+    ids     = elemsIBindEnv $ senv s
     nameMap = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
-    m' = foldl' (insertIdIdLinks be nameMap) m ids
+    m'      = foldl' (insertIdIdLinks be nameMap) m ids
 
-    symSet = S.fromList $ syms $ crhs s
-    refSet = namesToIds symSet nameMap
+    symSet  = S.fromList $ syms $ crhs s
+    refSet  = namesToIds symSet nameMap
 
 insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
-    sr = snd $ lookupBindEnv i be
+    sr     = snd $ lookupBindEnv i be
     symSet = reftFreeVars $ sr_reft sr
     refSet = namesToIds symSet nameMap
 
@@ -107,11 +107,11 @@ mkSubUsing m (sym, t) = do
 applySub :: Subst -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
-    go (sym, sr)        = (sym, subst sub sr)
+    go (sym, sr)       = (sym, subst sub sr)
 
 applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
-    go c                = c { _crhs = subst sub (_crhs c) }
+    go c               = c { _crhs = subst sub (_crhs c) }
 --------------------------------------------------------------
 
 --------------------------------------------------------------

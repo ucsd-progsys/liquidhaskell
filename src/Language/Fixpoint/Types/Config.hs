@@ -7,6 +7,8 @@
 module Language.Fixpoint.Types.Config (
     Config  (..)
   , defConfig
+  , withPragmas
+
   , getOpts
   , SMTSolver (..)
   , defaultMinPartSize
@@ -15,9 +17,22 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import Control.Monad
 import GHC.Generics
 import System.Console.CmdArgs
+import System.Console.CmdArgs.Explicit
+import System.Environment
+
 import Language.Fixpoint.Utils.Files
+
+
+withPragmas :: Config -> [String] -> IO Config
+---------------------------------------------------------------------------------------
+withPragmas cfg ps = foldM withPragma cfg ps 
+
+withPragma :: Config -> String -> IO Config
+withPragma c s = withArgs [s] $ cmdArgsRun
+          config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
 ------------------------------------------------------------------------
 -- Configuration Options -----------------------------------------------
@@ -37,6 +52,7 @@ data Config
     , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver           -- ^ which SMT solver to use
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
+    , defunction  :: Bool                -- ^ Allow higher order binders into fixpoint environment
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
@@ -53,10 +69,10 @@ data Config
     , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
-    , extensionality :: Bool             -- ^ allow function extensionality
+    , extensionality   :: Bool           -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
-    , normalForm  :: Bool                -- ^ allow lambda normal-form equivalence axioms
+    , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts    :: Bool                -- ^ ignore given kut variables
     -- , pack        :: Bool                -- ^ Use pack annotations
     , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
@@ -83,9 +99,12 @@ instance Show SMTSolver where
 defConfig :: Config
 defConfig = Config {
     srcFile     = def     &= args    &= typFile
+  , defunction  = False 
+           &= help "Allow higher order binders into fixpoint environment"
   , solver      = def     &= help "Name of SMT Solver"
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
-  , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
+  , allowHO     = False   
+          &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs   = False   &= help "Allow higher order qualifiers"
   , eliminate   = False   &= help "Eliminate non-cut KVars"
   -- , oldElim     = True    &= help "(default) Use old eliminate algorithm"
@@ -121,6 +140,9 @@ defConfig = Config {
              , "To check a file foo.fq type:"
              , "  fixpoint foo.fq"
              ]
+
+config :: Mode (CmdArgs Config)
+config = cmdArgsMode $ defConfig
 
 getOpts :: IO Config
 getOpts = do md <- cmdArgs defConfig

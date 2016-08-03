@@ -154,6 +154,8 @@ snd3 (_,x,_) = x
 thd3 ::  (a, b, c) -> c
 thd3 (_,_,x) = x
 
+secondM act (x, y) = (x,) <$> act y
+
 #ifdef MIN_VERSION_located_base
 mlookup    :: (?callStack :: CallStack, Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
 safeLookup :: (?callStack :: CallStack, Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
@@ -328,3 +330,9 @@ exitColorStrLn c s = do
   putStrLn "\n"
   colorStrLn c s
 -}
+
+mapFst :: (a -> c) -> (a, b) -> (c, b)
+mapFst f (x, y) = (f x, y)
+
+mapSnd :: (b -> c) -> (a, b) -> (a, c)
+mapSnd f (x, y) = (x, f y)

@@ -17,7 +17,7 @@
 module Language.Fixpoint.Types.Constraints (
 
    -- * Top-level Queries
-    FInfo, SInfo, GInfo (..)
+    FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
   , Solver
 
@@ -105,8 +105,8 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
 type SubcId = Integer
 
 data SubC a = SubC { _senv  :: !IBindEnv
-                   , slhs  :: !SortedReft
-                   , srhs  :: !SortedReft
+                   , slhs   :: !SortedReft
+                   , srhs   :: !SortedReft
                    , _sid   :: !(Maybe SubcId)
                    , _stag  :: !Tag
                    , _sinfo :: !a
@@ -430,6 +430,7 @@ fi cs ws binds ls ds ks qs bi fn aHO aHOq
        , bindInfo = bi
        , fileName = fn
        , hoInfo   = HOI aHO aHOq
+       , asserts  = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -438,6 +439,8 @@ fi cs ws binds ls ds ks qs bi fn aHO aHOq
 ------------------------------------------------------------------------
 -- | Top-level Queries
 ------------------------------------------------------------------------
+
+data FInfoWithOpts a = FIO {fioFI :: FInfo a, fioOpts :: [String]}
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
@@ -463,6 +466,7 @@ data GInfo c a =
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , fileName :: FilePath                   -- ^ Source file name
      , hoInfo   :: !HOInfo                    -- ^ Higher Order info
+     , asserts  :: ![Expr]
      }
   deriving (Eq, Show, Functor, Generic)
 
@@ -473,7 +477,7 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -485,6 +489,7 @@ instance Monoid (GInfo c a) where
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
                      , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
+                     , asserts  = mappend (asserts i1)  (asserts i2)
                      }
 
 instance PTable (SInfo a) where

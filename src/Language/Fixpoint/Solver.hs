@@ -27,9 +27,10 @@ import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
+import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
-import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
+import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..), withPragmas)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
@@ -47,9 +48,10 @@ import           Control.DeepSeq
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg = do
-    fi      <- readFInfo file
-    r       <- solve cfg fi
-    let stat = resStatus $!! r
+    (fi, opts) <- readFInfo file
+    cfg'       <- withPragmas cfg opts
+    r          <- solve cfg' fi
+    let stat    = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
     whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
@@ -83,22 +85,22 @@ configSW cfg
   | otherwise     = solveSeqWith
 
 ---------------------------------------------------------------------------
-readFInfo :: FilePath -> IO (FInfo ())
+readFInfo :: FilePath -> IO (FInfo (), [String])
 ---------------------------------------------------------------------------
-readFInfo f        = fixFileName <$> act
+readFInfo f        = mapFst fixFileName <$> act
   where
     fixFileName q  = q {fileName = f}
     act
       | isBinary f = readBinFq f
       | otherwise  = readFq f
 
-readFq :: FilePath -> IO (FInfo ())
+readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do
   str   <- readFile file
-  let q = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  return q
+  let q  = {-# SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
+  return (fioFI q, fioOpts q)
 
-readBinFq :: FilePath -> IO (FInfo ())
+readBinFq :: FilePath -> IO (FInfo (), [String])
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 
 ---------------------------------------------------------------------------
@@ -139,7 +141,7 @@ inParallelUsing f xs = do
    return $ mconcat rs
 
 --------------------------------------------------------------------------------
--- | Native Haskell Solver----- ------------------------------------------------
+-- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 --------------------------------------------------------------------------------
@@ -170,7 +172,8 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si3
+  let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res

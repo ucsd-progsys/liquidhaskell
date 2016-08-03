@@ -56,7 +56,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality, alphaEquivalence, betaEquivalence, normalForm)
-import           Language.Fixpoint.Misc   (errorstar, getUniqueInt)
+import           Language.Fixpoint.Misc   (errorstar)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
@@ -149,10 +149,9 @@ checkValids cfg f xts ps
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd       = do n <- getUniqueInt
-                           say n cmd >> hear cmd
+command me !cmd       = say cmd >> hear cmd
   where
-    say n             = smtWrite me . Builder.toLazyText . runSmt2 n me
+    say               = smtWrite me . Builder.toLazyText . runSmt2
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok

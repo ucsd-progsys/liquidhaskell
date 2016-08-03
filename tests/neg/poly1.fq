@@ -1,3 +1,4 @@
+fixpoint "--defunct"
 
 // This definition works fine ...
 // constant offset : (func(2, [int ; (BitVec Size32) ]))
