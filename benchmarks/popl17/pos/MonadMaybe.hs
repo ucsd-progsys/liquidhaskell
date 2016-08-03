@@ -1,7 +1,8 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--extensionality"  @-}
+{-@ LIQUID "--higherorder"      @-}
+{-@ LIQUID "--totality"         @-}
+{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--alphaequivalence" @-}
+{-@ LIQUID "--betaequivalence"  @-}
 
 
 
@@ -61,21 +62,27 @@ right_identity (Just x)
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: m:Maybe a -> f: (a -> Maybe b) -> g:(b -> Maybe c)
   -> {v:Proof | bind (bind m f) g == bind m (\x:a -> (bind (f x) g))} @-}
-associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
+associativity :: Arg a => Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g
-  = toProof $
-       bind (bind Nothing f) g
-         ==. bind Nothing g
-         ==. Nothing
-         ==. bind Nothing (\x -> bind (f x) g)
+  =   bind (bind Nothing f) g
+  ==. bind Nothing g
+  ==. Nothing
+  ==. bind Nothing (\x -> bind (f x) g)
+  *** QED 
 associativity (Just x) f g
-  = toProof $
-       bind (bind (Just x) f) g
-         ==. bind (f x) g
-         ==. (\x -> bind (f x) g) x
-         ==. bind (Just x) (\x -> bind (f x) g)
+  =   bind (bind (Just x) f) g
+  ==. bind (f x) g
+  ==. (\y -> bind (f y) g) x             ? beta_reduce x f g 
+  ==. bind (Just x) (\y -> bind (f y) g)
+  *** QED 
 
 
+
+beta_reduce :: a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof 
+{-@ beta_reduce :: x:a -> f:(a -> Maybe b) -> g:(b -> Maybe c)
+                -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
+
+beta_reduce x f g = simpleProof 
 
 data Maybe a = Nothing | Just a
 

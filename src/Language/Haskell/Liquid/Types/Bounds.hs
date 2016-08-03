@@ -31,7 +31,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc  (mapFst, mapSnd)
+import Language.Fixpoint.Misc  (mapFst, mapSnd)
 import Language.Haskell.Liquid.Types.RefType
 
 

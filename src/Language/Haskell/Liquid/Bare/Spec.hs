@@ -42,7 +42,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 
-import           Language.Fixpoint.Misc                     (group, snd3, groupList)
+import           Language.Fixpoint.Misc                     (group, snd3, groupList, mapFst)
 -- import           Language.Fixpoint.Misc                     (traceShow)
 
 

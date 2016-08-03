@@ -40,7 +40,7 @@ import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (Axiom)
-import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds

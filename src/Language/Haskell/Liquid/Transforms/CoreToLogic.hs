@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc     
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
-import           Language.Haskell.Liquid.Misc          (mapSnd)
+import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 

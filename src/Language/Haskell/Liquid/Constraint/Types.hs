@@ -66,7 +66,7 @@ import           Control.Monad.State
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
 import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Misc           (fourth4, mapSnd)
+import           Language.Haskell.Liquid.Misc           (fourth4)
 import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F

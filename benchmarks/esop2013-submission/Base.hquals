@@ -1,3 +1,3 @@
-qualif Bound(v: Goober.Map k a , x : k): ((isBin v) => (x < (key v)))
-qualif Bound(v: Goober.Map k a , x : k): ((isBin v) => (x > (key v)))
+qualif Bound(v: Data.Map.Base.Map k a , x : k): ((isBin v) => (x < (key v)))
+qualif Bound(v: Data.Map.Base.Map k a , x : k): ((isBin v) => (x > (key v)))
 

@@ -29,6 +29,7 @@ bar [x] = x
 x =  bar [1]
 
 {-@ plus :: x:_ -> y:_ -> {v:_ | v = x + y} @-}
+plus :: Int -> Int -> Int 
 plus x y = x + y
 
 

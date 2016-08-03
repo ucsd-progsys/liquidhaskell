@@ -29,12 +29,12 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 
-import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead)
+import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead, mapSnd)
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import           Language.Fixpoint.Types                   hiding (Error, R)
 
 import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
-import           Language.Haskell.Liquid.Misc              (snd4, mapSnd)
+import           Language.Haskell.Liquid.Misc              (snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
 import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
 import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)

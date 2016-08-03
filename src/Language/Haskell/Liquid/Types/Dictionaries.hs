@@ -28,7 +28,7 @@ import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType ()
-import           Language.Haskell.Liquid.Misc              (mapFst)
+import           Language.Fixpoint.Misc                (mapFst)
 
 import qualified Data.HashMap.Strict                       as M
 

@@ -37,7 +37,8 @@ import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
 -- import qualified Data.List as L
 -- import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
+import           Language.Fixpoint.Misc       (mapFst, mapSnd)
+import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- showPpr, tracePpr, isTupleId)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)

@@ -148,12 +148,6 @@ zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
 single :: t -> [t]
 single x = [x]
 
-mapFst :: (t -> t1) -> (t, t2) -> (t1, t2)
-mapFst f (x, y)  = (f x, y)
-
-mapSnd :: (t -> t2) -> (t1, t) -> (t1, t2)
-mapSnd f (x, y)  = (x, f y)
-
 mapFst3 :: (t -> t1) -> (t, t2, t3) -> (t1, t2, t3)
 mapFst3 f (x, y, z) = (f x, y, z)
 
