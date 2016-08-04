@@ -2,7 +2,7 @@ module spec GHC.CString where
 
 import GHC.Prim 
 
-measure strLen :: String -> Int
+measure strLen :: String -> GHC.Types.Int
 embed GHC.Types.Char as Char
 
 GHC.CString.unpackCString#

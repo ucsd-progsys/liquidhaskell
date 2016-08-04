@@ -19,7 +19,7 @@ import qualified Data.List                           as L
 
 import qualified Data.HashMap.Strict                 as M
 
-import           Language.Fixpoint.Misc              (traceShow)
+-- import           Language.Fixpoint.Misc              (traceShow)
 import           Language.Fixpoint.Types.Names       (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Qualifier(..),
@@ -109,7 +109,7 @@ instance Resolvable Sort where
     | otherwise           = do ty     <- lookupGhcTyCon tcs
                                emb    <- embeds <$> get
                                let ftc = symbolFTycon $ Loc l l' $ symbol ty
-                               return  $ traceShow ("RESOLVE " ++ show c) $ FTC $ fromMaybe ftc (M.lookup ty emb)
+                               return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2

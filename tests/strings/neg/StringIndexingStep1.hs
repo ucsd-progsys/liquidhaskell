@@ -26,9 +26,6 @@ data MI (tagret :: Symbol) s where
        -> [{i:Int |	 subString input i (stringLen target)  == target }]
        -> MI s @-}
 
-{-@ measure subString :: String -> Int -> Int -> String @-}
-{-@ measure stringLen :: String -> Int @-}
-
 
 -- STEP 1:    Verification of valid structures
 -- CHALLENGE: String interepretations from SMT 
