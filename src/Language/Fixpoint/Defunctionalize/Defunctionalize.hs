@@ -56,11 +56,19 @@ funSort s1 s2 = FApp (FApp funcSort s1) s2
 -------------------------------------------------------------------------------
 
 instance Defunc Expr where
-  defunc e = do env    <- dfenv <$> get 
+  defunc = txExpr True  
+
+
+
+txCastedExpr :: Expr -> DF Expr
+txCastedExpr = txExpr False
+
+txExpr :: Bool -> Expr -> DF Expr 
+txExpr b e = do env    <- dfenv <$> get 
                 hoFlag <- dfHO  <$> get
                 exFlag <- f_ext <$> get  
                 stFlag <- dfStr <$> get 
-                tx stFlag hoFlag exFlag $ elaborate env e
+                tx stFlag hoFlag exFlag $ if b then elaborate env e else e 
    where 
      tx stFlag hoFlag exFlag e
        | exFlag && hoFlag
@@ -216,9 +224,9 @@ makeAxioms :: DF [Expr]
 makeAxioms = do 
   alphaFlag <- a_eq <$> get 
   betaFlag  <- b_eq <$> get 
-  asb <- if betaFlag  then withNoLambdaNormalization $ withNoEquivalence makeBetaAxioms   else return []
-  asa <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return [] 
-  asyms <- makeSymbolAxioms
+  asyms     <- makeSymbolAxioms
+  asb       <- if betaFlag  then withNoLambdaNormalization $ withNoEquivalence makeBetaAxioms   else return []
+  asa       <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return [] 
   return (asa ++ asb ++ asyms)
 
 -------------------------------------------------------------------------------
@@ -229,9 +237,9 @@ logSym :: SymConst -> DF ()
 logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
 
 makeSymbolAxioms :: DF [Expr]
-makeSymbolAxioms = (map go . dfSyms) <$> get 
+makeSymbolAxioms = ((map go . dfSyms) <$> get) >>= mapM txCastedExpr 
   where
-    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) (expr $ T.length s) 
+    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) ((expr $ T.length s) `ECst` intSort)
 
 symbolExpr :: SymConst -> Expr 
 symbolExpr = EVar . symbol
@@ -240,7 +248,9 @@ makeStringLen :: Expr -> Expr
 makeStringLen = EApp (EVar Thy.strLen)
 
 makeGenStringLen :: Expr -> Expr 
-makeGenStringLen = EApp (EVar Thy.genLen)
+makeGenStringLen e 
+ = EApp (ECst (EVar Thy.genLen) (FFunc strSort intSort)) (ECst e strSort)
+   `ECst` intSort
 
 -------------------------------------------------------------------------------
 --------  Alpha Equivalence  --------------------------------------------------
