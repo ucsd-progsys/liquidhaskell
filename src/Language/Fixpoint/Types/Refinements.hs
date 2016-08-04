@@ -312,8 +312,8 @@ instance Symbolic SymConst where
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = litSymbol $ symbol s
 
-decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolText) . unLitSymbol
+_decodeSymConst :: Symbol -> Maybe SymConst
+_decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
@@ -582,7 +582,7 @@ instance Expression Expr where
 -- | The symbol may be an encoding of a SymConst.
 
 instance Expression Symbol where
-  expr s = maybe (eVar s) ESym (decodeSymConst s)
+  expr s = eVar s -- ) ESym (decodeSymConst s)
   -- expr = eVar
 
 instance Expression Text where

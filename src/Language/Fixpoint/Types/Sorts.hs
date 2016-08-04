@@ -24,7 +24,7 @@ module Language.Fixpoint.Types.Sorts (
   , Sub (..)
   , FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
+  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, strFTyCon  -- TODO: hide these
 
   , intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort
@@ -205,10 +205,10 @@ isReal _              = False
 
 
 isString :: Sort -> Bool 
-isString s@(FApp l c)     = traceShow ("isString1 " ++ show s) $ (isList l && isChar c) || isString l  
-isString s@(FTC (TC _ i)) = traceShow ("isString2 " ++ show s) $ tc_isString i  
-isString sp@(FAbs _ s)     = traceShow ("isString3 " ++ show sp) $ isString s 
-isString s                = traceShow ("isString4 " ++ show s) False 
+isString (FApp l c)     = (isList l && isChar c) || isString l  
+isString (FTC (TC c i)) = (val c == strConName || tc_isString i)  
+isString (FAbs _ s)     = isString s 
+isString _              = False 
 
 isList :: Sort -> Bool
 isList (FTC c) = isListTC c 
