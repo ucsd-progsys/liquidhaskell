@@ -11,6 +11,9 @@ import CoreSyn
 import Var
 import TypeRep
 
+import TyCon
+import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe)
+import PrelNames (isStringClassName)
 import Coercion
 
 import           Control.Arrow       ((***))
@@ -86,3 +89,23 @@ substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 substTysWith _ (LitTy t)       = LitTy t
+
+
+
+mapType :: (Type -> Type) -> Type -> Type 
+mapType f = go 
+  where
+    go t@(TyVarTy _)   = f t
+    go (AppTy t1 t2)   = f $ AppTy (go t1) (go t2)
+    go (TyConApp c ts) = f $ TyConApp c (go <$> ts)
+    go (FunTy t1 t2)   = f $ FunTy (go t1) (go t2)
+    go (ForAllTy v t)  = f $ ForAllTy v (go t)
+    go t@(LitTy _)     = f t 
+
+
+stringClassArg :: Type -> Maybe Type 
+stringClassArg t 
+  = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of 
+      (Just c, Just [t]) | isStringClassName == tyConName c 
+           -> Just t 
+      _    -> Nothing 

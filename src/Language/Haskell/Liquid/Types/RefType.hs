@@ -112,6 +112,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg)
 
 import Data.List (sort, foldl')
 
@@ -1260,9 +1261,14 @@ typeSortFun tce t -- τ1 τ2
 
 grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy τ1 τ2)
-  | not $ isClassPred τ1 = grabArgs (τ1:τs) τ2
-  | otherwise            = grabArgs τs τ2
-grabArgs τs τ            = reverse (τ:τs)
+  | Just a <- stringClassArg τ1     
+  = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
+  | not $ isClassPred τ1 
+  = grabArgs (τ1:τs) τ2
+  | otherwise            
+  = grabArgs τs τ2
+grabArgs τs τ            
+  = reverse (τ:τs)
 
 
 mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)

@@ -1081,13 +1081,15 @@ caseEnv γ x _   (DataAlt c) ys pIs
        tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
        let (rtd,yts', _) = unfoldR tdc xt ys
        yts              <- projectTypes pIs yts'
-       let r1            = dataConReft   c   ys'
-       let r2            = dataConMsReft rtd ys'
+       let r1            = dataConReft   c   ys''
+       let r2            = dataConMsReft rtd ys''
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
        cγ'              <- addBinders γ   x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
        return $ addArguments cγ ys
+  where
+    ys'' = F.symbol <$> (filter (not . isClassPred . varType) ys)
 
 caseEnv γ x acs a _ _
   = do let x'  = F.symbol x
