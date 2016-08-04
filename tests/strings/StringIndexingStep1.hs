@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs               #-}
 {-@ LIQUID "--totality"        @-}
-{- LIQUID "--stringtheory"    @-}
+{-@ LIQUID "--stringtheory"    @-}
 
 module StringIndexing where
 
