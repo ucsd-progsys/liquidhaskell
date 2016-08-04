@@ -180,10 +180,12 @@ errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"
   where
     sp               = srcSpan q
 
-errFreeVarInConstraint :: Integer -> Error
-errFreeVarInConstraint i = err dummySpan $
+errFreeVarInConstraint :: (PPrint a) => (Integer, a) -> Error
+errFreeVarInConstraint (i, ss) = err dummySpan $
   vcat [ "Constraint with free vars"
-       , pprint i ]
+       , pprint i
+       , pprint ss 
+       ]
 
 errIllScopedKVar :: (PPrint k, PPrint bs) => (k, Integer, Integer, bs) -> Error
 errIllScopedKVar (k, inId, outId, xs) = err dummySpan $

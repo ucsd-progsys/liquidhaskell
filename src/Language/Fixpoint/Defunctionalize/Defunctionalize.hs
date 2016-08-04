@@ -367,8 +367,20 @@ txnumOverloading = mapExpr go
     go (EDiv   e1 e2)
       | exprSort e1 == FReal, exprSort e2 == FReal
       = ERDiv   e1 e2 
+    go e@(EApp _ _)
+      | Just a <- isStringLen e 
+      = makeStringLen a 
     go e 
       = e 
+
+isStringLen :: Expr -> Maybe Expr 
+isStringLen e 
+  = case eliminate e of 
+     EApp (EVar f) a | Thy.genLen == f -> Just a 
+     _                                 -> Nothing 
+
+makeStringLen :: Expr -> Expr 
+makeStringLen = EApp (EVar Thy.strLen)
 
 -------------------------------------------------------------------------------
 --------  Extensionality  -----------------------------------------------------

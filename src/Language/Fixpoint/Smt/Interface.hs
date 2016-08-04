@@ -309,10 +309,9 @@ smtPreamble cfg s _
 checkValidStringFlag :: SMTSolver -> T.Text -> Config -> IO ()
 checkValidStringFlag smt v cfg 
   = if    (stringTheory cfg) 
-       && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "2", "2"]))
+       && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"]))
       then die $ err dummySpan (text $ "stringTheory is only supported by z3 version >=4.2.2")
-      else die $ err dummySpan (text $ ("stringTheory is only supported by z3 version >=4.2.2" ++ show (smt, v, stringTheory cfg)))
-      -- else return ()
+      else return ()
 
 versionGreaterEq :: Ord a => [a] -> [a] -> Bool
 versionGreaterEq (x:xs) (y:ys)
