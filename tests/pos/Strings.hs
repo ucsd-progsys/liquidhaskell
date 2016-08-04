@@ -16,7 +16,7 @@ prop = foo1 == foo2
   where foo1 = "foo"
         foo2 = "foo"
 -}
-
+{- 
 
 data Foo = FFFF | QQQQ deriving Eq
 
@@ -30,7 +30,7 @@ prop2 = foo1 /= foo2
 {-@ prop3 :: {v:[String] | listElts v ~~ Set_sng "xx"} @-}
 prop3 :: [String]
 prop3 = ["xx"]
-
+-}
 {-@ prop1 :: {v:Bool | Prop v <=> true} @-}
 prop1 :: Bool
 prop1 = foo1 /= foo2 

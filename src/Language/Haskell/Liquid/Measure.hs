@@ -12,8 +12,6 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , dataConTypes
   , defRefType
-  , strLen
-  , wiredInMeasures
   ) where
 
 import           DataCon
@@ -23,8 +21,6 @@ import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding (first)
 import           Text.Printf                            (printf)
 import           Type
-import           TysPrim
-import           TysWiredIn
 import           Var
 
 import qualified Data.HashMap.Strict                    as M
@@ -375,15 +371,3 @@ bodyPred ::  Expr -> Body -> Expr
 bodyPred fv (E e)    = PAtom Eq fv e
 bodyPred fv (P p)    = PIff  fv p
 bodyPred fv (R v' p) = subst1 p (v', fv)
-
-
--- | A wired-in measure @strLen@ that describes the length of a string
--- literal, with type @Addr#@.
-strLen :: Measure SpecType ctor
-strLen = M { name = dummyLoc "strLen"
-           , sort = ofType (mkFunTy addrPrimTy intTy)
-           , eqns = []
-           }
-
-wiredInMeasures :: MSpec SpecType DataCon
-wiredInMeasures = mkMSpec' [strLen]

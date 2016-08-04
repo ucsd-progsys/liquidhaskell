@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs               #-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--stringtheory"    @-}
+{- LIQUID "--stringtheory"    @-}
 
 module StringIndexing where
 
@@ -23,33 +23,31 @@ data MI (tagret :: Symbol) s where
                    -> MI target s
 
 {-@ MI :: input:s 
-       -> [{i:Int |	 substring input i (stringLen target)  == target }]
+       -> [{i:Int |	 subString input i (stringLen target)  == target }]
        -> MI s @-}
 
-{-@ measure substring :: String -> Int -> Int -> String @-}
+{-@ measure subString :: String -> Int -> Int -> String @-}
 {-@ measure stringLen :: String -> Int @-}
 
 
 -- STEP 1:    Verification of valid structures
 -- CHALLENGE: String interepretations from SMT 
 
-{-@ embed GHC.Types.Char as Char @-}
-
 -- THESE SHOULD BE SAFE 
 misafe1 :: MI "cat" String 
 misafe1 = MI "catdogcatsdots" []
 
 misafe2 :: MI "cat" String
-misafe2 = MI "catdogcatsdots" [1]
+misafe2 = MI "catdogcatsdots" [0]
 
 misafe3 :: MI "cat" String
-misafe3 = MI "catdogcatsdots" [1, 7]
+misafe3 = MI "catdogcatsdots" [0, 6]
 
 misafe4 :: MI "cat" String
-misafe4 = MI "catdogcatsdots" [7, 1]
+misafe4 = MI "catdogcatsdots" [6, 0]
 
 misafe5 :: MI "cat" String
-misafe5 = MI "catdogcatsdots" [7]
+misafe5 = MI "catdogcatsdots" [6]
 
 
 -- THIS SHOULD BE UNSAFE 

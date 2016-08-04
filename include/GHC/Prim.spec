@@ -2,7 +2,7 @@ module spec GHC.Prim where
 
 embed GHC.Prim.Int#  as int
 embed GHC.Prim.Word# as int
-embed GHC.Prim.Addr# as int
+embed GHC.Prim.Addr# as Str
 
 embed GHC.Prim.Double#  as real
 
