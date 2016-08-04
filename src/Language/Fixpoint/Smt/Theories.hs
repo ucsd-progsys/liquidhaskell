@@ -91,26 +91,29 @@ mapSel   = "Map_select"
 mapSto   = "Map_store"
 
 
-strLen, strSubstr, genLen :: Symbol 
+strLen, strSubstr, genLen, strConcat :: Symbol 
 strLen    = "stringLen"
 strSubstr = "subString"
+strConcat = "concatString"
 
 genLen = "len"
 
 
-strlen, strsubstr :: Raw 
+strlen, strsubstr, strconcat :: Raw 
 strlen    = "stringLen"
 strsubstr = "subString"
+strconcat = "concatString"
 
 
-z3strlen, z3strsubstr :: Raw 
+z3strlen, z3strsubstr, z3strconcat :: Raw 
 z3strlen    = "str.len"
 z3strsubstr = "str.substr"
+z3strconcat = "str.++"
 
-strLenSort, substrSort :: Sort
-strLenSort = FFunc strSort intSort
-substrSort = mkFFunc 0 [strSort, intSort, intSort, strSort]
-
+strLenSort, substrSort, concatstrSort :: Sort
+strLenSort    = FFunc strSort intSort
+substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
+concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
 
 string :: Raw
 string = "Str" 
@@ -205,6 +208,8 @@ stringPrealble cfg | stringTheory cfg
         (strlen, string, z3strlen)
     , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
         (strsubstr, string, string, z3strsubstr)
+    , format "(define-fun {} ((x {}) (y {})) {} ({} x y))"
+        (strconcat, string, string, string, z3strconcat)
     ] 
 stringPrealble _ 
   = [
@@ -213,6 +218,8 @@ stringPrealble _
         (strlen, string)
     , format "(declare-fun {} ({} Int Int) {})"
         (strsubstr, string, string)
+    , format "(declare-fun {} ({} {}) {})"
+        (strconcat, string, string, string)
     ]
 
 
@@ -259,6 +266,7 @@ theorySymbols = M.fromList
 
   , tSym strLen    strlen    strLenSort
   , tSym strSubstr strsubstr substrSort
+  , tSym strConcat strconcat concatstrSort
   ]
   where
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
