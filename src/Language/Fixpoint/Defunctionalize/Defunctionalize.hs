@@ -43,6 +43,7 @@ defuncSort s = do
   hoFlag <- dfHO <$> get
   return $ if hoFlag then go s else s 
   where
+    go s | isString s = strSort
     go (FAbs i s)    = FAbs i $ go s 
     go (FFunc s1 s2) = funSort (go s1) (go s2)
     go (FApp s1 s2)  = FApp    (go s1) (go s2)  
