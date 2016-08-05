@@ -24,7 +24,7 @@ nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 -------------------------------------------------------------------------
 nontrivsorts cfg fi = do
   let fi' = simplify' cfg fi
-  writeFInfo cfg fi' $ extFileName Out (srcFile cfg)
+  writeFInfo cfg fi' $ queryFile Out cfg
   return mempty
 
 simplify' :: Config -> FInfo a -> FInfo a

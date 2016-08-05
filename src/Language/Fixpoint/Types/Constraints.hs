@@ -415,11 +415,10 @@ fi :: [SubC a]
    -> Kuts
    -> [Qualifier]
    -> M.HashMap BindId a
-   -> FilePath
    -> Bool
    -> Bool
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi fn aHO aHOq
+fi cs ws binds ls ds ks qs bi aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -428,7 +427,6 @@ fi cs ws binds ls ds ks qs bi fn aHO aHOq
        , kuts     = ks
        , quals    = qs
        , bindInfo = bi
-       , fileName = fn
        , hoInfo   = HOI aHO aHOq
        , asserts  = mempty
        }
@@ -464,7 +462,6 @@ data GInfo c a =
   --    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
-     , fileName :: FilePath                   -- ^ Source file name
      , hoInfo   :: !HOInfo                    -- ^ Higher Order info
      , asserts  :: ![Expr]
      }
@@ -477,7 +474,7 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -487,7 +484,6 @@ instance Monoid (GInfo c a) where
                      -- , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
-                     , fileName = fileName i1
                      , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      , asserts  = mappend (asserts i1)  (asserts i2)
                      }

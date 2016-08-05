@@ -87,12 +87,8 @@ configSW cfg
 ---------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo (), [String])
 ---------------------------------------------------------------------------
-readFInfo f        = mapFst fixFileName <$> act
-  where
-    fixFileName q  = q {fileName = f}
-    act
-      | isBinary f = (,) <$> readBinFq f <*> return []
-      | otherwise  = readFq f
+readFInfo f | isBinary f = (,) <$> readBinFq f <*> return []
+            | otherwise  = readFq f
 
 readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do
@@ -128,7 +124,9 @@ solveParWith s c fi0 = do
   case fis of
     []        -> errorstar "partiton' returned empty list!"
     [onePart] -> s c onePart
-    _         -> inParallelUsing (s c) fis
+    _         -> inParallelUsing (f s c) $ zip [1..] fis
+    where
+      f s c (j, fi) = s (c {srcFile = queryFile (Part j) c}) fi
 
 -------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel

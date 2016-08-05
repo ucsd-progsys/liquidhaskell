@@ -12,7 +12,7 @@ module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
-import           Language.Fixpoint.Types.Config     (Config (..))
+import           Language.Fixpoint.Types.Config     (Config (..), queryFile)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Misc             (safeHead)
 import           Language.Fixpoint.Utils.Files      hiding (Result)
@@ -121,7 +121,7 @@ isSafe (Result Safe _) = True
 isSafe _               = False
 
 addExt :: Ext -> Config -> Config
-addExt ext cfg = cfg { srcFile = extFileName ext $ srcFile cfg }
+addExt ext cfg = cfg { srcFile = queryFile ext cfg }
 
 mkOracle :: (NFData a, Fixpoint a) => (FInfo a -> [c] -> FInfo a)
                                    -> (Result (Integer, a) -> Bool)

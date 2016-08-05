@@ -99,7 +99,7 @@ instance Show SMTSolver where
 
 defConfig :: Config
 defConfig = Config {
-    srcFile     = def     &= args    &= typFile
+    srcFile     = "out"   &= args    &= typFile
   , defunction  = False 
            &= help "Allow higher order binders into fixpoint environment"
   , solver      = def     &= help "Name of SMT Solver"
@@ -159,6 +159,4 @@ multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
 
 queryFile :: Ext -> Config -> FilePath
-queryFile e cfg = extFileName e f
-  where
-    f           = if null $ srcFile cfg then "out" else srcFile cfg
+queryFile e = extFileName e . srcFile

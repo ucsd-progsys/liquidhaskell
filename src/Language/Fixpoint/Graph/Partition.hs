@@ -53,14 +53,12 @@ import           Data.List (sortBy)
 
 data CPart a = CPart { pws :: !(M.HashMap F.KVar (F.WfC a))
                      , pcm :: !(M.HashMap Integer (F.SubC a))
-                     , cFileName :: !FilePath
                      }
 
 instance Monoid (CPart a) where
-   mempty = CPart mempty mempty mempty
+   mempty = CPart mempty mempty
    mappend l r = CPart { pws = pws l `mappend` pws r
                        , pcm = pcm l `mappend` pcm r
-                       , cFileName = cFileName l
                        }
 
 --------------------------------------------------------------------------------
@@ -149,14 +147,12 @@ cpartSize c = (M.size . pcm) c + (length . pws) c
 cpartToFinfo :: F.FInfo a -> CPart a -> F.FInfo a
 cpartToFinfo fi p = fi { F.cm = pcm p
                        , F.ws = pws p
-                       , F.fileName = cFileName p
                        }
 
 -- | Convert an FInfo to a CPart
 finfoToCpart :: F.FInfo a -> CPart a
 finfoToCpart fi = CPart { pcm = F.cm fi
                         , pws = F.ws fi
-                        , cFileName = F.fileName fi
                         }
 
 -------------------------------------------------------------------------------------
@@ -164,10 +160,7 @@ dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
 -------------------------------------------------------------------------------------
 dumpPartitions cfg fis =
   forM_ (zip [0..] fis) $ \(i, fi) ->
-    writeFile (partFile fi i) (render $ F.toFixpoint cfg fi)
-
-partFile :: F.FInfo a -> Int -> FilePath
-partFile fi j = extFileName (Part j) (F.fileName fi)
+    writeFile (queryFile (Part i) cfg) (render $ F.toFixpoint cfg fi)
 
 
 -- | Type alias for a function to construct a partition. mkPartition and
@@ -204,7 +197,6 @@ mkPartition :: F.GInfo F.SubC a
 mkPartition fi icM iwM j
   = fi { F.cm       = M.fromList $ M.lookupDefault [] j icM
        , F.ws       = M.fromList $ M.lookupDefault [] j iwM
-       , F.fileName = partFile fi j
        }
 
 mkPartition' :: F.FInfo a1
@@ -212,10 +204,9 @@ mkPartition' :: F.FInfo a1
              -> M.HashMap Int [(F.KVar, F.WfC a)]
              -> Int
              -> CPart a
-mkPartition' fi icM iwM j
+mkPartition' _ icM iwM j
   = CPart { pcm       = M.fromList $ M.lookupDefault [] j icM
           , pws       = M.fromList $ M.lookupDefault [] j iwM
-          , cFileName = partFile fi j
           }
 
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
