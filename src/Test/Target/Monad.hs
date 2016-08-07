@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE ViewPatterns               #-}
 module Test.Target.Monad
   ( whenVerbose
@@ -41,7 +40,6 @@ import           Data.List                        hiding (sort)
 import qualified Data.Text                        as ST
 import qualified Data.Text.Lazy                   as T
 import qualified Data.Text.Lazy.Builder           as Builder
-import           Language.Haskell.TH.Lift
 import           System.IO.Unsafe
 -- import           Text.Printf
 
@@ -305,11 +303,3 @@ getValue v = do
   Values [x] <- io $ ensureValues $ command ctx (GetValue [v])
   noteUsed x
   return (snd x)
-
-
-
-----------------------------------------------------------------------
--- Template Haskell nonsense, MUST be at the bottom of the file
-----------------------------------------------------------------------
-
-deriveLiftMany [''SMTSolver, ''TargetOpts]

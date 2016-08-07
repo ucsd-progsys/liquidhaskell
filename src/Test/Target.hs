@@ -16,6 +16,7 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.State
 import qualified Language.Haskell.TH             as TH
+import qualified Language.Haskell.TH.Syntax      as TH
 import           System.Process                  (terminateProcess)
 import           Test.QuickCheck.All             (monomorphic)
 import           Text.Printf                     (printf)
@@ -41,8 +42,9 @@ target :: Testable f
 target f name path
   = targetWith f name path defaultOpts
 
-targetTH :: TH.Name -> FilePath -> TH.ExpQ
-targetTH f m = [| target $(monomorphic f) $(TH.stringE $ show f) m |]
+targetTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> IO ()))
+targetTH f = TH.unsafeTExpCoerce 
+           $ TH.appsE [TH.varE 'target, monomorphic f, TH.stringE (show f)]
 
 -- targetTH :: TH.ExpQ -- (TH.TExp (Testable f => f -> TH.Name -> IO ()))
 -- targetTH = TH.location >>= \TH.Loc {..} ->
@@ -53,8 +55,9 @@ targetResult :: Testable f => f -> String -> FilePath -> IO Result
 targetResult f name path
   = targetResultWith f name path defaultOpts
 
-targetResultTH :: TH.Name -> FilePath -> TH.ExpQ
-targetResultTH f m = [| targetResult $(monomorphic f) $(TH.stringE $ show f) m |]
+targetResultTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> IO Result))
+targetResultTH f = TH.unsafeTExpCoerce 
+                 $ TH.appsE [TH.varE 'targetResult, monomorphic f, TH.stringE (show f)]
 
 -- | Like 'target', but accepts options to control the enumeration depth,
 -- solver, and verbosity.
@@ -66,8 +69,9 @@ targetWith f name path opts
          Failed x -> printf "Found counter-example: %s\n\n" x
          Errored x -> printf "Error! %s\n\n" x
 
-targetWithTH :: TH.Name -> FilePath -> TargetOpts -> TH.ExpQ
-targetWithTH f m opts = [| targetWith $(monomorphic f) $(TH.stringE $ show f) m opts |]
+targetWithTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> TargetOpts -> IO ()))
+targetWithTH f = TH.unsafeTExpCoerce 
+               $ TH.appsE [TH.varE 'targetWith, monomorphic f, TH.stringE (show f)]
 
 -- | Like 'targetWith', but returns the 'Result' instead of printing to standard out.
 targetResultWith :: Testable f => f -> String -> FilePath -> TargetOpts -> IO Result
@@ -87,7 +91,8 @@ targetResultWith f name path opts
                 then makeContext F.defConfig{F.solver = solver opts} (".target/" ++ name)
                 else makeContextNoLog F.defConfig{F.solver = solver opts}
 
-targetResultWithTH :: TH.Name -> FilePath -> TargetOpts -> TH.ExpQ
-targetResultWithTH f m opts = [| targetResultWith $(monomorphic f) $(TH.stringE $ show f) m opts |]
+targetResultWithTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> TargetOpts -> IO Result))
+targetResultWithTH f = TH.unsafeTExpCoerce 
+                     $ TH.appsE [TH.varE 'targetResultWith, monomorphic f, TH.stringE (show f)]
 
 data Test = forall t. Testable t => T t
