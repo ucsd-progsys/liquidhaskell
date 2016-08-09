@@ -379,6 +379,7 @@ fTyConP
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
+  <|> (reserved "Str"     >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
 bvSortP :: Parser Sort

@@ -15,13 +15,15 @@ import           Language.Fixpoint.Solver.Validate (symbolSorts)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config hiding (eliminate)
 import           Language.Fixpoint.SortCheck       
-import           Language.Fixpoint.Types.Visitor   (mapExpr) 
+import           Language.Fixpoint.Types.Visitor   (mapExpr, mapMExpr) 
 
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Control.Monad.State
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
 import qualified Data.List           as L
+
+import qualified Data.Text                 as T
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a 
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
@@ -41,6 +43,7 @@ defuncSort s = do
   hoFlag <- dfHO <$> get
   return $ if hoFlag then go s else s 
   where
+    go s | isString s = strSort
     go (FAbs i s)    = FAbs i $ go s 
     go (FFunc s1 s2) = funSort (go s1) (go s2)
     go (FApp s1 s2)  = FApp    (go s1) (go s2)  
@@ -54,18 +57,27 @@ funSort s1 s2 = FApp (FApp funcSort s1) s2
 -------------------------------------------------------------------------------
 
 instance Defunc Expr where
-  defunc e = do env    <- dfenv <$> get 
+  defunc = txExpr True  
+
+
+
+txCastedExpr :: Expr -> DF Expr
+txCastedExpr = txExpr False
+
+txExpr :: Bool -> Expr -> DF Expr 
+txExpr b e = do env    <- dfenv <$> get 
                 hoFlag <- dfHO  <$> get
                 exFlag <- f_ext <$> get  
-                tx hoFlag exFlag $ elaborate env e
+                stFlag <- dfStr <$> get 
+                tx stFlag hoFlag exFlag $ if b then elaborate env e else e 
    where 
-     tx hoFlag exFlag e
+     tx stFlag hoFlag exFlag e
        | exFlag && hoFlag
-       = defuncExpr (txExtensionality (txnumOverloading e))
+       = (txExtensionality . txnumOverloading <$> (txStr stFlag $ e)) >>= defuncExpr
        | hoFlag 
-       = defuncExpr (txnumOverloading e)
+       = (txnumOverloading <$> (txStr stFlag $ e)) >>= defuncExpr
        | otherwise 
-       = return     (txnumOverloading e)
+       = txnumOverloading <$> (txStr stFlag $ e)
 
 
 defuncExpr :: Expr -> DF Expr
@@ -213,10 +225,33 @@ makeAxioms :: DF [Expr]
 makeAxioms = do 
   alphaFlag <- a_eq <$> get 
   betaFlag  <- b_eq <$> get 
-  asb <- if betaFlag  then withNoLambdaNormalization $ withNoEquivalence makeBetaAxioms   else return []
-  asa <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return [] 
-  return (asa ++ asb)
+  asyms     <- makeSymbolAxioms
+  asb       <- if betaFlag  then withNoLambdaNormalization $ withNoEquivalence makeBetaAxioms   else return []
+  asa       <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return [] 
+  return (asa ++ asb ++ asyms)
 
+-------------------------------------------------------------------------------
+------------  Symbols ---------------------------------------------------------
+-------------------------------------------------------------------------------
+
+logSym :: SymConst -> DF ()
+logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
+
+makeSymbolAxioms :: DF [Expr]
+makeSymbolAxioms = ((map go . dfSyms) <$> get) >>= mapM txCastedExpr 
+  where
+    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) ((expr $ T.length s) `ECst` intSort)
+
+symbolExpr :: SymConst -> Expr 
+symbolExpr = EVar . symbol
+
+makeStringLen :: Expr -> Expr 
+makeStringLen = EApp (EVar Thy.strLen)
+
+makeGenStringLen :: Expr -> Expr 
+makeGenStringLen e 
+ = EApp (ECst (EVar Thy.genLen) (FFunc strSort intSort)) (ECst e strSort)
+   `ECst` intSort
 
 -------------------------------------------------------------------------------
 --------  Alpha Equivalence  --------------------------------------------------
@@ -370,6 +405,31 @@ txnumOverloading = mapExpr go
     go e 
       = e 
 
+txStr :: Bool -> Expr -> DF Expr 
+txStr flag e = if flag then return $ mapExpr goStr e else mapMExpr goNoStr e 
+  where
+    goStr e@(EApp _ _)
+      | Just a <- isStringLen e 
+      = makeStringLen a
+    goStr e 
+       = e  
+    goNoStr (ESym s)
+      = logSym s >> (return $ symbolExpr s) 
+    goNoStr e 
+      = return e 
+
+
+isStringLen :: Expr -> Maybe Expr 
+isStringLen e 
+  = case eliminate e of 
+     EApp (EVar f) a | Thy.genLen == f && hasStringArg e 
+                     -> Just a 
+     _               -> Nothing 
+  where
+    hasStringArg (ECst e _) = hasStringArg e 
+    hasStringArg (EApp _ a) = isString $ exprSort a 
+    hasStringArg _          = False
+
 -------------------------------------------------------------------------------
 --------  Extensionality  -----------------------------------------------------
 -------------------------------------------------------------------------------
@@ -507,9 +567,11 @@ data DFST
          , f_norm  :: !Bool   -- enable normal form axioms
          , dfHO    :: !Bool   -- allow higher order thus defunctionalize
          , lamNorm :: !Bool 
+         , dfStr   :: !Bool   -- string interpretation 
          , dfLams  :: ![Expr] -- lambda expressions appearing in the expressions
          , dfRedex :: ![Expr] -- redexes appearing in the expressions
          , dfLog   :: !String 
+         , dfSyms  :: ![SymConst] -- symbols in the refinements 
          }
 
 makeInitDFState :: Config -> SInfo a -> DFST
@@ -527,7 +589,9 @@ makeInitDFState cfg si
          -- INVARIANT: lambads and redexes are not defunctionalized 
          , dfLams  = [] 
          , dfRedex = []
+         , dfSyms  = [] 
          , dfLog   = ""
+         , dfStr   = stringTheory cfg 
          }
   where
     xs = symbolSorts cfg si ++ concat [ [(x,s), (y,s)] | (_, x, RR s (Reft (y, _))) <- bindEnvToList $ bs si]

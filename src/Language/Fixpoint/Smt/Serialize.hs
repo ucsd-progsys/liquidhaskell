@@ -66,7 +66,7 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = build "({} {})" (smt2 sym, smt2 t)
 
 instance SMTLIB2 SymConst where
-  smt2   = smt2   . symbol
+  smt2 (SL s)  = build "\"{}\"" (Only s) 
 
 
 instance SMTLIB2 Constant where
@@ -97,7 +97,7 @@ instance SMTLIB2 Brel where
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
+  smt2 (ESym z)         = smt2 z
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
   smt2 e@(EApp _ _)     = smt2App e

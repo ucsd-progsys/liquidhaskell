@@ -137,19 +137,20 @@ banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
     fi = mapKVars (const $ Just F.PTrue) fi0
-    bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
+    bads = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi c]]
 
-cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
-cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
+cNoFreeVars :: F.SInfo a -> F.SimpC a -> Maybe [F.Symbol]
+cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)  
   where
     be   = F.bs fi
     lits = fst <$> F.toListSEnv (F.gLits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
+    fv   = cRng `nubDiff` (lits ++ cDom ++ F.prims)
 
-badCs :: Misc.ListNE (F.SimpC a) -> E.Error
-badCs = E.catErrors . map (E.errFreeVarInConstraint . F.subcId)
+badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
+badCs = E.catErrors . map (E.errFreeVarInConstraint . (Misc.mapFst F.subcId))
 
 
 --------------------------------------------------------------------------------

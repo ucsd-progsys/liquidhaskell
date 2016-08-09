@@ -21,24 +21,27 @@ module Language.Fixpoint.Smt.Theories
      , isTheorySymbol
      , theoryEnv
 
+       -- * String 
+     , string
+     , strLen, genLen
+
        -- * Theories
      , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
 
-       -- * Query Theories 
+      -- * Query Theories 
      , isSmt2App
      ) where
 
 import           Prelude hiding (map)
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
-
-import Data.Monoid
 import Data.Maybe (isJust)
-
+import Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
@@ -87,9 +90,38 @@ setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
+
+strLen, strSubstr, genLen, strConcat :: Symbol 
+strLen    = "stringLen"
+strSubstr = "subString"
+strConcat = "concatString"
+
+genLen = "len"
+
+
+strlen, strsubstr, strconcat :: Raw 
+strlen    = "stringLen"
+strsubstr = "subString"
+strconcat = "concatString"
+
+
+z3strlen, z3strsubstr, z3strconcat :: Raw 
+z3strlen    = "str.len"
+z3strsubstr = "str.substr"
+z3strconcat = "str.++"
+
+strLenSort, substrSort, concatstrSort :: Sort
+strLenSort    = FFunc strSort intSort
+substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
+concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
+
+string :: Raw
+string = "Str" 
+
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
-  = [ format "(define-sort {} () Int)"
+  = stringPrealble u ++ 
+    [ format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
         (set, elt)
@@ -133,6 +165,7 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic ALL_SUPPORTED)"
     , format "(define-sort {} () Int)"       (Only elt)
     , format "(define-sort {} () Int)"       (Only set)
+    , format "(define-sort {} () Int)"       (Only string)
     , format "(declare-fun {} () {})"        (emp, set)
     , format "(declare-fun {} ({} {}) {})"   (add, set, elt, set)
     , format "(declare-fun {} ({} {}) {})"   (cup, set, set, set)
@@ -163,7 +196,34 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(define-sort {} () Int)"       (Only map)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
+    , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
+    ] 
+
+
+stringPrealble :: Config -> [T.Text]
+stringPrealble cfg | stringTheory cfg
+  = [
+      format "(define-sort {} () String)" (Only string)
+    , format "(define-fun {} ((s {})) Int ({} s))"
+        (strlen, string, z3strlen)
+    , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
+        (strsubstr, string, string, z3strsubstr)
+    , format "(define-fun {} ((x {}) (y {})) {} ({} x y))"
+        (strconcat, string, string, string, z3strconcat)
+    ] 
+stringPrealble _ 
+  = [
+      format "(define-sort {} () Int)" (Only string)
+    , format "(declare-fun {} ({}) Int)"
+        (strlen, string)
+    , format "(declare-fun {} ({} Int Int) {})"
+        (strsubstr, string, string)
+    , format "(declare-fun {} ({} {}) {})"
+        (strconcat, string, string, string)
     ]
+
+
+
 
 {-
 mkSetSort _ _  = set
@@ -203,6 +263,10 @@ theorySymbols = M.fromList
   , tSym mapSto sto   mapStoSort
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
+
+  , tSym strLen    strlen    strLenSort
+  , tSym strSubstr strsubstr substrSort
+  , tSym strConcat strconcat concatstrSort
   ]
   where
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
@@ -247,6 +311,8 @@ smt2Sort (FApp (FApp (FTC c) _) _)
 smt2Sort (FApp (FTC bv) (FTC s))
   | isBv bv
   , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
+smt2Sort s 
+  | isString s                  = Just $ build "{}" (Only string)
 smt2Sort _                      = Nothing
 
 smt2App :: Expr -> [Builder.Builder] -> Maybe Builder.Builder
@@ -258,7 +324,6 @@ smt2App (EVar f) (d:ds)
   | Just s <- M.lookup f theorySymbols
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
-
 
 isSmt2App :: Expr -> [a] -> Bool 
 isSmt2App (EVar f) [_]
