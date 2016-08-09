@@ -339,7 +339,7 @@ the user can specify that the ADT follows the expected decreasing measure by
 
 Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`.
 
-For example, `autosize L` will refine the data constroctors of `L a` with the `autosize :: a -> Int` information, such that
+For example, `autosize L` will refine the data constructors of `L a` with the `autosize :: a -> Int` information, such that
 
     Nil  :: {v:L a | autosize v = 0}
     Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
@@ -430,7 +430,7 @@ Prune Unsorted Predicates
 -------------------------
 
 By default unsorted predicates are pruned away (yielding `true`
-for the corresponding refinement.) To disable this behaviour
+for the corresponding refinement.) To disable this behavior
 use the `no-prune-unsorted` flag.
 
     liquid --no-prune-unsorted test.hs
@@ -442,7 +442,7 @@ Case Expansion
 By default LiquidHaskell expands all data constructors to the case statements.
 For example,
 if `F = A1 | A2 | .. | A10`,
-then liquidHAskell will expand the code
+then LiquidHaskell will expand the code
 `case f of {A1 -> True; _ -> False}`
 to `case f of {A1 -> True; A2 -> False; ...; A10 -> False}`.
 This expansion can lead to more precise code analysis
@@ -462,7 +462,7 @@ Restriction to Linear Arithmetic
 ---------------------------------
 When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic:
 division and multiplication on integers are interpreted by `z3`. To treat division
-and multiplication as unintepreted functions use the `linear` flag
+and multiplication as uninterpreted functions use the `linear` flag
 
     liquid --linear test.hs
 
@@ -844,7 +844,7 @@ The above definition
         `llen :: xs:[a] -> {v:Int | v == llen xs}`
     If the user specifies another type for llen, say
         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
-    then the auto generated singleton type is overwriten.
+    then the auto generated singleton type is overwritten.
 
 Self-Invariants
 ===============
@@ -884,7 +884,7 @@ The bounds correspond to Horn
 implications between abstract refinements, which, as in the classical
 setting, correspond to subtyping constraints that must be satisfied by the concrete refinements used at any call-site.
 
-See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
+See `benchmarks/icfp15/pos/Overview.lhs` for examples on how to use bounds.
 
 
 Invariants
@@ -900,7 +900,7 @@ example,  the length of a list cannot be negative
     {-@ invariant {v:[a] | (len v >= 0)} @-}
 
 LiquidHaskell can prove that this invariant holds, by proving that all List's
-constractos (ie., `:` and `[]`) satisfy it.(TODO!)
+constructors (ie., `:` and `[]`) satisfy it.(TODO!)
 Then, LiquidHaskell assumes that each list element that is created satisfies
 this invariant.
 
@@ -914,7 +914,7 @@ list is treated as a Stream. To establish this local invariant one can use the
 denoting that each list is not empty.
 Then, LiquidHaskell will prove that this invariant holds, by proving that *all
 calls* to List's
-constractos (ie., `:` and `[]`) satisfy it, and
+constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 
@@ -944,7 +944,7 @@ Formal Grammar of Refinement Predicates
        | c                      -- constant
        | (e + e)                -- addition
        | (e - e)                -- subtraction
-       | (c * e)                -- cmultiplication by constant
+       | (c * e)                -- multiplication by constant
        | (v e1 e2 ... en)       -- uninterpreted function application
        | (if p then e else e)   -- if-then-else
 
@@ -1076,7 +1076,7 @@ Generating Performance Reports
 
 We have set up infrastructure to generate performance reports using [Gipeda](https://github.com/nomeata/gipeda).
 
-Gipeda will generate a static webpage that tracks the peformance improvements
+Gipeda will generate a static webpage that tracks the performance improvements
 and regressions between commits. To generate the site, first ensure you have the
 following dependencies available:
 
@@ -1107,7 +1107,7 @@ all logs.
 
 You should expect this process to take a very long time. `generate-site.bash`
 will compile each commit, then run the entire test suite and benchmark suite
-for each commit. It is suggested to provide a managable range to `generate-site.bash`:
+for each commit. It is suggested to provide a manageable range to `generate-site.bash`:
 
     ./generate-site.bash -s [starting hash] -e [ending hash]
 
