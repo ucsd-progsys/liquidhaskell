@@ -12,3 +12,5 @@ define GHC.Types.True                 = (true)
 
 define Data.Map.Base.insert k v m     = (Map_store m k v)
 define Data.Map.Base.select k v       = (Map_select m k)
+
+define Language.Haskell.Liquid.String.stringEmp = stringEmp
