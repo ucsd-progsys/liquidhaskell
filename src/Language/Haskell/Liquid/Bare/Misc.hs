@@ -48,9 +48,21 @@ import           Language.Haskell.Liquid.Misc          (sortDiff)
 import           Language.Haskell.Liquid.Bare.Env
 
 makeDataConChecker :: DataCon -> Symbol 
-makeDataConChecker d = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
+makeDataConChecker d
+  | nilDataCon  == d
+  = symbol "null" 
+  | consDataCon == d 
+  = symbol "notnull"
+  | otherwise 
+  = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
 makeDataSelector :: DataCon -> Int -> Symbol 
-makeDataSelector d i = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
+makeDataSelector d i 
+  | consDataCon == d, i == 1 
+  = symbol "head"
+  | consDataCon == d, i == 2 
+  = symbol "tail"
+  | otherwise 
+  = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
