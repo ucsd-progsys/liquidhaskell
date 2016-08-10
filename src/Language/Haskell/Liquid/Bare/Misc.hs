@@ -50,9 +50,9 @@ import           Language.Haskell.Liquid.Bare.Env
 makeDataConChecker :: DataCon -> Symbol 
 makeDataConChecker d
   | nilDataCon  == d
-  = symbol "null" 
+  = symbol "isNull" 
   | consDataCon == d 
-  = symbol "notnull"
+  = symbol "notIsNull"
   | otherwise 
   = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
 makeDataSelector :: DataCon -> Int -> Symbol 

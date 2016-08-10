@@ -98,11 +98,52 @@ mempty_left (MI i1 is1)
        (is1 `appendIdxes` makeIndexes i1 stringEmp (fromString (symbolVal (Proxy :: Proxy target))))
       ? appendIdxesEmp is1 
   ==. MI (concatString i1 stringEmp)  
-       (is1 `appendIdxes` IdxEmp) ? makeIndexesNull i1 (fromString (symbolVal (Proxy :: Proxy target)))
+       (is1 `appendIdxes` IdxEmp) ? makeIndexesNullLeft i1 (fromString (symbolVal (Proxy :: Proxy target)))
   ==. MI (concatString i1 stringEmp) is1 
       ? appendIdxesEmp is1 
   ==. MI i1 is1 
       ? concatStringNeutral i1 
+  *** QED 
+
+
+
+
+
+mempty_right :: forall (target :: Symbol). (KnownSymbol target) => MI target SMTString -> Proof
+{-@ mempty_right :: xs:MI target SMTString -> {mappend mempty xs == xs } @-}
+mempty_right (MI i is)
+  =   mappend (mempty :: MI target SMTString) (MI i is) 
+  ==. mappend (MI stringEmp IdxEmp) (MI i is) 
+  ==. MI (concatString stringEmp i)  
+       (IdxEmp `appendIdxes` mapIdxes (shift (stringLen stringEmp)) is
+           `appendIdxes` makeIndexes stringEmp i (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. MI (concatString stringEmp i)  
+       (mapIdxes (shift (stringLen stringEmp)) is
+           `appendIdxes` makeIndexes stringEmp i (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. MI (concatString stringEmp i)  
+       (mapIdxes (shift 0) is
+           `appendIdxes` makeIndexes stringEmp i (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. MI (concatString stringEmp i)  
+       (is `appendIdxes` makeIndexes stringEmp i (fromString (symbolVal (Proxy :: Proxy target))))
+       ? mapShiftZero is 
+  ==. MI (concatString stringEmp i)  
+       (is `appendIdxes` IdxEmp) ? makeIndexesNullRight i (fromString (symbolVal (Proxy :: Proxy target)))
+  ==. MI (concatString stringEmp i) is 
+      ? appendIdxesEmp is
+  ==. MI i is 
+      ? concatStringNeutralRight i
+  *** QED 
+
+
+
+mapShiftZero :: Idxes Int -> Proof
+{-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
+mapShiftZero IdxEmp 
+  = mapIdxes (shift 0) IdxEmp ==. IdxEmp *** QED
+mapShiftZero (Idxs i is)
+  =   mapIdxes (shift 0) (Idxs i is)
+  ==. shift 0 i `Idxs` mapIdxes (shift 0) is 
+  ==. i `Idxs` is ? mapShiftZero is  
   *** QED 
 
 -- String Library 
@@ -112,6 +153,10 @@ concatStringNeutral :: SMTString -> Proof
 {-@ concatStringNeutral :: x:SMTString -> {concatString x stringEmp == x} @-}
 concatStringNeutral = undefined
 
+
+concatStringNeutralRight :: SMTString -> Proof
+{-@ concatStringNeutralRight :: x:SMTString -> {concatString stringEmp x == x} @-}
+concatStringNeutralRight = undefined
 
 
 -------------------------------------------------------------------------------
@@ -199,15 +244,27 @@ appendIdxesEmp (Idxs x xs)
   *** QED 
 
 
-makeIndexesNull :: SMTString -> SMTString -> Proof 
-{-@ makeIndexesNull 
+makeIndexesNullRight :: SMTString -> SMTString -> Proof 
+{-@ makeIndexesNullRight 
+  :: s1:SMTString 
+  -> t:SMTString 
+  -> {makeIndexes stringEmp s1 t == IdxEmp } @-} 
+makeIndexesNullRight s1 t 
+  | stringLen t == 0 
+  = makeIndexes stringEmp s1 t  ==. IdxEmp *** QED 
+
+
+
+makeIndexesNullLeft :: SMTString -> SMTString -> Proof 
+{-@ makeIndexesNullLeft 
   :: s1:SMTString 
   -> t:SMTString 
   -> {makeIndexes s1 stringEmp t == IdxEmp } @-} 
-makeIndexesNull s1 t 
+makeIndexesNullLeft s1 t 
   | stringLen t == 0 
   = makeIndexes s1 stringEmp t ==. IdxEmp *** QED 
-makeIndexesNull s1 t 
+
+makeIndexesNullLeft s1 t 
   | 1 + stringLen s1 <= stringLen t
   =   makeIndexes s1 stringEmp t
   ==. makeIndexes' (concatString s1 stringEmp) t
@@ -221,7 +278,8 @@ makeIndexesNull s1 t
                    (stringLen s1 + stringLen t)
   ==. IdxEmp ? makeIndexesNull1 s1 t 0 (stringLen s1 + stringLen t)
   *** QED 
-makeIndexesNull s1 t 
+
+makeIndexesNullLeft s1 t 
   =   makeIndexes s1 stringEmp t
   ==. makeIndexes' (concatString s1 stringEmp) t
                    (maxInt (1 + stringLen s1 - stringLen t) 0)

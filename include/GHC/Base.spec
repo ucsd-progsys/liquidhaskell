@@ -17,6 +17,10 @@ len []     = 0
 len (y:ys) = 1 + len ys
 
 
+measure null :: [a] -> Prop
+null []     = true 
+null (y:ys) = false
+
 measure fst :: (a,b) -> a
 fst (a,b) = a
 
