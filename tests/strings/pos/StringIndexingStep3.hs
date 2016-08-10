@@ -268,11 +268,4 @@ makeIndexesNull2 s1 t lo hi
   ==. makeIndexes' s1 t (lo + 1) hi 
   ==. IdxEmp ? makeIndexesNull2 s1 t (lo+1) hi
   *** QED 
-
-badIndex :: SMTString -> SMTString -> Int -> Proof 
-{-@ badIndex 
-  :: s1:SMTString 
-  -> t:{SMTString | stringLen s1 <= stringLen t} 
-  -> lo:Nat 
-  -> { stringLen s1  <= lo + stringLen t } @-} 
-badIndex s1 t lo = simpleProof 
+ 

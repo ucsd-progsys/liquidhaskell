@@ -142,7 +142,7 @@ Library
                 , liquid-fixpoint
                 , located-base
                 , prover
-                , aeson >= 0.10
+                , aeson >= 0.10 && < 1.0 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
