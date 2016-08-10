@@ -16,9 +16,6 @@ instance measure len :: forall a. [a] -> GHC.Types.Int
 len []     = 0
 len (y:ys) = 1 + len ys
 
-measure null :: forall a. [a] -> Prop
-null []     = true
-null (x:xs) = false
 
 measure fst :: (a,b) -> a
 fst (a,b) = a
