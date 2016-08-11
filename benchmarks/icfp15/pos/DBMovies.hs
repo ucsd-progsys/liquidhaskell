@@ -108,11 +108,13 @@ seen = [t1, t2]
 not_seen :: Movies
 not_seen = select isSeen movies
   where
+    {-@ isSeen :: MovieScheme -> Bool @-}
     isSeen (D ks f) = not $ (f "title") `elem` (values "title" seen)
 
 {-@ not_seen, to_see :: Movies @-}
 to_see = select isGoodMovie not_seen
   where
+    {-@ isGoodMovie :: MovieScheme -> Bool @-}
     isGoodMovie (D ks f)  = (f "director") `elem` (values "director" good_directors)
                           && (toInt (f "star")) >= 8
 

@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
     makeConTypes
@@ -8,6 +8,8 @@ module Language.Haskell.Liquid.Bare.DataType (
   , makeRecordSelectorSigs
   , dataConSpec
   , meetDataConSpec
+
+  , makeNumericInfo 
   ) where
 
 import           DataCon
@@ -15,22 +17,24 @@ import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
 import           SrcLoc                                 (SrcSpan)
 import           Text.Parsec
-import           TyCon
+import           TyCon                                  hiding (tyConName)
 import           Var
-
+import           InstEnv
+import           Class 
 import           Data.Maybe
+import           TypeRep 
 
 
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
+import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon)
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
+import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
@@ -40,7 +44,28 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 
--- import Debug.Trace
+
+
+makeNumericInfo :: Maybe [ClsInst] -> TCEmb TyCon -> TCEmb TyCon
+makeNumericInfo Nothing x   = x 
+makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is 
+
+makeNumericInfoOne :: TCEmb TyCon -> ClsInst -> TCEmb TyCon
+makeNumericInfoOne m is 
+  | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
+  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m 
+  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
+  = M.insertWith (flip mappendFTC) tc (ftc tc True False) m
+  | otherwise
+  = m 
+  where
+    ftc c = symbolNumInfoFTyCon (dummyLoc $ tyConName c)
+
+instanceTyCon :: ClsInst -> Maybe TyCon 
+instanceTyCon = go . is_tys
+  where
+    go [TyConApp c _] = Just c 
+    go _              = Nothing 
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -185,7 +210,7 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return (fs `zip` ts)
     where
-    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) [] (freeLabels dcp)
+    ts   = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
                                (dropPreds (subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct

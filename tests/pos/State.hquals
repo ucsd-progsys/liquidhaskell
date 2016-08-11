@@ -1,10 +1,10 @@
 
 qualif Snd( v : b_t, 
-            p : FAppTy (FAppTy Pred  b_t)  a, 
-            a : FAppTy (FAppTy fix##40##41#  a)  b): 
+            p : Pred  b_t  a, 
+            a : fix##40##41#  a  b): 
           (papp2 p v (fst a))
 
 qualif Fst( v : a, 
-            a : FAppTy (FAppTy fix##40##41#  a)  b): 
+            a : fix##40##41#  a  b): 
            (v = fst a) 
 

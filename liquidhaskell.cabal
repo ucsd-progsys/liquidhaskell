@@ -19,6 +19,7 @@ data-files: include/*.hquals
           , include/*.spec
           , include/CoreToLogic.lg
           , include/Control/*.spec
+          , include/Control/Parallel/*.spec
           , include/Data/*.hquals
           , include/Data/*.spec
           , include/Data/Text/*.spec
@@ -114,6 +115,7 @@ Library
    Default-Language: Haskell98
    Build-Depends: base >= 4 && < 5
                 , ghc >= 7.10.2 && < 7.11
+                , liquiddesugar >= 7.10 && < 7.11
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -140,7 +142,7 @@ Library
                 , liquid-fixpoint
                 , located-base
                 , prover
-                , aeson >= 0.10
+                , aeson >= 0.10 && < 1.0 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
@@ -164,6 +166,7 @@ Library
                     Language.Haskell.Liquid.List,
                     Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint.Constraint,
+                    Language.Haskell.Liquid.Constraint.Init,
                     Language.Haskell.Liquid.Constraint.Monad,
                     Language.Haskell.Liquid.Constraint.Env,
                     Language.Haskell.Liquid.Constraint.Types,
@@ -236,24 +239,6 @@ Library
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,
                     Language.Haskell.Liquid.Model,
-
-                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    Language.Haskell.Liquid.Desugar710.Check,
-                    Language.Haskell.Liquid.Desugar710.Coverage,
-                    Language.Haskell.Liquid.Desugar710.Desugar,
-                    Language.Haskell.Liquid.Desugar710.DsArrows,
-                    Language.Haskell.Liquid.Desugar710.DsBinds,
-                    Language.Haskell.Liquid.Desugar710.DsCCall,
-                    Language.Haskell.Liquid.Desugar710.DsExpr,
-                    Language.Haskell.Liquid.Desugar710.DsForeign,
-                    Language.Haskell.Liquid.Desugar710.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar710.DsListComp,
-                    Language.Haskell.Liquid.Desugar710.DsMeta,
-                    Language.Haskell.Liquid.Desugar710.DsUtils,
-                    Language.Haskell.Liquid.Desugar710.HscMain,
-                    Language.Haskell.Liquid.Desugar710.Match,
-                    Language.Haskell.Liquid.Desugar710.MatchCon,
-                    Language.Haskell.Liquid.Desugar710.MatchLit,
 
                     Test.Target,
                     Test.Target.Eval,

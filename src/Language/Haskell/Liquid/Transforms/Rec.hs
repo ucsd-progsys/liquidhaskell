@@ -23,7 +23,8 @@ import           Id                                   (idOccInfo, setIdInfo)
 import           IdInfo
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
-import           Language.Haskell.Liquid.Misc         (mapSndM, mapSnd)
+import           Language.Haskell.Liquid.Misc         (mapSndM)
+import           Language.Fixpoint.Misc               (mapSnd)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)

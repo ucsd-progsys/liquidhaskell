@@ -40,8 +40,12 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate One C = ((ord C) <  65536) @-}
 {-@ predicate Two C = ((ord C) >= 65536) @-}
 
-{-@ qualif OneC(v:Char) : ((ord v) <  65536) @-}
-{-@ qualif TwoC(v:Char) : ((ord v) >= 65536) @-}
+{-@ qualOneC :: {v:Char | (ord v) <  65536} -> () @-}
+qualOneC :: Char -> ()
+qualOneC _ = ()
+{-@ qualTwoC :: {v:Char | (ord v) >= 65536} -> () @-}
+qualTwoC :: Char -> ()
+qualTwoC _ = ()
 
 {-@ predicate Room MA I C = (((One C) => (MAValidIN MA I 1))
                           && ((Two C) => (MAValidIN MA I 2))) @-}

@@ -19,6 +19,7 @@ import qualified Data.List                           as L
 
 import qualified Data.HashMap.Strict                 as M
 
+-- import           Language.Fixpoint.Misc              (traceShow)
 import           Language.Fixpoint.Types.Names       (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Qualifier(..),
@@ -35,6 +36,8 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 
+import           Data.Maybe                          (fromMaybe)
+        
 class Resolvable a where
   resolve :: SourcePos -> a -> BareM a
 
@@ -103,7 +106,10 @@ instance Resolvable Sort where
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
     | tcs' `elem` prims   = FTC <$> return c
-    | otherwise           = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
+    | otherwise           = do ty     <- lookupGhcTyCon tcs
+                               emb    <- embeds <$> get
+                               let ftc = symbolFTycon $ Loc l l' $ symbol ty
+                               return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2

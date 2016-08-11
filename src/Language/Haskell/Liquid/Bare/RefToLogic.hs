@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Bare.RefToLogic (
 import Prelude hiding (error)
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (mapSnd)
+import Language.Fixpoint.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (R)

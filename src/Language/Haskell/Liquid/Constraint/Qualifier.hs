@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
   ) where
 
 import TyCon
-
+import Var (Var)
 import Prelude hiding (error)
 
 import Language.Haskell.Liquid.Bare
@@ -17,23 +17,20 @@ import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types hiding (mkQual)
-
+import Language.Fixpoint.SortCheck
 
 -- import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
-import Data.Maybe               (catMaybes, fromMaybe)
+import Data.Maybe               (catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet as S
 -- import Data.Bifunctor           (second)
-import Debug.Trace
+import Debug.Trace (trace)
 
 -----------------------------------------------------------------------------------
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
-                  ++ if info `hasOpt` scrapeInternals 
-                       then inSigs $ spec info else []
-                  ++ (ctors $ spec info)
+  =[ q | (x, t) <- specBinders info
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
@@ -43,12 +40,21 @@ specificationQualifiers k info lEnv
                                      else if info `hasOpt` scrapeImports
                                      then impVars info
                                      else [])
-        , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
+        , q <- refTypeQuals lEnv (getSourcePos x) (gsTcEmbeds $ spec info) (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
+
+specBinders :: GhcInfo -> [(Var, LocSpecType)]
+specBinders info = mconcat
+  [ gsTySigs sp
+  , gsAsmSigs sp
+  , gsCtors sp
+  , if (info `hasOpt` scrapeInternals) then (gsInSigs sp) else []
+  ]
+  where sp = spec info
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
@@ -102,6 +108,7 @@ refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
                    , not $ isHole pa
+                   , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
@@ -112,7 +119,7 @@ refTopQuals lEnv l tce t0 γ t
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
-
+      γ'    = unionSEnv' γ lEnv
 
 mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
         => SEnv Sort

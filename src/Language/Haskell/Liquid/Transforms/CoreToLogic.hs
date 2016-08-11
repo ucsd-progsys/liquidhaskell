@@ -8,10 +8,13 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   coreToDef , coreToFun,
   coreToLogic, coreToPred,
-  mkLit, runToLogic,
+  mkLit, mkI, mkS, 
+
+  runToLogic,
   logicType,
 
   strengthenResult,
+  strengthenResult',
 
   normalize
 
@@ -42,7 +45,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc     
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
-import           Language.Haskell.Liquid.Misc          (mapSnd)
+import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
@@ -89,6 +92,43 @@ strengthenResult v
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
         mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
+
+
+strengthenResult' :: Var -> SpecType
+strengthenResult' v
+  | isBool $ ty_res $ toRTypeRep t 
+  = go mkProp [] [1..] t 
+  | otherwise
+  = go mkExpr [] [1..] t 
+  where f   = dummyLoc $ dropModuleNames $ simplesymbol v
+        t   = (ofType $ varType v) :: SpecType
+
+        -- refine types of meaures: keep going until you find the last data con!
+        -- this code is a hack! we refine the last data constructor, 
+        -- it got complicated to suport both 
+        -- 1. multy parameter measures     (see tests/pos/HasElem.hs)
+        -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
+        -- to simplify, drop support for multi parameter measures
+        go f args i (RAllT a t) 
+          = RAllT a $ go f args i t
+        go f args i (RAllP p t) 
+          = RAllP p $ go f args i t 
+        go f args i (RFun x t1 t2 r)
+          | isClassType t1
+          = RFun x t1 (go f args i t2) r 
+        go f args i t@(RFun _ t1 t2 r)
+          | hasRApps t
+          = let x' = intSymbol (symbol ("x" :: String)) (head i)
+            in RFun x' t1 (go f (x':args) (tail i) t2) r
+        go f args _ t
+          = t `strengthen` f args
+
+        hasRApps (RApp _ _ _ _)   = True
+        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2 
+        hasRApps _                = False  
+
+        mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
+        mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
 
 
 simplesymbol :: Var -> Symbol
@@ -244,20 +284,21 @@ checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
 
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr 
-casesToLg _v e alts 
+casesToLg v e alts 
   = (mapM (altToLg e) alts) >>= go
   where
     go :: [(DataCon, Expr)] -> LogicM Expr 
-    go [(_,p)]     = return p
+    go [(_,p)]     = return (p `subst1` su)
     go ((d,p):dps) = do c <- checkDataCon d e 
                         e' <- go dps 
-                        return $ EIte c p e' 
+                        return $ (EIte c p e' `subst1` su) 
     go []          = throw "Bah"
+
+    su = (symbol v, e)
 
 checkDataCon :: DataCon -> Expr -> LogicM Expr 
 checkDataCon d e 
   = return $ EApp (EVar $ makeDataConChecker d) e
-  where 
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)

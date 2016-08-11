@@ -4,7 +4,7 @@ module Class () where
 
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
-import qualified Prelude as P
+-- import qualified Prelude as P
 
 {-@ qualif Size(v:Int, xs:a): v = size xs @-}
 
@@ -15,9 +15,9 @@ data MList a = Nil | Cons a (MList a)
 
 {-@ (!!) :: xs:MList a -> {v:Nat | v < (size xs)} -> a @-}
 (!!) :: MList a -> Int -> a
-Nil         !! i = liquidError "impossible"
+Nil         !! _ = liquidError "impossible"
 (Cons x _)  !! 0 = x
-(Cons x xs) !! i = xs !! (i - 1)
+(Cons _ xs) !! i = xs !! (i - 1)
 
 {-@ class measure size :: forall a. a -> Int @-}
 
@@ -37,12 +37,11 @@ instance Sized MList where
 {-@ length :: xs:MList a -> {v:Nat | v = size xs} @-}
 length :: MList a -> Int
 length Nil         = 0
-length (Cons x xs) = 1 + length xs
+length (Cons _ xs) = 1 + length xs
 
 {-@ bob :: xs:MList a -> {v:Nat | v = size xs} @-}
 bob :: MList a -> Int
 bob = length
-
 
 
 instance Sized [] where
@@ -51,7 +50,7 @@ instance Sized [] where
       size (x:xs) = 1 + (size xs)
     @-}
   size [] = 0
-  size (x:xs) = 1 + size xs
+  size (_:xs) = 1 + size xs
 
 {-@ class (Sized s) => Indexable s where
       index :: forall a. x:s a -> {v:Nat | v < size x} -> a

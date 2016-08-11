@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHints
   , makeLVar
   , makeLazy
-  , makeHIMeas
+  , makeHMeas, makeHInlines
   , makeTExpr
   , makeTargetVars
   , makeAssertSpec
@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeDefaultMethods
   , makeIAliases
   , makeInvariants
+  , makeNewTypes
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
@@ -41,7 +42,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 
-import           Language.Fixpoint.Misc                     (group, snd3, groupList)
+import           Language.Fixpoint.Misc                     (group, snd3, groupList, mapFst)
 -- import           Language.Fixpoint.Misc                     (traceShow)
 
 
@@ -115,11 +116,21 @@ makeHBounds vs spec = varSymbols id vs [(v, v ) | v <- S.toList $ Ms.hbounds spe
 makeTExpr :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Located F.Expr])]
 makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
 
-makeHIMeas :: [Var]
+
+makeHInlines :: [Var]
+             -> Ms.Spec ty bndr
+             -> BareM [(Located Var, LocSymbol)]
+makeHMeas :: [Var]
            -> Ms.Spec ty bndr
            -> BareM [(Located Var, LocSymbol)]
-makeHIMeas  vs spec 
-  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (Ms.hmeas spec) ++ S.toList (Ms.inlines spec)]
+makeHInlines = makeHIMeas Ms.inlines
+makeHMeas    = makeHIMeas Ms.hmeas
+makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
+           -> [Var]
+           -> Ms.Spec ty bndr
+           -> BareM [(Located Var, LocSymbol)]
+makeHIMeas f vs spec
+  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (f spec)]
   where
     tx (x,(l, l', s))  = (Loc l l' x, s)
 
@@ -250,6 +261,23 @@ makeIAliases'     = mapM mkIA
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
     mkI t         = fmap generalize <$> mkLSpecType t
 
+makeNewTypes :: (ModName, Ms.Spec (Located BareType) bndr)
+               -> BareM [(TyCon, Located SpecType)]
+makeNewTypes (mod,spec)
+  = inModule mod $ makeNewTypes' $ Ms.newtyDecls spec
+
+makeNewTypes' :: [DataDecl] -> BareM [(TyCon, Located SpecType)]
+makeNewTypes' = mapM mkNT
+  where
+    mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
+    mkNT d       = (,) <$> (lookupGhcTyCon $ tycName d) 
+                       <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
+    getTy l [(_,[(_,t)])] = return $ withLoc l t 
+    getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+
+    withLoc s = Loc s s 
+
+
 makeInvariants :: (ModName, Ms.Spec (Located BareType) bndr)
                -> BareM [(Maybe Var, Located SpecType)]
 makeInvariants (mod,spec)
@@ -264,7 +292,7 @@ makeSpecDictionaries :: F.TCEmb TyCon -> [Var] -> [(a, Ms.BareSpec)] -> GhcSpec
                      -> BareM GhcSpec
 makeSpecDictionaries embs vars specs sp
   = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
-       return $ sp { dicts = ds }
+       return $ sp { gsDicts = ds }
 
 
 
@@ -274,7 +302,7 @@ makeSpecDictionary embs vars (_, spec)
   = (catMaybes . resolveDictionaries vars) <$> mapM (makeSpecDictionaryOne embs) (Ms.rinstance spec)
 
 
-makeSpecDictionaryOne :: F.TCEmb TyCon -> (RInstance (Located BareType))
+makeSpecDictionaryOne :: F.TCEmb TyCon -> RInstance (Located BareType)
                       -> BareM (F.Symbol, M.HashMap F.Symbol SpecType)
 makeSpecDictionaryOne embs (RI x t xts)
   = do t'  <- mapM mkLSpecType t
@@ -288,7 +316,7 @@ makeSpecDictionaryOne embs (RI x t xts)
 
 resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol SpecType)] -> [Maybe (Var, M.HashMap F.Symbol SpecType)]
 resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
- where 
+ where
     go (x,is)           = addIndex 0 x $ reverse is
 
     -- GHC internal postfixed same name dictionaries with ints
@@ -296,7 +324,7 @@ resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
     addIndex _ x [i]    = [(x,i)]
     addIndex j x (i:is) = (F.symbol (F.symbolString x ++ show j),i):addIndex (j+1) x is
 
-    lookupVar (s, i)    = ((,i) <$> lookupName s) 
+    lookupVar (s, i)    = ((,i) <$> lookupName s)
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x

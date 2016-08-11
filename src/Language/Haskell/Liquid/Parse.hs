@@ -35,12 +35,12 @@ import           Data.List                              (foldl', partition)
 import           Data.Either
 
 import           GHC                                    (ModuleName, mkModuleName)
-import           Text.PrettyPrint.HughesPJ              (text)
+import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (Axiom)
-import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
@@ -60,7 +60,6 @@ hsSpecificationP :: ModuleName
                  -> [(SourcePos, String)] -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
-
 hsSpecificationP modName specComments specQuotes =
   case partitionEithers $ parseComment <$> specComments of
     ([], specs) ->
@@ -101,8 +100,7 @@ parseWithError parser p s =
     Right (r, "", _)  -> Right r
     Right (_, rem, _) -> Left  $ parseErrorError $ remParseError p s rem
   where
-    doParse =
-      setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
+    doParse = setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
 
 
 ---------------------------------------------------------------------------
@@ -259,7 +257,9 @@ bbaseP
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
-bTyConP = mkBTyCon <$> locUpperIdP
+bTyConP
+  =  (reserved "\'" >> (mkPromotedBTyCon <$> locUpperIdP))
+ <|> mkBTyCon <$> locUpperIdP
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
@@ -339,16 +339,29 @@ bareAllS
 bareAllP :: Parser (RType BTyCon BTyVar RReft)
 bareAllP
   = do reserved "forall"
-       as <- many (bTyVar <$> tyVarIdP)
+       as <- tyVarDefsP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
-       return $ foldr RAllT (foldr RAllP t ps) as
+       return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+
+tyVarDefsP :: Parser [BTyVar]
+tyVarDefsP
+  = try (parens $ many (bTyVar <$> tyKindVarIdP))
+ <|> many (bTyVar <$> tyVarIdP)
 
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
-           where
-             alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+  where
+    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+
+tyKindVarIdP :: Parser Symbol
+tyKindVarIdP
+   =  try ( do s <- tyVarIdP; reserved "::"; _ <- kindP; return s)
+  <|> tyVarIdP
+
+kindP :: Parser (RType BTyCon BTyVar RReft)
+kindP = bareAtomP (refBindP bindP)
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
@@ -391,18 +404,36 @@ xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
 data ArrowSym = ArrowFun | ArrowPred
 
+
+-- arrowP :: EBind -> Parser ArrowSym
+-- arrowP eb = do
+  -- a <- arrowP'
+  -- case (a, eb) of
+    -- (ArrowPred, Left x) -> parserFail $ "Cannot use binder " ++ showpp x ++ " at class constraint"
+    -- (_        , _     ) -> return a
+
+
 arrowP :: Parser ArrowSym
 arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
 
 bareFunP :: Parser (RType BTyCon BTyVar (UReft Reft))
-bareFunP
-  = do b  <- try funBindP <|> dummyBindP
-       t1 <- bareArgP b
-       a  <- arrowP
-       t2 <- bareTypeP
-       return $ bareArrow b t1 a t2
+bareFunP = do
+  eb   <- eBindP -- try (Left <$> funBindP) <|> (Right <$> dummyBindP)
+  let b = eBindSym eb
+  t1   <- bareArgP b
+  a    <- arrowP
+  t2   <- bareTypeP
+  return $ bareArrow eb t1 a t2
+
+type EBind = Located (Either Symbol Symbol)
+
+eBindSym :: EBind -> Symbol
+eBindSym = either id id . val
+
+eBindP :: Parser EBind
+eBindP = locParserP (try (Left <$> funBindP) <|> (Right <$> dummyBindP))
 
 funBindP :: Parser Symbol
 funBindP = lowerIdP <* colon
@@ -411,13 +442,16 @@ dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
 bareArrow :: (Monoid r)
-          => Symbol -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
+          => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
           -> RType BTyCon tv r
-bareArrow b t1 ArrowFun t2
-  = rFun b t1 t2
-bareArrow _ t1 ArrowPred t2
-  = foldr (rFun dummySymbol) t2 (getClasses t1)
-
+bareArrow eb t1 ArrowFun t2
+  = rFun (eBindSym eb) t1 t2
+bareArrow eb t1 ArrowPred t2
+  = case val eb of
+      Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
+      Left x  -> uError $ ErrOther sp ("Invalid class constraint binder:" <+> pprint x)
+    where
+      sp = fSrcSpanSrcSpan . srcSpan $ eb
 
 isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType propConName
@@ -604,6 +638,7 @@ data Pspec ty ctor
   | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))
   | Impt    Symbol
   | DDecl   DataDecl
+  | NTDecl  DataDecl
   | Incl    FilePath
   | Invt    ty
   | IAlias  (ty, ty)
@@ -637,6 +672,7 @@ instance Show (Pspec a b) where
   show (Asrts  _) = "Asrts"
   show (Impt   _) = "Impt"
   show (DDecl  _) = "DDecl"
+  show (NTDecl _) = "NTDecl"
   show (Incl   _) = "Incl"
   show (Invt   _) = "Invt"
   show (IAlias _) = "IAlias"
@@ -670,7 +706,8 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.invariants = [t | Invt   t <- xs]
   , Measure.ialiases   = [t | IAlias t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
-  , Measure.dataDecls  = [d | DDecl  d <- xs]
+  , Measure.dataDecls  = [d | DDecl  d <- xs] ++ [d | NTDecl d <- xs]
+  , Measure.newtyDecls = [d | NTDecl d <- xs]
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
@@ -701,6 +738,7 @@ specP
     <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
+    <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
@@ -713,6 +751,7 @@ specP
     <|> (reservedToken "import"    >> liftM Impt   symbolP   )
     <|> try (reservedToken "data" >> reserved "variance " >> liftM Varia datavarianceP)
     <|> (reservedToken "data"      >> liftM DDecl  dataDeclP )
+    <|> (reservedToken "newtype"   >> liftM NTDecl newtypeP )
     <|> (reservedToken "include"   >> liftM Incl   filePathP )
     <|> (reservedToken "invariant" >> liftM Invt   invariantP)
     <|> (reservedToken "using"     >> liftM IAlias invaliasP )
@@ -1055,6 +1094,8 @@ dataSizeP
 dataDeclP :: Parser DataDecl
 dataDeclP = try dataDeclFullP <|> dataDeclSizeP
 
+newtypeP :: Parser DataDecl
+newtypeP = dataDeclP
 
 dataDeclSizeP :: Parser DataDecl
 dataDeclSizeP

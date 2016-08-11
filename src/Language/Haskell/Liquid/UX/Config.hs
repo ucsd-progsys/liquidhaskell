@@ -24,12 +24,15 @@ import GHC.Generics
 data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
+  , stringTheory   :: Bool       -- ^ interpretation of string theory in the logic 
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , extensionality :: Bool       -- ^ allow function extentionality axioms
+  , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
+  , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms
+  , normalForm     :: Bool       -- ^ allow lambda normalization-equivalence axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
@@ -37,7 +40,8 @@ data Config = Config {
   , notermination  :: Bool       -- ^ disable termination check
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
-  , trustinternals :: Bool       -- ^ type all internal variables with true
+  , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
+  , trustInternals :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
@@ -54,7 +58,7 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
-  , oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
+  --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
@@ -68,7 +72,7 @@ data Config = Config {
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  , packKVars       :: Bool       -- ^ pack kvars during elimination
+  --, packKVars       :: Bool       -- ^ pack kvars during elimination
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   } deriving (Generic, Data, Typeable, Show, Eq)
 
@@ -78,6 +82,15 @@ instance Serialize Config
 
 class HasConfig t where
   getConfig :: t -> Config
+
+  patternFlag :: t -> Bool
+  patternFlag = not . noPatternInline . getConfig
+
+  higherOrderFlag :: t -> Bool
+  higherOrderFlag = higherorder . getConfig
+
+
+
 
 hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)

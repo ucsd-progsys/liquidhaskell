@@ -157,8 +157,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p t@(RFun _ _ _ r)
-  = ppTy r $ maybeParen p FunPrec $ ppr_rty_fun bb empty t
+ppr_rtype bb p t@(RFun _ _ _ _)
+  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
@@ -285,8 +285,8 @@ ppr_rty_fun bb prefix t
 ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
-ppr_rty_fun' bb (RFun b t t' _)
-  = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+ppr_rty_fun' bb (RFun b t t' r)
+  = ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
@@ -307,12 +307,15 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
-    dαs αs                    = sep $ pprint <$> αs
+    dαs αs                    = ppr_rtvar_def αs
 
     -- dπs :: Bool -> [PVar a] -> Doc
     dπs _ []                  = empty
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ ppr_pvar_def bb p <$> πs
+
+ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc 
+ppr_rtvar_def = sep . map (pprint . ty_var_value)
 
 ppr_symbols :: [Symbol] -> Doc
 ppr_symbols [] = empty

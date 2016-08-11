@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.Measure (
   , makeClassMeasureSpec
   , makeMeasureSelectors
   , strengthenHaskellMeasures
+  , strengthenHaskellInlines
   , varMeasures
   ) where
 
@@ -46,7 +47,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, groupList)
+import Language.Fixpoint.Misc (mlookup, sortNub, groupList, mapSnd, mapFst)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -140,23 +141,18 @@ simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas sigs 
+strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellInlines  = strengthenHaskell strengthenResult
+strengthenHaskellMeasures = strengthenHaskell strengthenResult'
+strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskell strengthen hmeas sigs 
   = go <$> groupList ((reverse sigs) ++ hsigs)
   where
-    hsigs      = [(val x, x {val = strengthenResult $ val x}) | x <- S.toList hmeas]
+    hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
-    -- cmpFst x y = fst x == fst y 
 
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
-{- 
-meetLoc !t1 !t2 = t1{val = fromRTypeRep $ trep1 
-      { ty_args = zipWith (\t1 t2 -> t1 `meet` F.subst su t2) (ty_args trep1) (ty_args trep2)
-      , ty_res = ty_res trep1 `meet` F.subst su (ty_res trep2)}}
-    where
-      [trep1, trep2] = toRTypeRep . val <$> [t1, t2]
-      su = F.mkSubst [(y, F.EVar x) | (x, y) <- zip (ty_binds trep1) (ty_binds trep2)]
--}
 
 makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
@@ -164,14 +160,16 @@ makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
-      | isFunTy t = Nothing
-      | otherwise = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
+      | isFunTy t || autoselectors
+      = Nothing
+      | otherwise 
+      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
       = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
 
-    dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
-    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) vs
+    dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
+    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
     n             = length xts
     bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType 
 

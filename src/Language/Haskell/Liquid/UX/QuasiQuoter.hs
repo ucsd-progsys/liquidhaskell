@@ -148,7 +148,7 @@ simplifyBareType'' s (RRTy _ _ _ t) =
 simplifyBareType'' (tvs, cls) (RFun _ i o _)
   | isClassType i = simplifyBareType'' (tvs, i : cls) o
 simplifyBareType'' (tvs, cls) (RAllT tv t) =
-  simplifyBareType'' (tv : tvs, cls) t
+  simplifyBareType'' (ty_var_value tv : tvs, cls) t
 
 simplifyBareType'' (tvs, cls) t =
   ForallT (PlainTV . symbolName <$> reverse tvs)
