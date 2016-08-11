@@ -1,9 +1,7 @@
 {-
-
 NV TODO 
 1. refine data type
-3. proove rest 2 monadic laws
-
+2. proove rest 1 monadic laws
 -}
 
 
@@ -195,12 +193,12 @@ shift x y = x + y
 {-@ reflect makeIndexes @-}
 makeIndexes :: SMTString -> SMTString -> SMTString -> Idxes Int 
 makeIndexes s1 s2 target
-  | stringLen target == 0 
+  | stringLen target < 2  
   = IdxEmp
   | otherwise
   = makeIndexes' (concatString s1 s2) target
-                 (maxInt (1 + stringLen s1 - stringLen target) 0)
-                 (stringLen s1 + stringLen target) 
+                 (maxInt (1 + stringLen s1 - stringLen target) (-1))
+                 (stringLen s1 - 1)
 
 
 {-@ reflect maxInt @-}
@@ -210,9 +208,12 @@ maxInt x y = if x <= y then y else x
 {-@ reflect makeIndexes' @-}
 
 makeIndexes' :: SMTString -> SMTString -> Int -> Int -> Idxes Int 
-{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:Nat -> hi:{Nat | lo <= hi} -> Idxes (GoodIndex input target) / [hi - lo] @-}
-makeIndexes' _ _ lo hi 
-  | lo == hi = IdxEmp
+{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:{Int | -1 <= lo} -> hi:{Int | lo <= hi} -> Idxes (GoodIndex input target) / [hi - lo] @-}
+makeIndexes' input target lo hi 
+  | lo == hi, isGoodIndex input target lo
+  = lo `Idxs` IdxEmp
+  | lo == hi 
+  = IdxEmp
 makeIndexes' input target lo hi 
   | isGoodIndex input target lo
   = lo `Idxs` (makeIndexes' input target (lo + 1) hi)
@@ -249,60 +250,78 @@ makeIndexesNullRight :: SMTString -> SMTString -> Proof
   :: s1:SMTString 
   -> t:SMTString 
   -> {makeIndexes stringEmp s1 t == IdxEmp } @-} 
-makeIndexesNullRight s1 t 
-  | stringLen t == 0 
-  = makeIndexes stringEmp s1 t  ==. IdxEmp *** QED 
+makeIndexesNullRight s t 
+  | stringLen t < 2 
+  = makeIndexes stringEmp s t  ==. IdxEmp *** QED 
+makeIndexesNullRight s t 
+  =   makeIndexes stringEmp s t
+  ==. makeIndexes' (concatString stringEmp s) t
+                   (maxInt (1 + stringLen stringEmp - stringLen t) (-1))
+                   (stringLen stringEmp - 1)
+  ==. makeIndexes' s t
+                   (maxInt (1 - stringLen t) (-1))
+                   (-1)
+      ? concatStringNeutralRight s 
+  ==. makeIndexes' s t (-1) (-1)
+  ==. IdxEmp ? makeIndexesNullRightEmp s t  
+  *** QED 
 
 
+{-@ makeIndexesNullRightEmp :: s:SMTString -> t:SMTString -> {makeIndexes' s t (-1) (-1) == IdxEmp } @-}
+makeIndexesNullRightEmp :: SMTString -> SMTString -> Proof
+makeIndexesNullRightEmp s t 
+  | not (isGoodIndex s t (-1))
+  =   makeIndexes' s t (-1) (-1) 
+  ==. IdxEmp
+  *** QED 
 
 makeIndexesNullLeft :: SMTString -> SMTString -> Proof 
 {-@ makeIndexesNullLeft 
-  :: s1:SMTString 
+  :: s:SMTString 
   -> t:SMTString 
-  -> {makeIndexes s1 stringEmp t == IdxEmp } @-} 
-makeIndexesNullLeft s1 t 
-  | stringLen t == 0 
-  = makeIndexes s1 stringEmp t ==. IdxEmp *** QED 
-
-makeIndexesNullLeft s1 t 
-  | 1 + stringLen s1 <= stringLen t
-  =   makeIndexes s1 stringEmp t
-  ==. makeIndexes' (concatString s1 stringEmp) t
-                   (maxInt (1 + stringLen s1 - stringLen t) 0)
-                   (stringLen s1 + stringLen t) 
-  ==. makeIndexes' s1 t
-                   0
-                   (stringLen s1 + stringLen t) ? concatStringNeutral s1 
-  ==. makeIndexes' s1 t
-                   0
-                   (stringLen s1 + stringLen t)
-  ==. IdxEmp ? makeIndexesNull1 s1 t 0 (stringLen s1 + stringLen t)
+  -> {makeIndexes s stringEmp t == IdxEmp } @-} 
+makeIndexesNullLeft s t 
+  | stringLen t < 2 
+  = makeIndexes s stringEmp t ==. IdxEmp *** QED 
+makeIndexesNullLeft  s t 
+  | 2 + stringLen s <= stringLen t
+  =   makeIndexes s stringEmp t
+  ==. makeIndexes' (concatString s stringEmp) t
+                   (maxInt (1 + stringLen s - stringLen t)  (-1))
+                   (stringLen s - 1)
+  ==. makeIndexes' s t
+                   (-1)
+                   (stringLen s - 1) 
+                   ? concatStringNeutral s
+  ==. makeIndexes' s t
+                   (-1)
+                   (stringLen s - 1)
+  ==. IdxEmp ? makeIndexesNull1 s t (-1) (stringLen s - 1)
   *** QED 
-
-makeIndexesNullLeft s1 t 
-  =   makeIndexes s1 stringEmp t
-  ==. makeIndexes' (concatString s1 stringEmp) t
-                   (maxInt (1 + stringLen s1 - stringLen t) 0)
-                   (stringLen s1 + stringLen t) 
-  ==. makeIndexes' (concatString s1 stringEmp) t
-                   (1 + stringLen s1 - stringLen t)
-                   (stringLen s1 + stringLen t) 
-  ==. makeIndexes' s1 t
-                   (1 + stringLen s1 - stringLen t)
-                   (stringLen s1 + stringLen t) ? concatStringNeutral s1 
-  ==. IdxEmp ? makeIndexesNull2 s1 t (1 + stringLen s1 - stringLen t) (stringLen s1 + stringLen t)
+makeIndexesNullLeft s t 
+  =   makeIndexes s stringEmp t
+  ==. makeIndexes' (concatString s stringEmp) t
+                   (maxInt (1 + stringLen s - stringLen t)  (-1))
+                   (stringLen s - 1)
+  ==. makeIndexes' (concatString s stringEmp) t
+                   (1 + stringLen s - stringLen t)
+                   (stringLen s - 1)
+  ==. makeIndexes' s t
+                   (1 + stringLen s - stringLen t)
+                   (stringLen s - 1) ? concatStringNeutral s 
+  ==. IdxEmp ? makeIndexesNull2 s t (1 + stringLen s - stringLen t) (stringLen s - 1)
   *** QED 
 
 
 makeIndexesNull1 :: SMTString -> SMTString -> Int -> Int -> Proof 
 {-@ makeIndexesNull1 
-  :: s1:SMTString 
-  -> t:{SMTString | 1 + stringLen s1 <= stringLen t } 
-  -> lo:Nat 
-  -> hi:{Nat | lo <= hi}
-  -> {makeIndexes' s1 t lo hi == IdxEmp } / [hi - lo] @-} 
+  :: s:SMTString 
+  -> t:{SMTString |  2 + stringLen s <= stringLen t } 
+  -> lo:{Int | -1 <= lo } 
+  -> hi:{Int | lo <= hi}
+  -> {makeIndexes' s t lo hi == IdxEmp } / [hi - lo] @-} 
 makeIndexesNull1 s1 t lo hi
-  | lo == hi
+  | lo == hi, not (isGoodIndex s1 t lo)
   = makeIndexes' s1 t lo hi ==. IdxEmp *** QED  
   | not (isGoodIndex s1 t lo)
   =   makeIndexes' s1 t lo hi
@@ -313,13 +332,13 @@ makeIndexesNull1 s1 t lo hi
 
 makeIndexesNull2 :: SMTString -> SMTString -> Int -> Int -> Proof 
 {-@ makeIndexesNull2 
-  :: s1:SMTString 
-  -> t:{SMTString | stringLen t < 1 + stringLen s1 } 
-  -> lo:{Nat | 1 + stringLen s1 - stringLen t <= lo  } 
-  -> hi:{Nat | lo <= hi}
-  -> {makeIndexes' s1 t lo hi == IdxEmp } / [hi - lo] @-} 
+  :: s:SMTString 
+  -> t:{SMTString | stringLen t < 2 + stringLen s } 
+  -> lo:{Int | -1 <= lo && 1 + stringLen s - stringLen t <= lo  } 
+  -> hi:{Int | lo <= hi}
+  -> {makeIndexes' s t lo hi == IdxEmp } / [hi - lo] @-} 
 makeIndexesNull2 s1 t lo hi
-  | lo == hi
+  | lo == hi, not (isGoodIndex s1 t lo)
   = makeIndexes' s1 t lo hi ==. IdxEmp *** QED  
   | not (isGoodIndex s1 t lo)
   =   makeIndexes' s1 t lo hi
