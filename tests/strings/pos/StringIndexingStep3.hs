@@ -226,6 +226,10 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
 
 
 
+-- This does not hold! 
+-- Indexes are the same appended not independently!
+-- e g |yi| < |target|
+
 {-@ shiftIndexes23
   :: xi:SMTString 
   -> yi:SMTString 
@@ -262,7 +266,17 @@ map_len_fusion xi yi IdxEmp
   ==. mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) IdxEmp)
   *** QED  
 map_len_fusion xi yi (Idxs i is)
-  = todo
+  =   mapIdxes (shift (stringLen (concatString xi yi))) (Idxs i is)
+  ==. shift (stringLen (concatString xi yi)) i `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+  ==. shift (stringLen xi + stringLen yi) i `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+      ? concatLen xi yi 
+  ==. shift (stringLen xi) (shift (stringLen yi) i) `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+      ? concatLen xi yi 
+  ==. shift (stringLen xi) (shift (stringLen yi) i) `Idxs` mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) is)
+      ? map_len_fusion xi yi is 
+  ==. mapIdxes (shift (stringLen xi)) (shift (stringLen yi) i `Idxs` mapIdxes (shift (stringLen yi)) is)
+  ==. mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) (i `Idxs` is))
+  *** QED 
 
 
 appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
@@ -301,11 +315,13 @@ mapShiftZero (Idxs i is)
 
 -- String Library 
 
+concatLen :: SMTString -> SMTString -> Proof
+{-@ concatLen :: x:SMTString -> y:SMTString -> { stringLen (concatString x y) == stringLen x + stringLen y } @-}
+concatLen = undefined
 
 concatStringNeutral :: SMTString -> Proof
 {-@ concatStringNeutral :: x:SMTString -> {concatString x stringEmp == x} @-}
 concatStringNeutral = undefined
-
 
 concatStringNeutralRight :: SMTString -> Proof
 {-@ concatStringNeutralRight :: x:SMTString -> {concatString stringEmp x == x} @-}
