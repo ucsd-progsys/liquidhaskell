@@ -299,7 +299,6 @@ casesToLg v e alts
 checkDataCon :: DataCon -> Expr -> LogicM Expr 
 checkDataCon d e 
   = return $ EApp (EVar $ makeDataConChecker d) e
-  where 
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)

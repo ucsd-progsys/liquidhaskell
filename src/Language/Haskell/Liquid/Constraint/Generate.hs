@@ -62,6 +62,7 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
@@ -809,6 +810,7 @@ consE γ e'@(App e a) | isDictionary a
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
               pushConsBind      $ cconsE γ' a tx
               addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+
   where
     tt                           = dhasinfo dinfo $ grepfunname e
     grepfunname (App x (Type _)) = grepfunname x
@@ -1186,10 +1188,17 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
 argType :: Type -> Maybe F.Expr
-argType (LitTy (NumTyLit i)) = mkI i
-argType (LitTy (StrTyLit s)) = mkS $ fastStringToByteString s
-argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
-argType _                    = Nothing
+argType (LitTy (NumTyLit i)) 
+  = mkI i
+argType (LitTy (StrTyLit s)) 
+  = mkS $ fastStringToByteString s
+argType (TyVarTy x)          
+  = Just $ F.EVar $ F.symbol $ varName x
+argType t 
+  | F.symbol (showPpr t) == anyTypeSymbol
+  = Just $ F.EVar anyTypeSymbol
+argType _                    
+  = Nothing
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
@@ -1211,7 +1220,9 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) -> Just $ F.EApp p1 p2
+                              (Just p1, Just p2) | not (isClassPred $ exprType e2) 
+                                                 -> Just $ F.EApp p1 p2
+                              (Just p1, Just _ ) -> Just p1 
                               _  -> Nothing
 lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
@@ -1261,7 +1272,11 @@ makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argExpr γ x) of
-      (Just f', Just x') -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
+      (Just f', Just x') 
+                 | not (isClassPred $ exprType x)
+                 -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
+      (Just f', Just _) 
+                 -> strengthenMeet t (uTop $ F.exprReft f' )
       _ -> t
   | otherwise
   = t
@@ -1271,7 +1286,10 @@ funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') -> Just (F.EApp e1' e2')
+      (Just e1', Just e2') | not (isClassPred $ exprType e2) 
+                           -> Just (F.EApp e1' e2')
+      (Just e1', Just _) 
+                           -> Just e1'
       _                    -> Nothing
 funExpr γ (Var v) | S.member v (fargs γ)
   = Just $ F.EVar (F.symbol v)
