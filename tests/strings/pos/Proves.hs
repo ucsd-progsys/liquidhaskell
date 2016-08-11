@@ -30,6 +30,8 @@ module Proves (
 
   , byTheorem
 
+  , todo
+
   ) where
 
 
@@ -61,6 +63,11 @@ f ∵ y = f y
 
 
 data QED = QED
+
+
+todo :: a
+{-@ assume todo :: {v:a | false} @-}
+todo = undefined
 
 (***) :: a -> QED -> Proof
 _ *** _ = ()

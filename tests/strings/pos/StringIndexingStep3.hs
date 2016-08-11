@@ -234,7 +234,7 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
   -> {mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg) == makeIndexes (concatString xi yi) zi tg}
   @-}
 shiftIndexes23 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
-shiftIndexes23 = undefined
+shiftIndexes23 = todo 
 
 
 {-@ shiftIndexes12 
@@ -245,7 +245,7 @@ shiftIndexes23 = undefined
   -> { makeIndexes xi yi tg  == makeIndexes xi (concatString yi zi) tg}
   @-}
 shiftIndexes12 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
-shiftIndexes12 = undefined
+shiftIndexes12 = todo
 
 map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
 {-@ map_len_fusion 
@@ -255,7 +255,7 @@ map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
   -> {  mapIdxes (shift (stringLen (concatString xi yi))) zis == mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis) 
      }
   @-}
-map_len_fusion = undefined 
+map_len_fusion = todo 
 
 
 appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
@@ -268,7 +268,7 @@ appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
   -> {   (appendIdxes (appendIdxes x1 (appendIdxes (appendIdxes x2 x3) x4)) x5)
       == (appendIdxes (appendIdxes (appendIdxes (appendIdxes x1 x2) x5) x3) x4)
      } @-}
-appendReorder = undefined
+appendReorder = todo
 
 
 -- ((x1 ~ ( (x2 ~ x3) ~ x4 ))  ~ x5)
@@ -280,7 +280,7 @@ map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
      :: f:(a -> b) -> xs:Idxes a -> ys:Idxes a 
      -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
   @-}
-map_append = undefined 
+map_append = todo 
 
 mapShiftZero :: Idxes Int -> Proof
 {-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
