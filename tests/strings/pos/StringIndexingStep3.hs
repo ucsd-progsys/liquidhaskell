@@ -255,7 +255,14 @@ map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
   -> {  mapIdxes (shift (stringLen (concatString xi yi))) zis == mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis) 
      }
   @-}
-map_len_fusion = todo 
+map_len_fusion xi yi IdxEmp 
+  =   mapIdxes (shift (stringLen (concatString xi yi))) IdxEmp
+  ==. IdxEmp
+  ==. mapIdxes (shift (stringLen xi)) IdxEmp
+  ==. mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) IdxEmp)
+  *** QED  
+map_len_fusion xi yi (Idxs i is)
+  = todo
 
 
 appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
