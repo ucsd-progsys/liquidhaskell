@@ -12,7 +12,6 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE ConstraintKinds            #-}
 
 -- | This module should contain all the global type definitions and basic instances.
@@ -231,7 +230,7 @@ import           Control.Monad                          (liftM, liftM2, liftM3, 
 import           Control.DeepSeq
 
 import           Data.Bifunctor
-import           Data.Bifunctor.TH
+--import           Data.Bifunctor.TH
 import           Data.Typeable                          (Typeable)
 import           Data.Generics                          (Data)
 
@@ -1688,8 +1687,22 @@ data Measure ty ctor = M
   , eqns :: [Def ty ctor]
   } deriving (Data, Typeable, Generic, Functor)
 
-deriveBifunctor ''Def
-deriveBifunctor ''Measure
+instance Bifunctor Def where
+  first f (Def m ps c s bs b) =
+    Def m (map (second f) ps) c (fmap f s) (map (second (fmap f)) bs) b
+  second f (Def m ps c s bs b) =
+    Def m ps (f c) s bs b
+
+instance Bifunctor Measure where
+  first f (M n s es) =
+    M n (f s) (map (first f) es)
+  second f (M n s es) =
+    M n s (map (second f) es)
+
+-- NOTE: don't use the TH versions since they seem to cause issues
+-- building on windows :(
+-- deriveBifunctor ''Def
+-- deriveBifunctor ''Measure
 
 data CMeasure ty = CM
   { cName :: LocSymbol
