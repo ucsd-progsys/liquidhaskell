@@ -1,7 +1,6 @@
 {-
 NV TODO 
 1. refine data type
-2. proove rest 1 monadic laws
 -}
 
 
@@ -14,22 +13,16 @@ NV TODO
 {-# LANGUAGE GADTs               #-}
 
 
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"     @-}
-{- LIQUID "--stringtheory" @-}
-{-@ LIQUID "--exactdc"      @-}
+{-@ LIQUID "--higherorder"       @-}
+{-@ LIQUID "--totality"          @-}
+{-@ LIQUID "--exactdc"           @-}
 
 module StringIndexing where
 
 import Language.Haskell.Liquid.String
-
-
 import GHC.TypeLits
 import Data.String hiding (fromString)
-
 import Data.Proxy 
-
-
 import Prelude hiding (mempty, mappend, id)
 import Proves 
 
@@ -132,7 +125,183 @@ mempty_right (MI i is)
       ? concatStringNeutralRight i
   *** QED 
 
+{-@ mappend_assoc 
+  :: x:MI target SMTString -> y:MI target SMTString -> z:MI target SMTString
+  -> {mappend x (mappend y z) = mappend (mappend x y) z}
+  @-}
+mappend_assoc 
+     :: forall (target :: Symbol). (KnownSymbol target) 
+     => MI target SMTString ->  MI target SMTString ->  MI target SMTString -> Proof
+mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
+  =   mappend x (mappend y z)
+  ==. mappend (MI xi xis) (mappend (MI yi yis) (MI zi zis))
+  ==. mappend (MI xi xis) 
+              (MI (concatString yi zi)  
+                  ( (yis `appendIdxes` mapIdxes (shift (stringLen yi)) zis)
+                       `appendIdxes` makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))
+  ==. MI (concatString xi (concatString yi zi))  
+         ((xis `appendIdxes` 
+                  mapIdxes (shift (stringLen xi)) (
+                    (yis `appendIdxes` mapIdxes (shift (stringLen yi)) zis)
+                        `appendIdxes` makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))
+              `appendIdxes` makeIndexes xi (concatString yi zi) (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes` 
+                  mapIdxes (shift (stringLen xi)) (
+                    (yis `appendIdxes` mapIdxes (shift (stringLen yi)) zis)
+                        `appendIdxes` makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))
+              `appendIdxes` makeIndexes xi (concatString yi zi) (fromString (symbolVal (Proxy :: Proxy target))))
+      ? concatStringAssoc xi yi zi 
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes`
+            ( (mapIdxes (shift (stringLen xi)) ((yis `appendIdxes` mapIdxes (shift (stringLen yi)) zis)))
+              `appendIdxes`
+              (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))) 
+            )
+              `appendIdxes` makeIndexes xi (concatString yi zi) (fromString (symbolVal (Proxy :: Proxy target))))
+      ? map_append (shift (stringLen xi)) (yis `appendIdxes` mapIdxes (shift (stringLen yi)) zis) (makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes`
+                 (((mapIdxes (shift (stringLen xi)) yis 
+               `appendIdxes` 
+                 mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis)))
+               `appendIdxes`
+                 (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))))
+               `appendIdxes` 
+                 makeIndexes xi (concatString yi zi) (fromString (symbolVal (Proxy :: Proxy target))))
+      ? map_append (shift (stringLen xi)) yis (mapIdxes (shift (stringLen yi)) zis)
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes`
+                 (((mapIdxes (shift (stringLen xi)) yis 
+               `appendIdxes` 
+                 mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis)))
+               `appendIdxes`
+                 (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target)))))))
+               `appendIdxes` 
+                 makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
+      ? shiftIndexes12 xi yi zi (fromString (symbolVal (Proxy :: Proxy target)))
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes`
+                 (((mapIdxes (shift (stringLen xi)) yis 
+               `appendIdxes` 
+                 mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis)))
+               `appendIdxes`
+                 (makeIndexes (concatString xi yi) zi (fromString (symbolVal (Proxy :: Proxy target))))))
+               `appendIdxes` 
+                 makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
+      ? shiftIndexes23 xi yi zi (fromString (symbolVal (Proxy :: Proxy target)))
+  ==. MI (concatString (concatString xi yi) zi)  
+         ((xis `appendIdxes`                                                                                  -- x1
+                 (((mapIdxes (shift (stringLen xi)) yis                                                       -- x2
+               `appendIdxes` 
+                 mapIdxes (shift (stringLen (concatString xi yi))) zis))                                      -- x3
+               `appendIdxes`
+                 (makeIndexes (concatString xi yi) zi (fromString (symbolVal (Proxy :: Proxy target))))))     -- x4
+               `appendIdxes` 
+                 makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))                          -- x5
+      ? map_len_fusion xi yi zis 
+-- ((x1 ~ ( (x2 ~ x3) ~ x4 ))  ~ x5)
+-- == 
+-- ((((x1 ~ x2) ~ x5) ~ x3) ~ x4)
+  ==. MI (concatString (concatString xi yi) zi)
+         ((((xis `appendIdxes` 
+                    mapIdxes (shift (stringLen xi)) yis)
+                 `appendIdxes` 
+                    makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target)))) 
+                 `appendIdxes` 
+                    mapIdxes (shift (stringLen (concatString xi yi))) zis) 
+                 `appendIdxes`
+                    makeIndexes (concatString xi yi) zi (fromString (symbolVal (Proxy :: Proxy target)))) 
+      ? appendReorder xis
+                      (mapIdxes (shift (stringLen xi)) yis)
+                      (mapIdxes (shift (stringLen (concatString xi yi))) zis)
+                      (makeIndexes (concatString xi yi) zi (fromString (symbolVal (Proxy :: Proxy target))))
+                      (makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
+  ==. mappend (MI (concatString xi yi)  
+                  ( (xis `appendIdxes` mapIdxes (shift (stringLen xi)) yis)
+                       `appendIdxes` makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
+              ) (MI zi zis)
+  ==. mappend (mappend (MI xi xis) (MI yi yis)) (MI zi zis)
+  *** QED 
 
+
+
+-- This does not hold! 
+-- Indexes are the same appended not independently!
+-- e g |yi| < |target|
+
+{-@ shiftIndexes23
+  :: xi:SMTString 
+  -> yi:SMTString 
+  -> zi:SMTString 
+  -> tg:SMTString 
+  -> {mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg) == makeIndexes (concatString xi yi) zi tg}
+  @-}
+shiftIndexes23 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
+shiftIndexes23 = todo 
+
+
+{-@ shiftIndexes12 
+  :: xi:SMTString 
+  -> yi:SMTString 
+  -> zi:SMTString 
+  -> tg:SMTString 
+  -> { makeIndexes xi yi tg  == makeIndexes xi (concatString yi zi) tg}
+  @-}
+shiftIndexes12 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
+shiftIndexes12 = todo
+
+map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
+{-@ map_len_fusion 
+  :: xi:SMTString 
+  -> yi:SMTString 
+  -> zis:Idxes Int 
+  -> {  mapIdxes (shift (stringLen (concatString xi yi))) zis == mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) zis) 
+     }
+  @-}
+map_len_fusion xi yi IdxEmp 
+  =   mapIdxes (shift (stringLen (concatString xi yi))) IdxEmp
+  ==. IdxEmp
+  ==. mapIdxes (shift (stringLen xi)) IdxEmp
+  ==. mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) IdxEmp)
+  *** QED  
+map_len_fusion xi yi (Idxs i is)
+  =   mapIdxes (shift (stringLen (concatString xi yi))) (Idxs i is)
+  ==. shift (stringLen (concatString xi yi)) i `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+  ==. shift (stringLen xi + stringLen yi) i `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+      ? concatLen xi yi 
+  ==. shift (stringLen xi) (shift (stringLen yi) i) `Idxs` mapIdxes (shift (stringLen (concatString xi yi))) is 
+      ? concatLen xi yi 
+  ==. shift (stringLen xi) (shift (stringLen yi) i) `Idxs` mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) is)
+      ? map_len_fusion xi yi is 
+  ==. mapIdxes (shift (stringLen xi)) (shift (stringLen yi) i `Idxs` mapIdxes (shift (stringLen yi)) is)
+  ==. mapIdxes (shift (stringLen xi)) (mapIdxes (shift (stringLen yi)) (i `Idxs` is))
+  *** QED 
+
+
+appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
+{-@ appendReorder 
+  :: x1:Idxes a 
+  -> x2:Idxes a 
+  -> x3:Idxes a 
+  -> x4:Idxes a 
+  -> x5:Idxes a 
+  -> {   (appendIdxes (appendIdxes x1 (appendIdxes (appendIdxes x2 x3) x4)) x5)
+      == (appendIdxes (appendIdxes (appendIdxes (appendIdxes x1 x2) x5) x3) x4)
+     } @-}
+appendReorder = todo
+
+
+-- ((x1 ~ ( (x2 ~ x3) ~ x4 ))  ~ x5)
+-- == 
+--  ((((x1 ~ x2) ~ x5) ~ x3) ~ x4)
+
+map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
+{-@ map_append 
+     :: f:(a -> b) -> xs:Idxes a -> ys:Idxes a 
+     -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
+  @-}
+map_append = todo 
 
 mapShiftZero :: Idxes Int -> Proof
 {-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
@@ -146,15 +315,23 @@ mapShiftZero (Idxs i is)
 
 -- String Library 
 
+concatLen :: SMTString -> SMTString -> Proof
+{-@ concatLen :: x:SMTString -> y:SMTString -> { stringLen (concatString x y) == stringLen x + stringLen y } @-}
+concatLen = undefined
 
 concatStringNeutral :: SMTString -> Proof
 {-@ concatStringNeutral :: x:SMTString -> {concatString x stringEmp == x} @-}
 concatStringNeutral = undefined
 
-
 concatStringNeutralRight :: SMTString -> Proof
 {-@ concatStringNeutralRight :: x:SMTString -> {concatString stringEmp x == x} @-}
 concatStringNeutralRight = undefined
+
+concatStringAssoc :: SMTString -> SMTString -> SMTString -> Proof
+{-@ concatStringAssoc 
+  :: x:SMTString -> y:SMTString -> z:SMTString 
+  -> {concatString (concatString x y) z == concatString x (concatString y z) } @-}
+concatStringAssoc = undefined
 
 
 -------------------------------------------------------------------------------
