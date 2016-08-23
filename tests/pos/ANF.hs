@@ -9,10 +9,10 @@ mkLet :: [(Var, AnfExpr)] -> AnfExpr -> AnfExpr
 imm, immExpr :: Expr -> AnfM ([(Var, AnfExpr)], ImmExpr)
 anf   :: Expr -> AnfM AnfExpr
 fresh :: AnfM Var
+
 --------------------------------------------------------------------------------
 -- | Types
 --------------------------------------------------------------------------------
-
 type Var = String
 
 data Op
@@ -34,10 +34,12 @@ data Expr
 isImm :: Expr -> Bool
 isImm (EInt {}) = True
 isImm (EVar {}) = True
-isImm (ELet {}) = False
-isImm (EBin {}) = False
-isImm (ELam {}) = False
-isImm (EApp {}) = False
+isImm _         = False
+
+-- isImm (ELet {}) = False
+-- isImm (EBin {}) = False
+-- isImm (ELam {}) = False
+-- isImm (EApp {}) = False
 
 {-@ measure isAnf @-}
 isAnf :: Expr -> Bool
@@ -45,8 +47,8 @@ isAnf (EInt {})      = True
 isAnf (EVar {})      = True
 isAnf (ELet _ e1 e2) = isAnf e1 && isAnf e2
 isAnf (EBin _ e1 e2) = isImm e1 && isImm e2
-isAnf (ELam _ e)     = isAnf e
 isAnf (EApp e1 e2)   = isImm e1 && isImm e2
+isAnf (ELam _ e)     = isAnf e
 
 {-@ type AnfExpr = {v:Expr | isAnf v} @-}
 type AnfExpr = Expr
