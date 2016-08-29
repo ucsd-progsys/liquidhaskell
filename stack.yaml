@@ -1,25 +1,17 @@
 flags:
-  liquidhaskell:
-    devel: True
   liquid-fixpoint:
-    devel: True
+    devel: true
+  liquidhaskell:
+    devel: true
 packages:
 - ./prover
 - ./liquid-fixpoint
 - ./liquiddesugar
 - '.'
-
 extra-deps:
-- aeson-0.11.1.1
-- cpphs-1.20.1
-- daemons-0.2.1
 - dotgen-0.4.2
 - fgl-visualize-0.1.0.1
-- generic-deriving-1.10.4
 - intern-0.9.1.4
-- located-base-0.1.0.0
-- text-1.2.2.1
-
-
+- located-base-0.1.1.0
 compiler-check: newer-minor
-resolver: lts-5.9
+resolver: lts-6.14
