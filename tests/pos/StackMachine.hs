@@ -51,6 +51,9 @@ max :: Int -> Int -> Int
 max x y = if x > y then x else y
 
 {-
+
+Some intuition / examples about `need`
+
 needs []
   = 0
 needs [Add]
@@ -63,12 +66,6 @@ needs [Add, Add, Add]
   = max 2 (3 + 1)
   = 4
 
-needs [Add, Add , Add] = 4
-needs [Add , Add]      = 3
-needs [Add]            = 2
-needs [Push v]         = 0
-
-[1, 2, 3, 4]
 
 needs [                              add ]
   = 2
@@ -88,4 +85,36 @@ needs [         push 3, add, push 4, add ]
 needs [ push 2, push 3, add, push 4, add ]
   = max 0 (1 - 1)
   = 0
+
 -}
+
+{- THEOREMS TODO
+ 
+thm :: e:Expr -> { run (compile e) [] == [eval e] }
+thm e vs
+  = run (compile e) []
+ .= run (compile e ++ []) []  `by` append_right_nil (compile e)
+ .= run [] (eval e : [])      `by` lem e [] []
+ .= [eval e]
+ ** QED
+
+lem :: e:Expr -> is:[Instr] -> vs:[Val]
+      -> { run (compile e ++ is) vs == run is (eval e : vs) }
+
+lem (Val v) is vs
+  = run (compile (Val v) ++ is) vs
+ .= run ([Push v] ++ is) vs
+ .= run (Push v : is) vs       `eval` (++)
+ .= v : vs
+ ** QED
+
+lem (Add e1 e2) is vs
+  = run (compile (Add e1 e2) ++ is) vs
+ .= run (compile e1 ++ compile e2 ++ [Add] ++ is) vs
+ .= run (compile e2 ++ [Add] ++ is) (eval e1 : vs)  `by`   (lem ...)
+ .= run ([Add] ++ is) (eval e2 : eval e1 : vs)      `by`   (lem ...)
+ .= run (Add : is) (eval e2 : eval e1 : vs)         `eval` (++)
+ .= run is ((eval e1 + eval e1) : vs)
+ ** QED
+
+ -}
