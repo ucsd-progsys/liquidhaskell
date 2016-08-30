@@ -10,7 +10,7 @@ To run `liquid` you need to install:
 
 Download and install *at least one* of
 
-+ [Z3](https://github.com/Z3Prover/z3)
++ [Z3](https://github.com/Z3Prover/z3/releases)
 + [CVC4](http://cvc4.cs.nyu.edu/)
 + [MathSat](http://mathsat.fbk.eu/download.html)
 
