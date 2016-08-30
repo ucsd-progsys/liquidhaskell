@@ -11,21 +11,21 @@ data SMTString = S String
 {-@ measure concatString :: SMTString -> SMTString -> SMTString @-}
 {-@ measure fromString   :: String -> SMTString @-}
 
-{-@ concatString :: x:SMTString -> y:SMTString 
+{-@ assume concatString :: x:SMTString -> y:SMTString 
                  -> {v:SMTString | v == concatString x y && stringLen v == stringLen x + stringLen y } @-}
 concatString :: SMTString -> SMTString -> SMTString
-concatString = undefined 
+concatString = undefined
 
 {-@ stringEmp :: {v:SMTString | v == stringEmp  && stringLen v == 0 } @-}
 stringEmp :: SMTString
 stringEmp = undefined 
 
-stringLen :: SMTString -> Int 
+stringLen :: SMTString -> Int  
 {-@ stringLen :: x:SMTString -> {v:Nat | v == stringLen x} @-}
 stringLen = undefined
 
 
-{-@ subString  :: s:SMTString -> offset:Int -> ln:Int -> {v:SMTString |v == subString s offset ln } @-}
+{-@ subString  :: s:SMTString -> offset:Int -> ln:Int -> {v:SMTString | v == subString s offset ln } @-}
 subString :: SMTString -> Int -> Int -> SMTString 
 subString = undefined 
 
