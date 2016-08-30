@@ -1,6 +1,9 @@
 {-
 NV TODO 
 1. refine data type
+2. complete todos
+3. connect it with Steps 1 & 2
+4. instantiate SMTString with ByteString 
 -}
 
 
@@ -14,7 +17,7 @@ NV TODO
 
 
 {-@ LIQUID "--higherorder"       @-}
-{- LIQUID "--totality"          @-}
+{-@ LIQUID "--totality"          @-}
 {-@ LIQUID "--exactdc"           @-}
 
 module StringIndexing where
