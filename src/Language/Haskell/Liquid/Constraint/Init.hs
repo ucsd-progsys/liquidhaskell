@@ -80,7 +80,7 @@ initEnv info
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       γ  <- globalize <$> foldM (+=) (traceShow "INIT GO" γ0) [("initEnv", x, y) | (x, y) <- concat $ tail bs]
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info
