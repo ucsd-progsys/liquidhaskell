@@ -175,7 +175,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , syenv    = F.fromListSEnv $ gsFreeSyms sp
   , litEnv   = F.fromListSEnv lts
   , constEnv = F.fromListSEnv lt2s
-  , fenv     = initFEnv (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas sp))
+  , fenv     = initFEnv $ filterHO (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas sp))
   , denv     = gsDicts sp
   , recs     = S.empty
   , fargs    = S.empty
@@ -197,10 +197,10 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , cgInfo   = info
   }
   where
-      tce  = gsTcEmbeds sp
-      lts  = if higherOrderFlag sp then lts' else filter (F.isFirstOrder . snd) lts'
-      lts' = lt1s ++ lt2s
-      tcb' = [] 
+      tce         = gsTcEmbeds sp
+      filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
+      lts         = lt1s ++ lt2s
+      tcb'        = [] 
 
 assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars
