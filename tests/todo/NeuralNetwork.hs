@@ -21,13 +21,8 @@ data Weights = W { wBiases :: !(Vector Double)  -- n
                  , wNodes  :: !(Matrix Double)  -- n x m
                  }                              -- "m to n" layer
 
-data Network :: * where
-    O     :: !Weights
-          -> Network
-    (:&~) :: !Weights
-          -> !Network
-          -> Network
-infixr 5 :&~
+data Network = Last !Weights
+             | Link !Weights Network
 
 logistic :: Floating a => a -> a
 logistic x = 1 / (1 + exp (-x))
