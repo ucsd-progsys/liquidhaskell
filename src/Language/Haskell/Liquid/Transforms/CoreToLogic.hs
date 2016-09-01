@@ -32,6 +32,7 @@ import           Literal
 import           IdInfo
 
 import           Data.Text.Encoding
+import           Data.Text.Encoding.Error 
 
 import           TysWiredIn
 
@@ -449,7 +450,7 @@ mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
 
 mkS :: ByteString -> Maybe Expr
-mkS                    = Just . ESym . SL  . decodeUtf8
+mkS                    = Just . ESym . SL  . (decodeUtf8With lenientDecode) 
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
