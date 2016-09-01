@@ -61,6 +61,7 @@ import           Data.Maybe                                 (isJust, fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
 
+import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
@@ -454,7 +455,7 @@ instance Symbolic FastString where
   symbol = symbol . fastStringText
 
 fastStringText :: FastString -> T.Text
-fastStringText = T.decodeUtf8 . fastStringToByteString
+fastStringText = T.decodeUtf8With TE.lenientDecode . fastStringToByteString
 
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
