@@ -175,7 +175,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , syenv    = F.fromListSEnv $ gsFreeSyms sp
   , litEnv   = F.fromListSEnv lts
   , constEnv = F.fromListSEnv lt2s
-  , fenv     = initFEnv (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas sp))
+  , fenv     = initFEnv $ traceShow "INIT ENV = " (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas sp))
   , denv     = gsDicts sp
   , recs     = S.empty
   , fargs    = S.empty
