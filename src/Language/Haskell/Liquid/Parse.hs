@@ -1101,8 +1101,10 @@ dataSizeP
     mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
-dataDeclP = adtDataDeclFullP
-  where _old = try dataDeclFullP <|> dataDeclSizeP
+dataDeclP 
+   =  try dataDeclFullP
+  <|> try adtDataDeclFullP
+  <|> dataDeclSizeP
 
 newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
