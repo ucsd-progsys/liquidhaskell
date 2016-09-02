@@ -1067,13 +1067,22 @@ lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isSmall . head)
 -}
 
-
 dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
 dataConP
   = do x   <- locParserP dataConNameP
        spaces
        xts <- dataConFieldsP
        return (x, xts)
+
+
+adtDataConP :: Parser (Located Symbol, [(Symbol, BareType)])
+adtDataConP
+  = do x   <- locParserP dataConNameP
+       dcolon
+       xts <- tRepToArgs . toRTypeRep <$> bareTypeP
+       return (x, xts)
+  where
+    tRepToArgs trep = zip (ty_binds trep) (ty_args trep)
 
 dataConNameP :: Parser Symbol
 dataConNameP
@@ -1092,7 +1101,8 @@ dataSizeP
     mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
-dataDeclP = try dataDeclFullP <|> dataDeclSizeP
+dataDeclP = adtDataDeclFullP
+  where _old = try dataDeclFullP <|> dataDeclSizeP
 
 newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
@@ -1118,6 +1128,26 @@ dataDeclFullP
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
        return $ D x ts ps [] dcs pos fsize
+
+
+adtDataDeclFullP :: Parser DataDecl
+adtDataDeclFullP
+  = do pos <- getPosition
+       x   <- locUpperIdP'
+       spaces
+       fsize <- dataSizeP
+       spaces
+       (ts, ps) <- tsps
+       spaces
+       dcs <- sepBy adtDataConP (reserved "|")
+       whiteSpace
+       return $ D x ts ps [] dcs pos fsize
+  where
+    tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
+        <|> do ts <- sepBy tyVarIdP blanks
+               ps  <- predVarDefsP
+               whiteSpace >> reservedOp "where" >> whiteSpace
+               return (ts, ps)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
