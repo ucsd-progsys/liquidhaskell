@@ -3,7 +3,6 @@ NV TODO
 1. refine data type
 2. complete todos
 3. connect it with Steps 1 & 2
-4. instantiate SMTString with ByteString 
 -}
 
 
@@ -42,8 +41,8 @@ main =
      putStrLn ("Are equal? " ++ show (is1 == is2))
 
 test1 = indices target1 input1 
-target1 = S "abcab"
-input1  = S (clone 100 "ababcabcab")
+target1 = fromString "abcab"
+input1  = fromString $ clone 100 "ababcabcab"
 
 
 -- Interface 
