@@ -44,6 +44,17 @@ import Language.Haskell.Liquid.ProofCombinators
 fib :: Int -> Int
 propPlusAccum :: Int -> Int -> Proof 
 propOnePlueOne :: () -> Proof 
+fibTwo :: () -> Proof 
+fibConguence :: Int -> Int -> Proof
+fibUp :: Int -> Proof 
+fibTwoPretty :: () -> Proof 
+fibThree :: () -> Proof 
+fMono :: (Int -> Int)
+      -> (Int -> Proof)
+      -> Int
+      -> Int 
+      -> Proof 
+fibMono :: Int -> Int -> Proof 
 
 \end{code}
 </div>
@@ -72,7 +83,7 @@ For example, we will prove that the Haskell `fib` function is increasing!
 
 Propositions
 ------------
-To begin with, we import `ProofCombinators`, a (Liquid) Haskell library that defines 
+To begin with, we import [ProofCombinators][proofcomb], a (Liquid) Haskell library that defines 
 and manipulates logical proofs. 
 
 
@@ -176,7 +187,6 @@ fib :: Int -> Int
 SMT only knows that `fib` satisfies the conguence axiom.
 
 \begin{code}
-fibConguence :: Int -> Int -> Proof
 {-@ fibConguence :: i:Nat -> j:Nat -> {i == j => fib i == fib j} @-}
 fibConguence _ _ = trivial *** QED 
 \end{code}
@@ -189,18 +199,18 @@ Step 2: Reflection
 ------------------
 
 As a second step, Liquid Haskell connects the Haskell function `fib`
-with the omonymous logical function, 
+with the homonymous logical function, 
 by reflecting the implementation of `fib` in its result type. 
 
 
-The result type of `fib` is automatically strengthened to 
+The result type of `fib` is automatically strengthened to the fowllowing.
 
 ```haskell
 fib :: i:Nat -> {v:Nat | v == fib i && v = fibP i }
 ```
 
 That is, the result satisfies the `fibP` predicate
-exactly reflecting the implementation of `fib`
+exactly reflecting the implementation of `fib`.
 
 ```haskell
 fibP i = if i == 0 then 0 else
@@ -217,7 +227,6 @@ once.
 As an example, applying `fib` to `0`, `1`, and `2` allows us to prove that `fib 2 == 1`:
 
 \begin{code}
-fibTwo :: () -> Proof 
 {-@ fibTwo :: _ -> { fib 2 == 1 } @-}
 fibTwo _ = [fib 0, fib 1, fib 2] *** QED
 \end{code}
@@ -230,10 +239,12 @@ that come predified in the `ProofCombinators` library.
 
 Structuring Pretty Proofs 
 --------------------------
-We equip Liquid Haskell with a family of operators `*.`
+
+`ProofCombinators` exports family of operators `(*.)`
 where `*` comes from the theory of linear arithmetic and 
-the refinement type of `*.` requires that `x *. y` holds and then ensures
-that the returned value is equal to `x`.
+the refinement type of `x *. y` 
+requires that `x *. y` holds and 
+ensures that the returned value is equal to `x`.
 
 For example, `(==.)` and `(<=.)` are predefined in `ProofCombinators` as
 
@@ -245,11 +256,10 @@ x ==. _ = x
 x <=. _ = x
 ```
 
-Using these predefined operators, we can structure paper&pensil-like proofs 
-for the `fib` function 
+Using these predefined operators, we construct paper and pencil-like proofs 
+for the `fib` function.
 
 \begin{code}
-fibTwoPretty :: () -> Proof 
 {-@ fibTwoPretty :: _ -> { fib 2 == 1 } @-}
 fibTwoPretty _ 
   =   fib 2 
@@ -261,7 +271,7 @@ fibTwoPretty _
 
 Because operator 
 -----------------
-To allow proofs using existing proofs, `ProofCombinators` defines the because 
+To allow proofs reusing existing proofs, `ProofCombinators` defines the because 
 operator `(∵)`
 
 ```haskell
@@ -272,7 +282,6 @@ f ∵ y = f y
 For example, `fib 3 == 2` holds because `fib 2 == 1`:
 
 \begin{code}
-fibThree :: () -> Proof 
 {-@ fibThree :: _ -> { fib 3 == 2 } @-}
 fibThree _ 
   =   fib 3 
@@ -284,9 +293,9 @@ fibThree _
 
 
 
-Pensil & Paper Proofs 
-----------------------
-Next, using all the above operators we specify and prove that 
+Pensil & Paper Proofs by Induction 
+-----------------------------------
+Next, combining the above operators we specify and prove that 
 `fib` is increasing, that is for each natural number `i`, 
 `fib i <= fib (i+1)`. 
 
@@ -296,7 +305,6 @@ the theorem holds.
 
 \begin{code}
 {-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}
-fibUp :: Int -> Proof 
 fibUp i
   | i == 0
   =   fib 0 <. fib 1
@@ -318,7 +326,7 @@ The base cases `i == 0` and `i == 1` are represented
 as Haskell's case splitting. 
 The inductive hypothesis is represented by recursive calls 
 on smaller inputs. 
-At the same time, the SMT solves arithmetic reasoning to conclude the proof.  
+Finally, the SMT solves arithmetic reasoning to conclude the proof.  
 
 Higher Order Theorems
 ----------------------
@@ -332,11 +340,6 @@ For example, `fMono` specifies that each locally increasing function is monotoni
           -> x:Nat
           -> y:{Nat|x < y}
           -> {f x <= f y} / [y] @-}
-fMono :: (Int -> Int)
-      -> (Int -> Proof)
-      -> Int
-      -> Int 
-      -> Proof 
 fMono f thm x y  
   | x + 1 == y
   = f y ==. f (x + 1)
@@ -350,16 +353,11 @@ fMono f thm x y
   *** QED
 \end{code}
 
-Again, the recursive implementation of `fMono` 
-is used to paper&pensil-like prove the theorem 
-by induction on the decresing argument `/ [y]`. 
+Again, the recursive implementation of `fMono` depicts then paper and pensil proof of `fMono` by induction on the decresing argument `/ [y]`. 
 
-
-Since `fib` is proven to be locally increasing by `fUp`,  
-we use `fMono` to prove that `fib` is monotonic. 
+Since `fib` is proven to be locally increasing by `fUp`, we use `fMono` to prove that `fib` is monotonic. 
 
 \begin{code}
-fibMono :: Int -> Int -> Proof 
 {-@ fibMono :: n:Nat -> m:{Nat | n < m }  -> {fib n <= fib m} @-}
 fibMono = fMono fib fibUp
 \end{code}
@@ -367,13 +365,14 @@ fibMono = fMono fib fibUp
 
 Conclusion
 ----------
-We saw how refinement reflection turns your Haskell
+We saw how refinement reflection turns Haskell
 into a theorem prover by reflecting the code implementing a Haskell
-function into the function’s (output) refinement type.
+function into the function’s output refinement type.
 
-Refinement Types are used to express theorems 
-and Haskell code is used to prove such theorems
-expressing paper&pensil like proofs!
+Refinement Types are used to express theorems, 
+Haskell code is used to prove such theorems
+expressing paper pensil proofs, 
+and Liquid Haskell verifies the validity of the proofs!
 
 Sweet right? 
 
@@ -382,3 +381,4 @@ join my [CUFP tutorial][cufp16] for more!
 
 
 [cufp16]: http://cufp.org/2016/t6-niki-vazou-liquid-haskell-intro.html
+[proofcomb]:https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs
