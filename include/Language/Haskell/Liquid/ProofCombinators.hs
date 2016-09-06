@@ -73,7 +73,7 @@ _ *** _ = ()
 p ==> q = ()
 
 
-{-@ (&&&) :: p:{Proof | Prop (proofBool p) }
+{- (&&&) :: p:{Proof | Prop (proofBool p) }
           -> q:{Proof | Prop (proofBool q) }
           -> {v:Proof | Prop (proofBool p) && Prop (proofBool q) } @-}
 (&&&) :: Proof -> Proof -> Proof

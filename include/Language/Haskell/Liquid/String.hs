@@ -51,3 +51,17 @@ chunkString n (S s) = S <$> go s
 {-@ isNullString :: i:SMTString -> {b:Bool | Prop b <=> stringLen i == 0 } @-} 
 isNullString :: SMTString -> Bool 
 isNullString (S s) = BS.length s == 0 
+
+
+{-@ assume subStringConcat 
+  :: input:SMTString -> input':SMTString -> j:Int -> i:{Int | i + j <= stringLen input }
+  -> { subString input i j == subString (concatString input input') i j } @-}
+subStringConcat :: SMTString -> SMTString -> Int -> Int -> () 
+subStringConcat = undefined  
+
+
+{-@ assume lenConcat 
+  :: input:SMTString -> input':SMTString 
+  -> { stringLen input <= stringLen (concatString input input') } @-}
+lenConcat :: SMTString -> SMTString -> () 
+lenConcat = undefined 
