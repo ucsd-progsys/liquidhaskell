@@ -3,7 +3,6 @@ NV TODO
 1. refine data type
 2. complete todos
 3. connect it with Steps 1 & 2
-4. instantiate SMTString with ByteString 
 -}
 
 
@@ -20,15 +19,66 @@ NV TODO
 {-@ LIQUID "--totality"          @-}
 {-@ LIQUID "--exactdc"           @-}
 
-module StringIndexing where
+module Main where
 
 import Language.Haskell.Liquid.String
 import GHC.TypeLits
 import Data.String hiding (fromString)
 import Data.Proxy 
-import Prelude hiding (mempty, mappend, id)
+import Prelude hiding (mempty, mappend, id, mconcat)
 import Proves 
 
+main :: IO ()
+main = 
+  do input     <- fromString <$> readFile "input.txt"
+     let target = fromString "abcab"
+     let mi1    = toMI    target input :: MI "abcab" SMTString
+     let is1    = getIndex mi1 
+     putStrLn ("Serial   Indices: " ++ show is1)
+     let mi2    = toMIPar target input :: MI "abcab" SMTString
+     let is2    = getIndex mi2 
+     putStrLn ("Parallel Indices: " ++ show is2)
+     putStrLn ("Are equal? " ++ show (is1 == is2))
+
+test1 = indices target1 input1 
+target1 = fromString "abcab"
+input1  = fromString $ clone 100 "ababcabcab"
+
+
+-- Interface 
+
+indices :: SMTString -> SMTString -> Idxes Int 
+indices target input 
+  = case toMI target input :: MI "abcab" SMTString  of 
+      MI _ i -> i 
+
+mconcatPar :: forall (target :: Symbol). (KnownSymbol target) =>  Int -> [MI target SMTString] -> MI target SMTString
+mconcatPar n xs = mconcat (mconcatPar' n xs)
+
+{-@ Lazy mconcatPar' @-}
+-- Termination proof is terribly slow and will change... 
+{-@ mconcatPar' :: forall (target :: Symbol). (KnownSymbol target) =>  Int -> xs:[MI target SMTString] -> [MI target SMTString] @-}
+mconcatPar' :: forall (target :: Symbol). (KnownSymbol target) =>  Int -> [MI target SMTString] -> [MI target SMTString]
+mconcatPar' n xs | length xs <= n = [mconcat xs]  
+mconcatPar' n xs = let (x, r) = splitAt n xs 
+                   in mconcatPar' n (mconcat x:mconcatPar' n r)
+
+toMIPar :: forall (target :: Symbol). (KnownSymbol target) =>   SMTString -> SMTString -> MI target SMTString 
+toMIPar target input = mconcatPar n2 (toMI target <$> chunkString n1 input)
+  where
+    n1 = 2
+    n2 = 2
+
+toMI :: forall (target :: Symbol). (KnownSymbol target) =>   SMTString -> SMTString -> MI target SMTString 
+toMI target input = if isNullString input then mempty else  MI input (makeIndexes' input target 0 (stringLen input - 1))
+
+getIndex :: forall (target :: Symbol).  MI target SMTString -> Idxes Int 
+getIndex (MI _ i) = i 
+
+clone :: Int -> [a] -> [a]
+clone i xs | i <= 0 = [] 
+clone 1 xs = xs 
+clone n xs = xs ++ clone (n-1) xs
 
 
 -- Structure that defines valid indeces of a type level target 
@@ -38,6 +88,7 @@ data MI (target :: Symbol) s where
   MI ::               SMTString        -- input string
                    -> (Idxes Int)      -- valid indeces of target in input
                    -> MI target s
+  deriving (Show)
 
 {-@ data MI target s 
   = MI { input :: SMTString
@@ -57,9 +108,16 @@ data MI (target :: Symbol) s where
 
 {-@ predicate IsGoodIndex Input Target I
   =  (subString Input I (stringLen Target)  == Target)
-  && (I + stringLen Target < stringLen Input)
+  && (I + stringLen Target <= stringLen Input)
   && (0 <= I)
   @-}
+
+
+mconcat :: forall (target :: Symbol). (KnownSymbol target) => [MI target SMTString] -> MI target SMTString
+mconcat []       = mempty 
+mconcat [x]      = x 
+mconcat [x1, x2] = mappend x1 x2 
+mconcat (x:xs)   = mappend x (mconcat xs)
 
 
 {-@ reflect mempty @-}
@@ -545,7 +603,7 @@ concatStringAssoc = undefined
 -------------------------------------------------------------------------------
 
    
-data Idxes a = IdxEmp | Idxs a (Idxes a)
+data Idxes a = IdxEmp | Idxs a (Idxes a) deriving (Show, Eq)
 {-@ data Idxes [idxlen] a = IdxEmp | Idxs {idxhd :: a , idxtl :: Idxes a} @-}
 
 
@@ -609,7 +667,7 @@ isGoodIndex :: SMTString -> SMTString -> Int -> Bool
   -> {b:Bool | Prop b <=> IsGoodIndex input target i} @-}
 isGoodIndex input target i 
   =  subString input i (stringLen target)  == target  
-  && i + stringLen target < stringLen input
+  && i + stringLen target <= stringLen input
   && 0 <= i    
 -------------------------------------------------------------------------------
 ----------  Indexing Properties -----------------------------------------------
