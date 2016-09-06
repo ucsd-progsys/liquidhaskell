@@ -11,7 +11,7 @@ demo: RefinementReflection.hs
 ---
 
 Refinement Reflection turns Haskell into a theorem prover by reflecting the code implementing a function into the function’s output refinement type.
-In this post we shall see how one can use a refinement type signature to express a theorem, for example that fibonacci is a monotonically increasing function, then use Haskell code to provide a paper and pensil stype proof for that theorem, and finally use Liquid Haskell to check the validity of the proof.   
+In this post we shall see how one can use a refinement type signature to express a theorem, for example that fibonacci is a monotonically increasing function, then use Haskell code to provide a paper and pencil style proof for that theorem, and finally use Liquid Haskell to check the validity of the proof.   
 
 <!-- more -->
 
@@ -63,7 +63,7 @@ Shallow Specifications
 ----------------------
 Up to now, we have been using Liquid Haskell to specify and verify
 "shallow" specifications that abstractly describe the behavior of functions. 
-For example, bellow, we specify and verify 
+For example, below, we specify and verify 
 that `fib`restricted to natural numbers, 
 always terminates returning a natural number.
 
@@ -91,7 +91,7 @@ and manipulates logical proofs.
 import Language.Haskell.Liquid.ProofCombinators
 ```
 
-A proof is a data type that curries no run time information
+A proof is a data type that carries no run time information
 
 ```haskell
 type Proof = ()
@@ -140,7 +140,7 @@ data QED = QED
 _ *** _ = ()
 ```
 
-Using the underlying SMT's knownledge on linear arithmetic, 
+Using the underlying SMT's knowledge on linear arithmetic, 
 we trivially prove the above propositions.
 
 \begin{code}
@@ -164,7 +164,7 @@ Refinement Reflection allows `deep` specification and verification by
 reflecting the code implementing a Haskell
 function into the function’s output refinement type.
 
-Refinement Reflection procceds in 3 steps: definition, reflection, and application.
+Refinement Reflection proceeds in 3 steps: definition, reflection, and application.
 Consider reflecting the definition of `fib` into the logic
 
 \begin{code}
@@ -176,19 +176,19 @@ then the following three reflection steps will occur.
 Step 1: Definition 
 ------------------
 Reflection of the Haskell function `fib` defines in logic 
-an _uninterpreted_ function `fib` that satisfies the conguence axiom.
+an _uninterpreted_ function `fib` that satisfies the congruence axiom.
 
-In the logic the fucntion `fib` is defined.
+In the logic the function `fib` is defined.
 
 ```haskell
 fib :: Int -> Int 
 ```
 
-SMT only knows that `fib` satisfies the conguence axiom.
+SMT only knows that `fib` satisfies the congruence axiom.
 
 \begin{code}
-{-@ fibConguence :: i:Nat -> j:Nat -> {i == j => fib i == fib j} @-}
-fibConguence _ _ = trivial *** QED 
+{-@ fibCongruence :: i:Nat -> j:Nat -> {i == j => fib i == fib j} @-}
+fibCongruence _ _ = trivial *** QED 
 \end{code}
 
 Other than congruence, SMT knowns nothing for the function `fib`,
@@ -203,7 +203,7 @@ with the homonymous logical function,
 by reflecting the implementation of `fib` in its result type. 
 
 
-The result type of `fib` is automatically strengthened to the fowllowing.
+The result type of `fib` is automatically strengthened to the following.
 
 ```haskell
 fib :: i:Nat -> {v:Nat | v == fib i && v = fibP i }
@@ -221,7 +221,7 @@ fibP i = if i == 0 then 0 else
 Step 3: Application 
 -------------------
 
-With the reflected refinemet type,
+With the reflected refinement type,
 each application of `fib` automatically unfolds the definition of `fib` 
 once. 
 As an example, applying `fib` to `0`, `1`, and `2` allows us to prove that `fib 2 == 1`:
@@ -234,7 +234,7 @@ fibTwo _ = [fib 0, fib 1, fib 2] *** QED
 Though valid, 
 the above `fibTwo` proof is not pretty! 
 To prettify our proofs, we use proof combinators 
-that come predified in the `ProofCombinators` library.
+that come predifined in the `ProofCombinators` library.
 
 
 Structuring Pretty Proofs 
@@ -293,7 +293,7 @@ fibThree _
 
 
 
-Pensil & Paper Proofs by Induction 
+Pencil & Paper Proofs by Induction 
 -----------------------------------
 Next, combining the above operators we specify and prove that 
 `fib` is increasing, that is for each natural number `i`, 
@@ -321,7 +321,7 @@ fibUp i
   *** QED
 \end{code}
 
-The proof procceds by induction on `i`. 
+The proof proceeds by induction on `i`. 
 The base cases `i == 0` and `i == 1` are represented 
 as Haskell's case splitting. 
 The inductive hypothesis is represented by recursive calls 
@@ -353,7 +353,7 @@ fMono f thm x y
   *** QED
 \end{code}
 
-Again, the recursive implementation of `fMono` depicts then paper and pensil proof of `fMono` by induction on the decresing argument `/ [y]`. 
+Again, the recursive implementation of `fMono` depicts the paper and pencil proof of `fMono` by induction on the decreasing argument `/ [y]`. 
 
 Since `fib` is proven to be locally increasing by `fUp`, we use `fMono` to prove that `fib` is monotonic. 
 
@@ -371,7 +371,7 @@ function into the function’s output refinement type.
 
 Refinement Types are used to express theorems, 
 Haskell code is used to prove such theorems
-expressing paper pensil proofs, 
+expressing paper pencil proofs, 
 and Liquid Haskell verifies the validity of the proofs!
 
 Sweet right? 
