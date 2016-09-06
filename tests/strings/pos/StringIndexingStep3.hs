@@ -114,7 +114,7 @@ data MI (target :: Symbol) s where
 
 
 
-{- data MI (target :: Symbol) s 
+{-@ data MI (target :: Symbol) s 
   = MI { input :: SMTString
        , idxes :: Idxes (GoodIndex input target)
        } @-}
