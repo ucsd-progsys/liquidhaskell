@@ -4,12 +4,15 @@ module Language.Haskell.Liquid.String where
 
 import qualified Data.ByteString as BS
 import qualified Data.String     as ST
+import Language.Haskell.Liquid.ProofCombinators 
 
 
 {-@ embed SMTString as Str @-}
 
 data SMTString = S BS.ByteString 
   deriving (Eq, Show)
+
+{-@ invariant {s:SMTString | 0 <= stringLen s } @-}
 
 {-@ measure stringEmp    :: SMTString @-}
 {-@ measure stringLen    :: SMTString -> Int @-}
@@ -53,15 +56,44 @@ isNullString :: SMTString -> Bool
 isNullString (S s) = BS.length s == 0 
 
 
+
+-- Properties of SMTString 
+
+
 {-@ assume subStringConcat 
   :: input:SMTString -> input':SMTString -> j:Int -> i:{Int | i + j <= stringLen input }
   -> { subString input i j == subString (concatString input input') i j } @-}
-subStringConcat :: SMTString -> SMTString -> Int -> Int -> () 
+subStringConcat :: SMTString -> SMTString -> Int -> Int -> Proof 
 subStringConcat = undefined  
 
+
+{-@ assume subStringConcatFront  
+  :: input:SMTString -> input':SMTString -> j:Int -> i:Int 
+  -> { subString input i j == subString (concatString input' input) (stringLen input' + i) j } @-}
+subStringConcatFront :: SMTString -> SMTString -> Int -> Int -> Proof
+subStringConcatFront = undefined 
 
 {-@ assume lenConcat 
   :: input:SMTString -> input':SMTString 
   -> { stringLen input <= stringLen (concatString input input') } @-}
-lenConcat :: SMTString -> SMTString -> () 
+lenConcat :: SMTString -> SMTString -> Proof 
 lenConcat = undefined 
+
+
+concatLen :: SMTString -> SMTString -> Proof
+{-@ assume concatLen :: x:SMTString -> y:SMTString -> { stringLen (concatString x y) == stringLen x + stringLen y } @-}
+concatLen = undefined
+
+concatStringNeutral :: SMTString -> Proof
+{-@ concatStringNeutral :: x:SMTString -> {concatString x stringEmp == x} @-}
+concatStringNeutral = undefined
+
+concatStringNeutralRight :: SMTString -> Proof
+{-@ concatStringNeutralRight :: x:SMTString -> {concatString stringEmp x == x} @-}
+concatStringNeutralRight = undefined
+
+concatStringAssoc :: SMTString -> SMTString -> SMTString -> Proof
+{-@ concatStringAssoc 
+  :: x:SMTString -> y:SMTString -> z:SMTString 
+  -> {concatString (concatString x y) z == concatString x (concatString y z) } @-}
+concatStringAssoc = undefined
