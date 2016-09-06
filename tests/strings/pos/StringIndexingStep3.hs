@@ -30,6 +30,21 @@ import Language.Haskell.Liquid.ProofCombinators
 
 todo =  undefined
 
+{-
+-- Difficult 
+shiftNewIndexes
+
+-- Unknown
+emptyIndexes
+
+-- EASY 
+appendGroupNew
+appendUnGroupNew
+appendReorder
+map_append
+
+-}
+
 
 main :: IO ()
 main = 
@@ -703,7 +718,6 @@ shiftIndexesRight' lo hi x input target
 shiftNewIndexes :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
 shiftNewIndexes = todo 
 
-
 map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
 {-@ map_len_fusion 
   :: xi:SMTString 
@@ -787,6 +801,7 @@ map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
      -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
   @-}
 map_append = todo 
+
 
 mapShiftZero :: Idxes Int -> Proof
 {-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
