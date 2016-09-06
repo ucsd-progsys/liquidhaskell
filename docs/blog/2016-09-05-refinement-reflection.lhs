@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Refinement Reflection"
+title: "Refinement Reflection: Haskell as a theorem prover"
 date: 2016-09-05
 comments: true
 external-url:
@@ -10,12 +10,8 @@ categories: reflection
 demo: RefinementReflection.hs
 ---
 
-
-
-
-As the ocean reflects the moon and beauty happens, 
-Liquid Types reflect Haskell's functions and 
-Haskell turns into a Theorem Prover...
+Refinement Reflection turns Haskell into a theorem prover by reflecting the code implementing a function into the function’s output refinement type.
+In this post we shall see how one can use a refinement type signature to express a theorem, for example that fibonacci is a monotonically increasing function, then use Haskell code to provide a paper and pensil stype proof for that theorem, and finally use Liquid Haskell to check the validity of the proof.   
 
 <!-- more -->
 
@@ -44,20 +40,24 @@ Haskell turns into a Theorem Prover...
 {-@ LIQUID "--totality"        @-}
 module RefinementReflection where
 import Language.Haskell.Liquid.ProofCombinators
+
+fib :: Int -> Int
+propPlusAccum :: Int -> Int -> Proof 
+propOnePlueOne :: () -> Proof 
+
 \end{code}
 </div>
 
 Shallow Specifications
 ----------------------
 Up to now, we have been using Liquid Haskell to specify and verify
-``shallow'' specifications that abstractly describe the behavior of functions. 
+"shallow" specifications that abstractly describe the behavior of functions. 
 For example, bellow, we specify and verify 
 that `fib`restricted to natural numbers, 
 always terminates returning a natural number.
 
 \begin{code}
 {-@ fib :: i:Nat -> Nat / [i] @-}
-fib :: Int -> Int
 fib i | i == 0    = 0 
       | i == 1    = 1 
       | otherwise = fib (i-1) + fib (i-2)
@@ -65,8 +65,8 @@ fib i | i == 0    = 0
 
 
 In this post we present how refinement reflection is used to verify 
-''deep`` specifications, that is specifications that 
-for example, prove that the Haskell `fib` function is increasing!
+"deep" specifications that use the exact definition of Haskell functions. 
+For example, we will prove that the Haskell `fib` function is increasing!
 
 
 
@@ -101,7 +101,7 @@ the above to
 \end{code}
 
 
-While the following function type declares 
+As another example, the following function type declares 
 that _for each_ `x` and `y` the plus operator commutes. 
 
 \begin{code}
@@ -120,8 +120,7 @@ trivial :: Proof
 trivial = ()
 ```
 
-and the "casting" operators `(***)` that prettifies our proof terms
-
+and the "casting" operator `(***)` that prettifies proof terms.
 
 ```haskell
 data QED = QED
@@ -131,14 +130,12 @@ _ *** _ = ()
 ```
 
 Using the underlying SMT's knownledge on linear arithmetic, 
-we trivially prove the above propositions
+we trivially prove the above propositions.
 
 \begin{code}
-propOnePlueOne :: () -> Proof 
 {-@ propOnePlueOne :: _ -> OnePlusOne @-} 
 propOnePlueOne _ = trivial *** QED 
 
-propPlusAccum :: Int -> Int -> Proof 
 {-@ propPlusAccum :: PlusAccum @-} 
 propPlusAccum _ _ = trivial *** QED 
 \end{code}
@@ -152,31 +149,31 @@ But how can we prove ``deep'' properties on Haskell's functions?
 
 Refinement Reflection 
 ---------------------
-Refinement Reflection allows `deep` specificatino and verification by
+Refinement Reflection allows `deep` specification and verification by
 reflecting the code implementing a Haskell
 function into the function’s output refinement type.
 
-Refinement Reflection proccedds in 3 steps: definition, reflection, and application.
+Refinement Reflection procceds in 3 steps: definition, reflection, and application.
 Consider reflecting the definition of `fib` into the logic
 
 \begin{code}
 {-@ reflect fib @-}
 \end{code}
 
-then the 3 reflection steps will occur: 
+then the following three reflection steps will occur. 
 
 Step 1: Definition 
 ------------------
 Reflection of the Haskell function `fib` defines in logic 
-an _uninterpreted function `fib` that satisfies the conguence axiom.
+an _uninterpreted_ function `fib` that satisfies the conguence axiom.
 
-In the logic the fucntion `fib` is defined 
+In the logic the fucntion `fib` is defined.
 
 ```haskell
 fib :: Int -> Int 
 ```
 
-for which we can only prove the conguence axiom
+SMT only knows that `fib` satisfies the conguence axiom.
 
 \begin{code}
 fibConguence :: Int -> Int -> Proof
@@ -191,7 +188,7 @@ until reflection happens!
 Step 2: Reflection
 ------------------
 
-As a second step, we connect the Haskell function `fib`
+As a second step, Liquid Haskell connects the Haskell function `fib`
 with the omonymous logical function, 
 by reflecting the implementation of `fib` in its result type. 
 
