@@ -740,6 +740,7 @@ specP
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
     <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
+    <|> try (reservedToken "defined"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
     <|> try (reservedToken "bound"    >> liftM PBound  boundP   )
