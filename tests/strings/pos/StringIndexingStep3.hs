@@ -41,7 +41,6 @@ emptyIndexes
 appendGroupNew
 appendUnGroupNew
 appendReorder
-map_append
 
 -}
 
@@ -800,8 +799,21 @@ map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
      :: f:(a -> b) -> xs:Idxes a -> ys:Idxes a 
      -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
   @-}
-map_append = todo 
-
+map_append f IdxEmp ys 
+  =   mapIdxes f (appendIdxes IdxEmp ys)
+  ==. mapIdxes f ys 
+  ==. appendIdxes IdxEmp (mapIdxes f ys)
+  ==. appendIdxes (mapIdxes f IdxEmp) (mapIdxes f ys)
+  *** QED 
+map_append f (Idxs x xs) ys 
+  =   mapIdxes f (appendIdxes (Idxs x xs) ys)
+  ==. mapIdxes f (x `Idxs` (appendIdxes xs ys))
+  ==. f x `Idxs` (mapIdxes f (appendIdxes xs ys))
+  ==. f x `Idxs` (appendIdxes (mapIdxes f xs) (mapIdxes f ys))
+      ? map_append f xs ys 
+  ==. appendIdxes (f x `Idxs` mapIdxes f xs) (mapIdxes f ys)
+  ==. appendIdxes (mapIdxes f (x `Idxs` xs)) (mapIdxes f ys)
+  *** QED 
 
 mapShiftZero :: Idxes Int -> Proof
 {-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
