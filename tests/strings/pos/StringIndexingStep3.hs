@@ -37,15 +37,6 @@ todo =  undefined
 {-
 -- Difficult 
 shiftNewIndexes
-
--- Unknown
-emptyIndexes
-
--- EASY 
-appendGroupNew
-appendUnGroupNew
-appendReorder
-
 -}
 
 
@@ -629,32 +620,6 @@ isGoodIndexConcatFront input input' tg i
   ==. isGoodIndex (concatString input' input) tg (stringLen input' + i) 
   *** QED 
 
-{-@ castGoodIndexesConcatStringShift 
-  :: input:SMTString -> input':SMTString -> target:SMTString 
-  -> is:Idxes (GoodIndex input target)
-  -> is':{Idxes Int | is' == mapIdxes (shift (stringLen input')) is}
-  -> {v:Idxes (GoodIndex {concatString input' input} target) | v == is'}
-  @-}
-castGoodIndexesConcatStringShift :: SMTString -> SMTString -> SMTString -> Idxes Int -> Idxes Int -> Idxes Int 
-castGoodIndexesConcatStringShift _ _ _ _ = todo 
-
-
-
-{-@ castGoodIndexesConcatString 
-  :: input:SMTString -> input':SMTString -> target:SMTString 
-  -> is:Idxes (GoodIndex input target)
-  -> {v:Idxes (GoodIndexTwo input input' target) | v == is }
-  @-}
-castGoodIndexesConcatString :: SMTString -> SMTString -> SMTString -> Idxes Int -> Idxes Int
-castGoodIndexesConcatString input input' tg IdxEmp = IdxEmp 
-castGoodIndexesConcatString _ _ _ _ = todo 
-
-
-
-
-
-
-
 
 {-@ isGoodIndexConcatString 
   :: input:SMTString -> input':SMTString -> tg:SMTString -> i:{Int | i + stringLen tg <= stringLen input }
@@ -909,6 +874,26 @@ appendIdxesEmp (Idxs x xs)
   *** QED 
 
 
+{-@ appendIdxesAssoc :: x:Idxes a -> y:Idxes a -> z:Idxes a 
+     -> {(appendIdxes x (appendIdxes y z)) == (appendIdxes (appendIdxes x y) z) } @-}
+appendIdxesAssoc :: Idxes a -> Idxes a -> Idxes a -> Proof
+appendIdxesAssoc IdxEmp y z 
+  =   appendIdxes IdxEmp (appendIdxes y z)
+  ==. appendIdxes y z
+  ==. appendIdxes (appendIdxes IdxEmp y) z
+  *** QED 
+appendIdxesAssoc (Idxs x xs) y z
+  =   appendIdxes (Idxs x xs) (appendIdxes y z) 
+  ==. Idxs x (appendIdxes xs (appendIdxes y z))
+  ==. Idxs x (appendIdxes (appendIdxes xs y) z)
+        ? appendIdxesAssoc xs y z
+  ==. appendIdxes (Idxs x (appendIdxes xs y)) z
+  ==. appendIdxes (appendIdxes (Idxs x xs) y) z
+  *** QED 
+
+
+
+
 makeIndexesNullRight :: SMTString -> SMTString -> Proof 
 {-@ makeIndexesNullRight 
   :: s1:SMTString 
@@ -945,7 +930,13 @@ appendGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
   -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes x3 x4))
       == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
      } @-}
-appendGroupNew = todo
+appendGroupNew x1 x2 x3 x4 
+  =   (appendIdxes (appendIdxes x1 x2) (appendIdxes x3 x4))
+  ==. (appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4)
+      ? appendIdxesAssoc (appendIdxes x1 x2) x3 x4  
+  ==. (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
+      ? appendIdxesAssoc x1 x2 x3
+  *** QED 
 
 
 
@@ -960,7 +951,11 @@ appendUnGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
   -> {   ((appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4))
       == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
      } @-}
-appendUnGroupNew = todo
+appendUnGroupNew x1 x2 x3 x4 
+  =   appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4
+  ==. appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4
+      ? appendIdxesAssoc x1 x2 x3 
+  *** QED 
 
 
 appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
@@ -973,8 +968,15 @@ appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
   -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes (appendIdxes x3 x4) x5))
       == (appendIdxes (appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4) x5)
      } @-}
-appendReorder = todo
-
+appendReorder x1 x2 x3 x4 x5 
+  =   appendIdxes (appendIdxes x1 x2) (appendIdxes (appendIdxes x3 x4) x5)
+  ==. appendIdxes (appendIdxes x1 x2) (appendIdxes x3 (appendIdxes x4 x5))
+       ? appendIdxesAssoc x3 x4 x5 
+  ==. appendIdxes (appendIdxes (appendIdxes x1 x2) x3) (appendIdxes x4 x5)
+      ? appendIdxesAssoc (appendIdxes x1 x2) x3 (appendIdxes x4 x5) 
+  ==. appendIdxes ((appendIdxes (appendIdxes (appendIdxes x1 x2) x3)) x4) x5
+      ? appendIdxesAssoc (appendIdxes (appendIdxes x1 x2) x3) x4 x5 
+  *** QED 
 
 -- ((x1~x2) ~ ((x3~x4) ~ x5))
 -- == 
