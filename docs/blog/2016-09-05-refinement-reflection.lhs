@@ -45,7 +45,7 @@ fib :: Int -> Int
 propPlusAccum :: Int -> Int -> Proof 
 propOnePlueOne :: () -> Proof 
 fibTwo :: () -> Proof 
-fibConguence :: Int -> Int -> Proof
+fibCongruence :: Int -> Int -> Proof
 fibUp :: Int -> Proof 
 fibTwoPretty :: () -> Proof 
 fibThree :: () -> Proof 
