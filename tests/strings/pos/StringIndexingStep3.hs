@@ -866,7 +866,9 @@ shiftNewIndexes xi yi zi tg
   *** QED 
 
 
-shiftNewIndexes xi yi zi tg = todo 
+shiftNewIndexes xi yi zi tg 
+  | stringLen yi + 1 <= stringLen tg
+  = todo 
 
 {- 
 shiftNewIndexes xi yi zi tg 
