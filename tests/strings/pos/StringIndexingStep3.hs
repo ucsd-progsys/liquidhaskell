@@ -30,6 +30,7 @@ import Data.Proxy
 import Prelude hiding (mempty, mappend, id, mconcat)
 import Language.Haskell.Liquid.ProofCombinators 
 
+import Data.Maybe 
 
 todo =  undefined
 
@@ -118,8 +119,15 @@ data MI (target :: Symbol) s where
 
 {-@ data MI target s 
   = MI { input :: SMTString
+       , idxes :: Idxes Int 
+       } @-}
+
+
+{- data MI target s 
+  = MI { input :: SMTString
        , idxes :: Idxes (GoodIndex input target)
        } @-}
+
 
 {-@ measure indixesMI @-}
 indixesMI (MI _ is) = is 
@@ -130,6 +138,10 @@ inputMI (MI i _) = i
 
 {-@ type GoodIndex Input Target 
   = {i:Int |  IsGoodIndex Input Target i}
+  @-}
+
+{-@ type GoodIndexTwo Input Input2 Target 
+  = {i:Int |  IsGoodIndex Input Target i && IsGoodIndex (concatString Input Input2) Target i }
   @-}
 
 {-@ predicate IsGoodIndex Input Target I
@@ -148,22 +160,12 @@ mempty = MI stringEmp IdxEmp
 {-@ reflect mappend @-}
 mappend :: forall (target :: Symbol).  (KnownSymbol target) => MI target SMTString -> MI target SMTString -> MI target SMTString
 mappend (MI i1 is1) (MI i2 is2)
-  = MI (concatString i1 i2)  (mappendMakeIndixes i1 i2 (fromString (symbolVal (Proxy :: Proxy target))) is1 is2)
-
-{-@ reflect mappendMakeIndixes @-}
-mappendMakeIndixes :: SMTString -> SMTString -> SMTString ->  Idxes Int -> Idxes Int -> Idxes Int
-{-@ mappendMakeIndixes 
-      :: i1:SMTString 
-      -> i2:SMTString 
-      -> tg:SMTString 
-      -> Idxes (GoodIndex i1 tg) -> Idxes (GoodIndex i2 tg) -> Idxes (GoodIndex {concatString i1 i2} tg) @-}
-mappendMakeIndixes i1 i2 target is1 is2 = 
-   (is1 
-      `appendIdxes` 
-    makeIndexes i1 i2 target)
-      `appendIdxes` 
-    mapIdxes (shift (stringLen i1)) is2
-            
+  = MI (concatString i1 i2) -- (mappendMakeIndixes i1 i2 (fromString (symbolVal (Proxy :: Proxy target))) is1 is2)
+    ((is1 
+        `appendIdxes` 
+      makeIndexes i1 i2 (fromString (symbolVal (Proxy :: Proxy target))))
+        `appendIdxes` 
+      mapIdxes (shift (stringLen i1)) is2)            
  
 
 -------------------------------------------------------------------------------
@@ -227,10 +229,7 @@ mempty_right (MI i is)
   *** QED 
 
 {-@ mappend_assoc 
-  :: forall <p :: Int -> Prop>. 
-      {input::SMTString, input'::SMTString, target::SMTString |- GoodIndex input target <: GoodIndex {concatString input input'} target } 
-      {input::SMTString, input'::SMTString, target::SMTString, is::Idxes (GoodIndex input target) |- {v:Idxes Int | v == mapIdxes (shift (stringLen input')) is} <: GoodIndex {concatString input' input} target } 
-     x:MI target SMTString -> y:MI target SMTString -> z:MI target SMTString
+  :: x:MI target SMTString -> y:MI target SMTString -> z:MI target SMTString
   -> {v:Proof | mappend x (mappend y z) = mappend (mappend x y) z}
   @-}
 mappend_assoc 
@@ -379,7 +378,7 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
                     `appendIdxes` makeIndexes yi zi (fromString (symbolVal (Proxy :: Proxy target))))
                     `appendIdxes` mapIdxes (shift (stringLen yi)) zis)
               )
-        ? emptyIndexes y yis
+        ? emptyIndexes y (assumeGoodIndex yi (fromString (symbolVal (Proxy :: Proxy target))) yis)
   ==. MI (concatString (concatString xi yi) zi)  
          ((xis `appendIdxes` 
                makeIndexes xi (concatString yi zi) (fromString (symbolVal (Proxy :: Proxy target))))
@@ -477,18 +476,11 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
             (makeIndexes (concatString xi yi) zi (fromString (symbolVal (Proxy :: Proxy target)))))
          `appendIdxes` 
             mapIdxes (shift (stringLen (concatString xi yi))) zis )
-      ?emptyIndexes y yis
+      ?emptyIndexes y (assumeGoodIndex yi (fromString (symbolVal (Proxy :: Proxy target))) yis)
   ==. mappend (MI (concatString xi yi)  
                   ( (xis `appendIdxes` makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
                          `appendIdxes` mapIdxes (shift (stringLen xi)) yis
                   )
-              ) (MI zi zis)
-  ==. mappend (MI (concatString xi yi)  
-                  ( castGoodIndexesConcatString xi yi (fromString (symbolVal (Proxy :: Proxy target))) xis
-                    )
-              ) (MI zi zis)
-  ==. mappend (MI (concatString xi yi)
-                   (mappendMakeIndixes xi yi (fromString (symbolVal (Proxy :: Proxy target))) xis yis) 
               ) (MI zi zis)
   ==. mappend (mappend (MI xi xis) (MI yi yis)) (MI zi zis)
   *** QED 
@@ -498,8 +490,27 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
 -------------------------------------------------------------------------------
 
 
+{-@ assumeGoodIndex :: input:SMTString -> target:SMTString -> is:Idxes Int 
+                    -> {v:Idxes (GoodIndex input target) | v == is} @-} 
+assumeGoodIndex :: SMTString -> SMTString -> Idxes Int -> Idxes Int 
+assumeGoodIndex input target is 
+  = if isJust (areGoodIndexes input target is) then fromJust (areGoodIndexes input target is) else error ""  
 
 
+{-@ areGoodIndexes :: input:SMTString -> target:SMTString -> is:Idxes Int 
+                   -> Maybe ({v:Idxes (GoodIndex input target) | v == is}) @-} 
+areGoodIndexes :: SMTString -> SMTString -> Idxes Int -> Maybe (Idxes Int) 
+areGoodIndexes input target IdxEmp
+  = Just IdxEmp
+areGoodIndexes input target (Idxs x xs)
+  | isGoodIndex input target x 
+  = case areGoodIndexes input target xs of 
+       Nothing -> Nothing 
+       Just is -> Just (Idxs x is) 
+  | otherwise
+  = Nothing 
+
+  
 emptyIndexes :: forall (target :: Symbol). (KnownSymbol target) => MI target SMTString -> Idxes Int  -> Proof
 {-@ emptyIndexes :: mi:MI target SMTString
                  -> is:{Idxes (GoodIndex (inputMI mi) target) | is == indixesMI mi && stringLen (inputMI mi) < stringLen target}
@@ -632,11 +643,14 @@ castGoodIndexesConcatStringShift _ _ _ _ = todo
 {-@ castGoodIndexesConcatString 
   :: input:SMTString -> input':SMTString -> target:SMTString 
   -> is:Idxes (GoodIndex input target)
-  -> {v:Idxes (GoodIndex {concatString input input'} target) | v == is }
+  -> {v:Idxes (GoodIndexTwo input input' target) | v == is }
   @-}
 castGoodIndexesConcatString :: SMTString -> SMTString -> SMTString -> Idxes Int -> Idxes Int
 castGoodIndexesConcatString input input' tg IdxEmp = IdxEmp 
 castGoodIndexesConcatString _ _ _ _ = todo 
+
+
+
 
 
 
