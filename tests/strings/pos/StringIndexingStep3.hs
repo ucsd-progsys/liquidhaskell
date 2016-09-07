@@ -544,30 +544,35 @@ shiftIndexesLeft xi yi zi tg
   | otherwise
   =   makeIndexes xi (concatString yi zi) tg 
   ==. makeIndexes' (concatString xi (concatString yi zi)) tg 
-                   (maxInt (stringLen xi - (stringLen tg-1)) (-1))
+                   (maxInt (stringLen xi - (stringLen tg-1)) 0)
                    (stringLen xi - 1)
   ==. makeIndexes' (concatString (concatString xi yi) zi) tg 
-                   (maxInt (stringLen xi - (stringLen tg-1)) (-1))
+                   (maxInt (stringLen xi - (stringLen tg-1)) 0)
                    (stringLen xi - 1)
      ?concatStringAssoc xi yi zi 
   ==. makeIndexes' (concatString xi yi) tg 
-                   (maxInt (stringLen xi - (stringLen tg-1)) (-1))
+                   (maxInt (stringLen xi - (stringLen tg-1)) 0)
                    (stringLen xi - 1)                
-      ? concatMakeIndexes (maxInt (stringLen xi - (stringLen tg-1)) (-1)) (stringLen xi - 1) tg (concatString xi yi) zi 
+      ? concatMakeIndexes (maxInt (stringLen xi - (stringLen tg-1)) 0) (stringLen xi - 1) tg (concatString xi yi) zi 
   ==. makeIndexes xi yi tg 
   *** QED 
 
 
 
 {-@ concatMakeIndexes
-  :: lo:{Int | -1 <= lo} -> hi:{Int | lo <= hi}
+  :: lo:Nat -> hi:Int
   -> target: SMTString
   -> input : {SMTString | hi + stringLen target <= stringLen input } 
   -> input': SMTString   
   -> {  makeIndexes' (concatString input input') target lo hi == makeIndexes' input target lo hi }
   / [hi - lo]  @-}
 concatMakeIndexes :: Int -> Int -> SMTString -> SMTString -> SMTString  -> Proof
-concatMakeIndexes lo hi target input input' 
+concatMakeIndexes lo hi target input input'
+  | hi < lo 
+  =   makeIndexes' input target lo hi
+  ==. IdxEmp
+  ==. makeIndexes' (concatString input input') target lo hi 
+  *** QED 
   | lo == hi, isGoodIndex input target lo
   =   makeIndexes' input target lo hi
   ==. lo `Idxs` IdxEmp
@@ -663,10 +668,13 @@ shiftIndexesRight xi yi zi tg
   ==. mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg)
   *** QED 
 shiftIndexesRight xi yi zi tg
---   | stringLen tg - 2  <= stringLen yi
+-- NV NV NV 
+-- This is suspicious!!! it should require exactly the precondition 
+-- || tg || <= || yi || 
+--   | stringLen tg  <= stringLen yi + 1 
   =   makeIndexes (concatString xi yi) zi tg  
   ==. makeIndexes' (concatString (concatString xi yi) zi) tg 
-                   (maxInt (stringLen (concatString xi yi) - (stringLen tg -1)) (-1))
+                   (maxInt (stringLen (concatString xi yi) - (stringLen tg -1)) 0)
                    (stringLen (concatString xi yi) - 1 )
   ==. makeIndexes' (concatString (concatString xi yi) zi) tg 
                    (stringLen (concatString xi yi) - (stringLen tg -1))
@@ -686,7 +694,7 @@ shiftIndexesRight xi yi zi tg
                             tg 
   ==. mapIdxes (shift (stringLen xi)) 
                (makeIndexes' (concatString yi zi) tg 
-                             (maxInt (stringLen yi - (stringLen tg -1)) (-1))
+                             (maxInt (stringLen yi - (stringLen tg -1)) 0)
                              (stringLen yi -1))
   ==. mapIdxes (shift (stringLen xi)) 
                (makeIndexes yi zi tg)
@@ -694,6 +702,24 @@ shiftIndexesRight xi yi zi tg
 
 
 
+dropConcatMakeIndexes :: 
+      SMTString
+   -> SMTString 
+   -> SMTString 
+   -> Int
+   -> Int 
+   -> Proof
+
+
+{-@ dropConcatMakeIndexes ::
+      x:SMTString
+   -> y:SMTString 
+   -> tg:SMTString 
+   -> lo:Int
+   -> hi:{Int | hi + (stringLen tg -1) <= stringLen x  } 
+   -> {makeIndexes' (concatString x y) tg lo hi == makeIndexes' x tg lo hi }
+@-}
+dropConcatMakeIndexes = todo 
 
 {-@ shiftIndexesRight'
   :: lo:Nat 
@@ -752,7 +778,163 @@ shiftIndexesRight' lo hi x input target
      }
   @-}
 shiftNewIndexes :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
-shiftNewIndexes = todo 
+shiftNewIndexes xi yi zi tg 
+  | stringLen tg < 2 
+  =   appendIdxes (makeIndexes xi (concatString yi zi) tg) (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg)) 
+  ==. appendIdxes IdxEmp (mapIdxes (shift (stringLen xi)) IdxEmp) 
+  ==. mapIdxes (shift (stringLen xi)) IdxEmp 
+  ==. IdxEmp 
+  ==. appendIdxes IdxEmp IdxEmp
+  ==. appendIdxes (makeIndexes xi yi tg) (makeIndexes (concatString xi yi) zi tg)
+  *** QED 
+shiftNewIndexes xi yi zi tg 
+  | 0 <= (stringLen xi - stringLen tg + 1)
+  , 0 <= (stringLen yi - stringLen tg +1)
+  =   appendIdxes (makeIndexes xi (concatString yi zi) tg) 
+                  (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg)) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (maxInt (stringLen xi - stringLen tg + 1) 0)
+                                (stringLen xi -1)) 
+                  (mapIdxes (shift (stringLen xi)) 
+                            (makeIndexes' (concatString yi zi) tg
+                                          (maxInt (stringLen yi - stringLen tg +1) 0)
+                                          (stringLen yi -1)
+                            )) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (mapIdxes (shift (stringLen xi)) 
+                            (makeIndexes' (concatString yi zi) tg
+                                          (stringLen yi - stringLen tg +1)
+                                          (stringLen yi -1)
+                            )) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (makeIndexes' (concatString xi (concatString yi zi)) tg 
+                                (stringLen xi + stringLen yi - stringLen tg +1)
+                                (stringLen xi + stringLen yi -1))
+
+      ? shiftIndexesRight' (stringLen yi - stringLen tg +1) (stringLen yi -1) xi (concatString yi zi) tg 
+
+  ==. appendIdxes (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg 
+                                (stringLen xi + stringLen yi - stringLen tg +1)
+                                (stringLen xi + stringLen yi -1))
+
+      ? concatStringAssoc xi yi zi 
+
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg 
+                                (stringLen xi + stringLen yi - stringLen tg +1)
+                                (stringLen xi + stringLen yi -1))
+
+      ? dropConcatMakeIndexes (concatString xi yi) zi tg (stringLen xi - stringLen tg + 1) (stringLen xi -1)
+
+  --- NV HERE                 
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (stringLen xi - stringLen tg +1)
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (stringLen xi + stringLen yi - stringLen tg + 1)
+                                (stringLen xi + stringLen yi - 1)
+                  )
+
+
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (stringLen xi - stringLen tg +1)
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (maxInt (stringLen xi + stringLen yi - stringLen tg + 1) 0)
+                                (stringLen xi + stringLen yi - 1)
+                  )
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (maxInt (stringLen xi - stringLen tg +1) 0)
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (maxInt (stringLen (concatString xi yi) - stringLen tg + 1) 0)
+                                (stringLen (concatString xi yi) - 1)
+                  )
+  ==. appendIdxes (makeIndexes xi yi tg) (makeIndexes (concatString xi yi) zi tg)
+  *** QED 
+
+
+shiftNewIndexes xi yi zi tg = todo 
+
+{- 
+shiftNewIndexes xi yi zi tg 
+  | -1 <= (stringLen xi - stringLen tg + 1)
+  , (stringLen yi - stringLen tg +1) <= -1 
+  =   appendIdxes (makeIndexes xi (concatString yi zi) tg) 
+                  (mapIdxes (shift (stringLen xi)) (makeIndexes yi zi tg)) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (maxInt (stringLen xi - stringLen tg + 1) (-1))
+                                (stringLen xi -1)) 
+                  (mapIdxes (shift (stringLen xi)) 
+                            (makeIndexes' (concatString yi zi) tg
+                                          (maxInt (stringLen yi - stringLen tg +1) (-1))
+                                          (stringLen yi -1)
+                            )) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (mapIdxes (shift (stringLen xi)) 
+                            (makeIndexes' (concatString yi zi) tg
+                                          (-1)
+                                          (stringLen yi -1)
+                            )) 
+  ==. appendIdxes (makeIndexes' (concatString xi (concatString yi zi)) tg
+                                (stringLen xi - stringLen tg + 1)
+                                (stringLen xi -1)) 
+                  (makeIndexes' (concatString xi (concatString yi zi)) tg 
+                                (stringLen xi -1)
+                                (stringLen xi + stringLen yi -1))
+
+      ? shiftIndexesRight' (-1) (stringLen yi -1) xi (concatString yi zi) tg 
+
+
+  --- NV HERE                 
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (stringLen xi - stringLen tg +1)
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (stringLen xi + stringLen yi - stringLen tg + 1)
+                                (stringLen xi + stringLen yi - 1)
+                  )
+
+
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (stringLen xi - stringLen tg +1)
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (maxInt (stringLen xi + stringLen yi - stringLen tg + 1) (-1))
+                                (stringLen xi + stringLen yi - 1)
+                  )
+  ==. appendIdxes (makeIndexes' (concatString xi yi) tg 
+                                (maxInt (stringLen xi - stringLen tg +1) (-1))
+                                (stringLen xi-1)
+                  ) 
+                  (makeIndexes' (concatString (concatString xi yi) zi) tg
+                                (maxInt (stringLen (concatString xi yi) - stringLen tg + 1) (-1))
+                                (stringLen (concatString xi yi) - 1)
+                  )
+  ==. appendIdxes (makeIndexes xi yi tg) (makeIndexes (concatString xi yi) zi tg)
+  *** QED 
+
+-}
+
+
+
+
 
 map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
 {-@ map_len_fusion 
@@ -826,7 +1008,7 @@ makeIndexes s1 s2 target
   = IdxEmp
   | otherwise
   = makeIndexes' (concatString s1 s2) target
-                 (maxInt (stringLen s1 - (stringLen target-1)) (-1))
+                 (maxInt (stringLen s1 - (stringLen target-1)) 0)
                  (stringLen s1 - 1)
 
 
@@ -837,8 +1019,10 @@ maxInt x y = if x <= y then y else x
 {-@ reflect makeIndexes' @-}
 
 makeIndexes' :: SMTString -> SMTString -> Int -> Int -> Idxes Int 
-{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:{Int | -1 <= lo} -> hi:{Int | lo <= hi} -> Idxes (GoodIndex input target) / [hi - lo] @-}
+{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:{Int | 0 <= lo} -> hi:Int -> Idxes (GoodIndex input target) / [hi - lo] @-}
 makeIndexes' input target lo hi 
+  | hi < lo 
+  = IdxEmp
   | lo == hi, isGoodIndex input target lo
   = lo `Idxs` IdxEmp
   | lo == hi 
@@ -905,13 +1089,13 @@ makeIndexesNullRight s t
 makeIndexesNullRight s t 
   =   makeIndexes stringEmp s t
   ==. makeIndexes' (concatString stringEmp s) t
-                   (maxInt (1 + stringLen stringEmp - stringLen t) (-1))
+                   (maxInt (1 + stringLen stringEmp - stringLen t) 0)
                    (stringLen stringEmp - 1)
   ==. makeIndexes' s t
-                   (maxInt (1 - stringLen t) (-1))
+                   (maxInt (1 - stringLen t) 0)
                    (-1)
       ? concatStringNeutralRight s 
-  ==. makeIndexes' s t (-1) (-1)
+  ==. makeIndexes' s t 0 (-1)
   ==. IdxEmp ? makeIndexesNullRightEmp s t  
   *** QED 
 
@@ -1014,11 +1198,10 @@ mapShiftZero (Idxs i is)
   *** QED 
 
 
-{-@ makeIndexesNullRightEmp :: s:SMTString -> t:SMTString -> {makeIndexes' s t (-1) (-1) == IdxEmp } @-}
+{-@ makeIndexesNullRightEmp :: s:SMTString -> t:SMTString -> {makeIndexes' s t 0 (-1) == IdxEmp } @-}
 makeIndexesNullRightEmp :: SMTString -> SMTString -> Proof
 makeIndexesNullRightEmp s t 
-  | not (isGoodIndex s t (-1))
-  =   makeIndexes' s t (-1) (-1) 
+  =   makeIndexes' s t 0 (-1) 
   ==. IdxEmp
   *** QED 
 
@@ -1031,24 +1214,24 @@ makeIndexesNullLeft s t
   | stringLen t < 2 
   = makeIndexes s stringEmp t ==. IdxEmp *** QED 
 makeIndexesNullLeft  s t 
-  | 2 + stringLen s <= stringLen t
+  | 1 + stringLen s <= stringLen t
   =   makeIndexes s stringEmp t
   ==. makeIndexes' (concatString s stringEmp) t
-                   (maxInt (1 + stringLen s - stringLen t)  (-1))
+                   (maxInt (1 + stringLen s - stringLen t)  0)
                    (stringLen s - 1)
   ==. makeIndexes' s t
-                   (-1)
+                   0
                    (stringLen s - 1) 
                    ? concatStringNeutral s
   ==. makeIndexes' s t
-                   (-1)
+                   0
                    (stringLen s - 1)
-  ==. IdxEmp ? makeIndexesNull1 s t (-1) (stringLen s - 1)
+  ==. IdxEmp ? makeIndexesNull1 s t 0 (stringLen s - 1)
   *** QED 
 makeIndexesNullLeft s t 
   =   makeIndexes s stringEmp t
   ==. makeIndexes' (concatString s stringEmp) t
-                   (maxInt (1 + stringLen s - stringLen t)  (-1))
+                   (maxInt (1 + stringLen s - stringLen t)  0)
                    (stringLen s - 1)
   ==. makeIndexes' (concatString s stringEmp) t
                    (1 + stringLen s - stringLen t)
@@ -1063,11 +1246,13 @@ makeIndexesNullLeft s t
 makeIndexesNull1 :: SMTString -> SMTString -> Int -> Int -> Proof 
 {-@ makeIndexesNull1 
   :: s:SMTString 
-  -> t:{SMTString |  2 + stringLen s <= stringLen t } 
-  -> lo:{Int | -1 <= lo } 
-  -> hi:{Int | lo <= hi}
+  -> t:{SMTString | 1 + stringLen s <= stringLen t } 
+  -> lo:Nat 
+  -> hi:Int
   -> {makeIndexes' s t lo hi == IdxEmp } / [hi - lo] @-} 
 makeIndexesNull1 s1 t lo hi
+  | hi < lo 
+  = makeIndexes' s1 t lo hi ==. IdxEmp *** QED 
   | lo == hi, not (isGoodIndex s1 t lo)
   = makeIndexes' s1 t lo hi ==. IdxEmp *** QED  
   | not (isGoodIndex s1 t lo)
