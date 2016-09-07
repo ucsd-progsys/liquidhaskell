@@ -71,6 +71,8 @@ module Language.Haskell.Liquid.Types.RefType (
 
   , updateRTVar, isValKind, kindToRType
 
+  , rTVarInfo
+
   ) where
 
 -- import           GHC.Stack
@@ -364,7 +366,6 @@ updateRTVar (RTVar (RTV a) _) = RTVar (RTV a) (rTVarInfo a)
 
 rTVar :: Monoid r => TyVar -> RTVar RTyVar (RType RTyCon RTyVar r)
 rTVar a = RTVar (RTV a) (rTVarInfo a)
-  where
 
 rTVarInfo :: Monoid r => TyVar -> RTVInfo (RType RTyCon RTyVar r) 
 rTVarInfo a = RTVInfo { rtv_name   = symbol $ varName a 

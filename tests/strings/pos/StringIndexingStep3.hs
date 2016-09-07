@@ -15,9 +15,11 @@ NV TODO
 {-# LANGUAGE GADTs               #-}
 
 
-{-@ LIQUID "--higherorder"       @-}
-{-@ LIQUID "--totality"          @-}
-{-@ LIQUID "--exactdc"           @-}
+{-@ LIQUID "--higherorder"         @-}
+{-@ LIQUID "--totality"            @-}
+{-@ LIQUID "--exactdc"             @-}
+{-@ LIQUID "--scrape-imports"      @-}
+{-@ LIQUID "--scrape-used-imports" @-}
 
 module Main where
 
@@ -48,25 +50,24 @@ appendReorder
 main :: IO ()
 main = 
   do input     <- fromString <$> readFile "input.txt"
-     let target = fromString "abcab"
-     let mi1    = toMI    target input :: MI "abcab" SMTString
+     let mi1    = toMI input :: MI "abcab" SMTString
      let is1    = getIndex mi1 
      putStrLn ("Serial   Indices: " ++ show is1)
-     let mi2    = toMIPar target input :: MI "abcab" SMTString
+     let mi2    = toMIPar input :: MI "abcab" SMTString
      let is2    = getIndex mi2 
      putStrLn ("Parallel Indices: " ++ show is2)
      putStrLn ("Are equal? " ++ show (is1 == is2))
 
-test1 = indices target1 input1 
+test1 = indices input1 
 target1 = fromString "abcab"
 input1  = fromString $ clone 100 "ababcabcab"
 
 
 -- Interface 
 
-indices :: SMTString -> SMTString -> Idxes Int 
-indices target input 
-  = case toMI target input :: MI "abcab" SMTString  of 
+indices :: SMTString -> Idxes Int 
+indices input 
+  = case toMI input :: MI "abcab" SMTString  of 
       MI _ i -> i 
 
 mconcatPar :: forall (target :: Symbol). (KnownSymbol target) =>  Int -> [MI target SMTString] -> MI target SMTString
@@ -80,14 +81,14 @@ mconcatPar' n xs | length xs <= n = [mconcat xs]
 mconcatPar' n xs = let (x, r) = splitAt n xs 
                    in mconcatPar' n (mconcat x:mconcatPar' n r)
 
-toMIPar :: forall (target :: Symbol). (KnownSymbol target) =>   SMTString -> SMTString -> MI target SMTString 
-toMIPar target input = mconcatPar n2 (toMI target <$> chunkString n1 input)
+toMIPar :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target SMTString 
+toMIPar input = mconcatPar n2 (toMI <$> chunkString n1 input)
   where
     n1 = 2
     n2 = 2
 
-toMI :: forall (target :: Symbol). (KnownSymbol target) =>   SMTString -> SMTString -> MI target SMTString 
-toMI target input = if isNullString input then mempty else  MI input (makeIndexes' input target 0 (stringLen input - 1))
+toMI :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target SMTString 
+toMI input = if isNullString input then mempty else  MI input (makeIndexes' input (fromString (symbolVal (Proxy :: Proxy target))) 0 (stringLen input - 1))
 
 getIndex :: forall (target :: Symbol).  MI target SMTString -> Idxes Int 
 getIndex (MI _ i) = i 
@@ -109,15 +110,15 @@ data MI (target :: Symbol) s where
 
 {-@ data MI target s 
   = MI { input :: SMTString
-       , idxes :: Idxes Int
-       } @-}
-
-
-
-{-@ data MI (target :: Symbol) s 
-  = MI { input :: SMTString
        , idxes :: Idxes (GoodIndex input target)
        } @-}
+
+{-@ measure indixesMI @-}
+indixesMI (MI _ is) = is 
+{-@ measure inputMI @-}
+inputMI (MI i _) = i 
+
+
 
 {-@ type GoodIndex Input Target 
   = {i:Int |  IsGoodIndex Input Target i}
@@ -465,12 +466,14 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
 
 
 
-
-emptyIndexes :: forall (target :: Symbol). (KnownSymbol target) => MI target SMTString -> Idxes Int -> Proof
-{-@ emptyIndexes :: MI target SMTString -> is:Idxes Int -> { is == IdxEmp } @-}
-{- emptyIndexes :: MI target {i:SMTString | stringLen i < stringLen target } -> is:{Idxes Int | is == indexes mi } -> { is == IdxEmp } @-}
-emptyIndexes = todo 
-
+emptyIndexes :: forall (target :: Symbol). (KnownSymbol target) => MI target SMTString -> Idxes Int  -> Proof
+{-@ emptyIndexes :: mi:MI target SMTString
+                 -> is:{Idxes (GoodIndex (inputMI mi) target) | is == indixesMI mi && stringLen (inputMI mi) < stringLen target}
+                 -> { is == IdxEmp } @-}
+emptyIndexes (MI _ _) IdxEmp 
+  = trivial 
+emptyIndexes (MI _ _) (Idxs _ _)
+  = trivial 
 
 
 {-@ shiftIndexes
@@ -861,6 +864,7 @@ shift x y = x + y
 {-@ measure symbolVal :: p n -> String @-}
 
 {-@ reflect makeIndexes @-}
+{-@ makeIndexes :: s1:SMTString -> s2:SMTString -> target:SMTString -> Idxes (GoodIndex {concatString s1 s2} target) @-}
 makeIndexes :: SMTString -> SMTString -> SMTString -> Idxes Int 
 makeIndexes s1 s2 target
   | stringLen target < 2 
