@@ -48,6 +48,8 @@ appendReorder
 -}
 
 
+-- | Interface 
+
 main :: IO ()
 main = 
   do input     <- fromString <$> readFile "input.txt"
@@ -59,12 +61,9 @@ main =
      putStrLn ("Parallel Indices: " ++ show is2)
      putStrLn ("Are equal? " ++ show (is1 == is2))
 
-test1 = indices input1 
-target1 = fromString "abcab"
+test1   = indices input1 
 input1  = fromString $ clone 100 "ababcabcab"
 
-
--- Interface 
 
 indices :: SMTString -> Idxes Int 
 indices input 
@@ -99,14 +98,22 @@ clone i xs | i <= 0 = []
 clone 1 xs = xs 
 clone n xs = xs ++ clone (n-1) xs
 
+mconcat :: forall (target :: Symbol). (KnownSymbol target) => [MI target SMTString] -> MI target SMTString
+mconcat []       = mempty 
+mconcat [x]      = x 
+mconcat [x1, x2] = mappend x1 x2 
+mconcat (x:xs)   = mappend x (mconcat xs)
+
+
+-- | Indexing Structure Definition 
 
 -- Structure that defines valid indeces of a type level target 
 -- symbol in a value level string
 
 data MI (target :: Symbol) s where 
-  MI ::               SMTString        -- input string
-                   -> (Idxes Int)      -- valid indeces of target in input
-                   -> MI target s
+  MI :: SMTString        -- input string
+     -> (Idxes Int)      -- valid indeces of target in input
+     -> MI target s
   deriving (Show)
 
 {-@ data MI target s 
@@ -132,12 +139,7 @@ inputMI (MI i _) = i
   @-}
 
 
-mconcat :: forall (target :: Symbol). (KnownSymbol target) => [MI target SMTString] -> MI target SMTString
-mconcat []       = mempty 
-mconcat [x]      = x 
-mconcat [x1, x2] = mappend x1 x2 
-mconcat (x:xs)   = mappend x (mconcat xs)
-
+-- | Monoid methods 
 
 {-@ reflect mempty @-}
 mempty :: forall (target :: Symbol). MI target SMTString
@@ -146,11 +148,28 @@ mempty = MI stringEmp IdxEmp
 {-@ reflect mappend @-}
 mappend :: forall (target :: Symbol).  (KnownSymbol target) => MI target SMTString -> MI target SMTString -> MI target SMTString
 mappend (MI i1 is1) (MI i2 is2)
-  = MI (concatString i1 i2)  
-       ((is1 `appendIdxes` makeIndexes i1 i2 (fromString (symbolVal (Proxy :: Proxy target))))
-             `appendIdxes` mapIdxes (shift (stringLen i1)) is2)
+  = MI (concatString i1 i2)  (mappendMakeIndixes i1 i2 (fromString (symbolVal (Proxy :: Proxy target))) is1 is2)
+
+{-@ reflect mappendMakeIndixes @-}
+mappendMakeIndixes :: SMTString -> SMTString -> SMTString ->  Idxes Int -> Idxes Int -> Idxes Int
+{-@ mappendMakeIndixes 
+      :: i1:SMTString 
+      -> i2:SMTString 
+      -> tg:SMTString 
+      -> Idxes (GoodIndex i1 tg) -> Idxes (GoodIndex i2 tg) -> Idxes (GoodIndex {concatString i1 i2} tg) @-}
+mappendMakeIndixes i1 i2 target is1 is2 = 
+   (is1 
+      `appendIdxes` 
+    makeIndexes i1 i2 target)
+      `appendIdxes` 
+    mapIdxes (shift (stringLen i1)) is2
             
  
+
+-------------------------------------------------------------------------------
+--------------- PROOFS  -------------------------------------------------------
+-------------------------------------------------------------------------------
+
 mempty_left :: forall (target :: Symbol). (KnownSymbol target) => MI target SMTString -> Proof
 {-@ mempty_left :: xs:MI target SMTString -> {mappend xs mempty == xs } @-}
 mempty_left (MI i1 is1)
@@ -208,8 +227,11 @@ mempty_right (MI i is)
   *** QED 
 
 {-@ mappend_assoc 
-  :: x:MI target SMTString -> y:MI target SMTString -> z:MI target SMTString
-  -> {mappend x (mappend y z) = mappend (mappend x y) z}
+  :: forall <p :: Int -> Prop>. 
+      {input::SMTString, input'::SMTString, target::SMTString |- GoodIndex input target <: GoodIndex {concatString input input'} target } 
+      {input::SMTString, input'::SMTString, target::SMTString, is::Idxes (GoodIndex input target) |- {v:Idxes Int | v == mapIdxes (shift (stringLen input')) is} <: GoodIndex {concatString input' input} target } 
+     x:MI target SMTString -> y:MI target SMTString -> z:MI target SMTString
+  -> {v:Proof | mappend x (mappend y z) = mappend (mappend x y) z}
   @-}
 mappend_assoc 
      :: forall (target :: Symbol). (KnownSymbol target) 
@@ -458,11 +480,22 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
       ?emptyIndexes y yis
   ==. mappend (MI (concatString xi yi)  
                   ( (xis `appendIdxes` makeIndexes xi yi (fromString (symbolVal (Proxy :: Proxy target))))
-                       `appendIdxes` mapIdxes (shift (stringLen xi)) yis
+                         `appendIdxes` mapIdxes (shift (stringLen xi)) yis
                   )
+              ) (MI zi zis)
+  ==. mappend (MI (concatString xi yi)  
+                  ( castGoodIndexesConcatString xi yi (fromString (symbolVal (Proxy :: Proxy target))) xis
+                    )
+              ) (MI zi zis)
+  ==. mappend (MI (concatString xi yi)
+                   (mappendMakeIndixes xi yi (fromString (symbolVal (Proxy :: Proxy target))) xis yis) 
               ) (MI zi zis)
   ==. mappend (mappend (MI xi xis) (MI yi yis)) (MI zi zis)
   *** QED 
+
+-------------------------------------------------------------------------------
+------------------ Helper Proofs ----------------------------------------------
+-------------------------------------------------------------------------------
 
 
 
@@ -584,6 +617,27 @@ isGoodIndexConcatFront input input' tg i
       ? (subStringConcatFront input input' (stringLen tg) i *** QED)
   ==. isGoodIndex (concatString input' input) tg (stringLen input' + i) 
   *** QED 
+
+{-@ castGoodIndexesConcatStringShift 
+  :: input:SMTString -> input':SMTString -> target:SMTString 
+  -> is:Idxes (GoodIndex input target)
+  -> is':{Idxes Int | is' == mapIdxes (shift (stringLen input')) is}
+  -> {v:Idxes (GoodIndex {concatString input' input} target) | v == is'}
+  @-}
+castGoodIndexesConcatStringShift :: SMTString -> SMTString -> SMTString -> Idxes Int -> Idxes Int -> Idxes Int 
+castGoodIndexesConcatStringShift _ _ _ _ = todo 
+
+
+
+{-@ castGoodIndexesConcatString 
+  :: input:SMTString -> input':SMTString -> target:SMTString 
+  -> is:Idxes (GoodIndex input target)
+  -> {v:Idxes (GoodIndex {concatString input input'} target) | v == is }
+  @-}
+castGoodIndexesConcatString :: SMTString -> SMTString -> SMTString -> Idxes Int -> Idxes Int
+castGoodIndexesConcatString input input' tg IdxEmp = IdxEmp 
+castGoodIndexesConcatString _ _ _ _ = todo 
+
 
 
 
@@ -749,85 +803,6 @@ map_len_fusion xi yi (Idxs i is)
   *** QED 
 
 
--- (x1 ~ x2) ~ (x3 ~ x4)
--- == 
--- ((x1 ~ (x2 ~ x3)) ~ x4)
-
-
-appendGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
-{-@ appendGroupNew 
-  :: x1:Idxes a 
-  -> x2:Idxes a 
-  -> x3:Idxes a 
-  -> x4:Idxes a 
-  -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes x3 x4))
-      == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
-     } @-}
-appendGroupNew = todo
-
-
-
--- (x1 ~ (x2 ~ x3)) ~ x4 == ((x1 ~ x2) ~ x3) ~ x4
-
-appendUnGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
-{-@ appendUnGroupNew 
-  :: x1:Idxes a 
-  -> x2:Idxes a 
-  -> x3:Idxes a 
-  -> x4:Idxes a 
-  -> {   ((appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4))
-      == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
-     } @-}
-appendUnGroupNew = todo
-
-
-appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
-{-@ appendReorder 
-  :: x1:Idxes a 
-  -> x2:Idxes a 
-  -> x3:Idxes a 
-  -> x4:Idxes a 
-  -> x5:Idxes a 
-  -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes (appendIdxes x3 x4) x5))
-      == (appendIdxes (appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4) x5)
-     } @-}
-appendReorder = todo
-
-
--- ((x1~x2) ~ ((x3~x4) ~ x5))
--- == 
---   ((((x1~x2) ~x3) ~x4) ~x5
-
-map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
-{-@ map_append 
-     :: f:(a -> b) -> xs:Idxes a -> ys:Idxes a 
-     -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
-  @-}
-map_append f IdxEmp ys 
-  =   mapIdxes f (appendIdxes IdxEmp ys)
-  ==. mapIdxes f ys 
-  ==. appendIdxes IdxEmp (mapIdxes f ys)
-  ==. appendIdxes (mapIdxes f IdxEmp) (mapIdxes f ys)
-  *** QED 
-map_append f (Idxs x xs) ys 
-  =   mapIdxes f (appendIdxes (Idxs x xs) ys)
-  ==. mapIdxes f (x `Idxs` (appendIdxes xs ys))
-  ==. f x `Idxs` (mapIdxes f (appendIdxes xs ys))
-  ==. f x `Idxs` (appendIdxes (mapIdxes f xs) (mapIdxes f ys))
-      ? map_append f xs ys 
-  ==. appendIdxes (f x `Idxs` mapIdxes f xs) (mapIdxes f ys)
-  ==. appendIdxes (mapIdxes f (x `Idxs` xs)) (mapIdxes f ys)
-  *** QED 
-
-mapShiftZero :: Idxes Int -> Proof
-{-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
-mapShiftZero IdxEmp 
-  = mapIdxes (shift 0) IdxEmp ==. IdxEmp *** QED
-mapShiftZero (Idxs i is)
-  =   mapIdxes (shift 0) (Idxs i is)
-  ==. shift 0 i `Idxs` mapIdxes (shift 0) is 
-  ==. i `Idxs` is ? mapShiftZero is  
-  *** QED 
 
 
 
@@ -939,6 +914,87 @@ makeIndexesNullRight s t
       ? concatStringNeutralRight s 
   ==. makeIndexes' s t (-1) (-1)
   ==. IdxEmp ? makeIndexesNullRightEmp s t  
+  *** QED 
+
+
+-- (x1 ~ x2) ~ (x3 ~ x4)
+-- == 
+-- ((x1 ~ (x2 ~ x3)) ~ x4)
+
+
+appendGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
+{-@ appendGroupNew 
+  :: x1:Idxes a 
+  -> x2:Idxes a 
+  -> x3:Idxes a 
+  -> x4:Idxes a 
+  -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes x3 x4))
+      == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
+     } @-}
+appendGroupNew = todo
+
+
+
+-- (x1 ~ (x2 ~ x3)) ~ x4 == ((x1 ~ x2) ~ x3) ~ x4
+
+appendUnGroupNew :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
+{-@ appendUnGroupNew 
+  :: x1:Idxes a 
+  -> x2:Idxes a 
+  -> x3:Idxes a 
+  -> x4:Idxes a 
+  -> {   ((appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4))
+      == (appendIdxes (appendIdxes x1 (appendIdxes x2 x3)) x4)
+     } @-}
+appendUnGroupNew = todo
+
+
+appendReorder :: Idxes a -> Idxes a -> Idxes a -> Idxes a -> Idxes a -> Proof
+{-@ appendReorder 
+  :: x1:Idxes a 
+  -> x2:Idxes a 
+  -> x3:Idxes a 
+  -> x4:Idxes a 
+  -> x5:Idxes a 
+  -> {   (appendIdxes (appendIdxes x1 x2) (appendIdxes (appendIdxes x3 x4) x5))
+      == (appendIdxes (appendIdxes (appendIdxes (appendIdxes x1 x2) x3) x4) x5)
+     } @-}
+appendReorder = todo
+
+
+-- ((x1~x2) ~ ((x3~x4) ~ x5))
+-- == 
+--   ((((x1~x2) ~x3) ~x4) ~x5
+
+map_append :: (a -> b) -> Idxes a -> Idxes a -> Proof
+{-@ map_append 
+     :: f:(a -> b) -> xs:Idxes a -> ys:Idxes a 
+     -> {mapIdxes f (appendIdxes xs ys) == appendIdxes (mapIdxes f xs) (mapIdxes f ys)}
+  @-}
+map_append f IdxEmp ys 
+  =   mapIdxes f (appendIdxes IdxEmp ys)
+  ==. mapIdxes f ys 
+  ==. appendIdxes IdxEmp (mapIdxes f ys)
+  ==. appendIdxes (mapIdxes f IdxEmp) (mapIdxes f ys)
+  *** QED 
+map_append f (Idxs x xs) ys 
+  =   mapIdxes f (appendIdxes (Idxs x xs) ys)
+  ==. mapIdxes f (x `Idxs` (appendIdxes xs ys))
+  ==. f x `Idxs` (mapIdxes f (appendIdxes xs ys))
+  ==. f x `Idxs` (appendIdxes (mapIdxes f xs) (mapIdxes f ys))
+      ? map_append f xs ys 
+  ==. appendIdxes (f x `Idxs` mapIdxes f xs) (mapIdxes f ys)
+  ==. appendIdxes (mapIdxes f (x `Idxs` xs)) (mapIdxes f ys)
+  *** QED 
+
+mapShiftZero :: Idxes Int -> Proof
+{-@ mapShiftZero :: is:Idxes Int -> {mapIdxes (shift 0) is == is } @-}
+mapShiftZero IdxEmp 
+  = mapIdxes (shift 0) IdxEmp ==. IdxEmp *** QED
+mapShiftZero (Idxs i is)
+  =   mapIdxes (shift 0) (Idxs i is)
+  ==. shift 0 i `Idxs` mapIdxes (shift 0) is 
+  ==. i `Idxs` is ? mapShiftZero is  
   *** QED 
 
 
