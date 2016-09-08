@@ -38,7 +38,6 @@ todo =  undefined
 -- Easy 
 mergeIndixes
 catIndixes
-smallInput
 -}
 
 
@@ -1029,8 +1028,23 @@ map_len_fusion xi yi (Idxs i is)
 smallInput :: SMTString -> SMTString -> Int -> Int -> Proof  
 {-@ smallInput :: input:SMTString -> target:{SMTString | stringLen input < stringLen target } -> lo:Nat -> hi:Int 
            -> {makeIndexes' input target lo hi == IdxEmp } 
+           / [hi -lo]
   @-}
-smallInput = todo 
+smallInput input target lo hi 
+  | hi < lo 
+  = makeIndexes' input target lo hi 
+  ==. IdxEmp
+  *** QED  
+  | lo == hi, not (isGoodIndex input target lo)
+  = makeIndexes' input target lo hi 
+  ==. IdxEmp
+  *** QED  
+  | not (isGoodIndex input target lo)
+  = makeIndexes' input target lo hi 
+  ==. makeIndexes' input target (lo+1) hi
+  ==. IdxEmp ? smallInput input target (lo+1) hi 
+  *** QED  
+
 
 
 -------------------------------------------------------------------------------
@@ -1085,7 +1099,8 @@ maxInt x y = if x <= y then y else x
 {-@ reflect makeIndexes' @-}
 
 makeIndexes' :: SMTString -> SMTString -> Int -> Int -> Idxes Int 
-{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:{Int | 0 <= lo} -> hi:Int -> Idxes (GoodIndex input target) / [hi - lo] @-}
+{-@ makeIndexes' :: input:SMTString -> target:SMTString -> lo:{Int | 0 <= lo} -> hi:Int -> Idxes (GoodIndex input target) 
+  / [hi - lo] @-}
 makeIndexes' input target lo hi 
   | hi < lo 
   = IdxEmp
