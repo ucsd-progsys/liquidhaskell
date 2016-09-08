@@ -984,6 +984,30 @@ shiftNewIndexes xi yi zi tg
   ==. appendIdxes (makeIndexes xi yi tg) (makeIndexes (concatString xi yi) zi tg)
   *** QED 
 
+-- NIKI CHECK: Feels have done this proof before 
+maxIndixes 
+  :: SMTString -> SMTString -> Int -> Int -> Proof 
+{-@ maxIndixes 
+  :: input:SMTString -> target:SMTString -> lo:{Nat | stringLen input < lo + stringLen target} -> hi:Int
+  -> {makeIndexes' input target lo hi = IdxEmp}
+  / [hi - lo ] @-}
+maxIndixes input target lo hi 
+  | hi < lo 
+  =   makeIndexes' input target lo hi  
+  ==. IdxEmp
+  *** QED 
+  | lo == hi, not (isGoodIndex input target lo)
+  =   makeIndexes' input target lo hi  
+  ==. IdxEmp
+  *** QED 
+  | not (isGoodIndex input target lo)
+  =   makeIndexes' input target lo hi
+  ==. IdxEmp 
+  ==. makeIndexes' input target (lo+1) hi 
+      ? maxIndixes input target (lo+1) hi 
+  *** QED 
+
+
 mergeIndixes :: SMTString -> SMTString -> Int -> Int -> Int -> Proof
 {-@ mergeIndixes 
   :: input:SMTString -> target:SMTString -> lo:Nat -> mid:{Int | lo <= mid + 1} -> hi:{Int | mid <= hi} 
@@ -993,10 +1017,13 @@ mergeIndixes = todo
 
 catIndixes :: SMTString -> SMTString -> SMTString -> Int -> Int -> Proof 
 {-@ catIndixes 
-     :: input:SMTString -> x:SMTString -> target :SMTString -> lo:Nat -> hi:Int
-    -> { makeIndexes' input target lo hi == makeIndexes' (concatString input x) target lo (stringLen input - stringLen target) }
+     :: input:SMTString -> x:SMTString -> target :SMTString -> lo:Nat 
+     -> hi:Int
+     -> { makeIndexes' input target lo hi == makeIndexes' (concatString input x) target lo (stringLen input - stringLen target) }
   @-}
-catIndixes = todo 
+catIndixes input x target lo hi 
+  = todo 
+
 
 map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
 {-@ map_len_fusion 
