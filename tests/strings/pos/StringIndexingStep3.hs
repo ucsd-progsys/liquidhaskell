@@ -37,7 +37,6 @@ todo =  undefined
 {-
 -- Easy 
 mergeIndixes
-catIndixes
 -}
 
 
@@ -1010,19 +1009,34 @@ maxIndixes input target lo hi
 
 mergeIndixes :: SMTString -> SMTString -> Int -> Int -> Int -> Proof
 {-@ mergeIndixes 
-  :: input:SMTString -> target:SMTString -> lo:Nat -> mid:{Int | lo <= mid + 1} -> hi:{Int | mid <= hi} 
+  :: input:SMTString -> target:SMTString -> lo:Nat -> mid:{Int | lo <= mid} -> hi:{Int | mid <= hi} 
   -> {makeIndexes' input target lo hi == appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)} @-}
 mergeIndixes = todo 
 
 
 catIndixes :: SMTString -> SMTString -> SMTString -> Int -> Int -> Proof 
 {-@ catIndixes 
-     :: input:SMTString -> x:SMTString -> target :SMTString -> lo:Nat 
-     -> hi:Int
+     :: input:SMTString -> x:SMTString 
+     -> target:{SMTString | 0 <= stringLen input - stringLen target + 1} 
+     -> lo:{Nat | lo <= stringLen input - stringLen target } 
+     -> hi:{Int | stringLen input - stringLen target <= hi}
      -> { makeIndexes' input target lo hi == makeIndexes' (concatString input x) target lo (stringLen input - stringLen target) }
   @-}
 catIndixes input x target lo hi 
-  = todo 
+  =   makeIndexes' input target lo hi
+  ==. appendIdxes (makeIndexes' input target lo (stringLen input - stringLen target))
+                  (makeIndexes' input target (stringLen input - stringLen target + 1) hi)
+       ? mergeIndixes input target lo (stringLen input - stringLen target) hi
+  ==. appendIdxes (makeIndexes' input target lo (stringLen input - stringLen target))
+                  IdxEmp
+       ? maxIndixes input target (stringLen input - stringLen target + 1) hi
+  ==. makeIndexes' input target lo (stringLen input - stringLen target)
+       ? appendIdxesEmp (makeIndexes' input target lo (stringLen input - stringLen target))
+  ==. makeIndexes' (concatString input x) target lo (stringLen input - stringLen target)
+       ? concatMakeIndexes lo (stringLen input - stringLen target) target input x 
+  *** QED 
+
+
 
 
 map_len_fusion :: SMTString -> SMTString -> Idxes Int -> Proof
