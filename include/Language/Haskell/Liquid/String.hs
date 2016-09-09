@@ -29,6 +29,20 @@ concatString (S s1) (S s2) = S (s1 `BS.append` s2)
 stringEmp :: SMTString
 stringEmp = S (BS.empty)
 
+
+{-@ stringEmpProp :: x:SMTString  -> { stringLen x == 0 <=> x == stringEmp } @-}
+stringEmpProp :: SMTString -> Proof
+stringEmpProp _ = undefined
+ 
+
+{-@ concatEmpLeft :: xi:{SMTString | stringLen xi == 0} -> yi:SMTString -> {concatString xi yi == yi} @-}
+concatEmpLeft :: SMTString -> SMTString -> Proof
+concatEmpLeft = undefined 
+
+{-@ concatEmpRight :: xi:SMTString -> yi:{SMTString | stringLen yi == 0} -> {concatString xi yi == xi} @-}
+concatEmpRight :: SMTString -> SMTString -> Proof
+concatEmpRight = undefined 
+
 stringLen :: SMTString -> Int  
 {-@ assume stringLen :: x:SMTString -> {v:Nat | v == stringLen x} @-}
 stringLen (S s) = BS.length s 
