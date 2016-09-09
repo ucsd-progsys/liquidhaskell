@@ -18,8 +18,6 @@ NV TODO
 {-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
 {-@ LIQUID "--exactdc"             @-}
-{-@ LIQUID "--scrape-imports"      @-}
-{-@ LIQUID "--scrape-used-imports" @-}
 
 module Main where
 
