@@ -1,8 +1,8 @@
 {-
 NV TODO 
 1. refine data type
-2. complete todos
-3. connect it with Steps 1 & 2
+2. connect it with Steps 1 & 2
+3. connect it with dyn programming 
 -}
 
 
@@ -31,14 +31,6 @@ import Prelude hiding (mempty, mappend, id, mconcat)
 import Language.Haskell.Liquid.ProofCombinators 
 
 import Data.Maybe 
-
-todo =  undefined
-
-{-
--- Easy 
-mergeIndixes
--}
-
 
 -- | Interface 
 
@@ -1216,21 +1208,112 @@ mergeIndixes input target lo mid hi
   | lo == mid, isGoodIndex input target lo 
   =   appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)
   ==. appendIdxes (makeIndexes' input target lo lo)  (makeIndexes' input target (mid+1) hi)
-  ==. appendIdxes (lo `Idxes` IdxEmp)  (makeIndexes' input target (mid+1) hi)
-  ==. lo  `Idxes` (appendIdxes IdxEmp  (makeIndexes' input target (lo+1) hi))
-  ==. lo  `Idxes` (makeIndexes' input target (lo+1) hi)
+  ==. appendIdxes (lo `Idxs` IdxEmp)  (makeIndexes' input target (mid+1) hi)
+  ==. lo  `Idxs` (appendIdxes IdxEmp  (makeIndexes' input target (lo+1) hi))
+  ==. lo  `Idxs` (makeIndexes' input target (lo+1) hi)
   ==. makeIndexes' input target lo hi
   *** QED 
   | lo == mid, not (isGoodIndex input target lo)
   =   appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)
   ==. appendIdxes (makeIndexes' input target lo lo)  (makeIndexes' input target (mid+1) hi)
-  ==. appendIdxes (lo `Idxes` IdxEmp)  (makeIndexes' input target (mid+1) hi)
+  ==. appendIdxes (lo `Idxs` IdxEmp)  (makeIndexes' input target (mid+1) hi)
   ==. (appendIdxes IdxEmp  (makeIndexes' input target (lo+1) hi))
   ==. makeIndexes' input target lo hi
   *** QED 
-  | lo < mid 
-  = todo 
+  | lo < mid, not (isGoodIndex input target mid)
+  =   makeIndexes' input target lo hi
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (makeIndexes' input target mid hi)
+       ? mergeIndixes input target lo (mid-1) hi 
 
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (makeIndexes' input target (mid+1) hi)
+
+  ==. appendIdxes (makeIndexes' input target lo mid) 
+                  (makeIndexes' input target (mid+1) hi)
+      ?makeIndexesBadLast input target lo mid
+  *** QED 
+  | lo < mid, isGoodIndex input target mid
+  =   makeIndexes' input target lo hi
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (makeIndexes' input target mid hi)
+       ? mergeIndixes input target lo (mid-1) hi 
+
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (mid `Idxs` makeIndexes' input target (mid+1) hi)
+
+
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (mid `Idxs` (appendIdxes IdxEmp (makeIndexes' input target (mid+1) hi)))
+
+  ==. appendIdxes (makeIndexes' input target lo (mid-1)) 
+                  (appendIdxes (Idxs mid IdxEmp) (makeIndexes' input target (mid+1) hi))
+
+  ==. appendIdxes (appendIdxes (makeIndexes' input target lo (mid-1)) (Idxs mid IdxEmp)) 
+                  (makeIndexes' input target (mid+1) hi)
+      ? appendIdxesAssoc (makeIndexes' input target lo (mid-1)) (Idxs mid IdxEmp) (makeIndexes' input target (mid+1) hi)
+
+  ==. appendIdxes (makeIndexes' input target lo mid) 
+                  (makeIndexes' input target (mid+1) hi)
+      ?makeIndexesGoodLast input target lo mid
+  *** QED 
+
+
+makeIndexesGoodLast, makeIndexesBadLast 
+  :: SMTString -> SMTString -> Int -> Int -> Proof 
+{-@ makeIndexesGoodLast 
+  :: input:SMTString -> target:SMTString -> lo:Nat -> hi:{Int | lo <= hi && (isGoodIndex input target hi)}
+  -> {makeIndexes' input target lo hi == appendIdxes (makeIndexes' input target lo (hi-1)) (Idxs hi IdxEmp)}
+  / [hi - lo] @-}
+makeIndexesGoodLast input target lo hi 
+  | lo == hi, (isGoodIndex input target lo)
+  =   makeIndexes' input target lo hi 
+  ==. hi `Idxs` IdxEmp 
+  ==. appendIdxes (IdxEmp) (Idxs hi IdxEmp)
+  ==. appendIdxes (makeIndexes' input target lo (hi-1)) (Idxs hi IdxEmp)
+  *** QED 
+  | not (isGoodIndex input target lo), isGoodIndex input target hi 
+  =   makeIndexes' input target lo hi 
+  ==. makeIndexes' input target (lo+1) hi
+  ==. appendIdxes (makeIndexes' input target (lo+1) (hi-1)) (Idxs hi IdxEmp)
+       ? makeIndexesGoodLast input target (lo+1) hi  
+  ==. appendIdxes (makeIndexes' input target lo (hi-1)) (Idxs hi IdxEmp)
+  *** QED 
+  | isGoodIndex input target lo, isGoodIndex input target hi
+  =   makeIndexes' input target lo hi 
+  ==. lo `Idxs` makeIndexes' input target (lo+1) hi
+  ==. lo `Idxs` (appendIdxes (makeIndexes' input target (lo+1) (hi-1)) (Idxs hi IdxEmp))
+       ? makeIndexesGoodLast input target (lo+1) hi  
+  ==. (appendIdxes (lo `Idxs` makeIndexes' input target (lo+1) (hi-1)) (Idxs hi IdxEmp))
+  ==. appendIdxes (makeIndexes' input target lo (hi-1)) (Idxs hi IdxEmp)
+  *** QED 
+
+{-@ makeIndexesBadLast 
+  :: input:SMTString -> target:SMTString -> lo:Nat -> hi:{Int | lo <= hi && (not (isGoodIndex input target hi))}
+  -> {makeIndexes' input target lo hi == makeIndexes' input target lo (hi-1)}
+  / [hi - lo]
+@-}
+-- NV sweet proof 
+makeIndexesBadLast input target lo hi 
+  | lo == hi, not (isGoodIndex input target lo)
+  =   makeIndexes' input target lo (hi-1) 
+  ==. IdxEmp 
+  ==. makeIndexes' input target lo hi
+  *** QED 
+  | not (isGoodIndex input target lo), not (isGoodIndex input target hi) 
+  =   makeIndexes' input target lo hi 
+  ==. makeIndexes' input target (lo+1) hi
+  ==. makeIndexes' input target (lo+1) (hi-1)
+       ? makeIndexesBadLast input target (lo+1) hi   
+  ==. makeIndexes' input target lo (hi-1)
+  *** QED 
+  | isGoodIndex input target lo , not (isGoodIndex input target hi) 
+  =   makeIndexes' input target lo hi 
+  ==. lo `Idxs` makeIndexes' input target (lo+1) hi
+  ==. lo `Idxs` makeIndexes' input target (lo+1) (hi-1)
+       ? makeIndexesBadLast input target (lo+1) hi   
+  ==. makeIndexes' input target lo (hi-1)
+  *** QED 
 
 
 catIndixes :: SMTString -> SMTString -> SMTString -> Int -> Int -> Proof 
