@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.ProofCombinators (
 
   , Proof
 
-  , byTheorem, castWithTheorem
+  , byTheorem, castWithTheorem, cast 
 
   ) where
 
@@ -45,6 +45,13 @@ type Proof = ()
 {-@ measure castWithTheorem :: a -> b -> b @-}
 castWithTheorem :: a -> b -> b 
 castWithTheorem _ x = x 
+
+
+{-@ measure cast :: b -> a -> a @-}
+{-@ cast :: b -> x:a -> {v:a | v == x } @-}
+cast :: b -> a -> a 
+cast _ x = x 
+
 
 byTheorem :: a -> Proof -> a
 byTheorem a _ = a

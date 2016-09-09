@@ -123,13 +123,6 @@ castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int
    -> {v:(GoodIndex {concatString input x} target)| v == i} @-}
 castGoodIndexRight target input x i  = cast (subStringConcat input x (stringLen target) i) i
 
-{-@ reflect cast @-}
-{-@ cast :: b -> x:a -> {v:a | v == x } @-}
-cast :: b -> a -> a 
-cast _ x = x 
-
-{-@ measure subStringConcat :: SMTString -> SMTString -> Int -> Int -> a  @-}
-
 -------------------------------------------------------------------------------
 ----------  Indices Generation ------------------------------------------------
 -------------------------------------------------------------------------------
