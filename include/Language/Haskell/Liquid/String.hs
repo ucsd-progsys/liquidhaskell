@@ -104,7 +104,9 @@ subStringConcat = undefined
 
 {-@ assume subStringConcatFront  
   :: input:SMTString -> input':SMTString -> j:Int -> i:Int 
-  -> { subString input i j == subString (concatString input' input) (stringLen input' + i) j } @-}
+  -> { (subString input i j == subString (concatString input' input) (stringLen input' + i) j)
+      && (stringLen (concatString input' input) == stringLen input + stringLen input')
+    } @-}
 subStringConcatFront :: SMTString -> SMTString -> Int -> Int -> Proof
 subStringConcatFront = undefined 
 

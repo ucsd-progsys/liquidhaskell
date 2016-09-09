@@ -94,28 +94,62 @@ inputMI (MI i _) = i
 -------------------------------------------------------------------------------
 
 {-@ reflect mempty @-}
-mempty :: forall (target :: Symbol). MI target
+mempty :: forall (target :: Symbol). (KnownSymbol target) =>  MI target
 mempty = MI stringEmp N
 
+{-@ reflect mconcat @-}
 mconcat :: forall (target :: Symbol). (KnownSymbol target) => List (MI target) -> MI target 
 mconcat N        = mempty
 mconcat (C x xs) = mappend x (mconcat xs)
 
--- NV HERE HERE 
 {-@ reflect mappend @-}
 mappend :: forall (target :: Symbol).  (KnownSymbol target) => MI target -> MI target -> MI target
 mappend (MI i1 is1) (MI i2 is2)
   = MI (concatString i1 i2)
-       (castGoodIndexRightList (fromString (symbolVal (Proxy :: Proxy target))) i1 i2 is1)
+       ((castGoodIndexRightList (fromString (symbolVal (Proxy :: Proxy target))) i1 i2 is1
+          `append`
+        makeNewIndices i1 i2 (fromString (symbolVal (Proxy :: Proxy target)))
+       ) `append`
+       (map (shiftStringRight (fromString (symbolVal (Proxy :: Proxy target))) i1 i2) is2)) 
 
+-- | Helpers 
+{-@ reflect shiftStringRight @-}
+shiftStringRight :: SMTString -> SMTString -> SMTString -> Int -> Int 
+{-@ shiftStringRight :: target:SMTString -> left:SMTString -> right:SMTString -> i:GoodIndex right target 
+  -> {v:(GoodIndex {concatString left right} target) | v == i + stringLen left } @-}
+shiftStringRight target left right i 
+  = cast (subStringConcatFront right left (stringLen target) i) (shift (stringLen left) i)
+
+{-@ reflect makeNewIndices @-}
+{-@ makeNewIndices :: s1:SMTString -> s2:SMTString -> target:SMTString -> List (GoodIndex {concatString s1 s2} target) @-}
+makeNewIndices :: SMTString -> SMTString -> SMTString -> List Int 
+makeNewIndices s1 s2 target
+  | stringLen target < 2 
+  = N
+  | otherwise
+  = makeIndices (concatString s1 s2) target
+                (maxInt (stringLen s1 - (stringLen target-1)) 0)
+                (stringLen s1 - 1)
+
+{-@ reflect maxInt @-}
+maxInt :: Int -> Int -> Int 
+maxInt x y = if x <= y then y else x 
+
+{-@ reflect shift @-}
+shift :: Int -> Int -> Int 
+shift x y = x + y 
+
+-- | Casting good indices: the below operators are liquid casts and behave like id at runtime
+
+-- NV: The recursion is required as there is no other way to (access &) cast _each_ element of the input list
 {-@ reflect castGoodIndexRightList @-}
-castGoodIndexRightList :: SMTString -> SMTString -> SMTString -> List Int -> List Int  
-{-@ castGoodIndexRightList :: target:SMTString -> input:SMTString -> x:SMTString -> is:List (GoodIndex input target) -> {v:List (GoodIndex {concatString input x} target) | v == is} @-}
+castGoodIndexRightList :: SMTString -> SMTString -> SMTString -> List Int -> List Int    
+{-@ castGoodIndexRightList :: target:SMTString -> input:SMTString -> x:SMTString -> is:List (GoodIndex input target) 
+    -> {v:List (GoodIndex {concatString input x} target) | v == is} @-}
 castGoodIndexRightList target input x N 
   = N 
 castGoodIndexRightList target input x (C i is) 
   = C (castGoodIndexRight target input x i) (castGoodIndexRightList target input x is)  
-
 
 {-@ reflect castGoodIndexRight @-}
 castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int  
@@ -124,11 +158,10 @@ castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int
 castGoodIndexRight target input x i  = cast (subStringConcat input x (stringLen target) i) i
 
 -------------------------------------------------------------------------------
-----------  Indices Generation ------------------------------------------------
+----------  Indices' Generation -----------------------------------------------
 -------------------------------------------------------------------------------
 
 {-@ reflect makeIndices @-}
-
 makeIndices :: SMTString -> SMTString -> Int -> Int -> List Int 
 {-@ makeIndices :: input:SMTString -> target:SMTString -> lo:Nat -> hi:Int -> List (GoodIndex input target) 
   / [hi - lo] @-}
@@ -175,6 +208,10 @@ map :: (a -> b) -> List a -> List b
 map _ N        = N
 map f (C x xs) = C (f x) (map f xs)
 
+{-@ reflect append @-}
+append :: List a -> List a -> List a 
+append N        ys = ys 
+append (C x xs) ys = x `C` (append xs ys)
 
 -------------------------------------------------------------------------------
 ----------  String Chunking ---------------------------------------------------
