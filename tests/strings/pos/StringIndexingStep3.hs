@@ -1210,8 +1210,27 @@ maxIndixes input target lo hi
 mergeIndixes :: SMTString -> SMTString -> Int -> Int -> Int -> Proof
 {-@ mergeIndixes 
   :: input:SMTString -> target:SMTString -> lo:Nat -> mid:{Int | lo <= mid} -> hi:{Int | mid <= hi} 
-  -> {makeIndexes' input target lo hi == appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)} @-}
-mergeIndixes = todo 
+  -> {makeIndexes' input target lo hi == appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)} 
+  / [mid] @-}
+mergeIndixes input target lo mid hi 
+  | lo == mid, isGoodIndex input target lo 
+  =   appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)
+  ==. appendIdxes (makeIndexes' input target lo lo)  (makeIndexes' input target (mid+1) hi)
+  ==. appendIdxes (lo `Idxes` IdxEmp)  (makeIndexes' input target (mid+1) hi)
+  ==. lo  `Idxes` (appendIdxes IdxEmp  (makeIndexes' input target (lo+1) hi))
+  ==. lo  `Idxes` (makeIndexes' input target (lo+1) hi)
+  ==. makeIndexes' input target lo hi
+  *** QED 
+  | lo == mid, not (isGoodIndex input target lo)
+  =   appendIdxes (makeIndexes' input target lo mid) (makeIndexes' input target (mid+1) hi)
+  ==. appendIdxes (makeIndexes' input target lo lo)  (makeIndexes' input target (mid+1) hi)
+  ==. appendIdxes (lo `Idxes` IdxEmp)  (makeIndexes' input target (mid+1) hi)
+  ==. (appendIdxes IdxEmp  (makeIndexes' input target (lo+1) hi))
+  ==. makeIndexes' input target lo hi
+  *** QED 
+  | lo < mid 
+  = todo 
+
 
 
 catIndixes :: SMTString -> SMTString -> SMTString -> Int -> Int -> Proof 
