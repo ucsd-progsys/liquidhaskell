@@ -8,20 +8,30 @@ module DivideAndQunquer where
 import Prelude hiding (mconcat, map, split, take, drop)
 import Language.Haskell.Liquid.ProofCombinators 
 
+
+foo ::Int -> List (List a) -> Proof
+{- foo :: i:Int -> is:List (List a) -> {pmconcat i is == mconcat is} @-}
+foo i is = trivial 
+
+
 {-@ divideAndQunquer
      :: f:(List i -> List o)
      -> thm:(x1:List i -> x2:List i -> {f (append x1 x2) == append (f x1) (f x2)} )
-     -> i:List i 
+     -> is:List i 
      -> n:Int 
-     -> {f i == mconcat (map f (chunk n i))}
-     / [llen i] 
+     -> m:Int 
+     -> {f is == mconcat (map f (chunk n is))}
+     / [llen is] 
   @-}
+
+--      -> {f is == pmconcat m (map f (chunk n is)) }
+
 divideAndQunquer 
   :: (List i -> List o) 
   -> (List i -> List i -> Proof)
-  -> List i -> Int -> Proof
-divideAndQunquer f thm is n 
-  | llen is <= n || n <= 0 
+  -> List i -> Int -> Int -> Proof
+divideAndQunquer f thm is n m  
+  | llen is <= n || n <= 1 
   =   mconcat (map f (chunk n is))
   ==. mconcat (map f (C is N))
   ==. mconcat (f is `C` map f N)
@@ -36,7 +46,7 @@ divideAndQunquer f thm is n
   ==. mconcat (f (take n is) `C` map f (chunk n (drop n is)))
   ==. append (f (take n is)) (mconcat (map f (chunk n (drop n is))))
   ==. append (f (take n is)) (f (drop n is))
-       ? divideAndQunquer f thm (drop n is) n 
+       ? divideAndQunquer f thm (drop n is) n m 
   ==. f (append (take n is) (drop n is))
        ? thm (take n is) (drop n is)
   ==. f is 
@@ -45,15 +55,16 @@ divideAndQunquer f thm is n
 
 
 {-@ reflect map @-}
+{-@ map :: (a -> b) -> xs:List a -> {v:List b | llen v == llen xs } @-}
 map :: (a -> b) -> List a -> List b
 map _  N       = N
 map f (C x xs) = f x `C` map f xs 
 
 {-@ reflect chunk @-}
-{-@ chunk :: Int -> xs:List a -> List (List a) / [llen xs] @-}
+{-@ chunk :: i:Int -> xs:List a -> {v:List (List a) | if (i <= 1 || llen xs <= i) then (llen v == 1) else (llen v < llen xs) } / [llen xs] @-}
 chunk :: Int -> List a -> List (List a)
 chunk i xs 
-  | i <= 0 
+  | i <= 1 
   = C xs N 
   | llen xs <= i 
   = C xs N 
@@ -85,6 +96,23 @@ take i (C x xs)
 mconcat :: List (List a) -> List a 
 mconcat N        = N 
 mconcat (C x xs) = append x (mconcat xs)
+
+
+{-@ reflect pmconcat @-}
+pmconcat :: Int -> List (List a) -> List a  
+{-@ pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
+
+pmconcat i xs
+  | i <= 0 
+  = mconcat xs 
+pmconcat i N   
+  = N 
+pmconcat i (C x N) 
+  = x
+pmconcat i xs 
+  = pmconcat i (map mconcat (chunk i xs))
+
+
 
 {-@ reflect append @-}
 append :: List a -> List a -> List a 

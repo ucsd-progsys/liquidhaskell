@@ -19,6 +19,8 @@ data SMTString = S BS.ByteString
 {-@ measure subString    :: SMTString -> Int -> Int -> SMTString @-}
 {-@ measure concatString :: SMTString -> SMTString -> SMTString @-}
 {-@ measure fromString   :: String -> SMTString @-}
+{-@ measure takeString   :: Int -> SMTString -> SMTString @-}
+{-@ measure dropString   :: Int -> SMTString -> SMTString @-}
 
 {-@ assume concatString :: x:SMTString -> y:SMTString 
                  -> {v:SMTString | v == concatString x y && stringLen v == stringLen x + stringLen y } @-}
@@ -52,6 +54,23 @@ stringLen (S s) = BS.length s
 subString :: SMTString -> Int -> Int -> SMTString 
 subString (S s) o l = S (BS.take l $ BS.drop o s) 
 
+
+{-@ takeString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == i && v == takeString i xs } @-} 
+takeString :: Int -> SMTString -> SMTString
+takeString i (S s) = S (BS.take i s)
+
+{-@ dropString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == stringLen xs - i && v == dropString i xs } @-} 
+dropString :: Int -> SMTString -> SMTString
+dropString i (S s) = S (BS.drop i s)
+
+
+{-@ concatTakeDrop :: i:Nat -> xs:{SMTString | i <= llen xs} 
+  -> {xs == concatString (takeString i xs) (dropString i xs) }  @-}
+concatTakeDrop :: Int -> SMTString -> Proof 
+concatTakeDrop = undefined 
+
+
+
 {-@ assume fromString :: i:String -> {o:SMTString | i == o && o == fromString i} @-}
 fromString :: String -> SMTString
 fromString = S . ST.fromString 
@@ -76,14 +95,18 @@ isNullString (S s) = BS.length s == 0
 
 {-@ assume subStringConcat 
   :: input:SMTString -> input':SMTString -> j:Int -> i:{Int | i + j <= stringLen input }
-  -> { subString input i j == subString (concatString input input') i j } @-}
+  -> { (subString input i j == subString (concatString input input') i j) 
+    && (stringLen input <= stringLen (concatString input input'))
+     } @-}
 subStringConcat :: SMTString -> SMTString -> Int -> Int -> Proof 
 subStringConcat = undefined  
 
 
 {-@ assume subStringConcatFront  
   :: input:SMTString -> input':SMTString -> j:Int -> i:Int 
-  -> { subString input i j == subString (concatString input' input) (stringLen input' + i) j } @-}
+  -> { (subString input i j == subString (concatString input' input) (stringLen input' + i) j)
+      && (stringLen (concatString input' input) == stringLen input + stringLen input')
+    } @-}
 subStringConcatFront :: SMTString -> SMTString -> Int -> Int -> Proof
 subStringConcatFront = undefined 
 
@@ -92,7 +115,6 @@ subStringConcatFront = undefined
   -> { stringLen input <= stringLen (concatString input input') } @-}
 lenConcat :: SMTString -> SMTString -> Proof 
 lenConcat = undefined 
-
 
 concatLen :: SMTString -> SMTString -> Proof
 {-@ assume concatLen :: x:SMTString -> y:SMTString -> { stringLen (concatString x y) == stringLen x + stringLen y } @-}

@@ -35,13 +35,15 @@ import Data.Maybe
 main :: IO ()
 main = 
   do input     <- fromString <$> readFile "input.txt"
-     let mi1    = toMI input :: MI "abcab" SMTString
-     let is1    = getIndex mi1 
-     putStrLn ("Serial   Indices: " ++ show is1)
-     let mi2    = toMIPar input :: MI "abcab" SMTString
-     let is2    = getIndex mi2 
-     putStrLn ("Parallel Indices: " ++ show is2)
-     putStrLn ("Are equal? " ++ show (is1 == is2))
+     case someSymbolVal "x" of 
+            SomeSymbol (_ :: Proxy y) ->            
+      let mi1    = toMI input :: MI y SMTString
+      let is1    = getIndex mi1 
+      putStrLn ("Serial   Indices: " ++ show is1)
+      let mi2    = toMIPar input :: MI "abcab" SMTString
+      let is2    = getIndex mi2 
+      putStrLn ("Parallel Indices: " ++ show is2)
+      putStrLn ("Are equal? " ++ show (is1 == is2))
 
 test1   = indices input1 
 input1  = fromString $ clone 100 "ababcabcab"
@@ -51,6 +53,14 @@ indices :: SMTString -> Idxes Int
 indices input 
   = case toMI input :: MI "abcab" SMTString  of 
       MI _ i -> i 
+
+
+{-
+
+
+
+  |
+-}
 
 mconcatPar :: forall (target :: Symbol). (KnownSymbol target) =>  Int -> [MI target SMTString] -> MI target SMTString
 mconcatPar n xs = mconcat (mconcatPar' n xs)
