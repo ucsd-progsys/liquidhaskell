@@ -17,7 +17,7 @@ import Language.Haskell.Liquid.String
 import GHC.TypeLits
 import Data.String hiding (fromString)
 import Prelude hiding ( mempty, mappend, id, mconcat, map 
-                      , error 
+                      , error, undefined 
                       )
 import Language.Haskell.Liquid.ProofCombinators 
 
@@ -157,6 +157,7 @@ castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int
    -> {v:(GoodIndex {concatString input x} target)| v == i} @-}
 castGoodIndexRight target input x i  = cast (subStringConcat input x (stringLen target) i) i
 
+
 -------------------------------------------------------------------------------
 ----------  Indices' Generation -----------------------------------------------
 -------------------------------------------------------------------------------
@@ -264,7 +265,7 @@ mempty_left (MI i1 is1)
          ) `append`
          (map (shiftStringRight tg i1 stringEmp) N))
   ==. MI i1 ((is1 `append` N) `append` (map (shiftStringRight tg i1 stringEmp) N))
-      ? makeIndexesNullLeft i1 tg 
+      ? makeNewIndicesNullLeft i1 tg 
   ==. MI i1 (is1 `append` map (shiftStringRight tg i1 stringEmp) N)
       ? appendNil is1  
   ==. MI i1 (is1 `append` N)
@@ -293,9 +294,75 @@ appendNil (C x xs)
 ----------  Lemmata on Empty Indices ------------------------------------------
 -------------------------------------------------------------------------------
 
-makeIndexesNullLeft :: SMTString -> SMTString -> Proof 
-{-@ makeIndexesNullLeft 
+
+makeNewIndicesNullLeft :: SMTString -> SMTString -> Proof 
+{-@ makeNewIndicesNullLeft 
   :: s:SMTString 
   -> t:SMTString 
-  -> {makeNewIndices s stringEmp t == N } @-}
-makeIndexesNullLeft _ _ = trivial 
+  -> {makeNewIndices s stringEmp t == N } @-} 
+makeNewIndicesNullLeft s t 
+  | stringLen t < 2 
+  = makeNewIndices s stringEmp t ==. N *** QED 
+makeNewIndicesNullLeft  s t 
+  | 1 + stringLen s <= stringLen t
+  =   makeNewIndices s stringEmp t
+  ==. makeIndices (concatString s stringEmp) t
+                   (maxInt (1 + stringLen s - stringLen t)  0)
+                   (stringLen s - 1)
+  ==. makeIndices s t
+                   0
+                   (stringLen s - 1) 
+                   ? concatStringNeutral s
+  ==. makeIndices s t
+                   0
+                   (stringLen s - 1)
+  ==. N ? makeNewIndicesNullSmallInput s t 0 (stringLen s - 1)
+  *** QED 
+makeNewIndicesNullLeft s t 
+  =   makeNewIndices s stringEmp t
+  ==. makeIndices (concatString s stringEmp) t
+                   (maxInt (1 + stringLen s - stringLen t)  0)
+                   (stringLen s - 1)
+  ==. makeIndices (concatString s stringEmp) t
+                   (1 + stringLen s - stringLen t)
+                   (stringLen s - 1)
+  ==. makeIndices s t
+                   (1 + stringLen s - stringLen t)
+                   (stringLen s - 1) ? concatStringNeutral s 
+  ==. N ? makeNewIndicesNullSmallIndex s t (1 + stringLen s - stringLen t) (stringLen s - 1)
+  *** QED 
+
+makeNewIndicesNullSmallInput :: SMTString -> SMTString -> Int -> Int -> Proof 
+{-@ makeNewIndicesNullSmallInput 
+  :: s:SMTString 
+  -> t:{SMTString | 1 + stringLen s <= stringLen t } 
+  -> lo:Nat 
+  -> hi:Int
+  -> {makeIndices s t lo hi == N } / [hi - lo] @-} 
+makeNewIndicesNullSmallInput s1 t lo hi
+  | hi < lo 
+  = makeIndices s1 t lo hi ==. N *** QED 
+  | lo == hi, not (isGoodIndex s1 t lo)
+  = makeIndices s1 t lo hi ==. N *** QED  
+  | not (isGoodIndex s1 t lo)
+  =   makeIndices s1 t lo hi
+  ==. makeIndices s1 t (lo + 1) hi 
+  ==. N ? makeNewIndicesNullSmallInput s1 t (lo+1) hi
+  *** QED 
+
+
+makeNewIndicesNullSmallIndex :: SMTString -> SMTString -> Int -> Int -> Proof 
+{-@ makeNewIndicesNullSmallIndex 
+  :: s:SMTString 
+  -> t:{SMTString | stringLen t < 2 + stringLen s } 
+  -> lo:{Nat | 1 + stringLen s - stringLen t <= lo  } 
+  -> hi:{Int | lo <= hi}
+  -> {makeIndices s t lo hi == N } / [hi - lo] @-} 
+makeNewIndicesNullSmallIndex s1 t lo hi
+  | lo == hi, not (isGoodIndex s1 t lo)
+  = makeIndices s1 t lo hi ==. N *** QED  
+  | not (isGoodIndex s1 t lo)
+  =   makeIndices s1 t lo hi
+  ==. makeIndices s1 t (lo + 1) hi 
+  ==. N ? makeNewIndicesNullSmallIndex s1 t (lo+1) hi
+  *** QED 
