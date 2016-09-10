@@ -9,9 +9,7 @@ import Prelude hiding (mconcat, map, split, take, drop)
 import Language.Haskell.Liquid.ProofCombinators 
 
 
-foo ::Int -> List (List a) -> Proof
-{- foo :: i:Int -> is:List (List a) -> {pmconcat i is == mconcat is} @-}
-foo i is = trivial 
+
 
 
 {-@ divideAndQunquer
@@ -91,6 +89,48 @@ take i (C x xs)
   | otherwise 
   = C x (take (i-1) xs)
 
+pmconcatEquivalence ::Int -> List (List a) -> Proof
+{-@ pmconcatEquivalence :: i:Int -> is:List (List a) -> {pmconcat i is == mconcat is} / [llen is] @-}
+pmconcatEquivalence i is 
+  | i <= 1
+  = pmconcat i is ==. mconcat is *** QED 
+pmconcatEquivalence i N 
+  =   pmconcat i N 
+  ==. N 
+  ==. mconcat N 
+  *** QED 
+pmconcatEquivalence i (C x N) 
+  =   pmconcat i (C x N)
+  ==. x 
+  ==. append x N
+       ? appendNeutralRight x  
+  ==. mconcat (C x (mconcat N)) 
+  ==. mconcat (C x N) 
+  *** QED 
+pmconcatEquivalence i xs 
+  | llen xs <= i 
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. pmconcat i (map mconcat (C xs N))
+  ==. pmconcat i (mconcat xs `C`  map mconcat N)
+  ==. pmconcat i (mconcat xs `C`  N)
+  ==. mconcat xs
+  *** QED 
+
+pmconcatEquivalence i xs
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. mconcat (map mconcat (chunk i xs))
+       ? pmconcatEquivalence i (map mconcat (chunk i xs))
+  ==. mconcat xs
+       ? mconcatAssoc i xs
+  *** QED 
+
+
+
+mconcatAssoc :: Int -> List (List a) -> Proof 
+{-@ mconcatAssoc :: i:Int -> xs:List (List a) -> {v:Proof |  mconcat xs == mconcat (map mconcat (chunk i xs))} @-}
+mconcatAssoc = undefined 
 
 {-@ reflect mconcat @-}
 mconcat :: List (List a) -> List a 
@@ -103,7 +143,7 @@ pmconcat :: Int -> List (List a) -> List a
 {-@ pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
 
 pmconcat i xs
-  | i <= 0 
+  | i <= 1 
   = mconcat xs 
 pmconcat i N   
   = N 
@@ -111,7 +151,6 @@ pmconcat i (C x N)
   = x
 pmconcat i xs 
   = pmconcat i (map mconcat (chunk i xs))
-
 
 
 {-@ reflect append @-}
