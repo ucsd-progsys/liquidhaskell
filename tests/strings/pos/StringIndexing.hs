@@ -17,7 +17,7 @@ import Language.Haskell.Liquid.String
 import GHC.TypeLits
 import Data.String hiding (fromString)
 import Prelude hiding ( mempty, mappend, id, mconcat, map 
-                      , error, undefined 
+                      , error 
                       )
 import Language.Haskell.Liquid.ProofCombinators 
 
@@ -229,3 +229,73 @@ chunk i xs
   = C (takeString i xs) (chunk i (takeString i xs))
 
 
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+------------ Liquid Proofs Start HERE -----------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+----------  Proof that MI is a Monoid -----------------------------------------
+-------------------------------------------------------------------------------
+
+mempty_left :: forall (target :: Symbol). (KnownSymbol target) => MI target -> Proof
+{-@ mempty_left :: xs:MI target -> {mappend xs mempty == xs } @-}
+mempty_left (MI i1 is1) 
+  = let tg = fromString (symbolVal (Proxy :: Proxy target)) in 
+      mappend (MI i1 is1) (mempty :: MI target)
+  ==. mappend (MI i1 is1) (MI stringEmp N) 
+  ==. MI (concatString i1 stringEmp)
+         ((castGoodIndexRightList tg i1 stringEmp is1
+            `append`
+           makeNewIndices i1 stringEmp tg 
+         ) `append`
+         (map (shiftStringRight tg i1 stringEmp) N))
+      ? concatStringNeutral i1 
+        -- NV ordering is important! 
+        -- concatString i1 stringEmp == i1 should come before application of MI
+  ==. MI i1
+         ((castGoodIndexRightList tg i1 stringEmp is1
+            `append`
+           makeNewIndices i1 stringEmp tg
+         ) `append`
+         (map (shiftStringRight tg i1 stringEmp) N))
+  ==. MI i1 ((is1 `append` N) `append` (map (shiftStringRight tg i1 stringEmp) N))
+      ? makeIndexesNullLeft i1 tg 
+  ==. MI i1 (is1 `append` map (shiftStringRight tg i1 stringEmp) N)
+      ? appendNil is1  
+  ==. MI i1 (is1 `append` N)
+      ? appendNil is1  
+  ==. MI i1 is1 
+  *** QED 
+
+
+-------------------------------------------------------------------------------
+----------  Lemmata on Lists --------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ appendNil :: xs:List a -> { append xs N = xs } @-} 
+appendNil :: List a -> Proof 
+appendNil N 
+  =   append N N
+  ==. N
+  *** QED 
+appendNil (C x xs) 
+  =   append (C x xs) N
+  ==. C x (append xs N)
+  ==. C x xs ? appendNil xs 
+  *** QED 
+
+-------------------------------------------------------------------------------
+----------  Lemmata on Empty Indices ------------------------------------------
+-------------------------------------------------------------------------------
+
+makeIndexesNullLeft :: SMTString -> SMTString -> Proof 
+{-@ makeIndexesNullLeft 
+  :: s:SMTString 
+  -> t:SMTString 
+  -> {makeNewIndices s stringEmp t == N } @-}
+makeIndexesNullLeft _ _ = trivial 

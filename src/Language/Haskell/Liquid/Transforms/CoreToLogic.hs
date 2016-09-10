@@ -371,10 +371,11 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
-       return $ eAppWithMap lmap f' [] (eVar x )
+       f  <- tosymbol  (C.Var x :: C.CoreExpr)
+       return $ eAppWithMap lmap f' [] (eVar x f)
   where
-    eVar x | isPolyCst $ varType x  = mkEApp (dummyLoc $ symbol x) []
-           | otherwise              = EVar $ symbol x
+    eVar x _ | isPolyCst $ varType x  = mkEApp (dummyLoc $ symbol x) []
+             | otherwise              = EVar $ symbol x
 
     isPolyCst (ForAllTy _ t) = isCst t
     isPolyCst _              = False

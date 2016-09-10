@@ -16,7 +16,7 @@ import Language.Haskell.Liquid.Bare.Env
 import Language.Fixpoint.Types hiding (R)
 
 
-import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
+import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique, dropModuleNames)
 
 
 
@@ -123,7 +123,7 @@ instance Transformable Body where
 
 mexpr :: Symbol -> Either LMap TInline -> Expr
 mexpr _ (Left  (LMap _ [] e)) = e
-mexpr s (Left  (LMap _ _  _)) = EVar s
+mexpr s (Left  (LMap _ _  _)) = EVar (dropModuleNamesAndUnique s)
 mexpr _ (Right (TI _ e)) = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
@@ -158,10 +158,10 @@ txPApp (s, (Right (TI xs e))) f es
 txPApp (s, m) f es = txEApp (s, m) f es
 -}
 
-cmpSymbol :: Symbol -> Symbol -> Bool
+cmpSymbol :: Symbol -> Symbol -> Bool 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
   = dropModuleNamesAndUnique s1 == dropModuleNamesAndUnique s2
 
 
 dropModuleNamesAndUnique :: Symbol -> Symbol
-dropModuleNamesAndUnique = dropModuleUnique {- . dropModuleNames -}
+dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames {- . dropModuleNames -}
