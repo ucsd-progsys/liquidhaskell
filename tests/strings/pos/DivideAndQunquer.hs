@@ -18,7 +18,7 @@ import Language.Haskell.Liquid.ProofCombinators
      -> is:List i 
      -> n:Int 
      -> m:Int 
-     -> {f is == pmconcat m (map f (chunk n is))}
+     -> {f is == pmconcat m (map f (chunk n is)) && mconcat (map f (chunk n is)) == pmconcat m (map f (chunk n is))}
      / [llen is] 
   @-}
 
@@ -29,8 +29,8 @@ divideAndQunquer
 divideAndQunquer f thm is n m  
   | llen is <= n || n <= 1 
   =   pmconcat m (map f (chunk n is))
-       ? pmconcatEquivalence m (map f (chunk n is))
   ==. mconcat (map f (chunk n is))
+       ? pmconcatEquivalence m (map f (chunk n is))
   ==. mconcat (map f (C is N))
   ==. mconcat (f is `C` map f N)
   ==. mconcat (f is `C` N)
@@ -40,8 +40,8 @@ divideAndQunquer f thm is n m
   *** QED 
   | otherwise
   =   pmconcat m (map f (chunk n is))
-       ? pmconcatEquivalence m (map f (chunk n is))
   ==. mconcat (map f (chunk n is))
+       ? pmconcatEquivalence m (map f (chunk n is))
   ==. mconcat (map f (C (take n is) (chunk n (drop n is)))) 
   ==. mconcat (f (take n is) `C` map f (chunk n (drop n is)))
   ==. append (f (take n is)) (mconcat (map f (chunk n (drop n is))))
