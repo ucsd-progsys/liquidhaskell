@@ -10,8 +10,9 @@
 {-@ LIQUID "--totality"            @-}
 {-@ LIQUID "--exactdc"             @-}
 
-module StringIndexing where
+module Main where
 
+import System.Environment   
 
 import Language.Haskell.Liquid.String
 import GHC.TypeLits
@@ -34,14 +35,24 @@ import Data.Proxy
 
 main :: IO ()
 main = 
-  do input     <- fromString <$> readFile "input.txt"
-     let mi1    = toMI input :: MI "abcab" 
-     let is1    = indicesMI mi1 
-     putStrLn   $ "Serial   Indices: " ++ show is1
-     let mi2    = toMIPar 10 input :: MI "abcab" 
-     let is2    = indicesMI mi2 
-     putStrLn   $ "Parallel Indices: " ++ show is2
-     putStrLn   $ "Are equal? " ++ show (is1 == is2)
+  do args      <- getArgs
+     case args of 
+       (fname:target:_) -> do input <- fromString <$> readFile fname 
+                              runMatching input target
+       _                -> putStrLn $ "Wrong input: You need to provide the input filename and the target string"
+     
+
+runMatching :: SMTString -> String -> IO ()
+runMatching input tg =
+  case someSymbolVal tg of 
+    SomeSymbol (_ :: Proxy target) -> do            
+      let mi1    = toMI input :: MI target 
+      let is1    = indicesMI mi1 
+      putStrLn   $ "Serial   Indices: " ++ show is1
+      let mi2    = toMIPar 10 input :: MI target 
+      let is2    = indicesMI mi2 
+      putStrLn   $ "Parallel Indices: " ++ show is2
+      putStrLn   $ "Are equal? " ++ show (is1 == is2)
 
 test = indicesMI (toMI (fromString $ clone 100 "ababcabcab")  :: MI "abcab" )
   where
@@ -227,7 +238,7 @@ chunk i xs
   | stringLen xs <= i 
   = C xs N 
   | otherwise
-  = C (takeString i xs) (chunk i (takeString i xs))
+  = C (takeString i xs) (chunk i (dropString i xs))
 
 
 -------------------------------------------------------------------------------
