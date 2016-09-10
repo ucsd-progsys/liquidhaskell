@@ -17,7 +17,8 @@ import System.Environment
 import Language.Haskell.Liquid.String
 import GHC.TypeLits
 import Data.String hiding (fromString)
-import Prelude hiding ( mempty, mappend, id, mconcat, map 
+import Prelude hiding ( mempty, mappend, id, mconcat, map
+                      , take, drop  
                       , error, undefined 
                       )
 import Language.Haskell.Liquid.ProofCombinators 
@@ -37,19 +38,21 @@ main :: IO ()
 main = 
   do args      <- getArgs
      case args of 
-       (fname:target:_) -> do input <- fromString <$> readFile fname 
-                              runMatching input target
-       _                -> putStrLn $ "Wrong input: You need to provide the input filename and the target string"
+       (i:fname:target:_) -> do input <- fromString <$> readFile fname 
+                                runMatching (read i :: Int) input target
+       _                -> putStrLn $ "Wrong input: You need to provide the chunksize," ++
+                                      "the input filename and the target string. For example:\n\n\n" ++ 
+                                      "./StringIndexing 10 input.txt abcab\n\n"
      
 
-runMatching :: SMTString -> String -> IO ()
-runMatching input tg =
+runMatching :: Int -> SMTString -> String -> IO ()
+runMatching chunksize input tg =
   case someSymbolVal tg of 
     SomeSymbol (_ :: Proxy target) -> do            
       let mi1    = toMI input :: MI target 
       let is1    = indicesMI mi1 
       putStrLn   $ "Serial   Indices: " ++ show is1
-      let mi2    = toMIPar 10 input :: MI target 
+      let mi2    = toMIPar chunksize input :: MI target 
       let is2    = indicesMI mi2 
       putStrLn   $ "Parallel Indices: " ++ show is2
       putStrLn   $ "Are equal? " ++ show (is1 == is2)
@@ -58,8 +61,6 @@ test = indicesMI (toMI (fromString $ clone 100 "ababcabcab")  :: MI "abcab" )
   where
     clone i xs = concat (replicate i xs) 
 
-
-
 toMI   :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target 
 toMI input  
   | isNullString input = mempty
@@ -67,7 +68,7 @@ toMI input
 
 toMIPar :: forall (target :: Symbol). (KnownSymbol target) => Int -> SMTString -> MI target  
 toMIPar chunksize input 
-  = mconcat (map toMI (chunk chunksize input))
+  = pmconcat chunksize (map toMI (chunkString chunksize input))
 
 -------------------------------------------------------------------------------
 ----------  Indexing Structure Definition -------------------------------------
@@ -112,6 +113,23 @@ mempty = MI stringEmp N
 mconcat :: forall (target :: Symbol). (KnownSymbol target) => List (MI target) -> MI target 
 mconcat N        = mempty
 mconcat (C x xs) = mappend x (mconcat xs)
+
+{-@ reflect pmconcat @-}
+pmconcat :: forall (target :: Symbol). (KnownSymbol target) => Int -> List (MI target) -> MI target 
+{-@ pmconcat :: forall (target :: Symbol). (KnownSymbol target) => 
+  Int -> is:List (MI target) -> MI target /[llen is] @-}
+
+pmconcat i xs
+  | i <= 1 
+  = mconcat xs 
+pmconcat i N   
+  = mempty
+pmconcat i (C x N) 
+  = x
+pmconcat i xs 
+  = pmconcat i (map mconcat (chunk i xs))
+
+
 
 {-@ reflect mappend @-}
 mappend :: forall (target :: Symbol).  (KnownSymbol target) => MI target -> MI target -> MI target
@@ -216,6 +234,7 @@ llen N        = 0
 llen (C _ xs) = 1 + llen xs 
 
 {-@ reflect map @-}
+{-@ map :: (a -> b) -> is:List a -> {os:List b | llen is == llen os} @-}
 map :: (a -> b) -> List a -> List b
 map _ N        = N
 map f (C x xs) = C (f x) (map f xs)
@@ -225,20 +244,53 @@ append :: List a -> List a -> List a
 append N        ys = ys 
 append (C x xs) ys = x `C` (append xs ys)
 
+
+{-@ reflect chunk @-}
+{-@ chunk :: i:Int -> xs:List a -> {v:List (List a) | if (i <= 1 || llen xs <= i) then (llen v == 1) else (llen v < llen xs) } / [llen xs] @-}
+chunk :: Int -> List a -> List (List a)
+chunk i xs 
+  | i <= 1
+  = C xs N 
+  | llen xs <= i 
+  = C xs N 
+  | otherwise
+  = C (take i xs) (chunk i (drop i xs))
+
+{-@ reflect drop @-}
+{-@ drop :: i:Nat -> xs:{List a | i <= llen xs } -> {v:List a | llen v == llen xs - i } @-} 
+drop :: Int -> List a -> List a 
+drop i N = N 
+drop i (C x xs)
+  | i == 0 
+  = C x xs  
+  | otherwise 
+  = drop (i-1) xs 
+
+{-@ reflect take @-}
+{-@ take :: i:Nat -> xs:{List a | i <= llen xs } -> {v:List a | llen v == i} @-} 
+take :: Int -> List a -> List a 
+take i N = N 
+take i (C x xs)
+  | i == 0 
+  = N  
+  | otherwise 
+  = C x (take (i-1) xs)
+
+
 -------------------------------------------------------------------------------
 ----------  String Chunking ---------------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ reflect chunk @-}
-{-@ chunk :: Int -> xs:SMTString -> List (SMTString) / [stringLen xs] @-}
-chunk :: Int -> SMTString -> List (SMTString)
-chunk i xs 
+{-@ reflect chunkString @-}
+{-@ chunkString :: Int -> xs:SMTString -> List (SMTString) / [stringLen xs] @-}
+chunkString :: Int -> SMTString -> List (SMTString)
+chunkString i xs 
   | i <= 0 
   = C xs N 
   | stringLen xs <= i 
   = C xs N 
   | otherwise
-  = C (takeString i xs) (chunk i (dropString i xs))
+  = C (takeString i xs) (chunkString i (dropString i xs))
 
 
 -------------------------------------------------------------------------------

@@ -76,13 +76,6 @@ fromString :: String -> SMTString
 fromString = S . ST.fromString 
 
 
-chunkString :: Int -> SMTString -> [SMTString]
-chunkString n s | n <= 0 = [s] 
-chunkString n (S s) = S <$> go s 
-  where
-    go s | BS.length s <= n = [s]
-    go s = let (x, rest) = BS.splitAt n s in x:go rest 
-
 
 {-@ isNullString :: i:SMTString -> {b:Bool | Prop b <=> stringLen i == 0 } @-} 
 isNullString :: SMTString -> Bool 
