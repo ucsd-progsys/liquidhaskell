@@ -301,6 +301,10 @@ chunkString i xs
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------
+----------  Proof that toMI distributes ---------------------------------------
+-------------------------------------------------------------------------------
+
 
 -------------------------------------------------------------------------------
 ----------  Proof that MI is a Monoid -----------------------------------------
@@ -336,6 +340,35 @@ mempty_left (MI i1 is1)
   ==. MI i1 is1 
   *** QED 
 
+mempty_right :: forall (target :: Symbol). (KnownSymbol target) => MI target -> Proof
+{-@ mempty_right :: xs:MI target -> {mappend mempty xs == xs } @-}
+mempty_right (MI i is)
+  =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
+      mappend (mempty :: MI target) (MI i is) 
+  ==. mappend (MI stringEmp N) (MI i is) 
+  ==. MI (concatString stringEmp i)
+       ((castGoodIndexRightList tg stringEmp i N
+          `append`
+        makeNewIndices stringEmp i tg 
+       ) `append`
+       (map (shiftStringRight tg stringEmp i) is)) 
+       ? concatStringNeutralRight i
+  ==. MI i
+        ((N`append` makeNewIndices stringEmp i tg
+        ) `append`
+        (map (shiftStringRight tg stringEmp i) is)) 
+  ==. MI i
+       (makeNewIndices stringEmp i tg
+        `append`
+       (map (shiftStringRight tg stringEmp i) is)) 
+  ==. MI i (N `append` (map (shiftStringRight tg stringEmp i) is)) 
+       ? makeNewIndicesNullRight i tg
+  ==. MI i (map (shiftStringRight tg stringEmp i) is)
+       ? mapShiftZero tg i is 
+  ==. MI i is 
+  *** QED 
+
+
 
 -------------------------------------------------------------------------------
 ----------  Lemmata on Lists --------------------------------------------------
@@ -356,7 +389,6 @@ appendNil (C x xs)
 -------------------------------------------------------------------------------
 ----------  Lemmata on Empty Indices ------------------------------------------
 -------------------------------------------------------------------------------
-
 
 makeNewIndicesNullLeft :: SMTString -> SMTString -> Proof 
 {-@ makeNewIndicesNullLeft 
@@ -429,3 +461,47 @@ makeNewIndicesNullSmallIndex s1 t lo hi
   ==. makeIndices s1 t (lo + 1) hi 
   ==. N ? makeNewIndicesNullSmallIndex s1 t (lo+1) hi
   *** QED 
+
+
+makeNewIndicesNullRight :: SMTString -> SMTString -> Proof 
+{-@ makeNewIndicesNullRight 
+  :: s1:SMTString 
+  -> t:SMTString 
+  -> {makeNewIndices stringEmp s1 t == N } @-} 
+makeNewIndicesNullRight s t 
+  | stringLen t < 2 
+  = makeNewIndices stringEmp s t  ==. N *** QED 
+makeNewIndicesNullRight s t 
+  =   makeNewIndices stringEmp s t
+  ==. makeIndices (concatString stringEmp s) t
+                   (maxInt (1 + stringLen stringEmp - stringLen t) 0)
+                   (stringLen stringEmp - 1)
+  ==. makeIndices s t
+                   (maxInt (1 - stringLen t) 0)
+                   (-1)
+      ? concatStringNeutralRight s 
+  ==. makeIndices s t 0 (-1)
+  ==. N  
+  *** QED
+
+-------------------------------------------------------------------------------
+----------  Lemmata on Shifting Indices ---------------------------------------
+-------------------------------------------------------------------------------
+
+
+mapShiftZero :: SMTString -> SMTString -> List Int -> Proof
+{-@ mapShiftZero :: target:SMTString -> i:SMTString -> is:List (GoodIndex i target) 
+  -> {map (shiftStringRight target stringEmp i) is == is } 
+  / [llen is] @-}
+mapShiftZero target i N
+  =   map (shiftStringRight target stringEmp i) N ==. N *** QED  
+mapShiftZero target i (C x xs)
+  =   map (shiftStringRight target stringEmp i) (C x xs) 
+  ==. shiftStringRight target stringEmp i x `C` map (shiftStringRight target stringEmp i) xs
+  ==. shift (stringLen stringEmp) x `C` map (shiftStringRight target stringEmp i) xs
+  ==. shift 0 x `C` map (shiftStringRight target stringEmp i) xs
+  ==. x `C` map (shiftStringRight target stringEmp i) xs
+  ==. x `C` xs ? mapShiftZero target i xs 
+  *** QED 
+
+
