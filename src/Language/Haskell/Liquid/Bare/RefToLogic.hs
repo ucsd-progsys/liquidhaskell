@@ -160,7 +160,8 @@ txPApp (s, m) f es = txEApp (s, m) f es
 
 cmpSymbol :: Symbol -> Symbol -> Bool
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  = (dropModuleUnique s1) == (dropModuleNamesAndUnique s2)
+  =  (dropModuleUnique s1) == (dropModuleNamesAndUnique s2)
+  || (dropModuleUnique s1) == (dropModuleUnique s2)
 
 
 dropModuleNamesAndUnique :: Symbol -> Symbol
