@@ -123,14 +123,88 @@ pmconcatEquivalence i xs
   ==. mconcat (map mconcat (chunk i xs))
        ? pmconcatEquivalence i (map mconcat (chunk i xs))
   ==. mconcat xs
-       ? mconcatAssoc i xs
+       ? mconcatAssoc appendNeutralRight i xs
   *** QED 
 
 
+mconcatAssocOne :: Int -> List (List a) -> Proof 
+{-@ mconcatAssocOne :: i:Nat -> xs:{List (List a) | i <= llen xs} 
+     -> {mconcat xs == append (mconcat (take i xs)) (mconcat (drop i xs))}
+     /[i]
+  @-} 
+mconcatAssocOne i N 
+  =   append (mconcat (take i N)) (mconcat (drop i N)) 
+  ==. append (mconcat N) (mconcat N)
+  ==. append N N 
+      --  ? leftIdentity N 
+  ==. N 
+  ==. mconcat N 
+  *** QED 
+mconcatAssocOne i (C x xs)
+  | i == 0
+  =   append (mconcat (take i (C x xs))) (mconcat (drop i (C x xs))) 
+  ==. append (mconcat N) (mconcat (C x xs))
+  ==. append N (mconcat (C x xs))
+  ==. mconcat (C x xs)
+      -- ? leftIdentity (C x xs)
+  *** QED 
+  | otherwise    
+  =   append (mconcat (take i (C x xs))) (mconcat (drop i (C x xs))) 
+  ==. append (mconcat (C x (take (i-1) xs))) (mconcat (drop (i-1) xs))
+  ==. append (append x (mconcat (take (i-1) xs))) (mconcat (drop (i-1) xs))
+       ? appendAssoc x (mconcat (take (i-1) xs)) (mconcat (drop (i-1) xs))
+  ==. append x (append (mconcat (take (i-1) xs)) (mconcat (drop (i-1) xs)))
+       ? mconcatAssocOne (i-1) xs
+  ==. append x (mconcat xs)
+  ==. mconcat (C x xs)
+  *** QED 
 
-mconcatAssoc :: Int -> List (List a) -> Proof 
-{-@ mconcatAssoc :: i:Int -> xs:List (List a) -> {v:Proof |  mconcat xs == mconcat (map mconcat (chunk i xs))} @-}
-mconcatAssoc = undefined 
+appendAssoc :: List a -> List a -> List a -> Proof 
+{-@ appendAssoc :: x:List a -> y:List a -> z:List a 
+  -> {append (append x y) z == append x (append y z)} @-}
+appendAssoc N y z 
+  =   append (append N y) z 
+  ==. append N z 
+  ==. N
+  ==. append N (append y z)
+  *** QED 
+appendAssoc (C x xs) y z 
+  =   append (append (C x xs) y) z 
+  ==. append (x `C` (append xs y)) z 
+  ==. x `C` (append (append xs y) z)
+  ==. x `C` (append xs (append y z))
+       ? appendAssoc xs y z
+  ==. append (C x xs) (append y z)
+  *** QED   
+
+mconcatAssoc :: (List a -> Proof) -> Int -> List (List a) -> Proof 
+{-@ mconcatAssoc :: 
+     rightIdentity:(is:List a -> {append is N  == is})
+  -> i:Int -> xs:List (List a) 
+  -> { mconcat xs == mconcat (map mconcat (chunk i xs))}
+  /  [llen xs] @-}
+mconcatAssoc rightIdentity i xs 
+  | i <= 1 || llen xs <= i
+  =   mconcat (map mconcat (chunk i xs))
+  ==. mconcat (map mconcat (C xs N))
+  ==. mconcat (mconcat xs `C` map mconcat N)
+  ==. mconcat (mconcat xs `C` N)
+  ==. append (mconcat xs) (mconcat N)
+  ==. append (mconcat xs) N
+  ==. mconcat xs 
+       ? rightIdentity (mconcat xs)
+  *** QED  
+   | otherwise
+   =   mconcat (map mconcat (chunk i xs))
+   ==. mconcat (map mconcat (take i xs `C` chunk i (drop i xs)))
+   ==. mconcat (mconcat (take i xs) `C` map mconcat (chunk i (drop i xs)))
+   ==. append (mconcat (take i xs)) (mconcat (map mconcat (chunk i (drop i xs))))
+   ==. append (mconcat (take i xs)) (mconcat (drop i xs))
+        ? mconcatAssoc rightIdentity i (drop i xs)
+   ==. mconcat xs 
+        ? mconcatAssocOne i xs 
+   *** QED 
+
 
 {-@ reflect mconcat @-}
 mconcat :: List (List a) -> List a 
