@@ -99,10 +99,9 @@ mconcat (C x xs) = append x (mconcat xs)
 
 
 {-@ reflect pmconcat @-}
--- pmconcat :: Int -> List (List a) -> List a  
-{- pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
+pmconcat :: Int -> List (List a) -> List a  
+{-@ pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
 
-{- 
 pmconcat i xs
   | i <= 0 
   = mconcat xs 
@@ -110,11 +109,8 @@ pmconcat i N
   = N 
 pmconcat i (C x N) 
   = x
--}
-
 pmconcat i xs 
-  = if i == 0 then map (\xxxx -> mconcat xxxx) (chunk i xs) else map mconcat (chunk i xs)
---   = pmconcat i (map mconcat (chunk i xs))
+  = pmconcat i (map mconcat (chunk i xs))
 
 
 
