@@ -9,16 +9,13 @@ import Prelude hiding (mconcat, map, split, take, drop)
 import Language.Haskell.Liquid.ProofCombinators 
 
 
-
-
-
 {-@ divideAndQunquer
      :: f:(List i -> List o)
      -> thm:(x1:List i -> x2:List i -> {f (append x1 x2) == append (f x1) (f x2)} )
      -> is:List i 
      -> n:Int 
      -> m:Int 
-     -> {f is == pmconcat m (map f (chunk n is)) && mconcat (map f (chunk n is)) == pmconcat m (map f (chunk n is))}
+     -> {f is == pmconcat m (map f (chunk n is))}
      / [llen is] 
   @-}
 
@@ -27,32 +24,106 @@ divideAndQunquer
   -> (List i -> List i -> Proof)
   -> List i -> Int -> Int -> Proof
 divideAndQunquer f thm is n m  
-  | llen is <= n || n <= 1 
   =   pmconcat m (map f (chunk n is))
   ==. mconcat (map f (chunk n is))
        ? pmconcatEquivalence m (map f (chunk n is))
+  ==. f is 
+       ? distributeInput f thm is n 
+  *** QED 
+
+{-@ distributeInput
+     :: f:(List i -> List o)
+     -> thm:(x1:List i -> x2:List i -> {f (append x1 x2) == append (f x1) (f x2)} )
+     -> is:List i 
+     -> n:Int 
+     -> {f is == mconcat (map f (chunk n is))}
+     / [llen is] 
+  @-}
+
+distributeInput 
+  :: (List i -> List o) 
+  -> (List i -> List i -> Proof)
+  -> List i -> Int -> Proof
+distributeInput f thm is n  
+  | llen is <= n || n <= 1
+  =   mconcat (map f (chunk n is))
   ==. mconcat (map f (C is N))
   ==. mconcat (f is `C` map f N)
   ==. mconcat (f is `C` N)
   ==. append (f is) (mconcat N)
   ==. append (f is) N
-  ==. f is ? appendNeutralRight (f is)
+  ==. f is ? appendRightIdentity (f is)
   *** QED 
   | otherwise
-  =   pmconcat m (map f (chunk n is))
-  ==. mconcat (map f (chunk n is))
-       ? pmconcatEquivalence m (map f (chunk n is))
+  =   mconcat (map f (chunk n is))
   ==. mconcat (map f (C (take n is) (chunk n (drop n is)))) 
   ==. mconcat (f (take n is) `C` map f (chunk n (drop n is)))
   ==. append (f (take n is)) (mconcat (map f (chunk n (drop n is))))
   ==. append (f (take n is)) (f (drop n is))
-       ? divideAndQunquer f thm (drop n is) n m 
+       ? distributeInput f thm (drop n is) n  
   ==. f (append (take n is) (drop n is))
        ? thm (take n is) (drop n is)
   ==. f is 
        ? appendTakeDrop n is 
   *** QED 
 
+pmconcatEquivalence ::Int -> List (List a) -> Proof
+{-@ pmconcatEquivalence :: i:Int -> is:List (List a) 
+    -> {pmconcat i is == mconcat is} 
+    / [llen is] @-}
+pmconcatEquivalence i is 
+  | i <= 1
+  = pmconcat i is ==. mconcat is *** QED 
+pmconcatEquivalence i N 
+  =   pmconcat i N 
+  ==. N 
+  ==. mconcat N 
+  *** QED 
+pmconcatEquivalence i (C x N) 
+  =   pmconcat i (C x N)
+  ==. x 
+  ==. append x N
+       ? appendRightIdentity x  
+  ==. mconcat (C x (mconcat N)) 
+  ==. mconcat (C x N) 
+  *** QED 
+pmconcatEquivalence i xs 
+  | llen xs <= i 
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. pmconcat i (map mconcat (C xs N))
+  ==. pmconcat i (mconcat xs `C`  map mconcat N)
+  ==. pmconcat i (mconcat xs `C`  N)
+  ==. mconcat xs
+  *** QED 
+pmconcatEquivalence i xs
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. mconcat (map mconcat (chunk i xs))
+       ? pmconcatEquivalence i (map mconcat (chunk i xs))
+  ==. mconcat xs
+       ? mconcatAssoc i xs
+  *** QED 
+
+-------------------------------------------------------------------------------
+-----------  List Definition --------------------------------------------------
+-------------------------------------------------------------------------------
+
+
+{-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
+data List a = N | C a (List a)
+
+llen :: List a -> Int 
+{-@ measure llen @-}
+{-@ llen :: List a -> Nat @-}
+llen N        = 0 
+llen (C _ xs) = 1 + llen xs
+
+-------------------------------------------------------------------------------
+-----------  List Mannipulation -----------------------------------------------
+-------------------------------------------------------------------------------
+
+-- Distribution 
 
 {-@ reflect map @-}
 {-@ map :: (a -> b) -> xs:List a -> {v:List b | llen v == llen xs } @-}
@@ -91,45 +162,71 @@ take i (C x xs)
   | otherwise 
   = C x (take (i-1) xs)
 
-pmconcatEquivalence ::Int -> List (List a) -> Proof
-{-@ pmconcatEquivalence :: i:Int -> is:List (List a) 
-    -> {pmconcat i is == mconcat is} 
-    / [llen is] @-}
-pmconcatEquivalence i is 
-  | i <= 1
-  = pmconcat i is ==. mconcat is *** QED 
-pmconcatEquivalence i N 
-  =   pmconcat i N 
-  ==. N 
-  ==. mconcat N 
-  *** QED 
-pmconcatEquivalence i (C x N) 
-  =   pmconcat i (C x N)
-  ==. x 
-  ==. append x N
-       ? appendNeutralRight x  
-  ==. mconcat (C x (mconcat N)) 
-  ==. mconcat (C x N) 
-  *** QED 
-pmconcatEquivalence i xs 
-  | llen xs <= i 
-  =   pmconcat i xs 
-  ==. pmconcat i (map mconcat (chunk i xs))
-  ==. pmconcat i (map mconcat (C xs N))
-  ==. pmconcat i (mconcat xs `C`  map mconcat N)
-  ==. pmconcat i (mconcat xs `C`  N)
-  ==. mconcat xs
-  *** QED 
+-- Monoid
 
-pmconcatEquivalence i xs
-  =   pmconcat i xs 
-  ==. pmconcat i (map mconcat (chunk i xs))
-  ==. mconcat (map mconcat (chunk i xs))
-       ? pmconcatEquivalence i (map mconcat (chunk i xs))
-  ==. mconcat xs
-       ? mconcatAssoc appendNeutralRight i xs
-  *** QED 
+{-@ reflect mconcat @-}
+mconcat :: List (List a) -> List a 
+mconcat N        = N 
+mconcat (C x xs) = append x (mconcat xs)
 
+
+{-@ reflect pmconcat @-}
+pmconcat :: Int -> List (List a) -> List a  
+{-@ pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
+
+pmconcat i xs
+  | i <= 1 
+  = mconcat xs 
+pmconcat i N   
+  = N 
+pmconcat i (C x N) 
+  = x
+pmconcat i xs 
+  = pmconcat i (map mconcat (chunk i xs))
+
+{-@ reflect append @-}
+append :: List a -> List a -> List a 
+append N        ys = ys  
+append (C x xs) ys = x `C` (append xs ys)
+
+
+-------------------------------------------------------------------------------
+-----------  Helper Theorems --------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- List is a Monoid 
+
+appendRightIdentity :: List a -> Proof 
+{-@ appendRightIdentity :: xs:List a -> { append xs N == xs } @-}
+
+appendRightIdentity N 
+  = append N N ==. N *** QED 
+appendRightIdentity (C x xs)
+  =   append (C x xs) N 
+  ==. C x (append xs N) ? appendRightIdentity xs 
+  ==. C x xs 
+  *** QED   
+
+appendAssoc :: List a -> List a -> List a -> Proof 
+{-@ appendAssoc :: x:List a -> y:List a -> z:List a 
+  -> {append (append x y) z == append x (append y z)} @-}
+appendAssoc N y z 
+  =   append (append N y) z 
+  ==. append N z 
+  ==. N
+  ==. append N (append y z)
+  *** QED 
+appendAssoc (C x xs) y z 
+  =   append (append (C x xs) y) z 
+  ==. append (x `C` (append xs y)) z 
+  ==. x `C` (append (append xs y) z)
+  ==. x `C` (append xs (append y z))
+       ? appendAssoc xs y z
+  ==. append (C x xs) (append y z)
+  *** QED   
+
+
+-- | Monoid implications 
 
 mconcatAssocOne :: Int -> List (List a) -> Proof 
 {-@ mconcatAssocOne :: i:Nat -> xs:{List (List a) | i <= llen xs} 
@@ -163,31 +260,14 @@ mconcatAssocOne i (C x xs)
   ==. mconcat (C x xs)
   *** QED 
 
-appendAssoc :: List a -> List a -> List a -> Proof 
-{-@ appendAssoc :: x:List a -> y:List a -> z:List a 
-  -> {append (append x y) z == append x (append y z)} @-}
-appendAssoc N y z 
-  =   append (append N y) z 
-  ==. append N z 
-  ==. N
-  ==. append N (append y z)
-  *** QED 
-appendAssoc (C x xs) y z 
-  =   append (append (C x xs) y) z 
-  ==. append (x `C` (append xs y)) z 
-  ==. x `C` (append (append xs y) z)
-  ==. x `C` (append xs (append y z))
-       ? appendAssoc xs y z
-  ==. append (C x xs) (append y z)
-  *** QED   
+-- Generalization to chunking  
 
-mconcatAssoc :: (List a -> Proof) -> Int -> List (List a) -> Proof 
+mconcatAssoc :: Int -> List (List a) -> Proof 
 {-@ mconcatAssoc :: 
-     rightIdentity:(is:List a -> {append is N  == is})
-  -> i:Int -> xs:List (List a) 
+    i:Int -> xs:List (List a) 
   -> { mconcat xs == mconcat (map mconcat (chunk i xs))}
   /  [llen xs] @-}
-mconcatAssoc rightIdentity i xs 
+mconcatAssoc i xs 
   | i <= 1 || llen xs <= i
   =   mconcat (map mconcat (chunk i xs))
   ==. mconcat (map mconcat (C xs N))
@@ -196,7 +276,7 @@ mconcatAssoc rightIdentity i xs
   ==. append (mconcat xs) (mconcat N)
   ==. append (mconcat xs) N
   ==. mconcat xs 
-       ? rightIdentity (mconcat xs)
+       ? appendRightIdentity (mconcat xs)
   *** QED  
    | otherwise
    =   mconcat (map mconcat (chunk i xs))
@@ -204,41 +284,17 @@ mconcatAssoc rightIdentity i xs
    ==. mconcat (mconcat (take i xs) `C` map mconcat (chunk i (drop i xs)))
    ==. append (mconcat (take i xs)) (mconcat (map mconcat (chunk i (drop i xs))))
    ==. append (mconcat (take i xs)) (mconcat (drop i xs))
-        ? mconcatAssoc rightIdentity i (drop i xs)
+        ? mconcatAssoc i (drop i xs)
    ==. mconcat xs 
         ? mconcatAssocOne i xs 
    *** QED 
 
 
-{-@ reflect mconcat @-}
-mconcat :: List (List a) -> List a 
-mconcat N        = N 
-mconcat (C x xs) = append x (mconcat xs)
 
-
-{-@ reflect pmconcat @-}
-pmconcat :: Int -> List (List a) -> List a  
-{-@ pmconcat :: i:Int -> is:List (List a) -> List a  /[llen is] @-}
-
-pmconcat i xs
-  | i <= 1 
-  = mconcat xs 
-pmconcat i N   
-  = N 
-pmconcat i (C x N) 
-  = x
-pmconcat i xs 
-  = pmconcat i (map mconcat (chunk i xs))
-
-
-{-@ reflect append @-}
-append :: List a -> List a -> List a 
-append N        ys = ys  
-append (C x xs) ys = x `C` (append xs ys)
-
-
+-- | For input Distribution 
 {-@ appendTakeDrop :: i:Nat -> xs:{List a | i <= llen xs} 
   -> {xs == append (take i xs) (drop i xs) }  @-}
+
 appendTakeDrop :: Int -> List a -> Proof 
 appendTakeDrop i N 
   =   append (take i N) (drop i N)
@@ -257,24 +313,4 @@ appendTakeDrop i (C x xs)
   ==. C x (append (take (i-1) xs) (drop (i-1) xs))
   ==. C x xs ? appendTakeDrop (i-1) xs 
   *** QED 
-
-
-appendNeutralRight :: List a -> Proof 
-{-@ appendNeutralRight :: xs:List a -> { append xs N == xs } @-}
-appendNeutralRight N 
-  = append N N ==. N *** QED 
-appendNeutralRight (C x xs)
-  =   append (C x xs) N 
-  ==. C x (append xs N) ? appendNeutralRight xs 
-  ==. C x xs 
-  *** QED   
-
-{-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
-data List a = N | C a (List a)
-
-llen :: List a -> Int 
-{-@ measure llen @-}
-{-@ llen :: List a -> Nat @-}
-llen N        = 0 
-llen (C _ xs) = 1 + llen xs
 
