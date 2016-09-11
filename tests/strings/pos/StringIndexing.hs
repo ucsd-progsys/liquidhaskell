@@ -89,6 +89,11 @@ data MI (target :: Symbol) where
   = {i:Int | IsGoodIndex Input Target i }
   @-}
 
+{-@ type GoodIndexTwo Input X Target 
+  = {i:Int | (IsGoodIndex Input Target i)  && (IsGoodIndex (concatString Input X) Target i) }
+  @-}
+
+
 {-@ predicate IsGoodIndex Input Target I
   =  (subString Input I (stringLen Target)  == Target)
   && (I + stringLen Target <= stringLen Input)
@@ -174,7 +179,7 @@ shift x y = x + y
 {-@ reflect castGoodIndexRightList @-}
 castGoodIndexRightList :: SMTString -> SMTString -> SMTString -> List Int -> List Int    
 {-@ castGoodIndexRightList :: target:SMTString -> input:SMTString -> x:SMTString -> is:List (GoodIndex input target) 
-    -> {v:List (GoodIndex {concatString input x} target) | v == is} @-}
+    -> {v:List (GoodIndexTwo input x target) | v == is} @-}
 castGoodIndexRightList target input x N 
   = N 
 castGoodIndexRightList target input x (C i is) 
@@ -184,7 +189,7 @@ castGoodIndexRightList target input x (C i is)
 {-@ reflect castGoodIndexRight @-}
 castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int  
 {-@ castGoodIndexRight :: target:SMTString -> input:SMTString -> x:SMTString -> i:GoodIndex input target 
-   -> {v:(GoodIndex {concatString input x} target)| v == i} @-}
+   -> {v:(GoodIndexTwo input x target)| v == i} @-}
 castGoodIndexRight target input x i  = cast (subStringConcat input x (stringLen target) i) i
 
 
@@ -575,11 +580,17 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
 ----------  Lemmata on Casts --------------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ castAppend :: target:SMTString -> input:SMTString -> x:SMTString -> is1:List Int -> is2:List Int -> 
+{-@ castAppend :: target:SMTString -> input:SMTString -> x:SMTString 
+     -> is1:List (GoodIndex input target) 
+     -> is2:List (GoodIndex input target) -> 
    {castGoodIndexRightList target input x (append is1 is2) == append (castGoodIndexRightList target input x is1) (castGoodIndexRightList target input x is2)}
     @-}
 castAppend :: SMTString -> SMTString -> SMTString -> List Int -> List Int -> Proof 
-castAppend _ _ _ _ _ = trivial 
+castAppend target input x is1 is2 
+  =   castGoodIndexRightList target input x (append is1 is2)
+  ==. append is1 is2 
+  ==. append (castGoodIndexRightList target input x is1) (castGoodIndexRightList target input x is2)
+  *** QED 
 
 castEq1 :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
 {-@ castEq1 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
@@ -595,10 +606,14 @@ castEq1 tg xi yi zi xis
 
 castEq3 :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
 {-@ castEq3 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
-             ->  yis:List (GoodIndex xi tg) 
+             ->  yis:List (GoodIndex yi tg) 
         -> {castGoodIndexRightList tg (concatString xi yi) zi (map (shiftStringRight tg xi yi) yis) == map (shiftStringRight tg xi (concatString yi zi)) (castGoodIndexRightList tg yi zi yis)} @-}
 castEq3 tg xi yi zi yis 
-  =   trivial
+  =   castGoodIndexRightList tg (concatString xi yi) zi (map (shiftStringRight tg xi yi) yis)
+  ==. map (shiftStringRight tg xi yi) yis 
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (castGoodIndexRightList tg yi zi yis)
+        ? mapShiftIndex tg xi yi zi yis 
+  *** QED 
 
 castEq4 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
 {-@ castEq4 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
@@ -953,4 +968,22 @@ mapShiftZero target i (C x xs)
   ==. x `C` xs ? mapShiftZero target i xs 
   *** QED 
 
+
+{-@ mapShiftIndex :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString -> xs:List (GoodIndex yi tg)
+  -> {map (shiftStringRight tg xi yi) xs == map (shiftStringRight tg xi (concatString yi zi)) xs} / [llen xs] @-}
+mapShiftIndex :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
+mapShiftIndex tg xi yi zi N 
+  = map (shiftStringRight tg xi yi) N ==. N ==. map (shiftStringRight tg xi (concatString yi zi)) N *** QED 
+  *** QED 
+mapShiftIndex tg xi yi zi zs@(C i0 is0)
+  =   let is = castGoodIndexRightList tg yi zi is0 
+          i  = castGoodIndexRight     tg yi zi i0  in 
+      map (shiftStringRight tg xi yi) (C i is) 
+  ==. C (shiftStringRight tg xi yi i) (map (shiftStringRight tg xi yi) is)
+  ==. C (shift (stringLen xi) i) (map (shiftStringRight tg xi yi) is)
+  ==. C (shiftStringRight tg xi (concatString yi zi) i) (map (shiftStringRight tg xi yi) is)
+  ==. C (shiftStringRight tg xi (concatString yi zi) i) (map (shiftStringRight tg xi (concatString yi zi)) is)
+       ? mapShiftIndex tg xi yi zi is
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (C i is)
+  *** QED 
 
