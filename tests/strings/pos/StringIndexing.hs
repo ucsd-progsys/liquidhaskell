@@ -622,10 +622,25 @@ castEq4 tg xi yi zi
   =   trivial
 
 castEq5 :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
-{-@ castEq5 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString -> zis :List Int 
-        -> {map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) zis) == map (shiftStringRight tg (concatString xi yi) zi) zis} @-}
-castEq5 tg xi yi zi zis  
-  =   trivial
+{-@ castEq5 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
+            -> zis:List (GoodIndex zi tg) 
+        -> {map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) zis) == map (shiftStringRight tg (concatString xi yi) zi) zis} 
+        / [llen zis ] @-}
+castEq5 tg xi yi zi N  
+  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) N)
+  ==. map (shiftStringRight tg xi (concatString yi zi)) N 
+  ==. N 
+  ==. map (shiftStringRight tg (concatString xi yi) zi) N 
+  *** QED  
+castEq5 tg xi yi zi (C i is)  
+  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) (C i is))
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (shiftStringRight tg yi zi i `C` map (shiftStringRight tg yi zi) is)
+  ==. shiftStringRight tg xi (concatString yi zi) (shiftStringRight tg yi zi i) `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
+  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
+  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg (concatString xi yi) is))
+       ? castEq5 tg xi yi zi is 
+  ==. map (shiftStringRight tg (concatString xi yi) zi) (C i is)
+  *** QED  
 
 -------------------------------------------------------------------------------
 ----------  Lemmata on Lists --------------------------------------------------
