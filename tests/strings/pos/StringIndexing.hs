@@ -380,13 +380,14 @@ distributeInput f thm is n
 distributestoMI :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> SMTString -> Proof 
 {-@ distributestoMI :: MI target -> x1:SMTString -> x2:SMTString -> {toMI (concatString x1 x2) == mappend (toMI x1) (toMI x2)} @-} 
 distributestoMI _ x1 x2
-  | stringLen x1 == 0, stringLen x2 == 0
+  | stringLen x1 == 0, stringLen x2 == 0 
   =   mappend (toMI x1) (toMI x2)
   ==. mappend (mempty :: MI target) (mempty :: MI target)
        ? mempty_left (mempty :: MI target) 
   ==. (mempty :: MI target)
   ==. toMI (concatString x1 x2)
   *** QED 
+
 distributestoMI _ x1 x2
   | stringLen x1 == 0 
   =   mappend (toMI x1) (toMI x2)
@@ -396,6 +397,7 @@ distributestoMI _ x1 x2
   ==. toMI (concatString x1 x2)
       ? concatEmpLeft x1 x2 
   *** QED 
+
 distributestoMI _ x1 x2
   | stringLen x2 == 0 
   =   mappend (toMI x1) (toMI x2)
@@ -405,6 +407,7 @@ distributestoMI _ x1 x2
   ==. toMI (concatString x1 x2)
       ? concatEmpRight x1 x2 
   *** QED 
+
 distributestoMI _ x1 x2 
   | stringLen (fromString (symbolVal (Proxy :: Proxy target))) < 2 
   =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
@@ -434,10 +437,10 @@ distributestoMI _ x1 x2
           (makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 -1))) 
       ? shiftIndexesRight' 0 (stringLen x2 - 1) x1 x2 tg 
   ==. MI (concatString x1 x2)
-         (castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1))
+         ( (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1))
            `append`
           (makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 -1))) 
-      ? concatmakeNewIndices 0 (stringLen x1 -1) tg x1 x2 
+      ? (concatmakeNewIndices 0 (stringLen x1 -1) tg x1 x2) 
   ==. MI (concatString x1 x2)
          (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1)
            `append`
@@ -452,9 +455,8 @@ distributestoMI _ x1 x2
   ==. toMI (concatString x1 x2)
   *** QED 
 
-
 distributestoMI _ x1 x2
-  | 0 <= stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) + 1 
+  | 0 <= stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) 
   =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
       mappend (toMI x1 :: MI target) (toMI x2:: MI target)  
   ==. mappend (MI x1 (makeIndices x1 tg 0 (stringLen x1 - 1)))
@@ -478,12 +480,12 @@ distributestoMI _ x1 x2
           ) `append`
           (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
   ==. MI (concatString x1 x2)
-         ((castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg))
+         ((makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg)
           `append`
            makeIndices (concatString x1 x2) tg (stringLen x1 - stringLen tg +1) (stringLen x1 -1)
           ) `append`
           (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
-         ? catIndices x1 x2 tg 0 (stringLen x1 -1 )
+         ? catIndices x1 x2 tg 0 (stringLen x1 -1 ) -- HERE HERE requires stringLen tg <= stringLen x1
   ==. MI (concatString x1 x2)
          ((makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg)
           `append`
@@ -509,9 +511,8 @@ distributestoMI _ x1 x2
           ? mergeIndices (concatString x1 x2) tg 0 (stringLen x1- 1) (stringLen (concatString x1 x2) - 1)
   ==. toMI (concatString x1 x2)
   *** QED 
-
 distributestoMI _ x1 x2
-  | stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) + 1 < 0 
+  | stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) < 0 
   =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
       mappend (toMI x1 :: MI target) (toMI x2:: MI target)  
   ==. mappend (MI x1 (makeIndices x1 tg 0 (stringLen x1 - 1)))
@@ -534,19 +535,14 @@ distributestoMI _ x1 x2
            makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
           ) `append`
           (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
-  ==. MI (concatString x1 x2)
-         ((castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg))
-          `append`
-           makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
-          ) `append`
-          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
-         ? catIndices x1 x2 tg 0 (stringLen x1 -1 )
+          
   ==. MI (concatString x1 x2)
          ((N
           `append`
            makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
           ) `append`
           (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+         ? makeNewIndicesNullSmallInput x1 tg 0 (stringLen x1 - 1)  
   ==. MI (concatString x1 x2)
          (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
            `append`
