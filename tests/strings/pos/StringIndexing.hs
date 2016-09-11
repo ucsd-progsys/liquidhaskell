@@ -21,7 +21,7 @@ module Main where
 
 import System.Environment   
 
-import Language.Haskell.Liquid.String
+import String
 import GHC.TypeLits
 import Data.String hiding (fromString)
 import Prelude hiding ( mempty, mappend, id, mconcat, map
@@ -197,7 +197,7 @@ castGoodIndexRightList target input x (C i is)
 castGoodIndexRight :: SMTString -> SMTString -> SMTString -> Int -> Int  
 {-@ castGoodIndexRight :: target:SMTString -> input:SMTString -> x:SMTString -> i:GoodIndex input target 
    -> {v:(GoodIndexTwo input x target)| v == i} @-}
-castGoodIndexRight target input x i  = cast (subStringConcat input x (stringLen target) i) i
+castGoodIndexRight target input x i  = cast (subStringConcatBack input x (stringLen target) i) i
 
 
 -------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ mempty_left (MI i1 is1)
            makeNewIndices i1 stringEmp tg 
          ) `append`
          (map (shiftStringRight tg i1 stringEmp) N))
-      ? concatStringNeutral i1 
+      ? concatStringNeutralLeft i1 
         -- NV ordering is important! 
         -- concatString i1 stringEmp == i1 should come before application of MI
   ==. MI i1
@@ -937,7 +937,7 @@ makeNewIndicesNullLeft  s t
   ==. makeIndices s t
                    0
                    (stringLen s - 1) 
-                   ? concatStringNeutral s
+                   ? concatStringNeutralLeft s
   ==. makeIndices s t
                    0
                    (stringLen s - 1)
@@ -953,7 +953,7 @@ makeNewIndicesNullLeft s t
                    (stringLen s - 1)
   ==. makeIndices s t
                    (1 + stringLen s - stringLen t)
-                   (stringLen s - 1) ? concatStringNeutral s 
+                   (stringLen s - 1) ? concatStringNeutralLeft s 
   ==. N ? makeNewIndicesNullSmallIndex s t (1 + stringLen s - stringLen t) (stringLen s - 1)
   *** QED 
 
@@ -1253,11 +1253,11 @@ isGoodIndexConcatString input input' tg i
   ==. (subString (concatString input input') i (stringLen tg)  == tg  
       && i + stringLen tg <= stringLen input 
       && 0 <= i)   
-      ? (subStringConcat input input' (stringLen tg) i *** QED )
+      ? (subStringConcatBack input input' (stringLen tg) i *** QED )
   ==. (subString (concatString input input') i (stringLen tg)  == tg  
       && i + stringLen tg <= stringLen (concatString input input') 
       && 0 <= i)   
-      ? (((stringLen input <= stringLen (concatString input input') *** QED ) &&& (lenConcat input input') *** QED))
+      ? (((stringLen input <= stringLen (concatString input input') *** QED ) &&& (concatLen input input') *** QED))
   ==. isGoodIndex (concatString input input') tg i 
   *** QED 
 
