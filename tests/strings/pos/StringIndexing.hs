@@ -513,7 +513,7 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
            )
             `append`
            map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) zis))
-         ? castEq4 tg xi yi zi 
+         ? shiftIndexesRight xi yi zi tg 
   ==. MI (concatString (concatString xi yi) zi)
          ((((castGoodIndexRightList tg (concatString xi yi) zi (castGoodIndexRightList tg xi yi xis)
            `append`
@@ -525,7 +525,7 @@ mappend_assoc x@(MI xi xis) y@(MI yi yis) z@(MI zi zis)
            )
             `append`
            map (shiftStringRight tg (concatString xi yi) zi) zis)
-         ? castEq5 tg xi yi zi zis 
+         ? mapLenFusion tg xi yi zi zis 
   ==. MI (concatString (concatString xi yi) zi)
          (((castGoodIndexRightList tg (concatString xi yi) zi (castGoodIndexRightList tg xi yi xis)
               `append`
@@ -615,32 +615,6 @@ castEq3 tg xi yi zi yis
         ? mapShiftIndex tg xi yi zi yis 
   *** QED 
 
-castEq4 :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
-{-@ castEq4 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
-        -> {map (shiftStringRight tg xi (concatString yi zi)) (makeNewIndices yi zi tg) == makeNewIndices (concatString xi yi) zi tg} @-}
-castEq4 tg xi yi zi  
-  =   trivial
-
-castEq5 :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
-{-@ castEq5 :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
-            -> zis:List (GoodIndex zi tg) 
-        -> {map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) zis) == map (shiftStringRight tg (concatString xi yi) zi) zis} 
-        / [llen zis ] @-}
-castEq5 tg xi yi zi N  
-  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) N)
-  ==. map (shiftStringRight tg xi (concatString yi zi)) N 
-  ==. N 
-  ==. map (shiftStringRight tg (concatString xi yi) zi) N 
-  *** QED  
-castEq5 tg xi yi zi (C i is)  
-  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) (C i is))
-  ==. map (shiftStringRight tg xi (concatString yi zi)) (shiftStringRight tg yi zi i `C` map (shiftStringRight tg yi zi) is)
-  ==. shiftStringRight tg xi (concatString yi zi) (shiftStringRight tg yi zi i) `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
-  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
-  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg (concatString xi yi) is))
-       ? castEq5 tg xi yi zi is 
-  ==. map (shiftStringRight tg (concatString xi yi) zi) (C i is)
-  *** QED  
 
 -------------------------------------------------------------------------------
 ----------  Lemmata on Lists --------------------------------------------------
@@ -819,31 +793,127 @@ makeNewIndicesNullRight s t
 -------------------------------------------------------------------------------
 ----------  Lemmata on Shifting Indices ---------------------------------------
 -------------------------------------------------------------------------------
-mapLenFusion :: SMTString -> SMTString -> List Int -> Proof
-{-@ mapLenFusion 
+
+mapLenFusion :: SMTString -> SMTString -> SMTString -> SMTString -> List Int -> Proof
+{-@ mapLenFusion :: tg:SMTString -> xi:SMTString -> yi:SMTString -> zi:SMTString 
+            -> zis:List (GoodIndex zi tg) 
+        -> {map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) zis) == map (shiftStringRight tg (concatString xi yi) zi) zis} 
+        / [llen zis ] @-}
+mapLenFusion tg xi yi zi N  
+  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) N)
+  ==. map (shiftStringRight tg xi (concatString yi zi)) N 
+  ==. N 
+  ==. map (shiftStringRight tg (concatString xi yi) zi) N 
+  *** QED  
+mapLenFusion tg xi yi zi (C i is)  
+  =   map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) (C i is))
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (shiftStringRight tg yi zi i `C` map (shiftStringRight tg yi zi) is)
+  ==. shiftStringRight tg xi (concatString yi zi) (shiftStringRight tg yi zi i) `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
+  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg xi (concatString yi zi)) (map (shiftStringRight tg yi zi) is))
+  ==. shiftStringRight tg (concatString xi yi) zi i `C` (map (shiftStringRight tg (concatString xi yi) zi) is)
+       ? mapLenFusion tg xi yi zi is 
+  ==. map (shiftStringRight tg (concatString xi yi) zi) (C i is)
+  *** QED  
+
+{-@ shiftIndexesRight
   :: xi:SMTString 
   -> yi:SMTString 
-  -> zis:List Int 
-  -> {  map (shift (stringLen (concatString xi yi))) zis == map (shift (stringLen xi)) (map (shift (stringLen yi)) zis) 
-     }
+  -> zi:SMTString 
+  -> tg:{SMTString | stringLen tg <= stringLen yi } 
+  -> { map (shiftStringRight tg xi (concatString yi zi)) (makeNewIndices yi zi tg) == makeNewIndices (concatString xi yi) zi tg }
   @-}
-mapLenFusion xi yi N 
-  =   map (shift (stringLen (concatString xi yi))) N
+shiftIndexesRight :: SMTString -> SMTString -> SMTString -> SMTString -> Proof
+shiftIndexesRight xi yi zi tg
+  | stringLen tg < 2 
+  =   makeNewIndices (concatString xi yi) zi tg 
   ==. N
-  ==. map (shift (stringLen xi)) N
-  ==. map (shift (stringLen xi)) (map (shift (stringLen yi)) N)
-  *** QED  
-mapLenFusion xi yi (C i is)
-  =   map (shift (stringLen (concatString xi yi))) (C i is)
-  ==. shift (stringLen (concatString xi yi)) i `C` map (shift (stringLen (concatString xi yi))) is 
-  ==. shift (stringLen xi + stringLen yi) i `C` map (shift (stringLen (concatString xi yi))) is 
-      ? concatLen xi yi 
-  ==. shift (stringLen xi) (shift (stringLen yi) i) `C` map (shift (stringLen (concatString xi yi))) is 
-      ? concatLen xi yi 
-  ==. shift (stringLen xi) (shift (stringLen yi) i) `C` map (shift (stringLen xi)) (map (shift (stringLen yi)) is)
-      ? mapLenFusion xi yi is 
-  ==. map (shift (stringLen xi)) (shift (stringLen yi) i `C` map (shift (stringLen yi)) is)
-  ==. map (shift (stringLen xi)) (map (shift (stringLen yi)) (i `C` is))
+  ==. map (shiftStringRight tg xi (concatString yi zi)) N
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (makeNewIndices yi zi tg)
+  *** QED 
+shiftIndexesRight xi yi zi tg
+-- NV NV NV 
+-- This is suspicious!!! it should require exactly the precondition 
+-- || tg || <= || yi || 
+--   | stringLen tg  <= stringLen yi + 1 
+  =   makeNewIndices (concatString xi yi) zi tg  
+  ==. makeIndices (concatString (concatString xi yi) zi) tg 
+                   (maxInt (stringLen (concatString xi yi) - (stringLen tg -1)) 0)
+                   (stringLen (concatString xi yi) - 1 )
+  ==. makeIndices (concatString (concatString xi yi) zi) tg 
+                   (stringLen (concatString xi yi) - (stringLen tg -1))
+                   (stringLen (concatString xi yi) - 1 )
+  ==. makeIndices (concatString (concatString xi yi) zi) tg 
+                   (stringLen xi + stringLen yi - stringLen tg + 1)
+                   (stringLen xi + stringLen yi - 1 )
+  ==. makeIndices (concatString xi (concatString yi zi)) tg 
+                   (stringLen xi + stringLen yi - stringLen tg + 1)
+                   (stringLen xi + stringLen yi - 1 )
+       ?concatStringAssoc xi yi zi
+  ==. map (shiftStringRight tg xi (concatString yi zi)) (makeIndices (concatString yi zi) tg (stringLen yi - stringLen tg + 1) (stringLen yi - 1))
+       ? shiftIndexesRight' (stringLen yi - stringLen tg + 1)
+                            (stringLen yi - 1)
+                            xi 
+                            (concatString yi zi)
+                            tg 
+  ==. map (shiftStringRight tg xi (concatString yi zi)) 
+               (makeIndices (concatString yi zi) tg 
+                             (maxInt (stringLen yi - (stringLen tg -1)) 0)
+                             (stringLen yi -1))
+  ==. map (shiftStringRight tg xi (concatString yi zi)) 
+          (makeNewIndices yi zi tg)
+  *** QED
+
+{-@ shiftIndexesRight'
+  :: lo:Nat 
+  -> hi:Int  
+  -> x:SMTString 
+  -> input:SMTString 
+  -> target:SMTString
+  -> { map (shiftStringRight target x input) (makeIndices input target lo hi) == makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi) }
+  / [if hi < lo then 0 else  hi-lo]
+  @-}
+shiftIndexesRight' :: Int -> Int -> SMTString -> SMTString -> SMTString -> Proof
+shiftIndexesRight' lo hi x input target
+  | hi < lo 
+  =   map (shiftStringRight target x input) (makeIndices input target lo hi)
+  ==. map (shiftStringRight target x input) N
+  ==. N
+  ==. makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi)
+  *** QED 
+  | lo == hi, isGoodIndex input target lo 
+  =   map (shiftStringRight target x input) (makeIndices input target lo hi)
+  ==. map (shiftStringRight target x input) (lo `C` N)
+  ==. (shiftStringRight target x input lo) `C` (map (shiftStringRight target x input) N)
+  ==. (stringLen x + lo) `C` N
+  ==. makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi)
+     ? isGoodIndexConcatFront input x target lo  -- ( => IsGoodIndex (concatString x input) target (stringLen x + lo))
+  *** QED 
+  | lo == hi
+  =   map (shiftStringRight target x input) (makeIndices input target lo hi)
+  ==. map (shiftStringRight target x input) N
+  ==. N
+  ==. makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi)
+     ? (isGoodIndexConcatFront input x target lo *** QED)
+  *** QED 
+
+shiftIndexesRight' lo hi x input target
+  | isGoodIndex input target lo
+  =   map (shiftStringRight target x input) (makeIndices input target lo hi)
+  ==. map (shiftStringRight target x input) (lo `C` makeIndices input target (lo+1) hi)
+  ==. (shiftStringRight target x input lo) `C` (map (shiftStringRight target x input) (makeIndices input target (lo+1) hi))
+  ==. (shift (stringLen x) lo) `C` (makeIndices (concatString x input) target (stringLen x + (lo+1)) (stringLen x + hi))
+      ? shiftIndexesRight' (lo+1) hi x input target
+  ==. (stringLen x + lo) `C` (makeIndices (concatString x input) target (stringLen x + (lo+1)) (stringLen x + hi))
+  ==. makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi)
+     ? (isGoodIndexConcatFront input x target lo *** QED)
+  *** QED 
+  | otherwise
+  =   map (shiftStringRight target x input) (makeIndices input target lo hi)
+  ==. map (shiftStringRight target x input) (makeIndices input target (lo + 1) hi)
+  ==. makeIndices (concatString x input) target (stringLen x + (lo+1)) (stringLen x + hi)
+      ? shiftIndexesRight' (lo+1) hi x input target
+  ==. makeIndices (concatString x input) target (stringLen x + lo) (stringLen x + hi)
+     ? (isGoodIndexConcatFront input x target lo *** QED)
   *** QED 
 
 
