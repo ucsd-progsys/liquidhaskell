@@ -26,7 +26,7 @@ import GHC.TypeLits
 import Data.String hiding (fromString)
 import Prelude hiding ( mempty, mappend, id, mconcat, map
                       , take, drop  
-                      , error, undefined 
+                      , error
                       )
 import Language.Haskell.Liquid.ProofCombinators 
 
@@ -68,10 +68,13 @@ test = indicesMI (toMI (fromString $ clone 100 "ababcabcab")  :: MI "abcab" )
   where
     clone i xs = concat (replicate i xs) 
 
-toMI   :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target 
+{-@ reflect toMI @-}
+toMI :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target 
 toMI input  
-  | isNullString input = mempty
-  | otherwise          = MI input (makeIndices input (fromString (symbolVal (Proxy :: Proxy target))) 0 (stringLen input - 1))
+  | stringLen input == 0 
+  = mempty
+  | otherwise          
+  = MI input (makeIndices input (fromString (symbolVal (Proxy :: Proxy target))) 0 (stringLen input - 1))
 
 toMIPar :: forall (target :: Symbol). (KnownSymbol target) => Int -> SMTString -> MI target  
 toMIPar chunksize input 
@@ -298,7 +301,7 @@ take i (C x xs)
 {-@ chunkString :: Int -> xs:SMTString -> List (SMTString) / [stringLen xs] @-}
 chunkString :: Int -> SMTString -> List (SMTString)
 chunkString i xs 
-  | i <= 0 
+  | i <= 1
   = C xs N 
   | stringLen xs <= i 
   = C xs N 
@@ -314,9 +317,357 @@ chunkString i xs
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+{-@ divideAndQunquer :: MI target -> is:SMTString  -> n:Int -> m:Int -> {toMI is == pmconcat m (map toMI (chunkString n is))} @-}
+
+divideAndQunquer :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> Int -> Int -> Proof
+divideAndQunquer _ is n m  
+  =   (pmconcat m (map toMI (chunkString n is)) :: MI target)
+  ==. mconcat (map toMI (chunkString n is))
+       ? pmconcatEquivalence m (map toMI (chunkString n is) :: List (MI target))
+  ==. toMI is 
+       ? distributionOfMI (mempty :: MI target) is n 
+  *** QED 
+
+
 -------------------------------------------------------------------------------
 ----------  Proof that toMI distributes ---------------------------------------
 -------------------------------------------------------------------------------
+
+{-@ distributionOfMI :: MI target -> is:SMTString -> n:Int -> {toMI is == mconcat (map toMI (chunkString n is))} @-}
+
+distributionOfMI :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> Int -> Proof
+distributionOfMI _ is n = distributeInput (toMI :: SMTString -> MI target) (distributestoMI (mempty :: MI target)) is n 
+
+
+{-@ distributeInput
+     :: f:(SMTString -> MI target)
+     -> thm:(x1:SMTString -> x2:SMTString -> {f (concatString x1 x2) == mappend (f x1) (f x2)} )
+     -> is:SMTString
+     -> n:Int 
+     -> {f is == mconcat (map f (chunkString n is))}
+     / [stringLen is] 
+  @-}
+
+distributeInput :: forall (target :: Symbol). (KnownSymbol target) 
+  => (SMTString -> MI target)
+  -> (SMTString -> SMTString -> Proof)
+  -> SMTString -> Int -> Proof
+distributeInput f thm is n  
+  | stringLen is <= n || n <= 1
+  =   mconcat (map f (chunkString n is))
+  ==. mconcat (map f (C is N))
+  ==. mconcat (f is `C` map f N)
+  ==. mconcat (f is `C` N)
+  ==. mappend (f is) (mconcat N)
+  ==. mappend (f is) (mempty :: MI target)
+  ==. f is ? mempty_left (f is)
+  *** QED 
+  | otherwise
+  =   mconcat (map f (chunkString n is))
+  ==. mconcat (map f (C (takeString n is) (chunkString n (dropString n is)))) 
+  ==. mconcat (f (takeString n is) `C` map f (chunkString n (dropString n is)))
+  ==. mappend (f (takeString n is)) (mconcat (map f (chunkString n (dropString n is))))
+  ==. mappend (f (takeString n is)) (f (dropString n is))
+       ? distributeInput f thm (dropString n is) n  
+  ==. f (concatString (takeString n is) (dropString n is))
+       ? thm (takeString n is) (dropString n is)
+  ==. f is 
+       ? concatTakeDrop n is 
+  *** QED 
+
+
+
+distributestoMI :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> SMTString -> Proof 
+{-@ distributestoMI :: MI target -> x1:SMTString -> x2:SMTString -> {toMI (concatString x1 x2) == mappend (toMI x1) (toMI x2)} @-} 
+distributestoMI _ x1 x2
+  | stringLen x1 == 0, stringLen x2 == 0
+  =   mappend (toMI x1) (toMI x2)
+  ==. mappend (mempty :: MI target) (mempty :: MI target)
+       ? mempty_left (mempty :: MI target) 
+  ==. (mempty :: MI target)
+  ==. toMI (concatString x1 x2)
+  *** QED 
+distributestoMI _ x1 x2
+  | stringLen x1 == 0 
+  =   mappend (toMI x1) (toMI x2)
+  ==. mappend (mempty :: MI target) (toMI x2 :: MI target)
+  ==. toMI x2 
+      ? mempty_right (toMI x2 :: MI target)
+  ==. toMI (concatString x1 x2)
+      ? concatEmpLeft x1 x2 
+  *** QED 
+distributestoMI _ x1 x2
+  | stringLen x2 == 0 
+  =   mappend (toMI x1) (toMI x2)
+  ==. mappend (toMI x1) (mempty :: MI target)
+  ==. (toMI x1 :: MI target)
+      ? mempty_left (toMI x1 :: MI target)
+  ==. toMI (concatString x1 x2)
+      ? concatEmpRight x1 x2 
+  *** QED 
+distributestoMI _ x1 x2 
+  | stringLen (fromString (symbolVal (Proxy :: Proxy target))) < 2 
+  =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
+      mappend (toMI x1 :: MI target) (toMI x2 :: MI target)  
+  ==. mappend (MI x1 (makeIndices x1 tg 0 (stringLen x1 - 1)))
+              (MI x2 (makeIndices x2 tg 0 (stringLen x2 - 1)))
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeNewIndices x1 x2 tg
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           N
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         (castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+           `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+      ? appendNil (castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1)))
+  ==. MI (concatString x1 x2)
+         (castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+           `append`
+          (makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 -1))) 
+      ? shiftIndexesRight' 0 (stringLen x2 - 1) x1 x2 tg 
+  ==. MI (concatString x1 x2)
+         (castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1))
+           `append`
+          (makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 -1))) 
+      ? concatmakeNewIndices 0 (stringLen x1 -1) tg x1 x2 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1)
+           `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 -1)) 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - 1)
+           `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen (concatString x1 x2) -1)) 
+  ==. MI (concatString x1 x2) 
+         (makeIndices (concatString x1 x2) tg 0 (stringLen (concatString x1 x2) - 1))
+      ? mergeIndices (concatString x1 x2) tg 0 (stringLen x1 -1) (stringLen (concatString x1 x2) - 1) 
+  ==. toMI (concatString x1 x2)
+  *** QED 
+
+
+distributestoMI _ x1 x2
+  | 0 <= stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) + 1 
+  =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
+      mappend (toMI x1 :: MI target) (toMI x2:: MI target)  
+  ==. mappend (MI x1 (makeIndices x1 tg 0 (stringLen x1 - 1)))
+              (MI x2 (makeIndices x2 tg 0 (stringLen x2 - 1)))
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeNewIndices x1 x2 tg
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeIndices (concatString x1 x2) tg (maxInt (stringLen x1 - stringLen tg +1) 0) (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeIndices (concatString x1 x2) tg (stringLen x1 - stringLen tg +1) (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg))
+          `append`
+           makeIndices (concatString x1 x2) tg (stringLen x1 - stringLen tg +1) (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+         ? catIndices x1 x2 tg 0 (stringLen x1 -1 )
+  ==. MI (concatString x1 x2)
+         ((makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg)
+          `append`
+           makeIndices (concatString x1 x2) tg (stringLen x1 - stringLen tg +1) (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+         `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+          ? mergeIndices (concatString x1 x2) tg 0 (stringLen x1 -stringLen tg) (stringLen x1-1)
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+         `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 - 1))
+          ? shiftIndexesRight' 0 (stringLen x2 -1) x1 x2 tg 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+         `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen (concatString x1 x2) - 1))
+  ==. MI (concatString x1 x2) 
+         (makeIndices (concatString x1 x2) tg 0 (stringLen (concatString x1 x2) - 1))
+          ? mergeIndices (concatString x1 x2) tg 0 (stringLen x1- 1) (stringLen (concatString x1 x2) - 1)
+  ==. toMI (concatString x1 x2)
+  *** QED 
+
+distributestoMI _ x1 x2
+  | stringLen x1 - stringLen (fromString (symbolVal (Proxy :: Proxy target))) + 1 < 0 
+  =   let tg = (fromString (symbolVal (Proxy :: Proxy target))) in 
+      mappend (toMI x1 :: MI target) (toMI x2:: MI target)  
+  ==. mappend (MI x1 (makeIndices x1 tg 0 (stringLen x1 - 1)))
+              (MI x2 (makeIndices x2 tg 0 (stringLen x2 - 1)))
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeNewIndices x1 x2 tg
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeIndices (concatString x1 x2) tg (maxInt (stringLen x1 - stringLen tg +1) 0) (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices x1 tg 0 (stringLen x1 - 1))
+          `append`
+           makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         ((castGoodIndexRightList tg x1 x2 (makeIndices (concatString x1 x2) tg 0 (stringLen x1 - stringLen tg))
+          `append`
+           makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+         ? catIndices x1 x2 tg 0 (stringLen x1 -1 )
+  ==. MI (concatString x1 x2)
+         ((N
+          `append`
+           makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+          ) `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+           `append`
+          (map (shiftStringRight tg x1 x2) (makeIndices x2 tg 0 (stringLen x2 - 1)))) 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+         `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen x1 + stringLen x2 - 1))
+          ? shiftIndexesRight' 0 (stringLen x2 -1) x1 x2 tg 
+  ==. MI (concatString x1 x2)
+         (makeIndices (concatString x1 x2) tg 0 (stringLen x1 -1)
+         `append`
+          makeIndices (concatString x1 x2) tg (stringLen x1) (stringLen (concatString x1 x2) - 1))
+  ==. MI (concatString x1 x2) 
+         (makeIndices (concatString x1 x2) tg 0 (stringLen (concatString x1 x2) - 1))
+          ? mergeIndices (concatString x1 x2) tg 0 (stringLen x1- 1) (stringLen (concatString x1 x2) - 1)
+  ==. toMI (concatString x1 x2)
+  *** QED 
+
+-------------------------------------------------------------------------------
+----------  Parallelization: pmconcat i is == mconcat is ----------------------
+-------------------------------------------------------------------------------
+
+pmconcatEquivalence :: forall (target :: Symbol). (KnownSymbol target) => Int -> List (MI target) -> Proof
+{-@ pmconcatEquivalence :: i:Int -> is:List (MI target) -> {pmconcat i is == mconcat is} / [llen is] @-}
+pmconcatEquivalence i is 
+  | i <= 1
+  = pmconcat i is ==. mconcat is *** QED 
+pmconcatEquivalence i N 
+  =   pmconcat i N 
+  ==. (mempty :: MI target) 
+  ==. mconcat N 
+  *** QED 
+pmconcatEquivalence i (C x N) 
+  =   pmconcat i (C x N)
+  ==. x 
+  ==. mappend x mempty 
+      ? mempty_left x
+  ==. mappend x (mconcat N) 
+  ==. mconcat (C x N) 
+  *** QED 
+pmconcatEquivalence i xs 
+  | llen xs <= i 
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. pmconcat i (map mconcat (C xs N))
+  ==. pmconcat i (mconcat xs `C`  map mconcat N)
+  ==. pmconcat i (mconcat xs `C`  N)
+  ==. mconcat xs
+  *** QED 
+pmconcatEquivalence i xs
+  =   pmconcat i xs 
+  ==. pmconcat i (map mconcat (chunk i xs))
+  ==. mconcat (map mconcat (chunk i xs))
+       ? pmconcatEquivalence i (map mconcat (chunk i xs))
+  ==. mconcat xs
+       ? mconcatAssoc i xs
+  *** QED 
+
+-- | Monoid implications 
+
+mconcatAssocOne :: forall (target :: Symbol). (KnownSymbol target) => Int -> List (MI target) -> Proof 
+{-@ mconcatAssocOne :: i:Nat -> xs:{List (MI target) | i <= llen xs} 
+     -> {mconcat xs == mappend (mconcat (take i xs)) (mconcat (drop i xs))}
+     /[i]
+  @-} 
+mconcatAssocOne i N = undefined 
+{- 
+  =   mappend (mconcat (take i N)) (mconcat (drop i N)) 
+  ==. mappend (mconcat N) (mconcat N)
+  ==. mappend (mempty :: MI target) (mempty :: MI target)
+  ==. (mempty :: MI target) 
+  ==. mconcat N 
+  *** QED 
+-}
+mconcatAssocOne i (C x xs)
+  | i == 0
+  =   mappend (mconcat (take i (C x xs))) (mconcat (drop i (C x xs))) 
+  ==. mappend (mconcat N) (mconcat (C x xs))
+  ==. mappend mempty (mconcat (C x xs))
+  ==. mconcat (C x xs)
+      ? mempty_right (mconcat (C x xs))
+  *** QED 
+  | otherwise    
+  =   mappend (mconcat (take i (C x xs))) (mconcat (drop i (C x xs))) 
+  ==. mappend (mconcat (C x (take (i-1) xs))) (mconcat (drop (i-1) xs))
+  ==. mappend (mappend x (mconcat (take (i-1) xs))) (mconcat (drop (i-1) xs))
+       ? mappend_assoc x (mconcat (take (i-1) xs)) (mconcat (drop (i-1) xs))
+  ==. mappend x (mappend (mconcat (take (i-1) xs)) (mconcat (drop (i-1) xs)))
+       ? mconcatAssocOne (i-1) xs
+  ==. mappend x (mconcat xs)
+  ==. mconcat (C x xs)
+  *** QED 
+
+-- Generalization to chunking  
+
+mconcatAssoc :: forall (target :: Symbol). (KnownSymbol target) => Int -> List (MI target) -> Proof 
+{-@ mconcatAssoc :: i:Int -> xs:List (MI target) 
+  -> { mconcat xs == mconcat (map mconcat (chunk i xs))}
+  /  [llen xs] @-}
+mconcatAssoc i xs  
+  | i <= 1 || llen xs <= i
+  =   mconcat (map mconcat (chunk i xs))
+  ==. mconcat (map mconcat (C xs N))
+  ==. mconcat (mconcat xs `C` map mconcat N)
+  ==. mconcat (mconcat xs `C` N)
+  ==. mappend (mconcat xs) (mconcat N)
+  ==. mappend (mconcat xs) (mempty :: MI target)
+  ==. mconcat xs 
+       ? mempty_left (mconcat xs)
+  *** QED  
+   | otherwise
+   =   mconcat (map mconcat (chunk i xs))
+   ==. mconcat (map mconcat (take i xs `C` chunk i (drop i xs)))
+   ==. mconcat (mconcat (take i xs) `C` map mconcat (chunk i (drop i xs)))
+   ==. mappend (mconcat (take i xs)) (mconcat (map mconcat (chunk i (drop i xs))))
+   ==. mappend (mconcat (take i xs)) (mconcat (drop i xs))
+        ? mconcatAssoc i (drop i xs)
+   ==. mconcat xs 
+        ? mconcatAssocOne i xs 
+   *** QED 
 
 
 -------------------------------------------------------------------------------
@@ -381,9 +732,8 @@ mempty_right (MI i is)
   ==. MI i is 
   *** QED 
 
-{-@ mappend_assoc 
-  :: x:MI target -> y:MI target -> z:MI target
-  -> {v:Proof | mappend x (mappend y z) = mappend (mappend x y) z}
+{-@ mappend_assoc :: x:MI target -> y:MI target -> z:MI target
+  -> { mappend x (mappend y z) = mappend (mappend x y) z}
   @-}
 mappend_assoc 
      :: forall (target :: Symbol). (KnownSymbol target) 
