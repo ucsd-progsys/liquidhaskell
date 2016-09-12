@@ -1,5 +1,5 @@
 -- | Proof of equivalence of MapReduce 
--- | mapReduce i n op f is == f is 
+-- | mapReduce n op f is == f is 
 
 -- | Niki Vazou Sep 2016 
 
