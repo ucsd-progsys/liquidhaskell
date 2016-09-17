@@ -26,49 +26,34 @@ module Language.Haskell.Liquid.ProofCombinators (
   ) where
 
 
--- | proof operators requiring proof terms
-infixl 3 ==:, <=:, <:, >:, ==?
+type Proof = ()
 
--- | proof operators with optional proof terms
-infixl 3 ==., <=., <., >., >=.
+trivial :: Proof
+trivial = ()
 
--- provide the proof terms after ?
-infixl 3 ?
-infixl 3 ∵
+
+data QED = QED
 
 infixl 2 ***
 
-
-type Proof = ()
-
-
-{-@ measure castWithTheorem :: a -> b -> b @-}
-castWithTheorem :: a -> b -> b 
-castWithTheorem _ x = x 
+(***) :: a -> QED -> Proof
+_ *** _ = ()
 
 
-{-@ measure cast :: b -> a -> a @-}
-{-@ cast :: b -> x:a -> {v:a | v == x } @-}
-cast :: b -> a -> a 
-cast _ x = x 
+-- | Because provide lemmata ? or ∵
+
+infixl 3 ∵
+
+(∵) :: (Proof -> a) -> Proof -> a
+f ∵ y = f y
 
 
-byTheorem :: a -> Proof -> a
-byTheorem a _ = a
-
+infixl 3 ?
 
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
 
 
-
-(∵) :: (Proof -> a) -> Proof -> a
-f ∵ y = f y
-
-data QED = QED
-
-(***) :: a -> QED -> Proof
-_ *** _ = ()
 
 {-@ measure proofBool :: Proof -> Bool @-}
 
@@ -101,9 +86,9 @@ toProof _ = ()
 simpleProof :: Proof
 simpleProof = ()
 
+-- | proof operators requiring proof terms
+infixl 3 ==:, <=:, <:, >:, ==?
 
-trivial :: Proof
-trivial = ()
 
 -- | Comparison operators requiring proof terms
 
@@ -125,6 +110,9 @@ trivial = ()
 {-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x && v == y } @-}
 (==:) x _ _ = x
 
+
+-- | proof operators with optional proof terms
+infixl 3 ==., <=., <., >., >=.
 
 
 -- | Comparison operators requiring proof terms optionally
@@ -225,3 +213,24 @@ instance (a~b) => OptGt a b where
   >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
   @-}
   (>.) x y = x
+
+
+-------------------------------------------------------------------------------
+----------  Casting -----------------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure castWithTheorem :: a -> b -> b @-}
+castWithTheorem :: a -> b -> b 
+castWithTheorem _ x = x 
+
+
+{-@ measure cast :: b -> a -> a @-}
+{-@ cast :: b -> x:a -> {v:a | v == x } @-}
+cast :: b -> a -> a 
+cast _ x = x 
+
+
+byTheorem :: a -> Proof -> a
+byTheorem a _ = a
+
+

@@ -1,10 +1,3 @@
-{-
-NV TODO 
-2. connect it with Step 1
-3. connect it with dyn programming 
--}
-
-
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -13,29 +6,49 @@ NV TODO
 {-# LANGUAGE GADTs               #-}
 
 
+{-@ LIQUID "--cores=10"            @-}
 {-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
 {-@ LIQUID "--exactdc"             @-}
 
 module Main where
 
-import System.Environment   
-
-import String
-import GHC.TypeLits
-import Data.String hiding (fromString)
 import Prelude hiding ( mempty, mappend, id, mconcat, map
                       , take, drop  
-                      , error
+                      , error, undefined
                       )
-import Language.Haskell.Liquid.ProofCombinators 
 
+
+import System.Environment   
+import Data.String hiding (fromString)
+import GHC.TypeLits
 import Data.Maybe 
 
+import String
+import Language.Haskell.Liquid.ProofCombinators 
+
 import Data.Proxy 
+
 {-@ symbolVal :: forall n proxy. KnownSymbol n => x:proxy n 
   -> {v:String | v == n && v == symbolVal x } @-}
 {-@ measure symbolVal :: p n -> String @-}
+
+-------------------------------------------------------------------------------
+------------ | String Matching Main Theorem  ----------------------------------
+-------------------------------------------------------------------------------
+
+{-@ distributionOfStringMatching :: MI target -> is:SMTString  -> n:Int -> m:Int
+   -> {toMI is == pmconcat m (map toMI (chunkString n is))} @-}
+
+distributionOfStringMatching :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> Int -> Int -> Proof
+distributionOfStringMatching _ is n m  
+  =   (pmconcat m (map toMI (chunkString n is)) :: MI target)
+  ==. mconcat (map toMI (chunkString n is))
+       ? pmconcatEquivalence m (map toMI (chunkString n is) :: List (MI target))
+  ==. toMI is 
+       ? distributionOfMI (mempty :: MI target) is n 
+  *** QED 
+
 
 -------------------------------------------------------------------------------
 ------------ | Interface ------------------------------------------------------
@@ -67,6 +80,8 @@ runMatching chunksize input tg =
 test = indicesMI (toMI (fromString $ clone 100 "ababcabcab")  :: MI "abcab" )
   where
     clone i xs = concat (replicate i xs) 
+
+
 
 {-@ reflect toMI @-}
 toMI :: forall (target :: Symbol). (KnownSymbol target) => SMTString -> MI target 
@@ -316,17 +331,6 @@ chunkString i xs
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-
-{-@ divideAndQunquer :: MI target -> is:SMTString  -> n:Int -> m:Int -> {toMI is == pmconcat m (map toMI (chunkString n is))} @-}
-
-divideAndQunquer :: forall (target :: Symbol). (KnownSymbol target) => MI target -> SMTString -> Int -> Int -> Proof
-divideAndQunquer _ is n m  
-  =   (pmconcat m (map toMI (chunkString n is)) :: MI target)
-  ==. mconcat (map toMI (chunkString n is))
-       ? pmconcatEquivalence m (map toMI (chunkString n is) :: List (MI target))
-  ==. toMI is 
-       ? distributionOfMI (mempty :: MI target) is n 
-  *** QED 
 
 
 -------------------------------------------------------------------------------
@@ -609,15 +613,15 @@ mconcatAssocOne :: forall (target :: Symbol). (KnownSymbol target) => Int -> Lis
      -> {mconcat xs == mappend (mconcat (take i xs)) (mconcat (drop i xs))}
      /[i]
   @-} 
-mconcatAssocOne i N = undefined 
-{- 
+mconcatAssocOne i N 
   =   mappend (mconcat (take i N)) (mconcat (drop i N)) 
   ==. mappend (mconcat N) (mconcat N)
   ==. mappend (mempty :: MI target) (mempty :: MI target)
   ==. (mempty :: MI target) 
+      ? mempty_left  (mempty :: MI target)
   ==. mconcat N 
   *** QED 
--}
+
 mconcatAssocOne i (C x xs)
   | i == 0
   =   mappend (mconcat (take i (C x xs))) (mconcat (drop i (C x xs))) 
