@@ -1,53 +1,139 @@
-module Meas () where
+{-@ LIQUID "--higherorder"         @-}
+{-@ LIQUID "--totality"            @-}
+{-@ LIQUID "--exactdc"             @-}
 
-import Language.Haskell.Liquid.Prelude
-import qualified Data.Map
-import Data.List (foldl')
 
-----------------------------------------------------------------
---- Step 1: Map each element into key-value list (concatMap) ---
-----------------------------------------------------------------
+module DivideAndQunquer where 
 
-expand          :: (a -> [(k,v)]) -> [a] -> [(k, v)]
-expand f []     = []
-expand f (x:xs) = (f x) ++ (expand f xs)
+import Prelude hiding (error, map, take, drop)
+import Language.Haskell.Liquid.ProofCombinators 
 
-----------------------------------------------------------------
---- Step 2: Group By Key ---------------------------------------
-----------------------------------------------------------------
+{-@ reflect mapReduce @-}
+mapReduce :: Int -> (List a -> b) -> (b -> b -> b) -> List a -> b 
+mapReduce n f op N  = f N  
+mapReduce n f op is = reduce op (map f (chunk n is)) 
 
-group   :: (Ord k) => [(k, v)] -> Data.Map.Map k [v]
-group   = foldl' addKV  Data.Map.empty
-  
-addKV m (k, v) = Data.Map.insert k vs' m
-  where 
-    vs' = v : (Data.Map.findWithDefault [] k m)
+chunk  :: Int -> List a -> List (List a)
+map    :: (a -> b) -> List a -> List b
+reduce :: (b -> b -> b) -> List b -> b  
 
---------------------------------------------------------------------
---- Step 3: Group By Key -------------------------------------------
---------------------------------------------------------------------
+{-@ mapReduceTheorem :: n:Int -> f:(List a -> b) -> op:(b -> b -> b) -> is:List a
+      -> distributionThm:(is1:List a -> is2:List a -> {op (f is1) (f is2) == f (append is1 is2)} ) -> 
+      { f is == mapReduce n f op is } / [llen is] @-}
+mapReduceTheorem :: Int -> (List a -> b) -> (b -> b -> b) -> List a -> (List a -> List a -> Proof)  -> Proof 
+mapReduceTheorem n f op N _
+  =   mapReduce n f op N 
+  ==. f N 
+  *** QED 
 
-collapse f                = Data.Map.foldrWithKey reduceKV []
-  where 
-    reduceKV k (v:vs) acc = let b = liquidAssertB False in (k, foldl' f v vs) : acc
-    reduceKV k []     _   = crash False --error $ show (liquidAssertB False)
+mapReduceTheorem n f op is _ 
+  | llen is <= n || n <= 1 
+  =   mapReduce n f op is 
+  ==. reduce op (map f (chunk n is))
+  ==. reduce op (map f (C is N))
+  ==. reduce op (f is `C` map f N)
+  ==. reduce op (f is `C` N)
+  ==. f is
+  *** QED 
 
---------------------------------------------------------------------
---- Putting it All Together ----------------------------------------
---------------------------------------------------------------------
+mapReduceTheorem n f op is distributionThm = undefined   
+{- 
+  =   mapReduce n f op is 
+  ==. reduce op (map f (chunk n is))
+  ==. reduce op (map f (C (take n is) (chunk n (drop n is))))
+  ==. reduce op (f (take n is) `C` map f (chunk n (drop n is)))
+  ==. op (f (take n is)) (reduce op (map f (chunk n (drop n is))))
+  ==. op (f (take n is)) (mapReduce n f op (drop n is))
+  ==. op (f (take n is)) (f (drop n is))
+        ? mapReduceTheorem n f op (drop n is) distributionThm
+  ==. f (append (take n is) (drop n is))
+        ? distributionThm (take n is) (drop n is)
+  ==. f is 
+        ? appendTakeDrop n is
+  *** QED  
+-}
+-------------------------------------------------------------------------------
+-----------  List Definition --------------------------------------------------
+-------------------------------------------------------------------------------
 
-mapReduce mapper reducer = collapse reducer . group . expand mapper 
 
---------------------------------------------------------------------
---- "Word Count" ---------------------------------------------------
---------------------------------------------------------------------
+{-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
+data List a = N | C a (List a)
 
-wordCount  = mapReduce fm plus 
-  where fm = \doc -> [ (w,1) | w <- words doc]
+llen :: List a -> Int 
+{-@ measure llen @-}
+{-@ llen :: List a -> Nat @-}
+llen N        = 0 
+llen (C _ xs) = 1 + llen xs
 
-main = putStrLn $ show $ wordCount docs
-  where docs = [ "this is the end"
-               , "go to the end"
-               , "the end is the beginning"]
- 
+-------------------------------------------------------------------------------
+-----------  List Manipulation ------------------------------------------------
+-------------------------------------------------------------------------------
+{-@ reflect map @-}
+{-@ map :: (a -> b) -> xs:List a -> {v:List b | llen v == llen xs } @-}
+map _  N       = N
+map f (C x xs) = f x `C` map f xs 
+
+{-@ reflect append @-}
+append :: List a -> List a -> List a 
+append N        ys = ys  
+append (C x xs) ys = x `C` (append xs ys)
+
+{-@ reflect reduce @-}
+{-@ reduce :: (b -> b -> b) -> is:{List b | 1 <= llen is } -> b @-}  
+reduce _  (C x N)  = x 
+reduce op (C x xs) = op x (reduce op xs)
+
+{-@ reflect chunk @-}
+{-@ chunk :: i:Int -> xs:List a -> {v:List (List a) | (1 <= llen v) &&  (if (i <= 1 || llen xs <= i) then (llen v == 1) else (llen v < llen xs)) } / [llen xs] @-}
+chunk i xs 
+  | i <= 1 
+  = C xs N 
+  | llen xs <= i 
+  = C xs N 
+  | otherwise
+  = C (take i xs) (chunk i (drop i xs))
+
+{-@ reflect drop @-}
+{-@ drop :: i:Nat -> xs:{List a | i <= llen xs } -> {v:List a | llen v == llen xs - i } @-} 
+drop :: Int -> List a -> List a 
+drop i N = N 
+drop i (C x xs)
+  | i == 0 
+  = C x xs  
+  | otherwise 
+  = drop (i-1) xs 
+
+{-@ reflect take @-}
+{-@ take :: i:Nat -> xs:{List a | i <= llen xs } -> {v:List a | llen v == i} @-} 
+take :: Int -> List a -> List a 
+take i N = N 
+take i (C x xs)
+  | i == 0 
+  = N  
+  | otherwise 
+  = C x (take (i-1) xs)
+
+-- | Helper Theorem 
+{-@ appendTakeDrop :: i:Nat -> xs:{List a | i <= llen xs} 
+  -> {xs == append (take i xs) (drop i xs) }  @-}
+
+appendTakeDrop :: Int -> List a -> Proof 
+appendTakeDrop i N 
+  =   append (take i N) (drop i N)
+  ==. append N N 
+  ==. N 
+  *** QED 
+appendTakeDrop i (C x xs)
+  | i == 0 
+  =   append (take 0 (C x xs)) (drop 0 (C x xs))
+  ==. append N (C x xs)
+  ==. C x xs 
+  *** QED 
+  | otherwise
+  =   append (take i (C x xs)) (drop i (C x xs))
+  ==. append (C x (take (i-1) xs)) (drop (i-1) xs)
+  ==. C x (append (take (i-1) xs) (drop (i-1) xs))
+  ==. C x xs ? appendTakeDrop (i-1) xs 
+  *** QED 
 

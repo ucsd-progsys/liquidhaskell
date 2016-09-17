@@ -1,14 +1,18 @@
 
 {-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{- LIQUID "--extensionality"  @-}
+
 module Append where
 
 import Proves
 
 import Prelude hiding (map)
+
+
+{-@ lamEq :: a -> {v: Proof | (\y:a -> y) == (\x:a -> x)} @-}
+lamEq :: a -> Proof
+lamEq _ = simpleProof
 
 {-@ funEq :: m1:a  -> m2:{v:a | v == m1} -> {v: Proof | (\y:a -> m1) == (\y:a -> m2)} @-}
 funEq :: a  -> a -> Proof
