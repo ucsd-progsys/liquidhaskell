@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Refinement Reflection: Haskell as a theorem prover"
-date: 2016-09-05
+date: 2016-09-18
 comments: true
 external-url:
 author: Niki Vazou
@@ -10,8 +10,14 @@ categories: reflection
 demo: RefinementReflection.hs
 ---
 
-Refinement Reflection turns Haskell into a theorem prover by reflecting the code implementing a function into the function’s output refinement type.
-In this post we shall see how one can use a refinement type signature to express a theorem, for example that fibonacci is a monotonically increasing function, then use Haskell code to provide a paper and pencil style proof for that theorem, and finally use Liquid Haskell to check the validity of the proof.   
+We've taught LiquidHaskell a new trick that we call ``Refinement Reflection''
+which lets us turn Haskell into a theorem prover capable of proving arbitrary
+properties of code. The key idea is to **reflect** the code of the function into
+its **output type**, which lets us then reason about the function at the
+(refinement) type level. Lets see how to use refinement types to express a
+theorem, for example that fibonacci is a monotonically increasing function, 
+then write plain Haskell code to reify a paper-and-pencil-style proof 
+for that theorem, that can be machine checked by LiquidHaskell.
 
 <!-- more -->
 
@@ -42,7 +48,7 @@ module RefinementReflection where
 import Language.Haskell.Liquid.ProofCombinators
 
 fib :: Int -> Int
-propPlusAccum :: Int -> Int -> Proof 
+propPlusComm :: Int -> Int -> Proof 
 propOnePlueOne :: () -> Proof 
 fibTwo :: () -> Proof 
 fibCongruence :: Int -> Int -> Proof
@@ -59,13 +65,13 @@ fibMono :: Int -> Int -> Proof
 \end{code}
 </div>
 
-Shallow Specifications
-----------------------
-Up to now, we have been using Liquid Haskell to specify and verify
-"shallow" specifications that abstractly describe the behavior of functions. 
-For example, below, we specify and verify 
-that `fib`restricted to natural numbers, 
-always terminates returning a natural number.
+Shallow vs. Deep Specifications
+-------------------------------
+
+Up to now, we have been using Liquid Haskell to specify and verify "shallow"
+specifications that abstractly describe the behavior of functions.  For example,
+below, we specify and verify that `fib`restricted to natural numbers, always
+terminates returning a natural number.
 
 \begin{code}
 {-@ fib :: i:Nat -> Nat / [i] @-}
@@ -74,24 +80,23 @@ fib i | i == 0    = 0
       | otherwise = fib (i-1) + fib (i-2)
 \end{code}
 
-
 In this post we present how refinement reflection is used to verify 
 "deep" specifications that use the exact definition of Haskell functions. 
-For example, we will prove that the Haskell `fib` function is increasing!
+For example, we will prove that the Haskell `fib` function is increasing.
 
 
 
 Propositions
 ------------
-To begin with, we import [ProofCombinators][proofcomb], a (Liquid) Haskell library that defines 
-and manipulates logical proofs. 
 
+To begin with, we import [ProofCombinators][proofcomb], a (Liquid) Haskell 
+library that defines and manipulates logical proofs. 
 
 ```haskell
 import Language.Haskell.Liquid.ProofCombinators
 ```
 
-A proof is a data type that carries no run time information
+A `Proof` is a data type that carries no run time information
 
 ```haskell
 type Proof = ()
@@ -108,7 +113,7 @@ Since the `v` and `Proof` are irrelevant, we may as well abbreviate
 the above to 
 
 \begin{code}
-{-@ type OnePlusOne' = { 1 + 1 == 2} @-}
+{-@ type OnePlusOne' = { 1 + 1 == 2 } @-}
 \end{code}
 
 
@@ -116,22 +121,24 @@ As another example, the following function type declares
 that _for each_ `x` and `y` the plus operator commutes. 
 
 \begin{code}
-{-@ type PlusAccum = x:Int -> y:Int -> {x + y == y + x} @-} 
+{-@ type PlusComm = x:Int -> y:Int -> {x + y == y + x} @-} 
 \end{code}
 
 
 
-Proofs
-------
+Trivial Proofs
+--------------
+
 We prove the above theorems using Haskell programs. 
-`ProofCombinators` define the `trivial` proof
+The `ProofCombinators` module defines the `trivial` proof
 
 ```haskell
 trivial :: Proof 
 trivial = ()
 ```
 
-and the "casting" operator `(***)` that prettifies proof terms.
+and the "casting" operator `(***)` that makes proof terms look 
+nice:
 
 ```haskell
 data QED = QED
@@ -141,17 +148,18 @@ _ *** _ = ()
 ```
 
 Using the underlying SMT's knowledge on linear arithmetic, 
-we trivially prove the above propositions.
+we can trivially prove the above propositions.
 
 \begin{code}
 {-@ propOnePlueOne :: _ -> OnePlusOne @-} 
 propOnePlueOne _ = trivial *** QED 
 
-{-@ propPlusAccum :: PlusAccum @-} 
-propPlusAccum _ _ = trivial *** QED 
+{-@ propPlusComm :: PlusComm @-} 
+propPlusComm _ _ = trivial *** QED 
 \end{code}
 
 
+HEREHEREHERE
 
 We saw how we use SMT's knowledge on linear arithmetic 
 to trivially prove arithmetic properties. 
