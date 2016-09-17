@@ -393,7 +393,14 @@ Haskell code is used to prove such theorems
 expressing paper pencil proofs, and Liquid Haskell 
 verifies the validity of the proofs!
 
-If you happen you be in Nara for ICFP'16, 
+Proving `fib` monotonic is great, but this is Haskell!
+Wouldn’t it be nice to prove theorems about inductive data types 
+and higher order functions? Like fusions and folds? 
+Or program equivalence on run-time optimizations like map-reduce?
+
+Stay tuned!
+
+Even better, if you happen you be in Nara for ICFP'16, 
 come to my [CUFP tutorial][cufp16] for more!
 
 
