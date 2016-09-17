@@ -159,17 +159,16 @@ propPlusComm _ _ = trivial *** QED
 \end{code}
 
 
-HEREHEREHERE
-
 We saw how we use SMT's knowledge on linear arithmetic 
-to trivially prove arithmetic properties. 
-But how can we prove ``deep'' properties on Haskell's functions?
+to trivially prove arithmetic properties. But how can 
+we prove ``deep'' properties on Haskell's functions?
 
 
 Refinement Reflection 
 ---------------------
-Refinement Reflection allows `deep` specification and verification by
-reflecting the code implementing a Haskell
+
+Refinement Reflection allows deep specification and 
+verification by reflecting the code implementing a Haskell
 function into the function’s output refinement type.
 
 Refinement Reflection proceeds in 3 steps: definition, reflection, and application.
@@ -183,6 +182,7 @@ then the following three reflection steps will occur.
 
 Step 1: Definition 
 ------------------
+
 Reflection of the Haskell function `fib` defines in logic 
 an _uninterpreted_ function `fib` that satisfies the congruence axiom.
 
@@ -239,20 +239,19 @@ As an example, applying `fib` to `0`, `1`, and `2` allows us to prove that `fib 
 fibTwo _ = [fib 0, fib 1, fib 2] *** QED
 \end{code}
 
-Though valid, 
-the above `fibTwo` proof is not pretty! 
-To prettify our proofs, we use proof combinators 
-that come predifined in the `ProofCombinators` library.
+Though valid, the above `fibTwo` proof is not pretty! 
 
 
-Structuring Pretty Proofs 
---------------------------
+Structuring Proofs 
+------------------
 
-`ProofCombinators` exports family of operators `(*.)`
-where `*` comes from the theory of linear arithmetic and 
-the refinement type of `x *. y` 
-requires that `x *. y` holds and 
-ensures that the returned value is equal to `x`.
+To make our proofs look nice, we use combinators from 
+the `ProofCombinators` library, which exports a family 
+of operators `(*.)` where `*` comes from the theory of 
+linear arithmetic and the refinement type of `x *. y` 
+
++ **requires** that `x *. y` holds and 
++ **ensures** that the returned value is equal to `x`.
 
 For example, `(==.)` and `(<=.)` are predefined in `ProofCombinators` as
 
@@ -268,8 +267,8 @@ Using these predefined operators, we construct paper and pencil-like proofs
 for the `fib` function.
 
 \begin{code}
-{-@ fibTwoPretty :: _ -> { fib 2 == 1 } @-}
-fibTwoPretty _ 
+{-@ fibTwoPretty :: { fib 2 == 1 } @-}
+fibTwoPretty 
   =   fib 2 
   ==. fib 1 + fib 0 
   *** QED
@@ -279,7 +278,8 @@ fibTwoPretty _
 
 Because operator 
 -----------------
-To allow proofs reusing existing proofs, `ProofCombinators` defines the because 
+
+To allow the reuse of existing proofs, `ProofCombinators` defines the because 
 operator `(∵)`
 
 ```haskell
@@ -294,15 +294,16 @@ For example, `fib 3 == 2` holds because `fib 2 == 1`:
 fibThree _ 
   =   fib 3 
   ==. fib 2 + fib 1
-  ==. 1     + 1      ∵ fibTwoPretty ()
+  ==. 1     + 1      ∵ fibTwoPretty
   ==. 2 
   *** QED
 \end{code}
 
 
 
-Pencil & Paper Proofs by Induction 
------------------------------------
+Proofs by Induction (i.e. Recursion) 
+------------------------------------
+
 Next, combining the above operators we specify and prove that 
 `fib` is increasing, that is for each natural number `i`, 
 `fib i <= fib (i+1)`. 
@@ -317,9 +318,11 @@ fibUp i
   | i == 0
   =   fib 0 <. fib 1
   *** QED
+
   | i == 1
   =   fib 1 <=. fib 1 + fib 0 <=. fib 2
   *** QED
+
   | otherwise
   =   fib i
   ==. fib (i-1) + fib (i-2)
@@ -329,11 +332,14 @@ fibUp i
   *** QED
 \end{code}
 
-The proof proceeds by induction on `i`. 
-The base cases `i == 0` and `i == 1` are represented 
-as Haskell's case splitting. 
-The inductive hypothesis is represented by recursive calls 
-on smaller inputs. 
+The proof proceeds _by induction on_ `i`. 
+
++ The base cases `i == 0` and `i == 1` are represented 
+  as Haskell's case splitting. 
+
++ The inductive hypothesis is represented by recursive calls 
+  on smaller inputs. 
+
 Finally, the SMT solves arithmetic reasoning to conclude the proof.  
 
 Higher Order Theorems
@@ -347,7 +353,8 @@ For example, `fMono` specifies that each locally increasing function is monotoni
           -> fUp:(z:Nat -> {f z <= f (z+1)})
           -> x:Nat
           -> y:{Nat|x < y}
-          -> {f x <= f y} / [y] @-}
+          -> {f x <= f y} / [y] 
+  @-}
 fMono f thm x y  
   | x + 1 == y
   = f y ==. f (x + 1)
@@ -361,9 +368,11 @@ fMono f thm x y
   *** QED
 \end{code}
 
-Again, the recursive implementation of `fMono` depicts the paper and pencil proof of `fMono` by induction on the decreasing argument `/ [y]`. 
+Again, the recursive implementation of `fMono` depicts the paper and pencil 
+proof of `fMono` by induction on the decreasing argument `/ [y]`. 
 
-Since `fib` is proven to be locally increasing by `fUp`, we use `fMono` to prove that `fib` is monotonic. 
+Since `fib` is proven to be locally increasing by `fUp`, we use `fMono` 
+to prove that `fib` is monotonic. 
 
 \begin{code}
 {-@ fibMono :: n:Nat -> m:{Nat | n < m }  -> {fib n <= fib m} @-}
@@ -373,19 +382,19 @@ fibMono = fMono fib fibUp
 
 Conclusion
 ----------
+
 We saw how refinement reflection turns Haskell
-into a theorem prover by reflecting the code implementing a Haskell
-function into the function’s output refinement type.
+into a theorem prover by reflecting the code 
+implementing a Haskell function into the 
+function’s output refinement type.
 
 Refinement Types are used to express theorems, 
 Haskell code is used to prove such theorems
-expressing paper pencil proofs, 
-and Liquid Haskell verifies the validity of the proofs!
-
-Sweet right? 
+expressing paper pencil proofs, and Liquid Haskell 
+verifies the validity of the proofs!
 
 If you happen you be in Nara for ICFP'16, 
-join my [CUFP tutorial][cufp16] for more!
+come to my [CUFP tutorial][cufp16] for more!
 
 
 [cufp16]: http://cufp.org/2016/t6-niki-vazou-liquid-haskell-intro.html
