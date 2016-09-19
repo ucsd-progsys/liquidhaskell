@@ -37,12 +37,19 @@ import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
 -- import qualified Data.List as L
 -- import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Misc       (mapFst, mapSnd)
+-- import           Language.Fixpoint.Misc       (mapFst, mapSnd)
+
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- showPpr, tracePpr, isTupleId)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
+
+mapFst :: (a -> b) -> (a, c) -> (b, c) 
+mapFst f (x, y) = (f x, y)
+
+mapSnd :: (a -> b) -> (c, a) -> (c, b) 
+mapSnd f (x, y) = (x, f y)
 
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
