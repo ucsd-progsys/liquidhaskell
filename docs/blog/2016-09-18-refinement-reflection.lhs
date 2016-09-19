@@ -53,7 +53,7 @@ propOnePlueOne :: () -> Proof
 fibTwo :: () -> Proof 
 fibCongruence :: Int -> Int -> Proof
 fibUp :: Int -> Proof 
-fibTwoPretty :: () -> Proof 
+fibTwoPretty :: Proof 
 fibThree :: () -> Proof 
 fMono :: (Int -> Int)
       -> (Int -> Proof)
