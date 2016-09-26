@@ -10,6 +10,8 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , hasOpt
+   , totalityCheck
+   , terminationCheck
    ) where
 
 import Prelude hiding (error)
@@ -19,6 +21,16 @@ import Language.Fixpoint.Types.Config hiding (Config)
 import Data.Typeable  (Typeable)
 import Data.Generics  (Data)
 import GHC.Generics
+
+
+totalityCheck :: Config -> Bool 
+totalityCheck config 
+  = totality config || totalHaskell config
+
+terminationCheck :: Config -> Bool 
+terminationCheck config
+  = totalHaskell config || not (notermination config)
+
 
 -- NOTE: adding strictness annotations breaks the help message
 data Config = Config {
@@ -38,6 +50,7 @@ data Config = Config {
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files

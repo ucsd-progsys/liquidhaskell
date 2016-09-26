@@ -84,6 +84,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
+import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
@@ -487,7 +488,7 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
   -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
   -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
-  patSpec  <- getPatSpec paths $ totality cfg
+  patSpec  <- getPatSpec paths $ totalityCheck cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'
   transParseSpecs paths mempty mempty fs
