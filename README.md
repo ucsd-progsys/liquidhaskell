@@ -413,6 +413,17 @@ pair of arguments. This can be encoded with the lexicographic
 termination annotation `{-@ Decrease even 1 2 @-}` (see
 [tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
 
+
+
+Total Haskell
+--------------
+
+LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program, 
+overriding a potential no-termination flag. 
+
+    liquid -total-Haskel test.hs
+
+
 Lazy Variables
 --------------
 
