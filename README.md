@@ -421,7 +421,7 @@ Total Haskell
 LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program, 
 overriding a potential no-termination flag. 
 
-    liquid -total-Haskel test.hs
+    liquid --total-Haskel test.hs
 
 
 Lazy Variables
