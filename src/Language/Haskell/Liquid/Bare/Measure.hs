@@ -167,10 +167,6 @@ makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
-      -- do not make selectors for functional fields
-      | isFunTy t 
-      = Nothing 
-      | otherwise
       = Just $ makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
 
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
