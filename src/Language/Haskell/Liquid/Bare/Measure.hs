@@ -156,17 +156,18 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = if autoselectors then checker : (go' <$> zip (reverse xts) [1..]) else []
+  = if autoselectors then checker : catMaybes (go' <$> zip (reverse xts) [1..]) else []
     ++ catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
+      -- do not make selectors for functional fields
       | isFunTy t || autoselectors
       = Nothing
       | otherwise 
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
-      = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
 
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
