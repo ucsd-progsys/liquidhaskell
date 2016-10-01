@@ -91,7 +91,7 @@ readFInfo f        = mapFst fixFileName <$> act
   where
     fixFileName q  = q {fileName = f}
     act
-      | isBinary f = readBinFq f
+      | isBinary f = (,) <$> readBinFq f <*> return []
       | otherwise  = readFq f
 
 readFq :: FilePath -> IO (FInfo (), [String])
@@ -100,7 +100,7 @@ readFq file = do
   let q  = {-# SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
   return (fioFI q, fioOpts q)
 
-readBinFq :: FilePath -> IO (FInfo (), [String])
+readBinFq :: FilePath -> IO (FInfo ())
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 
 ---------------------------------------------------------------------------
