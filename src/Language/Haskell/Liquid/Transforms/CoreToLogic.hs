@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   ) where
 
 import           Data.ByteString                       (ByteString)
-import           GHC                                   hiding (Located)
+import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
 import           Type
 import           TypeRep
@@ -50,6 +50,7 @@ import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
+import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
 
@@ -349,14 +350,19 @@ toPredApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e
-  =  do let (f, es) = splitArgs e
-        case f of 
-          C.Var _ -> do args       <- mapM coreToLg es
-                        lmap       <- symbolMap <$> getState
-                        def         <- (`mkEApp` args) <$> tosymbol f
-                        (\x -> makeApp def lmap x args) <$> tosymbol' f
-          _ -> do (fe:args) <- mapM coreToLg (f:es) 
-                  return $ foldl EApp fe args  
+  | isBool ((ofType $ exprType e) :: SpecType)
+  = mkProp <$> go e 
+  | otherwise
+  = go e 
+  where
+    go e = do let (f, es) = splitArgs e
+              case f of 
+                C.Var _ -> do args       <- mapM coreToLg es
+                              lmap       <- symbolMap <$> getState
+                              def         <- (`mkEApp` args) <$> tosymbol f
+                              (\x -> makeApp def lmap x args) <$> tosymbol' f
+                _ -> do (fe:args) <- mapM coreToLg (f:es) 
+                        return $ foldl EApp fe args  
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
