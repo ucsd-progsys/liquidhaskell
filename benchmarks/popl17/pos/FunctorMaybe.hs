@@ -65,9 +65,9 @@ fmap_distrib' f g
        (fmap_distrib f g)
 -}
 
-{-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Maybe a
+{-@ fmap_distrib :: f:(b -> c) -> g:(a -> b) -> xs:Maybe a
                -> { fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
-fmap_distrib :: (a -> a) -> (a -> a) -> Maybe a -> Proof
+fmap_distrib :: (b -> c) -> (a -> b) -> Maybe a -> Proof
 fmap_distrib f g Nothing
   = 
       (compose (fmap f) (fmap g)) Nothing

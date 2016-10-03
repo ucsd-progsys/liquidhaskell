@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--total"          @-}
+{-@ LIQUID "--totality"       @-}
 
 module ANF (Op (..), Expr (..), isImm, isAnf, anf) where
 
