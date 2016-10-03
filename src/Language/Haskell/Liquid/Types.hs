@@ -1674,10 +1674,10 @@ data Body
 
 data Def ty ctor = Def
   { measure :: LocSymbol
-  , dparams :: [(Symbol, ty)]
+  , dparams :: [(Symbol, ty)]          -- measure parameters
   , ctor    :: ctor
   , dsort   :: Maybe ty
-  , binds   :: [(Symbol, Maybe ty)]
+  , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields
   , body    :: Body
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
 
