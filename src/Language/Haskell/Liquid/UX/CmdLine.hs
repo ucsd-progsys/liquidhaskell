@@ -153,6 +153,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , totalHaskell
+    = def &= help "Check for termination and totality, Overrides no-termination flags"
+          &= name "total-Haskell"
+
  , autoproofs
     = def &= help "Automatically construct proofs from axioms"
           &= name "auto-proofs"
@@ -434,6 +438,7 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , totalHaskell      = def 
                    , autoproofs        = def
                    , nowarnings        = def
                    , noannotations     = def
