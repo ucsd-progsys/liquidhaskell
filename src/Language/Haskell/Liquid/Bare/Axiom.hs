@@ -95,12 +95,12 @@ makeAssumeType tce lmap x v xts ams def
     at = axiomType x t
 
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
-           Left  e -> e
-           Right e -> panic Nothing $ show e
+           Right e -> e
+           Left  e -> panic Nothing $ show e
 
     ble = case runToLogic tce lmap mkErr (coreToPred def') of
-           Left e -> e
-           Right e -> panic Nothing $ show e
+           Right e -> e
+           Left  e -> panic Nothing $ show e
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
 
@@ -161,11 +161,11 @@ makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
     res = ty_res tr `strengthen` MkUReft ref mempty mempty
 
     llhs = case runToLogic tce lmap' mkErr (coreToLogic lhs) of
-       Left e -> e
-       Right e -> panic Nothing $ show e
+       Right e -> e
+       Left e -> panic Nothing $ show e
     lrhs = case runToLogic tce lmap' mkErr (coreToLogic rhs) of
-       Left e -> e
-       Right e -> panic Nothing $ show e
+       Right e -> e
+       Left e -> panic Nothing $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
     -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())

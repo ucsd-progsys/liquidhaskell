@@ -104,8 +104,8 @@ makeMeasureInline tce lmap cbs  x
     binders (Rec xes)    = fst <$> xes
 
     coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Left (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
-                           Right e -> throwError e
+                           Right (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
+                           Left e -> throwError e
 
     fromLR (Left l)  = l
     fromLR (Right r) = r
@@ -131,8 +131,8 @@ makeMeasureDefinition tce lmap cbs x
     binders (Rec xes)    = fst <$> xes
 
     coreToDef' x v def = case runToLogic tce lmap mkError $ coreToDef x v def of
-                           Left l  -> return     l
-                           Right e -> throwError e
+                           Right l -> return     l
+                           Left e  -> throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -282,8 +282,8 @@ makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs 
     binders (Rec xes)    = fst <$> xes
 
     coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Left (xs, e) -> return (xs, e)
-                           Right e      -> throwError e
+                           Right (xs, e) -> return (xs, e)
+                           Left e      -> throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)

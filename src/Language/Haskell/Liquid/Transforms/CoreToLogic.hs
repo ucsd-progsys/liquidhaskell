@@ -36,7 +36,9 @@ import           Data.Text.Encoding.Error
 
 import           TysWiredIn
 
-
+import           Control.Monad.State
+import           Control.Monad.Except
+import           Control.Monad.Identity
 
 import           Language.Fixpoint.Misc                (snd3)
 
@@ -50,7 +52,7 @@ import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
-import           CoreUtils                                     (exprType)
+-- import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
 
@@ -136,45 +138,50 @@ strengthenResult' v
 simplesymbol :: Var -> Symbol
 simplesymbol = symbol . getName
 
-newtype LogicM a = LM {runM :: LState -> Either a Error}
+
+type LogicM = ExceptT Error (StateT LState Identity)
+-- newtype LogicM a = LM {runM :: LState -> (LState, Either a Error)}
 
 data LState = LState { symbolMap :: LogicMap
                      , mkError   :: String -> Error
                      , ltce      :: TCEmb TyCon
+                     , boolvars  :: [Var]
                      }
-
+{- 
 
 instance Monad LogicM where
-  return = LM . const . Left
+  return x = LM $ \s -> (s, Left x)
   (LM m) >>= f
     = LM $ \s -> case m s of
-                (Left x) -> (runM (f x)) s
-                (Right x) -> Right x
+                (s', Left x) -> snd ((runM (f x)) s')
+                (_, Right x) -> Right x
 
 instance Functor LogicM where
   fmap f (LM m) = LM $ \s -> case m s of
-                              (Left  x) -> Left $ f x
-                              (Right x) -> Right x
+                              (_, Left  x) -> Left $ f x
+                              (_, Right x) -> Right x
 
 instance Applicative LogicM where
   pure = LM . const . Left
   (LM f) <*> (LM m)
     = LM $ \s -> case (f s, m s) of
-                  (Left f , Left x ) -> Left $ f x
-                  (Right f, Left _ ) -> Right f
-                  (Left _ , Right x) -> Right x
-                  (Right _, Right x) -> Right x
+                  ((_, Left f), (_, Left x)) -> Left $ f x
+                  ((_, Right f), (_, Left _ )) -> Right f
+                  ((_, Left _ ), (_, Right x)) -> Right x
+                  ((_, Right _), (_,Right x)) -> Right x
+-}
 
 throw :: String -> LogicM a
-throw str = LM $ \s -> Right $ (mkError s) str
+throw str = do fmkError  <- mkError <$> get  
+               throwError $ fmkError str 
 
 getState :: LogicM LState
-getState = LM $ Left
+getState = get
 
 runToLogic :: TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either t Error
-runToLogic tce lmap ferror  (LM m)
-  = m $ LState {symbolMap = lmap, mkError = ferror, ltce = tce }
+           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogic tce lmap ferror m
+  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolvars = []}) 
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
@@ -349,11 +356,7 @@ toPredApp p
     go _ _ = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
-toLogicApp e
-  | isBool ((ofType $ exprType e) :: SpecType)
-  = mkProp <$> go e 
-  | otherwise
-  = go e 
+toLogicApp e = go e 
   where
     go e = do let (f, es) = splitArgs e
               case f of 
