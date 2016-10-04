@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   mkLit, mkI, mkS, 
 
   runToLogic,
-  runToLogicWithVars, 
   logicType,
 
   strengthenResult,
@@ -145,7 +144,6 @@ type LogicM = ExceptT Error (StateT LState Identity)
 data LState = LState { symbolMap :: LogicMap
                      , mkError   :: String -> Error
                      , ltce      :: TCEmb TyCon
-                     , boolvars  :: [Var]
                      }
 throw :: String -> LogicM a
 throw str = do fmkError  <- mkError <$> get  
@@ -154,22 +152,16 @@ throw str = do fmkError  <- mkError <$> get
 getState :: LogicM LState
 getState = get
 
-addBinder  :: Var -> LogicM ()
-addBinder x = modify $ \s -> s{boolvars = x:boolvars s}
-
-runToLogicWithVars :: TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> [Var] -> LogicM t -> Either Error t
-runToLogicWithVars tce lmap ferror xs m
-  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolvars = xs})
-
 runToLogic :: TCEmb TyCon
            -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
-runToLogic tce lmap ferror = runToLogicWithVars tce lmap ferror []  
+runToLogic tce lmap ferror m
+  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce})
+
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
   where
-    go args (C.Lam  x e) = addBinder x >> go (x:args) e
+    go args (C.Lam  x e) = go (x:args) e
     go args (C.Tick _ e) = go args e
     go args (C.Case _ _ t alts)
       | eqType t boolTy  = mapM (goalt_prop (reverse $ tail args) (head args)) alts
@@ -197,7 +189,7 @@ coreToFun _ v e = go [] $ normalize e
   where
     go acc (C.Lam x e)  | isTyVar    x = go acc e
     go acc (C.Lam x e)  | isErasable x = go acc e
-    go acc (C.Lam x e)  = addBinder x >> go (x:acc) e
+    go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
     go acc e            | eqType rty boolTy
                         = (reverse acc,) . Left  <$> coreToPd e
@@ -256,8 +248,7 @@ coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
-  = do addBinder x
-       p   <- coreToLg e
+  = do p   <- coreToLg e
        tce <- ltce <$> getState 
        return $ ELam (symbol x, typeSort tce $ varType x) p
 -- coreToLg p@(C.App _ _) = toPredApp p
@@ -344,24 +335,12 @@ toLogicApp e = go e
   where
     go e = do let (f, es) = splitArgs e
               case f of 
-                C.Var x -> do args       <- mapM coreToLg es
+                C.Var _ -> do args       <- mapM coreToLg es
                               lmap       <- symbolMap <$> getState
                               def        <- (`mkEApp` args) <$> tosymbol f
-                              bs         <- boolvars <$> get 
-                              (liftBool bs x . (\x -> makeApp def lmap x args)) <$> tosymbol' f
+                              (\x -> makeApp def lmap x args) <$> tosymbol' f
                 _ -> do (fe:args) <- mapM coreToLg (f:es) 
                         return $ foldl EApp fe args  
-
-liftBool :: [Var] -> Var -> Expr -> Expr
-liftBool bs x e 
-  | x `elem` bs && isBool (ty_res $ toRTypeRep t)
-  = mkProp e  
-  | otherwise
-  = e
-  where 
-    t   = (ofType $ varType x) :: SpecType
-
- 
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
