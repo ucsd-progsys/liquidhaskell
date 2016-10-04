@@ -94,11 +94,11 @@ makeAssumeType tce lmap x v xts ams def
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
     at = axiomType x t
 
-    le = case runToLogic tce lmap mkErr (coreToLogic def') of
+    le = case runToLogicWithVars tce lmap mkErr xs (coreToLogic def') of
            Right e -> e
            Left  e -> panic Nothing $ show e
 
-    ble = case runToLogic tce lmap mkErr (coreToPred def') of
+    ble = case runToLogicWithVars tce lmap mkErr xs (coreToPred def') of
            Right e -> e
            Left  e -> panic Nothing $ show e
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
