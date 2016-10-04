@@ -17,7 +17,7 @@ import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..))
+import Data.Monoid (Sum(..), (<>))
 import Data.Proxy
 import Data.String
 import Data.Tagged
