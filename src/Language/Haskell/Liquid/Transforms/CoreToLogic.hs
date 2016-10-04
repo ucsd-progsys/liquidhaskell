@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   coreToLogic, coreToPred,
   mkLit, mkI, mkS, 
 
-  runToLogic,
+  runToLogic, runToLogicWithBoolBinds,
   logicType,
 
   strengthenResult,
@@ -144,7 +144,9 @@ type LogicM = ExceptT Error (StateT LState Identity)
 data LState = LState { symbolMap :: LogicMap
                      , mkError   :: String -> Error
                      , ltce      :: TCEmb TyCon
+                     , boolbinds :: [Var]
                      }
+
 throw :: String -> LogicM a
 throw str = do fmkError  <- mkError <$> get  
                throwError $ fmkError str 
@@ -154,8 +156,13 @@ getState = get
 
 runToLogic :: TCEmb TyCon
            -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
-runToLogic tce lmap ferror m
-  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce})
+runToLogic = runToLogicWithBoolBinds [] 
+
+runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
+           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogicWithBoolBinds xs tce lmap ferror m
+  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs })
+
 
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
@@ -335,12 +342,20 @@ toLogicApp e = go e
   where
     go e = do let (f, es) = splitArgs e
               case f of 
-                C.Var _ -> do args       <- mapM coreToLg es
+                C.Var x -> do args       <- mapM coreToLg es
                               lmap       <- symbolMap <$> getState
                               def        <- (`mkEApp` args) <$> tosymbol f
-                              (\x -> makeApp def lmap x args) <$> tosymbol' f
+                              bbs        <- boolbinds <$> get 
+                              (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
                 _ -> do (fe:args) <- mapM coreToLg (f:es) 
                         return $ foldl EApp fe args  
+
+liftBoolBinds :: Var -> [Var] -> Expr -> Expr 
+liftBoolBinds x xs e 
+  | x `elem` xs 
+  = mkProp e 
+  | otherwise
+  = e 
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)

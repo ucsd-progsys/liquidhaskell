@@ -70,7 +70,7 @@ makeAxiom' tce lmap cbs spec x v def = do
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  t <- makeAssumeType tce lmap x v (gsTySigs spec) anames  def
+  let t = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
   return ( (val x, mkType x v)
          , (v, t) : vts
          , defAxioms anames v def )
@@ -81,9 +81,8 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> BareM (Located SpecType)
-makeAssumeType tce lmap x v xts ams def
-  = mapM (\x -> updateLMap lmap (dummyLoc $ symbol x) (dummyLoc $ symbol x) x) xs >> (return assumedtype)
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType)
+makeAssumeType tce lmap x v xts ams def = assumedtype
   where
     assumedtype 
       | not (null ams)
@@ -94,20 +93,22 @@ makeAssumeType tce lmap x v xts ams def
       = x {val = at `strengthenRes` F.subst su ref}
 
     trep = toRTypeRep t
-    t  = mkUnique xs $ fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
+    t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
     at = axiomType x t
 
-    le = case runToLogic tce lmap mkErr (coreToLogic def') of
+    le = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
            Right e -> e
            Left  e -> panic Nothing $ show e
 
-    ble = case runToLogic tce lmap mkErr (coreToPred def') of
+    ble = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToPred def') of
            Right e -> e
            Left  e -> panic Nothing $ show e
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
+
+    bbs     = filter isBoolBind xs 
 
     (xs, def') = grapBody $ normalize def
     su = F.mkSubst $
@@ -123,17 +124,9 @@ makeAssumeType tce lmap x v xts ams def
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
 
 
-mkUnique :: [Var] -> SpecType -> SpecType
-mkUnique vs t = fromRTypeRep trep'
-  where
-    trep'  = trep {ty_binds = ys, ty_args = rs, ty_res = res}
-    trep   = toRTypeRep  t 
-    xs     = ty_binds trep
-    res:rs = (F.subst su) <$> (ty_res trep:ty_args trep)
-    su     = F.mkSubst (zip xs (F.EVar <$> ys))  
-    ys     = zipWith f (zip xs (ty_args trep)) vs 
+isBoolBind :: Var -> Bool 
+isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ varType v) :: RRType ()))
 
-    f (x,t) v = if isClassType t then x else F.symbol v 
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofReft r }
