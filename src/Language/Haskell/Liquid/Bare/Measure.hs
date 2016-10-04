@@ -154,10 +154,10 @@ strengthenHaskell strengthen hmeas sigs
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
-makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = (if autoselectors then checker : catMaybes (go' <$> zip (reverse xts) [1..]) else [])
-    ++ catMaybes (go <$> zip (reverse xts) [1..])
+makeMeasureSelectors :: Bool -> Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
+  =    (if autoselectors then checker : catMaybes (go' <$> zip (reverse xts) [1..]) else [])
+    ++ (if autofields    then catMaybes (go <$> zip (reverse xts) [1..])            else [])
   where
     go ((x,t), i)
       -- do not make selectors for functional fields
