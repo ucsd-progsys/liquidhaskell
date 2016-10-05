@@ -800,6 +800,17 @@ see [tests/pos/Map.hs](tests/pos/Map.hs)
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
+Infix Logic Operators
+---------------------
+
+You can define infix operators in logic, following Haskell's infix notation. 
+For example, if (+++) is defined as a measure or reflected function, you can use it infix by declaring
+
+   {-@ infixl 9 +++ @-}
+
+
+Note: infix operators cannot contain the dot character `.`.
+
 Specifying Measures
 -------------------
 
