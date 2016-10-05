@@ -416,8 +416,8 @@ makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
      tce  <- ae_emb     <$> get
      case runToLogic tce lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
-       Left p    -> return p
-       Right err -> panicError err
+       Right p  -> return p
+       Left err -> panicError err
 
 makeRefinement :: Maybe SpecType -> [Var] -> F.Expr
 makeRefinement Nothing  _ = F.PTrue

@@ -74,7 +74,8 @@ data Config = Config {
   --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
-  , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
+  , noMeasureFields :: Bool      -- ^ Do not automatically lift data constructor fields into measures
+  , scrapeImports   :: Bool      -- ^ scrape qualifiers from imported specifications
   , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   , elimStats       :: Bool       -- ^ print eliminate stats

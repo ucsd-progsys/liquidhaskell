@@ -205,16 +205,17 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)
+    -- do not make record selectors for data cons with functional arguments  
+    || any (isFunTy . snd) (args)
     = return []
     | otherwise = do
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
-        return (fs `zip` ts)
+        return $ zip fs ts  
     where
-    ts   = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
+    ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
                                (dropPreds (subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
-           , not (isFunTy t) -- NOTE: we only have measures for non-function fields
            , let vv = rTypeValueVar t
              -- the measure singleton refinement, eg `v = getBar foo`
            , let mt = uReft (vv, PAtom Eq (EVar vv) (EApp (EVar x) (EVar z)))
