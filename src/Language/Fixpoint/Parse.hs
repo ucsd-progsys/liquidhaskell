@@ -68,15 +68,16 @@ module Language.Fixpoint.Parse (
 
   -- * Utilities
   , isSmall
+
+  , initPState, PState
   ) where
 
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
 import           Data.Maybe                  (fromJust)
-import           Text.Parsec
+import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
-import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
@@ -90,14 +91,35 @@ import           Language.Fixpoint.Smt.Types
 -- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
-import qualified Data.Functor.Identity
 
-type Parser = Parsec String Integer
+import Control.Monad.State 
+
+type Parser = ParsecT String Integer (State PState)
+type ParserT u a = ParsecT String u (State PState) a
+
+data PState = PState {fixityTable :: OperatorTable String Integer (State PState) Expr}
+
 
 --------------------------------------------------------------------
 
-languageDef :: Token.GenLanguageDef String a Data.Functor.Identity.Identity
-languageDef =
+
+emptyDef :: Monad m => Token.GenLanguageDef String a m
+emptyDef    = Token.LanguageDef
+               { Token.commentStart   = ""
+               , Token.commentEnd     = ""
+               , Token.commentLine    = ""
+               , Token.nestedComments = True
+               , Token.identStart     = letter <|> char '_'
+               , Token.identLetter    = alphaNum <|> oneOf "_'"
+               , Token.opStart        = Token.opLetter emptyDef
+               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+               , Token.reservedOpNames= []
+               , Token.reservedNames  = []
+               , Token.caseSensitive  = True
+               }
+
+languageDef :: Monad m => Token.GenLanguageDef String a m
+languageDef = 
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
@@ -126,7 +148,7 @@ languageDef =
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
-                                     , "mod", "and", "or"
+                                     , "mod", "and", "or", "where"
                                   --, "is"
                                      , "&&", "||"
                                      , "~", "=>", "==>", "<=>"
@@ -134,18 +156,18 @@ languageDef =
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
                                      , "?", "Bexp" -- , "'"
+                                     , "where"
                                      ]
            }
 
-lexer :: Token.GenTokenParser String u Data.Functor.Identity.Identity
-lexer         = Token.makeTokenParser languageDef
+lexer :: Monad m => Token.GenTokenParser String u m
+lexer = Token.makeTokenParser languageDef
 
-type ParserT u a = ParsecT String u Data.Functor.Identity.Identity a
 
-reserved :: String -> ParserT u ()
+reserved :: String -> Parser ()
 reserved      = Token.reserved      lexer
 
-reservedOp :: String -> ParserT u ()
+reservedOp :: String -> Parser ()
 reservedOp    = Token.reservedOp    lexer
 
 parens, brackets, angles, braces :: ParserT u a -> ParserT u a
@@ -274,17 +296,18 @@ expr1P
  <|> expr0P
 
 exprP :: Parser Expr
-exprP = buildExpressionParser bops expr1P
-  where
-    bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
-           , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
-             , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
-             ]
-           , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
-             , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
-             ]
-           , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
-           ]
+exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
+
+bops :: OperatorTable String Integer (State PState) Expr
+bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
+       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
+         , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
+       ]
+       , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
+         , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
+         ]
+       , [ Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
+       ]
 
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
@@ -664,9 +687,18 @@ remainderP p
        pos <- getPosition
        return (res, str, pos)
 
+
+-- doParse' :: Parser a -> SourceName -> String -> (Either ParseError a)
+-- doParse' parser f s
+--   =  
+
+
+initPState :: PState 
+initPState = PState {fixityTable = bops}
+
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
-  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
+  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) initPState of
       Left e            -> die $ err (errorSpan e) (dErr e)
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
@@ -676,6 +708,7 @@ doParse' parser f s
       dRem r = vcat [ "doParse has leftover"
                     , nest 4 (text r)
                     , "when parsing from" <+> text f ]
+
 
 errorSpan :: ParseError -> SrcSpan
 errorSpan e = SS l l where l = errorPos e
