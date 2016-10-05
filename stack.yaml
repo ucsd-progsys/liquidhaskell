@@ -3,8 +3,10 @@ flags:
     devel: true
   liquidhaskell:
     devel: true
+
+# - ./prover
+
 packages:
-- ./prover
 - ./liquid-fixpoint
 - ./liquiddesugar
 - '.'
