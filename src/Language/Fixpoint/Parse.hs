@@ -232,7 +232,7 @@ condIdP chars f
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
 infixIdP :: Parser String 
-infixIdP = many (satisfy (notElem [' ', '.']))
+infixIdP = many (satisfy (`notElem` [' ', '.']))
 
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isSmall . head)
