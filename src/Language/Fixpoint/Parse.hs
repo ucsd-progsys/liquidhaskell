@@ -32,6 +32,7 @@ module Language.Fixpoint.Parse (
   --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
+  , infixIdP    -- String Haskell infix Id 
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
@@ -70,12 +71,14 @@ module Language.Fixpoint.Parse (
   , isSmall
 
   , initPState, PState
+
+  , Fixity(..), Assoc(..), addOperatorP
   ) where
 
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
-import           Data.Maybe                  (fromJust)
+import           Data.Maybe                  (fromJust, fromMaybe)
 import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
 import qualified Text.Parsec.Token           as Token
@@ -97,7 +100,10 @@ import Control.Monad.State
 type Parser = ParsecT String Integer (State PState)
 type ParserT u a = ParsecT String u (State PState) a
 
-data PState = PState {fixityTable :: OperatorTable String Integer (State PState) Expr}
+data PState = PState {fixityTable :: OpTable} 
+
+instance Show  PState where
+  show (PState lls) = "\nPSTATE = \n " ++ show (length lls, map length lls) 
 
 
 --------------------------------------------------------------------
@@ -225,6 +231,9 @@ condIdP chars f
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
+infixIdP :: Parser String 
+infixIdP = many (satisfy (/= ' '))
+
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isSmall . head)
 
@@ -298,8 +307,65 @@ expr1P
 exprP :: Parser Expr
 exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
 
-bops :: OperatorTable String Integer (State PState) Expr
-bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
+data Fixity  
+  = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Expr -> Expr -> Expr), fassoc :: Assoc}
+  | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+  | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+
+
+instance Show Fixity where
+  show = fname
+
+-- Invariant : OpTable has 10 elements 
+type OpTable = OperatorTable String Integer (State PState) Expr
+
+addOperatorP :: Fixity -> Parser ()
+addOperatorP op 
+  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)} 
+
+addOperator :: Fixity -> OpTable -> OpTable
+addOperator (FInfix p x f assoc) ops 
+ = insertOperator (makePrec p) (Infix (reservedOp x >> return (makeInfixFun x f)) assoc) ops
+addOperator (FPrefix p x f) ops 
+ = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
+addOperator (FPostfix p x f) ops 
+ = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
+
+makePrec :: Maybe Int -> Int 
+makePrec = fromMaybe 9 
+
+makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr)
+makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
+
+makePrefixFun :: String -> Maybe (Expr -> Expr) -> (Expr -> Expr)
+makePrefixFun x = fromMaybe (\e -> EApp (EVar $ symbol x) e)
+
+insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
+insertOperator i op ops = go (9-i) ops 
+  where
+    go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
+    go 0 (xs:xss) = (xs++[op]):xss
+    go i (xs:xss) = xs:go (i-1) xss
+
+initOpTable :: OpTable
+initOpTable = take 10 (repeat [])
+
+bops :: OpTable
+bops = foldl (flip addOperator) initOpTable buildinOps
+  where 
+-- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
+    buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
+                 , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
+                 , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
+                 , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
+                 , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
+                 , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+                 ] 
+
+{- 
+      [ 
+         [ Prefix (reservedOp "-"   >> return ENeg)]
+
        , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
        ]
@@ -308,6 +374,7 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
          ]
        , [ Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
        ]
+-}
 
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
