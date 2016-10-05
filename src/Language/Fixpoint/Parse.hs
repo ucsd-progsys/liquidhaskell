@@ -102,9 +102,6 @@ type ParserT u a = ParsecT String u (State PState) a
 
 data PState = PState {fixityTable :: OpTable} 
 
-instance Show  PState where
-  show (PState lls) = "\nPSTATE = \n " ++ show (length lls, map length lls) 
-
 
 --------------------------------------------------------------------
 
@@ -154,7 +151,7 @@ languageDef =
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
-                                     , "mod", "and", "or", "where"
+                                     , "mod", "and", "or"
                                   --, "is"
                                      , "&&", "||"
                                      , "~", "=>", "==>", "<=>"
@@ -162,7 +159,6 @@ languageDef =
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
                                      , "?", "Bexp" -- , "'"
-                                     , "where"
                                      ]
            }
 
@@ -313,9 +309,6 @@ data Fixity
   | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
 
 
-instance Show Fixity where
-  show = fname
-
 -- Invariant : OpTable has 10 elements 
 type OpTable = OperatorTable String Integer (State PState) Expr
 
@@ -361,20 +354,6 @@ bops = foldl (flip addOperator) initOpTable buildinOps
                  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  ] 
-
-{- 
-      [ 
-         [ Prefix (reservedOp "-"   >> return ENeg)]
-
-       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
-         , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
-       ]
-       , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
-         , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
-         ]
-       , [ Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
-       ]
--}
 
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
@@ -753,11 +732,6 @@ remainderP p
        str <- getInput
        pos <- getPosition
        return (res, str, pos)
-
-
--- doParse' :: Parser a -> SourceName -> String -> (Either ParseError a)
--- doParse' parser f s
---   =  
 
 
 initPState :: PState 
