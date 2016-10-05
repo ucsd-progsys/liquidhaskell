@@ -62,7 +62,7 @@ hsSpecificationP :: ModuleName
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
 hsSpecificationP modName specComments specQuotes =
-  case go ([], []) initPState $ specComments of
+  case go ([], []) initPState $ reverse specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
     (errs, _) ->
