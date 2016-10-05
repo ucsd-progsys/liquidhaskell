@@ -68,7 +68,7 @@ Executable liquid
                , process
                , liquid-fixpoint
                , located-base
-               -- , prover
+               , prover
                , liquidhaskell
 
   Main-is: src/Liquid.hs
@@ -141,7 +141,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint
                 , located-base
-                -- , prover
+                , prover
                 , aeson >= 0.10 && < 1.0 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
