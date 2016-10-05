@@ -47,6 +47,8 @@ import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
 
+import Control.Monad.State 
+
 -- import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -95,7 +97,7 @@ singleSpecP = parseWithError specP
 parseWithError :: Parser a -> SourcePos -> String -> Either Error a
 ---------------------------------------------------------------------------
 parseWithError parser p s =
-  case runParser doParse 0 (sourceName p) s of
+  case evalState (runParserT doParse 0 (sourceName p) s) initPState of
     Left e            -> Left  $ parseErrorError e
     Right (r, "", _)  -> Right r
     Right (_, rem, _) -> Left  $ parseErrorError $ remParseError p s rem
@@ -143,11 +145,11 @@ remLineCol pos src rem = (line + offLine, col + offCol)
 parseSymbolToLogic :: SourceName -> String -> Either Error LogicMap
 parseSymbolToLogic f = parseWithError toLogicP (newPos f 1 1)
 
-toLogicP :: Parsec String Integer LogicMap
+toLogicP :: Parser LogicMap
 toLogicP
   = toLogicMap <$> many toLogicOneP
 
-toLogicOneP :: Parsec String Integer (Symbol, [Symbol], Expr)
+toLogicOneP :: Parser  (Symbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
        (x:xs) <- many1 symbolP
@@ -160,14 +162,13 @@ toLogicOneP
 -- Lexer Tokens ------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
-dot :: Parsec String u String
+dot :: Parser String
 dot           = Token.dot           lexer
 
-angles :: Parsec String u a
-       -> Parsec String u a
+angles :: Parser a -> Parser a
 angles        = Token.angles        lexer
 
-stringLiteral :: Parsec String u String
+stringLiteral :: Parser String 
 stringLiteral = Token.stringLiteral lexer
 
 ----------------------------------------------------------------------------------
@@ -810,7 +811,7 @@ filePathP     = angles $ many1 pathCharP
 datavarianceP :: Parser (Located Symbol, [Variance])
 datavarianceP = liftM2 (,) locUpperIdP (spaces >> many varianceP)
 
-varianceP :: Parsec String u Variance
+varianceP :: Parser Variance
 varianceP = (reserved "bivariant"     >> return Bivariant)
         <|> (reserved "invariant"     >> return Invariant)
         <|> (reserved "covariant"     >> return Covariant)
