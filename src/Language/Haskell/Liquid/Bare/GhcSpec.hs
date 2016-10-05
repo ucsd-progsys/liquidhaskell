@@ -384,7 +384,7 @@ makeGhcSpecCHOP1 instenv cfg specs
        let tyi          = makeTyConInfo tycons
        embs            <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
        datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-       let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg)) datacons
+       let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
        recSels         <- makeRecordSelectorSigs datacons
        return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, embs)
 

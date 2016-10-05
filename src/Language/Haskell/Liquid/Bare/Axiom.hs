@@ -81,34 +81,38 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> Located SpecType
-makeAssumeType tce lmap x v xts ams def
-  | not (null ams)
-  = x {val = axiomType x t}
-  | isBool (ty_res trep)
-  = x {val = at `strengthenRes` F.subst su bref}
-  | otherwise
-  = x {val = at `strengthenRes` F.subst su ref}
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType)
+makeAssumeType tce lmap x v xts ams def = assumedtype
   where
+    assumedtype 
+      | not (null ams)
+      = x {val = at}
+      | isBool (ty_res trep)
+      = x {val = at `strengthenRes` F.subst su bref}
+      | otherwise
+      = x {val = at `strengthenRes` F.subst su ref}
+
     trep = toRTypeRep t
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
     at = axiomType x t
 
-    le = case runToLogic tce lmap mkErr (coreToLogic def') of
-           Left  e -> e
-           Right e -> panic Nothing $ show e
+    le = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
+           Right e -> e
+           Left  e -> panic Nothing $ show e
 
-    ble = case runToLogic tce lmap mkErr (coreToPred def') of
-           Left e -> e
-           Right e -> panic Nothing $ show e
+    ble = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToPred def') of
+           Right e -> e
+           Left  e -> panic Nothing $ show e
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
+    bbs     = filter isBoolBind xs 
+
     (xs, def') = grapBody $ normalize def
     su = F.mkSubst $
-             zip (F.symbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
+                zip (F.symbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
              ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
 
 
@@ -118,6 +122,10 @@ makeAssumeType tce lmap x v xts ams def
 
 
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
+
+
+isBoolBind :: Var -> Bool 
+isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ varType v) :: RRType ()))
 
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
@@ -161,11 +169,11 @@ makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
     res = ty_res tr `strengthen` MkUReft ref mempty mempty
 
     llhs = case runToLogic tce lmap' mkErr (coreToLogic lhs) of
-       Left e -> e
-       Right e -> panic Nothing $ show e
+       Right e -> e
+       Left e -> panic Nothing $ show e
     lrhs = case runToLogic tce lmap' mkErr (coreToLogic rhs) of
-       Left e -> e
-       Right e -> panic Nothing $ show e
+       Right e -> e
+       Left e -> panic Nothing $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
     -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())

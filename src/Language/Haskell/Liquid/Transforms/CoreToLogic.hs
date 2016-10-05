@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   coreToLogic, coreToPred,
   mkLit, mkI, mkS, 
 
-  runToLogic,
+  runToLogic, runToLogicWithBoolBinds,
   logicType,
 
   strengthenResult,
@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   ) where
 
 import           Data.ByteString                       (ByteString)
-import           GHC                                   hiding (Located)
+import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
 import           Type
 import           TypeRep
@@ -36,7 +36,9 @@ import           Data.Text.Encoding.Error
 
 import           TysWiredIn
 
-
+import           Control.Monad.State
+import           Control.Monad.Except
+import           Control.Monad.Identity
 
 import           Language.Fixpoint.Misc                (snd3)
 
@@ -50,6 +52,7 @@ import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
+-- import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
 
@@ -135,45 +138,32 @@ strengthenResult' v
 simplesymbol :: Var -> Symbol
 simplesymbol = symbol . getName
 
-newtype LogicM a = LM {runM :: LState -> Either a Error}
+
+type LogicM = ExceptT Error (StateT LState Identity)
 
 data LState = LState { symbolMap :: LogicMap
                      , mkError   :: String -> Error
                      , ltce      :: TCEmb TyCon
+                     , boolbinds :: [Var]
                      }
 
-
-instance Monad LogicM where
-  return = LM . const . Left
-  (LM m) >>= f
-    = LM $ \s -> case m s of
-                (Left x) -> (runM (f x)) s
-                (Right x) -> Right x
-
-instance Functor LogicM where
-  fmap f (LM m) = LM $ \s -> case m s of
-                              (Left  x) -> Left $ f x
-                              (Right x) -> Right x
-
-instance Applicative LogicM where
-  pure = LM . const . Left
-  (LM f) <*> (LM m)
-    = LM $ \s -> case (f s, m s) of
-                  (Left f , Left x ) -> Left $ f x
-                  (Right f, Left _ ) -> Right f
-                  (Left _ , Right x) -> Right x
-                  (Right _, Right x) -> Right x
-
 throw :: String -> LogicM a
-throw str = LM $ \s -> Right $ (mkError s) str
+throw str = do fmkError  <- mkError <$> get  
+               throwError $ fmkError str 
 
 getState :: LogicM LState
-getState = LM $ Left
+getState = get
 
 runToLogic :: TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either t Error
-runToLogic tce lmap ferror  (LM m)
-  = m $ LState {symbolMap = lmap, mkError = ferror, ltce = tce }
+           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogic = runToLogicWithBoolBinds [] 
+
+runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
+           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogicWithBoolBinds xs tce lmap ferror m
+  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs })
+
+
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
@@ -348,15 +338,24 @@ toPredApp p
     go _ _ = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
-toLogicApp e
-  =  do let (f, es) = splitArgs e
-        case f of 
-          C.Var _ -> do args       <- mapM coreToLg es
-                        lmap       <- symbolMap <$> getState
-                        def         <- (`mkEApp` args) <$> tosymbol f
-                        (\x -> makeApp def lmap x args) <$> tosymbol' f
-          _ -> do (fe:args) <- mapM coreToLg (f:es) 
-                  return $ foldl EApp fe args  
+toLogicApp e = go e 
+  where
+    go e = do let (f, es) = splitArgs e
+              case f of 
+                C.Var x -> do args       <- mapM coreToLg es
+                              lmap       <- symbolMap <$> getState
+                              def        <- (`mkEApp` args) <$> tosymbol f
+                              bbs        <- boolbinds <$> get 
+                              (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
+                _ -> do (fe:args) <- mapM coreToLg (f:es) 
+                        return $ foldl EApp fe args  
+
+liftBoolBinds :: Var -> [Var] -> Expr -> Expr 
+liftBoolBinds x xs e 
+  | x `elem` xs 
+  = mkProp e 
+  | otherwise
+  = e 
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
