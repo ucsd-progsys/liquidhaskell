@@ -153,6 +153,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , totalHaskell
+    = def &= help "Check for termination and totality, Overrides no-termination flags"
+          &= name "total-Haskell"
+
  , autoproofs
     = def &= help "Automatically construct proofs from axioms"
           &= name "auto-proofs"
@@ -234,6 +238,10 @@ config = cmdArgsMode $ Config {
  , exactDC
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
+
+ , noMeasureFields
+    = def &= help "Do not automatically lift data constructor fields into measures"
+          &= name "no-measure-fields"
 
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
@@ -434,6 +442,7 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , totalHaskell      = def 
                    , autoproofs        = def
                    , nowarnings        = def
                    , noannotations     = def
@@ -444,6 +453,7 @@ defConfig = Config { files             = def
                    , totality          = def
                    , pruneUnsorted     = def
                    , exactDC           = def
+                   , noMeasureFields   = def 
                    , cores             = def
                    , minPartSize       = defaultMinPartSize
                    , maxPartSize       = defaultMaxPartSize

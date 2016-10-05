@@ -40,17 +40,16 @@ fmap_id' :: Proof
 fmap_id' = abstract (fmap id) id fmap_id
 -}
 
-{-@ fmap_id :: xs:L a -> {v:Proof | fmap id xs == id xs } @-}
+{-@ fmap_id :: xs:L a -> { fmap id xs == id xs } @-}
 fmap_id :: L a -> Proof
 fmap_id N
-  = toProof $
-      fmap id N ==. N
-                ==. id N
+  = fmap id N ==. N
+                ==. id N *** QED 
 fmap_id (C x xs)
   = toProof $
       fmap id (C x xs) ==. C (id x) (fmap id xs)
                        ==. C x (fmap id xs)
-                       ==. C x (id xs)            ? fmap_id xs
+                       ==. C x (id xs)            ? fmap_id (xs)
                        ==. C x xs
                        ==. id (C x xs)
 

@@ -104,8 +104,8 @@ makeMeasureInline tce lmap cbs  x
     binders (Rec xes)    = fst <$> xes
 
     coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Left (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
-                           Right e -> throwError e
+                           Right (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
+                           Left e -> throwError e
 
     fromLR (Left l)  = l
     fromLR (Right r) = r
@@ -131,8 +131,8 @@ makeMeasureDefinition tce lmap cbs x
     binders (Rec xes)    = fst <$> xes
 
     coreToDef' x v def = case runToLogic tce lmap mkError $ coreToDef x v def of
-                           Left l  -> return     l
-                           Right e -> throwError e
+                           Right l -> return     l
+                           Left e  -> throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -154,19 +154,20 @@ strengthenHaskell strengthen hmeas sigs
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
-makeMeasureSelectors :: Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors autoselectors (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  = if autoselectors then checker : (go' <$> zip (reverse xts) [1..]) else []
-    ++ catMaybes (go <$> zip (reverse xts) [1..])
+makeMeasureSelectors :: Bool -> Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
+  =    (if autoselectors then checker : catMaybes (go' <$> zip (reverse xts) [1..]) else [])
+    ++ (if autofields    then catMaybes (go <$> zip (reverse xts) [1..])            else [])
   where
     go ((x,t), i)
-      | isFunTy t || autoselectors
+      -- do not make selectors for functional fields
+      | isFunTy t
       = Nothing
       | otherwise 
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
-      = makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
 
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
@@ -281,8 +282,8 @@ makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs 
     binders (Rec xes)    = fst <$> xes
 
     coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Left (xs, e) -> return (xs, e)
-                           Right e      -> throwError e
+                           Right (xs, e) -> return (xs, e)
+                           Left e      -> throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)

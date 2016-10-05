@@ -30,6 +30,7 @@ import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
 
+import           Language.Haskell.Liquid.UX.Config (terminationCheck)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -254,7 +255,7 @@ initCGI cfg info = CGInfo {
   , specDecr   = gsDecr spc
   , specLVars  = gsLvars spc
   , specLazy   = dictionaryVar `S.insert` gsLazy spc
-  , tcheck     = not $ notermination cfg
+  , tcheck     = terminationCheck cfg
   , scheck     = strata cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []

@@ -427,14 +427,14 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
            -> Maybe Doc
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
   where
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
-    ats  = mapSnd (rTypeSortedReft emb) <$> as
-    xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
-    trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (last txs)
-    txs  = snd4 $ bkArrowDeep sort
-    ct   = ofType $ dataConUserType c :: SpecType
-    sort' = dropNArgs (length bs) sort
+    γ'    = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
+    ats   = mapSnd (rTypeSortedReft emb) <$> as
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
+    trep  = toRTypeRep ct
+    su    = checkMBodyUnify (ty_res trep) (last txs)
+    txs   = snd4 $ bkArrowDeep sort
+    ct    = ofType $ dataConUserType c :: SpecType
+    sort' = dropNArgs (length as) sort
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]

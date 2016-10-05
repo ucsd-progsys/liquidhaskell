@@ -413,6 +413,17 @@ pair of arguments. This can be encoded with the lexicographic
 termination annotation `{-@ Decrease even 1 2 @-}` (see
 [tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
 
+
+
+Total Haskell
+--------------
+
+LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program, 
+overriding a potential no-termination flag. 
+
+    liquid --total-Haskel test.hs
+
+
 Lazy Variables
 --------------
 
@@ -430,6 +441,20 @@ it is used. For example, with the above annotation the following code is SAFE:
 
 By default, all the variables starting with `fail` are marked as LAZY, to defer
 failing checks at the point where these variables are used.
+
+No measure fields
+------------------
+
+When a data type is refined, Liquid Haskell automatically turns the data constructor fields into measures. 
+For example, 
+
+   {-@ data L a = N | C {hd :: a, tl :: L a} @-}
+
+will automatically create two measures `hd` and `td`. 
+To deactivate this automatic measure definition, and speed up verification, you can use the `no-measure-fields` flag. 
+   
+  liquid --no-measure-fields test.hs
+
 
 Prune Unsorted Predicates
 -------------------------
@@ -1142,6 +1167,7 @@ Finally, to remove the Gipeda infrastructure from your computer, you may execute
 
 ...which will remove any files created by `deploy-gipeda.bash` and `generate-site.bash`
 from your computer.
+
 
 Configuration Management
 ------------------------
