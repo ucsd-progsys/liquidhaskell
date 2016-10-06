@@ -32,6 +32,7 @@ module Language.Fixpoint.Parse (
   --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
+  , infixIdP    -- String Haskell infix Id 
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
@@ -68,15 +69,18 @@ module Language.Fixpoint.Parse (
 
   -- * Utilities
   , isSmall
+
+  , initPState, PState
+
+  , Fixity(..), Assoc(..), addOperatorP
   ) where
 
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
-import           Data.Maybe                  (fromJust)
-import           Text.Parsec
+import           Data.Maybe                  (fromJust, fromMaybe)
+import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
-import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
@@ -90,14 +94,35 @@ import           Language.Fixpoint.Smt.Types
 -- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
-import qualified Data.Functor.Identity
 
-type Parser = Parsec String Integer
+import Control.Monad.State 
+
+type Parser = ParsecT String Integer (State PState)
+type ParserT u a = ParsecT String u (State PState) a
+
+data PState = PState {fixityTable :: OpTable} 
+
 
 --------------------------------------------------------------------
 
-languageDef :: Token.GenLanguageDef String a Data.Functor.Identity.Identity
-languageDef =
+
+emptyDef :: Monad m => Token.GenLanguageDef String a m
+emptyDef    = Token.LanguageDef
+               { Token.commentStart   = ""
+               , Token.commentEnd     = ""
+               , Token.commentLine    = ""
+               , Token.nestedComments = True
+               , Token.identStart     = letter <|> char '_'
+               , Token.identLetter    = alphaNum <|> oneOf "_'"
+               , Token.opStart        = Token.opLetter emptyDef
+               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+               , Token.reservedOpNames= []
+               , Token.reservedNames  = []
+               , Token.caseSensitive  = True
+               }
+
+languageDef :: Monad m => Token.GenLanguageDef String a m
+languageDef = 
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
@@ -137,15 +162,14 @@ languageDef =
                                      ]
            }
 
-lexer :: Token.GenTokenParser String u Data.Functor.Identity.Identity
-lexer         = Token.makeTokenParser languageDef
+lexer :: Monad m => Token.GenTokenParser String u m
+lexer = Token.makeTokenParser languageDef
 
-type ParserT u a = ParsecT String u Data.Functor.Identity.Identity a
 
-reserved :: String -> ParserT u ()
+reserved :: String -> Parser ()
 reserved      = Token.reserved      lexer
 
-reservedOp :: String -> ParserT u ()
+reservedOp :: String -> Parser ()
 reservedOp    = Token.reservedOp    lexer
 
 parens, brackets, angles, braces :: ParserT u a -> ParserT u a
@@ -202,6 +226,9 @@ condIdP chars f
        cs <- many (satisfy (`S.member` chars))
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
+
+infixIdP :: Parser String 
+infixIdP = many (satisfy (`notElem` [' ', '.']))
 
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isSmall . head)
@@ -274,17 +301,59 @@ expr1P
  <|> expr0P
 
 exprP :: Parser Expr
-exprP = buildExpressionParser bops expr1P
+exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
+
+data Fixity  
+  = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Expr -> Expr -> Expr), fassoc :: Assoc}
+  | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+  | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+
+
+-- Invariant : OpTable has 10 elements 
+type OpTable = OperatorTable String Integer (State PState) Expr
+
+addOperatorP :: Fixity -> Parser ()
+addOperatorP op 
+  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)} 
+
+addOperator :: Fixity -> OpTable -> OpTable
+addOperator (FInfix p x f assoc) ops 
+ = insertOperator (makePrec p) (Infix (reservedOp x >> return (makeInfixFun x f)) assoc) ops
+addOperator (FPrefix p x f) ops 
+ = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
+addOperator (FPostfix p x f) ops 
+ = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
+
+makePrec :: Maybe Int -> Int 
+makePrec = fromMaybe 9 
+
+makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr)
+makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
+
+makePrefixFun :: String -> Maybe (Expr -> Expr) -> (Expr -> Expr)
+makePrefixFun x = fromMaybe (\e -> EApp (EVar $ symbol x) e)
+
+insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
+insertOperator i op ops = go (9-i) ops 
   where
-    bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
-           , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
-             , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
-             ]
-           , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
-             , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
-             ]
-           , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
-           ]
+    go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
+    go 0 (xs:xss) = (xs++[op]):xss
+    go i (xs:xss) = xs:go (i-1) xss
+
+initOpTable :: OpTable
+initOpTable = take 10 (repeat [])
+
+bops :: OpTable
+bops = foldl (flip addOperator) initOpTable buildinOps
+  where 
+-- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
+    buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
+                 , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
+                 , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
+                 , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
+                 , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
+                 , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+                 ] 
 
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
@@ -664,9 +733,13 @@ remainderP p
        pos <- getPosition
        return (res, str, pos)
 
+
+initPState :: PState 
+initPState = PState {fixityTable = bops}
+
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
-  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
+  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) initPState of
       Left e            -> die $ err (errorSpan e) (dErr e)
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
@@ -676,6 +749,7 @@ doParse' parser f s
       dRem r = vcat [ "doParse has leftover"
                     , nest 4 (text r)
                     , "when parsing from" <+> text f ]
+
 
 errorSpan :: ParseError -> SrcSpan
 errorSpan e = SS l l where l = errorPos e
