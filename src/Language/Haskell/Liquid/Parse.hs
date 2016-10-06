@@ -30,9 +30,8 @@ import           Data.Monoid
 import           Data.Data
 
 
-import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum)
+import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
 import           Data.List                              (foldl', partition)
-import           Data.Either
 
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
@@ -46,6 +45,8 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
+
+import Control.Monad.State 
 
 -- import Debug.Trace
 
@@ -61,21 +62,25 @@ hsSpecificationP :: ModuleName
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
 hsSpecificationP modName specComments specQuotes =
-  case partitionEithers $ parseComment <$> specComments of
+  case go ([], []) initPState $ reverse specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
     (errs, _) ->
       Left errs
   where
-    parseComment (pos, specComment) =
-      parseWithError specP pos specComment
+    go (errs, specs) _ [] 
+      = (reverse errs, reverse specs)
+    go (errs, specs) pstate ((pos, specComment):xs)
+      = case parseWithError pstate specP pos specComment of 
+          Left err        -> go (err:errs, specs) pstate xs 
+          Right (st,spec) -> go (errs,spec:specs) st xs 
 
 -- | Used to parse .spec files
 
 --------------------------------------------------------------------------
 specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
 --------------------------------------------------------------------------
-specSpecificationP f s = parseWithError specificationP (newPos f 1 1) s
+specSpecificationP f s = mapRight snd $  parseWithError initPState specificationP (newPos f 1 1) s
 
 specificationP :: Parser (ModName, Measure.BareSpec)
 specificationP
@@ -89,16 +94,20 @@ specificationP
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either Error BPspec
 -------------------------------------------------------------------------------
-singleSpecP = parseWithError specP
+singleSpecP pos = mapRight snd . parseWithError initPState specP pos 
+
+mapRight :: (a -> b) -> Either l a -> Either l b 
+mapRight f (Right x) = Right $ f x 
+mapRight _ (Left x)  = Left x 
 
 ---------------------------------------------------------------------------
-parseWithError :: Parser a -> SourcePos -> String -> Either Error a
+parseWithError :: PState -> Parser a -> SourcePos -> String -> Either Error (PState, a)
 ---------------------------------------------------------------------------
-parseWithError parser p s =
-  case runParser doParse 0 (sourceName p) s of
-    Left e            -> Left  $ parseErrorError e
-    Right (r, "", _)  -> Right r
-    Right (_, rem, _) -> Left  $ parseErrorError $ remParseError p s rem
+parseWithError pstate parser p s =
+  case runState (runParserT doParse 0 (sourceName p) s) pstate of
+    (Left e, _)            -> Left  $ parseErrorError e
+    (Right (r, "", _), st) -> Right (st, r)
+    (Right (_, rem, _), _) -> Left  $ parseErrorError $ remParseError p s rem
   where
     doParse = setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
 
@@ -141,13 +150,13 @@ remLineCol pos src rem = (line + offLine, col + offCol)
 ----------------------------------------------------------------------------------
 
 parseSymbolToLogic :: SourceName -> String -> Either Error LogicMap
-parseSymbolToLogic f = parseWithError toLogicP (newPos f 1 1)
+parseSymbolToLogic f = mapRight snd . parseWithError initPState toLogicP (newPos f 1 1)
 
-toLogicP :: Parsec String Integer LogicMap
+toLogicP :: Parser LogicMap
 toLogicP
   = toLogicMap <$> many toLogicOneP
 
-toLogicOneP :: Parsec String Integer (Symbol, [Symbol], Expr)
+toLogicOneP :: Parser  (Symbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
        (x:xs) <- many1 symbolP
@@ -160,14 +169,13 @@ toLogicOneP
 -- Lexer Tokens ------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
-dot :: Parsec String u String
+dot :: Parser String
 dot           = Token.dot           lexer
 
-angles :: Parsec String u a
-       -> Parsec String u a
+angles :: Parser a -> Parser a
 angles        = Token.angles        lexer
 
-stringLiteral :: Parsec String u String
+stringLiteral :: Parser String 
 stringLiteral = Token.stringLiteral lexer
 
 ----------------------------------------------------------------------------------
@@ -559,6 +567,31 @@ boundP = do
                  )
            <|> return []
 
+
+infixGenP :: Assoc -> Parser ()
+infixGenP assoc = do
+   spaces 
+   p <- maybeDigit
+   spaces 
+   s <- infixIdP
+   spaces 
+   addOperatorP (FInfix p s Nothing assoc)
+
+
+infixP :: Parser ()
+infixP = infixGenP AssocLeft
+
+infixlP :: Parser ()
+infixlP = infixGenP AssocLeft
+
+infixrP :: Parser ()
+infixrP = infixGenP AssocRight
+
+maybeDigit :: Parser (Maybe Int)
+maybeDigit
+  = try (satisfy isDigit >>= return . Just . read . (:[]))
+  <|> return Nothing 
+
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
@@ -661,6 +694,7 @@ data Pspec ty ctor
   | Class   (RClass ty)
   | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
+  | BFix    () 
   deriving (Data, Typeable)
 
 -- | For debugging
@@ -695,6 +729,7 @@ instance Show (Pspec a b) where
   show (PBound _) = "Bound"
   show (RInst  _) = "RInst"
   show (ASize  _) = "ASize"
+  show (BFix   _) = "BFix"
 
 mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
 mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spec
@@ -740,6 +775,9 @@ specP
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
     <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
+    <|> try (reservedToken "infixl"   >> liftM BFix   infixlP   )
+    <|> try (reservedToken "infixr"   >> liftM BFix   infixrP   )
+    <|> try (reservedToken "infix"    >> liftM BFix   infixP    )
     <|> try (reservedToken "defined"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
@@ -810,7 +848,7 @@ filePathP     = angles $ many1 pathCharP
 datavarianceP :: Parser (Located Symbol, [Variance])
 datavarianceP = liftM2 (,) locUpperIdP (spaces >> many varianceP)
 
-varianceP :: Parsec String u Variance
+varianceP :: Parser Variance
 varianceP = (reserved "bivariant"     >> return Bivariant)
         <|> (reserved "invariant"     >> return Invariant)
         <|> (reserved "covariant"     >> return Covariant)
