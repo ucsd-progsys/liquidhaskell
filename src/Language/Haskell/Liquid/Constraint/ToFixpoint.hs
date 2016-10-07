@@ -13,14 +13,14 @@ import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 
-cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath -> IO (F.FInfo Cinfo)
-cgInfoFInfo info cgi fi = do
-  let tgtFI = targetFInfo info cgi fi
+cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
+cgInfoFInfo info cgi = do
+  let tgtFI = targetFInfo info cgi
   impFI    <- parseFInfo $ hqFiles info
   return    $ tgtFI <> impFI
 
-targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
-targetFInfo info cgi fn = F.fi cs ws bs ls consts ks {- packs -} qs bi fn aHO aHOqs
+targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
+targetFInfo info cgi = F.fi cs ws bs ls consts ks {- packs -} qs bi aHO aHOqs
   where
     -- packs               = F.makePack (kvPacks cgi)
     cs                  = fixCs    cgi

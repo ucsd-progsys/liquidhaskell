@@ -178,7 +178,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
-  finfo          <- cgInfoFInfo info cgi tgt
+  finfo          <- cgInfoFInfo info cgi
   F.Result r sol <- solve (fixConfig tgt cfg) finfo
   let resErr      = applySolution sol . cinfoError . snd <$> r
   resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
@@ -209,7 +209,7 @@ fixConfig tgt cfg = def
   , FC.alphaEquivalence = alphaEquivalence cfg
   , FC.betaEquivalence  = betaEquivalence  cfg
   , FC.normalForm       = normalForm       cfg
-  , FC.stringTheory     = stringTheory     cfg 
+  , FC.stringTheory     = stringTheory     cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError
