@@ -6,18 +6,26 @@ comments: true
 external-url:
 author: Niki Vazou
 published: true
-categories: reflection, structural induction, measures, monoids
+categories: reflection, induction, measures, monoids
 demo: MonoidList.hs
 ---
 
-In the [last post][refinement-reflection] we saw how Refinement Reflection
-can be used to write and prove **in Haskell** theorems **about Haskell** functions
-and have such proofs machine checked. 
+[Previously][refinement-reflection] we saw how Refinement Reflection
+can be used to write and prove **in Haskell** theorems **about Haskell** 
+functions and have such proofs machine checked. 
+
 Today, we will see how Refinement Reflection works on **recursive data types**.
-As an example, we will prove that **lists are monoids**.
-We use liquid types to express the monoid laws,
-then we write Haskell recursive code to reify monoid law proofs, 
-and finally we have our proofs checked by LiquidHaskell.
+
+As an example, we will prove that **lists are monoids** (under nil and append).
+
+Lets see how to express 
+
+* the (monoid) laws as liquid types, 
+* the (monoid) proofs as plain haskell functions, 
+
+and have LiquidHaskell check that the code indeed 
+proves the corresponding laws.
+
 <!-- more -->
 
 <br>
@@ -31,7 +39,7 @@ and finally we have our proofs checked by LiquidHaskell.
        <br>
        <br>
        <br>
-       Recursive Papper and Persil Proofs.
+       Recursive Paper and Pencil Proofs.
        "Drawing Hands" by Escher.
        <br>
        <br>
@@ -58,9 +66,8 @@ associativity :: List a -> List a -> List a -> Proof
 
 Reflect A Recursive Data Type into Logic
 -----------------------------------------
-In this post, we specify and prove the monoid laws 
-for a Haskell user defined data type, in Haskell. 
-As a first step, we define the `List a` data type 
+
+As a first step, lets define the `List a` data type 
 
 \begin{code}
 data List a = N | C a (List a)
@@ -69,11 +76,14 @@ data List a = N | C a (List a)
 \end{code}
 
 Note, that we provide two versions of the list definition. 
+
 The Haskell list definition is used at run time.
+
 The refined version is required 
 
-  - to add the list data constructors `N` and `C` in the logic, and 
-  - to teach Liquid Haskell that lists are "measured" using `length`.
+- to add the list data constructors `N` and `C` in the logic, and 
+
+- to teach Liquid Haskell that lists are "measured" using `length`.
 
 
 We define `length` to be a Haskell function that returns 
