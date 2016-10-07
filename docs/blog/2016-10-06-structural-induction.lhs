@@ -72,36 +72,42 @@ As a first step, lets define the `List a` data type
 \begin{code}
 data List a = N | C a (List a)
 
-{-@ data List [length] a = N | C {hd :: a, tl :: List a} @-}
 \end{code}
 
-Note, that we provide two versions of the list definition. 
+Induction on Lists 
+------------------
 
-The Haskell list definition is used at run time.
+As we will see, *proofs* by structural induction will correspond to
+*programs* that perform *recursion* on lists. To keep things legit,
+we must verify that those programs are total and terminating.
 
-The refined version is required 
+To that end, lets define a `length` function that
+computes the natural number that is the size of a 
+list.
 
-- to add the list data constructors `N` and `C` in the logic, and 
-
-- to teach Liquid Haskell that lists are "measured" using `length`.
-
-
-We define `length` to be a Haskell function that returns 
-a natural number, the length of its input list. 
 \begin{code}
-{-@ measure length            @-}
+{-@ measure length               @-}
 {-@ length      :: List a -> Nat @-}
 length N        = 0 
 length (C x xs) = 1 + length xs 
 \end{code}
 
 We lift `length` in the logic, as a [measure][the-advantage-of-measures].
-The label `[length]` in the `List` data type definition
-teaches Liquid Haskell that when proving termination on recursive functions
-with a list argument `xs`, it should check whether the `length xs` is decreasing. 
 
-As another annotation/automation, 
-we use the `exact-data-cons` liquid flag to reflect the list structure in the logic.  
+We can now tell Liquid Haskell that when proving termination 
+on recursive functions with a list argument `xs`, it should 
+check whether the `length xs` is decreasing. 
+
+\begin{code
+{-@ data List [length] a = N | C {hd :: a, tl :: List a} @-}
+\end{code}
+
+
+HEREHEREHEREHEREHERE
+
+As another annotation/automation, we use the `exact-data-cons` 
+liquid flag to reflect the list structure in the logic.  
+
 \begin{code}
 {-@ LIQUID "--exact-data-cons" @-}
 \end{code}
