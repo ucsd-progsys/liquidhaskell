@@ -97,7 +97,7 @@ We can now tell Liquid Haskell that when proving termination
 on recursive functions with a list argument `xs`, it should
 check whether the `length xs` is decreasing.
 
-\begin{code
+\begin{code}
 {-@ data List [length] a = N | C {hd :: a, tl :: List a} @-}
 \end{code}
 
@@ -105,7 +105,7 @@ check whether the `length xs` is decreasing.
 Reflecting Lists into the Logic
 -------------------------------
 
-Finally, to talk about lists in the logic, we use the annotation
+To talk about lists in the logic, we use the annotation
 
 \begin{code}
 {-@ LIQUID "--exact-data-cons" @-}
@@ -127,18 +127,19 @@ select_C_1 :: L a -> a     -- Haskell's head
 select_C_2 :: L a -> L a   -- Haskell's tail
 \end{spec}
 
+A programmer *never* sees the above operators; they are internally
+used by LH to **reflect** Haskell functions into the refinement logic,
+as we shall see shortly.
 
 Defining the Monoid Operators
 -----------------------------
-
-Onto the laws!
 
 A structure is a monoid, when it has two operators:
 
 * the identity element `empty` and
 * an associative operator `<>`.
 
-We shall now define these two operators for our `List`.
+Lets define these two operators for our `List`.
 
 * the identity element is the empty list, and
 * the associative operator `<>` is list append.
@@ -155,12 +156,10 @@ N        <> ys = ys
 (C x xs) <> ys = C x (xs <> ys)
 \end{code}
 
-Note that LiquidHaskell automatically checked
-that the recursive `(<>)` is terminating, by
-checking that the `length` of its first
-argument is decreasing. Since both the above
-operators are (provably) terminating, LH lets
-us reflect them into logic.
+LiquidHaskell automatically checked that the recursive `(<>)` 
+is terminating, by checking that the `length` of its first
+argument is decreasing. Since both the above operators are 
+provably terminating, LH lets us reflect them into logic.
 
 As with our [previous][refinement-reflection]
 `fibonacci` example, reflection of a function
@@ -181,8 +180,9 @@ empty   :: {v:List a | v == empty && v == N }
 \end{spec}
 
 In effect, the derived checker and selector functions are used
-to translate Haskell to logic!
-
+to translate Haskell to logic. The above is just to *explain*
+how LH reasons about the operators; the programmer never (directly) 
+reads or writes the operators `isN` or `select_C_1` etc.
 
 Proving the Monoid Laws
 ------------------------
@@ -221,19 +221,18 @@ rightId (C x xs)
    *** QED
 \end{code}
 
-This proof is more tricky, as it requires structural
-induction.  LiquidHaskell encodes structural induction
-as recursion.  It ensures that the inductive hypothesis
-is appropriately applied by checking termination of the
-recursive proof.  In the `rightId` case, for termination,
-Liquid Haskell checked that `length xs < length (C x xs)`.
+This proof is more tricky, as it requires **structural induction** which is
+encoded in LH proofs simply as **recursion**.  LH ensures that the inductive
+hypothesis is appropriately applied by checking that the recursive proof is
+total and terminating.  In the `rightId` case, for termination, Liquid Haskell
+checked that `length xs < length (C x xs)`.
 
-It turns out that we can prove lots of properties about
-lists using structural induction, encoded in Haskell as
+It turns out that we can prove lots of properties about lists using structural 
+induction, encoded in Haskell as
 
-- case splitting,
-- recursive calls, and
-- rewriting,
+* case splitting,
+* recursive calls, and
+* rewriting,
 
 To see a last example, lets prove the associativity of `(<>)`.
 
@@ -255,10 +254,10 @@ associativity (C x xs) y z
   *** QED
 \end{code}
 
-The above proof of associatity reifies the classic
-paper and pencil proof by structural induction.
+The above proof of associativity reifies the paper and pencil 
+proof by structural induction.
 
-And with that, we can safely conclude that our user defined list
+With that, we can safely conclude that our user defined list
 is a monoid!
 
 
