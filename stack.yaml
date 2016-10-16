@@ -16,4 +16,4 @@ extra-deps:
 - intern-0.9.1.4
 - located-base-0.1.1.0
 compiler-check: newer-minor
-resolver: lts-6.14
+resolver: nightly-2016-05-21
