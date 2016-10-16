@@ -14,7 +14,7 @@ define Data.Map.Base.insert k v m     = (Map_store m k v)
 define Data.Map.Base.select k v       = (Map_select m k)
 
 define Language.Haskell.Liquid.String.stringEmp = (stringEmp)
-define RString.stringEmp = (stringEmp)
+define Data.RString.RString.stringEmp = (stringEmp)
 define String.stringEmp  = (stringEmp)
 define Main.mempty       = (mempty)
 define Language.Haskell.Liquid.ProofCombinators.cast x y = (y)
