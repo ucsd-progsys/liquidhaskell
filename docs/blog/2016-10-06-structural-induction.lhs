@@ -11,20 +11,13 @@ demo: MonoidList.hs
 ---
 
 [Previously][refinement-reflection] we saw how Refinement Reflection
-can be used to write and prove **in Haskell** theorems **about Haskell**
-functions and have such proofs machine checked.
-
-Today, we will see how Refinement Reflection works on **recursive data types**.
-
+can be used to write Haskell functions that prove theorems about 
+other Haskell functions. Today, we will see how Refinement Reflection 
+works on **recursive data types**.
 As an example, we will prove that **lists are monoids** (under nil and append).
 
-Lets see how to express
-
-* the (monoid) laws as liquid types,
-* the (monoid) proofs as plain haskell functions,
-
-and have LiquidHaskell check that the code indeed
-proves the corresponding laws.
+Lets see how to express **the monoid laws** as liquid types, and then prove
+the laws by writing plain Haskell functions that are checked by LiquidHaskell.
 
 <!-- more -->
 
@@ -77,7 +70,7 @@ Induction on Lists
 ------------------
 
 As we will see, *proofs* by structural induction will correspond to
-*programs* that perform *recursion* on lists. To keep things legit,
+*programs* that perform recursion on lists. To keep things legit,
 we must verify that those programs are total and terminating.
 
 To that end, lets define a `length` function that
