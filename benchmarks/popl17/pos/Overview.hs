@@ -83,3 +83,12 @@ fib_incr n
            ? fib_incr (n-2)
        <=. fib (n+1)
        *** QED
+
+fibUp :: Int -> Proof
+{-@ fibUp :: n:Nat -> {fib n <= fib (n+1)} @-}
+fibUp 0 = [ fib 0, fib 1]                           *** QED  
+fibUp 1 = [ fib 0, fib 1, fib 2]                    *** QED  
+fibUp n = [ fib (n-2), fib (n-1), fib n, fib (n+1)] *** QED  
+
+
+
