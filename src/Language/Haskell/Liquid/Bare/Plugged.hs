@@ -38,6 +38,12 @@ import Language.Haskell.Liquid.Misc (zipWithDefM)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
 
+
+-- NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
+-- e.g. toType, in this module as they cannot handle LH type holes. Since
+-- this module is responsible for plugging the holes we obviously cannot
+-- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
+
 makePluggedSigs :: Traversable t
                 => ModName
                 -> TCEmb TyCon
@@ -88,6 +94,7 @@ plugHoles :: (NamedThing a, PPrint a, Show a)
           -> Located SpecType
           -> BareM (Located SpecType)
 plugHoles tce tyi x f t (Loc l l' st)
+                                    -- NOTE: this use of toType is safe as rt' is derived from t.
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
                     Right s -> return $ vmap s
@@ -103,7 +110,8 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toType st) hsSp
+
+    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
     hsSp              = getSrcSpan x
     lqSp              = sourcePos2SrcSpan l l'
 
