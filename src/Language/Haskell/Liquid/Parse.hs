@@ -46,7 +46,7 @@ import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
 
-import Control.Monad.State 
+import Control.Monad.State
 
 -- import Debug.Trace
 
@@ -68,12 +68,12 @@ hsSpecificationP modName specComments specQuotes =
     (errs, _) ->
       Left errs
   where
-    go (errs, specs) _ [] 
+    go (errs, specs) _ []
       = (reverse errs, reverse specs)
     go (errs, specs) pstate ((pos, specComment):xs)
-      = case parseWithError pstate specP pos specComment of 
-          Left err        -> go (err:errs, specs) pstate xs 
-          Right (st,spec) -> go (errs,spec:specs) st xs 
+      = case parseWithError pstate specP pos specComment of
+          Left err        -> go (err:errs, specs) pstate xs
+          Right (st,spec) -> go (errs,spec:specs) st xs
 
 -- | Used to parse .spec files
 
@@ -94,11 +94,11 @@ specificationP
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either Error BPspec
 -------------------------------------------------------------------------------
-singleSpecP pos = mapRight snd . parseWithError initPState specP pos 
+singleSpecP pos = mapRight snd . parseWithError initPState specP pos
 
-mapRight :: (a -> b) -> Either l a -> Either l b 
-mapRight f (Right x) = Right $ f x 
-mapRight _ (Left x)  = Left x 
+mapRight :: (a -> b) -> Either l a -> Either l b
+mapRight f (Right x) = Right $ f x
+mapRight _ (Left x)  = Left x
 
 ---------------------------------------------------------------------------
 parseWithError :: PState -> Parser a -> SourcePos -> String -> Either Error (PState, a)
@@ -175,7 +175,7 @@ dot           = Token.dot           lexer
 angles :: Parser a -> Parser a
 angles        = Token.angles        lexer
 
-stringLiteral :: Parser String 
+stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
 ----------------------------------------------------------------------------------
@@ -570,11 +570,11 @@ boundP = do
 
 infixGenP :: Assoc -> Parser ()
 infixGenP assoc = do
-   spaces 
+   spaces
    p <- maybeDigit
-   spaces 
+   spaces
    s <- infixIdP
-   spaces 
+   spaces
    addOperatorP (FInfix p s Nothing assoc)
 
 
@@ -590,7 +590,7 @@ infixrP = infixGenP AssocRight
 maybeDigit :: Parser (Maybe Int)
 maybeDigit
   = try (satisfy isDigit >>= return . Just . read . (:[]))
-  <|> return Nothing 
+  <|> return Nothing
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
@@ -694,7 +694,7 @@ data Pspec ty ctor
   | Class   (RClass ty)
   | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
-  | BFix    () 
+  | BFix    ()
   deriving (Data, Typeable)
 
 -- | For debugging
@@ -1012,7 +1012,8 @@ locUpperIdP' :: Parser (Located Symbol)
 locUpperIdP' = locParserP upperIdP'
 
 upperIdP' :: Parser Symbol
-upperIdP' = try $ symbol <$> condIdP' (isUpper . head)
+upperIdP' = try (symbol <$> condIdP' (isUpper . head))
+        <|> (symbol <$> infixCondIdP')
 
 condIdP'  :: (String -> Bool) -> Parser Symbol
 condIdP' f
@@ -1021,6 +1022,19 @@ condIdP' f
        cs <- many (satisfy isAlphaNumOr')
        blanks
        if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
+
+infixCondIdP' :: Parser Symbol
+infixCondIdP'
+  = do sym <- parens $ do
+         c1 <- colon
+         -- This is the same thing as 'startsVarSymASCII' from ghc-boot-th,
+         -- but LH can't use that at the moment since it requires GHC 7.10.
+         let isASCIISymbol = (`elem` ("!#$%&*+./<=>?@\\^|~-" :: String))
+         ss <- many (satisfy isASCIISymbol)
+         c2 <- colon
+         return $ symbol $ T.pack $ c1 ++ ss ++ c2
+       blanks
+       return sym
 
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
@@ -1140,7 +1154,7 @@ dataSizeP
     mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
-dataDeclP 
+dataDeclP
    =  try dataDeclFullP
   <|> try adtDataDeclFullP
   <|> dataDeclSizeP
