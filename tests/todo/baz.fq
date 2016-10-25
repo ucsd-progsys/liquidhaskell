@@ -1,0 +1,22 @@
+// Uncommenting the WF renders the constraints "unsafe" but right now its SAFE
+// which is bad. We should fail with "missing WF" or somesuch.
+
+
+bind 0 x : {v: int | $k1 }
+
+constraint:
+  env []
+  lhs {v : int | [v = 6] }
+  rhs {v : int | $k1      }
+  id 0 tag []
+
+constraint:
+  env [0]
+  lhs {v : int | [v = x] }
+  rhs {v : int | v = 0   }
+  id 0 tag []
+
+// wf:
+//  env []
+//  reft {v: int | $k1 }
+
