@@ -230,8 +230,8 @@ declare xts' ess p = withContext $ \me -> do
     isThy   = isJust . Thy.smt2Symbol
 
 assumes :: [F.Expr] -> SolveM ()
-assumes es = withContext $ \me -> 
-  forM_  es $ smtAssert me 
+assumes es = withContext $ \me ->
+  forM_  es $ smtAssert me
 
 declareInitEnv :: SolveM ()
 declareInitEnv

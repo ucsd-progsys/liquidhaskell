@@ -21,7 +21,7 @@ module Language.Fixpoint.Smt.Theories
      , isTheorySymbol
      , theoryEnv
 
-       -- * String 
+       -- * String
      , string
      , strLen, genLen
 
@@ -30,7 +30,7 @@ module Language.Fixpoint.Smt.Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
 
-      -- * Query Theories 
+      -- * Query Theories
      , isSmt2App
      ) where
 
@@ -91,7 +91,7 @@ mapSel   = "Map_select"
 mapSto   = "Map_store"
 
 
-strLen, strSubstr, genLen, strConcat :: Symbol 
+strLen, strSubstr, genLen, strConcat :: Symbol
 strLen    = "stringLen"
 strSubstr = "subString"
 strConcat = "concatString"
@@ -99,13 +99,13 @@ strConcat = "concatString"
 genLen = "len"
 
 
-strlen, strsubstr, strconcat :: Raw 
+strlen, strsubstr, strconcat :: Raw
 strlen    = "stringLen"
 strsubstr = "subString"
 strconcat = "concatString"
 
 
-z3strlen, z3strsubstr, z3strconcat :: Raw 
+z3strlen, z3strsubstr, z3strconcat :: Raw
 z3strlen    = "str.len"
 z3strsubstr = "str.substr"
 z3strconcat = "str.++"
@@ -116,11 +116,11 @@ substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
 concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
 
 string :: Raw
-string = "Str" 
+string = "Str"
 
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
-  = stringPrealble u ++ 
+  = stringPrealble u ++
     [ format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
@@ -197,7 +197,7 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
-    ] 
+    ]
 
 
 stringPrealble :: Config -> [T.Text]
@@ -210,8 +210,8 @@ stringPrealble cfg | stringTheory cfg
         (strsubstr, string, string, z3strsubstr)
     , format "(define-fun {} ((x {}) (y {})) {} ({} x y))"
         (strconcat, string, string, string, z3strconcat)
-    ] 
-stringPrealble _ 
+    ]
+stringPrealble _
   = [
       format "(define-sort {} () Int)" (Only string)
     , format "(declare-fun {} ({}) Int)"
@@ -311,7 +311,7 @@ smt2Sort (FApp (FApp (FTC c) _) _)
 smt2Sort (FApp (FTC bv) (FTC s))
   | isBv bv
   , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
-smt2Sort s 
+smt2Sort s
   | isString s                  = Just $ build "{}" (Only string)
 smt2Sort _                      = Nothing
 
@@ -325,14 +325,14 @@ smt2App (EVar f) (d:ds)
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
-isSmt2App :: Expr -> [a] -> Bool 
+isSmt2App :: Expr -> [a] -> Bool
 isSmt2App (EVar f) [_]
-  | f == setEmpty = True 
-  | f == setEmp   = True 
-  | f == setSng   = True 
+  | f == setEmpty = True
+  | f == setEmp   = True
+  | f == setSng   = True
 isSmt2App (EVar f) _
   =  isJust $ M.lookup f theorySymbols
-isSmt2App _ _ 
+isSmt2App _ _
   = False
 
 

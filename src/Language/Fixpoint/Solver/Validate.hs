@@ -140,7 +140,7 @@ banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
     bads = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi c]]
 
 cNoFreeVars :: F.SInfo a -> F.SimpC a -> Maybe [F.Symbol]
-cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)  
+cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
     lits = fst <$> F.toListSEnv (F.gLits fi)

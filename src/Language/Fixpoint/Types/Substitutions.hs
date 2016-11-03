@@ -96,14 +96,14 @@ subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
 subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
 
-substfLam :: (Symbol -> Expr) -> (Symbol, Sort) -> Expr -> Expr 
+substfLam :: (Symbol -> Expr) -> (Symbol, Sort) -> Expr -> Expr
 substfLam f s@(x, _) e =  ELam s (substf (\y -> if y == x then EVar x else f y) e)
 
 instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
-  substf f (ELam x e)      = substfLam f x e 
+  substf f (ELam x e)      = substfLam f x e
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
@@ -143,7 +143,7 @@ instance Subable Expr where
   subst _  p               = p
 
 removeSubst :: Subst -> Symbol -> Subst
-removeSubst (Su su) x = Su $ M.delete x su 
+removeSubst (Su su) x = Su $ M.delete x su
 
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms

@@ -17,7 +17,7 @@ module Language.Fixpoint.Types.Environments (
   -- * Environments
     SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv
-  , mapSEnvWithKey, mapSEnv, mapMSEnv 
+  , mapSEnvWithKey, mapSEnv, mapMSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv, unionSEnv'
   , intersectWithSEnv
   , differenceSEnv
@@ -189,7 +189,7 @@ bindEnvFromList bs = BE (1 + maxId) be
     be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
 
 elemsBindEnv :: BindEnv -> [BindId]
-elemsBindEnv be = fst3 <$> bindEnvToList be 
+elemsBindEnv be = fst3 <$> bindEnvToList be
 
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]

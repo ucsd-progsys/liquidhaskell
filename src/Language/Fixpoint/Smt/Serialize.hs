@@ -66,7 +66,7 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = build "({} {})" (smt2 sym, smt2 t)
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s)  = build "\"{}\"" (Only s) 
+  smt2 (SL s)  = build "\"{}\"" (Only s)
 
 
 instance SMTLIB2 Constant where
@@ -114,9 +114,9 @@ instance SMTLIB2 Expr where
   smt2 (PNot p)         = build "(not {})"   (Only $ smt2  p)
   smt2 (PImp p q)       = build "(=> {} {})" (smt2 p, smt2 q)
   smt2 (PIff p q)       = build "(= {} {})"  (smt2 p, smt2 q)
-  smt2 (PExist [] p)    = smt2 p 
+  smt2 (PExist [] p)    = smt2 p
   smt2 (PExist bs p)    = build "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PAll   [] p)    = smt2 p 
+  smt2 (PAll   [] p)    = smt2 p
   smt2 (PAll   bs p)    = build "(forall ({}) {})"  (smt2s bs, smt2 p)
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
@@ -210,7 +210,7 @@ initSMTEnv = fromListSEnv $
   ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
 
 
--- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION 
+-- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
 maxLamArg :: Int
 maxLamArg = 7
 

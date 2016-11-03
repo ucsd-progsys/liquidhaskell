@@ -674,8 +674,8 @@ unify1 f e θ t1@(FAbs _ _) t2 = do
 unify1 f e θ t1 t2@(FAbs _ _) = do
   t2' <- generalize t2
   unifyMany f e θ [t1] [t2']
-unify1 _ _ θ s1 s2 
-  | isString s1, isString s2 
+unify1 _ _ θ s1 s2
+  | isString s1, isString s2
   = return θ
 
 unify1 _ _ θ FInt  FReal = return θ

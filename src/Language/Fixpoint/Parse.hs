@@ -32,7 +32,7 @@ module Language.Fixpoint.Parse (
   --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
-  , infixIdP    -- String Haskell infix Id 
+  , infixIdP    -- String Haskell infix Id
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
@@ -95,12 +95,12 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
 
-import Control.Monad.State 
+import Control.Monad.State
 
 type Parser = ParsecT String Integer (State PState)
 type ParserT u a = ParsecT String u (State PState) a
 
-data PState = PState {fixityTable :: OpTable} 
+data PState = PState {fixityTable :: OpTable}
 
 
 --------------------------------------------------------------------
@@ -122,7 +122,7 @@ emptyDef    = Token.LanguageDef
                }
 
 languageDef :: Monad m => Token.GenLanguageDef String a m
-languageDef = 
+languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
@@ -227,7 +227,7 @@ condIdP chars f
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
-infixIdP :: Parser String 
+infixIdP :: Parser String
 infixIdP = many (satisfy (`notElem` [' ', '.']))
 
 upperIdP :: Parser Symbol
@@ -303,29 +303,29 @@ expr1P
 exprP :: Parser Expr
 exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
 
-data Fixity  
+data Fixity
   = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Expr -> Expr -> Expr), fassoc :: Assoc}
   | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
   | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
 
 
--- Invariant : OpTable has 10 elements 
+-- Invariant : OpTable has 10 elements
 type OpTable = OperatorTable String Integer (State PState) Expr
 
 addOperatorP :: Fixity -> Parser ()
-addOperatorP op 
-  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)} 
+addOperatorP op
+  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)}
 
 addOperator :: Fixity -> OpTable -> OpTable
-addOperator (FInfix p x f assoc) ops 
+addOperator (FInfix p x f assoc) ops
  = insertOperator (makePrec p) (Infix (reservedOp x >> return (makeInfixFun x f)) assoc) ops
-addOperator (FPrefix p x f) ops 
+addOperator (FPrefix p x f) ops
  = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
-addOperator (FPostfix p x f) ops 
+addOperator (FPostfix p x f) ops
  = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
 
-makePrec :: Maybe Int -> Int 
-makePrec = fromMaybe 9 
+makePrec :: Maybe Int -> Int
+makePrec = fromMaybe 9
 
 makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr)
 makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
@@ -334,7 +334,7 @@ makePrefixFun :: String -> Maybe (Expr -> Expr) -> (Expr -> Expr)
 makePrefixFun x = fromMaybe (\e -> EApp (EVar $ symbol x) e)
 
 insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
-insertOperator i op ops = go (9-i) ops 
+insertOperator i op ops = go (9-i) ops
   where
     go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
     go 0 (xs:xss) = (xs++[op]):xss
@@ -345,7 +345,7 @@ initOpTable = take 10 (repeat [])
 
 bops :: OpTable
 bops = foldl (flip addOperator) initOpTable buildinOps
-  where 
+  where
 -- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
     buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
                  , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
@@ -353,7 +353,7 @@ bops = foldl (flip addOperator) initOpTable buildinOps
                  , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
                  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
-                 ] 
+                 ]
 
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
@@ -596,7 +596,7 @@ data Def a
   | Kut !KVar
   | Pack !KVar !Int
   | IBind !Int !Symbol !SortedReft
-  | Opt !String 
+  | Opt !String
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
@@ -734,7 +734,7 @@ remainderP p
        return (res, str, pos)
 
 
-initPState :: PState 
+initPState :: PState
 initPState = PState {fixityTable = bops}
 
 doParse' :: Parser a -> SourceName -> String -> a
