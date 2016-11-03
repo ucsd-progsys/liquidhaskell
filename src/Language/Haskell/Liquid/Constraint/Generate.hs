@@ -667,7 +667,7 @@ cconsE' γ (Cast e co) t
   = cconsE γ (f e) t
 
 cconsE' γ e@(Cast e' c) t
-  = do t' <- castTy γ (exprType e) e' c 
+  = do t' <- castTy γ (exprType e) e' c
        addC (SubC γ t' t) ("cconsE Cast: " ++ showPpr e)
 
 cconsE' γ e t
@@ -958,13 +958,13 @@ castTy γ t e (AxiomInstCo ca _ _)
 
 castTy γ t e (SymCo (AxiomInstCo ca _ _))
   = do mtc <- lookupNewType (coAxiomTyCon ca)
-       case mtc of 
+       case mtc of
         Just tc -> cconsE γ e tc
         Nothing -> return ()
        castTy' γ t e
 
 castTy γ t e _
-  = castTy' γ t e  
+  = castTy' γ t e
 
 
 castTy' _ τ (Var x)
@@ -977,18 +977,18 @@ castTy' γ t (Tick _ e)
 castTy' _ _ e
   = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
 
-{- 
-showCoercion :: Coercion -> String 
-showCoercion (AxiomInstCo co1 co2 co3) 
-  = "AxiomInstCo " ++ showPpr co1 ++ "\t\t " ++ showPpr co2 ++ "\t\t" ++ showPpr co3 ++ "\n\n" ++ 
-    "COAxiom Tycon = "  ++ showPpr (coAxiomTyCon co1) ++ "\nBRANCHES\n" ++ concatMap showBranch bs  
-  where 
-    bs = fromBranchList $ co_ax_branches co1 
-    showBranch ab = "\nCoAxiom \nLHS = " ++ showPpr (coAxBranchLHS ab) ++ 
-                    "\nRHS = " ++ showPpr (coAxBranchRHS ab)  
+{-
+showCoercion :: Coercion -> String
+showCoercion (AxiomInstCo co1 co2 co3)
+  = "AxiomInstCo " ++ showPpr co1 ++ "\t\t " ++ showPpr co2 ++ "\t\t" ++ showPpr co3 ++ "\n\n" ++
+    "COAxiom Tycon = "  ++ showPpr (coAxiomTyCon co1) ++ "\nBRANCHES\n" ++ concatMap showBranch bs
+  where
+    bs = fromBranchList $ co_ax_branches co1
+    showBranch ab = "\nCoAxiom \nLHS = " ++ showPpr (coAxBranchLHS ab) ++
+                    "\nRHS = " ++ showPpr (coAxBranchRHS ab)
 showCoercion (SymCo c)
   = "Symc :: " ++ showCoercion c
-showCoercion c 
+showCoercion c
   = "Coercion " ++ showPpr c
 -}
 
@@ -1188,16 +1188,16 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
 argType :: Type -> Maybe F.Expr
-argType (LitTy (NumTyLit i)) 
+argType (LitTy (NumTyLit i))
   = mkI i
-argType (LitTy (StrTyLit s)) 
+argType (LitTy (StrTyLit s))
   = mkS $ fastStringToByteString s
-argType (TyVarTy x)          
+argType (TyVarTy x)
   = Just $ F.EVar $ F.symbol $ varName x
-argType t 
+argType t
   | F.symbol (showPpr t) == anyTypeSymbol
   = Just $ F.EVar anyTypeSymbol
-argType _                    
+argType _
   = Nothing
 
 
@@ -1220,9 +1220,9 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not (isClassPred $ exprType e2) 
+                              (Just p1, Just p2) | not (isClassPred $ exprType e2)
                                                  -> Just $ F.EApp p1 p2
-                              (Just p1, Just _ ) -> Just p1 
+                              (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
 lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
@@ -1272,10 +1272,10 @@ makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argExpr γ x) of
-      (Just f', Just x') 
+      (Just f', Just x')
                  | not (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
-      (Just f', Just _) 
+      (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f' )
       _ -> t
   | otherwise
@@ -1286,9 +1286,9 @@ funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') | not (isClassPred $ exprType e2) 
+      (Just e1', Just e2') | not (isClassPred $ exprType e2)
                            -> Just (F.EApp e1' e2')
-      (Just e1', Just _) 
+      (Just e1', Just _)
                            -> Just e1'
       _                    -> Nothing
 funExpr γ (Var v) | S.member v (fargs γ)

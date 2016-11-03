@@ -143,15 +143,15 @@ lookupGhcTyCon s     = (lookupGhcThing err ftc s)
                        `catchError` (tryPropTyCon s)
                        `catchError` (\_ -> lookupGhcThing err fdc s)
   where
-    ftc (ATyCon x)   
+    ftc (ATyCon x)
       = Just x
-    ftc _            
+    ftc _
       = Nothing
 
-    fdc (AConLike (RealDataCon x)) | isJust $ promoteDataCon_maybe x 
+    fdc (AConLike (RealDataCon x)) | isJust $ promoteDataCon_maybe x
       = Just $ promoteDataCon x
-    fdc _ 
-      = Nothing 
+    fdc _
+      = Nothing
 
     err = "type constructor or class"
 

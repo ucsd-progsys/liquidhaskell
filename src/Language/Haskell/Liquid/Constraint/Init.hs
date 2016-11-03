@@ -201,7 +201,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       tce         = gsTcEmbeds sp
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
-      tcb'        = [] 
+      tcb'        = []
 
 assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars
@@ -244,7 +244,7 @@ initCGI cfg info = CGInfo {
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
-  , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes spc)   
+  , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes spc)
   , tyConInfo  = tyi
   , tyConEmbed = tce
   , kuts       = mempty

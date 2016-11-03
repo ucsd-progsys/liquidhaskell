@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Types.Literals (
        , literalFReft
        , literalConst
 
-       , mkI, mkS 
+       , mkI, mkS
        ) where
 
 import Prelude hiding (error)

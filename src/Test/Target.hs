@@ -23,7 +23,7 @@ import           Text.Printf                     (printf)
 
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Smt.Interface hiding (verbose)
-import qualified Language.Fixpoint.Types.Config  as F 
+import qualified Language.Fixpoint.Types.Config  as F
 
 import           Test.Target.Monad
 import           Test.Target.Targetable (Targetable(..))
@@ -43,7 +43,7 @@ target f name path
   = targetWith f name path defaultOpts
 
 targetTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> IO ()))
-targetTH f = TH.unsafeTExpCoerce 
+targetTH f = TH.unsafeTExpCoerce
            $ TH.appsE [TH.varE 'target, monomorphic f, TH.stringE (show f)]
 
 -- targetTH :: TH.ExpQ -- (TH.TExp (Testable f => f -> TH.Name -> IO ()))
@@ -56,7 +56,7 @@ targetResult f name path
   = targetResultWith f name path defaultOpts
 
 targetResultTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> IO Result))
-targetResultTH f = TH.unsafeTExpCoerce 
+targetResultTH f = TH.unsafeTExpCoerce
                  $ TH.appsE [TH.varE 'targetResult, monomorphic f, TH.stringE (show f)]
 
 -- | Like 'target', but accepts options to control the enumeration depth,
@@ -70,7 +70,7 @@ targetWith f name path opts
          Errored x -> printf "Error! %s\n\n" x
 
 targetWithTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> TargetOpts -> IO ()))
-targetWithTH f = TH.unsafeTExpCoerce 
+targetWithTH f = TH.unsafeTExpCoerce
                $ TH.appsE [TH.varE 'targetWith, monomorphic f, TH.stringE (show f)]
 
 -- | Like 'targetWith', but returns the 'Result' instead of printing to standard out.
@@ -79,7 +79,7 @@ targetResultWith f name path opts
   = do when (verbose opts) $
          printf "Testing %s\n" name
        sp  <- getSpec (ghcOpts opts) path
-       ctx <- mkContext 
+       ctx <- mkContext
        do r <- runTarget opts (initState path sp ctx) $ do
                  ty <- safeFromJust "targetResultWith" . lookup (symbol name) <$> gets sigs
                  test f ty
@@ -92,7 +92,7 @@ targetResultWith f name path opts
                 else makeContextNoLog F.defConfig{F.solver = solver opts}
 
 targetResultWithTH :: TH.Name -> TH.Q (TH.TExp (FilePath -> TargetOpts -> IO Result))
-targetResultWithTH f = TH.unsafeTExpCoerce 
+targetResultWithTH f = TH.unsafeTExpCoerce
                      $ TH.appsE [TH.varE 'targetResultWith, monomorphic f, TH.stringE (show f)]
 
 data Test = forall t. Testable t => T t

@@ -96,7 +96,7 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                  io (modifyIORef' mref ((es,o):))
                  _ <- io $ command ctx Pop
                  return o
-    
+
 genExpr :: Expr -> SpecType -> Target Symbol
 genExpr (splitEApp_maybe -> Just (c, es)) t
   = do let ts = rt_args t

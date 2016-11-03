@@ -76,7 +76,7 @@ txQuant xss s m p
   | otherwise              = tx s m p
 
 instance Transformable a => Transformable (Located a)  where
-  tx s m x = x {val = tx s m (val x)} 
+  tx s m x = x {val = tx s m (val x)}
 
 instance Transformable Expr where
   tx s m (EVar s')
@@ -130,13 +130,13 @@ mexpr _ (Right (TI _ e)) = e
 txEApp :: (Symbol, Either LMap TInline) -> Expr -> Expr
 txEApp (s,m) e = go f
   where
-    (f, es) = splitEApp e 
-    go (EVar x) = txEApp' (s,m) x  (tx s m <$> es) 
+    (f, es) = splitEApp e
+    go (EVar x) = txEApp' (s,m) x  (tx s m <$> es)
     go f        = eApps (tx s m f) (tx s m <$> es)
 
 txEApp' :: (Symbol, Either LMap TInline) -> Symbol -> [Expr] -> Expr
 txEApp' (s, (Left (LMap _ xs e))) f es
-  | cmpSymbol s f && length xs == length es   
+  | cmpSymbol s f && length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es

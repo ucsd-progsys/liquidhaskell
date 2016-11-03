@@ -177,7 +177,7 @@ subsTyVarsAll
       SubsTy k (RType c k ()) r,
       SubsTy k (RType c k ()) k,
       SubsTy k (RType c k ()) (RType c k ()),
-      SubsTy k (RType c k ()) (RTVar k (RType c k ())), 
+      SubsTy k (RType c k ()) (RTVar k (RType c k ())),
       FreeVar c k)
    => [(k, RType c k (), RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go

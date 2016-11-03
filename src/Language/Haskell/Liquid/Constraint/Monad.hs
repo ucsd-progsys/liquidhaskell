@@ -16,7 +16,7 @@ import           Name (getSrcSpan)
 import           SrcLoc
 import           Outputable hiding (showPpr, panic)
 
-import qualified TyCon as TC 
+import qualified TyCon as TC
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
@@ -138,5 +138,5 @@ addA _ _ _ !a
 
 
 lookupNewType :: TC.TyCon -> CG (Maybe SpecType)
-lookupNewType tc 
-  = M.lookup tc . newTyEnv <$> get 
+lookupNewType tc
+  = M.lookup tc . newTyEnv <$> get

@@ -71,7 +71,7 @@ instance ToCore HVar where
 rewriteToCore :: CmbExpr -> CoreExpr -> [(Id, [CoreExpr])] -> CoreExpr
 rewriteToCore c def apps = combineProofs c def (go <$> apps)
   where
-    go (x, es) = makeApp (H.Var x) es  
+    go (x, es) = makeApp (H.Var x) es
 
 
 -------------------------------------------------------------------------------

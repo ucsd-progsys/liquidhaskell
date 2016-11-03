@@ -430,7 +430,7 @@ defConfig = Config { files             = def
                    --, newcheck          = True
                    , fullcheck         = def
                    , linear            = def
-                   , stringTheory      = def 
+                   , stringTheory      = def
                    , higherorder       = def
                    , extensionality    = def
                    , alphaEquivalence  = def
@@ -442,7 +442,7 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
-                   , totalHaskell      = def 
+                   , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
                    , noannotations     = def
@@ -453,7 +453,7 @@ defConfig = Config { files             = def
                    , totality          = def
                    , pruneUnsorted     = def
                    , exactDC           = def
-                   , noMeasureFields   = def 
+                   , noMeasureFields   = def
                    , cores             = def
                    , minPartSize       = defaultMinPartSize
                    , maxPartSize       = defaultMaxPartSize

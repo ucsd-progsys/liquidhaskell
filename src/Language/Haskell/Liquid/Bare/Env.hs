@@ -74,7 +74,7 @@ data BareEnv = BE { modName  :: !ModName
                   , embeds   :: TCEmb TyCon
                   }
 
-setEmbeds :: MonadState BareEnv m => TCEmb TyCon -> m () 
+setEmbeds :: MonadState BareEnv m => TCEmb TyCon -> m ()
 setEmbeds emb = modify $ \be -> be {embeds = emb}
 
 insertLogicEnv

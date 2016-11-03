@@ -23,11 +23,11 @@ import Data.Generics  (Data)
 import GHC.Generics
 
 
-totalityCheck :: Config -> Bool 
-totalityCheck config 
+totalityCheck :: Config -> Bool
+totalityCheck config
   = totality config || totalHaskell config
 
-terminationCheck :: Config -> Bool 
+terminationCheck :: Config -> Bool
 terminationCheck config
   = totalHaskell config || not (notermination config)
 
@@ -38,7 +38,7 @@ data Config = Config {
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
-  , stringTheory   :: Bool       -- ^ interpretation of string theory in the logic 
+  , stringTheory   :: Bool       -- ^ interpretation of string theory in the logic
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , extensionality :: Bool       -- ^ allow function extentionality axioms
