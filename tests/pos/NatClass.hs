@@ -6,6 +6,7 @@ module Nat where
 
 import Language.Haskell.Liquid.ProofCombinators
 
+
 {-@ data N [toInt] = Zero | Suc N @-}
 data N = Zero | Suc N
 
@@ -15,19 +16,19 @@ toInt :: N -> Int
 toInt Zero = 0
 toInt (Suc n) = 1 + toInt n
 
-
-{-@ class (Eq a) => VerifiedEq a where
+{-@ class VerifiedEq a where
       eq :: a -> a -> Bool
-      refl :: x:a -> { v:() | Prop (eq x x) }
+      refl :: x:a -> { v:Proof | Prop (eq x x) }
 @-}
-class (Eq a) => VerifiedEq a where
-  eq :: a -> a -> Bool
+class Eq a => VerifiedEq a where
+  eq   :: a -> a -> Bool 
+  eq = (==)
   refl :: a -> Proof
 
 
-{-@ axiomatize eqN @-}
+{-@ axiomatize eqN  @-}
 eqN :: N -> N -> Bool
-eqN Zero Zero = True
+eqN Zero    Zero = True
 eqN (Suc m) (Suc n) = eqN m n
 eqN _ _ = False
 
@@ -42,9 +43,10 @@ eqNRefl (Suc n) =   eqN (Suc n) (Suc n)
                 *** QED
 
 instance Eq N where
-  (==) = eqN
+  (==) = eqN  
 
 instance VerifiedEq N where
+  -- This define should derive automatically
   {-@ define $ceq = eqN @-}
-  eq x y   = eqN x y 
-  refl  = eqNRefl
+  refl = eqNRefl
+
