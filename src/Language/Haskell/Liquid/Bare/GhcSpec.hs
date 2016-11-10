@@ -325,6 +325,8 @@ makeGhcSpec4 quals defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
+       defs'   <- mkThing makeDefs 
+       addDefs defs' 
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHMeas
        hinls   <- mkThing makeHInlines

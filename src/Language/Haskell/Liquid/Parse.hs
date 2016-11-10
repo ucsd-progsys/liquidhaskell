@@ -165,6 +165,14 @@ toLogicOneP
        return (x, xs, e)
 
 
+defineP :: Parser (LocSymbol, Symbol)
+defineP = do v <- locParserP binderP
+             spaces
+             reserved "="
+             spaces
+             x <- binderP
+             return (v, x)
+
 ----------------------------------------------------------------------------------
 -- Lexer Tokens ------------------------------------------------------------------
 ----------------------------------------------------------------------------------
@@ -695,6 +703,7 @@ data Pspec ty ctor
   | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
   | BFix    ()
+  | Define  (LocSymbol, Symbol)
   deriving (Data, Typeable)
 
 -- | For debugging
@@ -730,6 +739,7 @@ instance Show (Pspec a b) where
   show (RInst  _) = "RInst"
   show (ASize  _) = "ASize"
   show (BFix   _) = "BFix"
+  show (Define _) = "Define"
 
 mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
 mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spec
@@ -764,6 +774,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.rinstance  = [i | RInst  i <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
+  , Measure.defs       = M.fromList [d | Define d <- xs]
   }
 
 specP :: Parser BPspec
@@ -775,6 +786,7 @@ specP
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
     <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
+    <|> (reservedToken "define"   >> liftM Define defineP   )
     <|> try (reservedToken "infixl"   >> liftM BFix   infixlP   )
     <|> try (reservedToken "infixr"   >> liftM BFix   infixrP   )
     <|> try (reservedToken "infix"    >> liftM BFix   infixP    )

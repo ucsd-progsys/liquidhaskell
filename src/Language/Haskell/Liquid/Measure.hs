@@ -77,6 +77,7 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
+  , defs       :: !(M.HashMap LocSymbol Symbol)
   }
 
 
@@ -159,6 +160,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  =           rinstance s1  ++ rinstance s2
            , dvariance  =           dvariance s1  ++ dvariance s2
            , bounds     = M.union   (bounds s1)      (bounds s2)
+           , defs       = M.union   (defs s1)        (defs s2)
            }
 
   mempty
@@ -192,6 +194,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  = []
            , dvariance  = []
            , bounds     = M.empty
+           , defs       = M.empty
            }
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
