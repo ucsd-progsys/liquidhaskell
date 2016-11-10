@@ -26,7 +26,7 @@ import Var
 
 
 
-import Data.Default 
+import Data.Default
 
 import Prelude hiding (mapM, error)
 import Control.Monad hiding (forM, mapM)
@@ -145,7 +145,7 @@ strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
 strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
-strengthenHaskell strengthen hmeas sigs 
+strengthenHaskell strengthen hmeas sigs
   = go <$> groupList ((reverse sigs) ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
@@ -163,7 +163,7 @@ makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _
       -- do not make selectors for functional fields
       | isFunTy t
       = Nothing
-      | otherwise 
+      | otherwise
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
@@ -172,9 +172,9 @@ makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
     n             = length xts
-    bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType 
+    bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType
 
-    checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n 
+    checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n
 
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor
@@ -184,13 +184,13 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 
 
 -- tyConDataCons
-makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon  
+makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon
 makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> (filter (/=dc) dcs))}
   where
     eqn    = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (P F.PTrue)
     eqns d = Def x [] d Nothing (((, Nothing) . mkx) <$> [1 .. (length $ dataConOrigArgTys d)]) (P F.PFalse)
     mkx j  = symbol ("xx" ++ show j)
-    dcs    = tyConDataCons $ dataConTyCon dc 
+    dcs    = tyConDataCons $ dataConTyCon dc
 
 makeMeasureSpec :: (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeMeasureSpec (mod, spec) = inModule mod mkSpec

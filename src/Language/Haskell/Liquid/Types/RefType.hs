@@ -81,7 +81,7 @@ import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
 import Var
-import Kind 
+import Kind
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
@@ -367,22 +367,22 @@ updateRTVar (RTVar (RTV a) _) = RTVar (RTV a) (rTVarInfo a)
 rTVar :: Monoid r => TyVar -> RTVar RTyVar (RType RTyCon RTyVar r)
 rTVar a = RTVar (RTV a) (rTVarInfo a)
 
-rTVarInfo :: Monoid r => TyVar -> RTVInfo (RType RTyCon RTyVar r) 
-rTVarInfo a = RTVInfo { rtv_name   = symbol $ varName a 
+rTVarInfo :: Monoid r => TyVar -> RTVInfo (RType RTyCon RTyVar r)
+rTVarInfo a = RTVInfo { rtv_name   = symbol $ varName a
                       , rtv_kind   = kindToRType $ tyVarKind a
-                      , rtv_is_val = isValKind $ tyVarKind a 
+                      , rtv_is_val = isValKind $ tyVarKind a
                       }
 
 
-kindToRType :: Monoid r => Type -> RType RTyCon RTyVar r 
+kindToRType :: Monoid r => Type -> RType RTyCon RTyVar r
 kindToRType = ofType . go
   where
-    go t 
+    go t
      | t == typeSymbolKind = stringTy
      | t == typeNatKind    = intTy
-     | otherwise           = t 
+     | otherwise           = t
 
-isValKind :: Kind -> Bool 
+isValKind :: Kind -> Bool
 isValKind x = x == typeNatKind || x == typeSymbolKind
 
 bTyVar :: Symbol -> BTyVar
@@ -615,7 +615,7 @@ expandRApp _ _ t               = t
 rtPropTop
   :: (OkRT c tv r,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
    => PVar (RType c tv ()) -> Ref (RType c tv ()) (RType c tv r)
@@ -720,8 +720,8 @@ tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ 
 subsTyVars_meet
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => t (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
 subsTyVars_meet        = subsTyVars True
@@ -729,8 +729,8 @@ subsTyVars_meet        = subsTyVars True
 subsTyVars_nomeet
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => t (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
 subsTyVars_nomeet      = subsTyVars False
@@ -738,8 +738,8 @@ subsTyVars_nomeet      = subsTyVars False
 subsTyVar_nomeet
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
 subsTyVar_nomeet       = subsTyVar False
@@ -747,8 +747,8 @@ subsTyVar_nomeet       = subsTyVar False
 subsTyVar_meet
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
 subsTyVar_meet         = subsTyVar True
@@ -756,8 +756,8 @@ subsTyVar_meet         = subsTyVar True
 subsTyVar_meet'
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv r) -> RType c tv r -> RType c tv r
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -765,8 +765,8 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 subsTyVars
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
   -> t (tv, RType c tv (), RType c tv r)
@@ -777,8 +777,8 @@ subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 subsTyVar
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
   -> (tv, RType c tv (), RType c tv r)
@@ -789,11 +789,11 @@ subsTyVar meet        = subsFree meet S.empty
 subsFree
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
-  -> S.HashSet tv 
+  -> S.HashSet tv
   -> (tv, RType c tv (), RType c tv r)
   -> RType c tv r
   -> RType c tv r
@@ -830,11 +830,11 @@ subsFree _ _ (α, τ, _) (RHole r)
 subsFrees
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
-  -> S.HashSet tv 
+  -> S.HashSet tv
   -> [(tv, RType c tv (), RType c tv r)]
   -> RType c tv r
   -> RType c tv r
@@ -844,12 +844,12 @@ subsFrees m s zs t = foldl' (flip (subsFree m s)) t zs
 subsFreeRAppTy
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), 
-      FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()),
+      FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
-  -> S.HashSet tv 
+  -> S.HashSet tv
   -> RType c tv r
   -> RType c tv r
   -> r
@@ -862,11 +862,11 @@ subsFreeRAppTy _ _ t t' r'
 mkRApp
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
-  -> S.HashSet tv 
+  -> S.HashSet tv
   -> c
   -> [RType c tv r]
   -> [RTProp c tv r]
@@ -889,11 +889,11 @@ refAppTyToFun r
 subsFreeRef
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
-      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv, 
-      SubsTy tv (RType c tv ()) tv, 
+      SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
+      SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => Bool
-  -> S.HashSet tv 
+  -> S.HashSet tv
   -> (tv, RType c tv (), RType c tv r)
   -> RTProp c tv r
   -> RTProp c tv r
@@ -913,19 +913,19 @@ subts = flip (foldr subt)
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) RTyVar where
   subt (RTV x, t) (RTV z) | isTyVar z, tyVarKind z == TyVarTy x
     = RTV (setVarType z $ toType t)
-  subt _ v 
-    = v 
+  subt _ v
+    = v
 
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) (RTVar RTyVar (RType RTyCon RTyVar ())) where
-  -- NV TODO: update kind 
-  subt su rty = rty { ty_var_value = subt su $ ty_var_value rty } 
+  -- NV TODO: update kind
+  subt su rty = rty { ty_var_value = subt su $ ty_var_value rty }
 
 
 instance SubsTy BTyVar (RType c BTyVar ()) BTyVar where
-  subt _ = id 
+  subt _ = id
 
 instance SubsTy BTyVar (RType c BTyVar ()) (RTVar BTyVar (RType c BTyVar ())) where
-  subt _ = id 
+  subt _ = id
 
 instance SubsTy tv ty ()   where
   subt _ = id
@@ -977,13 +977,13 @@ instance SubsTy Symbol RSort Sort where
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | rtyVarUniqueSymbol v == s 
-    || symbol v == s 
-    = typeSort M.empty $ toType sv 
+    | rtyVarUniqueSymbol v == s
+    || symbol v == s
+    = typeSort M.empty $ toType sv
        -- FObj $ rTyVarSymbol α
-    | otherwise     
+    | otherwise
     = FObj s
-  subt _ s         
+  subt _ s
     = s
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
@@ -1123,7 +1123,7 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
 toType  :: (Reftable r, PPrint r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> Type
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
-toType (RAllT a t) | RTV α <- ty_var_value a 
+toType (RAllT a t) | RTV α <- ty_var_value a
   = ForAllTy α (toType t)
 toType (RAllP _ t)
   = toType t
@@ -1234,8 +1234,8 @@ typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
 tyConFTyCon :: M.HashMap TyCon FTycon -> TyCon -> FTycon
-tyConFTyCon tce c    
-  = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)) 
+tyConFTyCon tce c
+  = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c))
               (M.lookup c tce)
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
@@ -1262,13 +1262,13 @@ typeSortFun tce t -- τ1 τ2
 
 grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy τ1 τ2)
-  | Just a <- stringClassArg τ1     
+  | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
-  | not $ isClassPred τ1 
+  | not $ isClassPred τ1
   = grabArgs (τ1:τs) τ2
-  | otherwise            
+  | otherwise
   = grabArgs τs τ2
-grabArgs τs τ            
+grabArgs τs τ
   = reverse (τ:τs)
 
 
@@ -1281,7 +1281,7 @@ expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar (
 expandProductType x t
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where 
+     where
       t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
       τs         = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
       trep       = toRTypeRep t

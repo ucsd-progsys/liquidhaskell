@@ -20,7 +20,7 @@ import           DataCon
 import           Literal
 import           Prelude                          hiding (error)
 
-import           TypeRep 
+import           TypeRep
 import           Var
 import           FastString (fastStringToByteString)
 
@@ -123,7 +123,7 @@ exprLiterals = go
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
     go (Case e _ _ cs)     = go e ++ concatMap literals cs
-    go (Type t)            = go' t     
+    go (Type t)            = go' t
     go _                   = []
 
     go' (LitTy tl)         = [tyLitToLit tl]
@@ -132,7 +132,7 @@ exprLiterals = go
 
     tyLitToLit (StrTyLit fs) = MachStr $ fastStringToByteString fs
     tyLitToLit (NumTyLit i)  = MachInt i
- 
+
 
 instance CBVisitable (Alt Var) where
   freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e

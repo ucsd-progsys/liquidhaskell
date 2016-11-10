@@ -29,7 +29,7 @@ expandReft = txPredReft expandExpr
 txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
 txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
   where
-    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> f ra 
+    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> f ra
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
@@ -40,7 +40,7 @@ txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
 expandExpr :: Expr -> BareM Expr
 
 expandExpr e@(EApp _ _)
-  = expandEApp $ splitEApp e 
+  = expandEApp $ splitEApp e
 
 expandExpr (ENeg e)
   = ENeg <$> expandExpr e
@@ -74,21 +74,21 @@ expandExpr (ELam xt e)
   = ELam xt <$> expandExpr e
 
 expandExpr (ETApp e s)
-  = (`ETApp` s) <$> expandExpr e 
+  = (`ETApp` s) <$> expandExpr e
 expandExpr (ETAbs e s)
-  = (`ETAbs` s) <$> expandExpr e 
+  = (`ETAbs` s) <$> expandExpr e
 
 expandExpr (PAtom b e1 e2)
-  = PAtom b <$> expandExpr e1 <*> expandExpr e2 
+  = PAtom b <$> expandExpr e1 <*> expandExpr e2
 
 expandExpr (PKVar k s)
-  = return $ PKVar k s 
+  = return $ PKVar k s
 
 expandExpr PGrad
   = return PGrad
 
 expandExpr (PExist s e)
-  = PExist s <$> expandExpr e 
+  = PExist s <$> expandExpr e
 
 
 expandEApp :: (Expr,[Expr]) -> BareM Expr
@@ -96,11 +96,11 @@ expandEApp (EVar f, es)
   = do env <- gets (exprAliases.rtEnv)
        case M.lookup f env of
          Just re ->
-           expandApp re <$> mapM expandExpr es 
+           expandApp re <$> mapM expandExpr es
          Nothing ->
-           eApps (EVar f) <$> mapM expandExpr es 
+           eApps (EVar f) <$> mapM expandExpr es
 expandEApp (f, es)
-  = return $ eApps f es 
+  = return $ eApps f es
 
 --------------------------------------------------------------------------------
 -- Expand Alias Application ----------------------------------------------------

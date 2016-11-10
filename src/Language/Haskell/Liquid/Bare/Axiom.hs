@@ -84,7 +84,7 @@ mkType x v = x {val = ufType $ varType v}
 makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType)
 makeAssumeType tce lmap x v xts ams def = assumedtype
   where
-    assumedtype 
+    assumedtype
       | not (null ams)
       = x {val = at}
       | isBool (ty_res trep)
@@ -108,7 +108,7 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
-    bbs     = filter isBoolBind xs 
+    bbs     = filter isBoolBind xs
 
     (xs, def') = grapBody $ normalize def
     su = F.mkSubst $
@@ -124,7 +124,7 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
 
 
-isBoolBind :: Var -> Bool 
+isBoolBind :: Var -> Bool
 isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ varType v) :: RRType ()))
 
 

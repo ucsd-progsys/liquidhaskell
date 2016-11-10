@@ -198,7 +198,7 @@ failRTAliasApp l rta _ _
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
   | Just errmsg <- isOK
-    = Ex.throw errmsg  
+    = Ex.throw errmsg
   | otherwise
     = do ts <- mapM (ofBareType l) $ take (length αs) args
          es <- mapM (resolve l . exprArg (symbolString $ rtName rta)) $ drop (length αs) args
@@ -210,9 +210,9 @@ expandRTAliasApp l rta args r
     αs        = rtTArgs rta
     εs        = rtVArgs rta
     err       :: Doc -> Error
-    err       = ErrAliasApp (sourcePosSrcSpan l) 
-                            (pprint $ rtName rta) 
-                            (sourcePosSrcSpan $ rtPos rta) 
+    err       = ErrAliasApp (sourcePosSrcSpan l)
+                            (pprint $ rtName rta)
+                            (sourcePosSrcSpan $ rtPos rta)
 
 
     isOK :: Maybe Error
@@ -224,16 +224,16 @@ expandRTAliasApp l rta args r
       | length αs /= length targs, not (null eargs)
       = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments before expression arguments")
 --  Many expression arguments are parsed like type arguments
-{- 
-      | length αs /= length targs      
+{-
+      | length αs /= length targs
       = Just $ err (text "Expects" <+> (pprint $ length αs) <+> text "type arguments but is given" <+> (pprint $ length targs))
       | length εs /= length eargs
       = Just $ err (text "Expects" <+> (pprint $ length εs) <+> text "expression arguments but is given" <+> (pprint $ length eargs))
--} 
+-}
       | otherwise
       = Nothing
 
-    notIsRExprArg (RExprArg _) = False 
+    notIsRExprArg (RExprArg _) = False
     notIsRExprArg _            = True
 
     targs = takeWhile notIsRExprArg args
@@ -279,7 +279,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
        nts = length tvs
 
        err :: Error
-       err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c) 
+       err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c)
                          (text "Expects " <+> (pprint $ realTcArity c) <+> text "arguments, but is given" <+> (pprint $ length ts))
 
 -- TODO expandTypeSynonyms here to

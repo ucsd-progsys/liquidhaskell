@@ -92,20 +92,20 @@ substTysWith _ (LitTy t)       = LitTy t
 
 
 
-mapType :: (Type -> Type) -> Type -> Type 
-mapType f = go 
+mapType :: (Type -> Type) -> Type -> Type
+mapType f = go
   where
     go t@(TyVarTy _)   = f t
     go (AppTy t1 t2)   = f $ AppTy (go t1) (go t2)
     go (TyConApp c ts) = f $ TyConApp c (go <$> ts)
     go (FunTy t1 t2)   = f $ FunTy (go t1) (go t2)
     go (ForAllTy v t)  = f $ ForAllTy v (go t)
-    go t@(LitTy _)     = f t 
+    go t@(LitTy _)     = f t
 
 
-stringClassArg :: Type -> Maybe Type 
-stringClassArg t 
-  = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of 
-      (Just c, Just [t]) | isStringClassName == tyConName c 
-           -> Just t 
-      _    -> Nothing 
+stringClassArg :: Type -> Maybe Type
+stringClassArg t
+  = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of
+      (Just c, Just [t]) | isStringClassName == tyConName c
+           -> Just t
+      _    -> Nothing

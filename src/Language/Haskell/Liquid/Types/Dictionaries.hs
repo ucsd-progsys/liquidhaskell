@@ -40,18 +40,18 @@ makeDictionary :: RInstance SpecType -> (Symbol, M.HashMap Symbol SpecType)
 makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (mapFst val <$> xts))
 
 makeDictionaryName :: Located Symbol -> [SpecType] -> Symbol
-makeDictionaryName t ts         
+makeDictionaryName t ts
   = symbol ("$f" ++ symbolString (val t) ++ concatMap makeDicTypeName ts)
 
 
-makeDicTypeName :: SpecType -> String 
+makeDicTypeName :: SpecType -> String
 makeDicTypeName (RFun _ _ _ _)
   = "(->)"
 makeDicTypeName (RApp c _ _ _)
   = symbolString $ dropModuleNames $ symbol $ rtc_tc c
 makeDicTypeName (RVar a _)
-  = show a 
-makeDicTypeName t 
+  = show a
+makeDicTypeName t
   = panic Nothing ("makeDicTypeName: called with invalid type " ++ show t)
 
 

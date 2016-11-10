@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bare.DataType (
   , dataConSpec
   , meetDataConSpec
 
-  , makeNumericInfo 
+  , makeNumericInfo
   ) where
 
 import           DataCon
@@ -20,9 +20,9 @@ import           Text.Parsec
 import           TyCon                                  hiding (tyConName)
 import           Var
 import           InstEnv
-import           Class 
+import           Class
 import           Data.Maybe
-import           TypeRep 
+import           TypeRep
 
 
 import qualified Data.List                              as L
@@ -47,25 +47,25 @@ import           Language.Haskell.Liquid.Bare.OfType
 
 
 makeNumericInfo :: Maybe [ClsInst] -> TCEmb TyCon -> TCEmb TyCon
-makeNumericInfo Nothing x   = x 
-makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is 
+makeNumericInfo Nothing x   = x
+makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
 
 makeNumericInfoOne :: TCEmb TyCon -> ClsInst -> TCEmb TyCon
-makeNumericInfoOne m is 
-  | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
-  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m 
-  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is  
+makeNumericInfoOne m is
+  | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m
+  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
   = M.insertWith (flip mappendFTC) tc (ftc tc True False) m
   | otherwise
-  = m 
+  = m
   where
     ftc c = symbolNumInfoFTyCon (dummyLoc $ tyConName c)
 
-instanceTyCon :: ClsInst -> Maybe TyCon 
+instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys
   where
-    go [TyConApp c _] = Just c 
-    go _              = Nothing 
+    go [TyConApp c _] = Just c
+    go _              = Nothing
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -205,12 +205,12 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)
-    -- do not make record selectors for data cons with functional arguments  
+    -- do not make record selectors for data cons with functional arguments
     || any (isFunTy . snd) (args)
     = return []
     | otherwise = do
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
-        return $ zip fs ts  
+        return $ zip fs ts
     where
     ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]

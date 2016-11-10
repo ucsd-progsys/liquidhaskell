@@ -314,7 +314,7 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ ppr_pvar_def bb p <$> πs
 
-ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc 
+ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
 ppr_rtvar_def = sep . map (pprint . ty_var_value)
 
 ppr_symbols :: [Symbol] -> Doc

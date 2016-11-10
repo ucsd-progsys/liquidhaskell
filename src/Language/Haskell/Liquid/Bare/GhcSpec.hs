@@ -294,7 +294,7 @@ makeGhcSpec2 :: Monad m
              -> m GhcSpec
 makeGhcSpec2 invs ntys ialias measures su sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
-                , gsNewTypes   = mapSnd (subst su) <$> ntys 
+                , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
                 , gsMeasures   = subst su
                                  <$> M.elems (Ms.measMap measures)

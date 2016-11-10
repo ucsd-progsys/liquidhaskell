@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   coreToDef , coreToFun,
   coreToLogic, coreToPred,
-  mkLit, mkI, mkS, 
+  mkLit, mkI, mkS,
 
   runToLogic, runToLogicWithBoolBinds,
   logicType,
@@ -32,7 +32,7 @@ import           Literal
 import           IdInfo
 
 import           Data.Text.Encoding
-import           Data.Text.Encoding.Error 
+import           Data.Text.Encoding.Error
 
 import           TysWiredIn
 
@@ -45,7 +45,7 @@ import           Language.Fixpoint.Misc                (snd3)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Bare.Misc     
+import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Fixpoint.Misc          (mapSnd)
@@ -100,26 +100,26 @@ strengthenResult v
 
 strengthenResult' :: Var -> SpecType
 strengthenResult' v
-  | isBool $ ty_res $ toRTypeRep t 
-  = go mkProp [] [1..] t 
+  | isBool $ ty_res $ toRTypeRep t
+  = go mkProp [] [1..] t
   | otherwise
-  = go mkExpr [] [1..] t 
+  = go mkExpr [] [1..] t
   where f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
         -- refine types of meaures: keep going until you find the last data con!
-        -- this code is a hack! we refine the last data constructor, 
-        -- it got complicated to suport both 
+        -- this code is a hack! we refine the last data constructor,
+        -- it got complicated to suport both
         -- 1. multy parameter measures     (see tests/pos/HasElem.hs)
         -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
         -- to simplify, drop support for multi parameter measures
-        go f args i (RAllT a t) 
+        go f args i (RAllT a t)
           = RAllT a $ go f args i t
-        go f args i (RAllP p t) 
-          = RAllP p $ go f args i t 
+        go f args i (RAllP p t)
+          = RAllP p $ go f args i t
         go f args i (RFun x t1 t2 r)
           | isClassType t1
-          = RFun x t1 (go f args i t2) r 
+          = RFun x t1 (go f args i t2) r
         go f args i t@(RFun _ t1 t2 r)
           | hasRApps t
           = let x' = intSymbol (symbol ("x" :: String)) (head i)
@@ -128,8 +128,8 @@ strengthenResult' v
           = t `strengthen` f args
 
         hasRApps (RApp _ _ _ _)   = True
-        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2 
-        hasRApps _                = False  
+        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
+        hasRApps _                = False
 
         mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
         mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
@@ -148,15 +148,15 @@ data LState = LState { symbolMap :: LogicMap
                      }
 
 throw :: String -> LogicM a
-throw str = do fmkError  <- mkError <$> get  
-               throwError $ fmkError str 
+throw str = do fmkError  <- mkError <$> get
+               throwError $ fmkError str
 
 getState :: LogicM LState
 getState = get
 
 runToLogic :: TCEmb TyCon
            -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
-runToLogic = runToLogicWithBoolBinds [] 
+runToLogic = runToLogicWithBoolBinds []
 
 runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
            -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
@@ -256,12 +256,12 @@ coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
   = do p   <- coreToLg e
-       tce <- ltce <$> getState 
+       tce <- ltce <$> getState
        return $ ELam (symbol x, typeSort tce $ varType x) p
 -- coreToLg p@(C.App _ _) = toPredApp p
 coreToLg (C.Case e b _ alts)
-  = do p <- coreToLg e 
-       casesToLg b p alts 
+  = do p <- coreToLg e
+       casesToLg b p alts
 coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
@@ -274,30 +274,30 @@ checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
 checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
 
-casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr 
-casesToLg v e alts 
+casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
+casesToLg v e alts
   = (mapM (altToLg e) alts) >>= go
   where
-    go :: [(DataCon, Expr)] -> LogicM Expr 
+    go :: [(DataCon, Expr)] -> LogicM Expr
     go [(_,p)]     = return (p `subst1` su)
-    go ((d,p):dps) = do c <- checkDataCon d e 
-                        e' <- go dps 
-                        return $ (EIte c p e' `subst1` su) 
+    go ((d,p):dps) = do c <- checkDataCon d e
+                        e' <- go dps
+                        return $ (EIte c p e' `subst1` su)
     go []          = throw "Bah"
 
     su = (symbol v, e)
 
-checkDataCon :: DataCon -> Expr -> LogicM Expr 
-checkDataCon d e 
+checkDataCon :: DataCon -> Expr -> LogicM Expr
+checkDataCon d e
   = return $ EApp (EVar $ makeDataConChecker d) e
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)
-  = do p <- coreToLg e 
-       let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]  
-       return (d, subst su p) 
+  = do p <- coreToLg e
+       let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]
+       return (d, subst su p)
   where
-    f x i = let t = EApp (EVar $ makeDataSelector d i) de 
+    f x i = let t = EApp (EVar $ makeDataSelector d i) de
             in [(symbol x, t), (simplesymbol x, t)]
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"
@@ -338,24 +338,24 @@ toPredApp p
     go _ _ = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
-toLogicApp e = go e 
+toLogicApp e = go e
   where
     go e = do let (f, es) = splitArgs e
-              case f of 
+              case f of
                 C.Var x -> do args       <- mapM coreToLg es
                               lmap       <- symbolMap <$> getState
                               def        <- (`mkEApp` args) <$> tosymbol f
-                              bbs        <- boolbinds <$> get 
+                              bbs        <- boolbinds <$> get
                               (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
-                _ -> do (fe:args) <- mapM coreToLg (f:es) 
-                        return $ foldl EApp fe args  
+                _ -> do (fe:args) <- mapM coreToLg (f:es)
+                        return $ foldl EApp fe args
 
-liftBoolBinds :: Var -> [Var] -> Expr -> Expr 
-liftBoolBinds x xs e 
-  | x `elem` xs 
-  = mkProp e 
+liftBoolBinds :: Var -> [Var] -> Expr -> Expr
+liftBoolBinds x xs e
+  | x `elem` xs
+  = mkProp e
   | otherwise
-  = e 
+  = e
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
@@ -415,12 +415,12 @@ splitArgs e = (f, reverse es)
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
 tomaybesymbol (C.Var c) | isDataConId  c = Just $ symbol c
 tomaybesymbol (C.Var x) = Just $ simpleSymbolVar x
-tomaybesymbol _         = Nothing 
+tomaybesymbol _         = Nothing
 
 tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
-tosymbol e         
- = case tomaybesymbol e of 
-    Just x -> return $ dummyLoc x 
+tosymbol e
+ = case tomaybesymbol e of
+    Just x -> return $ dummyLoc x
     _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
@@ -449,7 +449,7 @@ mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
 
 mkS :: ByteString -> Maybe Expr
-mkS                    = Just . ESym . SL  . (decodeUtf8With lenientDecode) 
+mkS                    = Just . ESym . SL  . (decodeUtf8With lenientDecode)
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]

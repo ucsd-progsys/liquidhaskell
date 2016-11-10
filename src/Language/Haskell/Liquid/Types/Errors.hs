@@ -301,7 +301,7 @@ data TError t =
   | ErrAliasApp { pos   :: !SrcSpan
                 , dname :: !Doc
                 , dpos  :: !SrcSpan
-                , msg   :: !Doc 
+                , msg   :: !Doc
                 }
 
   | ErrTermin   { pos  :: !SrcSpan
@@ -714,7 +714,7 @@ ppError' _ dSp dCtx (ErrAliasApp _ name dl s)
         $+$ dCtx
         $+$ text "Type alias:" <+> pprint name
         $+$ text "Defined at:" <+> pprint dl
-        $+$ s 
+        $+$ s
 
 ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"

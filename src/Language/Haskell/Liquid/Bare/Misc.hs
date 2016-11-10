@@ -30,7 +30,7 @@ import           Kind                                  (isKind)
 import           TypeRep
 import           Var
 
-import           DataCon 
+import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import           Data.Maybe                            (isNothing)
@@ -47,22 +47,22 @@ import           Language.Haskell.Liquid.Misc          (sortDiff)
 
 import           Language.Haskell.Liquid.Bare.Env
 
-makeDataConChecker :: DataCon -> Symbol 
+makeDataConChecker :: DataCon -> Symbol
 makeDataConChecker d
   | nilDataCon  == d
-  = symbol "isNull" 
-  | consDataCon == d 
+  = symbol "isNull"
+  | consDataCon == d
   = symbol "notIsNull"
-  | otherwise 
-  = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
-makeDataSelector :: DataCon -> Int -> Symbol 
-makeDataSelector d i 
-  | consDataCon == d, i == 1 
+  | otherwise
+  = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d
+makeDataSelector :: DataCon -> Int -> Symbol
+makeDataSelector d i
+  | consDataCon == d, i == 1
   = symbol "head"
-  | consDataCon == d, i == 2 
+  | consDataCon == d, i == 2
   = symbol "tail"
-  | otherwise 
-  = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d 
+  | otherwise
+  = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
@@ -144,8 +144,8 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
         mapTyVars τ' t'
 mapTyVars _ (RHole _)
   = return ()
-mapTyVars k _ | isKind k 
-  = return () 
+mapTyVars k _ | isKind k
+  = return ()
 mapTyVars _ _
   = throwError =<< errmsg <$> get
 
@@ -161,9 +161,9 @@ matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]
 matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
   where
     go (_:ts1) (t2:ts2) = t2:go ts1 ts2
-    go ts      []       | all isKind ts 
+    go ts      []       | all isKind ts
                         = (ofType <$> ts) :: [SpecType]
-    go _       ts       = ts 
+    go _       ts       = ts
 
 
 matchKindArgs :: [SpecType] -> [SpecType] -> [SpecType]
@@ -171,7 +171,7 @@ matchKindArgs ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
   where
     go (_:ts1) (t2:ts2) = t2:go ts1 ts2
     go ts      []       = ts
-    go _       ts       = ts 
+    go _       ts       = ts
 
 mkVarExpr :: Id -> Expr
 mkVarExpr v

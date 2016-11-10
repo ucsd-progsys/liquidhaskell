@@ -61,7 +61,7 @@ mkRTyCon tc (TyConP αs' ps _ tyvariance predvariance size) = RTyCon tc pvs' (mk
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType
-dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) 
+dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
   = mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip $ reverse yts
