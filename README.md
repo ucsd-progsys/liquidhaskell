@@ -576,7 +576,7 @@ Write the specification directly into the .hs or .lhs file,
 above the data definition. See, for example, [tests/pos/Map.hs](tests/pos/Map.hs)
 
     {-@
-    data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+    data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
       = Tip
       | Bin (sz    :: Size)
             (key   :: k)
