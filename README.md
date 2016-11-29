@@ -425,10 +425,10 @@ termination annotation `{-@ Decrease even 1 2 @-}` (see
 Total Haskell
 --------------
 
-LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program, 
-overriding a potential no-termination flag. 
+LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program,
+overriding a potential no-termination flag.
 
-    liquid --total-Haskel test.hs
+    liquid --total-Haskell test.hs
 
 
 Lazy Variables
@@ -452,14 +452,14 @@ failing checks at the point where these variables are used.
 No measure fields
 ------------------
 
-When a data type is refined, Liquid Haskell automatically turns the data constructor fields into measures. 
-For example, 
+When a data type is refined, Liquid Haskell automatically turns the data constructor fields into measures.
+For example,
 
    {-@ data L a = N | C {hd :: a, tl :: L a} @-}
 
-will automatically create two measures `hd` and `td`. 
-To deactivate this automatic measure definition, and speed up verification, you can use the `no-measure-fields` flag. 
-   
+will automatically create two measures `hd` and `td`.
+To deactivate this automatic measure definition, and speed up verification, you can use the `no-measure-fields` flag.
+
   liquid --no-measure-fields test.hs
 
 
@@ -741,7 +741,7 @@ and then here's `Client.hs`
 ```haskell
 module Client where
 
-import Lib      -- use this if you DON'T want the spec  
+import Lib      -- use this if you DON'T want the spec
 import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
 
 bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
@@ -824,7 +824,7 @@ see [tests/pos/Map.hs](tests/pos/Map.hs)
 Infix Logic Operators
 ---------------------
 
-You can define infix operators in logic, following [Haskell's infix notation](Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity). 
+You can define infix operators in logic, following [Haskell's infix notation](Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity).
 For example, if (+++) is defined as a measure or reflected function, you can use it infix by declaring
 
    {-@ infixl 9 +++ @-}
@@ -877,7 +877,7 @@ Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
         size (Node x l r) = 1 + (size l) + (size r)
     @-}
 
-**Note:** Measure names **do not** have to be the same as 
+**Note:** Measure names **do not** have to be the same as
 field name, e.g. we could call the measure `sz` in the above
 as shown in [tests/pos/Class2.hs](tests/pos/Class2.hs).
 
@@ -940,12 +940,12 @@ This is probably the best example of the abstract refinement syntax:
 + [Bounded Refinements](benchmarks/icfp15/pos/Overview.lhs)
 
 Unfortunately, the best documentation for these two advanced features
-is the relevant papers at 
+is the relevant papers at
 
-+ [ESOP 2013](https://ranjitjhala.github.io/static/abstract_refinement_types.pdf)  
++ [ESOP 2013](https://ranjitjhala.github.io/static/abstract_refinement_types.pdf)
 + [ICFP 2015](https://arxiv.org/abs/1507.00385)
 
-The bounds correspond to Horn implications between abstract refinements, 
+The bounds correspond to Horn implications between abstract refinements,
 which, as in the classical setting, correspond to subtyping constraints
 that must be satisfied by the concrete refinements used at any call-site.
 
