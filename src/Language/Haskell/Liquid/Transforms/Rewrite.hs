@@ -276,18 +276,23 @@ type ListNE a = [a]
 
 replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
 replaceIrrefutPat t (App (Lam z e) eVoid)
-  | (Var x, _:args) <- collectArgs e
-  , isIrrefutErrorVar x
-  , let e' = MkCore.mkCoreApps (Var x) (Type t : args)
+  | Just e' <- replaceIrrefutPat' t e
   = App (Lam z e') eVoid
 
 replaceIrrefutPat t e
-  | (Var x, _:args) <- collectArgs e
-  , isIrrefutErrorVar x
-  = MkCore.mkCoreApps (Var x) (Type t : args)
+  | Just e' <- replaceIrrefutPat' t e
+  = e'
 
 replaceIrrefutPat _ e
   = e
+
+replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
+replaceIrrefutPat' t e
+  | (Var x, _:args) <- collectArgs e
+  , isIrrefutErrorVar x
+  = Just (MkCore.mkCoreApps (Var x) (Type t : args))
+  | otherwise
+  = Nothing
 
 isIrrefutErrorVar :: Var -> Bool
 isIrrefutErrorVar x = MkCore.iRREFUT_PAT_ERROR_ID == x
