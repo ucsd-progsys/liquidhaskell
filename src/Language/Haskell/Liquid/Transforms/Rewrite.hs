@@ -30,18 +30,15 @@ import           TyCon
 import qualified CoreSubst
 import qualified Outputable
 import qualified CoreUtils
--- import qualified PrelNames
 import qualified Var
 import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
--- import qualified Data.List as L
--- import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Misc       (mapFst, mapSnd)
 
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- showPpr, tracePpr, isTupleId)
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
 
@@ -138,10 +135,10 @@ rewriteWith tx           = go
 
   is rewritten to:
 
-              h1::t1     -> case t1 of
+              h1::t1    -> case t1 of
                             (h2::t2) ->  h1 + h2
                             DEFAULT  ->  error @ (Int, Int)
-               DEFAULT   -> error @ (Int, Int)
+              DEFAULT   -> error @ (Int, Int)
 
      case e of
        h1 :: h2 :: _ -> h1 + h2
@@ -238,8 +235,9 @@ hasTuple ys = stepE
 --------------------------------------------------------------------------------
 -- | `replaceTuple ys e e'` REPLACES tuples that "looks like" (y1...yn) with e'
 --------------------------------------------------------------------------------
+
 replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
-replaceTuple ys e e'            = stepE e
+replaceTuple ys e e'           = stepE e
   where
     t'                          = CoreUtils.exprType e'
     stepE e
@@ -251,6 +249,15 @@ replaceTuple ys e e'            = stepE e
     go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
 
+_errorSkip :: String -> a -> b
+_errorSkip x _ = error x
+
+-- replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
+-- replaceTuple ys e e' = tracePpr msg (_replaceTuple ys e e')
+--  where
+--    msg = "replaceTuple: ys = " ++ showPpr ys ++
+--                        " e = " ++ showPpr e  ++
+--                        " e' =" ++ showPpr e'
 
 -- | The substitution (`substTuple`) can change the type of the overall
 --   case-expression, so we must update the type of each `Case` with its
@@ -267,13 +274,17 @@ fixCase e x _t cs' = Case e x t' cs'
 {-@  type ListNE a = {v:[a] | len v > 0} @-}
 type ListNE a = [a]
 
-
 replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
 replaceIrrefutPat t (App (Lam z e) eVoid)
   | (Var x, _:args) <- collectArgs e
   , isIrrefutErrorVar x
   , let e' = MkCore.mkCoreApps (Var x) (Type t : args)
   = App (Lam z e') eVoid
+
+replaceIrrefutPat t e
+  | (Var x, _:args) <- collectArgs e
+  , isIrrefutErrorVar x
+  = MkCore.mkCoreApps (Var x) (Type t : args)
 
 replaceIrrefutPat _ e
   = e

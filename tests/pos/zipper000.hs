@@ -1,6 +1,5 @@
 module Zipper () where
 
-
 import Data.Set
 
 data Stack a = Stack { focus  :: !a        -- focused thing in this set
