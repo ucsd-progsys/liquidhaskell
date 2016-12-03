@@ -38,7 +38,7 @@ mapReduceTheorem n f op is _
   *** QED 
 
 mapReduceTheorem n f op is distributionThm 
-  = () -- AHA!! undefined   
+  = undefined   
 {-  =   mapReduce n f op is 
   ==. reduce op (map f (chunk n is))
   ==. reduce op (map f (C (take n is) (chunk n (drop n is))))
