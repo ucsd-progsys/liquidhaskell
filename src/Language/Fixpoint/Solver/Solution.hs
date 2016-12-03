@@ -32,7 +32,7 @@ import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
--- import Text.Printf (printf)
+import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ update s ks kqs = {- tracepp msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
-    -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
+    -- msg      = printf "ks = %s, s = %s" (showpp ks) (showpp s)
 
 folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
 folds f b = L.foldl' step ([], b)
@@ -91,11 +91,11 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
 
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
+refineK ho env qs (v, t, k) = F.tracepp _msg (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = filter (okInst env v t) eqs
-    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
@@ -155,7 +155,8 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = F.eqPred eq
-    tc            = So.checkSorted env sr
+    tc            = So.checkSorted env (F.tracepp _msg sr)
+    _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
 --------------------------------------------------------------------------------
