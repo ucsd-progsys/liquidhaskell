@@ -28,7 +28,7 @@ import Language.Fixpoint.Utils.Files
 
 withPragmas :: Config -> [String] -> IO Config
 ---------------------------------------------------------------------------------------
-withPragmas cfg ps = foldM withPragma cfg ps 
+withPragmas cfg ps = foldM withPragma cfg ps
 
 withPragma :: Config -> String -> IO Config
 withPragma c s = withArgs [s] $ cmdArgsRun
@@ -52,7 +52,7 @@ data Config
     , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver           -- ^ which SMT solver to use
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , stringTheory :: Bool               -- ^ interpretation of string theory by SMT 
+    , stringTheory :: Bool               -- ^ interpretation of string theory by SMT
     , defunction  :: Bool                -- ^ Allow higher order binders into fixpoint environment
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
@@ -100,12 +100,12 @@ instance Show SMTSolver where
 defConfig :: Config
 defConfig = Config {
     srcFile     = "out"   &= args    &= typFile
-  , defunction  = False 
+  , defunction  = False
            &= help "Allow higher order binders into fixpoint environment"
   , solver      = def     &= help "Name of SMT Solver"
   , linear      = False   &= help "Use uninterpreted integer multiplication and division"
   , stringTheory = False  &= help "Interpretation of String Theory by SMT"
-  , allowHO     = False   
+  , allowHO     = False
           &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs   = False   &= help "Allow higher order qualifiers"
   , eliminate   = False   &= help "Eliminate non-cut KVars"

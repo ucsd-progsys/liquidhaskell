@@ -168,7 +168,7 @@ mapKVars' f            = trans kvVis () []
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
-mapExpr :: (Expr -> Expr) -> Expr -> Expr 
+mapExpr :: (Expr -> Expr) -> Expr -> Expr
 mapExpr f = trans (defaultVisitor {txExpr = const f}) () []
 
 
@@ -180,9 +180,9 @@ mapMExpr f = go
     go e@(EVar _)      = f e
     go (EApp g e)      = (EApp       <$> go g  <*> go e) >>= f
     go (ENeg e)        = (ENeg       <$> go e) >>= f
-    go (EBin o e1 e2)  = (EBin o     <$> go e1 <*> go e2) >>= f 
-    go (EIte p e1 e2)  = (EIte       <$> go p  <*> go e1 <*> go e2) >>= f 
-    go (ECst e t)      = ((`ECst` t) <$> go e) >>= f 
+    go (EBin o e1 e2)  = (EBin o     <$> go e1 <*> go e2) >>= f
+    go (EIte p e1 e2)  = (EIte       <$> go p  <*> go e1 <*> go e2) >>= f
+    go (ECst e t)      = ((`ECst` t) <$> go e) >>= f
     go (PAnd  ps)      = (PAnd       <$> (go <$$> ps)) >>= f
     go (POr  ps)       = (POr        <$> (go <$$> ps)) >>= f
     go (PNot p)        = (PNot       <$> go p) >>= f
@@ -193,7 +193,7 @@ mapMExpr f = go
     go (ELam (x,t) e)  = (ELam (x,t) <$> go e) >>= f
     go (PExist xts p)  = (PExist xts <$> go p) >>= f
     go (ETApp e s)     = ((`ETApp` s) <$> go e) >>= f
-    go (ETAbs e s)     = ((`ETAbs` s) <$> go e) >>= f 
+    go (ETAbs e s)     = ((`ETAbs` s) <$> go e) >>= f
     go p@(PKVar _ _)   = f p
     go PGrad           = f PGrad
 
@@ -225,7 +225,7 @@ lamSize t    = n
     MInt n = fold szV () mempty t
     szV    = (defaultVisitor :: Visitor MInt t) { accExpr = accum }
     accum _ (ELam _ _) = MInt 1
-    accum _ _          = MInt 0 
+    accum _ _          = MInt 0
 
 
 kvars :: Visitable t => t -> [KVar]

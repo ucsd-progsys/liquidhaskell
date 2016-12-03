@@ -114,7 +114,7 @@ checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
   smtBracket me $
     checkValid' me xts p q
-    
+
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
 checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
@@ -270,9 +270,9 @@ makeProcess cfg
                   , cLog    = Nothing
                   , verbose = loud
                   , c_ext   = extensionality cfg
-                  , c_aeq   = alphaEquivalence cfg  
-                  , c_beq   = betaEquivalence  cfg  
-                  , c_norm  = normalForm       cfg 
+                  , c_aeq   = alphaEquivalence cfg
+                  , c_beq   = betaEquivalence  cfg
+                  , c_norm  = normalForm       cfg
                   , smtenv  = initSMTEnv
                   }
 
@@ -307,8 +307,8 @@ smtPreamble cfg s _
   = checkValidStringFlag s "" cfg >> (return $ preamble cfg s)
 
 checkValidStringFlag :: SMTSolver -> T.Text -> Config -> IO ()
-checkValidStringFlag smt v cfg 
-  = if    (stringTheory cfg) 
+checkValidStringFlag smt v cfg
+  = if    (stringTheory cfg)
        && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"]))
       then die $ err dummySpan (text $ "stringTheory is only supported by z3 version >=4.2.2")
       else return ()

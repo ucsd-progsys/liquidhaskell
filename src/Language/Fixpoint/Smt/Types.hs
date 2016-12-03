@@ -20,7 +20,7 @@ module Language.Fixpoint.Smt.Types (
     -- * Typeclass for SMTLIB2 conversion
     , SMTLIB2 (..)
     , runSmt2
-    
+
     -- * SMTLIB2 Process Context
     , Context (..)
 
@@ -93,4 +93,4 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Builder
 
 runSmt2 :: (SMTLIB2 a) => a -> LT.Builder
-runSmt2 = smt2 
+runSmt2 = smt2

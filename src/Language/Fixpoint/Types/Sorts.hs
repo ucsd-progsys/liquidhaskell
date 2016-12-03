@@ -41,7 +41,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkFFunc
   , bkFFunc
 
-  , isNumeric, isReal, isString 
+  , isNumeric, isReal, isString
   ) where
 
 import qualified Data.Binary as B
@@ -83,12 +83,12 @@ defTcInfo, numTcInfo, realTcInfo, strTcInfo :: TCInfo
 defTcInfo  = TCInfo defNumInfo defRealInfo defStrInfo
 numTcInfo  = TCInfo True       defRealInfo defStrInfo
 realTcInfo = TCInfo True       True        defStrInfo
-strTcInfo  = TCInfo defNumInfo defRealInfo True 
+strTcInfo  = TCInfo defNumInfo defRealInfo True
 
 defNumInfo, defRealInfo, defStrInfo :: Bool
 defNumInfo  = False
 defRealInfo = False
-defStrInfo  = False 
+defStrInfo  = False
 
 intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
@@ -179,14 +179,14 @@ data Sort = FInt
 
 
 isFirstOrder, isFunction :: Sort -> Bool
- 
-isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s 
-isFirstOrder (FAbs _ s)   = isFirstOrder s 
-isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
-isFirstOrder _            = True 
 
-isFunction (FAbs _ s)  = isFunction s 
-isFunction (FFunc _ _) = True 
+isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
+isFirstOrder (FAbs _ s)   = isFirstOrder s
+isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
+isFirstOrder _            = True
+
+isFunction (FAbs _ s)  = isFunction s
+isFunction (FFunc _ _) = True
 isFunction _           = False
 
 isNumeric :: Sort -> Bool
@@ -204,17 +204,17 @@ isReal (FAbs _ s)     = isReal s
 isReal _              = False
 
 
-isString :: Sort -> Bool 
-isString (FApp l c)     = (isList l && isChar c) || isString l  
-isString (FTC (TC c i)) = (val c == strConName || tc_isString i)  
-isString (FAbs _ s)     = isString s 
-isString _              = False 
+isString :: Sort -> Bool
+isString (FApp l c)     = (isList l && isChar c) || isString l
+isString (FTC (TC c i)) = (val c == strConName || tc_isString i)
+isString (FAbs _ s)     = isString s
+isString _              = False
 
 isList :: Sort -> Bool
-isList (FTC c) = isListTC c 
-isList _       = False 
+isList (FTC c) = isListTC c
+isList _       = False
 
-isChar :: Sort -> Bool 
+isChar :: Sort -> Bool
 isChar (FTC c) = c == charFTyCon
 isChar _       = False
 

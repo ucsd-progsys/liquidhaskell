@@ -28,7 +28,7 @@ module Language.Fixpoint.Types.Refinements (
   , Expr (..), Pred
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , pattern ETimes, pattern ERTimes, pattern EDiv, pattern ERDiv
-  , pattern EEq 
+  , pattern EEq
   , KVar (..)
   , Subst (..)
   , KVSub
@@ -241,11 +241,11 @@ pattern PTrue  = PAnd []
 pattern PTop   = PAnd []
 pattern PFalse = POr []
 pattern EBot   = POr []
-pattern EEq e1 e2     = PAtom Eq    e1 e2 
-pattern ETimes e1 e2  = EBin Times  e1 e2 
-pattern ERTimes e1 e2 = EBin RTimes e1 e2 
-pattern EDiv e1 e2    = EBin Div    e1 e2 
-pattern ERDiv e1 e2   = EBin RDiv   e1 e2 
+pattern EEq e1 e2     = PAtom Eq    e1 e2
+pattern ETimes e1 e2  = EBin Times  e1 e2
+pattern ERTimes e1 e2 = EBin RTimes e1 e2
+pattern EDiv e1 e2    = EBin Div    e1 e2
+pattern ERDiv e1 e2   = EBin RDiv   e1 e2
 
 mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp f = eApps (EVar $ val f)
@@ -259,30 +259,30 @@ splitEApp = go []
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
 
-debruijnIndex :: Expr -> Int 
-debruijnIndex = go 
+debruijnIndex :: Expr -> Int
+debruijnIndex = go
   where
-    go (ELam _ e)      = 1 + go e 
-    go (ECst e _)      = go e 
+    go (ELam _ e)      = 1 + go e
+    go (ECst e _)      = go e
     go (EApp e1 e2)    = go e1 + go e2
-    go (ESym _)        = 1 
-    go (ECon _)        = 1 
-    go (EVar _)        = 1 
-    go (ENeg e)        = go e 
+    go (ESym _)        = 1
+    go (ECon _)        = 1
+    go (EVar _)        = 1
+    go (ENeg e)        = go e
     go (EBin _ e1 e2)  = go e1 + go e2
     go (EIte e e1 e2)  = go e + go e1 + go e2
-    go (ETAbs e _)     = go e 
-    go (ETApp e _)     = go e 
+    go (ETAbs e _)     = go e
+    go (ETApp e _)     = go e
     go (PAnd es)       = foldl (\n e -> n + go e) 0 es
     go (POr es)        = foldl (\n e -> n + go e) 0 es
-    go (PNot e)        = go e 
+    go (PNot e)        = go e
     go (PImp e1 e2)    = go e1 + go e2
-    go (PIff e1 e2)    = go e1 + go e2 
-    go (PAtom _ e1 e2) = go e1 + go e2 
-    go (PAll _ e)      = go e 
-    go (PExist _ e)    = go e 
-    go (PKVar _ _)     = 1 
-    go PGrad           = 1 
+    go (PIff e1 e2)    = go e1 + go e2
+    go (PAtom _ e1 e2) = go e1 + go e2
+    go (PAll _ e)      = go e
+    go (PExist _ e)    = go e
+    go (PKVar _ _)     = 1
+    go PGrad           = 1
 
 
 newtype Reft = Reft (Symbol, Expr)
