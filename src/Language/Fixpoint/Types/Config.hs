@@ -26,17 +26,18 @@ import System.Environment
 import Language.Fixpoint.Utils.Files
 
 
+--------------------------------------------------------------------------------
 withPragmas :: Config -> [String] -> IO Config
----------------------------------------------------------------------------------------
-withPragmas cfg ps = foldM withPragma cfg ps
+--------------------------------------------------------------------------------
+withPragmas = foldM withPragma
 
 withPragma :: Config -> String -> IO Config
 withPragma c s = withArgs [s] $ cmdArgsRun
           config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-------------------------------------------------------------------------
--- Configuration Options -----------------------------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Configuration Options -----------------------------------------------------
+--------------------------------------------------------------------------------
 
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
@@ -57,7 +58,6 @@ data Config
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
-    -- , oldElim     :: Bool                -- ^ use old eliminate algorithm (deprecate)
     , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
@@ -68,15 +68,14 @@ data Config
     , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
     , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
     , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
-    -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     , extensionality   :: Bool           -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
     , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
-    , autoKuts    :: Bool                -- ^ ignore given kut variables
-    -- , pack        :: Bool                -- ^ Use pack annotations
-    , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
+    , autoKuts         :: Bool           -- ^ ignore given kut variables
+    , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
+    , ignoreQuals      :: Bool           -- ^ Ignore qualifiers, solve using --eliminate ONLY.
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -99,39 +98,35 @@ instance Show SMTSolver where
 
 defConfig :: Config
 defConfig = Config {
-    srcFile     = "out"   &= args    &= typFile
-  , defunction  = False
-           &= help "Allow higher order binders into fixpoint environment"
-  , solver      = def     &= help "Name of SMT Solver"
-  , linear      = False   &= help "Use uninterpreted integer multiplication and division"
-  , stringTheory = False  &= help "Interpretation of String Theory by SMT"
-  , allowHO     = False
-          &= help "Allow higher order binders into fixpoint environment"
-  , allowHOqs   = False   &= help "Allow higher order qualifiers"
-  , eliminate   = False   &= help "Eliminate non-cut KVars"
-  -- , oldElim     = True    &= help "(default) Use old eliminate algorithm"
-  , elimBound   = Nothing &= name "elimBound"
-                          &= help "(alpha) Maximum eliminate-chain depth"
-  , elimStats   = False   &= help "(alpha) Print eliminate stats"
-  , solverStats = False   &= help "Print solver stats"
-  , save        = False   &= help "Save Query as .fq and .bfq files"
-  , metadata    = False   &= help "Print meta-data associated with constraints"
-  , stats       = False   &= help "Compute constraint statistics"
-  , parts       = False   &= help "Partition constraints into indepdendent .fq files"
-  , cores       = def     &= help "(numeric) Number of threads to use"
-  , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
-  , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
-  , minimize    = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
-  , minimizeQs  = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
-  , minimizeKs  = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
-  , gradual     = False &= help "Solve gradual-refinement typing constraints"
-  , extensionality = False &= help "Allow function extensionality axioms"
+    srcFile          = "out"   &= args    &= typFile
+  , defunction       = False   &= help "Allow higher order binders into fixpoint environment"
+  , solver           = def     &= help "Name of SMT Solver"
+  , linear           = False   &= help "Use uninterpreted integer multiplication and division"
+  , stringTheory     = False   &= help "Interpretation of String Theory by SMT"
+  , allowHO          = False   &= help "Allow higher order binders into fixpoint environment"
+  , allowHOqs        = False   &= help "Allow higher order qualifiers"
+  , eliminate        = False   &= help "Eliminate non-cut KVars"
+  , elimBound        = Nothing &= name "elimBound"  &= help "(alpha) Maximum eliminate-chain depth"
+  , elimStats        = False   &= help "(alpha) Print eliminate stats"
+  , solverStats      = False   &= help "Print solver stats"
+  , save             = False   &= help "Save Query as .fq and .bfq files"
+  , metadata         = False   &= help "Print meta-data associated with constraints"
+  , stats            = False   &= help "Compute constraint statistics"
+  , parts            = False   &= help "Partition constraints into indepdendent .fq files"
+  , cores            = def     &= help "(numeric) Number of threads to use"
+  , minPartSize      = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
+  , maxPartSize      = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
+  , minimize         = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
+  , minimizeQs       = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
+  , minimizeKs       = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
+  , gradual          = False &= help "Solve gradual-refinement typing constraints"
+  , extensionality   = False &= help "Allow function extensionality axioms"
   , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
-  , betaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
-  , normalForm     = False  &= help "Allow lambda normal-form equivalence axioms"
-  , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
-  -- , pack           = False &= help "Use pack annotations"
-  , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
+  , betaEquivalence  = False &= help "Allow lambda alpha equivalence axioms"
+  , normalForm       = False  &= help "Allow lambda normal-form equivalence axioms"
+  , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
+  , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
+  , ignoreQuals      = False &= help "Ignore given qualifiers, use eliminate to solve constraints"
   }
   &= verbosity
   &= program "fixpoint"
@@ -144,7 +139,7 @@ defConfig = Config {
              ]
 
 config :: Mode (CmdArgs Config)
-config = cmdArgsMode $ defConfig
+config = cmdArgsMode defConfig
 
 getOpts :: IO Config
 getOpts = do md <- cmdArgs defConfig

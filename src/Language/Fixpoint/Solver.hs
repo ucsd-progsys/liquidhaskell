@@ -50,7 +50,8 @@ solveFQ :: Config -> IO ExitCode
 solveFQ cfg = do
     (fi, opts) <- readFInfo file
     cfg'       <- withPragmas cfg opts
-    r          <- solve cfg' fi
+    let fi'     = ignoreQualifiers cfg' fi
+    r          <- solve cfg' fi'
     let stat    = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
@@ -60,6 +61,12 @@ solveFQ cfg = do
     file    = srcFile      cfg
     eCode   = resultExit . resStatus
     statStr = render . resultDoc . fmap fst
+
+ignoreQualifiers :: Config -> FInfo a -> FInfo a
+ignoreQualifiers cfg fi
+  | ignoreQuals cfg = fi { quals = [] }
+  | otherwise       = fi
+
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
@@ -87,8 +94,9 @@ configSW cfg
 ---------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo (), [String])
 ---------------------------------------------------------------------------
-readFInfo f | isBinary f = (,) <$> readBinFq f <*> return []
-            | otherwise  = readFq f
+readFInfo f
+  | isBinary f = (,) <$> readBinFq f <*> return []
+  | otherwise  = readFq f
 
 readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do

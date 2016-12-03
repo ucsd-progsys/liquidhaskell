@@ -84,7 +84,6 @@ refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
--- instConstants fi = F.gLits fi
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
   where
     notLit    = not . F.isLitSymbol . fst
