@@ -402,14 +402,15 @@ copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of Califo
 -- 2. tests fail if you flip order of idirs'
 
 mkOpts :: Config -> IO Config
-mkOpts cfg
-  = do let files' = sortNub $ files cfg
-       id0 <- getIncludeDir
-       return  $ cfg { files = files'
-                     , idirs = (dropFileName <$> files')    -- [NOTE:searchpath]
-                            ++ [id0 </> gHC_VERSION, id0]
-                            ++ idirs cfg
-                     }
+mkOpts cfg = do
+  let files' = sortNub $ files cfg
+  id0       <- getIncludeDir
+  return     $ cfg { files       = files'
+                   , ignoreQuals = higherOrderFlag cfg || ignoreQuals cfg
+                   , idirs       = (dropFileName <$> files')    -- [NOTE:searchpath]
+                                ++ [id0 </> gHC_VERSION, id0]
+                                ++ idirs cfg
+                   }
 
 --------------------------------------------------------------------------------
 -- | Updating options
