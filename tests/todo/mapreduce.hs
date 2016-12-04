@@ -37,9 +37,9 @@ mapReduceTheorem n f op is _
   ==. f is
   *** QED 
 
-mapReduceTheorem n f op is distributionThm = undefined   
-{- 
-  =   mapReduce n f op is 
+mapReduceTheorem n f op is distributionThm 
+  = undefined   
+{-  =   mapReduce n f op is 
   ==. reduce op (map f (chunk n is))
   ==. reduce op (map f (C (take n is) (chunk n (drop n is))))
   ==. reduce op (f (take n is) `C` map f (chunk n (drop n is)))
@@ -52,7 +52,7 @@ mapReduceTheorem n f op is distributionThm = undefined
   ==. f is 
         ? appendTakeDrop n is
   *** QED  
--}
+ -}
 -------------------------------------------------------------------------------
 -----------  List Definition --------------------------------------------------
 -------------------------------------------------------------------------------
