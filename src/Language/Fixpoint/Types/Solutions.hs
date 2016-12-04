@@ -132,7 +132,7 @@ qBindPred su = subst su . pAnd . fmap eqPred
 --------------------------------------------------------------------------------
 lookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-lookupQBind s k = tracepp ("lookupQB: k = " ++ show k) $ M.lookupDefault [] k (sMap s)
+lookupQBind s k = {- tracepp ("lookupQB: k = " ++ show k) $ -} M.lookupDefault [] k (sMap s)
 
 --------------------------------------------------------------------------------
 lookup :: Solution -> KVar -> Either Hyp QBind

@@ -90,7 +90,7 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
 
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = F.tracepp _msg (k, eqs')
+refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = filter (okInst env v t) eqs
