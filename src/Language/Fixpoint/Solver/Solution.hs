@@ -32,7 +32,7 @@ import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
-import Text.Printf (printf)
+-- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
