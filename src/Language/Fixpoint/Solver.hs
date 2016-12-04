@@ -30,7 +30,7 @@ import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
-import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..), withPragmas)
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
@@ -63,8 +63,8 @@ solveFQ cfg = do
 
 ignoreQualifiers :: Config -> FInfo a -> FInfo a
 ignoreQualifiers cfg fi
-  | ignoreQuals cfg = fi { quals = [] }
-  | otherwise       = fi
+  | eliminate cfg == All = fi { quals = [] }
+  | otherwise            = fi
 
 
 ---------------------------------------------------------------------------

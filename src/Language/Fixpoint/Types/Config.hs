@@ -10,10 +10,19 @@ module Language.Fixpoint.Types.Config (
   , withPragmas
 
   , getOpts
+
+  -- * SMT Solver options
   , SMTSolver (..)
+
+  -- * Eliminate options
+  , Eliminate (..)
+  , useElim
+
+  -- * parallel solving options
   , defaultMinPartSize
   , defaultMaxPartSize
   , multicore
+
   , queryFile
 ) where
 
@@ -57,7 +66,7 @@ data Config
     , defunction  :: Bool                -- ^ Allow higher order binders into fixpoint environment
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
-    , eliminate   :: Bool                -- ^ eliminate non-cut KVars
+    , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars
     , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
@@ -75,7 +84,6 @@ data Config
     , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts         :: Bool           -- ^ ignore given kut variables
     , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
-    , ignoreQuals      :: Bool           -- ^ Ignore qualifiers, solve using --eliminate ONLY.
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -95,6 +103,29 @@ instance Show SMTSolver where
   show Mathsat = "mathsat"
 
 ---------------------------------------------------------------------------------------
+-- | Eliminate describes the number of KVars to eliminate:
+--   None = use PA/Quals for ALL k-vars, i.e. no eliminate
+--   Some = use PA/Quals for CUT k-vars, i.e. eliminate non-cuts
+--   All  = eliminate ALL k-vars, solve cut-vars to TRUE
+
+data Eliminate
+  = None
+  | Cuts
+  | All
+  deriving (Eq, Data, Typeable, Generic)
+
+instance Default Eliminate where
+  def = Cuts
+
+instance Show Eliminate where
+  show None = "none"
+  show Cuts = "cuts"
+  show All  = "all"
+
+useElim :: Config -> Bool
+useElim cfg = eliminate cfg /= None
+
+---------------------------------------------------------------------------------------
 
 defConfig :: Config
 defConfig = Config {
@@ -105,7 +136,7 @@ defConfig = Config {
   , stringTheory     = False   &= help "Interpretation of String Theory by SMT"
   , allowHO          = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs        = False   &= help "Allow higher order qualifiers"
-  , eliminate        = False   &= help "Eliminate non-cut KVars"
+  , eliminate        = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
   , elimBound        = Nothing &= name "elimBound"  &= help "(alpha) Maximum eliminate-chain depth"
   , elimStats        = False   &= help "(alpha) Print eliminate stats"
   , solverStats      = False   &= help "Print solver stats"
@@ -126,7 +157,6 @@ defConfig = Config {
   , normalForm       = False  &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
-  , ignoreQuals      = False &= help "Ignore given qualifiers, use eliminate to solve constraints"
   }
   &= verbosity
   &= program "fixpoint"
