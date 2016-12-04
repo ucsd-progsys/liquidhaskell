@@ -363,7 +363,7 @@ fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
   cfg <- canonicalizePaths pwd cfg
-  return $ fixDiffCheck cfg
+  return $ canonConfig cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
@@ -380,9 +380,6 @@ canonicalize tgt isdir f
   | isAbsolute f = return f
   | isdir        = canonicalizePath (tgt </> f)
   | otherwise    = canonicalizePath (takeDirectory tgt </> f)
-
-fixDiffCheck :: Config -> Config
-fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
 envCfg :: IO Config
 envCfg = do
@@ -406,7 +403,6 @@ mkOpts cfg = do
   let files' = sortNub $ files cfg
   id0       <- getIncludeDir
   return     $ cfg { files       = files'
-                   , ignoreQuals = higherOrderFlag cfg || ignoreQuals cfg
                    , idirs       = (dropFileName <$> files')    -- [NOTE:searchpath]
                                 ++ [id0 </> gHC_VERSION, id0]
                                 ++ idirs cfg
@@ -415,20 +411,24 @@ mkOpts cfg = do
 --------------------------------------------------------------------------------
 -- | Updating options
 --------------------------------------------------------------------------------
+canonConfig :: Config -> Config
+canonConfig cfg = cfg
+  { diffcheck   = diffcheck cfg && not (fullcheck cfg)
+  , ignoreQuals = higherOrderFlag cfg || ignoreQuals cfg
+  }
 
 --------------------------------------------------------------------------------
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 --------------------------------------------------------------------------------
-withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
+withPragmas cfg fp ps
+  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
           config { modeValue = (modeValue config) { cmdArgsValue = c } }
-   --(c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
 parsePragma = withPragma defConfig
-   --withArgs [val s] $ cmdArgsRun config
 
 defConfig :: Config
 defConfig = Config { files             = def
