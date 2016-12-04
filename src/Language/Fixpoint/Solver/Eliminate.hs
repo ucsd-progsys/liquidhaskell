@@ -28,11 +28,10 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList    [] kHyps kS Nothing -- idx
+    sHyp           = Sol.fromList    [] kHyps kS
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
-    -- idx            = solverIndex cfg sI kHyps cD
     kS             = kvScopes     sI es
 
 --------------------------------------------------------------------------------
