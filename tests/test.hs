@@ -113,8 +113,8 @@ benchTests
      , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
      , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-     , testGroup "pldi17_pos"   <$> dirTests "benchmarks/pldi17/pos"         proverIgnored             ExitSuccess
-     , testGroup "pldi17_neg"   <$> dirTests "benchmarks/pldi17/neg"         proverIgnored             (ExitFailure 1)
+     , testGroup "pldi17_pos"   <$> dirTests "benchmarks/pldi17/pos"               proverIgnored             ExitSuccess
+     , testGroup "pldi17_neg"   <$> dirTests "benchmarks/pldi17/neg"               proverIgnored             (ExitFailure 1)
      ]
 
 selfTests :: IO TestTree

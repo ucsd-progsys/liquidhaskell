@@ -179,7 +179,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo          <- cgInfoFInfo info cgi
-  F.Result r sol <- solve (fixConfig tgt cfg) finfo
+  F.Result r sol <- solve (traceShow "FIXCFG" $ fixConfig tgt cfg) finfo
   let resErr      = applySolution sol . cinfoError . snd <$> r
   resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
   let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
@@ -192,9 +192,7 @@ fixConfig tgt cfg = def
   { FC.solver      = fromJust (smtsolver cfg)
   , FC.linear      = linear            cfg
   , FC.eliminate   = not $ noEliminate cfg
-  --, FC.oldElim     = True -- oldEliminate      cfg
-  --, FC.pack        = packKVars cfg
-  , FC.nonLinCuts  = True -- nonLinCuts        cfg
+  , FC.nonLinCuts  = True
   , FC.save        = saveQuery         cfg
   , FC.srcFile     = tgt
   , FC.cores       = cores             cfg
@@ -202,9 +200,8 @@ fixConfig tgt cfg = def
   , FC.maxPartSize = maxPartSize       cfg
   , FC.elimStats   = elimStats         cfg
   , FC.elimBound   = elimBound         cfg
-  , FC.allowHO     = higherOrderFlag   cfg
-  , FC.allowHOqs   = higherorderqs     cfg
-
+  , FC.allowHO          = higherOrderFlag   cfg
+  , FC.allowHOqs        = higherorderqs     cfg
   , FC.extensionality   = extensionality   cfg
   , FC.alphaEquivalence = alphaEquivalence cfg
   , FC.betaEquivalence  = betaEquivalence  cfg

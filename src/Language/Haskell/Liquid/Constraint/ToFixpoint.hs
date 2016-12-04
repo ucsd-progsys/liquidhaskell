@@ -8,10 +8,10 @@ import           Prelude hiding (error)
 import           Data.Monoid
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
--- import           Language.Fixpoint.Misc (traceShow)
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
+-- import           Language.Fixpoint.Misc (traceShow)
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
@@ -20,7 +20,7 @@ cgInfoFInfo info cgi = do
   return    $ tgtFI <> impFI
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
-targetFInfo info cgi = F.fi cs ws bs ls consts ks {- packs -} qs bi aHO aHOqs
+targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs
   where
     -- packs               = F.makePack (kvPacks cgi)
     cs                  = fixCs    cgi
