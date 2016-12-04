@@ -154,8 +154,8 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = F.eqPred eq
-    tc            = So.checkSorted env (F.tracepp _msg sr)
-    _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
+    tc            = So.checkSorted env ({- F.tracepp _msg -} sr)
+    --  _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
 --------------------------------------------------------------------------------
