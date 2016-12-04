@@ -94,7 +94,7 @@ refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = filter (okInst env v t) eqs
-    _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
