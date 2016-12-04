@@ -41,7 +41,6 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
 
-
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
 ---------------------------------------------------------------------------
