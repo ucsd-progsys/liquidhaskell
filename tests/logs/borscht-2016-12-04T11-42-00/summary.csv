@@ -1,0 +1,24 @@
+ (HEAD -> lh-862) : 801c521d7ee01ab5f820d61a3d8507b0f1f6df2a
+Timestamp: 2016-12-04 11:16:30 -0800
+Epoch Timestamp: 1480878990
+--------------------------------------------------------------------------------
+test, time(s), result
+
+Tests/Benchmarks/text/Setup.lhs, 0.7001, False
+Tests/Benchmarks/text/Data/Text.hs, 0.0765, False
+Tests/Benchmarks/text/Data/Text/UnsafeChar.hs, 0.0738, False
+Tests/Benchmarks/text/Data/Text/Unsafe.hs, 0.0751, False
+Tests/Benchmarks/text/Data/Text/Search.hs, 0.0777, False
+Tests/Benchmarks/text/Data/Text/Private.hs, 0.0704, False
+Tests/Benchmarks/text/Data/Text/Lazy.hs, 0.0704, False
+Tests/Benchmarks/text/Data/Text/Internal.hs, 0.0730, False
+Tests/Benchmarks/text/Data/Text/Fusion.hs, 0.0730, False
+Tests/Benchmarks/text/Data/Text/Foreign.hs, 0.0728, False
+Tests/Benchmarks/text/Data/Text/Encoding.hs, 0.0747, False
+Tests/Benchmarks/text/Data/Text/Array.hs, 0.0697, False
+Tests/Benchmarks/text/Data/Text/Lazy/Search.hs, 0.0846, False
+Tests/Benchmarks/text/Data/Text/Lazy/Internal.hs, 0.0677, False
+Tests/Benchmarks/text/Data/Text/Lazy/Fusion.hs, 0.0688, False
+Tests/Benchmarks/text/Data/Text/Lazy/Encoding.hs, 0.0799, False
+Tests/Benchmarks/text/Data/Text/Lazy/Builder.hs, 0.0680, False
+Tests/Benchmarks/text/Data/Text/Fusion/Size.hs, 0.0819, False
