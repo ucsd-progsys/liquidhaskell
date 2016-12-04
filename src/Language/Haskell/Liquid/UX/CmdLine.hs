@@ -53,12 +53,14 @@ import Data.List                           (nub)
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
-                                                   nonLinCuts, getOpts, cores, minPartSize,
-                                                   maxPartSize, eliminate, defConfig,
-                                                   stringTheory,
-                                                   withPragmas,
-                                                   extensionality, alphaEquivalence, betaEquivalence, normalForm)
+import qualified Language.Fixpoint.Types.Config as FC
+-- a   hiding (Config, linear, elimBound, elimStats,
+-- nonLinCuts, getOpts, cores, minPartSize,
+-- maxPartSize, eliminate, defConfig,
+-- stringTheory,
+-- withPragmas,
+-- extensionality,
+-- alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -190,12 +192,14 @@ config = cmdArgsMode $ Config {
     = def &= help "Use m cores to solve logical constraints"
 
  , minPartSize
-    = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
+    = FC.defaultMinPartSize
+    &= help "If solving on multiple cores, ensure that partitions are of at least m size"
 
  , maxPartSize
-    = defaultMaxPartSize &= help ("If solving on multiple cores, once there are as many partitions " ++
-                                  "as there are cores, don't merge partitions if they will exceed this " ++
-                                  "size. Overrides the minpartsize option.")
+    = FC.defaultMaxPartSize
+    &= help ("If solving on multiple cores, once there are as many partitions " ++
+             "as there are cores, don't merge partitions if they will exceed this " ++
+             "size. Overrides the minpartsize option.")
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
@@ -299,14 +303,12 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  --, packKVars
-  --  = False &= name "pack-kvars"
-  --          &= help "Use kvar packing during elimination"
-
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
-
+  , ignoreQuals
+    = False &= name "ignore-quals"
+            &= help "(FALSE) Do inference without qualifiers, use eliminate only, with Cuts assigned True. Useful for prover."
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -347,14 +349,14 @@ withSmtSolver :: Config -> IO Config
 withSmtSolver cfg =
   case smtsolver cfg of
     Just _  -> return cfg
-    Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
+    Nothing -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
                   case catMaybes smts of
                     (s:_) -> return (cfg {smtsolver = Just s})
                     _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
-findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
+findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
@@ -395,24 +397,27 @@ envCfg = do
 copyright :: String
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
 
+-- [NOTE:searchpath]
+-- 1. not convinced we should add the file's directory to the search path
+-- 2. tests fail if you flip order of idirs'
+
 mkOpts :: Config -> IO Config
 mkOpts cfg
   = do let files' = sortNub $ files cfg
        id0 <- getIncludeDir
-       return  $ cfg { files = files' }
-                     { idirs = -- NOTE: not convinced we should add the file's directory
-                               -- to the search path
-                               (dropFileName <$> files') ++
-                               [id0 </> gHC_VERSION, id0] ++ idirs cfg }
-                              -- tests fail if you flip order of idirs'
+       return  $ cfg { files = files'
+                     , idirs = (dropFileName <$> files')    -- [NOTE:searchpath]
+                            ++ [id0 </> gHC_VERSION, id0]
+                            ++ idirs cfg
+                     }
 
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Updating options
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
 
 withPragma :: Config -> Located String -> IO Config
@@ -427,7 +432,6 @@ parsePragma = withPragma defConfig
 defConfig :: Config
 defConfig = Config { files             = def
                    , idirs             = def
-                   --, newcheck          = True
                    , fullcheck         = def
                    , linear            = def
                    , stringTheory      = def
@@ -455,8 +459,8 @@ defConfig = Config { files             = def
                    , exactDC           = def
                    , noMeasureFields   = def
                    , cores             = def
-                   , minPartSize       = defaultMinPartSize
-                   , maxPartSize       = defaultMaxPartSize
+                   , minPartSize       = FC.defaultMinPartSize
+                   , maxPartSize       = FC.defaultMaxPartSize
                    , maxParams         = defaultMaxParams
                    , smtsolver         = def
                    , shortNames        = def
@@ -475,11 +479,10 @@ defConfig = Config { files             = def
                    , timeBinds         = False
                    , untidyCore        = False
                    , noEliminate       = False
-                   --, oldEliminate      = False
                    , noPatternInline   = False
                    , noSimplifyCore    = False
-                   --, packKVars         = False
                    , nonLinCuts        = True
+                   , ignoreQuals       = False
                    }
 
 ------------------------------------------------------------------------

@@ -189,17 +189,17 @@ solveCs cfg tgt cgi info names = do
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver      = fromJust (smtsolver cfg)
-  , FC.linear      = linear            cfg
-  , FC.eliminate   = not $ noEliminate cfg
-  , FC.nonLinCuts  = True
-  , FC.save        = saveQuery         cfg
-  , FC.srcFile     = tgt
-  , FC.cores       = cores             cfg
-  , FC.minPartSize = minPartSize       cfg
-  , FC.maxPartSize = maxPartSize       cfg
-  , FC.elimStats   = elimStats         cfg
-  , FC.elimBound   = elimBound         cfg
+  { FC.solver           = fromJust (smtsolver cfg)
+  , FC.linear           = linear            cfg
+  , FC.eliminate        = not $ noEliminate cfg
+  , FC.nonLinCuts       = True
+  , FC.save             = saveQuery         cfg
+  , FC.srcFile          = tgt
+  , FC.cores            = cores             cfg
+  , FC.minPartSize      = minPartSize       cfg
+  , FC.maxPartSize      = maxPartSize       cfg
+  , FC.elimStats        = elimStats         cfg
+  , FC.elimBound        = elimBound         cfg
   , FC.allowHO          = higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
   , FC.extensionality   = extensionality   cfg
@@ -207,6 +207,7 @@ fixConfig tgt cfg = def
   , FC.betaEquivalence  = betaEquivalence  cfg
   , FC.normalForm       = normalForm       cfg
   , FC.stringTheory     = stringTheory     cfg
+  , FC.ignoreQuals      = higherOrderFlag cfg || ignoreQuals      cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

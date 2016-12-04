@@ -17,22 +17,28 @@ cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
   let tgtFI = targetFInfo info cgi
   impFI    <- parseFInfo $ hqFiles info
-  return    $ tgtFI <> impFI
+  let fI    = ignoreQualifiers info (tgtFI <> impFI)
+  return fI
+
+ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
+ignoreQualifiers info fi
+  | ignore     = fi { F.quals = [] }
+  | otherwise  = fi
+  where ignore = ignoreQuals . getConfig . spec $ info
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs
   where
-    -- packs               = F.makePack (kvPacks cgi)
-    cs                  = fixCs    cgi
-    ws                  = fixWfs   cgi
-    bs                  = binds    cgi
-    ls                  = fEnv     cgi
-    consts              = cgConsts cgi
-    ks                  = kuts     cgi
-    qs                  = targetQuals info cgi
-    bi                  = (`Ci` Nothing) <$> bindSpans cgi
-    aHO                 = allowHO cgi
-    aHOqs               = higherOrderFlag info
+    cs               = fixCs    cgi
+    ws               = fixWfs   cgi
+    bs               = binds    cgi
+    ls               = fEnv     cgi
+    consts           = cgConsts cgi
+    ks               = kuts     cgi
+    qs               = targetQuals info cgi
+    bi               = (`Ci` Nothing) <$> bindSpans cgi
+    aHO              = allowHO cgi
+    aHOqs            = higherOrderFlag info
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs
@@ -41,4 +47,3 @@ targetQuals info cgi = spcQs ++ genQs
     genQs     = specificationQualifiers n info (fEnv cgi)
     n         = maxParams $ getConfig spc
     spc       = spec info
-    -- lEnv      = F.fromListSEnv $ lits cgi
