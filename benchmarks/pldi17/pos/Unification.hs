@@ -3,6 +3,8 @@
 
 -- RJ: for some odd reason, this file NEEDs cuts/qualifiers wonder why...
 
+
+{-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
