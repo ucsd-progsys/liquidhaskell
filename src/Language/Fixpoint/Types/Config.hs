@@ -115,7 +115,7 @@ data Eliminate
   deriving (Eq, Data, Typeable, Generic)
 
 instance Default Eliminate where
-  def = Cuts
+  def = None
 
 instance Show Eliminate where
   show None = "none"

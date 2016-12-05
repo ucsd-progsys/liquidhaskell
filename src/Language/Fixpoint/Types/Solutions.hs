@@ -74,20 +74,20 @@ type QBind    = [EQual]
 data Sol a = Sol
   { sMap  :: !(M.HashMap KVar a)         -- ^ actual solution (for cut kvar)
   , sHyp  :: !(M.HashMap KVar Hyp)       -- ^ defining cubes  (for non-cut kvar)
-  , sBot  :: !(M.HashMap KVar ())        -- ^ set of BOT (cut kvars)
+  -- , sBot  :: !(M.HashMap KVar ())        -- ^ set of BOT (cut kvars)
   , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
   }
 
 instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty mempty mempty
+  mempty        = Sol mempty mempty mempty
   mappend s1 s2 = Sol { sMap  = mappend (sMap s1) (sMap s2)
                       , sHyp  = mappend (sHyp s1) (sHyp s2)
-                      , sBot  = mappend (sBot s1) (sBot s2)
+    --                , sBot  = mappend (sBot s1) (sBot s2)
                       , sScp  = mappend (sScp s1) (sScp s2)
                       }
 
 instance Functor Sol where
-  fmap f (Sol s m1 m2 x) = Sol (f <$> s) m1 m2 x
+  fmap f (Sol s m1 m2) = Sol (f <$> s) m1 m2
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k = pprintTidy k . sMap
@@ -117,11 +117,11 @@ result s = sMap $ (pAnd . fmap eqPred) <$> s
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
 fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a
-fromList kXs kYs = Sol kXm kYm kBm
+fromList kXs kYs = Sol kXm kYm -- kBm
   where
     kXm          = M.fromList   kXs
     kYm          = M.fromList   kYs
-    kBm          = const () <$> kXm
+ -- kBm          = const () <$> kXm
 --------------------------------------------------------------------------------
 qBindPred :: Subst -> QBind -> Pred
 --------------------------------------------------------------------------------
@@ -137,30 +137,28 @@ lookupQBind s k = {- tracepp ("lookupQB: k = " ++ show k) $ -} M.lookupDefault [
 --------------------------------------------------------------------------------
 lookup :: Solution -> KVar -> Either Hyp QBind
 --------------------------------------------------------------------------------
-lookup s k =
-  case M.lookup k (sHyp s) of
-    Just cs -> Left cs
-    Nothing -> if M.member k (sBot s)
-                then Left []
-                else case M.lookup (tracepp "AHA k is not in BOT" k) (sMap s) of
-                       Just eqs -> Right eqs
-                       Nothing  -> errorstar $ "solLookup: Unknown kvar " ++ show k
+-- lookup s k =
+  -- case M.lookup k (sHyp s) of
+    -- Just cs -> Left cs
+    -- Nothing -> if M.member k (sBot s)
+                -- then Left []
+                -- else case M.lookup (tracepp "AHA k is not in BOT" k) (sMap s) of
+                       -- Just eqs -> Right eqs
+                       -- Nothing  -> errorstar $ "solLookup: Unknown kvar " ++ show k
 
--- lookup s k
-  -- | Just cs  <- M.lookup k (sHyp s)               -- non-cut variable, return its cubes
-  -- = Left cs
-  -- | M.member k (tracepp "lookup:sBot" $ sBot s)   -- cut-variable, but currently BOT
-  -- = Left []
-  -- | Just eqs <- M.lookup k (sMap s)
-  -- = Right eqs                                     -- TODO: don't initialize kvars that have a hyp solution
-  -- | otherwise
-  -- = errorstar $ "solLookup: Unknown kvar " ++ show k
+lookup s k
+  | Just cs  <- M.lookup k (sHyp s)               -- non-cut variable, return its cubes
+  = Left cs
+  | Just eqs <- M.lookup k (sMap s)
+  = Right eqs                                     -- TODO: don't initialize kvars that have a hyp solution
+  | otherwise
+  = errorstar $ "solLookup: Unknown kvar " ++ show k
 
 --------------------------------------------------------------------------------
 updateK :: KVar -> a -> Sol a -> Sol a
 --------------------------------------------------------------------------------
 updateK k qs s = s { sMap = M.insert k qs (sMap s)
-                   , sBot = M.delete k    (sBot s)
+--                 , sBot = M.delete k    (sBot s)
                    }
 
 
