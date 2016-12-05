@@ -4,6 +4,8 @@
 -- RJ: for some odd reason, this file NEEDs cuts/qualifiers. It is tickled by
 -- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
 -- where? switch off non-lin-cuts in higher-order mode?
+
+{-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 

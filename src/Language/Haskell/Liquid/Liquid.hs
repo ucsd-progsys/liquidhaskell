@@ -192,7 +192,7 @@ fixConfig tgt cfg = def
   { FC.solver           = fromJust (smtsolver cfg)
   , FC.linear           = linear            cfg
   , FC.eliminate        = eliminate         cfg
-  , FC.nonLinCuts       = False -- True
+  , FC.nonLinCuts       = not (eliminate cfg == FC.All) 
   , FC.save             = saveQuery         cfg
   , FC.srcFile          = tgt
   , FC.cores            = cores             cfg
@@ -208,7 +208,7 @@ fixConfig tgt cfg = def
   , FC.normalForm       = normalForm       cfg
   , FC.stringTheory     = stringTheory     cfg
   }
-
+ 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s
 
