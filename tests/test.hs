@@ -30,7 +30,7 @@ unitTests
    ]
 
 skipNativePos :: [FilePath]
-skipNativePos = ["NonLinear-pack.fq"] 
+skipNativePos = ["NonLinear-pack.fq"]
 
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
@@ -76,7 +76,7 @@ nativeCmd :: TestCmd
 nativeCmd bin dir file = printf "cd %s && %s %s" dir bin file
 
 elimCmd :: TestCmd
-elimCmd bin dir file = printf "cd %s && %s --eliminate %s" dir bin file
+elimCmd bin dir file = printf "cd %s && %s --eliminate=some %s" dir bin file
 
 
 

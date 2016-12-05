@@ -154,6 +154,7 @@ snd3 (_,x,_) = x
 thd3 ::  (a, b, c) -> c
 thd3 (_,_,x) = x
 
+secondM :: Functor f => (b -> f c) -> (a, b) -> f (a, c)
 secondM act (x, y) = (x,) <$> act y
 
 #ifdef MIN_VERSION_located_base

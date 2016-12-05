@@ -17,7 +17,6 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution tables
     Solution
   , Sol
-  , sIdx
   , sScp
   , CMap
 
@@ -31,7 +30,7 @@ module Language.Fixpoint.Types.Solutions (
   , fromList
 
   -- * Update
-  , insert
+  , updateK
 
   -- * Lookup
   , lookupQBind
@@ -73,22 +72,22 @@ type QBind    = [EQual]
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
 data Sol a = Sol
-  { sMap  :: !(M.HashMap KVar a)
-  , sHyp  :: !(M.HashMap KVar Hyp)
+  { sMap  :: !(M.HashMap KVar a)         -- ^ actual solution (for cut kvar)
+  , sHyp  :: !(M.HashMap KVar Hyp)       -- ^ defining cubes  (for non-cut kvar)
+  -- , sBot  :: !(M.HashMap KVar ())        -- ^ set of BOT (cut kvars)
   , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
-  , sIdx  :: !(Maybe Index)
   }
 
 instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty mempty Nothing
+  mempty        = Sol mempty mempty mempty
   mappend s1 s2 = Sol { sMap  = mappend (sMap s1) (sMap s2)
                       , sHyp  = mappend (sHyp s1) (sHyp s2)
+    --                , sBot  = mappend (sBot s1) (sBot s2)
                       , sScp  = mappend (sScp s1) (sScp s2)
-                      , sIdx  = sIdx s1
                       }
 
 instance Functor Sol where
-  fmap f (Sol s m1 m2 z) = Sol (f <$> s) m1 m2 z
+  fmap f (Sol s m1 m2) = Sol (f <$> s) m1 m2
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k = pprintTidy k . sMap
@@ -114,13 +113,15 @@ result :: Solution -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
 result s = sMap $ (pAnd . fmap eqPred) <$> s
 
-
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Maybe Index -> Sol a
-fromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
-
+fromList :: [(KVar, a)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a
+fromList kXs kYs = Sol kXm kYm -- kBm
+  where
+    kXm          = M.fromList   kXs
+    kYm          = M.fromList   kYs
+ -- kBm          = const () <$> kXm
 --------------------------------------------------------------------------------
 qBindPred :: Subst -> QBind -> Pred
 --------------------------------------------------------------------------------
@@ -131,23 +132,34 @@ qBindPred su = subst su . pAnd . fmap eqPred
 --------------------------------------------------------------------------------
 lookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-lookupQBind s k = M.lookupDefault [] k (sMap s)
+lookupQBind s k = {- tracepp ("lookupQB: k = " ++ show k) $ -} M.lookupDefault [] k (sMap s)
 
 --------------------------------------------------------------------------------
 lookup :: Solution -> KVar -> Either Hyp QBind
 --------------------------------------------------------------------------------
+-- lookup s k =
+  -- case M.lookup k (sHyp s) of
+    -- Just cs -> Left cs
+    -- Nothing -> if M.member k (sBot s)
+                -- then Left []
+                -- else case M.lookup (tracepp "AHA k is not in BOT" k) (sMap s) of
+                       -- Just eqs -> Right eqs
+                       -- Nothing  -> errorstar $ "solLookup: Unknown kvar " ++ show k
+
 lookup s k
-  | Just cs  <- M.lookup k (sHyp s)
+  | Just cs  <- M.lookup k (sHyp s)               -- non-cut variable, return its cubes
   = Left cs
   | Just eqs <- M.lookup k (sMap s)
-  = Right eqs -- TODO: don't initialize kvars that have a hyp solution
+  = Right eqs                                     -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "solLookup: Unknown kvar " ++ show k
 
 --------------------------------------------------------------------------------
-insert :: KVar -> a -> Sol a -> Sol a
+updateK :: KVar -> a -> Sol a -> Sol a
 --------------------------------------------------------------------------------
-insert k qs s = s { sMap = M.insert k qs (sMap s) }
+updateK k qs s = s { sMap = M.insert k qs (sMap s)
+--                 , sBot = M.delete k    (sBot s)
+                   }
 
 
 --------------------------------------------------------------------------------

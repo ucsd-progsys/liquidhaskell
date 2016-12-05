@@ -93,7 +93,6 @@ Library
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
                    Language.Fixpoint.Solver.Solution,
-                   Language.Fixpoint.Solver.Index,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
                    Language.Fixpoint.Solver.TrivialSort,

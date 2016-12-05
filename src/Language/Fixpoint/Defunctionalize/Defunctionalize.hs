@@ -39,6 +39,7 @@ class Defunc a where
 instance Defunc Sort where
   defunc s = defuncSort s
 
+defuncSort :: Sort -> DF Sort
 defuncSort s = do
   hoFlag <- dfHO <$> get
   return $ if hoFlag then go s else s
@@ -323,7 +324,8 @@ normalize = snd . go
 normalizeLams :: Expr -> Expr
 normalizeLams e = snd $ normalizeLamsFromTo 1 e
 
-normalizeLamsFromTo i e = go e
+normalizeLamsFromTo :: Int -> Expr -> (Int, Expr)
+normalizeLamsFromTo i   = go
   where
     go (ELam (y, sy) e) = let (i', e') = go e
                               y'      = makeLamArg sy i'

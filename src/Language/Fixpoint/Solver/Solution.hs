@@ -28,7 +28,7 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
-import qualified Language.Fixpoint.Solver.Index       as Index
+-- import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
@@ -39,12 +39,12 @@ import           Prelude                              hiding (init, lookup)
 -- | Update Solution -----------------------------------------------------------
 --------------------------------------------------------------------------------
 update :: Sol.Solution -> [F.KVar] -> [(F.KVar, F.EQual)] -> (Bool, Sol.Solution)
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 update s ks kqs = {- tracepp msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
-    -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
+    -- msg      = printf "ks = %s, s = %s" (showpp ks) (showpp s)
 
 folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
 folds f b = L.foldl' step ([], b)
@@ -59,7 +59,7 @@ groupKs ks kqs = M.toList $ groupBase m0 kqs
     m0         = M.fromList $ (,[]) <$> ks
 
 update1 :: Sol.Solution -> (F.KVar, Sol.QBind) -> (Bool, Sol.Solution)
-update1 s (k, qs) = (change, Sol.insert k qs s)
+update1 s (k, qs) = (change, Sol.updateK k qs s)
   where
     oldQs         = Sol.lookupQBind s k
     change        = length oldQs /= length qs
@@ -69,7 +69,7 @@ update1 s (k, qs) = (change, Sol.insert k qs s)
 --------------------------------------------------------------------------------
 init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init si ks = Sol.fromList keqs [] mempty Nothing
+init si ks = Sol.fromList keqs [] mempty
   where
     keqs   = map (refine si qs genv) ws `using` parList rdeepseq
     qs     = F.quals si
@@ -84,7 +84,6 @@ refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
--- instConstants fi = F.gLits fi
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
   where
     notLit    = not . F.isLitSymbol . fst
@@ -155,19 +154,15 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = F.eqPred eq
-    tc            = So.checkSorted env sr
+    tc            = So.checkSorted env ({- F.tracepp _msg -} sr)
+    --  _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = case Sol.sIdx s of
-                   Just _  -> Index.lhsPred     s c
-                   Nothing ->       lhsPred' be s c
-
-lhsPred' :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred' be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -193,51 +188,11 @@ envConcKVars g bs = (concat pss, concat kss)
     be            = F.soeBinds (snd3 g)
 
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVars' g s) F.pAnd mconcat . packKVars g
+applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
---   where
--- PACK applyPack :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
--- PACK applyPack g s kvs = applyKVars' g s kvs
--- PACK -- case packable s kvs of
--- PACK --   Nothing           -> applyKVars' g s kvs
--- PACK -- Just (p, [])      -> (p, mempty)
--- PACK -- Just (p, kcs)     -> applyPackCubes g s p kcs
--- PACK    _tr kvs kcs
--- PACK       | length kvs > 1 = trace ("PACKING" ++ F.showpp kvs) kcs
--- PACK       | otherwise      = kcs
-
--- --------------------------------------------------------------------------------
--- applyPackCubes :: CombinedEnv -> Sol.Solution -> F.Expr -> ListNE (F.KVSub, Sol.Cube) -> ExprInfo
--- --------------------------------------------------------------------------------
--- applyPackCubes g s p kcs = mrExprInfos (applyPackCube g'' s) conjF catF kcs
-  -- where
-    -- conjF                = (p &.&) . conjCube yts'' p''
-    -- catF kIs             = mconcat (kI : kIs)
-    -- yts''                = symSorts g bs''
-    -- (p'', kI)            = apply g'' s bs''
-    -- g''                  = addCEnv g bs''
-    -- bs''                 = foldr1 F.intersectionIBindEnv bs's
-    -- bs's                 = [ delCEnv bs g | bs <- Sol.cuBinds . snd <$> kcs ]
-
--- conjCube :: Binders -> F.Pred -> [(Binders, F.Pred, F.Pred)] -> F.Pred
--- conjCube yts'' p'' z     = foldr wrap inP xtSuPs
-  -- where
-    -- wrap (xts, suP) q    = F.pExist xts (suP &.& q)
-    -- xtSuPs               = [ (xts, psu) | (xts, psu, _) <- z ]
-    -- inP                  = F.pExist yts'' (F.pAnd (p'' : (thd3 <$> z)))
---
--- applyPackCube :: CombinedEnv
-              -- -> Sol.Solution
-              -- -> (F.KVSub, Sol.Cube)
-              -- -> ((Binders, F.Pred, F.Pred), KInfo)
--- applyPackCube g s kc = cubePredExc g s k su c bs'
-  -- where
-    -- ((k, su), c)     = kc
-    -- bs'              = delCEnv bs g
-    -- bs               = Sol.cuBinds c
-
-applyKVars' :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+-- applyKVars g s  = mrExprInfos (applyKVars' g s) F.pAnd mconcat . map singleton
+-- applyKVars' :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
+-- applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s (k, su) = case Sol.lookup s k of
@@ -289,7 +244,6 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     (xts, psu)      = substElim g  k su
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
-
 
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
@@ -371,38 +325,6 @@ symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
 
 _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars
-
---------------------------------------------------------------------------------
-packKVars :: CombinedEnv -> [F.KVSub] -> [[F.KVSub]]
---------------------------------------------------------------------------------
-packKVars _ = map singleton
-
--- TODO: nuke PACK
--- packKVars (_, se, _)   = concatMap eF . M.toList . groupMap kF
-  -- where
-    -- sm                 = F.soePacks se
-    -- kF (k, _)          = F.getPack k sm
-    -- eF (Just _,  xs)   = [xs]
-    -- eF (Nothing, xs)   = singleton <$> xs
-
---------------------------------------------------------------------------------
--- TODO: nuke PACK
--- packable :: Sol.Solution -> [F.KVSub] -> Maybe (F.Expr, [(F.KVSub, Sol.Cube)])
--- --------------------------------------------------------------------------------
--- packable s = fmap reduceCubes . sequence . fmap (getCube s)
---
--- reduceCubes :: [Either F.Expr (F.KVSub, Sol.Cube)] -> (F.Expr, [(F.KVSub, Sol.Cube)])
--- reduceCubes zs = (F.pAnd ps, cs)
-  -- where
-    -- ps         = lefts  zs
-    -- cs         = rights zs
---
--- getCube :: Sol.Solution -> F.KVSub -> Maybe (Either F.Expr (F.KVSub, Sol.Cube))
--- getCube s (k, su) = case Sol.lookup s k of
-  -- Left []   -> Just (Left F.PFalse)
-  -- Left [c]  -> Just (Right ((k, su), c))
-  -- Right eqs -> Just (Left  (Sol.qBindPred su eqs))
-  -- _         -> Nothing
 
 --------------------------------------------------------------------------------
 -- | Information about size of formula corresponding to an "eliminated" KVar.
