@@ -191,7 +191,7 @@ fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
   { FC.solver           = fromJust (smtsolver cfg)
   , FC.linear           = linear            cfg
-  , FC.eliminate        = not $ noEliminate cfg
+  , FC.eliminate        = eliminate         cfg
   , FC.nonLinCuts       = True
   , FC.save             = saveQuery         cfg
   , FC.srcFile          = tgt
@@ -207,7 +207,6 @@ fixConfig tgt cfg = def
   , FC.betaEquivalence  = betaEquivalence  cfg
   , FC.normalForm       = normalForm       cfg
   , FC.stringTheory     = stringTheory     cfg
-  , FC.ignoreQuals      = higherOrderFlag cfg || ignoreQuals      cfg
   }
 
 e2u :: F.FixSolution -> Error -> UserError

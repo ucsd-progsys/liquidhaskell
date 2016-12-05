@@ -6,6 +6,8 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint (
 
 import           Prelude hiding (error)
 import           Data.Monoid
+
+import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types hiding     ( binds )
@@ -22,9 +24,9 @@ cgInfoFInfo info cgi = do
 
 ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
 ignoreQualifiers info fi
-  | ignore     = fi { F.quals = [] }
-  | otherwise  = fi
-  where ignore = ignoreQuals . getConfig . spec $ info
+  | noQuals     = fi { F.quals = [] }
+  | otherwise   = fi
+  where noQuals = (FC.All == ) . eliminate . getConfig . spec $ info
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs

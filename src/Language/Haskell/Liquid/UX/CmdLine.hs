@@ -287,9 +287,14 @@ config = cmdArgsMode $ Config {
     = False &= name "untidy-core"
             &= help "Print fully qualified identifier names in verbose mode"
 
-  , noEliminate
-    = False &= name "no-eliminate"
-            &= help "Don't use KVar elimination during solving"
+  , eliminate
+    = FC.Some
+            &= name "eliminate"
+            &= help "Use elimination for 'all' (use TRUE for cut-kvars), 'some' (use quals for cut-kvars) or 'none' (use quals for all kvars)."
+
+  -- , noEliminate
+  --  = False &= name "no-eliminate"
+  --          &= help "Don't use KVar elimination during solving"
 
   --, oldEliminate
   --  = False &= name "old-eliminate"
@@ -306,9 +311,6 @@ config = cmdArgsMode $ Config {
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
-  , ignoreQuals
-    = False &= name "ignore-quals"
-            &= help "(FALSE) Do inference without qualifiers, use eliminate only, with Cuts assigned True. Useful for prover."
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -414,7 +416,7 @@ mkOpts cfg = do
 canonConfig :: Config -> Config
 canonConfig cfg = cfg
   { diffcheck   = diffcheck cfg && not (fullcheck cfg)
-  , ignoreQuals = higherOrderFlag cfg || ignoreQuals cfg
+  , eliminate   = if higherOrderFlag cfg then FC.All else eliminate cfg
   }
 
 --------------------------------------------------------------------------------
@@ -479,11 +481,11 @@ defConfig = Config { files             = def
                    , counterExamples   = False
                    , timeBinds         = False
                    , untidyCore        = False
-                   , noEliminate       = False
+                   -- , noEliminate       = False
+                   , eliminate         = FC.Some
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
-                   , ignoreQuals       = False
                    }
 
 ------------------------------------------------------------------------
