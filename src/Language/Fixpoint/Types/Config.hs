@@ -107,10 +107,10 @@ instance Show SMTSolver where
 --   None = use PA/Quals for ALL k-vars, i.e. no eliminate
 --   Some = use PA/Quals for CUT k-vars, i.e. eliminate non-cuts
 --   All  = eliminate ALL k-vars, solve cut-vars to TRUE
-
+---------------------------------------------------------------------------------------
 data Eliminate
   = None
-  | Cuts
+  | Some 
   | All
   deriving (Eq, Data, Typeable, Generic)
 
@@ -119,7 +119,7 @@ instance Default Eliminate where
 
 instance Show Eliminate where
   show None = "none"
-  show Cuts = "cuts"
+  show Some = "some"
   show All  = "all"
 
 useElim :: Config -> Bool
