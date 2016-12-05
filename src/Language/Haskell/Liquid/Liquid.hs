@@ -179,7 +179,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo          <- cgInfoFInfo info cgi
-  F.Result r sol <- solve (fixConfig tgt cfg) finfo
+  F.Result r sol <- solve (traceShow "FIXCFG" $ fixConfig tgt cfg) finfo
   let resErr      = applySolution sol . cinfoError . snd <$> r
   resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
   let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
@@ -189,29 +189,26 @@ solveCs cfg tgt cgi info names = do
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver      = fromJust (smtsolver cfg)
-  , FC.linear      = linear            cfg
-  , FC.eliminate   = not $ noEliminate cfg
-  --, FC.oldElim     = True -- oldEliminate      cfg
-  --, FC.pack        = packKVars cfg
-  , FC.nonLinCuts  = True -- nonLinCuts        cfg
-  , FC.save        = saveQuery         cfg
-  , FC.srcFile     = tgt
-  , FC.cores       = cores             cfg
-  , FC.minPartSize = minPartSize       cfg
-  , FC.maxPartSize = maxPartSize       cfg
-  , FC.elimStats   = elimStats         cfg
-  , FC.elimBound   = elimBound         cfg
-  , FC.allowHO     = higherOrderFlag   cfg
-  , FC.allowHOqs   = higherorderqs     cfg
-
+  { FC.solver           = fromJust (smtsolver cfg)
+  , FC.linear           = linear            cfg
+  , FC.eliminate        = eliminate         cfg
+  , FC.nonLinCuts       = not (eliminate cfg == FC.All) 
+  , FC.save             = saveQuery         cfg
+  , FC.srcFile          = tgt
+  , FC.cores            = cores             cfg
+  , FC.minPartSize      = minPartSize       cfg
+  , FC.maxPartSize      = maxPartSize       cfg
+  , FC.elimStats        = elimStats         cfg
+  , FC.elimBound        = elimBound         cfg
+  , FC.allowHO          = higherOrderFlag   cfg
+  , FC.allowHOqs        = higherorderqs     cfg
   , FC.extensionality   = extensionality   cfg
   , FC.alphaEquivalence = alphaEquivalence cfg
   , FC.betaEquivalence  = betaEquivalence  cfg
   , FC.normalForm       = normalForm       cfg
   , FC.stringTheory     = stringTheory     cfg
   }
-
+ 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s
 

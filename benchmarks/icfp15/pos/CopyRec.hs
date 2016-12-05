@@ -3,7 +3,7 @@ module CopyRec where
 
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--no-pattern-inline" @-}
-{-@ LIQUID "--no-eliminate"      @-}
+{-@ LIQUID "--eliminate=none"    @-}
 
 import RIO2
 import Data.Map

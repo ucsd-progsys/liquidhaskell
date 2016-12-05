@@ -1,6 +1,6 @@
 {-# Language EmptyDataDecls #-}
 
-{-@ LIQUID "--no-eliminate" @-}
+{-@ LIQUID "--eliminate=none" @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-pattern-inline" @-}
 

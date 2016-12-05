@@ -70,7 +70,8 @@ data Config = Config {
   , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
-  , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
+  , eliminate      :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
+  -- , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
   --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
@@ -86,7 +87,6 @@ data Config = Config {
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  --, packKVars       :: Bool       -- ^ pack kvars during elimination
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   } deriving (Generic, Data, Typeable, Show, Eq)
 

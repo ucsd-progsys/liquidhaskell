@@ -1,6 +1,10 @@
 -- | Unification for simple terms a la Zombie
 -- | cite : http://www.seas.upenn.edu/~sweirich/papers/congruence-extended.pdf
 
+-- RJ: for some odd reason, this file NEEDs cuts/qualifiers. It is tickled by
+-- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
+-- where? switch off non-lin-cuts in higher-order mode?
+
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
@@ -10,7 +14,6 @@ module Unify where
 import Proves
 import qualified  Data.Set as S
 
-
 -- | Data Types
 data Term = TBot | TVar Int | TFun Term Term
   deriving (Eq)
@@ -18,7 +21,6 @@ data Term = TBot | TVar Int | TFun Term Term
 
 type Substitution = L (P Int Term)
 data P a b = P a b
-
 
 -- | Unification
 -- | If unification succeds then the returned substitution makes input terms equal
@@ -32,14 +34,14 @@ unify TBot TBot
   = Just Emp
 unify t1@(TVar i) t2
   | not (S.member i (freeVars t2))
-  = Just $ C (P i t2) Emp `byTheorem` theoremVar t2 i
+  = Just (C (P i t2) Emp `byTheorem` theoremVar t2 i)
 unify t1 t2@(TVar i)
   | not (S.member i (freeVars t1))
-  = Just $ C (P i t1) Emp `byTheorem` theoremVar t1 i
+  = Just (C (P i t1) Emp `byTheorem` theoremVar t1 i)
 unify (TFun t11 t12) (TFun t21 t22)
   = case unify t11 t21 of
       Just θ1 -> case unify (apply θ1 t12) (apply θ1 t22) of
-                   Just θ2 -> Just $ append θ2 θ1 `byTheorem` theoremFun t11 t12 t21 t22 θ1 θ2
+                   Just θ2 -> Just (append θ2 θ1 `byTheorem` theoremFun t11 t12 t21 t22 θ1 θ2)
                    Nothing -> Nothing
       _       -> Nothing
 unify t1 t2

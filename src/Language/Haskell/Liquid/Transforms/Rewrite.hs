@@ -286,7 +286,7 @@ replaceIrrefutPat t e
 replaceIrrefutPat _ e
   = e
 
-replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
+replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr 
 replaceIrrefutPat' t e
   | (Var x, _:args) <- collectArgs e
   , isIrrefutErrorVar x

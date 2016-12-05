@@ -1,11 +1,6 @@
 TODO
 ====
 
-Data.Text.Fusion := /Users/rjhala/research/stack/lh-develop/.stack-work/install/x86_64-osx/lts-5.9/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Data/Text/Fusion.spec
-
-Data.Text.Fusion.Common := /Users/rjhala/research/stack/lh-develop/.stack-work/install/x86_64-osx/lts-5.9/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Data/Text/Fusion/Common.spec
-
-
 Check Covariance
 ----------------
 
@@ -23,13 +18,13 @@ Automatically refine *inductors*
 Proposed by Valentine: in dependent languages (Coq)
 inductors (like our `loop` for natural numbers)
 automatically get types abstracted over properties.
-Trasversal should create such functions.
+Traversal should create such functions.
 Maybe we can automatically refine them.
 
 
 Check refinements using `Eq` and `Ord` info
 -------------------------------------------
-Currenly we arbitrary allow `=` and comparison operators in refinements to arbitraty types.
+Currently we arbitrary allow `=` and comparison operators in refinements to arbitraty types.
 This can lead to non-well formed refinements.
 
 promotion of haskell functions to measures
