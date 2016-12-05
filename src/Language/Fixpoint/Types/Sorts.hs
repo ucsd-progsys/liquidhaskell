@@ -90,7 +90,7 @@ defNumInfo  = False
 defRealInfo = False
 defStrInfo  = False
 
-intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
+charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
 boolFTyCon = TC (dummyLoc "bool"     ) defTcInfo
 realFTyCon = TC (dummyLoc "real"     ) realTcInfo

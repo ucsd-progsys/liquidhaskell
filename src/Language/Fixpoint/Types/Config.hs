@@ -26,6 +26,7 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import Data.Serialize                (Serialize (..))
 import Control.Monad
 import GHC.Generics
 import System.Console.CmdArgs
@@ -110,9 +111,11 @@ instance Show SMTSolver where
 ---------------------------------------------------------------------------------------
 data Eliminate
   = None
-  | Some 
+  | Some
   | All
   deriving (Eq, Data, Typeable, Generic)
+
+instance Serialize Eliminate
 
 instance Default Eliminate where
   def = None
@@ -121,6 +124,7 @@ instance Show Eliminate where
   show None = "none"
   show Some = "some"
   show All  = "all"
+
 
 useElim :: Config -> Bool
 useElim cfg = eliminate cfg /= None
