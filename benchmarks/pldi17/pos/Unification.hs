@@ -1,10 +1,9 @@
 -- | Unification for simple terms a la Zombie
 -- | cite : http://www.seas.upenn.edu/~sweirich/papers/congruence-extended.pdf
 
--- RJ: for some odd reason, this file NEEDs cuts/qualifiers wonder why...
-
-
-{-@ LIQUID "--higherorder"     @-}
+-- RJ: for some odd reason, this file NEEDs cuts/qualifiers. It is tickled by
+-- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
+-- where? switch off non-lin-cuts in higher-order mode?
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
