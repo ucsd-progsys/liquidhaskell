@@ -416,7 +416,7 @@ mkOpts cfg = do
 canonConfig :: Config -> Config
 canonConfig cfg = cfg
   { diffcheck   = diffcheck cfg && not (fullcheck cfg)
-  , eliminate   = if higherOrderFlag cfg then FC.All else eliminate cfg
+  -- , eliminate   = if higherOrderFlag cfg then FC.All else eliminate cfg
   }
 
 --------------------------------------------------------------------------------
