@@ -60,9 +60,7 @@ type TCEnv = M.HashMap TyCon RTyCon
 type InlnEnv = M.HashMap Symbol TInline
 
 -- HEREHEREHEREHEREHEREHERE DELETE this TInline nonsense; fold it into RTEnv/rtEnv
--- 1. move the emb up...
--- 2. make the makeHaskellInlines return the [TInline] or such...
--- 3. add the [TInline] (or such) into `rtEnv` ideally... by passing in as EXTRA ARG to `makeRTEnv`
+-- see what tests fail
 
 data TInline = TI { tiargs :: [Symbol]
                   , tibody :: Expr

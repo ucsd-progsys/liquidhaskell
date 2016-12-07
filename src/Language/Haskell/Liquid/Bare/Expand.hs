@@ -22,7 +22,6 @@ class ExpandAliases a where
 -- instance (ExpandAliases a) => ExpandAliases (UReft a) where
   -- expand (MkUReft a y z) = (\b -> MkUReft b y z) <$> expand a
 
-
 instance ExpandAliases Expr where
   expand = expandExpr
 
