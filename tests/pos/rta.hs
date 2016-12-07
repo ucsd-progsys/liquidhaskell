@@ -1,7 +1,19 @@
-module RTA where 
+module RTA where
 
-{-@ type Posi a N = {v:a | v > N} @-}
+{-@ predicate Goober X Y = X > Y @-}
 
-{-@ incr :: Posi Int 0 -> Posi Int 0 @-}
-incr :: Int -> Int 
-incr x = x + 1
+{-@ inline goober @-}
+goober :: (Ord a) => a -> a -> Bool
+goober x y = x > y
+
+{-@ type PosInline    a N = {v:a | goober v N} @-}
+
+{-@ type PosPredicate a N = {v:a | Goober v N} @-}
+
+{-@ incrI :: PosInline Int 0 -> PosInline Int 0 @-}
+incrI :: Int -> Int
+incrI x = x + 1
+
+{-@ incrP :: PosPredicate Int 0 -> PosPredicate Int 0 @-}
+incrP :: Int -> Int
+incrP x = x + 1

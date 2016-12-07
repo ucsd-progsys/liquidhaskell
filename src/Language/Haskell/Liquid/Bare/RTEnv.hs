@@ -29,7 +29,6 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
-
 makeRTEnv :: [(ModName, Ms.Spec ty bndr)] -> BareM ()
 makeRTEnv specs
   = do makeREAliases ets
@@ -46,7 +45,7 @@ makeRTAliases = graphExpand buildTypeEdges expBody
       let l  = rtPos  xt
       let l' = rtPosE xt
       body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
-      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
+      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body }
 
 makeREAliases :: [(ModName, RTAlias Symbol Expr)] -> BareM ()
 makeREAliases

@@ -59,7 +59,6 @@ specBinders info = mconcat
     msg  = showpp . typeAliases . gsRTAliases
     sp0  = spec info
 
-
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
 --   where

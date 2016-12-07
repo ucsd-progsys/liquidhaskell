@@ -60,7 +60,6 @@ import Language.Haskell.Liquid.Bare.Resolve
 -- import Language.Haskell.Liquid.Bare.RefToLogic
 
 --------------------------------------------------------------------------------
-
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
   = ofBRType expandRTAliasApp (resolve l <=< expandReft)
