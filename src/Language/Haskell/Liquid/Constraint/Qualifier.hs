@@ -25,27 +25,37 @@ import Data.Maybe               (catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet as S
 -- import Data.Bifunctor           (second)
 import Debug.Trace (trace)
+-- import Language.Fixpoint.Misc (traceShow)
 
 -----------------------------------------------------------------------------------
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
-  =[ q | (x, t) <- specBinders info
-        , x `S.member` (S.fromList $ defVars info ++
-                                     -- NOTE: this mines extra, useful qualifiers but causes
-                                     -- a significant increase in running time, so we hide it
-                                     -- behind `--scrape-imports` and `--scrape-used-imports`
-                                     if info `hasOpt` scrapeUsedImports
-                                     then useVars info
-                                     else if info `hasOpt` scrapeImports
-                                     then impVars info
-                                     else [])
+  = [ q | (x, t) <- specBinders info
+        , x `S.member` qbs
         , q <- refTypeQuals lEnv (getSourcePos x) (gsTcEmbeds $ spec info) (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
+  where qbs = qualifyingBinders info
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
+
+qualifyingBinders :: GhcInfo -> S.HashSet Var
+qualifyingBinders info = {- traceShow "qualifyingBinders" $ -} S.difference sTake sDrop
+  where
+    sTake              = S.fromList $ defVars       info ++ scrapeVars info
+    sDrop              = S.fromList $ specAxiomVars info
+
+
+-- NOTE: this mines extra, useful qualifiers but causes
+-- a significant increase in running time, so we hide it
+-- behind `--scrape-imports` and `--scrape-used-imports`
+scrapeVars :: GhcInfo -> [Var]
+scrapeVars info
+  | info `hasOpt` scrapeUsedImports = useVars info
+  | info `hasOpt` scrapeImports     = impVars info
+  | otherwise                       = []
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
@@ -59,6 +69,9 @@ specBinders info = mconcat
     msg  = showpp . typeAliases . gsRTAliases
     sp0  = spec info
 
+
+specAxiomVars :: GhcInfo -> [Var]
+specAxiomVars =  map (fst . aname) . gsAxioms . spec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
