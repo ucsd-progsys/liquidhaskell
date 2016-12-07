@@ -33,26 +33,16 @@ module Language.Haskell.Liquid.UX.Tidy (
 
 import           Data.Hashable
 import           Prelude                                   hiding (error)
-
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
-
-
 import qualified Control.Exception                         as Ex
-
 import           Language.Haskell.Liquid.GHC.Misc          (showPpr, stringTyVar)
-
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
-
-
-
-
-
 import           Data.Generics                             (everywhere, mkT)
 import           Text.PrettyPrint.HughesPJ
 
@@ -209,10 +199,8 @@ panicError :: {-(?callStack :: CallStack) =>-} Error -> a
 --------------------------------------------------------------------------------
 panicError = Ex.throw
 
--- ^ This function is put in this module as
---   it depends on the Exception instance,
---   which depends on the PPrint instance,
---   which depends on tidySpecType.
+-- ^ This function is put in this module as it depends on the Exception instance,
+--   which depends on the PPrint instance, which depends on tidySpecType.
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------
@@ -220,6 +208,7 @@ panicError = Ex.throw
 
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
+
 
 instance PPrint (CtxError Doc) where
   pprintTidy k ce = ppError k (ctCtx ce) $ ctErr ce
@@ -229,11 +218,14 @@ instance PPrint (CtxError SpecType) where
 
 instance PPrint Error where
   pprintTidy k = ppError k empty . fmap ppSpecTypeErr
-
+ 
 ppSpecTypeErr :: SpecType -> Doc
-ppSpecTypeErr = rtypeDoc     Lossy
-              . tidySpecType Lossy
-              . fmap (everywhere (mkT noCasts))
+ppSpecTypeErr = ppSpecType Lossy
+
+ppSpecType :: Tidy -> SpecType -> Doc
+ppSpecType k = rtypeDoc     k
+             . tidySpecType k
+             . fmap (everywhere (mkT noCasts))
   where
     noCasts (ECst x _) = x
     noCasts e          = e

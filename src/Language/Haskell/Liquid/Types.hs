@@ -353,6 +353,7 @@ data GhcSpec = SP {
   , gsAxioms    :: [HAxiom]                       -- ^ Axioms from axiomatized functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
+  , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
   }
 
 instance HasConfig GhcSpec where
@@ -1034,7 +1035,6 @@ instance Show DataDecl where
               (show $ tycTyVars dd)
 
 -- | Refinement Type Aliases
-
 data RTAlias tv ty
   = RTA { rtName  :: Symbol
         , rtTArgs :: [tv]
@@ -1043,6 +1043,7 @@ data RTAlias tv ty
         , rtPos   :: SourcePos
         , rtPosE  :: SourcePos
         } deriving (Data, Typeable)
+
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
@@ -1639,22 +1640,22 @@ getModString :: ModName -> String
 getModString = moduleNameString . getModName
 
 
--------------------------------------------------------------------------------
------------ Refinement Type Aliases -------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Refinement Type Aliases ---------------------------------------------------
+--------------------------------------------------------------------------------
 
 data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
                    , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
                    }
 
+
 instance Monoid RTEnv where
-  (RTE ta1 ea1) `mappend` (RTE ta2 ea2)
-    = RTE (ta1 `M.union` ta2) (ea1 `M.union` ea2)
-  mempty = RTE M.empty M.empty
+  mempty                          = RTE M.empty M.empty
+  (RTE x y) `mappend` (RTE x' y') = RTE (x `M.union` x') (y `M.union` y')
 
 mapRT :: (M.HashMap Symbol (RTAlias RTyVar SpecType)
        -> M.HashMap Symbol (RTAlias RTyVar SpecType))
-      -> RTEnv -> RTEnv
+       -> RTEnv -> RTEnv
 mapRT f e = e { typeAliases = f $ typeAliases e }
 
 mapRE :: (M.HashMap Symbol (RTAlias Symbol Expr)

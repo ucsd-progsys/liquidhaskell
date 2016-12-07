@@ -26,12 +26,6 @@ import qualified Data.List                        as L                          
 import           Data.String
 import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
--- import           Var              (Var)
--- import           TyCon            (TyCon)
--- -- import           Data.Maybe
--- import qualified Data.List    as L -- (sort)
--- import qualified Data.HashMap.Strict as M
--- import           Text.PrettyPrint.HughesPJ
 import           HscTypes                         (SourceError)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types          hiding (Error, SrcSpan, Predicate)
@@ -127,12 +121,23 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
-
-
 instance (OkRT c tv r) => PPrint (RType c tv r) where
   -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
   pprintTidy _ = rtypeDoc Lossy
   -- pprintTidy _ = ppRType TopPrec
+
+instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
+  pprintTidy = ppAlias
+
+pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
+pprints k c = sep . punctuate c . map (pprintTidy k)
+
+ppAlias :: (PPrint tv, PPrint ty) => Tidy -> RTAlias tv ty -> Doc
+ppAlias k a = text "type" <+> pprint (rtName a)
+                          <+> pprints k space (rtTArgs a)
+                          <+> pprints k space (rtVArgs a)
+                          <+> text " = "
+                          <+> pprint (rtBody a)
 
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc
@@ -214,22 +219,6 @@ ppr_rsubtype bb p e
     tl   = snd $ l
     pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
-
-{- NUKE?
-ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
-ppSpine (RAllP _ t)      = text "RAllP" <+> parens (ppSpine t)
-ppSpine (RAllS _ t)      = text "RAllS" <+> parens (ppSpine t)
-ppSpine (RAllE _ _ t)    = text "RAllE" <+> parens (ppSpine t)
-ppSpine (REx _ _ t)      = text "REx" <+> parens (ppSpine t)
-ppSpine (RFun _ i o _)   = ppSpine i <+> text "->" <+> ppSpine o
-ppSpine (RAppTy t t' _)  = text "RAppTy" <+> parens (ppSpine t) <+> parens (ppSpine t')
-ppSpine (RHole _)        = text "RHole"
-ppSpine (RApp c _ _ _)   = text "RApp" <+> parens (pprint c)
-ppSpine (RVar _ _)       = text "RVar"
-ppSpine (RExprArg _)     = text "RExprArg"
-ppSpine (RRTy _ _ _ _)   = text "RRTy"
-
--}
 
 -- | From GHC: TypeRep
 maybeParen :: Prec -> Prec -> Doc -> Doc

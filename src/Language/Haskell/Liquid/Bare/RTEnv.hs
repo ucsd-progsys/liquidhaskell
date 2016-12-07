@@ -30,30 +30,25 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 
-makeRTEnv :: [(ModName, Ms.Spec ty bndr)]
-          -> BareM ()
+makeRTEnv :: [(ModName, Ms.Spec ty bndr)] -> BareM ()
 makeRTEnv specs
   = do makeREAliases ets
        makeRTAliases rts
     where
-       rts = (concat [(m,) <$> Ms.aliases  s | (m, s) <- specs])
-       ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
+       rts = concat [(m,) <$> Ms.aliases  s | (m, s) <- specs]
+       ets = concat [(m,) <$> Ms.ealiases s | (m, s) <- specs]
 
 
-makeRTAliases :: [(ModName, RTAlias Symbol BareType)]
-              -> BareM ()
-makeRTAliases
-  = graphExpand buildTypeEdges expBody
+makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
+makeRTAliases = graphExpand buildTypeEdges expBody
   where
-    expBody (mod, xt)
-      = inModule mod $
-          do let l  = rtPos  xt
-             let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
-             setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
+    expBody (m, xt) = inModule m $ do
+      let l  = rtPos  xt
+      let l' = rtPosE xt
+      body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
+      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
 
-makeREAliases :: [(ModName, RTAlias Symbol Expr)]
-              -> BareM ()
+makeREAliases :: [(ModName, RTAlias Symbol Expr)] -> BareM ()
 makeREAliases
   = graphExpand buildExprEdges expBody
   where
@@ -61,7 +56,7 @@ makeREAliases
       = inModule mod $
           do let l  = rtPos  xt
              let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandExpr $ rtBody xt)
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expandExpr (rtBody xt)
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 

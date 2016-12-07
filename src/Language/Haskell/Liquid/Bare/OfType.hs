@@ -33,8 +33,18 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 -- import Language.Fixpoint.Misc (traceShow)
-import Language.Fixpoint.Types (atLoc, Expr(..), Reftable, Symbol, meet, mkSubst,
-                                subst, symbol, symbolString, mkEApp)
+import Language.Fixpoint.Types ( atLoc
+                               , Expr(..)
+                               , Reftable
+                               , Symbol
+                               , meet
+                               , mkSubst
+                               , subst
+                               , symbol
+                               , symbolString
+                               , mkEApp
+                               -- , tracepp
+                               )
 
 
 import Language.Haskell.Liquid.GHC.Misc
@@ -108,7 +118,6 @@ rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
-
 ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)

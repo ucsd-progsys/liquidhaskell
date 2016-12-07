@@ -154,12 +154,17 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
          -- This step need the updated logic map, ie should happen after makeGhcAxioms
          >>= makeGhcSpec4 quals defVars specs name su
          >>= addProofType
-
+         >>= addRTEnv
 
 addProofType :: GhcSpec -> BareM GhcSpec
 addProofType spec = do
   tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
   return $ spec { gsProofType = (`TyConApp` []) <$> tycon }
+
+addRTEnv :: GhcSpec -> BareM GhcSpec
+addRTEnv spec = do
+  rt <- rtEnv <$> get
+  return $ spec { gsRTAliases = rt }
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
@@ -235,6 +240,7 @@ emptySpec cfg = SP
   , gsAxioms     = mempty
   , gsLogicMap   = mempty
   , gsProofType  = Nothing
+  , gsRTAliases  = mempty
   }
 
 
@@ -325,8 +331,8 @@ makeGhcSpec4 quals defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
-       defs'   <- mkThing makeDefs 
-       addDefs defs' 
+       defs'   <- mkThing makeDefs
+       addDefs defs'
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHMeas
        hinls   <- mkThing makeHInlines
