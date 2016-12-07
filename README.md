@@ -828,6 +828,10 @@ Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
         size (Node x l r) = 1 + (size l) + (size r)
     @-}
 
+**Note:** Measure names **do not** have to be the same as 
+field name, e.g. we could call the measure `sz` in the above
+as shown in [tests/pos/Class2.hs](tests/pos/Class2.hs).
+
 
 Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/HaskellMeasure.hs)
 
@@ -913,8 +917,7 @@ list is treated as a Stream. To establish this local invariant one can use the
 
 denoting that each list is not empty.
 Then, LiquidHaskell will prove that this invariant holds, by proving that *all
-calls* to List's
-constractos (ie., `:` and `[]`) satisfy it, and
+calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 

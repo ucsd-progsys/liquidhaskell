@@ -139,11 +139,21 @@ lookupGhcVar x
 
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
+lookupGhcTyCon s     = (lookupGhcThing err ftc s)
                        `catchError` (tryPropTyCon s)
+                       `catchError` (\_ -> lookupGhcThing err fdc s)
   where
-    ftc (ATyCon x)   = Just x
-    ftc _            = Nothing
+    ftc (ATyCon x)   
+      = Just x
+    ftc _            
+      = Nothing
+
+    fdc (AConLike (RealDataCon x)) | isJust $ promoteDataCon_maybe x 
+      = Just $ promoteDataCon x
+    fdc _ 
+      = Nothing 
+
+    err = "type constructor or class"
 
 tryPropTyCon :: (Symbolic a, MonadError e m) => a -> e -> m TyCon
 tryPropTyCon s e

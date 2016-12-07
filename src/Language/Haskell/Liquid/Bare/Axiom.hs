@@ -18,7 +18,6 @@ import TypeRep
 
 import Prelude hiding (mapM)
 
-
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
@@ -27,74 +26,77 @@ import Text.PrettyPrint.HughesPJ (text)
 
 
 import qualified Data.List as L
-import Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 
-import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Transforms.CoreToLogic
-import Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
-import Language.Haskell.Liquid.Types
-
-
 import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Transforms.CoreToLogic
+import           Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Misc (mapSnd)
 
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Misc (mapSnd)
-
-
-makeAxiom :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
-          -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
+--------------------------------------------------------------------------------
+makeAxiom :: F.TCEmb TyCon
+          -> LogicMap
+          -> [CoreBind]
+          -> GhcSpec
+          -> Ms.BareSpec
+          -> LocSymbol
+          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+--------------------------------------------------------------------------------
 makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-        (NonRec v def:_)   -> do let anames = findAxiomNames x cbs
-                                 vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
-                                 insertAxiom v (val x)
-                                 updateLMap lmap x x v
-                                 updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                                 let t = makeAssumeType tce lmap x v (tySigs spec) anames  def
-                                 return ((val x, makeType v),
-                                         (v, t):vts, defAxioms anames v def)
-        (Rec [(v, def)]:_) -> do let anames = findAxiomNames x cbs
-                                 vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
-                                 insertAxiom v (val x)
-                                 updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                                 updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                                 let t = makeAssumeType tce lmap x v (tySigs spec) anames  def
-                                 return $ ((val x, makeType v),
-                                          ((v, t): vts),
-                                          defAxioms anames v def)
-        _                  -> throwError $ mkError "Cannot extract measure from haskell function"
-  where
+        (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
+        (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
+        _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
-    --coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
-    --                        Left l  -> l :: [Def (RRType ()) DataCon] -- return     l
-    --                        Right _ -> error $ "ERROR" -- throwError e
+--------------------------------------------------------------------------------
+makeAxiom' :: F.TCEmb TyCon
+           -> LogicMap
+           -> [CoreBind]
+           -> GhcSpec
+           -> LocSymbol
+           -> Var
+           -> CoreExpr
+           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+--------------------------------------------------------------------------------
+makeAxiom' tce lmap cbs spec x v def = do
+  let anames = findAxiomNames x cbs
+  vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
+  insertAxiom v (val x)
+  updateLMap lmap x x v
+  updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
+  let t = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
+  return ( (val x, mkType x v)
+         , (v, t) : vts
+         , defAxioms anames v def )
 
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
+mkError :: LocSymbol -> String -> Error
+mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
-    makeType v       = x{val = ufType    $ varType v}
-
-
+mkType :: LocSymbol -> Var -> Located SpecType
+mkType x v = x {val = ufType $ varType v}
 
 makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> Located SpecType
 makeAssumeType tce lmap x v xts ams def
-  | not (null ams) 
+  | not (null ams)
   = x {val = axiomType x t}
-  | isBool $ ty_res trep  
-  = (x {val = at `strengthenRes` F.subst su bref})
+  | isBool (ty_res trep)
+  = x {val = at `strengthenRes` F.subst su bref}
   | otherwise
-  = (x {val = at `strengthenRes` F.subst su ref})
+  = x {val = at `strengthenRes` F.subst su ref}
   where
-    trep = toRTypeRep t 
+    trep = toRTypeRep t
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
-    at = axiomType x t 
+    at = axiomType x t
 
     le = case runToLogic tce lmap mkErr (coreToLogic def') of
-           Left e -> e
+           Left  e -> e
            Right e -> panic Nothing $ show e
 
     ble = case runToLogic tce lmap mkErr (coreToPred def') of
@@ -105,21 +107,21 @@ makeAssumeType tce lmap x v xts ams def
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
-    (xs, def') = grapBody $ normalize def 
-    su = F.mkSubst $ 
+    (xs, def') = grapBody $ normalize def
+    su = F.mkSubst $
              zip (F.symbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
              ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_binds (toRTypeRep at))
 
 
-    grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e') 
-    grapBody (Tick _ e) = grapBody e 
-    grapBody e          = ([], e) 
+    grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e')
+    grapBody (Tick _ e) = grapBody e
+    grapBody e          = ([], e)
 
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofReft r }
   where
-    trep = toRTypeRep t 
+    trep = toRTypeRep t
 
 binders :: Bind t -> [t]
 binders (NonRec x _) = [x]
@@ -133,20 +135,18 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun (ForAllTy _ t) = isFun t
     isFun  _             = False
 
-updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
+updateLMap _ x y vv
   = insertLogicEnv (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
-    makeProp e 
-      | isBool $ ty_res trep
+    makeProp e
+      | isBool (ty_res trep)
       = F.mkProp e
       | otherwise
-      = e 
+      = e
 
-
-    nargs = dropWhile isClassType $ ty_args trep 
-    trep  = toRTypeRep $ ((ofType $ varType vv) :: RRType ())
-
-    ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    nargs = dropWhile isClassType $ ty_args trep
+    trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
+    ys    = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
@@ -206,19 +206,21 @@ defAxioms vs v e = go [] $ normalize e
      goalt _ _  (LitAlt _,  _,  _) = todo Nothing "defAxioms: goalt Lit"
      goalt _ _  (DEFAULT,   _,  _) = todo Nothing "defAxioms: goalt Def"
 
-     mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
+     mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then mkConApp c (Var <$> ys) else Var y) <$> bs)
 
+     getSimpleName v = filterSingle (isSimple v) vs
+     getConName v c  = filterSingle (isCon v c) vs
 
-     getSimpleName v = case filter (\n -> (symbolString $ dropModuleNames $ simplesymbol n) == ("axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v))) vs of
-                        [x] -> Just x
-                        _   -> Nothing
-     getConName v c  = case filter (\n -> let aname = symbolString $ dropModuleNames $ simplesymbol n
-                                              dname = "axiom_" ++ (symbolString $ dropModuleNames $ simplesymbol v) ++ "_" ++ (symbolString $ dropModuleNames $ simplesymbol $ dataConWorkId c)
-                                          in (aname == dname)) vs of
-                        [x] -> Just x
-                        _   -> Nothing
+     isSimple v n    = simpleString n == axiomString v
+     simpleString    = symbolString . dropModuleNames . simplesymbol
+     axiomString     = ("axiom_" ++) . simpleString
+     isCon v c n     = simpleString n == axiomString v ++ "_" ++ simpleString (dataConWorkId c)
 
-{- 
+filterSingle :: (a -> Bool) -> [a] -> Maybe a
+filterSingle  f xs = case filter f xs of
+                      [x] -> Just x
+                      _   -> Nothing
+{-
 
 unANF :: Bind Var -> Expr Var -> Expr Var
 unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
@@ -230,19 +232,19 @@ class Subable a where
   subst :: (Var, CoreExpr) -> a -> a
 
 instance Subable Var where
-  subst (x, ex) z | x == z, Var y <- ex = y  
+  subst (x, ex) z | x == z, Var y <- ex = y
                   | otherwise           = z
 
 instance Subable CoreExpr where
-  subst (x, ex) (Var y) 
+  subst (x, ex) (Var y)
     | x == y    = ex
     | otherwise = Var y
-  subst su (App f e) 
+  subst su (App f e)
     = App (subst su f) (subst su e)
-  subst su (Lam x e) 
+  subst su (Lam x e)
     = Lam x (subst su e)
-  subst su (Case e x t alts) 
-    = Case (subst su e) x t (subst su <$> alts) 
+  subst su (Case e x t alts)
+    = Case (subst su e) x t (subst su <$> alts)
   subst su (Let (Rec xes) e)
     = Let (Rec (mapSnd (subst su) <$> xes)) (subst su e)
   subst su (Let (NonRec x ex) e)
@@ -251,12 +253,12 @@ instance Subable CoreExpr where
     = Cast (subst su e) t
   subst su (Tick t e)
     = Tick t (subst su e)
-  subst _ (Lit l) 
+  subst _ (Lit l)
     = Lit l
   subst _ (Coercion c)
-    = Coercion c 
+    = Coercion c
   subst _ (Type t)
-    = Type t   
+    = Type t
 
 instance Subable CoreAlt where
   subst su (c, xs, e) = (c, xs, subst su e)
@@ -265,23 +267,23 @@ instance Subable CoreAlt where
 axiomType :: LocSymbol -> SpecType -> SpecType
 axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
   where
-    t  = toRTypeRep t' 
+    t  = toRTypeRep t'
     ys = dropWhile isClassType $ ty_args t
-    xs = if isUnique (ty_binds t) 
-             then ty_binds t 
+    xs = if isUnique (ty_binds t)
+             then ty_binds t
              else (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
     x  = F.vv_
 
     res = ty_res t `strengthen` MkUReft ref mempty mempty
 
-    ref = if isBool (ty_res t) then bref else eref 
+    ref = if isBool (ty_res t) then bref else eref
 
     eref  = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
     bref = F.Reft (x, F.PIff (F.mkProp (F.EVar x)) (mkApp xs))
 
     mkApp = F.mkEApp s . map F.EVar
 
-    isUnique xs = length xs == length (L.nub xs) 
+    isUnique xs = length xs == length (L.nub xs)
 
 
 -- | Type for uninterpreted function that approximated Haskell function into logic

@@ -4,6 +4,8 @@ module Language.Haskell.Liquid.Types.Literals (
          literalFRefType
        , literalFReft
        , literalConst
+
+       , mkI, mkS 
        ) where
 
 import Prelude hiding (error)
@@ -13,7 +15,7 @@ import qualified TyCon  as TC
 import Language.Haskell.Liquid.Measure
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit)
+import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit, mkI, mkS)
 
 
 import qualified Language.Fixpoint.Types as F

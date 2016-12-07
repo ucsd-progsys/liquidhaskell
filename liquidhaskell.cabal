@@ -19,6 +19,7 @@ data-files: include/*.hquals
           , include/*.spec
           , include/CoreToLogic.lg
           , include/Control/*.spec
+          , include/Control/Parallel/*.spec
           , include/Data/*.hquals
           , include/Data/*.spec
           , include/Data/Text/*.spec
@@ -164,6 +165,7 @@ Library
                     Language.Haskell.Liquid.List,
                     Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint.Constraint,
+                    Language.Haskell.Liquid.Constraint.Init,
                     Language.Haskell.Liquid.Constraint.Monad,
                     Language.Haskell.Liquid.Constraint.Env,
                     Language.Haskell.Liquid.Constraint.Types,

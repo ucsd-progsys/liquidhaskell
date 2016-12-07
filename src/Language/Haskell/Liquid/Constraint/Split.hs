@@ -61,7 +61,7 @@ splitW ::  WfC -> CG [FixWfC]
 --------------------------------------------------------------------------------
 splitW (WfC γ t@(RFun x t1 t2 _))
   =  do ws'  <- splitW (WfC γ t1)
-        γ'   <- (γ, "splitW") += (x, t1)
+        γ'   <- γ += ("splitW", x, t1)
         ws   <- bsplitW γ t
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
@@ -72,8 +72,10 @@ splitW (WfC γ t@(RAppTy t1 t2 _))
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ (RAllT _ r))
-  = splitW (WfC γ r)
+splitW (WfC γ (RAllT a r))
+  = do γ' <- updateEnv γ a
+       splitW (WfC γ' r)
+
 
 splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
@@ -90,13 +92,13 @@ splitW (WfC γ t@(RApp _ ts rs _))
 
 splitW (WfC γ (RAllE x tx t))
   = do  ws  <- splitW (WfC γ tx)
-        γ'  <- (γ, "splitW") += (x, tx)
+        γ'  <- γ += ("splitW1", x, tx)
         ws' <- splitW (WfC γ' t)
         return $ ws ++ ws'
 
 splitW (WfC γ (REx x tx t))
   = do  ws  <- splitW (WfC γ tx)
-        γ'  <- (γ, "splitW") += (x, tx)
+        γ'  <- γ += ("splitW2", x, tx)
         ws' <- splitW (WfC γ' t)
         return $ ws ++ ws'
 
@@ -106,11 +108,13 @@ splitW (WfC _ t)
 rsplitW :: CGEnv
         -> Ref RSort SpecType
         -> CG [FixWfC]
-rsplitW _ (RProp _ (RHole _))
-  = panic Nothing "Constrains: rsplitW for RProp _ (RHole _)"
-rsplitW γ (RProp ss t0)
-  = do γ' <- foldM (++=) γ [("rsplitW", x, ofRSort s) | (x, s) <- ss]
-       splitW $ WfC γ' t0
+rsplitW _ (RProp _ (RHole _)) =
+  panic Nothing "Constrains: rsplitW for RProp _ (RHole _)"
+
+rsplitW γ (RProp ss t0) = do
+  γ' <- foldM (+=) γ [("rsplitW", x, ofRSort s) | (x, s) <- ss]
+  splitW $ WfC γ' t0
+
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t =
@@ -160,7 +164,7 @@ splitS (SubC γ t1 (RRTy _ _ _ t2))
 splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
   =  do cs       <- bsplitS t1 t2
         cs'      <- splitS  (SubC γ r2 r1)
-        γ'       <- (γ, "splitS") += (x2, r2)
+        γ'       <- γ += ("splitS1", x2, r2)
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2)
         cs''     <- splitS  (SubC γ' r1x2' r2')
         return    $ cs ++ cs' ++ cs''
@@ -181,12 +185,20 @@ splitS (SubC γ t1 (RAllP p t))
 splitS (SubC _ t1@(RAllP _ _) t2)
   = panic Nothing $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
+
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = splitS $ SubC γ t1 t2
+  = do γ' <- updateEnv γ α2
+       splitS $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = splitS $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
+  = do γ' <- updateEnv γ α2
+       splitS $ SubC γ' t1 (F.subst su t2')
+  where
+    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    su = case (rTVarToBind α1, rTVarToBind α2) of
+          (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
+          _                            -> F.mkSubst []
+
 
 splitS (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
@@ -259,39 +271,45 @@ splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
 splitfWithVariance f t1 t2 Contravariant = f t2 t1
 
+updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv
+updateEnv γ a
+  | Just (x, s) <- rTVarToBind a
+  = γ += ("splitS RAllT", x, fmap (const mempty) s)
+  | otherwise
+  = return γ
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
 splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
-  = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
+  = do γ' <- γ += ("addExBind 0", x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1 (REx x tx t2))
   = do y <- fresh
-       γ' <- (γ, "addExBind 1") += (y, forallExprRefType γ tx)
+       γ' <- γ += ("addExBind 1", y, forallExprRefType γ tx)
        splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 -- existential at the left hand side is treated like forall
 splitC (SubC γ (REx x tx t1) t2)
   = do -- let tx' = traceShow ("splitC: " ++ showpp z) tx
        y <- fresh
-       γ' <- (γ, "addExBind 2") += (y, forallExprRefType γ tx)
+       γ' <- γ += ("addExBind 2", y, forallExprRefType γ tx)
        splitC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
-  = do γ' <- (γ, "addAllBind 0") += (x, forallExprRefType γ tx)
+  = do γ' <- γ += ("addAllBind 3", x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (RAllE x tx t1) t2)
   = do y  <- fresh
-       γ' <- (γ, "addAABind 1") += (y, forallExprRefType γ tx)
+       γ' <- γ += ("addAABind 1", y, forallExprRefType γ tx)
        splitC (SubC γ' (t1 `F.subst1` (x, F.EVar y)) t2)
 
 splitC (SubC γ t1 (RAllE x tx t2))
   = do y  <- fresh
-       γ' <- (γ, "addAllBind 2") += (y, forallExprRefType γ tx)
+       γ' <- γ += ("addAllBind 2", y, forallExprRefType γ tx)
        splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 splitC (SubC γ (RRTy env _ OCons t1) t2)
@@ -310,8 +328,8 @@ splitC (SubC γ (RRTy e r o t1) t2)
 
 splitC (SubC γ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2))
   =  do cs'      <- splitC  (SubC γ t2 t1)
-        γ'       <- (γ, "splitC") += (x2, t2)
-        cs       <- bsplitC γ (RFun x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2))) 
+        γ'       <- γ+= ("splitC", x2, t2)
+        cs       <- bsplitC γ (RFun x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2)))
                               (RFun x2 t2 t2'  r2)
         let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
         cs''     <- splitC  (SubC γ' t1x2' t2')
@@ -335,11 +353,16 @@ splitC (SubC γ t1@(RAllP _ _) t2)
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
-  = splitC $ SubC γ t1 t2
+  = do γ' <- updateEnv γ α2
+       splitC $ SubC γ' t1 (F.subst su t2)
   | otherwise
-  = splitC $ SubC γ t1 t2'
-  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
-
+  = do γ' <- updateEnv γ α2
+       splitC $ SubC γ' t1 (F.subst su t2')
+  where
+    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    su = case (rTVarToBind α1, rTVarToBind α2) of
+          (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
+          _                            -> F.mkSubst []
 
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
@@ -360,8 +383,8 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
-splitC (SubC _ t1 t2)
-  = panic Nothing $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
+splitC (SubC γ t1 t2)
+  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -423,11 +446,6 @@ addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
     rE'       = insertREnv v t (renv γ)
     v         = rTypeValueVar t
 
-     -- γ'     <- γ ++= ("bsplitC", v, t1)
-       -- let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
-       -- let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
-       -- let F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
-
 checkStratum :: CGEnv
              -> RType t t1 (UReft r)
              -> RType t t1 (UReft r)
@@ -479,7 +497,7 @@ rsplitC _ (RProp _ (RHole _)) _
   = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
-  = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
+  = do γ'  <-  foldM (+=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
        splitC (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 

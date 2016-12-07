@@ -26,7 +26,7 @@ fst (a,b) = a
 measure snd :: (a,b) -> b
 snd (a,b) = b
 
-qualif Fst(v:a, y:b): (v = (fst y)) 
+qualif Fst(v:a, y:b): (v = (fst y))
 qualif Snd(v:a, y:b): (v = (snd y))
 
 
@@ -36,3 +36,5 @@ map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
 
 ($)       :: (a -> b) -> a -> b
 id        :: x:a -> {v:a | v = x}
+
+data variance Text.ParserCombinators.ReadPrec.ReadPrec contravariant

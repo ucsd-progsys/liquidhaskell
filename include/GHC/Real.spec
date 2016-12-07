@@ -13,9 +13,13 @@ class (GHC.Real.Real a, GHC.Enum.Enum a) => GHC.Real.Integral a where
                                                      ((x >= 0 && y >= 1) => v <= x) }
   GHC.Real.rem :: x:a -> y:{v:a | v /= 0} -> {v:a | ((v >= 0) && (v < y))}
   GHC.Real.mod :: x:a -> y:{v:a | v /= 0} -> {v:a | v = x mod y && ((0 <= x && 0 < y) => (0 <= v && v < y))}
+
   GHC.Real.div :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = (x / y)) &&
                                                     ((x >= 0 && y >= 0) => v >= 0) &&
-                                                    ((x >= 0 && y >= 1) => v <= x) }
+                                                    ((x >= 0 && y >= 1) => v <= x) && 
+                                                    ((1 < y)            => v < x ) && 
+                                                    ((y >= 1)           => v <= x)  
+                                                    }
   GHC.Real.quotRem :: x:a -> y:{v:a | v /= 0} -> ( {v:a | (v = (x / y)) &&
                                                           ((x >= 0 && y >= 0) => v >= 0) &&
                                                           ((x >= 0 && y >= 1) => v <= x)}

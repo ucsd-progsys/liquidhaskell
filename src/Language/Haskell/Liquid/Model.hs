@@ -29,7 +29,7 @@ import           Unsafe.Coerce
 import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
                                           mkSubst, subst)
 import           Language.Fixpoint.Smt.Interface
-import qualified Language.Fixpoint.Types.Config as FC  
+import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types         hiding (var)
@@ -170,11 +170,11 @@ withContext cfg s t act = do
 
 
 toFixCfg :: Config -> FC.Config
-toFixCfg cfg 
+toFixCfg cfg
   = FC.defConfig
      { FC.solver    = fromMaybe FC.Z3 $ smtsolver cfg
-     , FC.allowHO   = higherorder cfg
-     , FC.allowHOqs = higherorderqs cfg 
+     , FC.allowHO   = higherOrderFlag cfg
+     , FC.allowHOqs = higherorderqs   cfg 
      }
 
 dictProxy :: forall t. Dict (Targetable t) -> Proxy t

@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
    -- * Exit Function
    , exitWithResult
+   , addErrors
 
    -- * Diff check mode
    , diffcheck
@@ -54,7 +55,8 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
                                                    nonLinCuts, getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate, defConfig, extensionality)
+                                                   maxPartSize, eliminate, defConfig,
+                                                   extensionality, alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
@@ -64,7 +66,7 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
-import Language.Haskell.Liquid.Types       hiding (config, name, typ)
+import Language.Haskell.Liquid.Types       hiding (name, typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
@@ -110,6 +112,18 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow function extentionality axioms"
 
+ , alphaEquivalence
+    = def
+          &= help "Allow lambda alpha-equivalence axioms"
+
+ , betaEquivalence
+    = def
+          &= help "Allow lambda beta-equivalence axioms"
+
+ , normalForm
+    = def
+          &= help "Allow lambda normalization-equivalence axioms"
+
  , higherorderqs
     = def
           &= help "Allow higher order qualifiers to get automatically instantiated"
@@ -141,9 +155,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
- , trustinternals
-    = def &= help "Trust all ghc auto generated code"
-          &= name "trust-internals"
+ , trustInternals
+    = False &= help "Trust GHC generated code"
+            &= name "trust-internals"
 
  , nocaseexpand
     = def &= help "Don't expand the default case in a case-expression"
@@ -171,9 +185,6 @@ config = cmdArgsMode $ Config {
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
-
- , newcheck
-    = True &= help "New fixpoint check"
 
  , noCheckUnknown
     = def &= explicit
@@ -258,9 +269,9 @@ config = cmdArgsMode $ Config {
     = False &= name "no-eliminate"
             &= help "Don't use KVar elimination during solving"
 
-  , oldEliminate
-    = False &= name "old-eliminate"
-            &= help "Use old eliminate algorithm (temp. for benchmarking)"
+  --, oldEliminate
+  --  = False &= name "old-eliminate"
+  --          &= help "Use old eliminate algorithm (temp. for benchmarking)"
 
   , noPatternInline
     = False &= name "no-pattern-inline"
@@ -270,9 +281,9 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , packKVars
-    = False &= name "pack-kvars"
-            &= help "Use kvar packing during elimination"
+  --, packKVars
+  --  = False &= name "pack-kvars"
+  --          &= help "Use kvar packing during elimination"
 
   , nonLinCuts
     = True  &= name "non-linear-cuts"
@@ -354,13 +365,14 @@ fixDiffCheck :: Config -> Config
 fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
 envCfg :: IO Config
-envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
-            case so of
-              Nothing -> return defConfig
-              Just s  -> parsePragma $ envLoc s
-         where
-            envLoc  = Loc l l
-            l       = newPos "ENVIRONMENT" 0 0
+envCfg = do
+  so <- lookupEnv "LIQUIDHASKELL_OPTS"
+  case so of
+    Nothing -> return defConfig
+    Just s  -> parsePragma $ envLoc s
+  where
+    envLoc  = Loc l l
+    l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
@@ -397,11 +409,14 @@ parsePragma = withPragma defConfig
 defConfig :: Config
 defConfig = Config { files             = def
                    , idirs             = def
-                   , newcheck          = True
+                   --, newcheck          = True
                    , fullcheck         = def
                    , linear            = def
                    , higherorder       = def
                    , extensionality    = def
+                   , alphaEquivalence  = def
+                   , betaEquivalence   = def
+                   , normalForm        = def
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def
@@ -410,7 +425,7 @@ defConfig = Config { files             = def
                    , notermination     = def
                    , autoproofs        = def
                    , nowarnings        = def
-                   , trustinternals    = def
+                   , trustInternals    = False
                    , nocaseexpand      = def
                    , strata            = def
                    , notruetypes       = def
@@ -438,10 +453,10 @@ defConfig = Config { files             = def
                    , timeBinds         = False
                    , untidyCore        = False
                    , noEliminate       = False
-                   , oldEliminate      = False
+                   --, oldEliminate      = False
                    , noPatternInline   = False
                    , noSimplifyCore    = False
-                   , packKVars         = False
+                   --, packKVars         = False
                    , nonLinCuts        = True
                    }
 
@@ -455,30 +470,32 @@ exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 exitWithResult cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
-  let r = o_result out `addErrors` o_errors out
-  consoleResult cfg out r annm
-  return $ out { o_result = r }
+  -- let r = o_result out -- `addErrors` o_errors out
+  consoleResult cfg out annm
+  return out -- { o_result = r }
 
-consoleResult :: Config -> Output a -> ErrorResult -> ACSS.AnnMap -> IO ()
+consoleResult :: Config -> Output a -> ACSS.AnnMap -> IO ()
 consoleResult cfg
   | json cfg  = consoleResultJson cfg
   | otherwise = consoleResultFull cfg
 
-consoleResultFull :: Config -> Output a -> ErrorResult -> t -> IO ()
-consoleResultFull cfg out r _ = do
+consoleResultFull :: Config -> Output a -> t -> IO ()
+consoleResultFull cfg out _ = do
+   let r = o_result out
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
    writeResult cfg (colorResult r) cr
-   -- writeFile   (extFileName Result target) (showFix cr)
 
-consoleResultJson :: t -> t1 -> t2 -> ACSS.AnnMap -> IO ()
-consoleResultJson _ _ _ annm = do
+consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
+consoleResultJson _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . ACSS.errors $ annm
 
 resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
+instance Show (CtxError Doc) where
+  show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
@@ -512,8 +529,7 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
    TODO: Never used, do I need to exist?
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
-
-addErrors :: FixResult t -> [t] -> FixResult t
+addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)

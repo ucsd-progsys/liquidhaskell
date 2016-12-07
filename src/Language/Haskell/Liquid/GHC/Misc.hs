@@ -79,7 +79,6 @@ import           Language.Haskell.Liquid.Types.Errors
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
-
 data MGIModGuts = MI {
     mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
@@ -372,7 +371,7 @@ kindArity :: Kind -> Arity
 kindArity (FunTy _ res)
   = 1 + kindArity res
 kindArity (ForAllTy _ res)
-  = kindArity res
+  = 1 + kindArity res
 kindArity _
   = 0
 
@@ -459,8 +458,8 @@ fastStringText = T.decodeUtf8 . fastStringToByteString
 
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
-tyConTyVarsDef c | TC.isPromotedTyCon   c = panic Nothing ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
-tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
+tyConTyVarsDef c | TC.isPromotedTyCon   c = []
+tyConTyVarsDef c | TC.isPromotedDataCon c = []
 tyConTyVarsDef c = TC.tyConTyVars c
 
 --------------------------------------------------------------------------------

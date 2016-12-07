@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.Misc (
   , initMapSt
   , runMapTyVars
   , mapTyVars
+  , matchKindArgs
 
   , symbolRTyVar
   , simpleSymbolVar
@@ -25,6 +26,7 @@ import           TysWiredIn
 
 import           Id
 import           Type
+import           Kind                                  (isKind)
 import           TypeRep
 import           Var
 
@@ -79,7 +81,7 @@ makeSymbols f vs xs' xts yts ivs
 
 
 freeSymbols :: (Reftable r, TyConable c) => Located (RType c tv r) -> [Symbol]
-freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (const ()) f (const id) emptySEnv [] (val ty)
+freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) emptySEnv [] (val ty)
   where
     f γ _ r xs = let Reft (v, _) = toReft r in
                  [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
@@ -100,15 +102,15 @@ initMapSt = MTVST []
 runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
 runMapTyVars = execStateT
 
-mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> StateT MapTyVarST (Either Error) ()
+mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars τ (RAllT _ t)
   = mapTyVars τ t
 mapTyVars (ForAllTy _ τ) t
   = mapTyVars τ t
 mapTyVars (FunTy τ τ') (RFun _ t t' _)
-   = mapTyVars τ t  >> mapTyVars τ' t'
+   = mapTyVars τ t >> mapTyVars τ' t'
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
-   = zipWithM_ mapTyVars τs ts
+   = zipWithM_ mapTyVars τs (matchKindArgs' τs ts)
 mapTyVars (TyVarTy α) (RVar a _)
    = do s  <- get
         s' <- mapTyRVar α a s
@@ -130,6 +132,8 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
         mapTyVars τ' t'
 mapTyVars _ (RHole _)
   = return ()
+mapTyVars k _ | isKind k 
+  = return () 
 mapTyVars _ _
   = throwError =<< errmsg <$> get
 
@@ -141,8 +145,21 @@ mapTyRVar α a s@(MTVST αas err)
               | otherwise -> throwError err
       Nothing             -> return $ MTVST ((α,a):αas) err
 
+matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]
+matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
+  where
+    go (_:ts1) (t2:ts2) = t2:go ts1 ts2
+    go ts      []       | all isKind ts 
+                        = (ofType <$> ts) :: [SpecType]
+    go _       ts       = ts 
 
 
+matchKindArgs :: [SpecType] -> [SpecType] -> [SpecType]
+matchKindArgs ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
+  where
+    go (_:ts1) (t2:ts2) = t2:go ts1 ts2
+    go ts      []       = ts
+    go _       ts       = ts 
 
 mkVarExpr :: Id -> Expr
 mkVarExpr v

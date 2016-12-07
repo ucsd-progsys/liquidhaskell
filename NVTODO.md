@@ -1,3 +1,15 @@
+Dependent Types
+----------------
+
+- Check user defined sort is the same as Haskell sort. 
+  Now user defined sort is ignored after parsing. 
+
+
+
+
+
+
+
 Equational Reasoning 
 --------------------
 
