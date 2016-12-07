@@ -23,10 +23,8 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
-
-
 import Data.Default
-
+-- import Data.Either (either)
 import Prelude hiding (mapM, error)
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
@@ -87,32 +85,26 @@ makeHaskellInlines _   _   name' (name, _   ) | name /= name'
 makeHaskellInlines tce cbs _     (_   , spec)
   = do lmap <- gets logicEnv
        mapM_ (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
-  where
-    cbs'                  = concatMap unrec cbs
-    unrec cb@(NonRec _ _) = [cb]
-    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+    where
+      cbs'                  = concatMap unrec cbs
+      unrec cb@(NonRec _ _) = [cb]
+      unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM ()
-makeMeasureInline tce lmap cbs  x
-  = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> do {e <- coreToFun' tce x v def; updateInlines x e}
-    (Rec [(v, def)]:_) -> do {e <- coreToFun' tce x v def; updateInlines x e}
-    _                  -> throwError $ mkError "Cannot inline haskell function"
+makeMeasureInline tce lmap cbs x =
+  case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
+    (NonRec v def:_)   -> coreToFun' tce lmap x v def ok >>= updateInlines x
+    (Rec [(v, def)]:_) -> coreToFun' tce lmap x v def ok >>= updateInlines x
+    _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
-    binders (NonRec z _) = [z]
-    binders (Rec xes)    = fst <$> xes
+    ok (xs, e) = return (TI (symbol <$> xs) (either id id e))
 
-    coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Right (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
-                           Left e -> throwError e
+binders :: CoreBind -> [Id]
+binders (NonRec z _) = [z]
+binders (Rec xes)    = fst <$> xes
 
-    fromLR (Left l)  = l
-    fromLR (Right r) = r
-
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
-
+errHMeas :: LocSymbol -> String -> Error
+errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 updateInlines :: LocSymbol -> TInline -> BareM ()
 updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
@@ -272,28 +264,27 @@ makeHaskellBounds tce cbs xs
        M.fromList <$> mapM (makeHaskellBound tce lmap cbs) (S.toList xs)
 
 
-makeHaskellBound :: MonadError Error m
-                 => F.TCEmb TyCon
+makeHaskellBound :: F.TCEmb TyCon
                  -> LogicMap
                  -> [Bind Var]
                  -> (Var, Located Symbol)
-                 -> m (LocSymbol, RBound)
-makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
-    (NonRec v def:_)   -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
-    (Rec [(v, def)]:_) -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
-    _                  -> throwError $ mkError "Cannot make bound of haskell function"
+                 -> BareM (LocSymbol, RBound)
+makeHaskellBound tce lmap  cbs (v, x) =
+  case filter ((v  `elem`) . binders) cbs of
+    (NonRec v def:_)   -> toBound v x <$> coreToFun' tce lmap x v def return
+    (Rec [(v, def)]:_) -> toBound v x <$> coreToFun' tce lmap x v def return
+    _                  -> throwError $ errHMeas x "Cannot make bound of haskell function"
 
-  where
-    binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes
-
-    coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Right (xs, e) -> return (xs, e)
-                           Left e      -> throwError e
-
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
+coreToFun' :: F.TCEmb TyCon
+           -> LogicMap
+           -> LocSymbol
+           -> Var
+           -> CoreExpr
+           -> (([Var], Either F.Expr F.Expr) -> BareM a)
+           -> BareM a
+coreToFun' tce lmap x v def ok
+  = either throwError ok
+  $ runToLogic tce lmap (errHMeas x) (coreToFun x v def)
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)
 toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
