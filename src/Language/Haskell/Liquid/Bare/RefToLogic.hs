@@ -34,7 +34,7 @@ class Transformable a where
   tx' :: LogicMap -> InlnEnv -> a -> a
   tx' lmap imap x = M.foldrWithKey tx x limap
     where
-      limap       = M.fromList ((mapSnd Left <$> (M.toList $ logic_map lmap)) ++ (mapSnd Right <$> M.toList imap))
+      limap       = M.fromList ((mapSnd Left <$> M.toList (logic_map lmap)) ++ (mapSnd Right <$> M.toList imap))
 
 
 instance (Transformable a) => (Transformable [a]) where
@@ -111,7 +111,7 @@ instance Transformable Expr where
 
 
 instance Transformable (Measure t c) where
-  tx s m x = x{eqns = tx s m <$> (eqns x)}
+  tx s m x = x { eqns = tx s m <$> eqns x }
 
 instance Transformable (Def t c) where
         tx s m x = x{body = tx s m (body x)}
@@ -135,13 +135,13 @@ txEApp (s,m) e = go f
     go f        = eApps (tx s m f) (tx s m <$> es)
 
 txEApp' :: (Symbol, Either LMap TInline) -> Symbol -> [Expr] -> Expr
-txEApp' (s, (Left (LMap _ xs e))) f es
+txEApp' (s, Left (LMap _ xs e)) f es
   | cmpSymbol s f && length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es
 
-txEApp' (s, (Right (TI xs e))) f es
+txEApp' (s, Right (TI xs e)) f es
   | cmpSymbol s f && length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
@@ -160,8 +160,8 @@ txPApp (s, m) f es = txEApp (s, m) f es
 
 cmpSymbol :: Symbol -> Symbol -> Bool
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  =  (dropModuleUnique s1) == (dropModuleNamesAndUnique s2)
-  || (dropModuleUnique s1) == (dropModuleUnique s2)
+  =  (dropModuleUnique s1 == dropModuleNamesAndUnique s2)
+  || (dropModuleUnique s1 == dropModuleUnique s2)
 
 
 dropModuleNamesAndUnique :: Symbol -> Symbol

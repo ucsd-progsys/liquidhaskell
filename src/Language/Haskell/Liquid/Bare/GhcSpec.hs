@@ -135,7 +135,8 @@ makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> Nam
 makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        makeRTEnv  specs
-       (tycons, datacons, dcSs, recSs, tyi, embs) <- makeGhcSpecCHOP1 instenv cfg specs
+       embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
+       (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -384,17 +385,20 @@ insertHMeasLogicEnv _
   = return ()
 
 makeGhcSpecCHOP1
-  :: Maybe [ClsInst] -> Config -> [(ModName,Ms.Spec ty bndr)]
-  -> BareM ([(TyCon,TyConP)],[(DataCon,DataConP)],[Measure SpecType DataCon],[(Var,Located SpecType)],M.HashMap TyCon RTyCon,TCEmb TyCon)
-makeGhcSpecCHOP1 instenv cfg specs
-  = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
-       let tycons       = tcs        ++ wiredTyCons
-       let tyi          = makeTyConInfo tycons
-       embs            <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
-       datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-       let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
-       recSels         <- makeRecordSelectorSigs datacons
-       return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, embs)
+  :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon
+  -> BareM ( [(TyCon,TyConP)]
+           , [(DataCon,DataConP)]
+           , [Measure SpecType DataCon]
+           , [(Var,Located SpecType)]
+           , M.HashMap TyCon RTyCon     )
+makeGhcSpecCHOP1 cfg specs embs = do
+  (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
+  let tycons       = tcs        ++ wiredTyCons
+  let tyi          = makeTyConInfo tycons
+  datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+  let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
+  recSels         <- makeRecordSelectorSigs datacons
+  return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi)
 
 makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]

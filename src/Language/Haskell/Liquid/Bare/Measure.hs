@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TupleSections    #-}
-{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
@@ -114,11 +113,18 @@ makeMeasureInline tce lmap cbs  x
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 
-updateInlines :: MonadState BareEnv m => Located Symbol -> TInline -> m ()
-updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
-                                   s{inlines = M.map (f iold) iold }
+
+updateInlines :: LocSymbol -> TInline -> BareM ()
+updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
+                                   s { inlines = M.map (f iold) iold }
   where
     f             = txRefToLogic mempty
+
+
+
+
+
+
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition tce lmap cbs x
