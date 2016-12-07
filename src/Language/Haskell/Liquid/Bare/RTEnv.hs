@@ -30,13 +30,16 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> BareM ()
-makeRTEnv _name _xils specs
-  = do makeREAliases ets
-       makeRTAliases rts
+makeRTEnv m xils specs
+  = do makeREAliases (eAs ++ eAs')
+       makeRTAliases tAs
     where
-       rts  = concat [(m,) <$> Ms.aliases  s | (m, s) <- specs]
-       ets  = concat [(m,) <$> Ms.ealiases s | (m, s) <- specs]
-       _ets' = undefined -- HEREHEREHEREHEREHEREHERE :: "xils -> [RTAlias Symbol Expr]"
+      tAs   = [ (m, t) | (m, s) <- specs,    t <- Ms.aliases s     ]
+      eAs   = [ (m, e) | (m, s) <- specs,    e <- Ms.ealiases s    ]
+      eAs'  = [ (m, e) | xil    <- xils, let e  = inlineEAlias xil ]
+
+inlineEAlias :: (LocSymbol, TInline) -> RTAlias Symbol Expr
+inlineEAlias (x, TI ys e) = RTA (val x) [] ys e (loc x) (loc x)
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody

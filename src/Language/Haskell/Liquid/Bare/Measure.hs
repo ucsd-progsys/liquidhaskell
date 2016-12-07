@@ -66,7 +66,7 @@ import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.RefToLogic
+-- import Language.Haskell.Liquid.Bare.RefToLogic
 
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   _   name' (name, _   ) | name /= name'
@@ -107,12 +107,12 @@ binders (Rec xes)    = fst <$> xes
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
--- RJ: gross in place substitutions!!!
-_updateInlines :: LocSymbol -> TInline -> BareM ()
-_updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
-                                   s { inlines = M.map (f iold) iold }
-  where
-    f             = txRefToLogic mempty
+-- -- RJ: gross in place substitutions!!!
+-- _updateInlines :: LocSymbol -> TInline -> BareM ()
+-- _updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
+                                   -- s { inlines = M.map (f iold) iold }
+  -- where
+    -- f             = txRefToLogic mempty
 
 
 

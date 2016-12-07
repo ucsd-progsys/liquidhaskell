@@ -38,15 +38,15 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3)
+import           Language.Fixpoint.Misc                     (thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
+import           Language.Haskell.Liquid.Misc               (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc           (dropModuleNames, showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
-import           Language.Fixpoint.Misc               (mapSnd)
 import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -135,7 +135,7 @@ makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> Nam
 makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
-       xils          <- mapM (makeHaskellInlines embs cbs name) specs -- HOIST ME
+       xils          <- concatMapM (makeHaskellInlines embs cbs name) specs -- HOIST ME
        makeRTEnv name xils specs
        (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs

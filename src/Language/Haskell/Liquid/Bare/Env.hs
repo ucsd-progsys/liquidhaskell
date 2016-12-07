@@ -74,7 +74,7 @@ data BareEnv = BE { modName  :: !ModName
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv
                   , logicEnv :: LogicMap
-                  , inlines  :: InlnEnv
+                  -- , inlines  :: InlnEnv
                   , bounds   :: RBEnv
                   , embeds   :: TCEmb TyCon
                   }
