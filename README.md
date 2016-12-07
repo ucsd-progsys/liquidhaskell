@@ -463,14 +463,32 @@ To deactivate this automatic measure definition, and speed up verification, you 
   liquid --no-measure-fields test.hs
 
 
+
 Prune Unsorted Predicates
 -------------------------
 
-By default unsorted predicates are pruned away (yielding `true`
-for the corresponding refinement.) To disable this behavior
-use the `no-prune-unsorted` flag.
+Consider a measure over lists of integers
 
-    liquid --no-prune-unsorted test.hs
+  sum :: [Int] -> Int
+  sum [] = 0 
+  sum (x:xs) = 1 + sum xs 
+
+This measure will translate into strengthening the types of list constructors 
+
+  [] :: {v:[Int] | sum v = 0 }
+  (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
+
+But what if our list is polymorphic `[a]` and later instantiate to list of ints?
+The hack we do right now is to strengthen the polymorphic list with the `sum` information 
+
+  [] :: {v:[a] | sum v = 0 }
+  (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
+
+But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash. 
+We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic. 
+
+
+    liquid --prune-unsorted test.hs
 
 
 Case Expansion
