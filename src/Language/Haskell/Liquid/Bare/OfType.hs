@@ -62,7 +62,7 @@ import Language.Haskell.Liquid.Bare.Resolve
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expandReft)
+  = ofBRType expandRTAliasApp (resolve l <=< expand)
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
@@ -92,11 +92,9 @@ mkSpecType :: SourcePos -> BareType -> BareM SpecType
 mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' l πs t
-  = ofBRType expandRTAliasApp resolveReft t
+mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft t
   where
-    resolveReft
-      = (resolve l <=< expandReft) . txParam l subvUReft (uPVar <$> πs) t
+    resolveReft    = (resolve l <=< expand) . txParam l subvUReft (uPVar <$> πs) t
 
 
 txParam :: SourcePos

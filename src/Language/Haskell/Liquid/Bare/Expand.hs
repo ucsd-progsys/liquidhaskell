@@ -1,8 +1,11 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 
 module Language.Haskell.Liquid.Bare.Expand (
-    expandReft
-  , expandExpr
+    ExpandAliases (..)
+  -- , expandReft
+  -- , expandExpr
   ) where
 
 import           Prelude                          hiding (error)
@@ -13,29 +16,57 @@ import           Language.Haskell.Liquid.Misc     (safeZipWithError)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
+class ExpandAliases a where
+  expand :: a -> BareM a
+
+-- instance (ExpandAliases a) => ExpandAliases (UReft a) where
+  -- expand (MkUReft a y z) = (\b -> MkUReft b y z) <$> expand a
+
+
+instance ExpandAliases Expr where
+  expand = expandExpr
+
+instance ExpandAliases Reft where
+  expand = txPredReft' expandExpr
+
+
+instance ExpandAliases SpecType where
+  expand = mapReftM expand
+
+instance (ExpandAliases b) => ExpandAliases (a, b) where
+  expand (x, y) = (x, ) <$> expand y
+
+-- TODO: fix overlapping instances
+-- instance (Traversable t, ExpandAliases a) => ExpandAliases (t a) where
+--   expand = mapM expand
+
+instance ExpandAliases RReft where
+  expand = mapM expand
+
+instance (ExpandAliases a) => ExpandAliases (Located a) where
+  expand = mapM expand
+
+instance (ExpandAliases a) => ExpandAliases [a] where
+  expand = mapM expand
+
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------
 --------------------------------------------------------------------------------
+-- expandReft :: RReft -> BareM RReft
+-- expandReft = txPredReft expandExpr
+--
+-- txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
+-- txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' f (ur_reft u)
 
-expandReft :: RReft -> BareM RReft
-expandReft = txPredReft expandExpr
-
-txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
-txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
-  where
-    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> f ra
+txPredReft' :: (Expr -> BareM Expr) -> Reft -> BareM Reft
+txPredReft' f (Reft (v, ra)) = Reft . (v,) <$> f ra
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-
-
 expandExpr :: Expr -> BareM Expr
-
 expandExpr e@(EApp _ _)
   = expandEApp $ splitEApp e
-
 expandExpr (ENeg e)
   = ENeg <$> expandExpr e
 expandExpr (EBin op e1 e2)
@@ -87,7 +118,7 @@ expandExpr (PExist s e)
 
 expandEApp :: (Expr,[Expr]) -> BareM Expr
 expandEApp (EVar f, es)
-  = do env <- gets (exprAliases.rtEnv)
+  = do env <- gets (exprAliases . rtEnv)
        case M.lookup f env of
          Just re ->
            expandApp re <$> mapM expandExpr es

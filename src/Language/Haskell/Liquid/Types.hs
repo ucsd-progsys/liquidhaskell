@@ -810,7 +810,7 @@ data UReft r
             , ur_pred   :: !Predicate
             , ur_strata :: !Strata
             }
-    deriving (Generic, Data, Typeable, Functor)
+    deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
 
 type BRType     = RType BTyCon BTyVar
 type RRType     = RType RTyCon RTyVar

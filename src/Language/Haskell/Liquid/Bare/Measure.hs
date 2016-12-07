@@ -140,10 +140,13 @@ makeMeasureDefinition tce lmap cbs x
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
-strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
+
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
+
+
 strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskell strengthen hmeas sigs
   = go <$> groupList ((reverse sigs) ++ hsigs)
@@ -323,6 +326,6 @@ expandMeasureDef d
        return $ d { body = body }
 
 expandMeasureBody :: SourcePos -> Body -> BareM Body
-expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandExpr p)
-expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandExpr p)
+expandMeasureBody l (P p)   = P   <$> (resolve l =<< expand p)
+expandMeasureBody l (R x p) = R x <$> (resolve l =<< expand p)
 expandMeasureBody l (E e)   = E   <$> resolve l e

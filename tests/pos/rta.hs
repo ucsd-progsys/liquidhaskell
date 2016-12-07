@@ -1,14 +1,14 @@
 module RTA where
 
-{-@ predicate Goober X Y = X > Y @-}
+{-@ predicate Mouse X Y = X > Y @-}
 
-{-@ inline goober @-}
-goober :: (Ord a) => a -> a -> Bool
-goober x y = x > y
+{-@ inline mickey @-}
+mickey :: (Ord a) => a -> a -> Bool
+mickey x y = x > y
 
-{-@ type PosInline    a N = {v:a | goober v N} @-}
+{-@ type PosInline    a N = {v:a | mickey v N} @-}
 
-{-@ type PosPredicate a N = {v:a | Goober v N} @-}
+{-@ type PosPredicate a N = {v:a | Mouse v N} @-}
 
 {-@ incrI :: PosInline Int 0 -> PosInline Int 0 @-}
 incrI :: Int -> Int

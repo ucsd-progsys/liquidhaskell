@@ -12,26 +12,21 @@ import Data.Maybe
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-
-import Language.Fixpoint.Misc (fst3)
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
-
-import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
-import Language.Haskell.Liquid.Types
-
-
+import           Language.Fixpoint.Misc (fst3)
+import           Language.Fixpoint.Types (Expr(..), Symbol, symbol, tracepp)
+import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
+import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
+import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
-
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.Bare.Resolve
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Expand
+import           Language.Haskell.Liquid.Bare.OfType
+import           Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> BareM ()
 makeRTEnv m xils specs
-  = do makeREAliases (eAs ++ eAs')
+  = do makeREAliases (tracepp "eAliases" $ eAs ++ eAs')
        makeRTAliases tAs
     where
       tAs   = [ (m, t) | (m, s) <- specs,    t <- Ms.aliases s     ]
@@ -58,7 +53,7 @@ makeREAliases
       = inModule mod $
           do let l  = rtPos  xt
              let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expandExpr (rtBody xt)
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expand (rtBody xt)
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 

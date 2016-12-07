@@ -72,11 +72,11 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
      | otherwise  = t
 
 
-{- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
+{- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
 
-CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
+   CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
 
-CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+   CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
 -}
 
 strengthenResult :: Var -> SpecType
@@ -87,15 +87,16 @@ strengthenResult v
   | otherwise
   = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
     fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
-  where rep = toRTypeRep t
-        res = ty_res rep
-        xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
-        r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
-        vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
-        f   = dummyLoc $ dropModuleNames $ simplesymbol v
-        t   = (ofType $ varType v) :: SpecType
-        mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
+  where
+    rep = toRTypeRep t
+    res = ty_res rep
+    xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
+    r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
+    r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
+    vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
+    f   = dummyLoc $ dropModuleNames $ simplesymbol v
+    t   = (ofType $ varType v) :: SpecType
+    mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
 strengthenResult' :: Var -> SpecType
@@ -109,8 +110,8 @@ strengthenResult' v
 
         -- refine types of meaures: keep going until you find the last data con!
         -- this code is a hack! we refine the last data constructor,
-        -- it got complicated to suport both
-        -- 1. multy parameter measures     (see tests/pos/HasElem.hs)
+        -- it got complicated to support both
+        -- 1. multi parameter measures     (see tests/pos/HasElem.hs)
         -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
         -- to simplify, drop support for multi parameter measures
         go f args i (RAllT a t)
@@ -127,7 +128,7 @@ strengthenResult' v
         go f args _ t
           = t `strengthen` f args
 
-        hasRApps (RApp _ _ _ _)   = True
+        hasRApps (RApp {})        = True
         hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
         hasRApps _                = False
 

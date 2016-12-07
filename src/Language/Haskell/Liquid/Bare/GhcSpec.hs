@@ -61,6 +61,7 @@ import           Language.Haskell.Liquid.Bare.Misc          (makeSymbols, mkVarE
 import           Language.Haskell.Liquid.Bare.Plugged
 import           Language.Haskell.Liquid.Bare.RTEnv
 import           Language.Haskell.Liquid.Bare.Spec
+import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
 -- import           Language.Haskell.Liquid.Bare.RefToLogic
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
@@ -212,7 +213,6 @@ makeAxioms tce cbs spec sp
                      , gsLogicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
--- emptySpec cfg = SP [] [] [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 emptySpec cfg = SP
   { gsTySigs     = mempty
   , gsAsmSigs    = mempty
@@ -323,7 +323,7 @@ makeGhcSpec3 datacons tycons embs syms sp
 
 makeGhcSpec4 :: [Qualifier]
              -> [Var]
-             -> [(ModName,Ms.Spec ty bndr)]
+             -> [(ModName, Ms.Spec ty bndr)]
              -> ModName
              -> Subst
              -> GhcSpec
@@ -343,8 +343,8 @@ makeGhcSpec4 quals defVars specs name su sp
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
        mapM_ insertHMeasLogicEnv $ S.toList hinls
        lmap'   <- logicEnv <$> get
-       let isgs = strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-       let msgs = strengthenHaskellMeasures (S.map fst hmeas) isgs
+       isgs    <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
+       msgs    <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
        -- lmap    <- logicEnv <$> get
        -- inlmap  <- inlines  <$> get
        -- let mtx  = txRefToLogic lmap inlmap

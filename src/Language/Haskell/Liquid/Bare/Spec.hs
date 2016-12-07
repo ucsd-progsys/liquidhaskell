@@ -120,15 +120,12 @@ makeHBounds vs spec = varSymbols id vs [(v, v ) | v <- S.toList $ Ms.hbounds spe
 makeTExpr :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, [Located F.Expr])]
 makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
 
-
-makeHInlines :: [Var]
-             -> Ms.Spec ty bndr
-             -> BareM [(Located Var, LocSymbol)]
-makeHMeas :: [Var]
-           -> Ms.Spec ty bndr
-           -> BareM [(Located Var, LocSymbol)]
+makeHInlines :: [Var] -> Ms.Spec ty bndr -> BareM [(Located Var, LocSymbol)]
 makeHInlines = makeHIMeas Ms.inlines
-makeHMeas    = makeHIMeas Ms.hmeas
+
+makeHMeas :: [Var] -> Ms.Spec ty bndr -> BareM [(Located Var, LocSymbol)]
+makeHMeas = makeHIMeas Ms.hmeas
+
 makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
            -> [Var]
            -> Ms.Spec ty bndr
@@ -136,16 +133,17 @@ makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
 makeHIMeas f vs spec
   = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (f spec)]
   where
-    tx (x,(l, l', s))  = (Loc l l' x, s)
+    tx (x, (l, l', s))  = (Loc l l' x, s)
 
 varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
-varSymbols f vs  = concatMapM go
-  where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
-        sym        = dropModuleNames . F.symbol . showPpr
-        locVar v   = (getSourcePos v, v)
-        go (s, ns) = case M.lookup (val s) lvs of
-                     Just lvs -> return ((, ns) <$> varsAfter f s lvs)
-                     Nothing  -> ((:[]).(,ns)) <$> lookupGhcVar s
+varSymbols f vs = concatMapM go
+  where
+    lvs         = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
+    sym         = dropModuleNames . F.symbol . showPpr
+    locVar v    = (getSourcePos v, v)
+    go (s, ns)  = case M.lookup (val s) lvs of
+                    Just lvs -> return  ((, ns) <$> varsAfter f s lvs)
+                    Nothing  -> ((:[]) . (,ns)) <$> lookupGhcVar s
 
 varsAfter :: ([b] -> [b]) -> Located a -> [(F.SourcePos, b)] -> [b]
 varsAfter f s lvs
