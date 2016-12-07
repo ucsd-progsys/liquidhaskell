@@ -8,7 +8,6 @@ module Language.Haskell.Liquid.Bare.DataType (
   , makeRecordSelectorSigs
   , dataConSpec
   , meetDataConSpec
-
   , makeNumericInfo
   ) where
 
@@ -179,7 +178,7 @@ ofBDataCon :: SourcePos
            -> [Symbol]
            -> [PVar RSort]
            -> (Located Symbol,[(Symbol,BareType)])
-           -> BareM (DataCon,DataConP)
+           -> BareM (DataCon, DataConP)
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts

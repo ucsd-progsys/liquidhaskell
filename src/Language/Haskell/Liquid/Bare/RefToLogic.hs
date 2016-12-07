@@ -7,22 +7,13 @@ module Language.Haskell.Liquid.Bare.RefToLogic (
 
   ) where
 
-import Prelude hiding (error)
-
-import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Misc (mapSnd)
-import Language.Haskell.Liquid.Bare.Env
-
-import Language.Fixpoint.Types hiding (R)
-
-
-import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique, dropModuleNames)
-
-
-
+import           Prelude hiding (error)
+import           Language.Haskell.Liquid.Types
+import           Language.Fixpoint.Misc (mapSnd)
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Fixpoint.Types hiding (R)
+import           Language.Haskell.Liquid.GHC.Misc (dropModuleUnique, dropModuleNames)
 import qualified Data.HashMap.Strict as M
-
-
 
 txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'

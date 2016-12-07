@@ -106,6 +106,7 @@ binders (Rec xes)    = fst <$> xes
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
+-- RJ: gross in place substitutions!!!
 updateInlines :: LocSymbol -> TInline -> BareM ()
 updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
                                    s { inlines = M.map (f iold) iold }

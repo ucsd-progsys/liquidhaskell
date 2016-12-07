@@ -346,10 +346,10 @@ makeGhcSpec4 quals defVars specs name su sp
        let msgs = strengthenHaskellMeasures (S.map fst hmeas) isgs
        lmap    <- logicEnv <$> get
        inlmap  <- inlines  <$> get
-       let f    = fmap $ txRefToLogic lmap inlmap
-       let tx   = mapSnd f
        let mtx  = txRefToLogic lmap inlmap
-       let txdcons d = d{tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
+       let f    = fmap mtx
+       let tx   = mapSnd f
+       let txdcons d = d { tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
        return   $ sp { gsQualifiers = subst su quals
                      , gsDecr       = decr'
                      , gsLvars      = lvars'
@@ -389,7 +389,7 @@ makeGhcSpecCHOP1
   -> BareM ( [(TyCon,TyConP)]
            , [(DataCon,DataConP)]
            , [Measure SpecType DataCon]
-           , [(Var,Located SpecType)]
+           , [(Var, Located SpecType)]
            , M.HashMap TyCon RTyCon     )
 makeGhcSpecCHOP1 cfg specs embs = do
   (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
