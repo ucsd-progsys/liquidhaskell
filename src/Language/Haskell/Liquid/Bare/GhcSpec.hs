@@ -62,7 +62,7 @@ import           Language.Haskell.Liquid.Bare.Plugged
 import           Language.Haskell.Liquid.Bare.RTEnv
 import           Language.Haskell.Liquid.Bare.Spec
 import           Language.Haskell.Liquid.Bare.SymSort
-import           Language.Haskell.Liquid.Bare.RefToLogic
+-- import           Language.Haskell.Liquid.Bare.RefToLogic
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 
 --------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 listLMap :: LogicMap
@@ -312,11 +312,11 @@ makeGhcSpec2 invs ntys ialias measures su sp
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(t, Var)] -> GhcSpec -> BareM GhcSpec
 makeGhcSpec3 datacons tycons embs syms sp
   = do tcEnv       <- tcEnv    <$> get
-       lmap        <- logicEnv <$> get
-       inlmap      <- inlines  <$> get
-       let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
+       -- lmap        <- logicEnv <$> get
+       -- inlmap      <- inlines  <$> get
+       -- let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
        return  $ sp { gsTyconEnv = tcEnv
-                    , gsDconsP   = dcons'
+                    , gsDconsP   = datacons -- dcons'
                     , gsTconsP   = tycons
                     , gsTcEmbeds = embs
                     , gsFreeSyms = [(symbol v, v) | (_, v) <- syms] }
@@ -345,27 +345,27 @@ makeGhcSpec4 quals defVars specs name su sp
        lmap'   <- logicEnv <$> get
        let isgs = strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
        let msgs = strengthenHaskellMeasures (S.map fst hmeas) isgs
-       lmap    <- logicEnv <$> get
-       inlmap  <- inlines  <$> get
-       let mtx  = txRefToLogic lmap inlmap
-       let f    = fmap mtx
-       let tx   = mapSnd f
-       let txdcons d = d { tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
+       -- lmap    <- logicEnv <$> get
+       -- inlmap  <- inlines  <$> get
+       -- let mtx  = txRefToLogic lmap inlmap
+       -- let f    = fmap mtx
+       -- let tx   = mapSnd f
+       -- let txdcons d = d { tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
        return   $ sp { gsQualifiers = subst su quals
                      , gsDecr       = decr'
                      , gsLvars      = lvars'
                      , gsAutosize   = asize'
                      , gsLazy       = S.insert dictionaryVar lazies
-                     , gsTySigs     = tx  <$> msgs
-                     , gsAsmSigs    = tx  <$> gsAsmSigs  sp
-                     , gsInSigs     = tx  <$> gsInSigs   sp
-                     , gsMeasures = mtx <$> gsMeasures sp
-                     , gsLogicMap = lmap'
-                     , gsInvariants = tx <$> gsInvariants sp
-                     , gsCtors      = tx <$> gsCtors      sp
-                     , gsIaliases   = tx <$> gsIaliases   sp
-                     , gsDconsP     = mapSnd txdcons <$> gsDconsP sp
-                     , gsTexprs     = mapSnd f <$> texprs'
+                     , gsLogicMap   = lmap'
+                     , gsTySigs     = {- tx  <$>      -} msgs
+                     , gsTexprs     = {- mapSnd f <$> -} texprs'
+                     -- , gsAsmSigs    = tx  <$> gsAsmSigs  sp
+                     -- , gsInSigs     = tx  <$> gsInSigs   sp
+                     -- , gsMeasures   = mtx <$> gsMeasures sp
+                     -- , gsInvariants = tx <$> gsInvariants sp
+                     -- , gsCtors      = tx <$> gsCtors      sp
+                     -- , gsIaliases   = tx <$> gsIaliases   sp
+                     -- , gsDconsP     = mapSnd txdcons <$> gsDconsP sp
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
