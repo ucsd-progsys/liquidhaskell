@@ -29,14 +29,14 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
-makeRTEnv :: [(ModName, Ms.Spec ty bndr)] -> BareM ()
-makeRTEnv specs
+makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> BareM ()
+makeRTEnv _name _xils specs
   = do makeREAliases ets
        makeRTAliases rts
     where
-       rts = concat [(m,) <$> Ms.aliases  s | (m, s) <- specs]
-       ets = concat [(m,) <$> Ms.ealiases s | (m, s) <- specs]
-
+       rts  = concat [(m,) <$> Ms.aliases  s | (m, s) <- specs]
+       ets  = concat [(m,) <$> Ms.ealiases s | (m, s) <- specs]
+       _ets' = undefined -- HEREHEREHEREHEREHEREHERE :: "xils -> [RTAlias Symbol Expr]"
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody

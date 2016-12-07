@@ -79,22 +79,23 @@ makeHaskellMeasures tce cbs _     (_   , spec)
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM ()
-makeHaskellInlines _   _   name' (name, _   ) | name /= name'
+makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM [(LocSymbol, TInline)]
+makeHaskellInlines tce cbs name' (name, spec)
+  | name /= name'
   = return mempty
-makeHaskellInlines tce cbs _     (_   , spec)
+  | otherwise
   = do lmap <- gets logicEnv
-       mapM_ (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
+       mapM (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
     where
       cbs'                  = concatMap unrec cbs
       unrec cb@(NonRec _ _) = [cb]
       unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM ()
+makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, TInline)
 makeMeasureInline tce lmap cbs x =
   case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> coreToFun' tce lmap x v def ok >>= updateInlines x
-    (Rec [(v, def)]:_) -> coreToFun' tce lmap x v def ok >>= updateInlines x
+    (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok -- >>= updateInlines x
+    (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok -- >>= updateInlines x
     _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
     ok (xs, e) = return (TI (symbol <$> xs) (either id id e))
@@ -107,8 +108,8 @@ errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 -- RJ: gross in place substitutions!!!
-updateInlines :: LocSymbol -> TInline -> BareM ()
-updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
+_updateInlines :: LocSymbol -> TInline -> BareM ()
+_updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
                                    s { inlines = M.map (f iold) iold }
   where
     f             = txRefToLogic mempty

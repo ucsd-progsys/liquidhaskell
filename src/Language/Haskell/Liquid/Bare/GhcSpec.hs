@@ -134,8 +134,9 @@ makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> Nam
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
-       makeRTEnv  specs
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
+       xils          <- mapM (makeHaskellInlines embs cbs name) specs -- HOIST ME
+       makeRTEnv name xils specs
        (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs
        modify                                   $ \be -> be { tcEnv = tyi }
@@ -474,7 +475,6 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
   = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
        tyi         <- gets tcEnv
        name        <- gets modName
-       mapM_ (makeHaskellInlines embs cbs name) specs -- HOIST ME
        hmeans      <- mapM (makeHaskellMeasures embs cbs name) specs
        let measures = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms) = makeMeasureSpec' measures
