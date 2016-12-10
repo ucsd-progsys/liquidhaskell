@@ -33,11 +33,8 @@ instance ExpandAliases SpecType where
   expand = mapReftM expand
 
 instance (ExpandAliases b) => ExpandAliases (a, b) where
-  expand (x, y) = (x, ) <$> expand y
-
--- TODO: fix overlapping instances
--- instance (Traversable t, ExpandAliases a) => ExpandAliases (t a) where
---   expand = mapM expand
+  -- expand (x, y) = (x, ) <$> expand y
+  expand = mapM expand -- (x, y) = (x, ) <$> expand y
 
 instance ExpandAliases RReft where
   expand = mapM expand
