@@ -14,7 +14,7 @@ import GHC.Exts
 
 GHC.Exts.D# :: x:_ -> {v:_ | v = x}
 
-assume GHC.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
+assume GHC.Base.. :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
                      {xcmp::a, wcmp::b<q xcmp> |- c<p wcmp> <: c<r xcmp>}
                      (ycmp:b -> c<p ycmp>)
                   -> (zcmp:a -> b<q zcmp>)
