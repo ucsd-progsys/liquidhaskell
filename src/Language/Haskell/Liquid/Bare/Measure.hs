@@ -146,10 +146,9 @@ strengthenHaskellInlines  = strengthenHaskell strengthenResult
 strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
 
-
 strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
 strengthenHaskell strengthen hmeas sigs
-  = go <$> groupList ((reverse sigs) ++ hsigs)
+  = go <$> groupList (reverse sigs ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs

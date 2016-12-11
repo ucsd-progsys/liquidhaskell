@@ -1,6 +1,26 @@
 TODO
 ====
 
+Deprecate Prop
+--------------
+
+In FP:
+
+1. hack eApp to REJECT `Prop e`
+2. hide propConName
+3. hide mkProp
+
+
+In LH:
+
+1. add embed clause in include
+2. make sure we use F.mkProp
+3. delete
+
+GHC/Base.spec
+11:measure Prop   :: GHC.Types.Bool -> Prop
+
+
 Check Covariance
 ----------------
 
