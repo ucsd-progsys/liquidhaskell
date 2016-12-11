@@ -43,7 +43,7 @@ len5 = [1, 2, 3, 4, 5]
 
 {-@ measure length @-}
 
-{-@ foo  :: x:[a] -> {v: Bool | (Prop v) <=> (nonEmpty x) } @-}
+{-@ foo  :: x:[a] -> {v: Bool | v <=> (nonEmpty x) } @-}
 foo  :: [a] -> Bool
 foo x = nonEmpty x
 
