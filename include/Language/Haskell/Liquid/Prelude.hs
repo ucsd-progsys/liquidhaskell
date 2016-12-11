@@ -9,12 +9,12 @@ module Language.Haskell.Liquid.Prelude where
 {-@ assume plus   :: x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}  @-}
 {-@ assume minus  :: x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x - y} @-}
 {-@ assume times  :: x:Int -> y:Int -> Int                           @-}
-{-@ assume eq     :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x = y)}  @-}
-{-@ assume neq    :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x != y)} @-}
-{-@ assume leq    :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x <= y)} @-}
-{-@ assume geq    :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x >= y)} @-}
-{-@ assume lt     :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x < y)}  @-}
-{-@ assume gt     :: x:Int -> y:Int -> {v:Bool | ((Prop v) <=> x > y)}  @-}
+{-@ assume eq     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x = y)}  @-}
+{-@ assume neq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x != y)} @-}
+{-@ assume leq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x <= y)} @-}
+{-@ assume geq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x >= y)} @-}
+{-@ assume lt     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x < y)}  @-}
+{-@ assume gt     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x > y)}  @-}
 
 {-# NOINLINE plus #-}
 plus :: Int -> Int -> Int
@@ -61,22 +61,22 @@ gt x y = x > y
 -------------------------------------------------------------------
 
 
-{-@ assume liquidAssertB :: x:{v:Bool | (Prop v)} -> {v: Bool | (Prop v)} @-}
+{-@ assume liquidAssertB :: x:{v:Bool | v} -> {v: Bool | v} @-}
 {-# NOINLINE liquidAssertB #-}
 liquidAssertB :: Bool -> Bool
 liquidAssertB b = b
 
-{-@ assume liquidAssert :: {v:Bool | (Prop v)} -> a -> a  @-}
+{-@ assume liquidAssert :: {v:Bool | v} -> a -> a  @-}
 {-# NOINLINE liquidAssert #-}
 liquidAssert :: Bool -> a -> a
 liquidAssert _ x = x
 
-{-@ assume liquidAssume :: b:Bool -> a -> {v: a | (Prop b)}  @-}
+{-@ assume liquidAssume :: b:Bool -> a -> {v: a | b}  @-}
 {-# NOINLINE liquidAssume #-}
 liquidAssume :: Bool -> a -> a
 liquidAssume _ x = x
 
-{-@ assume liquidAssumeB :: forall <p :: a -> Prop>. (a<p> -> {v:Bool| ((Prop v) <=> true)}) -> a -> a<p> @-}
+{-@ assume liquidAssumeB :: forall <p :: a -> Bool>. (a<p> -> {v:Bool| v}) -> a -> a<p> @-}
 liquidAssumeB :: (a -> Bool) -> a -> a
 liquidAssumeB p x | p x = x
                   | otherwise = error "liquidAssumeB fails"
@@ -88,7 +88,7 @@ liquidAssumeB p x | p x = x
 liquidError :: String -> a
 liquidError = error
 
-{-@ assume crash  :: forall a . x:{v:Bool | (Prop v)} -> a @-}
+{-@ assume crash  :: forall a . x:{v:Bool | v} -> a @-}
 {-# NOINLINE crash #-}
 crash :: Bool -> a
 crash = undefined
@@ -106,12 +106,12 @@ choose = undefined
 -------------------------------------------------------------------
 
 -- tedium because fixpoint doesnt want to deal with (x mod y) only (x mod c)
-{-@ assume isEven :: x:Int -> {v:Bool | ((Prop v) <=> ((x mod 2) = 0))} @-}
+{-@ assume isEven :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 0))} @-}
 {-# NOINLINE isEven #-}
 isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 
-{-@ assume isOdd :: x:Int -> {v:Bool | ((Prop v) <=> ((x mod 2) = 1))} @-}
+{-@ assume isOdd :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 1))} @-}
 {-# NOINLINE isOdd #-}
 isOdd   :: Int -> Bool
 isOdd x = x `mod` 2 == 1
@@ -127,7 +127,7 @@ safeZipWith _ _ _ = error "safeZipWith: cannot happen!"
 
 
 
-{-@ (==>) :: p:Bool -> q:Bool -> {v:Bool | Prop v <=> (Prop p =>  Prop q)} @-}
+{-@ (==>) :: p:Bool -> q:Bool -> {v:Bool | v <=> (p =>  q)} @-}
 infixr 8 ==>
 (==>) :: Bool -> Bool -> Bool
 False ==> False = True

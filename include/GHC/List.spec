@@ -6,7 +6,7 @@ tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1) && 
 last         :: xs:{v: [a] | len(v) > 0} -> a
 
 init         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}
-null         :: xs:[a] -> {v: Bool | (Prop(v) <=> len(xs) = 0) }
+null         :: xs:[a] -> {v: Bool | ((v) <=> len(xs) = 0) }
 length       :: xs:[a] -> {v: GHC.Types.Int | v = len(xs)}
 filter       :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) }

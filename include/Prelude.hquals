@@ -26,8 +26,8 @@ qualif Cmp(v:a, x:a)  : (v != x)
 
 
 qualif One(v:int)     : v = 1
-qualif True1(v:GHC.Types.Bool)   : (Prop(v))
-qualif False1(v:GHC.Types.Bool)  : (~ Prop(v))
+qualif True1(v:GHC.Types.Bool)   : (v)
+qualif False1(v:GHC.Types.Bool)  : (~ v)
 
 
 constant papp1 : func(1, [Pred @(0); @(0); bool])
@@ -43,5 +43,5 @@ constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
 constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
 
 
-constant Prop : func(0, [GHC.Types.Bool; bool])
+// constant Prop : func(0, [GHC.Types.Bool; bool])
 constant runFun : func(2, [Arrow @(0) @(1); @(0); @(1)])

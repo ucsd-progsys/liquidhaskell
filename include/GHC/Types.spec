@@ -11,11 +11,11 @@ cmp GHC.Types.LT = { v | v = GHC.Types.LT }
 cmp GHC.Types.GT = { v | v = GHC.Types.GT }
 
 
-GHC.Types.True  :: {v:GHC.Types.Bool | (Prop(v))}
-GHC.Types.False :: {v:GHC.Types.Bool | (~ (Prop(v)))}
+GHC.Types.True  :: {v:GHC.Types.Bool | ((v))}
+GHC.Types.False :: {v:GHC.Types.Bool | (~ ((v)))}
 
 
-GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> (Prop(v)))}
+GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> ((v)))}
 
 
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
