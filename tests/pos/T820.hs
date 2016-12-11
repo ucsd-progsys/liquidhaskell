@@ -12,9 +12,9 @@ data Foo = Foo { x :: Int -> Int , y :: Int }
 
 {-@ data VerifiedEq a = VerifiedEq {
       eq :: a -> a -> Bool
-    , refl :: x:a -> { v:() | Prop (eq x x) }
-    , sym :: x:a -> y:a -> { v:() | Prop (eq x y) ==> Prop (eq y x) }
-    , trans :: x:a -> y:a -> z:a -> { v:() | Prop (eq x y) && Prop (eq y z) ==> Prop (eq x z) }
+    , refl :: x:a -> { v:() | (eq x x) }
+    , sym :: x:a -> y:a -> { v:() | (eq x y) ==> (eq y x) }
+    , trans :: x:a -> y:a -> z:a -> { v:() | (eq x y) && (eq y z) ==> (eq x z) }
     }
 @-}
 data VerifiedEq a = VerifiedEq {
@@ -26,9 +26,9 @@ data VerifiedEq a = VerifiedEq {
 
 {-@ data VerifiedOrd a = VerifiedOrd {
       leq :: (a -> a -> Bool)
-    , total :: (x:a -> y:a -> { Prop (leq x y) || Prop (leq y x) })
-    , antisym :: (x:a -> y:a -> { Prop (leq x y) || Prop (leq y x) ==> x == y })
-    , trans2 :: (x:a -> y:a -> z:a -> { Prop (leq x y) && Prop (leq y z) ==> Prop (leq x z) })
+    , total :: (x:a -> y:a -> { (leq x y) || (leq y x) })
+    , antisym :: (x:a -> y:a -> { (leq x y) || (leq y x) ==> x == y })
+    , trans2 :: (x:a -> y:a -> z:a -> { (leq x y) && (leq y z) ==> (leq x z) })
     , verifiedEq :: VerifiedEq a
     }
 @-}
