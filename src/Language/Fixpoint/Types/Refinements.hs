@@ -61,7 +61,7 @@ module Language.Fixpoint.Types.Refinements (
   , uexprReft               -- singleton: v ~~ e
   , symbolReft              -- singleton: v == x
   , usymbolReft             -- singleton: v ~~ x
-  , propReft                -- singleton: Prop(v) <=> p
+  , propReft                -- singleton: v <=> p
   , predReft                -- any pred : p
   , reftPred
   , reftBind
@@ -637,7 +637,7 @@ pExist []  p = p
 pExist xts p = PExist xts p
 
 mkProp :: Expr -> Pred
-mkProp = EApp (EVar propConName)
+mkProp = id -- EApp (EVar propConName)
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------

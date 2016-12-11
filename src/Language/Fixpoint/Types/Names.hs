@@ -80,7 +80,7 @@ module Language.Fixpoint.Types.Names (
   , listConName
   , listLConName
   , tupConName
-  , propConName
+  -- , propConName
   , hpropConName
   , strConName
   , nilName
