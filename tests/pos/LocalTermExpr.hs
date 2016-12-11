@@ -14,7 +14,7 @@ mysum xs = go 0 0
 myfoo = foo 5 True
   where
     n = False
-    {-@ foo :: n:_ -> b:{_ | n >= 0 && Prop b} -> {v:_ | n >= 0 && (Prop b)} / [n-0] @-}
+    {-@ foo :: n:_ -> b:{_ | n >= 0 && b} -> {v:_ | n >= 0 && b} / [n-0] @-}
     foo :: Int -> Bool -> Bool
     foo 0 _ = True
     foo n b = foo (n-1) b

@@ -7,7 +7,7 @@ foo :: Maybe a -> a
 foo (Just x)  = x 
 foo (Nothing) = error "foo"
 
-{-@ bar :: x:Maybe a -> {v:Bool | ((isJust(x)) <=> Prop(v)) } @-}
+{-@ bar :: x:Maybe a -> {v:Bool | v <=> isJust x } @-}
 bar (Just x)  = True 
 bar (Nothing) = False
 
