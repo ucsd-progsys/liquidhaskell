@@ -57,6 +57,6 @@ fromString :: String -> SMTString
 fromString = S . ST.fromString 
 
 
-{-@ isNullString :: i:SMTString -> {b:Bool | Prop b <=> stringLen i == 0 } @-} 
+{-@ isNullString :: i:SMTString -> {b:Bool | b <=> stringLen i == 0 } @-} 
 isNullString :: SMTString -> Bool 
 isNullString (S s) = BS.length s == 0 

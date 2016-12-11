@@ -33,7 +33,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
--- import TysWiredIn (boolTyCon)
+import TysWiredIn (boolTyCon)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -52,7 +52,7 @@ import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.WiredIn  (propTyCon)
+-- import Language.Haskell.Liquid.WiredIn  (propTyCon)
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types
@@ -151,7 +151,7 @@ strengthenHaskell strengthen hmeas sigs
   = go <$> groupList (reverse sigs ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
-    go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
+    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
 
 meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
@@ -174,7 +174,7 @@ makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
     n             = length xts
-    bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType
+    bareBool      = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
     checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n
 
@@ -187,7 +187,7 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 
 -- tyConDataCons
 makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon
-makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> (filter (/=dc) dcs))}
+makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> filter (/=dc) dcs)}
   where
     eqn    = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (P F.PTrue)
     eqns d = Def x [] d Nothing (((, Nothing) . mkx) <$> [1 .. (length $ dataConOrigArgTys d)]) (P F.PFalse)

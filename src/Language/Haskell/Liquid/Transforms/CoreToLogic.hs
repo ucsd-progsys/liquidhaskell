@@ -216,8 +216,8 @@ coreToPd (C.Var x)
   = return PFalse
   | x == trueDataConId
   = return PTrue
-  | eqType boolTy (varType x)
-  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
+--  | eqType boolTy (varType x)
+--  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToPd p@(C.App _ _) = toPredApp p
 coreToPd e
   = coreToLg e
@@ -245,8 +245,8 @@ coreToLg (C.Var x)
   = return PFalse
   | x == trueDataConId
   = return PTrue
-  | eqType boolTy (varType x)
-  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
+--  | eqType boolTy (varType x)
+--  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy

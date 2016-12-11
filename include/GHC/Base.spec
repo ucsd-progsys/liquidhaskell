@@ -7,7 +7,6 @@ import GHC.Types
 
 embed GHC.Types.Int      as int
 embed GHC.Types.Bool     as bool
-embed Prop               as bool
 
 measure autolen :: forall a. a -> GHC.Types.Int
 class measure len :: forall f a. f a -> GHC.Types.Int

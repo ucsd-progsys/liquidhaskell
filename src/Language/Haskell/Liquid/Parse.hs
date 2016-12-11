@@ -408,7 +408,7 @@ mkPredVarType t
   | isOk      = Right $ zip xs ts
   | otherwise = Left err
   where
-    isOk      = isPropBareType tOut || isHPropBareType tOut
+    isOk      = isPropBareType tOut -- || isHPropBareType tOut
     tOut      = ty_res trep
     trep      = toRTypeRep t
     xs        = ty_binds trep
@@ -420,15 +420,6 @@ xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
 data ArrowSym = ArrowFun | ArrowPred
 
-
--- arrowP :: EBind -> Parser ArrowSym
--- arrowP eb = do
-  -- a <- arrowP'
-  -- case (a, eb) of
-    -- (ArrowPred, Left x) -> parserFail $ "Cannot use binder " ++ showpp x ++ " at class constraint"
-    -- (_        , _     ) -> return a
-
-
 arrowP :: Parser ArrowSym
 arrowP
   =   (reserved "->" >> return ArrowFun)
@@ -436,7 +427,7 @@ arrowP
 
 bareFunP :: Parser (RType BTyCon BTyVar (UReft Reft))
 bareFunP = do
-  eb   <- eBindP -- try (Left <$> funBindP) <|> (Right <$> dummyBindP)
+  eb   <- eBindP
   let b = eBindSym eb
   t1   <- bareArgP b
   a    <- arrowP
@@ -470,10 +461,10 @@ bareArrow eb t1 ArrowPred t2
       sp = fSrcSpanSrcSpan . srcSpan $ eb
 
 isPropBareType :: RType BTyCon t t1 -> Bool
-isPropBareType  = isPrimBareType propConName
+isPropBareType  = isPrimBareType boolConName -- propConName
 
-isHPropBareType :: RType BTyCon t t1 -> Bool
-isHPropBareType = isPrimBareType hpropConName
+-- isHPropBareType :: RType BTyCon t t1 -> Bool
+-- isHPropBareType = isPrimBareType hpropConName
 
 isPrimBareType :: Symbol -> RType BTyCon t t1 -> Bool
 isPrimBareType n (RApp tc [] _ _) = val (btc_tc tc) == n
