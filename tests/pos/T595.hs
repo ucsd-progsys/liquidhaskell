@@ -12,7 +12,7 @@ type Thing = [()] -- Vector ()
 {-@
 data Test = Test
     { vec  :: Thing
-    , x0   :: { x0 : Bool | len vec < 1 ==> Prop x0 }
+    , x0   :: { x0 : Bool | ((len vec) < 1) ==> x0 }
     }
 @-}
 
@@ -20,7 +20,7 @@ data Test = Test
 -- for the record selectors
 
 {- vec :: x:Test -> {v:Thing | v = vec x} -}
-{- x0  :: x:Test -> {v:Bool  | v = x0 x  && ((len (vec x) < 1) => Prop v) } -}
+{- x0  :: x:Test -> {v:Bool  | v = x0 x  && ((len (vec x) < 1) => v) } -}
 
 example :: Test -> ()
 example t =
