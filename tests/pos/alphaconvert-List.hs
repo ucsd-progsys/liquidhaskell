@@ -38,11 +38,11 @@ data Expr
     fv (App e a)     = (Set_cup (fv e) (fv a)) 
   @-}
 
-{-@ measure isAbs    :: Expr -> Prop
-    isAbs (Var v)    = false
-    isAbs (Abs v e)  = true
-    isAbs (App e a)  = false             
-  @-}
+{-@ measure isAbs  @-}
+isAbs :: Expr -> Bool 
+isAbs (Abs v e)  = True
+isAbs (Var v)    = False
+isAbs (App e a)  = False             
 
 {-@ predicate AddV E E2 X E1   = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
 {-@ predicate EqV E1 E2        = fv E1 = fv E2                                        @-}
@@ -103,7 +103,7 @@ maxs (x:xs) = if (x > maxs xs) then x else (maxs xs)
     maxs (x:xs) = if (x > maxs xs) then x else (maxs xs) 
   @-}
 
-{-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | Prop v && NotElem x xs} @-}
+{-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | v && NotElem x xs} @-}
 lemma1 _ []     = True 
 lemma1 x (_:ys) = lemma1 x ys 
 
@@ -136,7 +136,7 @@ free (Abs x e)   = free e \\ x
 {-@ (\\)      :: (Eq a) => xs:[a] -> y:a -> {v:[a] | IsDel v xs y} @-}
 xs   \\ y     = [x | x <- xs, x /= y]
 
-{-@ elem      :: (Eq a) => x:a -> ys:[a] -> {v:Bool | Prop v <=> Elem x ys} @-}
+{-@ elem      :: (Eq a) => x:a -> ys:[a] -> {v:Bool | v <=> Elem x ys} @-}
 elem x []     = False
 elem x (y:ys) = x == y || elem x ys
  
