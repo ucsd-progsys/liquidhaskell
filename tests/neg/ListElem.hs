@@ -5,7 +5,7 @@ import Data.Set
 {-@ listElem :: (Eq a)
              => y:a
              -> xs:[a]
-             -> {v:Bool | Prop v <=> Set_mem y (listElts xs)}
+             -> {v:Bool | v <=> Set_mem y (listElts xs)}
   @-}
 
 listElem :: (Eq a) => a -> [a] -> Bool
