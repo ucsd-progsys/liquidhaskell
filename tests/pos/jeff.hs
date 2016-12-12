@@ -173,14 +173,14 @@ myIndices alg t bs
 {-@ type ByteStringN N  = {v:BS.ByteString | bLength v == N}   @-}
 {-@ type MatchIdxsT T   = {v:MatchIdxs | targ v == T}          @-}
 
-{-@ assume BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | (Prop v) => (bLength targ <= bLength s) } @-}
+{-@ assume BS.isSuffixOf :: targ:_ -> s:_ -> {v:_ | v => (bLength targ <= bLength s) } @-}
 {-@ assume BS.length  :: b:BS.ByteString -> {v:Nat | v == bLength b}  @-}
 {-@ assume BS.empty   :: {v:BS.ByteString | bLength v == 0}    @-}
 {-@ assume BS.take    :: n:Nat -> b:BS.ByteString -> ByteStringN {min n (bLength b)} @-}
 {-@ assume BS.drop    :: n:Nat -> b:{BS.ByteString | n <= bLength b} -> ByteStringN {bLength b - n} @-}
 {-@ assume BS.inits   :: b:BS.ByteString -> [{v:BS.ByteString | bLength v <= bLength b}] @-}
 {-@ assume BS.append  :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
-{-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | Prop v <=> (bLength b == 0)} @-}
+{-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | v <=> (bLength b == 0)} @-}
 {-@ assume BS.splitAt :: n:Nat -> b:BS.ByteString -> (ByteStringN {min n (bLength b)}, ByteStringN {max 0 (bLength b - n)}) @-}
 {-@ assume BS.head    :: BS.ByteString -> Data.Word.Word8 @-}
 

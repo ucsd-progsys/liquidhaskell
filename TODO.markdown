@@ -4,21 +4,22 @@ TODO
 Deprecate Prop
 --------------
 
-In FP:
+* jeff.hs
+  inline.hs
+  min, max unbound?
+  need to "expand" the gsAssumes
 
-1. hack eApp to REJECT `Prop e`
-2. hide propConName
-3. hide mkProp
 
 
-In LH:
+* tests/pos/dropwhile.hs
+* tests/pos/filterabs.hs
+  crash: SMTLIB2 respSat = Error "line 445 column 142: invalid function application for papp2, sort mismatch on argument at position 2, expected Int but given Bool"
+  int vs bool in papp3
 
-1. add embed clause in include
-2. make sure we use F.mkProp
-3. delete
 
-GHC/Base.spec
-11:measure Prop   :: GHC.Types.Bool -> Prop
+* tests/pos/elems.hs
+  expand Data.Set.Base.member to set_mem using the CoreToLogic business.
+  i.e. make sure that LMap expansion also done by `expand`
 
 
 Check Covariance
