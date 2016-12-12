@@ -4,6 +4,9 @@ TODO
 Deprecate Prop
 --------------
 
+* tests/pos/bool1.hs
+  get == to work on Bool (bool) 
+
 * jeff.hs
   inline.hs
   min, max unbound?
