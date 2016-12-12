@@ -33,11 +33,10 @@ data Expr
     fv (App e a)     = (Set_cup (fv e) (fv a)) 
   @-}
 
-{-@ measure isAbs    :: Expr -> Prop
-    isAbs (Var v)    = false
-    isAbs (Abs v e)  = true
-    isAbs (App e a)  = false             
-  @-}
+{-@ measure isAbs @-}
+isAbs (Var v)    = False
+isAbs (Abs v e)  = True
+isAbs (App e a)  = False             
 
 {-@ predicate Elem  X Ys       = Set_mem X Ys               @-}
 {-@ predicate NotElem X Ys     = not (Elem X Ys)            @-}

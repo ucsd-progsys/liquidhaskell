@@ -9,9 +9,8 @@ Deprecate Prop
   min, max unbound?
   need to "expand" the gsAssumes
 
-
-
 * tests/pos/dropwhile.hs
+
 * tests/pos/filterabs.hs
   crash: SMTLIB2 respSat = Error "line 445 column 142: invalid function application for papp2, sort mismatch on argument at position 2, expected Int but given Bool"
   int vs bool in papp3
