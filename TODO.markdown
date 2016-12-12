@@ -4,15 +4,21 @@ TODO
 Deprecate Prop
 --------------
 
-* tests/pos/bool1.hs
-  get == to work on Bool (bool) 
-
 * jeff.hs
   inline.hs
   min, max unbound?
   need to "expand" the gsAssumes
 
-* tests/pos/dropwhile.hs, tests/pos/filterabs.hs, deptup.hs, pair.hs  
+* pair.hs, eq-poly-measure.hs  
+  works with --higherorder which actually does the defunc. sigh.
+
+* deptup.hs
+    - UNSAFE with --higherorder
+    - CRASH without --higherorder
+    crash: SMTLIB2 respSat = Error "line 789 column 192: invalid function application for <, sort mismatch on argument at position 1, expected Int but given Bool"
+
+* tests/pos/dropwhile.hs, tests/pos/filterabs.hs (works with --higherorder)
+
   crash: SMTLIB2 respSat = Error "line 445 column 142: invalid function application for papp2, sort mismatch on argument at position 2, expected Int but given Bool"
   int vs bool in papp3
 
