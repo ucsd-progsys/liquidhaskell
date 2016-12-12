@@ -2,11 +2,11 @@ module Deptup0 () where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
+{-@ data Pair a b <p :: x0:a -> x1:b -> Bool> = P (x :: a) (y :: b<p x>) @-} 
 data Pair a b = P a b
 
 
-{-- TODO: mkP :: forall a b <p :: a -> b -> Prop>. x: a -> y: b<p x> -> Pair <p> a b  --}
+{-- TODO: mkP :: forall a b <p :: a -> b -> Bool>. x: a -> y: b<p x> -> Pair <p> a b  --}
 
 mkP :: a -> a -> Pair a a 
 mkP x y = P x y
