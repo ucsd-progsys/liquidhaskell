@@ -606,12 +606,11 @@ checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` (errNonNumeric s
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` (errNonFractional s2)
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractional s1)
 
-checkRelTy _ e Eq t1 t2
-  | t1 == boolSort ||
-    t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy _ e Ne t1 t2
-  | t1 == boolSort ||
-    t2 == boolSort                 = throwError $ errRel e t1 t2
+-- checkRelTy _ e Eq t1 t2
+--   | t1 == boolSort || t2 == boolSort = throwError $ errRel e t1 t2
+-- checkRelTy _ e Ne t1 t2
+--   | t1 == boolSort || t2 == boolSort = throwError $ errRel e t1 t2
+
 checkRelTy f e Eq t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy f e Ne t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 
