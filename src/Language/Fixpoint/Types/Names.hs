@@ -80,6 +80,7 @@ module Language.Fixpoint.Types.Names (
   , listConName
   , listLConName
   , tupConName
+  , setConName
   -- , propConName
   -- , hpropConName
   , strConName
@@ -496,10 +497,11 @@ dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
-listConName, listLConName, tupConName, _propConName, _hpropConName, strConName, vvName :: Symbol
+listConName, listLConName, tupConName, _propConName, _hpropConName, strConName, vvName, setConName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
+setConName   = "Set_Set"
 _propConName  = "Prop"
 _hpropConName = "HProp"
 strConName   = "Str"
@@ -531,7 +533,7 @@ prims = [ _propConName
         , "Pred"
         , "List"
         , "[]"
-        , "Set_Set"
+        , setConName
         , "Set_sng"
         , "Set_cup"
         , "Set_cap"

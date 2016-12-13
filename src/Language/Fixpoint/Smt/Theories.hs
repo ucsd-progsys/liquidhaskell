@@ -16,7 +16,7 @@ module Language.Fixpoint.Smt.Theories
      , preamble
 
        -- * Bit Vector Operations
-     , isBv, sizeBv
+     , sizeBv
 
      , isTheorySymbol
      , theoryEnv
@@ -30,9 +30,11 @@ module Language.Fixpoint.Smt.Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
      , boolInt
-     
+
       -- * Query Theories
      , isSmt2App
+     , isSet
+     , isBv
      ) where
 
 import           Prelude hiding (map)
@@ -264,9 +266,11 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
-
 isBv :: FTycon -> Bool
 isBv = (bitVecName ==) . val . fTyconSymbol
+
+isSet :: FTycon -> Bool
+isSet = (setConName ==) . val . fTyconSymbol
 
 sizeBv :: FTycon -> Maybe Int
 sizeBv tc
@@ -286,7 +290,7 @@ smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
 
 smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
-  | fTyconSymbol c == "Set_Set" = Just $ build "{}" (Only set)
+  | isSet c                     = Just $ build "{}" (Only set)
 smt2Sort (FApp (FApp (FTC c) _) _)
   | fTyconSymbol c == "Map_t"   = Just $ build "{}" (Only map)
 smt2Sort (FApp (FTC bv) (FTC s))

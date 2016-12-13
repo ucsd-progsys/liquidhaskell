@@ -173,7 +173,7 @@ resultType str e _ = go $ exprSort e
 
 makeFunSymbol :: Sort -> Symbol
 makeFunSymbol s
-  | (FApp (FTC c) _)          <- s, fTyconSymbol c == "Set_Set"
+  | (FApp (FTC c) _)          <- s, Thy.isSet c
   = setApplyName 1
   | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
   = mapApplyName 1
@@ -190,7 +190,7 @@ makeFunSymbol s
 
 toInt :: Expr -> Expr
 toInt e
-  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
+  |  (FApp (FTC c) _)         <- s, Thy.isSet c 
   = castWith setToIntName e
   | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
   = castWith mapToIntName e
