@@ -17,25 +17,25 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Bit Vector Operations
      , sizeBv
+     , toInt
 
      , isTheorySymbol
      , theoryEnv
 
        -- * String
      , string
-     , strLen, genLen
+     , strLen
+     , genLen
 
        -- * Theories
      , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
-     , boolInt
 
       -- * Query Theories
      , isSmt2App
      , isConName
-     -- , isSet
-     -- , isBv
+
      ) where
 
 import           Prelude hiding (map)
@@ -60,7 +60,7 @@ elt  = "Elt"
 set  = "Set"
 map  = "Map"
 
-emp, add, cup, cap, mem, dif, sub, com, sel, sto, b2i :: Raw
+emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
 emp   = "smt_set_emp"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
@@ -71,9 +71,8 @@ sub   = "smt_set_sub"
 com   = "smt_set_com"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
-b2i   = "smt_bool_int"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto, boolInt :: Symbol
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -86,7 +85,6 @@ setDif   = "Set_dif"
 setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
-boolInt  = "BoolInt"
 
 
 strLen, strSubstr, genLen, strConcat :: Symbol
@@ -146,7 +144,7 @@ z3Preamble u
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
     , format "(define-fun {} ((b Bool)) Int (ite b 1 0))"
-        (Only b2i)
+        (Only (boolToIntName :: T.Text))
     , uifDef u (symbolText mulFuncName) ("*"   :: T.Text)
     , uifDef u (symbolText divFuncName) "div"
     ]
@@ -179,7 +177,8 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
-    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))" (Only b2i)
+    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))"
+        (Only (boolToIntName :: Raw))
     ]
 
 smtlibPreamble :: Config -> [T.Text]
@@ -198,7 +197,7 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
-    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))" (Only b2i)
+    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))" (Only (boolToIntName :: Raw))
     ]
 
 
@@ -243,7 +242,6 @@ theorySymbols = M.fromList
   , tSym setCom   com   setCmpSort
   , tSym mapSel   sel   mapSelSort
   , tSym mapSto   sto   mapStoSort
-  , tSym boolInt  b2i   (FFunc FInt boolSort)
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
 
@@ -332,3 +330,32 @@ preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
+
+
+
+--------------------------------------------------------------------------------
+-- | Converting Non-Int types to Int -------------------------------------------
+--------------------------------------------------------------------------------
+toInt :: Expr -> Sort -> Expr
+toInt e s
+  |  (FApp (FTC c) _) <- s
+  , isConName setConName c
+  = castWith setToIntName e
+  | (FApp (FApp (FTC c) _) _) <- s
+  , isConName mapConName c
+  = castWith mapToIntName e
+  | (FApp (FTC bv) (FTC s)) <- s
+  , isConName bitVecName bv
+  , Just _ <- sizeBv s
+  = castWith bitVecToIntName e
+  | FTC c <- s
+  , c == boolFTyCon
+  = castWith boolToIntName e
+  | FTC c <- s
+  , c == realFTyCon
+  = castWith realToIntName e
+  | otherwise
+  = e
+
+castWith :: Symbol -> Expr -> Expr
+castWith s = EApp (EVar s)

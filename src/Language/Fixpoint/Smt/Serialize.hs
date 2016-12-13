@@ -202,13 +202,12 @@ initSMTEnv = fromListSEnv $
   [ (setToIntName,    FFunc (setSort intSort)   intSort)
   , (bitVecToIntName, FFunc bitVecSort intSort)
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  , (boolToIntName,   FFunc boolSort   intSort)
+  -- , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
   , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]
   ++ concatMap makeApplies [1..maxLamArg]
   ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
-
 
 -- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
 maxLamArg :: Int

@@ -475,13 +475,14 @@ lambdaName = "smt_lambda"
 intArgName :: Int -> Symbol
 intArgName = intSymbol "lam_int_arg"
 
-setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
+setToIntName, bitVecToIntName, mapToIntName, realToIntName :: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
-boolToIntName   = "bool_to_int"
 realToIntName   = "real_to_int"
 
+boolToIntName :: (IsString a) => a
+boolToIntName   = "bool_to_int"
 
 setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName :: Int -> Symbol
 setApplyName    = intSymbol "set_apply_"

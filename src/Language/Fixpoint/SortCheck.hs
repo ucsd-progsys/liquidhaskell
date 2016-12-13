@@ -53,7 +53,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import           Language.Fixpoint.Types.Visitor  (foldSort)
-import           Language.Fixpoint.Smt.Theories   (theoryEnv, boolInt)
+import           Language.Fixpoint.Smt.Theories   (theoryEnv, toInt)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -367,8 +367,8 @@ elab f e@(PAtom Eq e1 e2) = do
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
 
 elab f (PAtom r e1 e2) = do
-  e1' <- intCast <$> elab f e1
-  e2' <- intCast <$> elab f e2
+  e1' <- uncurry toInt <$> elab f e1
+  e2' <- uncurry toInt <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
 elab f (PExist bs e) = do
@@ -388,16 +388,9 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
--- | TODO: generalize this to OTHER interpreted `Sort` (that are not embedded as `Int`)
-intCast :: (Expr, Sort) -> Expr
-intCast (e, t)
-  | t == boolSort = mkEApp (dummyLoc boolInt) [e]
-  | otherwise     = e
-
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
 elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
 elabAs f _ e            = fst <$> elab f e
-
 
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do

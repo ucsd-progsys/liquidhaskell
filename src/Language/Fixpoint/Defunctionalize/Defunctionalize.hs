@@ -146,17 +146,16 @@ defuncEApp ms e1 e2
 
 -- e1 e2 => App (App runFun e1) (toInt e2)
 makeApplication :: Maybe Sort -> String -> Expr -> Expr -> Expr
-makeApplication Nothing str e1 e2 = ECst (EApp (EApp (EVar f) e1') (toInt e2')) s
+makeApplication Nothing str e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
   where
     f   = makeFunSymbol $ specify s
     s   = resultType str e1 e2
-    e1' = e1
-    e2' = e2
-makeApplication (Just s) _ e1 e2 = ECst (EApp (EApp (EVar f) e1') (toInt e2')) s
+    e2' = Thy.toInt e2 (exprSort e2)
+
+makeApplication (Just s) _ e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
   where
     f   = makeFunSymbol $ specify s
-    e1' = e1
-    e2' = e2
+    e2' = Thy.toInt e2 (exprSort e2)
 
 specify :: Sort -> Sort
 specify (FAbs _ s) = specify s
@@ -189,28 +188,6 @@ makeFunSymbol s
   = realApplyName 1
   | otherwise
   = intApplyName 1
-
-
-
-toInt :: Expr -> Expr
-toInt e
-  |  (FApp (FTC c) _)         <- s, Thy.isConName setConName c
-  = castWith setToIntName e
-  | (FApp (FApp (FTC c) _) _) <- s, Thy.isConName mapConName c
-  = castWith mapToIntName e
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isConName bitVecName bv, Just _ <- Thy.sizeBv s
-  = castWith bitVecToIntName e
-  | FTC c                     <- s, c == boolFTyCon
-  = castWith boolToIntName e
-  | FTC c                     <- s, c == realFTyCon
-  = castWith realToIntName e
-  | otherwise
-  = e
-  where
-    s = exprSort e
-
-castWith :: Symbol -> Expr -> Expr
-castWith s = EApp (EVar s)
 
 eliminate :: Expr -> Expr
 eliminate = mapExpr go
@@ -472,7 +449,7 @@ mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
 exprSort :: Expr -> Sort
 exprSort (ECst _ s)
   = s
-exprSort (ELam (_,sx) e)
+exprSort (ELam (_, sx) e)
   = FFunc sx $ exprSort e
 exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e
   = maybe s (`apply` s) $ unifySorts (exprSort ex) sx
