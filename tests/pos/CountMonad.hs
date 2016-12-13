@@ -15,7 +15,7 @@ instance Applicative Count where
 instance Monad Count where
 {-@
 instance Monad Count where 
-  >>=    :: forall <r :: Count a -> Prop, p :: Count b -> Prop, q :: Count b -> Prop>.
+  >>=    :: forall <r :: Count a -> Bool, p :: Count b -> Bool, q :: Count b -> Bool>.
             {x::Count a <<r>>, y :: Count b <<p>>  |- {v:Count b | count v == count x + count y} <: Count b <<q>>} 
             Count a <<r>> -> (a -> Count b<<p>>) -> Count b <<q>> ; 
   >>     :: x:Count a -> y:Count b -> {v:Count b | count v == count x + count y}; 

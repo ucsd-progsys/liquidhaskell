@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.Prelude
 data MaybeS a = NothingS | JustS !a
 -- (SAFE) data MaybeS a = NothingS | JustS a
 
-{-@ measure isJustS :: forall a. MaybeS a -> Prop 
+{-@ measure isJustS :: forall a. MaybeS a -> Bool 
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}

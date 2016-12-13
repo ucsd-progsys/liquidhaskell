@@ -1,7 +1,7 @@
 {-@ LIQUID "--totality" @-}
 {-# LANGUAGE EmptyDataDecls #-}
 
-module PropMeasure where
+module BoolMeasure where
 
 import Prelude hiding (length)
 

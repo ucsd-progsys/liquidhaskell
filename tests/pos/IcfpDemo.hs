@@ -24,7 +24,7 @@ range lo hi
   | lo < hi   = lo : range (lo + 1) hi
   | otherwise = []
 
-{-@ data L [sz] a <p :: L a -> Prop>
+{-@ data L [sz] a <p :: L a -> Bool>
       = N | C (x::a) (xs::L <p> a <<p>>)
   @-}
 data L a = N | C a (L a)
@@ -46,7 +46,7 @@ merge (C x xs) (C y ys)
   | x < y     = x `C` merge xs (y `C` ys)
   | otherwise = y `C` merge (x `C` xs) ys
 
-{-@ measure emp  :: L a -> Prop
+{-@ measure emp  :: L a -> Bool
     emp (N)      = true
     emp (C x xs) = false
   @-}

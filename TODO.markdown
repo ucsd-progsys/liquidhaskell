@@ -20,6 +20,502 @@ Deprecate Prop
   - and run with --higherorder
 
 
+Tests
+  Unit
+    pos
+      zipW2.hs:                          OK (1.02s)
+      zipW1.hs:                          OK (0.97s)
+      zipW.hs:                           OK (0.99s)
+      zipSO.hs:                          OK (0.99s)
+      zipper000.hs:                      OK (1.35s)
+      zipper0.hs:                        OK (38.14s)
+      zipper.hs:                         OK (104.58s)
+      WrapUnWrap.hs:                     OK (0.95s)
+      wrap1.hs:                          FAIL (3.47s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      wrap0.hs:                          FAIL (2.59s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Words1.hs:                         OK (0.91s)
+      Words.hs:                          OK (0.89s)
+      WBL0.hs:                           OK (1.90s)
+      WBL.hs:                            OK (1.97s)
+      vector2.hs:                        FAIL (12.00s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      vector1b.hs:                       OK (7.19s)
+      vector1a.hs:                       OK (6.88s)
+      vector1.hs:                        OK (6.73s)
+      vector00.hs:                       OK (1.03s)
+      vector0.hs:                        OK (1.30s)
+      vecloop.hs:                        FAIL (3.57s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Variance2.hs:                      OK (0.90s)
+      Variance.hs:                       OK (0.88s)
+      unusedtyvars.hs:                   OK (0.86s)
+      UnboxedTuplesAndTH.hs:             OK (1.41s)
+      UnboxedTuples.hs:                  OK (0.90s)
+      tyvar.hs:                          OK (0.87s)
+      TypeFamilies.hs:                   OK (0.98s)
+      TypeAlias.hs:                      OK (0.88s)
+      tyfam0.hs:                         OK (0.94s)
+      tyExpr.hs:                         OK (0.86s)
+      tyclass0.hs:                       OK (0.87s)
+      tupparse.hs:                       OK (0.98s)
+      tup0.hs:                           OK (0.92s)
+      transTAG.hs:                       FAIL (4.86s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      transpose.hs:                      OK (1.43s)
+      trans.hs:                          OK (1.09s)
+      ToyMVar.hs:                        FAIL (21.81s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      TopLevel.hs:                       FAIL (1.05s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      top0.hs:                           OK (2.04s)
+      TokenType.hs:                      OK (0.87s)
+      testRec.hs:                        OK (1.56s)
+      Test761.hs:                        OK (1.28s)
+      test2.hs:                          OK (1.49s)
+      test1.hs:                          OK (1.47s)
+      test00c.hs:                        OK (2.30s)
+      test00b.hs:                        OK (1.63s)
+      test000.hs:                        FAIL (1.42s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      test00.old.hs:                     OK (1.43s)
+      test00.hs:                         OK (1.27s)
+      test00-int.hs:                     OK (1.25s)
+      test0.hs:                          OK (1.30s)
+      TerminationNum0.hs:                OK (0.91s)
+      TerminationNum.hs:                 OK (0.91s)
+      Termination.lhs:                   OK (1.48s)
+      term0.hs:                          OK (1.64s)
+      Term.hs:                           OK (0.94s)
+      TemplateHaskellImp.hs:             OK (1.14s)
+      TemplateHaskell.hs:                OK (1.89s)
+      take.hs:                           FAIL (4.05s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      tagBinder.hs:                      OK (0.87s)
+      T866.hs:                           OK (0.86s)
+      T820.hs:                           OK (0.98s)
+      T819.hs:                           OK (1.01s)
+      T716.hs:                           FAIL (1.49s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      T675.hs:                           OK (1.47s)
+      T598.hs:                           OK (1.05s)
+      T595a.hs:                          OK (0.88s)
+      T595.hs:                           OK (0.95s)
+      T531.hs:                           OK (0.89s)
+      Sum.hs:                            OK (0.92s)
+      StructRec.hs:                      OK (1.43s)
+      Strings.hs:                        OK (0.92s)
+      StringLit.hs:                      OK (0.87s)
+      string00.hs:                       FAIL (1.08s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      StrictPair1.hs:                    OK (1.25s)
+      StrictPair0.hs:                    OK (0.96s)
+      StreamInvariants.hs:               OK (0.90s)
+      stateInvarint.hs:                  FAIL (5.43s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      StateF00.hs:                       OK (1.65s)
+      StateConstraints00.hs:             OK (1.40s)
+      StateConstraints0.hs:              FAIL (16.28s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      StateConstraints.hs:               FAIL (10.73s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      State1.hs:                         OK (1.10s)
+      state00.hs:                        OK (1.56s)
+      State.hs:                          FAIL (2.52s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      stacks0.hs:                        OK (0.97s)
+      StackMachine.hs:                   FAIL (0.83s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      StackClass.hs:                     OK (0.91s)
+      spec0.hs:                          OK (1.30s)
+      Solver.hs:                         OK (1.91s)
+      SimplifyTup00.hs:                  OK (0.91s)
+      SimplerNotation.hs:                OK (0.88s)
+      selfList.hs:                       FAIL (1.99s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      scanr.hs:                          OK (2.35s)
+      SafePartialFunctions.hs:           FAIL (0.93s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      rta.hs:                            OK (0.86s)
+      risers.hs:                         OK (0.97s)
+      ResolvePred.hs:                    FAIL (1.23s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ResolveB.hs:                       OK (0.86s)
+      ResolveA.hs:                       OK (0.87s)
+      Resolve.hs:                        OK (0.88s)
+      repeatHigherOrder.hs:              FAIL (2.20s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Repeat.hs:                         OK (0.95s)
+      RelativeComplete.hs:               FAIL (10.39s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ReflectBolleanFunctions.hs:        OK (0.90s)
+      RefinedADTs.hs:                    OK (0.88s)
+      recursion0.hs:                     OK (0.91s)
+      RecSelector.hs:                    OK (0.88s)
+      RecQSort0.hs:                      OK (1.10s)
+      RecQSort.hs:                       OK (1.08s)
+      RecordSelectorError.hs:            OK (0.89s)
+      record1.hs:                        OK (0.87s)
+      record0.hs:                        OK (0.97s)
+      rec_annot_go.hs:                   OK (2.71s)
+      RealProps1.hs:                     OK (0.94s)
+      RealProps.hs:                      OK (0.91s)
+      RBTree.hs:                         FAIL (16.10s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RBTree-ord.hs:                     OK (22.45s)
+      RBTree-height.hs:                  FAIL (6.29s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RBTree-color.hs:                   FAIL (6.94s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RBTree-col-height.hs:              FAIL (7.91s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      rangeAdt.hs:                       FAIL (10.85s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      range1.hs:                         OK (1.66s)
+      range.hs:                          OK (5.65s)
+      qualTest.hs:                       OK (1.27s)
+      QQTySyn.hs:                        OK (3.46s)
+      QQTySigTyVars.hs:                  OK (3.35s)
+      QQTySig.hs:                        OK (3.26s)
+      propmeasure1.hs:                   OK (0.86s)
+      propmeasure.hs:                    OK (0.99s)
+      Propability.hs:                    OK (0.95s)
+      PromotedDataCons.hs:               OK (0.87s)
+      profcrasher.hs:                    OK (0.93s)
+      Product.hs:                        OK (1.15s)
+      primInt0.hs:                       OK (1.00s)
+      pred.hs:                           OK (0.89s)
+      pragma0.hs:                        OK (0.89s)
+      poslist_dc.hs:                     OK (2.40s)
+      poslist.hs:                        OK (4.37s)
+      polyqual.hs:                       FAIL (4.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      polyfun.hs:                        OK (1.48s)
+      poly4.hs:                          FAIL (1.21s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      poly3a.hs:                         OK (1.98s)
+      poly3.hs:                          OK (1.94s)
+      poly2.hs:                          FAIL (0.95s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      poly2-degenerate.hs:               FAIL (0.94s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      poly1.hs:                          FAIL (1.87s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      poly0.hs:                          FAIL (0.96s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      PointDist.hs:                      FAIL (0.83s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      PlugHoles.hs:                      OK (0.85s)
+      PersistentVector.hs:               FAIL (1.71s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Permutation.hs:                    OK (5.89s)
+      partialmeasure.hs:                 OK (0.90s)
+      partial-tycon.hs:                  OK (0.86s)
+      pargs1.hs:                         OK (0.85s)
+      pargs.hs:                          OK (0.86s)
+      PairMeasure0.hs:                   OK (0.89s)
+      PairMeasure.hs:                    OK (0.89s)
+      pair00.hs:                         FAIL (16.28s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      pair0.hs:                          FAIL (16.82s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      pair.hs:                           FAIL (18.98s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Overwrite.hs:                      OK (0.89s)
+      OrdList.hs:                        FAIL (19.17s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      nullterm.hs:                       OK (2.16s)
+      NoExhaustiveGuardsError.hs:        OK (0.92s)
+      NoCaseExpand.hs:                   OK (1.31s)
+      niki1.hs:                          OK (2.96s)
+      niki.hs:                           OK (2.27s)
+      NewType.hs:                        OK (1.02s)
+      nats.hs:                           OK (0.98s)
+      NatClass.hs:                       OK (1.05s)
+      MutualRec.hs:                      OK (609.77s)
+      mutrec.hs:                         OK (0.92s)
+      MultipleInvariants.hs:             FAIL (0.81s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      multi-pred-app-00.hs:              OK (0.86s)
+      mr-blow.hs:                        OK (1.86s)
+      Moo.hs:                            OK (0.87s)
+      monad7.hs:                         OK (2.68s)
+      monad6.hs:                         OK (1.70s)
+      monad5.hs:                         OK (4.78s)
+      monad2.hs:                         OK (0.89s)
+      monad1.hs:                         OK (0.88s)
+      modTest.hs:                        OK (0.96s)
+      Mod2.hs:                           OK (0.87s)
+      Mod1.hs:                           OK (0.88s)
+      MergeSort.hs:                      FAIL (2.16s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Merge1.hs:                         OK (0.94s)
+      MeasureSets.hs:                    OK (0.91s)
+      Measures1.hs:                      OK (0.89s)
+      Measures.hs:                       OK (0.86s)
+      MeasureDups.hs:                    OK (0.95s)
+      MeasureContains.hs:                FAIL (1.43s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      meas9.hs:                          FAIL (1.97s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas8.hs:                          OK (0.97s)
+      meas7.hs:                          FAIL (1.56s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas6.hs:                          FAIL (3.96s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas5.hs:                          FAIL (11.54s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      meas4.hs:                          FAIL (3.93s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas3.hs:                          FAIL (3.99s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas2.hs:                          OK (1.92s)
+      meas11.hs:                         OK (0.94s)
+      meas10.hs:                         FAIL (2.09s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas1.hs:                          FAIL (2.45s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas0a.hs:                         FAIL (2.34s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      meas00a.hs:                        OK (0.92s)
+      meas00.hs:                         FAIL (22.15s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      meas0.hs:                          FAIL (2.32s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      maybe4.hs:                         OK (1.04s)
+      maybe3.hs:                         OK (1.06s)
+      maybe2.hs:                         OK (6.52s)
+      maybe1.hs:                         OK (2.34s)
+      maybe000.hs:                       OK (0.93s)
+      maybe00.hs:                        OK (0.87s)
+      maybe0.hs:                         OK (0.96s)
+      maybe.hs:                          OK (6.36s)
+      mapTvCrash.hs:                     FAIL (0.83s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      maps1.hs:                          OK (0.95s)
+      maps.hs:                           OK (24.81s)
+      MapReduceVerified.hs:              FAIL (1.05s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      mapreduce-bare.hs:                 FAIL (49.30s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map2.hs:                           FAIL (172.51s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map0.hs:                           FAIL (169.46s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map.hs:                            FAIL (171.45s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      malformed0.hs:                     OK (143.58s)
+      Loo.hs:                            OK (0.88s)
+      LogicCurry1.hs:                    OK (0.88s)
+      LocalTermExpr.hs:                  OK (1.54s)
+      LocalSpecImp.hs:                   OK (0.88s)
+      LocalSpec0.hs:                     OK (0.86s)
+      LocalSpec.hs:                      OK (0.97s)
+      LocalLazy.hs:                      OK (1.24s)
+      LocalHole.hs:                      OK (1.11s)
+      lit00.hs:                          OK (0.97s)
+      lit.hs:                            OK (0.90s)
+      ListSort.hs:                       FAIL (9.11s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      listSetDemo.hs:                    FAIL (2.14s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      listSet.hs:                        FAIL (2.08s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListReverse-LType.hs:              OK (1.36s)
+      ListRange.hs:                      OK (3.05s)
+      ListRange-LType.hs:                OK (2.72s)
+      listqual.hs:                       FAIL (1.62s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListQSort.hs:                      FAIL (9.67s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListQSort-LType.hs:                FAIL (10.74s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListMSort.hs:                      FAIL (2.43s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListMSort-LType.hs:                FAIL (18.67s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListLen.hs:                        FAIL (5.45s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListLen-LType.hs:                  FAIL (7.33s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListKeys.hs:                       OK (0.93s)
+      ListISort.hs:                      OK (1.15s)
+      ListISort-LType.hs:                FAIL (8.63s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListElem.hs:                       OK (0.94s)
+      ListConcat.hs:                     OK (0.91s)
+      listAnf.hs:                        OK (2.05s)
+      LiquidClass.hs:                    OK (0.90s)
+      LiquidArray.hs:                    OK (0.93s)
+      lex.hs:                            OK (0.89s)
+      lets.hs:                           OK (3.41s)
+      LazyWhere1.hs:                     OK (0.92s)
+      LazyWhere.hs:                      OK (0.94s)
+      LambdaEvalTiny.hs:                 FAIL (2.36s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      LambdaEvalSuperTiny.hs:            FAIL (2.28s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      LambdaEvalMini.hs:                 FAIL (11.40s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      LambdaEval.hs:                     FAIL (11.75s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      LambdaDeBruijn.hs:                 FAIL (2.25s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      kmpVec.hs:                         
+
+
+
+
+
 Check Covariance
 ----------------
 

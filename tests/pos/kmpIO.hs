@@ -65,14 +65,14 @@ data Arr a   = A { alen :: Int
                  , aval :: Int -> a
                  }
 
-{-@ data Arr a <p :: Int -> a -> Prop>
+{-@ data Arr a <p :: Int -> a -> Bool>
              = A { alen :: Nat
                  , aval :: i:Upto alen -> a<p i>
                  }
   @-}
 
 
-{-@ new :: forall <p :: Int -> a -> Prop>.
+{-@ new :: forall <p :: Int -> a -> Bool>.
              n:Nat -> (i:Upto n -> a<p i>) -> {v: Arr<p> a | alen v = n}
   @-}
 new n v = A { alen = n
@@ -81,13 +81,13 @@ new n v = A { alen = n
                              else liquidError "Out of Bounds!"
             }
 
-{-@ (!) :: forall <p :: Int -> a -> Prop>.
+{-@ (!) :: forall <p :: Int -> a -> Bool>.
              a:Arr<p> a -> i:Upto (alen a) -> a<p i>
   @-}
 
 (A _ f) ! i = f i
 
-{-@ set :: forall <p :: Int -> a -> Prop>.
+{-@ set :: forall <p :: Int -> a -> Bool>.
              a:Arr<p> a -> i:Upto (alen a) -> a<p i> -> {v:Arr<p> a | alen v = alen a}
   @-}
 set a@(A _ f) i v = a { aval = \j -> if (i == j) then v else f j }
@@ -113,26 +113,26 @@ data IOArr a = IOA { size :: Int
                    , pntr :: IORef (Arr a)
                    }
 
-{-@ data IOArr a <p :: Int -> a -> Prop>
+{-@ data IOArr a <p :: Int -> a -> Bool>
       = IOA { size :: Nat
             , pntr :: IORef ({v:Arr<p> a | alen v = size})
             }
   @-}
 
 
-{-@ newIO :: forall <p :: Int -> a -> Prop>.
+{-@ newIO :: forall <p :: Int -> a -> Bool>.
                n:Nat -> (i:Upto n -> a<p i>) -> IO ({v: IOArr<p> a | size v = n})
   @-}
 newIO n f = IOA n <$> newIORef (new n f)
 
-{-@ getIO :: forall <p :: Int -> a -> Prop>.
+{-@ getIO :: forall <p :: Int -> a -> Bool>.
               a:IOArr<p> a -> i:Upto (size a) -> IO (a<p i>)
   @-}
 getIO a@(IOA sz p) i
   = do arr   <- readIORef p
        return $ (arr ! i)
 
-{-@ setIO :: forall <p :: Int -> a -> Prop>.
+{-@ setIO :: forall <p :: Int -> a -> Bool>.
               a:IOArr<p> a -> i:Upto (size a) -> a<p i> -> IO ()
   @-}
 setIO a@(IOA sz p) i v

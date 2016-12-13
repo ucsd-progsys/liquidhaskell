@@ -29,7 +29,7 @@ data Heap a   = Empty | Node { pri   :: a
                              , right :: Heap a
                              }
 
-{-@ data Heap a <q :: a -> a -> Prop> =
+{-@ data Heap a <q :: a -> a -> Bool> =
       Empty | Node { pri   :: a
                    , rnk   :: Nat
                    , left  :: {v: Heap<q> (a<q pri>) | ValidRank v}
@@ -41,7 +41,7 @@ data Heap a   = Empty | Node { pri   :: a
 {-@ type PHeap a = {v:OHeap a | ValidRank v}                 @-}
 {-@ type OHeap a = Heap <{\root v -> root <= v}> a           @-}
 
-{-@ measure okRank        :: Heap a -> Prop
+{-@ measure okRank        :: Heap a -> Bool
     okRank (Empty)        = true
     okRank (Node p k l r) = ((realRank l >= realRank r) && k == (1 + (realRank l) + (realRank r)))
   @-}

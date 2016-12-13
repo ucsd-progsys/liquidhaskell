@@ -5,20 +5,20 @@ module Compose where
 
 data ST s a = ST {runState :: s -> (a,s)}
 
-{-@ data ST s a <p :: s -> Prop, q :: s -> s -> Prop, r :: s -> a -> Prop> 
+{-@ data ST s a <p :: s -> Bool, q :: s -> s -> Bool, r :: s -> a -> Bool> 
   = ST (runState :: x:s<p> -> (a<r x>, s<q x>)) @-}
 
- {-@ runState :: forall <p :: s -> Prop, q :: s -> s -> Prop, r :: s -> a -> Prop>. ST <p, q, r> s a -> x:s<p> -> (a<r x>, s<q x>) @-}
+ {-@ runState :: forall <p :: s -> Bool, q :: s -> s -> Bool, r :: s -> a -> Bool>. ST <p, q, r> s a -> x:s<p> -> (a<r x>, s<q x>) @-}
 
 
 
 {-
-cmp :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
+cmp :: forall < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
               >. 
        {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
        {ww::s<pre> |- s<postg ww> <: s<pref>}
@@ -34,13 +34,13 @@ cmp :: (ST s a)
 cmp (ST g) (ST f) = ST (\x -> case g x of {(_, s) -> f s})    
 
 {-@ 
-bind :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              , pref0 :: a -> Prop 
+bind :: forall < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
+              , pref0 :: a -> Bool 
               >. 
        {x::s<pre> |- a<rg x> <: a<pref0>}      
        {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}

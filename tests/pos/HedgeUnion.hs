@@ -3,7 +3,7 @@ module Map where
 import Language.Haskell.Liquid.Prelude
 
 {-@
-  data Map [mlen] k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+  data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
       = Tip 
       | Bin (right :: Map <l, r> k  a) 
   @-}

@@ -3,7 +3,7 @@ module Foo where
 import Language.Haskell.Liquid.Prelude
 
 
-{-@ mycmp :: forall <p :: a -> Prop, q :: a -> Prop>. 
+{-@ mycmp :: forall <p :: a -> Bool, q :: a -> Bool>. 
            {x::a<p>, y::a<q> |- a <: {v:a | x <= y} } 
            Ord a => 
            [a<p>] -> [a<q>] -> Bool @-}
@@ -11,7 +11,7 @@ mycmp :: Ord a => [a] -> [a] -> Bool
 mycmp (x:_) (_:y:_) = liquidAssert (x <= y) True
 
 
-{-@ mycmp' :: forall <p :: a -> Prop, q :: a -> Prop>. 
+{-@ mycmp' :: forall <p :: a -> Bool, q :: a -> Bool>. 
            {x::a<p>, y::a<q> |- a <: {v:a | x <= y} } 
            Ord a => 
            a<p> -> a<q> -> Bool @-}

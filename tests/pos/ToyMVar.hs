@@ -13,15 +13,15 @@ data State# s
 data MVar a = MVar (MVar# RealWorld a)
 
 data IO a = IO (State# RealWorld -> (State# RealWorld, a))
-{-@ data IO a <p :: State# RealWorld -> Prop, q :: State# RealWorld-> a -> Prop>
+{-@ data IO a <p :: State# RealWorld -> Bool, q :: State# RealWorld-> a -> Bool>
       = IO (io :: (State# RealWorld)<p> -> ((State# RealWorld, a)<q>))
   @-}
 
-{-@ measure inState :: MVar a -> State# RealWorld -> Prop @-}
+{-@ measure inState :: MVar a -> State# RealWorld -> Bool @-}
 {-@ measure stateMVars :: State# RealWorld -> Set (MVar a) @-}
 
-{-@ newEmptyMVar  :: forall < p :: State# RealWorld -> Prop
-                            , q :: State# RealWorld -> (MVar a) -> Prop>. 
+{-@ newEmptyMVar  :: forall < p :: State# RealWorld -> Bool
+                            , q :: State# RealWorld -> (MVar a) -> Bool>. 
                      IO <p, {\x y -> (inState y x)}> (MVar a) @-}
 newEmptyMVar  :: IO (MVar a)
 newEmptyMVar = IO $ \ s# ->
@@ -43,8 +43,8 @@ putMVar (MVar mvar#) x = IO $ \ s# ->
 putMVar# :: MVar# s a -> a -> State# s -> State# s
 putMVar# = let x = x in x
 
-{-@ newMVar#  :: forall < p :: State# s -> Prop
-                            , q :: State# s -> (MVar# s a) -> Prop>. 
+{-@ newMVar#  :: forall < p :: State# s -> Bool
+                            , q :: State# s -> (MVar# s a) -> Bool>. 
                      (State# s)<p> -> 
                      ((State# s)<p>, (MVar# s a))<q> @-}
 

@@ -50,7 +50,7 @@ data Expr [elen]
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
 {-@
-measure isValue      :: Expr -> Prop
+measure isValue      :: Expr -> Bool
 isValue (Const i)    = true
 isValue (Lam x e)    = true
 isValue (Var x)      = false

@@ -6,7 +6,7 @@ module Foo where
 data F a b = F {fx :: a, fy :: b} | G {fx :: a}
 {-@ data F a b = F {fx :: a, fy :: b} | G {fx :: a} @-}
 
-{-@ measure isF :: F a b -> Prop
+{-@ measure isF :: F a b -> Bool
     isF (F x y) = true
     isF (G x)   = false
   @-}

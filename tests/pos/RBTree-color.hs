@@ -140,7 +140,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ type RBT a    = {v: RBTree a | (isRB v)} @-}
 
-{-@ measure isRB        :: RBTree a -> Prop
+{-@ measure isRB        :: RBTree a -> Bool
     isRB (Leaf)         = true
     isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
   @-}
@@ -149,7 +149,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ type ARBT a    = {v: RBTree a | (isARB v) } @-}
 
-{-@ measure isARB        :: (RBTree a) -> Prop
+{-@ measure isARB        :: (RBTree a) -> Bool
     isARB (Leaf)         = true 
     isARB (Node c x l r) = ((isRB l) && (isRB r))
   @-}
@@ -165,7 +165,7 @@ makeBlack (Node _ x l r) = Node B x l r
     col (Leaf)          = B
   @-}
 
-{-@ measure isB        :: RBTree a -> Prop
+{-@ measure isB        :: RBTree a -> Bool
     isB (Leaf)         = false
     isB (Node c x l r) = c == B 
   @-}

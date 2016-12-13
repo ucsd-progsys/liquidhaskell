@@ -1,15 +1,15 @@
-module Propability where
+module Boolability where
 
-{-@ type Propability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
+{-@ type Boolability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
 
-{-@ p :: Propability @-}
+{-@ p :: Boolability @-}
 p :: Double
 p = 0.8
 
 data DPD k = DPD [Pair k Double]
 
 data Pair x y = P x y
-{-@ data DPD k = DPD (val::{v:[Pair k Propability]|(total v) = 1.0 }) @-}
+{-@ data DPD k = DPD (val::{v:[Pair k Boolability]|(total v) = 1.0 }) @-}
 
 {-@ measure total :: [Pair k Double] -> Double 
     total([]) = 0.0

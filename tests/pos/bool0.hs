@@ -1,4 +1,4 @@
-module PropMeasure where
+module BoolMeasure where
 
 {-@ myhead :: {v:[a] | nonEmpty v} -> a @-}
 myhead (x:_) = x

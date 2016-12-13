@@ -61,14 +61,14 @@ data Arr a = A { alen :: Int
                , aval :: Int -> a
                }
 
-{-@ data Arr a <rng :: Int -> a -> Prop>
+{-@ data Arr a <rng :: Int -> a -> Bool>
       = A { alen :: Nat 
           , aval :: i:Upto alen -> a<rng i>
           }
   @-}
 
 
-{-@ new :: forall <p :: Int -> a -> Prop>.
+{-@ new :: forall <p :: Int -> a -> Bool>.
              n:Nat -> (i:Upto n -> a<p i>) -> {v: Arr<p> a | alen v = n}
   @-}
 new n v = A { alen = n
@@ -77,13 +77,13 @@ new n v = A { alen = n
                              else liquidError "Out of Bounds!"
             }
 
-{-@ (!) :: forall <p :: Int -> a -> Prop>.
+{-@ (!) :: forall <p :: Int -> a -> Bool>.
              a:Arr<p> a -> i:Upto (alen a) -> a<p i>
   @-}
 
 (A _ f) ! i = f i
   
-{-@ set :: forall <p :: Int -> a -> Prop>.
+{-@ set :: forall <p :: Int -> a -> Bool>.
              a:Arr<p> a -> i:Upto (alen a) -> a<p i> -> {v:Arr<p> a | alen v = alen a}
   @-}
 set a@(A _ f) i v = a { aval = \j -> if (i == j) then v else f j }

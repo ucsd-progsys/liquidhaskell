@@ -1,9 +1,9 @@
 module Compose where
 
 {-@ 
-cmp :: forall < pref :: b -> Prop, postf :: b -> c -> Prop
-              , pre  :: a -> Prop, postg :: a -> b -> Prop
-              , post :: a -> c -> Prop
+cmp :: forall < pref :: b -> Bool, postf :: b -> c -> Bool
+              , pre  :: a -> Bool, postg :: a -> b -> Bool
+              , post :: a -> c -> Bool
               >. 
        {xx::a<pre>, w::b<postg xx> |- c<postf w> <: c<post xx>}
        {ww::a<pre> |- b<postg ww> <: b<pref>}
