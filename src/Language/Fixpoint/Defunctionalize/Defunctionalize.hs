@@ -59,8 +59,6 @@ funSort = FApp . FApp funcSort
 instance Defunc Expr where
   defunc = txExpr True
 
-
-
 txCastedExpr :: Expr -> DF Expr
 txCastedExpr = txExpr False
 
