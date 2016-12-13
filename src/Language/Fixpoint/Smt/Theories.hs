@@ -29,7 +29,8 @@ module Language.Fixpoint.Smt.Theories
      , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
-
+     , boolInt
+     
       -- * Query Theories
      , isSmt2App
      ) where
@@ -56,14 +57,7 @@ elt  = "Elt"
 set  = "Set"
 map  = "Map"
 
-
--- bit, sz32, sz64 :: Raw
--- bit  = symbolText bitVecName -- "BitVec"
--- sz32 = symbolText size32Name -- "Size32"
--- sz64 = symbolText size64Name -- "Size64"
-
-
-emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
+emp, add, cup, cap, mem, dif, sub, com, sel, sto, b2i :: Raw
 emp   = "smt_set_emp"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
@@ -74,9 +68,9 @@ sub   = "smt_set_sub"
 com   = "smt_set_com"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
+b2i   = "smt_bool_int"
 
-
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto :: Symbol
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto, boolInt :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -89,6 +83,7 @@ setDif   = "Set_dif"
 setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
+boolInt  = "BoolInt"
 
 
 strLen, strSubstr, genLen, strConcat :: Symbol
@@ -120,7 +115,7 @@ string = "Str"
 
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
-  = stringPrealble u ++
+  = stringPreamble u ++
     [ format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
@@ -147,8 +142,10 @@ z3Preamble u
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
-    , uifDef u (symbolText mulFuncName) ("*"::T.Text)
-    , uifDef u (symbolText divFuncName) ("div"::T.Text)
+    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))"
+        (Only b2i)
+    , uifDef u (symbolText mulFuncName) ("*"   :: T.Text)
+    , uifDef u (symbolText divFuncName) "div"
     ]
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
@@ -179,6 +176,7 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
+    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))" (Only b2i)
     ]
 
 smtlibPreamble :: Config -> [T.Text]
@@ -197,11 +195,12 @@ smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
+    , format "(define-fun {} ((b Bool)) Int (ite b 1 0))" (Only b2i)
     ]
 
 
-stringPrealble :: Config -> [T.Text]
-stringPrealble cfg | stringTheory cfg
+stringPreamble :: Config -> [T.Text]
+stringPreamble cfg | stringTheory cfg
   = [
       format "(define-sort {} () String)" (Only string)
     , format "(define-fun {} ((s {})) Int ({} s))"
@@ -211,7 +210,7 @@ stringPrealble cfg | stringTheory cfg
     , format "(define-fun {} ((x {}) (y {})) {} ({} x y))"
         (strconcat, string, string, string, z3strconcat)
     ]
-stringPrealble _
+stringPreamble _
   = [
       format "(define-sort {} () Int)" (Only string)
     , format "(declare-fun {} ({}) Int)"
@@ -222,26 +221,6 @@ stringPrealble _
         (strconcat, string, string, string)
     ]
 
-
-
-
-{-
-mkSetSort _ _  = set
-mkEmptySet _ _ = emp
-mkSetAdd _ s x = format "({} {} {})" (add, s, x)
-mkSetMem _ x s = format "({} {} {})" (mem, x, s)
-mkSetCup _ s t = format "({} {} {})" (cup, s, t)
-mkSetCap _ s t = format "({} {} {})" (cap, s, t)
-mkSetDif _ s t = format "({} {} {})" (dif, s, t)
-mkSetSub _ s t = format "({} {} {})" (sub, s, t)
--}
-
--- smt_set_funs :: M.HashMap Symbol Raw
--- smt_set_funs = M.fromList [ (setEmp, emp), (setAdd, add), (setCup, cup)
---                           , (setCap, cap), (setMem, mem), (setDif, dif)
---                           , (setSub, sub), (setCom, com)]
-
-
 isTheorySymbol :: Symbol -> Bool
 isTheorySymbol x = M.member x theorySymbols
 
@@ -250,23 +229,25 @@ theoryEnv = M.map tsSort theorySymbols
 
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
-  [ tSym setEmp   emp (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
-  , tSym setEmpty emp (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , tSym setAdd add   setBopSort
-  , tSym setCup cup   setBopSort
-  , tSym setCap cap   setBopSort
-  , tSym setMem mem   setMemSort
-  , tSym setDif dif   setBopSort
-  , tSym setSub sub   setCmpSort
-  , tSym setCom com   setCmpSort
-  , tSym mapSel sel   mapSelSort
-  , tSym mapSto sto   mapStoSort
+  [ tSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+  , tSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , tSym setAdd   add   setBopSort
+  , tSym setCup   cup   setBopSort
+  , tSym setCap   cap   setBopSort
+  , tSym setMem   mem   setMemSort
+  , tSym setDif   dif   setBopSort
+  , tSym setSub   sub   setCmpSort
+  , tSym setCom   com   setCmpSort
+  , tSym mapSel   sel   mapSelSort
+  , tSym mapSto   sto   mapStoSort
+  , tSym boolInt  b2i   (FFunc FInt boolSort)
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
 
   , tSym strLen    strlen    strLenSort
   , tSym strSubstr strsubstr substrSort
   , tSym strConcat strconcat concatstrSort
+
   ]
   where
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)

@@ -1,4 +1,3 @@
-{-# LANGUAGE EmptyDataDecls       #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
@@ -37,7 +36,7 @@ class Defunc a where
 -------------------------------------------------------------------------------
 
 instance Defunc Sort where
-  defunc s = defuncSort s
+  defunc = defuncSort
 
 defuncSort :: Sort -> DF Sort
 defuncSort s = do
@@ -51,7 +50,7 @@ defuncSort s = do
     go s             = s
 
 funSort :: Sort -> Sort -> Sort
-funSort s1 s2 = FApp (FApp funcSort s1) s2
+funSort = FApp . FApp funcSort
 
 -------------------------------------------------------------------------------
 --------  Expressions defunctionalization -------------------------------------
@@ -66,19 +65,21 @@ txCastedExpr :: Expr -> DF Expr
 txCastedExpr = txExpr False
 
 txExpr :: Bool -> Expr -> DF Expr
-txExpr b e = do env    <- dfenv <$> get
-                hoFlag <- dfHO  <$> get
-                exFlag <- f_ext <$> get
-                stFlag <- dfStr <$> get
-                tx stFlag hoFlag exFlag $ if b then elaborate env e else e
-   where
-     tx stFlag hoFlag exFlag e
-       | exFlag && hoFlag
-       = (txExtensionality . txnumOverloading <$> (txStr stFlag $ e)) >>= defuncExpr
-       | hoFlag
-       = (txnumOverloading <$> (txStr stFlag $ e)) >>= defuncExpr
-       | otherwise
-       = txnumOverloading <$> (txStr stFlag $ e)
+txExpr b e = do
+  env    <- dfenv <$> get
+  hoFlag <- dfHO  <$> get
+  exFlag <- dfExt <$> get
+  stFlag <- dfStr <$> get
+  txExpr' stFlag hoFlag exFlag $ if b then elaborate env e else e
+
+txExpr' :: Bool -> Bool -> Bool -> Expr -> DF Expr
+txExpr' stFlag hoFlag exFlag e
+  | exFlag && hoFlag
+  = (txExtensionality . txnumOverloading <$> txStr stFlag e) >>= defuncExpr
+  | hoFlag
+  = (txnumOverloading <$> txStr stFlag e) >>= defuncExpr
+  | otherwise
+  = txnumOverloading <$> txStr stFlag e
 
 
 defuncExpr :: Expr -> DF Expr
@@ -110,7 +111,7 @@ defuncExpr e = writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> go Nothing e
                                return $ PAll bs' p'
     go _ (PAtom r e1 e2)  = PAtom r <$> go Nothing e1 <*> go Nothing e2
     go _ PGrad            = return PGrad
-    go _ (ELam x ex)      = (df_lam <$> get) >>= defuncELam x ex
+    go _ (ELam x ex)      = (dfLam <$> get) >>= defuncELam x ex
     go _ e                = errorstar ("defunc Pred: " ++ show e)
 
 
@@ -131,8 +132,7 @@ maxLamArg = 7
 -- NIKI TODO: allow non integer lambda arguments
 -- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
 makeLamArg :: Sort -> Int  -> Symbol
-makeLamArg _ i = intArgName i
-
+makeLamArg _ = intArgName
 
 defuncEApp :: Maybe Sort -> Expr -> Expr -> DF Expr
 defuncEApp ms e1 e2
@@ -224,8 +224,8 @@ splitArgs = go []
 
 makeAxioms :: DF [Expr]
 makeAxioms = do
-  alphaFlag <- a_eq <$> get
-  betaFlag  <- b_eq <$> get
+  alphaFlag <- dfAEq <$> get
+  betaFlag  <- dfBEq <$> get
   asyms     <- makeSymbolAxioms
   asb       <- if betaFlag  then withNoLambdaNormalization $ withNoEquivalence makeBetaAxioms   else return []
   asa       <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return []
@@ -241,7 +241,7 @@ logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
 makeSymbolAxioms :: DF [Expr]
 makeSymbolAxioms = ((map go . dfSyms) <$> get) >>= mapM txCastedExpr
   where
-    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) ((expr $ T.length s) `ECst` intSort)
+    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) (expr (T.length s) `ECst` intSort)
 
 symbolExpr :: SymConst -> Expr
 symbolExpr = EVar . symbol
@@ -259,17 +259,16 @@ makeGenStringLen e
 -------------------------------------------------------------------------------
 
 logLam :: (Symbol, Sort) -> Expr -> DF Expr
-logLam xs bd
-  = do aEq <- a_eq <$> get
-       modify $ \s -> s{dfRedex = closeLams xs <$> dfRedex s}
-       modify $ \s -> s{dfLams  = closeLams xs <$> dfLams s}
-       if aEq
-         then modify $ \s -> s{dfLams = e:dfLams s}
-         else return ()
-       return $ normalizeLams e
-  where
-    e = ELam xs bd
-    closeLams (x, s) e = if x `elem` (syms e) then PAll [(x, s)] e else e
+logLam xs bd = do
+  aEq <- dfAEq <$> get
+  modify $ \s -> s{dfRedex = closeLams xs <$> dfRedex s}
+  modify $ \s -> s{dfLams  = closeLams xs <$> dfLams s}
+  let e = ELam xs bd
+  when aEq (modify $ \s -> s { dfLams = e : dfLams s })
+  return $ normalizeLams e
+
+closeLams :: (Symbol, Sort) -> Expr -> Expr
+closeLams (x, s) e = if x `elem` syms e then PAll [(x, s)] e else e
 
 makeAlphaAxioms :: DF [Expr]
 makeAlphaAxioms = do
@@ -344,10 +343,11 @@ normalizeLamsFromTo i   = go
 logRedex :: Expr -> DF ()
 logRedex e@(EApp f _)
   | (ELam _ _) <- eliminate f
-  = do bEq <- b_eq <$> get
-       if bEq then modify $ \s -> s{dfRedex = e:dfRedex s} else return ()
+  = do bEq <- dfBEq <$> get
+       when bEq (modify $ \s -> s{dfRedex = e:dfRedex s})
 logRedex _
   = return ()
+
 
 makeBetaAxioms :: DF [Expr]
 makeBetaAxioms = do
@@ -381,15 +381,11 @@ makeEqForAll e1 e2 =
 
 instantiate :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
 instantiate [] = [[]]
-instantiate xs = go [] xs
+instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
   where
-    go acc [] = acc
-    go acc (x:xs) = go (combine (instOne x) acc) xs
-
     instOne (x, s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
-
     combine xs []  = [[x] | x <- xs]
-    combine xs acc =  concat [(x:) <$> acc | x <- xs]
+    combine xs acc = concat [(x:) <$> acc | x <- xs]
 
 -------------------------------------------------------------------------------
 --------  Numeric Overloading  ------------------------------------------------
@@ -408,7 +404,9 @@ txnumOverloading = mapExpr go
       = e
 
 txStr :: Bool -> Expr -> DF Expr
-txStr flag e = if flag then return $ mapExpr goStr e else mapMExpr goNoStr e
+txStr flag e
+  | flag      = return (mapExpr goStr e)
+  | otherwise = mapMExpr goNoStr e
   where
     goStr e@(EApp _ _)
       | Just a <- isStringLen e
@@ -416,7 +414,7 @@ txStr flag e = if flag then return $ mapExpr goStr e else mapMExpr goNoStr e
     goStr e
        = e
     goNoStr (ESym s)
-      = logSym s >> (return $ symbolExpr s)
+      = logSym s >> return (symbolExpr s)
     goNoStr e
       = return e
 
@@ -485,22 +483,23 @@ exprSort e
 -------------------------------------------------------------------------------
 
 instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
-  defunc fi = do cm'    <- defunc $ cm    fi
-                 ws'    <- defunc $ ws    fi
-                 setBinds $ mconcat ((senv <$> (M.elems $ cm fi)) ++ (wenv <$> (M.elems $ ws fi)))
-                 gLits' <- defunc $ gLits fi
-                 dLits' <- defunc $ dLits fi
-                 bs'    <- defunc $ bs    fi
-                 quals' <- defunc $ quals fi
-                 axioms <- makeAxioms
-                 return $ fi { cm      = cm'
-                             , ws      = ws'
-                             , gLits   = gLits'
-                             , dLits   = dLits'
-                             , bs      = bs'
-                             , quals   = quals'
-                             , asserts = axioms
-                             }
+  defunc fi = do
+    cm'    <- defunc $ cm    fi
+    ws'    <- defunc $ ws    fi
+    setBinds $ mconcat ((senv <$> M.elems (cm fi)) ++ (wenv <$> M.elems (ws fi)))
+    gLits' <- defunc $ gLits fi
+    dLits' <- defunc $ dLits fi
+    bs'    <- defunc $ bs    fi
+    quals' <- defunc $ quals fi
+    axioms <- makeAxioms
+    return $ fi { cm      = cm'
+                , ws      = ws'
+                , gLits   = gLits'
+                , dLits   = dLits'
+                , bs      = bs'
+                , quals   = quals'
+                , asserts = axioms
+                }
 
 instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc
@@ -520,7 +519,7 @@ instance Defunc SortedReft where
   defunc (RR s r) = RR <$> defunc s <*> defunc r
 
 instance Defunc (Symbol, SortedReft) where
-  defunc (x, (RR s (Reft (v, e))))
+  defunc (x, RR s (Reft (v, e)))
     = (x,) <$> defunc (RR s (Reft (x, subst1 e (v, EVar x))))
 
 instance Defunc Reft where
@@ -562,16 +561,16 @@ data DFST
   = DFST { fresh   :: !Int
          , dfenv   :: !DFEnv
          , dfbenv  :: !IBindEnv
-         , df_lam  :: !Bool   -- normalize lams
-         , f_ext   :: !Bool   -- enable extensionality axioms
-         , a_eq    :: !Bool   -- enable alpha equivalence axioms
-         , b_eq    :: !Bool   -- enable beta equivalence axioms
-         , f_norm  :: !Bool   -- enable normal form axioms
-         , dfHO    :: !Bool   -- allow higher order thus defunctionalize
-         , lamNorm :: !Bool
-         , dfStr   :: !Bool   -- string interpretation
-         , dfLams  :: ![Expr] -- lambda expressions appearing in the expressions
-         , dfRedex :: ![Expr] -- redexes appearing in the expressions
+         , dfLam   :: !Bool   -- ^ normalize lams
+         , dfExt   :: !Bool   -- ^ enable extensionality axioms
+         , dfAEq   :: !Bool   -- ^ enable alpha equivalence axioms
+         , dfBEq   :: !Bool   -- ^ enable beta equivalence axioms
+         , dfNorm  :: !Bool   -- ^ enable normal form axioms
+         , dfHO    :: !Bool   -- ^ allow higher order thus defunctionalize
+         , dfLNorm :: !Bool
+         , dfStr   :: !Bool   -- ^ string interpretation
+         , dfLams  :: ![Expr] -- ^ lambda expressions appearing in the expressions
+         , dfRedex :: ![Expr] -- ^ redexes appearing in the expressions
          , dfLog   :: !String
          , dfSyms  :: ![SymConst] -- symbols in the refinements
          }
@@ -581,13 +580,13 @@ makeInitDFState cfg si
   = DFST { fresh   = 0
          , dfenv   = fromListSEnv xs
          , dfbenv  = mempty
-         , df_lam  = True
-         , f_ext   = extensionality   cfg
-         , a_eq    = alphaEquivalence cfg
-         , b_eq    = betaEquivalence  cfg
-         , f_norm  = normalForm       cfg
-         , dfHO    = (allowHO         cfg  || defunction cfg)
-         , lamNorm = True
+         , dfLam   = True
+         , dfExt   = extensionality   cfg
+         , dfAEq    = alphaEquivalence cfg
+         , dfBEq    = betaEquivalence  cfg
+         , dfNorm  = normalForm       cfg
+         , dfHO    = allowHO  cfg  || defunction cfg
+         , dfLNorm = True
          -- INVARIANT: lambads and redexes are not defunctionalized
          , dfLams  = []
          , dfRedex = []
@@ -604,7 +603,7 @@ setBinds e = modify $ \s -> s{dfbenv = e}
 
 
 writeLog :: String -> DF ()
-writeLog str = modify $ \s -> s{dfLog =  (dfLog s) ++ "\n" ++ str}
+writeLog str = modify $ \s -> s{dfLog =  dfLog s ++ "\n" ++ str}
 
 withExtendedEnv ::  [(Symbol, Sort)] -> DF a -> DF a
 withExtendedEnv bs act = do
@@ -617,21 +616,21 @@ withExtendedEnv bs act = do
 
 withNoLambdaNormalization :: DF a -> DF a
 withNoLambdaNormalization act = do
-  lamNorm <- df_lam <$> get
-  modify $ \s -> s{df_lam = False}
+  dfLNorm <- dfLam <$> get
+  modify $ \s -> s{dfLam = False}
   r <- act
-  modify $ \s -> s{df_lam = lamNorm}
+  modify $ \s -> s{dfLam = dfLNorm}
   return r
 
 
 
 withNoEquivalence :: DF a -> DF a
 withNoEquivalence act = do
-  aEq <- a_eq <$> get
-  bEq <- b_eq <$> get
-  modify $ \s -> s{a_eq = False, b_eq = False}
+  aEq <- dfAEq <$> get
+  bEq <- dfBEq <$> get
+  modify $ \s -> s{dfAEq = False, dfBEq = False}
   r <- act
-  modify $ \s -> s{a_eq = aEq,   b_eq = bEq}
+  modify $ \s -> s{dfAEq = aEq,   dfBEq = bEq}
   return r
 
 freshSym :: DF Symbol
@@ -640,9 +639,10 @@ freshSym = do
   modify $ \s -> s{fresh = n + 1}
   return $ intSymbol "lambda_fun_" n
 
-
+-- RJ: according to https://github.com/ucsd-progsys/liquid-fixpoint/commit/d8b742b29c8a892fc947eb90fe6eb949207f65cb
+-- the `Visitor.mapExpr` "diverges"?
 mapExpr' :: (Expr -> Expr) -> Expr -> Expr
-mapExpr' f e = go e
+mapExpr' f = go
   where
     go (ELam bs e)     = f (ELam bs (go e))
     go (ECst e s)      = f (ECst (go e) s)

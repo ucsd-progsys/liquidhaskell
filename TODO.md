@@ -22,8 +22,9 @@ and define in the SMT prelude:
   (assert (= (smt_bool_int false) 1))
 ```
 
-1. define a `smt_bool_int :: Symbol` (same place as `smt_set_add` etc.)
-2. define the function `smt_bool_int` in the PRELUDE
+1. [DONE] define a `smt_bool_int :: Symbol` (same place as `smt_set_add` etc.)
+2. [DONE] define the function `smt_bool_int` in the PRELUDE
+
 3. extend `elaborate` to convert
 
 ```haskell
