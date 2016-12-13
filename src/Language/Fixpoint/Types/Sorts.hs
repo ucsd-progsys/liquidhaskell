@@ -303,7 +303,7 @@ bitVecSort :: Sort
 bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
 
 mapSort :: Sort -> Sort -> Sort
-mapSort k v = FApp (FApp (FTC $ symbolFTycon' "Map_t") k) v
+mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
 
 symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc

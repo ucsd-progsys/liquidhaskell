@@ -173,11 +173,15 @@ resultType str e _ = go $ exprSort e
 
 makeFunSymbol :: Sort -> Symbol
 makeFunSymbol s
-  | (FApp (FTC c) _)          <- s, Thy.isSet c
+  | (FApp (FTC c) _) <- s
+  , Thy.isConName setConName c
   = setApplyName 1
-  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
+  | (FApp (FApp (FTC c) _) _) <- s
+  , Thy.isConName mapConName c
   = mapApplyName 1
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
+  | (FApp (FTC bv) (FTC s))   <- s
+  , Thy.isConName bitVecName bv
+  , Just _ <- Thy.sizeBv s
   = bitVecApplyName 1
   | FTC c                     <- s, c == boolFTyCon
   = boolApplyName 1
@@ -190,11 +194,11 @@ makeFunSymbol s
 
 toInt :: Expr -> Expr
 toInt e
-  |  (FApp (FTC c) _)         <- s, Thy.isSet c 
+  |  (FApp (FTC c) _)         <- s, Thy.isConName setConName c
   = castWith setToIntName e
-  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
+  | (FApp (FApp (FTC c) _) _) <- s, Thy.isConName mapConName c
   = castWith mapToIntName e
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isConName bitVecName bv, Just _ <- Thy.sizeBv s
   = castWith bitVecToIntName e
   | FTC c                     <- s, c == boolFTyCon
   = castWith boolToIntName e

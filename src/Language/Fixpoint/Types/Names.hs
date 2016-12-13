@@ -81,6 +81,7 @@ module Language.Fixpoint.Types.Names (
   , listLConName
   , tupConName
   , setConName
+  , mapConName
   -- , propConName
   -- , hpropConName
   , strConName
@@ -497,16 +498,16 @@ dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
-listConName, listLConName, tupConName, _propConName, _hpropConName, strConName, vvName, setConName :: Symbol
+listConName, listLConName, tupConName, _propConName, _hpropConName, strConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
-_propConName  = "Prop"
-_hpropConName = "HProp"
+mapConName   = "Map_t"
 strConName   = "Str"
 vvName       = "VV"
-
+_propConName  = "Prop"
+_hpropConName = "HProp"
 -- symSepName   :: Char
 -- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
@@ -542,7 +543,7 @@ prims = [ _propConName
         , "Set_empty"
         , "Set_mem"
         , "Set_sub"
-        , "Map_t"
+        , mapConName
         , "Map_select"
         , "Map_store"
         , size32Name

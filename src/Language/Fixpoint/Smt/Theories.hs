@@ -33,8 +33,9 @@ module Language.Fixpoint.Smt.Theories
 
       -- * Query Theories
      , isSmt2App
-     , isSet
-     , isBv
+     , isConName
+     -- , isSet
+     -- , isBv
      ) where
 
 import           Prelude hiding (map)
@@ -266,11 +267,17 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
-isBv :: FTycon -> Bool
-isBv = (bitVecName ==) . val . fTyconSymbol
+-- isBv :: FTycon -> Bool
+-- isBv = isConName bitVecName
+--
+-- isSet :: FTycon -> Bool
+-- isSet = isConName setConName
+--
+-- isMap :: FTycon -> Bool
+-- isMap = isConName mapConName
 
-isSet :: FTycon -> Bool
-isSet = (setConName ==) . val . fTyconSymbol
+isConName :: Symbol -> FTycon -> Bool
+isConName s = (s ==) . val . fTyconSymbol
 
 sizeBv :: FTycon -> Maybe Int
 sizeBv tc
@@ -290,11 +297,11 @@ smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
 
 smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
-  | isSet c                     = Just $ build "{}" (Only set)
+  | isConName setConName c      = Just $ build "{}" (Only set)
 smt2Sort (FApp (FApp (FTC c) _) _)
-  | fTyconSymbol c == "Map_t"   = Just $ build "{}" (Only map)
+  | isConName mapConName c      = Just $ build "{}" (Only map)
 smt2Sort (FApp (FTC bv) (FTC s))
-  | isBv bv
+  | isConName bitVecName bv
   , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
 smt2Sort s
   | isString s                  = Just $ build "{}" (Only string)
