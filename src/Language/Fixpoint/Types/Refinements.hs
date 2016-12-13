@@ -237,18 +237,19 @@ data Expr = ESym !SymConst
 
 type Pred = Expr
 
-pattern PTrue  = PAnd []
-pattern PTop   = PAnd []
-pattern PFalse = POr []
-pattern EBot   = POr []
+pattern PTrue         = PAnd []
+pattern PTop          = PAnd []
+pattern PFalse        = POr  []
+pattern EBot          = POr  []
 pattern EEq e1 e2     = PAtom Eq    e1 e2
 pattern ETimes e1 e2  = EBin Times  e1 e2
 pattern ERTimes e1 e2 = EBin RTimes e1 e2
 pattern EDiv e1 e2    = EBin Div    e1 e2
 pattern ERDiv e1 e2   = EBin RDiv   e1 e2
 
+
 mkEApp :: LocSymbol -> [Expr] -> Expr
-mkEApp f = eApps (EVar $ val f)
+mkEApp = eApps . EVar . val
 
 eApps :: Expr -> [Expr] -> Expr
 eApps f es  = foldl EApp f es
