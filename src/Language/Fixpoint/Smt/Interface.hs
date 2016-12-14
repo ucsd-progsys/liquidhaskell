@@ -250,8 +250,8 @@ makeContext cfg f
 
 makeContextWithSEnv :: Config -> FilePath -> SMTEnv -> IO Context
 makeContextWithSEnv cfg f env
-  = (\cxt -> cxt {ctxSmtEnv = tracepp msg env}) <$> makeContext cfg f
-  where msg = "makeContextWithSEnv" ++ show env
+  = (\cxt -> cxt {ctxSmtEnv = env}) <$> makeContext cfg f
+  -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
