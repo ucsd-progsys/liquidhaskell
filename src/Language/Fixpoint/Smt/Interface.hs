@@ -66,7 +66,7 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
 
 import           Language.Fixpoint.Misc         (errorstar)
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.SortCheck    (elaborate)
+-- import           Language.Fixpoint.SortCheck    (elaborate)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
@@ -356,9 +356,9 @@ smtCheckSat me p
    ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p  = interact' me (Assert Nothing p')
-  where
-    p'          = elaborate (ctxSmtEnv me) p -- RJ: TODO: major slowdown!
+smtAssert me p  = interact' me (Assert Nothing p)
+  -- where
+  --   p'       = elaborate (ctxSmtEnv me) p -- RJ: TODO: major slowdown!
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)

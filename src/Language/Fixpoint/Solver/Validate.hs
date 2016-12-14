@@ -150,7 +150,7 @@ cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)
     fv   = cRng `nubDiff` (lits ++ cDom ++ F.prims)
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
-badCs = E.catErrors . map (E.errFreeVarInConstraint . (Misc.mapFst F.subcId))
+badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
 
 
 --------------------------------------------------------------------------------
