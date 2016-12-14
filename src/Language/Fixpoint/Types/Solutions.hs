@@ -126,10 +126,11 @@ fromList env kXs kYs = Sol env kXm kYm -- kBm
     kXm              = M.fromList   kXs
     kYm              = M.fromList   kYs
  -- kBm              = const () <$> kXm
+
 --------------------------------------------------------------------------------
-qBindPred :: Subst -> QBind -> Pred
+qBindPred :: Solution -> Subst -> QBind -> Pred
 --------------------------------------------------------------------------------
-qBindPred su = subst su . pAnd . fmap eqPred
+qBindPred sFIXME su = subst su . pAnd . fmap eqPred "FIXME:2"
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------

@@ -148,7 +148,7 @@ rhsCands s c   = (fst <$> ks, kqs)
   where
     kqs        = [ cnd k su q | (k, su) <- ks, q <- Sol.lookupQBind s k]
     ks         = predKs . F.crhs $ c
-    cnd k su q = (F.subst su (F.eqPred q), (k, q))
+    cnd k su q = (F.subst su (F.eqPred q), (k, q), error "FIXME:1")
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
