@@ -49,6 +49,7 @@ module Language.Fixpoint.Types.Solutions (
 
 import           Prelude hiding (lookup)
 import           GHC.Generics
+import           Data.Maybe (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 -- import qualified Data.HashSet              as S
@@ -59,6 +60,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
+import           Language.Fixpoint.SortCheck (elaborate)
 import           Text.PrettyPrint.HughesPJ
 
 --------------------------------------------------------------------------------
@@ -134,7 +136,9 @@ qBindPred su = subst su . pAnd . fmap eqPred
 --------------------------------------------------------------------------------
 lookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-lookupQBind s k = {- tracepp ("lookupQB: k = " ++ show k) $ -} M.lookupDefault [] k (sMap s)
+lookupQBind s k = {- tracepp _msg $ -} fromMaybe [] (lookupElab s k)
+  where
+    _msg        = "lookupQB: k = " ++ show k
 
 --------------------------------------------------------------------------------
 lookup :: Solution -> KVar -> Either Hyp QBind
@@ -142,10 +146,18 @@ lookup :: Solution -> KVar -> Either Hyp QBind
 lookup s k
   | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
   = Left cs
-  | Just eqs <- M.lookup k (sMap s)
+  | Just eqs <- lookupElab s k
   = Right eqs                       -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "solLookup: Unknown kvar " ++ show k
+
+lookupElab :: Solution -> KVar -> Maybe QBind
+lookupElab s k = case M.lookup k (sMap s) of
+  Just eqs -> Just (tx <$> eqs)
+  Nothing  -> Nothing
+  where
+    tx eq = eq { eqPred = elaborate env (eqPred eq) }
+    env   = sEnv s
 
 --------------------------------------------------------------------------------
 updateK :: KVar -> a -> Sol a -> Sol a

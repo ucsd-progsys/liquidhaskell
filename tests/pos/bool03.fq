@@ -1,7 +1,7 @@
 
-qualif LE(v:a, x:a): (bool_to_int x <= bool_to_int v)
+//qualif LE(v:a, x:a): (bool_to_int x <= bool_to_int v)
 
-// qualif LE(v:a, x:a): (x <= v)
+qualif LE(v:a, x:a): (x <= v)
 
 bind 1 bx : {v: bool | true }
 
