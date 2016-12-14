@@ -20,7 +20,8 @@ module Language.Fixpoint.Smt.Theories
      , toInt
 
      , isTheorySymbol
-     , theoryEnv
+     , interpSEnv
+     , uninterpSEnv
 
        -- * String
      , string
@@ -226,9 +227,11 @@ stringPreamble _
 isTheorySymbol :: Symbol -> Bool
 isTheorySymbol x = M.member x theorySymbols
 
-theoryEnv :: M.HashMap Symbol Sort
-theoryEnv = M.map tsSort theorySymbols
+interpSEnv :: SEnv Sort
+interpSEnv = fromListSEnv $ M.toList $ M.map tsSort theorySymbols
 
+-- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
+--   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
   [ tSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
@@ -244,13 +247,13 @@ theorySymbols = M.fromList
   , tSym mapSto   sto   mapStoSort
   , tSym bvOrName "bvor"   bvBopSort
   , tSym bvAndName "bvand" bvBopSort
-
   , tSym strLen    strlen    strLenSort
   , tSym strSubstr strsubstr substrSort
   , tSym strConcat strconcat concatstrSort
-
+  , tSym boolInt   boolInt   (FFunc boolSort intSort)
   ]
   where
+    boolInt    = boolToIntName
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
@@ -331,11 +334,14 @@ preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
 
-
-
 --------------------------------------------------------------------------------
 -- | Converting Non-Int types to Int -------------------------------------------
 --------------------------------------------------------------------------------
+-- toInt :: Expr -> Sort -> Expr
+-- toInt e s = tracepp msg (toInt' e s)
+  -- where
+    -- msg   = "toInt e = " ++ show e ++ ", t = " ++ show s
+
 toInt :: Expr -> Sort -> Expr
 toInt e s
   |  (FApp (FTC c) _) <- s
@@ -359,3 +365,47 @@ toInt e s
 
 castWith :: Symbol -> Expr -> Expr
 castWith s = EApp (EVar s)
+
+
+--------------------------------------------------------------------------------
+-- | `uninterpSEnv` should be disjoint from see `interpSEnv` to
+--   avoid duplicate SMT definitions.  `uninterpSEnv` is for
+--   uninterpreted symbols, and `interpSEnv` is for interpreted symbols.
+--------------------------------------------------------------------------------
+uninterpSEnv :: SEnv Sort
+uninterpSEnv = fromListSEnv $
+  [ (setToIntName,    FFunc (setSort intSort)   intSort)
+  , (bitVecToIntName, FFunc bitVecSort intSort)
+  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
+  -- , (boolToIntName,   FFunc boolSort   intSort)
+  , (realToIntName,   FFunc realSort   intSort)
+  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
+  ]
+  ++ concatMap makeApplies [1..maxLamArg]
+  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
+
+-- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
+maxLamArg :: Int
+maxLamArg = 7
+
+sorts :: [Sort]
+sorts = [intSort]
+
+-- NIKI TODO: allow non integer lambda arguments
+-- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
+
+makeLamArg :: Sort -> Int  -> Symbol
+makeLamArg _ = intArgName
+
+makeApplies :: Int -> [(Symbol, Sort)]
+makeApplies i =
+  [ (intApplyName i,    go i intSort)
+  , (setApplyName i,    go i (setSort intSort))
+  , (bitVecApplyName i, go i bitVecSort)
+  , (mapApplyName i,    go i $ mapSort intSort intSort)
+  , (realApplyName i,   go i realSort)
+  , (boolApplyName i,   go i boolSort)
+  ]
+  where
+    go 0 s = FFunc intSort s
+    go i s = FFunc intSort $ go (i-1) s

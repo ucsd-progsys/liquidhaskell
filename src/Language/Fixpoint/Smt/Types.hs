@@ -65,17 +65,19 @@ data Response     = Ok
                   deriving (Eq, Show)
 
 -- | Information about the external SMT process
-data Context      = Ctx { pId     :: !ProcessHandle
-                        , cIn     :: !Handle
-                        , cOut    :: !Handle
-                        , cLog    :: !(Maybe Handle)
-                        , verbose :: !Bool
-                        , c_ext   :: !Bool              -- flag to enable function extentionality axioms
-                        , c_aeq   :: !Bool              -- flag to enable lambda a-equivalence axioms
-                        , c_beq   :: !Bool              -- flag to enable lambda b-equivalence axioms
-                        , c_norm  :: !Bool              -- flag to enable lambda normal form equivalence axioms
-                        , smtenv  :: !SMTEnv
-                        }
+data Context = Ctx
+  { ctxPid     :: !ProcessHandle
+  , ctxCin     :: !Handle
+  , ctxCout    :: !Handle
+  , ctxLog     :: !(Maybe Handle)
+  , ctxVerbose :: !Bool
+  , ctxExt     :: !Bool              -- ^ flag to enable function extentionality axioms
+  , ctxAeq     :: !Bool              -- ^ flag to enable lambda a-equivalence axioms
+  , ctxBeq     :: !Bool              -- ^ flag to enable lambda b-equivalence axioms
+  , ctxNorm    :: !Bool              -- ^ flag to enable lambda normal form equivalence axioms
+  , ctxSmtEnv  :: !SMTEnv
+  }
+
 type SMTEnv = SEnv Sort
 
 -- | Theory Symbol

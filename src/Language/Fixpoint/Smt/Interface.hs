@@ -51,22 +51,27 @@ module Language.Fixpoint.Smt.Interface (
     , checkValid
     , checkValidWithContext
     , checkValids
-    , makeZ3Context
+    , makeSmtContext
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver
-                                                , extensionality, alphaEquivalence, betaEquivalence, normalForm
+import           Language.Fixpoint.Types.Config ( SMTSolver (..)
+                                                , Config
+                                                , solver
+                                                , extensionality
+                                                , alphaEquivalence
+                                                , betaEquivalence
+                                                , normalForm
                                                 , stringTheory)
-import           Language.Fixpoint.Misc   (errorstar)
+
+import           Language.Fixpoint.Misc         (errorstar)
 import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.SortCheck    (elaborate)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Smt.Theories  (preamble)
-import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
-
-
+import qualified Language.Fixpoint.Smt.Theories as Thy
+import           Language.Fixpoint.Smt.Serialize ()
 
 import           Control.Applicative      ((<|>))
 import           Control.Monad
@@ -103,12 +108,12 @@ runCommands cmds
 
 
 -- TODO take makeContext's Bool from caller instead of always using False?
-makeZ3Context :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context cfg f xts
-  = do me <- makeContextWithSEnv cfg f $ fromListSEnv xts
-       smtDecls me (toListSEnv initSMTEnv)
-       smtDecls me xts
-       return me
+makeSmtContext :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
+makeSmtContext cfg f xts = do
+  me <- makeContextWithSEnv cfg f $ fromListSEnv xts
+  smtDecls me (toListSEnv Thy.uninterpSEnv)
+  smtDecls me xts
+  return me
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
@@ -169,7 +174,7 @@ smtRead me = {-# SCC "smtRead" #-}
        case A.eitherResult res of
          Left e  -> errorstar $ "SMTREAD:" ++ e
          Right r -> do
-           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
+           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
            -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
 
@@ -213,20 +218,14 @@ negativeP
   = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
        return $ "(" <> v <> ")"
 
--- {- pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] -}
--- pairs :: [a] -> [(a,a)]
--- pairs !xs = case L.splitAt 2 xs of
---              ([],_)      -> []
---              ([x,y], zs) -> (x,y) : pairs zs
-
 smtWriteRaw      :: Context -> Raw -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
-  hPutStrLnNow (cOut me) s
+  hPutStrLnNow (ctxCout me) s
   -- whenLoud $ TIO.appendFile debugFile (s <> "\n")
-  maybe (return ()) (`hPutStrLnNow` s) (cLog me)
+  maybe (return ()) (`hPutStrLnNow` s) (ctxLog me)
 
 smtReadRaw       :: Context -> IO T.Text
-smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (cIn me)
+smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
 
 hPutStrLnNow     :: Handle -> LT.Text -> IO ()
 hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
@@ -243,15 +242,16 @@ makeContext cfg f
        pre  <- smtPreamble cfg (solver cfg) me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
-       let me' = me { cLog = Just hLog }
+       let me' = me { ctxLog = Just hLog }
        mapM_ (smtWrite me') pre
        return me'
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath  -> SMTEnv -> IO Context
+makeContextWithSEnv :: Config -> FilePath -> SMTEnv -> IO Context
 makeContextWithSEnv cfg f env
-  = (\cxt -> cxt {smtenv = env}) <$> makeContext cfg f
+  = (\cxt -> cxt {ctxSmtEnv = tracepp msg env}) <$> makeContext cfg f
+  where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
@@ -264,26 +264,26 @@ makeProcess :: Config -> IO Context
 makeProcess cfg
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
        loud <- isLoud
-       return Ctx { pId     = pid
-                  , cIn     = hIn
-                  , cOut    = hOut
-                  , cLog    = Nothing
-                  , verbose = loud
-                  , c_ext   = extensionality cfg
-                  , c_aeq   = alphaEquivalence cfg
-                  , c_beq   = betaEquivalence  cfg
-                  , c_norm  = normalForm       cfg
-                  , smtenv  = initSMTEnv
+       return Ctx { ctxPid     = pid
+                  , ctxCin     = hIn
+                  , ctxCout    = hOut
+                  , ctxLog     = Nothing
+                  , ctxVerbose = loud
+                  , ctxExt     = extensionality cfg
+                  , ctxAeq     = alphaEquivalence cfg
+                  , ctxBeq     = betaEquivalence  cfg
+                  , ctxNorm    = normalForm       cfg
+                  , ctxSmtEnv  = Thy.uninterpSEnv <> Thy.interpSEnv
                   }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
 --------------------------------------------------------------------------
 cleanupContext (Ctx {..})
-  = do hClose cIn
-       hClose cOut
-       maybe (return ()) hClose cLog
-       waitForProcess pId
+  = do hClose ctxCin
+       hClose ctxCout
+       maybe (return ()) hClose ctxLog
+       waitForProcess ctxPid
 
 {- "z3 -smt2 -in"                   -}
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
@@ -301,17 +301,21 @@ smtPreamble cfg Z3 me
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        checkValidStringFlag Z3 v cfg
        if T.splitOn "." v `versionGreaterEq` ["4", "3", "2"]
-         then return $ z3_432_options ++ makeMbqi cfg ++ preamble cfg Z3
-         else return $ z3_options     ++ makeMbqi cfg ++ preamble cfg Z3
+         then return $ z3_432_options ++ makeMbqi cfg ++ Thy.preamble cfg Z3
+         else return $ z3_options     ++ makeMbqi cfg ++ Thy.preamble cfg Z3
 smtPreamble cfg s _
-  = checkValidStringFlag s "" cfg >> (return $ preamble cfg s)
+  = checkValidStringFlag s "" cfg >> return (Thy.preamble cfg s)
 
 checkValidStringFlag :: SMTSolver -> T.Text -> Config -> IO ()
 checkValidStringFlag smt v cfg
-  = if    (stringTheory cfg)
-       && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"]))
-      then die $ err dummySpan (text $ "stringTheory is only supported by z3 version >=4.2.2")
-      else return ()
+  = when (noString smt v cfg) $
+      die $ err dummySpan (text "stringTheory is only supported by z3 version >=4.2.2")
+
+noString :: SMTSolver -> T.Text -> Config -> Bool
+noString smt v cfg
+  =  stringTheory cfg
+  && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"]))
+
 
 versionGreaterEq :: Ord a => [a] -> [a] -> Bool
 versionGreaterEq (x:xs) (y:ys)
@@ -343,16 +347,18 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
 
+-- hack now this is used only for checking gradual condition.
 smtCheckSat :: Context -> Expr -> IO Bool
 smtCheckSat me p
--- hack now this is used only for checking gradual condition.
  = smtAssert me p >> (ans <$> command me CheckSat)
  where
    ans Sat = True
    ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p    = interact' me (Assert Nothing p)
+smtAssert me p  = interact' me (Assert Nothing p')
+  where
+    p'          = elaborate (ctxSmtEnv me) p -- RJ: TODO: major slowdown!
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)

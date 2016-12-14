@@ -27,7 +27,6 @@ import qualified Data.Text                 as T
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
 
-
 class Defunc a where
   defunc :: a -> DF a
 

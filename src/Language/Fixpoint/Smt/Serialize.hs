@@ -4,17 +4,15 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
+
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize
-       ( initSMTEnv )
-       where
+module Language.Fixpoint.Smt.Serialize () where
 
 import           Language.Fixpoint.Types
---import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Data.Monoid
@@ -195,42 +193,3 @@ smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 (check-sat)
 (pop 1)
 -}
-
-
-initSMTEnv :: SEnv Sort
-initSMTEnv = fromListSEnv $
-  [ (setToIntName,    FFunc (setSort intSort)   intSort)
-  , (bitVecToIntName, FFunc bitVecSort intSort)
-  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  -- , (boolToIntName,   FFunc boolSort   intSort)
-  , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
-  ]
-  ++ concatMap makeApplies [1..maxLamArg]
-  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
-
--- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
-maxLamArg :: Int
-maxLamArg = 7
-
-sorts :: [Sort]
-sorts = [intSort]
-
--- NIKI TODO: allow non integer lambda arguments
--- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
-
-makeLamArg :: Sort -> Int  -> Symbol
-makeLamArg _ i = intArgName i
-
-makeApplies :: Int -> [(Symbol, Sort)]
-makeApplies i =
-  [ (intApplyName i,    go i intSort)
-  , (setApplyName i,    go i (setSort intSort))
-  , (bitVecApplyName i, go i bitVecSort)
-  , (mapApplyName i,    go i $ mapSort intSort intSort)
-  , (realApplyName i,   go i realSort)
-  , (boolApplyName i,   go i boolSort)
-  ]
-  where
-    go 0 s = FFunc intSort s
-    go i s = FFunc intSort $ go (i-1) s

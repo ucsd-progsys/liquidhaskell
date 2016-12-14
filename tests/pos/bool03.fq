@@ -1,0 +1,22 @@
+
+// qualif LE(v:a, x:a): (bool_to_int x <= bool_to_int v)
+
+qualif LE(v:a, x:a): (x <= v)
+
+bind 1 bx : {v: bool | true }
+
+constraint:
+  env [ 1 ]
+  lhs {v : bool | bx <= v }
+  rhs {v : bool | $k1     }
+  id 1 tag []
+
+constraint:
+  env [ 1 ]
+  lhs {v : bool | $k1 }
+  rhs {v : bool | bx <= v }
+  id 2 tag []
+
+wf:
+  env [1]
+  reft {v : bool | $k1 }

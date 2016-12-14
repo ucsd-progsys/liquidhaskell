@@ -53,7 +53,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import           Language.Fixpoint.Types.Visitor  (foldSort)
-import           Language.Fixpoint.Smt.Theories   (theoryEnv, toInt)
+import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -104,7 +104,7 @@ elaborate γ e
       Right s  -> fst s
   where
     f   = (`lookupSEnvWithDistance` γ')
-    γ'  = unionSEnv γ theoryEnv
+    γ'  = mconcat [γ, Thy.interpSEnv, Thy.uninterpSEnv]
     d m = vcat [ "elaborate failed on:"
                , nest 4 (pprint e)
                , "with error"
@@ -367,8 +367,8 @@ elab f e@(PAtom Eq e1 e2) = do
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
 
 elab f (PAtom r e1 e2) = do
-  e1' <- uncurry toInt <$> elab f e1
-  e2' <- uncurry toInt <$> elab f e2
+  e1' <- uncurry Thy.toInt <$> elab f e1
+  e2' <- uncurry Thy.toInt <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
 elab f (PExist bs e) = do

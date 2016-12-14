@@ -38,7 +38,7 @@ import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
+import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 -- import qualified Language.Fixpoint.Solver.Index as Index
@@ -50,7 +50,6 @@ import           Data.Maybe           (isJust, catMaybes)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
-
 import           Control.Exception.Base (bracket)
 
 --------------------------------------------------------------------------------
@@ -97,14 +96,13 @@ runSolverM cfg sI _ _ act =
     return $ fst res
   where
     act'     = declareInitEnv >> declare xts ess p >> assumes (F.asserts fi) >> act
-    acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
+    acquire  = makeContextWithSEnv cfg file initEnv
+    initEnv  = mconcat [Thy.uninterpSEnv, Thy.interpSEnv, F.fromListSEnv xts]
     ess      = distinctLiterals fi
     (xts, p) = background cfg fi
-    be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
+    be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
-    -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
-    -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
@@ -236,7 +234,7 @@ assumes es = withContext $ \me ->
 declareInitEnv :: SolveM ()
 declareInitEnv
   = withContext $ \me ->
-      forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
+      forM_ (F.toListSEnv Thy.uninterpSEnv) $ uncurry $ smtDecl me
 
 -- | `distinctLiterals` is used solely to determine the set of literals
 --   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,

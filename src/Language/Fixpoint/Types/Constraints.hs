@@ -312,10 +312,7 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
-  pprintTidy k q = hcat [ "qualif"
-                        , pprintTidy k (qName q)
-                        , "defined at"
-                        , pprintTidy k (qPos q) ]
+  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q) 
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
