@@ -107,16 +107,12 @@ runSolverM cfg sI _ _ act =
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
--- getPacks :: Config -> F.SInfo a -> F.Packs
--- getPacks cfg fi
--- /   | C.pack cfg = F.packs fi
--- /   | otherwise  = mempty
-
 background :: F.TaggedC c a => Config -> F.GInfo c a -> ([(F.Symbol, F.Sort)], F.Pred)
 background cfg fi = (bts ++ xts, p)
   where
     xts           = symbolSorts cfg fi
-    (bts, p)      = ([], F.PTrue) -- maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
+    (bts, p)      = ([], F.PTrue)
+
 
 --------------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv

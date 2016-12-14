@@ -12,11 +12,11 @@ import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
--- import qualified Language.Fixpoint.Solver.Index    as Index -- Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
+import           Language.Fixpoint.Solver.Validate
 
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
@@ -28,11 +28,13 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList    [] kHyps kS
+    sHyp           = Sol.fromList sE [] kHyps kS
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
+    sE             = symbolEnv   cfg sI
+
 
 --------------------------------------------------------------------------------
 kvScopes :: SInfo a -> [CEdge] -> M.HashMap KVar IBindEnv

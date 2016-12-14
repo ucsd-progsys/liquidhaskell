@@ -87,7 +87,7 @@ solve_ :: (NFData a, F.Fixpoint a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
-  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi ks
+  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats

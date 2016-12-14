@@ -4,13 +4,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Solver.Validate
-       ( -- * Transform FInfo to enforce invariants
-         sanitize
+  ( -- * Transform FInfo to enforce invariants
+    sanitize
 
-         -- * Sorts for each Symbol
-       , symbolSorts
-       )
-       where
+    -- * Sorts for each Symbol (move elsewhere)
+  , symbolEnv
+  , symbolSorts
+  ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
@@ -19,6 +19,7 @@ import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
 import qualified Language.Fixpoint.Types.Errors                    as E
+import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
@@ -196,6 +197,12 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
+symbolEnv :: Config -> F.SInfo a -> F.SEnv F.Sort
+symbolEnv cfg si = mconcat
+  [ Thy.uninterpSEnv
+  , Thy.interpSEnv
+  , F.fromListSEnv (symbolSorts cfg si) ]
+
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 

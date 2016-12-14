@@ -24,12 +24,14 @@ import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types.Config 
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 -- import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
+import           Language.Fixpoint.Solver.Validate
 
 -- DEBUG
 -- import Text.Printf (printf)
@@ -67,14 +69,15 @@ update1 s (k, qs) = (change, Sol.updateK k qs s)
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
 --------------------------------------------------------------------------------
-init :: F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
+init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init si ks = Sol.fromList keqs [] mempty
+init cfg si ks = Sol.fromList senv keqs [] mempty
   where
-    keqs   = map (refine si qs genv) ws `using` parList rdeepseq
-    qs     = F.quals si
-    ws     = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
-    genv   = instConstants si
+    keqs       = map (refine si qs genv) ws `using` parList rdeepseq
+    qs         = F.quals si
+    ws         = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
+    genv       = instConstants si
+    senv       = symbolEnv cfg si
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
