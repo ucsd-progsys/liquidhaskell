@@ -146,8 +146,6 @@ type SafeText = T.Text
 --
 --   where i is a unique integer (for each text)
 
-
-
 data Symbol
   = S { _symbolId      :: !Id
       , symbolRaw     :: !T.Text

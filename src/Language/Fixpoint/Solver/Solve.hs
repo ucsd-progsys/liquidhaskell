@@ -143,12 +143,13 @@ refineC _i s c
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
-rhsCands s c   = (fst <$> ks, kqs)
+rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- Sol.lookupQBind s k]
-    ks         = predKs . F.crhs $ c
-    cnd k su q = (F.subst su (F.eqPred q), (k, q), error "FIXME:1")
+    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
+    ks          = predKs . F.crhs $ c
+    cnd k su    = Sol.qbPreds s su (Sol.lookupQBind s k)
+
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps

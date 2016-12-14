@@ -6,7 +6,7 @@ module Language.Fixpoint.Solver.Solution
     init
 
     -- * Update Solution
-  , update
+  , Sol.update
 
   -- * Lookup Solution
   , lhsPred
@@ -24,7 +24,7 @@ import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types.Config 
+import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
@@ -37,34 +37,6 @@ import           Language.Fixpoint.Solver.Validate
 -- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
---------------------------------------------------------------------------------
--- | Update Solution -----------------------------------------------------------
---------------------------------------------------------------------------------
-update :: Sol.Solution -> [F.KVar] -> [(F.KVar, F.EQual)] -> (Bool, Sol.Solution)
---------------------------------------------------------------------------------
-update s ks kqs = {- tracepp msg -} (or bs, s')
-  where
-    kqss        = groupKs ks kqs
-    (bs, s')    = folds update1 s kqss
-    -- msg      = printf "ks = %s, s = %s" (showpp ks) (showpp s)
-
-folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
-folds f b = L.foldl' step ([], b)
-  where
-     step (cs, acc) x = (c:cs, x')
-       where
-         (c, x')      = f acc x
-
-groupKs :: [F.KVar] -> [(F.KVar, F.EQual)] -> [(F.KVar, Sol.QBind)]
-groupKs ks kqs = M.toList $ groupBase m0 kqs
-  where
-    m0         = M.fromList $ (,[]) <$> ks
-
-update1 :: Sol.Solution -> (F.KVar, Sol.QBind) -> (Bool, Sol.Solution)
-update1 s (k, qs) = (change, Sol.updateK k qs s)
-  where
-    oldQs         = Sol.lookupQBind s k
-    change        = length oldQs /= length qs
 
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
@@ -96,7 +68,7 @@ refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) 
 refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
-    eqs'                    = filter (okInst env v t) eqs
+    eqs'                    = Sol.qbFilter (okInst env v t) eqs
     -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
@@ -107,20 +79,20 @@ instK :: Bool
       -> [F.Qualifier]
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env v t = unique . concatMap (instKQ ho env v t)
+instK ho env v t = Sol.qb . unique . concatMap (instKQ ho env v t)
   where
-    unique       = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
+    unique       = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
 
 instKQ :: Bool
        -> F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
-       -> Sol.QBind
+       -> [Sol.EQual]
 instKQ ho env v t q
   = do (su0, v0) <- candidates senv [(t, [v])] qt
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
-       return     $ F.eQual q (reverse xs)
+       return     $ Sol.eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.qParams q
        tyss       = instCands ho env
@@ -151,13 +123,13 @@ candidates env tyss tx
     mono = So.isMono tx
 
 --------------------------------------------------------------------------------
-okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> F.EQual -> Bool
+okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
 --------------------------------------------------------------------------------
 okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
-    p             = F.eqPred eq
-    tc            = So.checkSorted env ({- F.tracepp _msg -} sr)
+    p             = Sol.eqPred eq
+    tc            = So.checkSorted env sr -- ({- F.tracepp _msg -} sr)
     --  _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
@@ -200,7 +172,8 @@ applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s (k, su) = case Sol.lookup s k of
   Left cs   -> hypPred g s k su cs
-  Right eqs -> (Sol.qBindPred su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds s su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+
 
 hypPred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Hyp  -> ExprInfo
 hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus

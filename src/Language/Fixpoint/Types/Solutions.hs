@@ -8,6 +8,8 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | This module contains the top-level SOLUTION data types,
 --   including various indices used for solving.
@@ -22,6 +24,8 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution elements
   , Hyp, Cube (..), QBind
+  , EQual (..)
+  , eQual
 
   -- * Solution Candidates (move to SolverMonad?)
   , Cand
@@ -30,12 +34,16 @@ module Language.Fixpoint.Types.Solutions (
   , fromList
 
   -- * Update
-  , updateK
+  , update
 
   -- * Lookup
   , lookupQBind
   , lookup
-  , qBindPred
+
+  -- * Manipulating QBind
+  , qb
+  , qbPreds
+  , qbFilter
 
   -- * Conversion for client
   , result
@@ -49,25 +57,78 @@ module Language.Fixpoint.Types.Solutions (
 
 import           Prelude hiding (lookup)
 import           GHC.Generics
+import           Control.DeepSeq
 import           Data.Maybe (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
+import qualified Data.List as L
+import           Data.Generics             (Data)
+import           Data.Typeable             (Typeable)
 -- import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
-
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
+import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.SortCheck (elaborate)
 import           Text.PrettyPrint.HughesPJ
+
+--------------------------------------------------------------------------------
+-- | Update Solution -----------------------------------------------------------
+--------------------------------------------------------------------------------
+update :: Solution -> [KVar] -> [(KVar, EQual)] -> (Bool, Solution)
+--------------------------------------------------------------------------------
+update s ks kqs = {- tracepp msg -} (or bs, s')
+  where
+    kqss        = groupKs ks kqs
+    (bs, s')    = folds update1 s kqss
+    -- msg      = printf "ks = %s, s = %s" (showpp ks) (showpp s)
+
+folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+folds f b = L.foldl' step ([], b)
+  where
+     step (cs, acc) x = (c:cs, x')
+       where
+         (c, x')      = f acc x
+
+groupKs :: [KVar] -> [(KVar, EQual)] -> [(KVar, QBind)]
+groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
+  where
+    m0         = M.fromList $ (,[]) <$> ks
+
+update1 :: Solution -> (KVar, QBind) -> (Bool, Solution)
+update1 s (k, qs) = (change, updateK k qs s)
+  where
+    oldQs         = lookupQBind s k
+    change        = qbSize oldQs /= qbSize qs
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
 type Solution = Sol QBind
-type QBind    = [EQual]
+newtype QBind = QB [EQual] deriving (Show, Data, Typeable, Generic)
+
+qb :: [EQual] -> QBind
+qb = QB
+
+qbEQuals :: QBind -> [EQual]
+qbEQuals (QB xs) = xs
+
+qbSize :: QBind -> Int
+qbSize = length . qbEQuals
+
+qbFilter :: (EQual -> Bool) -> QBind -> QBind
+qbFilter f (QB eqs) = QB (filter f eqs)
+
+instance NFData QBind
+
+-- instance Monoid QBind where
+  -- mempty         = QB mempty
+  -- mappend qb qb' = QB (qbEQuals qb ++ qbEQuals qb')
+  -- mconcat        = QB . unique . concatMap qbEQuals
 
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
@@ -115,7 +176,7 @@ instance PPrint Cube where
 --------------------------------------------------------------------------------
 result :: Solution -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = sMap $ (pAnd . fmap eqPred) <$> s
+result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
 
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
@@ -128,16 +189,19 @@ fromList env kXs kYs = Sol env kXm kYm -- kBm
  -- kBm              = const () <$> kXm
 
 --------------------------------------------------------------------------------
-qBindPred :: Solution -> Subst -> QBind -> Pred
+qbPreds :: Solution -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
-qBindPred sFIXME su = subst su . pAnd . fmap eqPred "FIXME:2"
-
+qbPreds s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
+  where
+    elabPred          = elaborate env . subst su . eqPred
+    env               = sEnv s
+    
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
 lookupQBind :: Solution -> KVar -> QBind
 --------------------------------------------------------------------------------
-lookupQBind s k = {- tracepp _msg $ -} fromMaybe [] (lookupElab s k)
+lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
   where
     _msg        = "lookupQB: k = " ++ show k
 
@@ -153,12 +217,13 @@ lookup s k
   = errorstar $ "solLookup: Unknown kvar " ++ show k
 
 lookupElab :: Solution -> KVar -> Maybe QBind
-lookupElab s k = case M.lookup k (sMap s) of
-  Just eqs -> Just (tx <$> eqs)
-  Nothing  -> Nothing
-  where
-    tx eq = eq { eqPred = elaborate env (eqPred eq) }
-    env   = sEnv s
+lookupElab s k = M.lookup k (sMap s)
+-- of
+--  Just qb -> Just (QB (tx <$> qbEQuals qb))
+--  Nothing  -> Nothing
+--  where
+--    tx eq = eq { eqPred = elaborate env (eqPred eq) }
+--    env   = sEnv s
 
 --------------------------------------------------------------------------------
 updateK :: KVar -> a -> Sol a -> Sol a
@@ -173,6 +238,29 @@ updateK k qs s = s { sMap = M.insert k qs (sMap s)
 --------------------------------------------------------------------------------
 type Cand a   = [(Expr, a)]
 
+
+--------------------------------------------------------------------------------
+-- | Instantiated Qualifiers ---------------------------------------------------
+--------------------------------------------------------------------------------
+data EQual = EQL
+  { _eqQual :: !Qualifier
+  , eqPred  :: !Expr
+  , _eqArgs :: ![Expr]
+  } deriving (Eq, Show, Data, Typeable, Generic)
+
+instance PPrint EQual where
+  pprintTidy k = pprintTidy k . eqPred
+
+instance NFData EQual
+
+{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
+eQual :: Qualifier -> [Symbol] -> EQual
+eQual q xs = EQL q p es
+  where
+    p      = subst su $  qBody q
+    su     = mkSubst  $  safeZip "eQual" qxs es
+    es     = eVar    <$> xs
+    qxs    = fst     <$> qParams q
 
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder
