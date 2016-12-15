@@ -19,7 +19,6 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
--- import           Data.Either                    (lefts, rights)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
@@ -29,12 +28,11 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
--- import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 import           Language.Fixpoint.Solver.Validate
 
 -- DEBUG
--- import Text.Printf (printf)
+import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 
@@ -65,11 +63,11 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
 
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
+refineK ho env qs (v, t, k) = F.tracepp _msg (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = Sol.qbFilter (okInst env v t) eqs
-    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
@@ -129,8 +127,8 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted env sr -- ({- F.tracepp _msg -} sr)
-    --  _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
+    tc            = So.checkSorted env ({- F.tracepp _msg -} sr)
+    -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------

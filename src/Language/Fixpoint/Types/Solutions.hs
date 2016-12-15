@@ -125,10 +125,8 @@ qbFilter f (QB eqs) = QB (filter f eqs)
 
 instance NFData QBind
 
--- instance Monoid QBind where
-  -- mempty         = QB mempty
-  -- mappend qb qb' = QB (qbEQuals qb ++ qbEQuals qb')
-  -- mconcat        = QB . unique . concatMap qbEQuals
+instance PPrint QBind where
+  pprintTidy k = pprintTidy k . qbEQuals
 
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
@@ -195,7 +193,7 @@ qbPreds s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
     elabPred          = elaborate env . subst su . eqPred
     env               = sEnv s
-    
+
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
@@ -255,7 +253,7 @@ instance NFData EQual
 
 {- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 eQual :: Qualifier -> [Symbol] -> EQual
-eQual q xs = EQL q p es
+eQual q xs = {- tracepp "eQual" $ -} EQL q p es
   where
     p      = subst su $  qBody q
     su     = mkSubst  $  safeZip "eQual" qxs es

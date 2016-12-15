@@ -298,11 +298,11 @@ elab f e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (EApp e1' (ECst e2' s2), s)
+  return ({- HEREHERE defuncEApp (Just s) -} EApp e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (EApp (ECst e1' s1) (ECst e2' s2), s)
+  return ({- HEREHERE defuncEApp (Just s)  -} EApp (ECst e1' s1) (ECst e2' s2), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)

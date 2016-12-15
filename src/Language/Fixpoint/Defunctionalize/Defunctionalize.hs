@@ -481,7 +481,7 @@ makeInitDFState cfg si
          , dfAEq   = alphaEquivalence cfg
          , dfBEq   = betaEquivalence  cfg
          , dfNorm  = normalForm       cfg
-         , dfHO    = True -- RJ:NOPROP -- allowHO cfg  || defunction cfg
+         , dfHO    = allowHO cfg  || defunction cfg
          , dfLNorm = True
          -- INVARIANT: lambads and redexes are not defunctionalized
          , dfLams  = []
