@@ -22,12 +22,13 @@ module Language.Fixpoint.SortCheck  (
   , pruneUnsortedReft
 
   -- * Sort inference
-  , sortExpr, checkSortExpr
+  , sortExpr
+  , checkSortExpr
+  , exprSort
 
   -- * Unify
   , unifyFast
   , unifySorts
-  -- , unify
 
   -- * Apply Substitution
   , apply
@@ -35,7 +36,10 @@ module Language.Fixpoint.SortCheck  (
   -- * Exported Sorts
   , boolSort
   , strSort
+
+  -- * Sort-Directed Transformations
   , elaborate
+  , defuncEApp
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -52,7 +56,7 @@ import           Data.Maybe                (mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
-import           Language.Fixpoint.Types.Visitor  (foldSort)
+import           Language.Fixpoint.Types.Visitor  (stripCasts, foldSort)
 import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -405,26 +409,85 @@ elabAppAs f t g e = do
   e'       <- elabAs f te e
   return $ EApp (ECst g' tg) (ECst e' te)
 
-{-
-elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
-elabAppAs f t g es = do
-  gT    <- generalize =<< checkExpr f g
-  eTs   <- mapM (checkExpr f) es
-  gTios <- sortFunction (length es) gT
-  su    <- unifys f (snd gTios : fst gTios) (t:eTs)
-  let tg = apply su gT
-  g'    <- elabAs f tg g
-  let ts = apply su <$> eTs
-  es'   <- zipWithM (elabAs f) ts es
-  return $ eApps (ECst g' tg) (zipWith ECst es' ts)
--}
-
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- elabAppSort f e1 e2 s1 s2
   return (e1', s1, e2', s2, s)
+
+
+--------------------------------------------------------------------------------
+defuncEApp :: Maybe Sort -> Expr -> Expr -> Expr
+defuncEApp ms e1 e2
+  | Thy.isSmt2App (stripCasts f) es
+  = eApps f es
+  | otherwise
+  = makeApplication ms e1 e2
+  where
+    (f, es) = splitArgs $ EApp e1 e2
+
+-- e1 e2 => App (App runFun e1) (toInt e2)
+makeApplication :: Maybe Sort -> Expr -> Expr -> Expr
+makeApplication sO e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
+  where
+    f                    = makeFunSymbol (spec s)
+    e2'                  = Thy.toInt e2 (exprSort e2)
+    s                    = fromMaybe (resultType e1 e2) sO
+    spec                 :: Sort -> Sort
+    spec (FAbs _ s)      = spec s
+    spec s               = s
+
+resultType :: Expr -> Expr -> Sort
+resultType e _ = go $ exprSort e
+  where
+    go (FAbs i s)               = FAbs i $ go s
+    go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
+    go (FFunc _ sx)             = sx
+    go sj                       = errorstar ("\nmakeFunSymbol on non Fun " ++ showpp (stripCasts e, sj) ++ "\nuneliminated\n" ++ showpp e)
+
+makeFunSymbol :: Sort -> Symbol
+makeFunSymbol s
+  | (FApp (FTC c) _) <- s
+  , Thy.isConName setConName c
+  = setApplyName 1
+  | (FApp (FApp (FTC c) _) _) <- s
+  , Thy.isConName mapConName c
+  = mapApplyName 1
+  | (FApp (FTC bv) (FTC s))   <- s
+  , Thy.isConName bitVecName bv
+  , Just _ <- Thy.sizeBv s
+  = bitVecApplyName 1
+  | FTC c <- s, c == boolFTyCon
+  = boolApplyName 1
+  | s == FReal
+  = realApplyName 1
+  | otherwise
+  = intApplyName 1
+
+splitArgs :: Expr -> (Expr, [Expr])
+splitArgs = go []
+  where
+    go acc (EApp e1 e) = go (e:acc) e1
+    go acc (ECst e _)  = go acc e
+    go acc e           = (e, acc)
+
+--------------------------------------------------------------------------------
+-- | Expressions sort  ---------------------------------------------------------
+--------------------------------------------------------------------------------
+exprSort :: Expr -> Sort
+exprSort (ECst _ s)
+  = s
+exprSort (ELam (_, sx) e)
+  = FFunc sx $ exprSort e
+exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e
+  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx
+  where
+    gen (FAbs _ t) = gen t
+    gen t          = t
+exprSort e
+  = errorstar ("\nexprSort on unexpected expressions" ++ show e)
+
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do

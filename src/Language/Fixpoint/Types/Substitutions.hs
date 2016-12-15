@@ -255,7 +255,6 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 --------------------------------------------------------------------------------
 -- | TODO: Rewrite using visitor -----------------------------------------------
 --------------------------------------------------------------------------------
-
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where

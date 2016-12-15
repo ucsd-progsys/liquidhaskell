@@ -22,6 +22,7 @@ module Language.Fixpoint.Types.Visitor (
   , fold
 
   -- * Clients
+  , stripCasts
   , kvars
   , size, lamSize
   , envKVars
@@ -262,6 +263,12 @@ isKvar _          = False
 
 isConc :: Expr -> Bool
 isConc = null . kvars
+
+stripCasts :: Expr -> Expr
+stripCasts = mapExpr go
+  where
+    go (ECst e _) = e
+    go e          = e
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

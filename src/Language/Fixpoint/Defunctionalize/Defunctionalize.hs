@@ -12,9 +12,9 @@ module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 import           Language.Fixpoint.Misc            (secondM, errorstar, mapSnd)
 import           Language.Fixpoint.Solver.Validate (symbolSorts)
 import           Language.Fixpoint.Types        hiding (allowHO)
-import           Language.Fixpoint.Types.Config hiding (eliminate)
+import           Language.Fixpoint.Types.Config -- hiding (eliminate)
 import           Language.Fixpoint.SortCheck
-import           Language.Fixpoint.Types.Visitor   (mapExpr, mapMExpr)
+import           Language.Fixpoint.Types.Visitor   (stripCasts, mapExpr, mapMExpr)
 
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Control.Monad.State
@@ -86,7 +86,7 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ e@(ECon _)       = return e
     go _ e@(EVar _)       = return e
     go _ e@(PKVar _ _)    = return e
-    go s e@(EApp e1 e2)   = logRedex e >> defuncEApp s e1 e2
+    go s e@(EApp e1 e2)   = logRedex e >> (defuncEApp s <$> defuncExpr e1 <*> defuncExpr e2)
     go s (ENeg e)         = ENeg <$> go s e
     go _ (EBin o e1 e2)   = EBin o <$> go Nothing e1 <*> go Nothing e2
     go s (EIte e1 e2 e3)  = EIte <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3
@@ -131,74 +131,9 @@ maxLamArg = 7
 makeLamArg :: Sort -> Int  -> Symbol
 makeLamArg _ = intArgName
 
-defuncEApp :: Maybe Sort -> Expr -> Expr -> DF Expr
-defuncEApp ms e1 e2
-  | Thy.isSmt2App (eliminate f) es
-  = eApps f <$> mapM defuncExpr es
-  | otherwise
-  = makeApplication ms <$> (dfLog <$> get) <*> defuncExpr e1 <*> defuncExpr e2
-  where
-    (f, es) = splitArgs $ EApp e1 e2
 
 
--- e1 e2 => App (App runFun e1) (toInt e2)
-makeApplication :: Maybe Sort -> String -> Expr -> Expr -> Expr
-makeApplication Nothing str e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
-  where
-    f   = makeFunSymbol $ specify s
-    s   = resultType str e1 e2
-    e2' = Thy.toInt e2 (exprSort e2)
-
-makeApplication (Just s) _ e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
-  where
-    f   = makeFunSymbol $ specify s
-    e2' = Thy.toInt e2 (exprSort e2)
-
-specify :: Sort -> Sort
-specify (FAbs _ s) = specify s
-specify s          = s
-
-resultType :: String -> Expr -> Expr -> Sort
-resultType str e _ = go $ exprSort e
-  where
-    go (FAbs i s)               = FAbs i $ go s
-    go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
-    go (FFunc _ sx)             = sx
-    go sj          = errorstar (str ++ "\nmakeFunSymbol on non Fun " ++ showpp (eliminate e, sj) ++ "\nuneliminated\n" ++ showpp e)
-
-
-makeFunSymbol :: Sort -> Symbol
-makeFunSymbol s
-  | (FApp (FTC c) _) <- s
-  , Thy.isConName setConName c
-  = setApplyName 1
-  | (FApp (FApp (FTC c) _) _) <- s
-  , Thy.isConName mapConName c
-  = mapApplyName 1
-  | (FApp (FTC bv) (FTC s))   <- s
-  , Thy.isConName bitVecName bv
-  , Just _ <- Thy.sizeBv s
-  = bitVecApplyName 1
-  | FTC c                     <- s, c == boolFTyCon
-  = boolApplyName 1
-  | s == FReal
-  = realApplyName 1
-  | otherwise
-  = intApplyName 1
-
-eliminate :: Expr -> Expr
-eliminate = mapExpr go
-  where
-    go (ECst e _) = e
-    go e          = e
-
-splitArgs :: Expr -> (Expr, [Expr])
-splitArgs = go []
-  where
-    go acc (EApp e1 e) = go (e:acc) e1
-    go acc (ECst e _)  = go acc e
-    go acc e           = (e, acc)
-
+--------------------------------------------------------------------------------
 
 makeAxioms :: DF [Expr]
 makeAxioms = do
@@ -209,9 +144,9 @@ makeAxioms = do
   asa       <- if alphaFlag then withNoLambdaNormalization $ withNoEquivalence makeAlphaAxioms  else return []
   return (asa ++ asb ++ asyms)
 
--------------------------------------------------------------------------------
-------------  Symbols ---------------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Symbols -------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 logSym :: SymConst -> DF ()
 logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
@@ -268,10 +203,9 @@ makeAlphaEq e = go e ++ go' e
       = []
 
 
--------------------------------------------------------------------------------
-------------  Normalizations --------------------------------------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Normalizations ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- head normal form
 
@@ -320,7 +254,7 @@ normalizeLamsFromTo i   = go
 
 logRedex :: Expr -> DF ()
 logRedex e@(EApp f _)
-  | (ELam _ _) <- eliminate f
+  | (ELam _ _) <- stripCasts f
   = do bEq <- dfBEq <$> get
        when bEq (modify $ \s -> s{dfRedex = e:dfRedex s})
 logRedex _
@@ -398,7 +332,7 @@ txStr flag e
 
 isStringLen :: Expr -> Maybe Expr
 isStringLen e
-  = case eliminate e of
+  = case stripCasts e of
      EApp (EVar f) a | Thy.genLen == f && hasStringArg e
                      -> Just a
      _               -> Nothing
@@ -439,25 +373,10 @@ mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
     e2' = ECst e2 s1
 
 
--------------------------------------------------------------------------------
---------  Expressions sort  ---------------------------------------------------
--------------------------------------------------------------------------------
-exprSort :: Expr -> Sort
-exprSort (ECst _ s)
-  = s
-exprSort (ELam (_, sx) e)
-  = FFunc sx $ exprSort e
-exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e
-  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx
-  where
-    gen (FAbs _ t) = gen t
-    gen t          = t
-exprSort e
-  = errorstar ("\nexprSort on unexpected expressions" ++ show e)
 
--------------------------------------------------------------------------------
---------  Containers defunctionalization --------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Containers defunctionalization --------------------------------------------
+--------------------------------------------------------------------------------
 
 instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
   defunc fi = do
