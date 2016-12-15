@@ -579,8 +579,8 @@ setBinds :: IBindEnv -> DF ()
 setBinds e = modify $ \s -> s{dfbenv = e}
 
 
-writeLog :: String -> DF ()
-writeLog str = modify $ \s -> s{dfLog =  dfLog s ++ "\n" ++ str}
+_writeLog :: String -> DF ()
+_writeLog str = modify $ \s -> s{dfLog =  dfLog s ++ "\n" ++ str}
 
 withExtendedEnv ::  [(Symbol, Sort)] -> DF a -> DF a
 withExtendedEnv bs act = do
