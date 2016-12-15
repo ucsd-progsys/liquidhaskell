@@ -30,9 +30,9 @@ defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
 class Defunc a where
   defunc :: a -> DF a
 
--------------------------------------------------------------------------------
---------  Sort defunctionalization --------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Sort defunctionalization --------------------------------------------------
+--------------------------------------------------------------------------------
 
 instance Defunc Sort where
   defunc = defuncSort
@@ -80,7 +80,7 @@ txExpr' stFlag hoFlag exFlag e
 
 
 defuncExpr :: Expr -> DF Expr
-defuncExpr e = writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> go Nothing e
+defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothing
   where
     go _ e@(ESym _)       = return e
     go _ e@(ECon _)       = return e
@@ -365,10 +365,9 @@ instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
     combine xs []  = [[x] | x <- xs]
     combine xs acc = concat [(x:) <$> acc | x <- xs]
 
--------------------------------------------------------------------------------
---------  Numeric Overloading  ------------------------------------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Numeric Overloading  ------------------------------------------------------
+--------------------------------------------------------------------------------
 txnumOverloading :: Expr -> Expr
 txnumOverloading = mapExpr go
   where
@@ -560,10 +559,10 @@ makeInitDFState cfg si
          , dfbenv  = mempty
          , dfLam   = True
          , dfExt   = extensionality   cfg
-         , dfAEq    = alphaEquivalence cfg
-         , dfBEq    = betaEquivalence  cfg
+         , dfAEq   = alphaEquivalence cfg
+         , dfBEq   = betaEquivalence  cfg
          , dfNorm  = normalForm       cfg
-         , dfHO    = allowHO  cfg  || defunction cfg
+         , dfHO    = True -- RJ:NOPROP -- allowHO cfg  || defunction cfg
          , dfLNorm = True
          -- INVARIANT: lambads and redexes are not defunctionalized
          , dfLams  = []
