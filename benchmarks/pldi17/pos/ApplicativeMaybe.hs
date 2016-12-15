@@ -100,7 +100,7 @@ composition (Just x) (Just y) (Just z)
         ==. seq (seq (seq (Just compose) (Just x)) (Just y)) (Just z)
         ==. seq (seq (Just (compose x)) (Just y)) (Just z)
         ==. seq (Just (compose x y)) (Just z)
-        ==. Just ((compose x y) z)
+        ==. Just (compose x y z)
         ==. Just (x (y z))
         ==. Just (x (select_Just_1 (Just (y z))))
         ==. Just (x (select_Just_1 (seq (Just y) (Just z))))
@@ -115,9 +115,9 @@ homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
   = toProof $
       seq (pure f) (pure x)
-         ==. seq (Just f) (Just x)
-         ==. Just (f x)
-         ==. pure (f x)
+      ==. seq (Just f) (Just x)
+      ==. Just (f x)
+      ==. pure (f x)
 
 
 -- | interchange
