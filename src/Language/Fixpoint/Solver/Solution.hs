@@ -32,7 +32,7 @@ import           Prelude                              hiding (init, lookup)
 import           Language.Fixpoint.Solver.Validate
 
 -- DEBUG
-import Text.Printf (printf)
+-- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 
@@ -63,11 +63,11 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
 
 
 refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) = F.tracepp _msg (k, eqs')
+refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = Sol.qbFilter (okInst env v t) eqs
-    _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    -- _msg                    = printf "refineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
