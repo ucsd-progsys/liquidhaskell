@@ -31,43 +31,31 @@ class Defunc a where
   defunc :: a -> DF a
 
 --------------------------------------------------------------------------------
--- | Sort defunctionalization --------------------------------------------------
+-- | Sort defunctionalization [should be done by elaboration] ------------------
 --------------------------------------------------------------------------------
+-- instance Defunc Sort where
+--   defunc = return . defuncSort
+-- defuncSort :: Sort -> DF Sort
+-- defuncSort s = do
+  -- hoFlag <- dfHO <$> get
+  -- return $ if hoFlag then go s else s
 
-instance Defunc Sort where
-  defunc = defuncSort
-
-defuncSort :: Sort -> DF Sort
-defuncSort s = do
-  hoFlag <- dfHO <$> get
-  return $ if hoFlag then go s else s
-  where
-    go s | isString s = strSort
-    go (FAbs i s)    = FAbs i $ go s
-    go (FFunc s1 s2) = funSort (go s1) (go s2)
-    go (FApp s1 s2)  = FApp    (go s1) (go s2)
-    go s             = s
-
-funSort :: Sort -> Sort -> Sort
-funSort = FApp . FApp funcSort
-
--------------------------------------------------------------------------------
---------  Expressions defunctionalization -------------------------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Expressions defunctionalization -------------------------------------------
+--------------------------------------------------------------------------------
 instance Defunc Expr where
-  defunc = txExpr True
+  defunc = txExpr
 
 txCastedExpr :: Expr -> DF Expr
-txCastedExpr = txExpr False
+txCastedExpr = txExpr
 
-txExpr :: Bool -> Expr -> DF Expr
-txExpr b e = do
-  env    <- dfenv <$> get
+txExpr :: Expr -> DF Expr
+txExpr e = do
+  -- env    <- dfenv <$> get
   hoFlag <- dfHO  <$> get
   exFlag <- dfExt <$> get
   stFlag <- dfStr <$> get
-  txExpr' stFlag hoFlag exFlag $ if b then elaborate env e else e
+  txExpr' stFlag hoFlag exFlag e -- [NOTE: all `Expr` should be elaborated prior to defunc]
 
 txExpr' :: Bool -> Bool -> Bool -> Expr -> DF Expr
 txExpr' stFlag hoFlag exFlag e
@@ -86,7 +74,7 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ e@(ECon _)       = return e
     go _ e@(EVar _)       = return e
     go _ e@(PKVar _ _)    = return e
-    go s e@(EApp e1 e2)   = logRedex e >> (defuncEApp s <$> defuncExpr e1 <*> defuncExpr e2)
+    go s e@(EApp e1 e2)   = logRedex e >> (EApp <$> go s e1 <*> go s e2)
     go s (ENeg e)         = ENeg <$> go s e
     go _ (EBin o e1 e2)   = EBin o <$> go Nothing e1 <*> go Nothing e2
     go s (EIte e1 e2 e3)  = EIte <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3
@@ -412,7 +400,7 @@ instance Defunc Qualifier where
                 return    $ q {qParams = qParams', qBody = qBody'}
 
 instance Defunc SortedReft where
-  defunc (RR s r) = RR <$> defunc s <*> defunc r
+  defunc (RR s r) = RR s <$> defunc r
 
 instance Defunc (Symbol, SortedReft) where
   defunc (x, RR s (Reft (v, e)))
@@ -421,11 +409,11 @@ instance Defunc (Symbol, SortedReft) where
 instance Defunc Reft where
   defunc (Reft (x, e)) = Reft . (x,) <$> defunc e
 
-instance Defunc (a, Sort, c) where
-  defunc (x, y, z) = (x, , z) <$> defunc y
+-- instance Defunc (a, Sort, c) where
+--   defunc (x, y, z) = (x, , z) <$> defunc y
 
-instance Defunc (a, Sort) where
-  defunc (x, y) = (x, ) <$> defunc y
+-- instance Defunc (a, Sort) where
+--  defunc (x, y) = (x, ) <$> defunc y
 
 instance Defunc a => Defunc (SEnv a) where
   defunc = mapMSEnv defunc
@@ -517,8 +505,6 @@ withNoLambdaNormalization act = do
   r <- act
   modify $ \s -> s{dfLam = dfLNorm}
   return r
-
-
 
 withNoEquivalence :: DF a -> DF a
 withNoEquivalence act = do

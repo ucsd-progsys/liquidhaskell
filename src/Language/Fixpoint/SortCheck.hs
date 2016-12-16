@@ -40,6 +40,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , elaborate
   , defuncEApp
+  , defuncSort
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -417,6 +418,23 @@ elabEApp f e1 e2 = do
   return (e1', s1, e2', s2, s)
 
 
+--------------------------------------------------------------------------------
+-- | defuncSort is used to convert function types in the "apply" transformation
+--------------------------------------------------------------------------------
+defuncSort :: Sort -> Sort
+defuncSort = go
+  where
+    go s | isString s = strSort
+    go (FAbs i s)    = FAbs i $ go s
+    go (FFunc s1 s2) = funSort (go s1) (go s2)
+    go (FApp s1 s2)  = FApp    (go s1) (go s2)
+    go s             = s
+
+funSort :: Sort -> Sort -> Sort
+funSort = FApp . FApp funcSort
+
+--------------------------------------------------------------------------------
+-- | defuncSort is used to convert function types in the "apply" transformation
 --------------------------------------------------------------------------------
 defuncEApp :: Maybe Sort -> Expr -> Expr -> Expr
 defuncEApp ms e1 e2

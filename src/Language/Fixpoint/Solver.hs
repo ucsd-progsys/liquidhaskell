@@ -176,7 +176,7 @@ solveNative' !cfg !fi0 = do
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
-  writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
+  -- writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
   let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"

@@ -125,7 +125,6 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
     bs' <- visit v c (bs x)
     return x { cm = cm', bs = bs' }
 ---------------------------------------------------------------------------------
-
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where

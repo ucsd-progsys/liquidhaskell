@@ -42,7 +42,19 @@ sanitize   =    -- banIllScopedKvars
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
+         >=> Misc.fM elaborateRefinements
 
+
+--------------------------------------------------------------------------------
+-- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
+--   refinements except for KVars. This is now mandatory due to the `no-prop`
+--------------------------------------------------------------------------------
+elaborateRefinements :: F.SInfo a -> F.SInfo a
+elaborateRefinements si = si
+  { F.cm = error "TODO:elaborateRefinements"
+  , F.ws = error "TODO:elaborateRefinements"
+  , F.bs = error "TODO:elaborateRefinements"
+  }
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
