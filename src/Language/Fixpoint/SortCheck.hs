@@ -39,8 +39,6 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Sort-Directed Transformations
   , Elaborate (..)
-  -- , defuncEApp
-  -- , elaborate
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -438,8 +436,13 @@ elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
-elabAs f _ e            = fst <$> elab f e
+elabAs f t e = tracepp msg <$> elabAs' f t e
+  where
+    msg  = "elabAs: t = " ++ show t ++ " e = " ++ show e
+
+elabAs' :: Env -> Sort -> Expr -> CheckM Expr
+elabAs' f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs' f _ e            = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
@@ -452,20 +455,25 @@ elabAppAs f t g e = do
   g'       <- elabAs f tg g
   let te    = apply su eT
   e'       <- elabAs f te e
-  return $ EApp (ECst g' tg) (ECst e' te)
+  return    $ defuncEApp (Just (apply su t)) (ECst g' tg) (ECst e' te)
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- elabAppSort f e1 e2 s1 s2
-  return (e1', s1, e2', s2, s)
+  return      (e1', s1, e2', s2, s)
 
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: Maybe Sort -> Expr -> Expr -> Expr
-defuncEApp ms e1 e2
+defuncEApp s e1 e2 = tracepp msg $ defuncEApp' s e1 e2
+  where
+    msg = "DEFUNCEAPP: s := " ++ showpp s ++ " e1 := " ++ showpp e1 ++ " e2 := " ++ showpp e2
+
+defuncEApp' :: Maybe Sort -> Expr -> Expr -> Expr
+defuncEApp' ms e1 e2
   | Thy.isSmt2App (stripCasts f) es
   = eApps f es
   | otherwise
