@@ -169,7 +169,7 @@ solveNative' !cfg !fi0 = do
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
+  let si1 = either die id $ {-# SCC "validate" #-} sanitize cfg $!! si0
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1

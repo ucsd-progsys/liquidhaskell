@@ -14,7 +14,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
-import           Language.Fixpoint.SortCheck     (isFirstOrder)
+import           Language.Fixpoint.SortCheck     (elaborate, isFirstOrder)
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
@@ -32,9 +32,9 @@ import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
+sanitize :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize   =    -- banIllScopedKvars
+sanitize cfg =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -42,19 +42,19 @@ sanitize   =    -- banIllScopedKvars
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
-         >=> Misc.fM elaborateRefinements
+         >=> Misc.fM (elaborateRefinements cfg)
 
 
 --------------------------------------------------------------------------------
 -- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
 --   refinements except for KVars. This is now mandatory due to the `no-prop`
 --------------------------------------------------------------------------------
-elaborateRefinements :: F.SInfo a -> F.SInfo a
-elaborateRefinements si = si
-  { F.cm = error "TODO:elaborateRefinements"
-  , F.ws = error "TODO:elaborateRefinements"
-  , F.bs = error "TODO:elaborateRefinements"
+elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
+elaborateRefinements cfg si = si
+  { F.cm      = elaborate senv <$> F.cm si
+  , F.bs      = elaborate senv  $  F.bs si
   }
+  where senv  = symbolEnv cfg si
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,

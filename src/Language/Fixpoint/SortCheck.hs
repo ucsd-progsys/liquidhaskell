@@ -38,9 +38,9 @@ module Language.Fixpoint.SortCheck  (
   , strSort
 
   -- * Sort-Directed Transformations
-  , elaborate
-  , defuncEApp
-  , defuncSort
+  , Elaborate (..)
+  -- , defuncEApp
+  -- , elaborate
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -74,10 +74,49 @@ isMono             = null . foldSort fv []
     fv vs (FVar i) = i : vs
     fv vs _        = vs
 
+
+--------------------------------------------------------------------------------
+-- | Elaborate: make polymorphic instantiation explicit via casts,
+--   make applications monomorphic for SMTLIB
+--------------------------------------------------------------------------------
+class Elaborate a where
+  elaborate :: SEnv Sort -> a -> a
+
+instance Elaborate Expr where
+  elaborate = elabExpr
+
+instance Elaborate SortedReft where
+  elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
+    where
+      e'   = elaborate env' e
+      env' = insertSEnv v s env
+
+instance Elaborate BindEnv where
+  elaborate env = mapBindEnv (mapSnd (elaborate env))
+
+instance Elaborate (SimpC a) where
+  elaborate env c = c {_crhs = elaborate env (_crhs c) }
+
+elabExpr :: SEnv Sort -> Expr -> Expr
+elabExpr γ e
+  = case runCM0 $ elab f e of
+      Left msg -> die $ err dummySpan (d msg)
+      Right s  -> fst s
+  where
+    f   = (`lookupSEnvWithDistance` γ')
+    γ'  = mconcat [γ, Thy.interpSEnv, Thy.uninterpSEnv]
+    d m = vcat [ "elaborate failed on:"
+               , nest 4 (pprint e)
+               , "with error"
+               , nest 4 (text m)
+               , "in environment"
+               , nest 4 (pprint $ subEnv γ' e)
+               ]
+
+
 --------------------------------------------------------------------------------
 -- | Sort Inference ------------------------------------------------------------
 --------------------------------------------------------------------------------
-
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
 sortExpr l γ e = case runCM0 $ checkExpr f e of
     Left msg -> die $ err l (d msg)
@@ -100,23 +139,6 @@ checkSortExpr γ e = case runCM0 $ checkExpr f e of
     f x  = case lookupSEnv x γ of
             Just z  -> Found z
             Nothing -> Alts []
-
-
-elaborate :: SEnv Sort -> Expr -> Expr
-elaborate γ e
-  = case runCM0 $ elab f e of
-      Left msg -> die $ err dummySpan (d msg)
-      Right s  -> fst s
-  where
-    f   = (`lookupSEnvWithDistance` γ')
-    γ'  = mconcat [γ, Thy.interpSEnv, Thy.uninterpSEnv]
-    d m = vcat [ "elaborate failed on:"
-               , nest 4 (pprint e)
-               , "with error"
-               , nest 4 (text m)
-               , "in environment"
-               , nest 4 (pprint $ subEnv γ' e)
-               ]
 
 subEnv :: (Subable e) => SEnv a -> e -> SEnv a
 subEnv g e = intersectWithSEnv (\t _ -> t) g g'
@@ -252,9 +274,7 @@ instance Checkable SortedReft where
 --------------------------------------------------------------------------------
 -- | Checking Expressions ------------------------------------------------------
 --------------------------------------------------------------------------------
-
 checkExpr                  :: Env -> Expr -> CheckM Sort
-
 checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
@@ -299,11 +319,11 @@ elab f e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return ({- HEREHERE defuncEApp (Just s) -} EApp e1' (ECst e2' s2), s)
+  return (defuncEApp (Just s) {- NOPROP EApp -} e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return ({- HEREHERE defuncEApp (Just s)  -} EApp (ECst e1' s1) (ECst e2' s2), s)
+  return (defuncEApp (Just s) {- NOPROP EApp -} (ECst e1' s1) (ECst e2' s2), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -416,22 +436,6 @@ elabEApp f e1 e2 = do
   (e2', s2) <- elab f e2
   s         <- elabAppSort f e1 e2 s1 s2
   return (e1', s1, e2', s2, s)
-
-
---------------------------------------------------------------------------------
--- | defuncSort is used to convert function types in the "apply" transformation
---------------------------------------------------------------------------------
-defuncSort :: Sort -> Sort
-defuncSort = go
-  where
-    go s | isString s = strSort
-    go (FAbs i s)    = FAbs i $ go s
-    go (FFunc s1 s2) = funSort (go s1) (go s2)
-    go (FApp s1 s2)  = FApp    (go s1) (go s2)
-    go s             = s
-
-funSort :: Sort -> Sort -> Sort
-funSort = FApp . FApp funcSort
 
 --------------------------------------------------------------------------------
 -- | defuncSort is used to convert function types in the "apply" transformation

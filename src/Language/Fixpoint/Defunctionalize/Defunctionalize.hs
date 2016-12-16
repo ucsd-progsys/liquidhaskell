@@ -33,13 +33,22 @@ class Defunc a where
 --------------------------------------------------------------------------------
 -- | Sort defunctionalization [should be done by elaboration] ------------------
 --------------------------------------------------------------------------------
--- NOPROP instance Defunc Sort where
--- NOPROP   defunc = return . defuncSort
--- NOPROP defuncSort :: Sort -> DF Sort
--- NOPROP defuncSort s = do
-  -- NOPROP hoFlag <- dfHO <$> get
-  -- NOPROP return $ if hoFlag then go s else s
+instance Defunc Sort where
+  defunc s = do
+    hoFlag <- dfHO <$> get
+    return $ if hoFlag then defuncSort s else s
 
+defuncSort :: Sort -> Sort
+defuncSort = go
+ where
+    go s | isString s = strSort
+    go (FAbs i s)    = FAbs i $ go s
+    go (FFunc s1 s2) = funSort (go s1) (go s2)
+    go (FApp s1 s2)  = FApp    (go s1) (go s2)
+    go s             = s
+
+funSort :: Sort -> Sort -> Sort
+funSort = FApp . FApp funcSort
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
 --------------------------------------------------------------------------------
@@ -84,17 +93,12 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ (PAnd [])        = return PTrue
     go _ (PAnd ps)        = PAnd <$> mapM (go (Just boolSort)) ps
     go _ (POr [])         = return PFalse
-    go _ (POr ps)         = POr <$> mapM (go (Just boolSort)) ps
-    go _ (PNot p)         = PNot <$> go (Just boolSort) p
-    go _ (PImp p q)       = PImp <$> go (Just boolSort) p <*> go (Just boolSort) q
-    go _ (PIff p q)       = PIff <$> go (Just boolSort) p <*> go (Just boolSort) q
-    go _ (PExist bs p)    = PExist bs <$> withExtendedEnv bs (go (Just boolSort) p)
-    go _ (PAll   bs p)    = PAll   bs <$> withExtendedEnv bs (go (Just boolSort) p)
-                            -- NOPROP do bs' <- mapM defunc bs
-                            -- NOPROP return $ PExist bs p'
-    -- NOPROP do bs' <- mapM defunc bs
-    -- NOPROP p'  <- withExtendedEnv bs $ go (Just boolSort) p
-    -- NOPROP return $ PAll bs' p'
+    go _ (POr ps)         = POr    <$> mapM (go (Just boolSort)) ps
+    go _ (PNot p)         = PNot   <$> go (Just boolSort) p
+    go _ (PImp p q)       = PImp   <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PIff p q)       = PIff   <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PExist bs p)    = PExist <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
+    go _ (PAll   bs p)    = PAll   <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
     go _ (PAtom r e1 e2)  = PAtom r <$> go Nothing e1 <*> go Nothing e2
     go _ PGrad            = return PGrad
     go _ (ELam x ex)      = (dfLam <$> get) >>= defuncELam x ex
@@ -362,25 +366,23 @@ mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
     e2' = ECst e2 s1
 
 
-
 --------------------------------------------------------------------------------
 -- | Containers defunctionalization --------------------------------------------
 --------------------------------------------------------------------------------
-
 instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
   defunc fi = do
     cm'    <- defunc $ cm    fi
-    -- NOPROP ws'    <- defunc $ ws    fi
+    ws'    <- defunc $ ws    fi
     setBinds $ mconcat ((senv <$> M.elems (cm fi)) ++ (wenv <$> M.elems (ws fi)))
-    -- NOPROP gLits' <- defunc $ gLits fi
-    -- NOPROP dLits' <- defunc $ dLits fi
+    gLits' <- defunc $ gLits fi
+    dLits' <- defunc $ dLits fi
     bs'    <- defunc $ bs    fi
     quals' <- defunc $ quals fi
     axioms <- makeAxioms
     return $ fi { cm      = cm'
-                -- , ws      = ws'
-                -- NOPROP , gLits   = gLits'
-                -- NOPROP , dLits   = dLits'
+                , ws      = ws'
+                , gLits   = gLits'
+                , dLits   = dLits'
                 , bs      = bs'
                 , quals   = quals'
                 , asserts = axioms
@@ -390,15 +392,18 @@ instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc
                  return $ sc {_crhs = crhs'}
 
--- NOPROP instance Defunc (WfC a)   where
-  -- NOPROP defunc wf = do wrft' <- defunc $ wrft wf
-                 -- NOPROP return $ wf {wrft = wrft'}
+instance Defunc (WfC a)   where
+  defunc wf = do
+    let (x, t, k) = wrft wf
+    t' <- defunc t
+    return $ wf { wrft = (x, t', k) }
 
 instance Defunc Qualifier where
-  defunc q = -- NOPROP qParams' <- defunc $ qParams q
-                withExtendedEnv (qParams q) $ withNoEquivalence $ do
-                  qBody'   <- defunc $ qBody   q
-                  return    $ q {{- NOPROP qParams = qParams', -} qBody = qBody'}
+  defunc q = do
+    qParams' <- mapM defunc (qParams q)
+    withExtendedEnv (qParams q) $ withNoEquivalence $ do
+      qBody' <- defunc $ qBody q
+      return  $ q {qParams = qParams', qBody = qBody'}
 
 instance Defunc SortedReft where
   defunc (RR s r) = RR s <$> defunc r
@@ -407,14 +412,11 @@ instance Defunc (Symbol, SortedReft) where
   defunc (x, RR s (Reft (v, e)))
     = (x,) <$> defunc (RR s (Reft (x, subst1 e (v, EVar x))))
 
+instance Defunc (Symbol, Sort) where
+  defunc (x, t) = (x,) <$> defunc t
+
 instance Defunc Reft where
   defunc (Reft (x, e)) = Reft . (x,) <$> defunc e
-
--- instance Defunc (a, Sort, c) where
---   defunc (x, y, z) = (x, , z) <$> defunc y
-
--- instance Defunc (a, Sort) where
---  defunc (x, y) = (x, ) <$> defunc y
 
 instance Defunc a => Defunc (SEnv a) where
   defunc = mapMSEnv defunc
@@ -423,14 +425,14 @@ instance Defunc BindEnv   where
   defunc bs = do dfbs <- dfbenv <$> get
                  let f (i, xs) = if i `memberIBindEnv` dfbs
                                        then  (i,) <$> defunc xs
-                                       else  return (i, xs) -- NOPROP (i,) <$> matchSort xs
+                                       else  (i,) <$> matchSort xs
                  mapWithKeyMBindEnv f bs
    where
     -- The refinement cannot be elaborated thus defunc-ed because
     -- the bind does not appear in any contraint,
     -- thus unique binders does not perform properly
     -- The sort should be defunc, to ensure same sort on double binders
-    -- NOPROP matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
+    matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
 
 instance Defunc a => Defunc [a] where
   defunc = mapM defunc
