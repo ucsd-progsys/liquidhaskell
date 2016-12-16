@@ -100,7 +100,10 @@ instance Elaborate a => Elaborate [a] where
   elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate = elabExpr
+  elaborate env e = tracepp msg e'
+    where
+      msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
+      e'  = elabExpr env  e
 
 instance Elaborate SortedReft where
   elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
@@ -114,10 +117,10 @@ instance Elaborate BindEnv where
 instance Elaborate (SimpC a) where
   elaborate env c = c {_crhs = elaborate env (_crhs c) }
 
-instance Elaborate Qualifier where
-  elaborate env q = q { qParams = elaborate env (qParams q)
-                      , qBody   = elaborate [env ++ qParams] (qBody q)
-                      }
+-- instance Elaborate Qualifier where
+  -- elaborate env q = q { qParams = elaborate env (qParams q)
+                      -- , qBody   = elaborate [env ++ qParams] (qBody q)
+                      -- }
 
 elabExpr :: SEnv Sort -> Expr -> Expr
 elabExpr γ e
@@ -126,7 +129,7 @@ elabExpr γ e
       Right s  -> fst s
   where
     f   = (`lookupSEnvWithDistance` γ')
-    γ'  = mconcat [γ, Thy.interpSEnv, Thy.uninterpSEnv]
+    γ'  = γ `mappend` Thy.theorySEnv
     d m = vcat [ "elaborate failed on:"
                , nest 4 (pprint e)
                , "with error"
@@ -134,7 +137,6 @@ elabExpr γ e
                , "in environment"
                , nest 4 (pprint $ subEnv γ' e)
                ]
-
 
 --------------------------------------------------------------------------------
 -- | Sort Inference ------------------------------------------------------------
@@ -460,7 +462,7 @@ elabEApp f e1 e2 = do
   return (e1', s1, e2', s2, s)
 
 --------------------------------------------------------------------------------
--- | defuncSort is used to convert function types in the "apply" transformation
+-- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: Maybe Sort -> Expr -> Expr -> Expr
 defuncEApp ms e1 e2

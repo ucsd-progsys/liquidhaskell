@@ -10,7 +10,7 @@
 module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 
 import           Language.Fixpoint.Misc            (secondM, errorstar, mapSnd)
-import           Language.Fixpoint.Solver.Validate (symbolSorts)
+import           Language.Fixpoint.Solver.Validate (symbolEnv) 
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config -- hiding (eliminate)
 import           Language.Fixpoint.SortCheck
@@ -455,7 +455,7 @@ data DFST
 makeInitDFState :: Config -> SInfo a -> DFST
 makeInitDFState cfg si
   = DFST { fresh   = 0
-         , dfenv   = fromListSEnv xs
+         , dfenv   = symbolEnv cfg si -- NOPROP fromListSEnv xs
          , dfbenv  = mempty
          , dfLam   = True
          , dfExt   = extensionality   cfg
@@ -471,8 +471,8 @@ makeInitDFState cfg si
          , dfLog   = ""
          , dfStr   = stringTheory cfg
          }
-  where
-    xs = symbolSorts cfg si ++ concat [ [(x,s), (y,s)] | (_, x, RR s (Reft (y, _))) <- bindEnvToList $ bs si]
+  -- NOPROP where
+    -- NOPROP xs = symbolSorts cfg si ++ concat [ [(x,s), (y,s)] | (_, x, RR s (Reft (y, _))) <- bindEnvToList $ bs si]
 
 
 setBinds :: IBindEnv -> DF ()

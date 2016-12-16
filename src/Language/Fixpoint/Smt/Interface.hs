@@ -43,10 +43,6 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket
     , smtDistinct
 
-    -- * Theory Symbols
-    -- , theorySymbols
-      -- smt_set_funs
-
     -- * Check Validity
     , checkValid
     , checkValidWithContext
@@ -90,6 +86,7 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
+import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
 {-
@@ -111,9 +108,12 @@ runCommands cmds
 makeSmtContext :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
 makeSmtContext cfg f xts = do
   me <- makeContextWithSEnv cfg f $ fromListSEnv xts
-  smtDecls me (toListSEnv Thy.uninterpSEnv)
+  smtDecls me theoryDecls
   smtDecls me xts
   return me
+
+theoryDecls :: [(Symbol, Sort)]
+theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, not (tsInterp ty)]
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
@@ -273,7 +273,7 @@ makeProcess cfg
                   , ctxAeq     = alphaEquivalence cfg
                   , ctxBeq     = betaEquivalence  cfg
                   , ctxNorm    = normalForm       cfg
-                  , ctxSmtEnv  = Thy.uninterpSEnv <> Thy.interpSEnv
+                  , ctxSmtEnv  = Thy.theorySEnv
                   }
 
 --------------------------------------------------------------------------
@@ -357,8 +357,6 @@ smtCheckSat me p
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
-  -- where
-  --   p'       = elaborate (ctxSmtEnv me) p -- RJ: TODO: major slowdown!
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)

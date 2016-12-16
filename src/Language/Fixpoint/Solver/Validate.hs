@@ -9,7 +9,6 @@ module Language.Fixpoint.Solver.Validate
 
     -- * Sorts for each Symbol (move elsewhere)
   , symbolEnv
-  , symbolSorts
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -53,8 +52,8 @@ elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
 elaborateRefinements cfg si = si
   { F.cm    = elaborate senv <$> F.cm    si
   , F.bs    = elaborate senv  $  F.bs    si
-  , F.gLits = elaborate senv <$> F.gLits si
-  , F.dLits = elaborate senv <$> F.dLits si
+  -- , F.gLits = elaborate senv <$> F.gLits si
+  -- , F.dLits = elaborate senv <$> F.dLits si
   }
   where senv  = symbolEnv cfg si
 
@@ -209,13 +208,12 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
                                           , nest 4 (pprint (F.crhs c)) ]
 
 --------------------------------------------------------------------------------
--- | symbol |-> sort for EVERY variable in the FInfo
+-- | symbol |-> sort for EVERY variable in the FInfo [TODO: move elsewhere]
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SEnv F.Sort
-symbolEnv cfg si = mconcat
-  [ Thy.uninterpSEnv
-  , Thy.interpSEnv
-  , F.fromListSEnv (symbolSorts cfg si) ]
+symbolEnv cfg si = Thy.theorySEnv
+                   `mappend`
+                   F.fromListSEnv (symbolSorts cfg si)
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi

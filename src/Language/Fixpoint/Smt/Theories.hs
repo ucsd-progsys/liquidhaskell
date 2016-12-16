@@ -19,9 +19,9 @@ module Language.Fixpoint.Smt.Theories
      , sizeBv
      , toInt
 
-     , isTheorySymbol
-     , interpSEnv
-     , uninterpSEnv
+       -- * Theory Symbols
+     , theorySymbols
+     , theorySEnv
 
        -- * String
      , string
@@ -29,7 +29,6 @@ module Language.Fixpoint.Smt.Theories
      , genLen
 
        -- * Theories
-     , theorySymbols
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
      , setCom, setCup, setDif, setSng, mapSel, mapSto
 
@@ -224,75 +223,11 @@ stringPreamble _
         (strconcat, string, string, string)
     ]
 
-isTheorySymbol :: Symbol -> Bool
-isTheorySymbol x = M.member x theorySymbols
-
-interpSEnv :: SEnv Sort
-interpSEnv = fromListSEnv $ M.toList $ M.map tsSort theorySymbols
-
--- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
---   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: M.HashMap Symbol TheorySymbol
-theorySymbols = M.fromList
-  [ tSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
-  , tSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , tSym setAdd   add   setBopSort
-  , tSym setCup   cup   setBopSort
-  , tSym setCap   cap   setBopSort
-  , tSym setMem   mem   setMemSort
-  , tSym setDif   dif   setBopSort
-  , tSym setSub   sub   setCmpSort
-  , tSym setCom   com   setCmpSort
-  , tSym mapSel   sel   mapSelSort
-  , tSym mapSto   sto   mapStoSort
-  , tSym bvOrName "bvor"   bvBopSort
-  , tSym bvAndName "bvand" bvBopSort
-  , tSym strLen    strlen    strLenSort
-  , tSym strSubstr strsubstr substrSort
-  , tSym strConcat strconcat concatstrSort
-  , tSym boolInt   boolInt   (FFunc boolSort intSort)
-  ]
-  where
-    boolInt    = boolToIntName
-    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
-    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
-    mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
-                                 $ FFunc (FVar 0)
-                                 $ FFunc (FVar 1)
-                                         (mapSort (FVar 0) (FVar 1))
-    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
-
-
-tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
-tSym x n t = (x, Thy x n t)
-
--- isBv :: FTycon -> Bool
--- isBv = isConName bitVecName
---
--- isSet :: FTycon -> Bool
--- isSet = isConName setConName
---
--- isMap :: FTycon -> Bool
--- isMap = isConName mapConName
-
-isConName :: Symbol -> FTycon -> Bool
-isConName s = (s ==) . val . fTyconSymbol
-
-sizeBv :: FTycon -> Maybe Int
-sizeBv tc
-  | s == size32Name = Just 32
-  | s == size64Name = Just 64
-  | otherwise       = Nothing
-  where
-    s               = val $ fTyconSymbol tc
 
 
 -------------------------------------------------------------------------------
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
-
 smt2Symbol :: Symbol -> Maybe Builder.Builder
 smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
 
@@ -319,13 +254,16 @@ smt2App (EVar f) (d:ds)
 smt2App _ _           = Nothing
 
 isSmt2App :: Expr -> [a] -> Bool
-isSmt2App (EVar f) [_]
+isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
+
+isSmt2App' :: Expr -> [a] -> Bool
+isSmt2App' (EVar f) [_]
   | f == setEmpty = True
   | f == setEmp   = True
   | f == setSng   = True
-isSmt2App (EVar f) _
+isSmt2App' (EVar f) _
   =  isJust $ M.lookup f theorySymbols
-isSmt2App _ _
+isSmt2App' _ _
   = False
 
 
@@ -368,16 +306,81 @@ castWith s = EApp (EVar s)
 
 
 --------------------------------------------------------------------------------
--- | `uninterpSEnv` should be disjoint from see `interpSEnv` to
---   avoid duplicate SMT definitions.  `uninterpSEnv` is for
---   uninterpreted symbols, and `interpSEnv` is for interpreted symbols.
+-- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`
+--   to avoid duplicate SMT definitions.  `uninterpSEnv` is for uninterpreted
+--   symbols, and `interpSEnv` is for interpreted symbols.
 --------------------------------------------------------------------------------
-uninterpSEnv :: SEnv Sort
-uninterpSEnv = fromListSEnv $
+theorySEnv :: SEnv Sort
+theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
+
+-- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
+--   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
+theorySymbols :: M.HashMap Symbol TheorySymbol
+theorySymbols = M.fromList $ uninterpSymbols ++ interpSymbols
+
+-- isTheorySymbol :: Symbol -> Bool
+-- isTheorySymbol x = M.member x theorySymbols
+
+interpSymbols :: [(Symbol, TheorySymbol)]
+interpSymbols =
+  [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , interpSym setAdd   add   setBopSort
+  , interpSym setCup   cup   setBopSort
+  , interpSym setCap   cap   setBopSort
+  , interpSym setMem   mem   setMemSort
+  , interpSym setDif   dif   setBopSort
+  , interpSym setSub   sub   setCmpSort
+  , interpSym setCom   com   setCmpSort
+  , interpSym mapSel   sel   mapSelSort
+  , interpSym mapSto   sto   mapStoSort
+  , interpSym bvOrName "bvor"   bvBopSort
+  , interpSym bvAndName "bvand" bvBopSort
+  , interpSym strLen    strlen    strLenSort
+  , interpSym strSubstr strsubstr substrSort
+  , interpSym strConcat strconcat concatstrSort
+  , interpSym boolInt   boolInt   (FFunc boolSort intSort)
+  ]
+  where
+    boolInt    = boolToIntName
+    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
+    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
+    mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                 $ FFunc (FVar 0)
+                                 $ FFunc (FVar 1)
+                                         (mapSort (FVar 0) (FVar 1))
+    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+
+
+interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
+interpSym x n t = (x, Thy x n t True)
+
+isConName :: Symbol -> FTycon -> Bool
+isConName s = (s ==) . val . fTyconSymbol
+
+sizeBv :: FTycon -> Maybe Int
+sizeBv tc
+  | s == size32Name = Just 32
+  | s == size64Name = Just 64
+  | otherwise       = Nothing
+  where
+    s               = val $ fTyconSymbol tc
+
+uninterpSymbols :: [(Symbol, TheorySymbol)]
+uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
+
+uninterpSym :: Symbol -> Sort -> TheorySymbol
+uninterpSym x t =  Thy x (lt x) t False
+  where
+    lt           = T.fromStrict . symbolSafeText
+
+uninterpSymbols' :: [(Symbol, Sort)]
+uninterpSymbols' =
   [ (setToIntName,    FFunc (setSort intSort)   intSort)
   , (bitVecToIntName, FFunc bitVecSort intSort)
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  -- , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
   , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
   ]

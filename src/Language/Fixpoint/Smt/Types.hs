@@ -10,6 +10,7 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Serialized Representation
       Raw
+    , symbolBuilder
 
     -- * Commands
     , Command  (..)
@@ -34,14 +35,17 @@ import           Language.Fixpoint.Types
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
+
 import           System.IO                (Handle)
 import           System.Process
 
---------------------------------------------------------------------------
--- | Types ---------------------------------------------------------------
---------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Types ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 type Raw          = LT.Text
+
+symbolBuilder :: Symbol -> LT.Builder
+symbolBuilder = LT.fromText . symbolSafeText
 
 -- | Commands issued to SMT engine
 data Command      = Push
@@ -81,11 +85,13 @@ data Context = Ctx
 type SMTEnv = SEnv Sort
 
 -- | Theory Symbol
-data TheorySymbol  = Thy { tsSym  :: !Symbol
-                         , tsRaw  :: !Raw
-                         , tsSort :: !Sort
-                         }
-                     deriving (Eq, Ord, Show)
+data TheorySymbol  = Thy
+  { tsSym    :: !Symbol    -- ^ name
+  , tsRaw    :: !Raw       -- ^ serialized SMTLIB2 name
+  , tsSort   :: !Sort      -- ^ sort
+  , tsInterp :: !Bool      -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
+  }
+  deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------
