@@ -1,11 +1,11 @@
-qualif Sz(v: Tree): (0 < size v)
+qualif Sz(v: Tree): (0 < thinginess v)
 qualif Sz(v: Tree): (1 < 0)
 
-constant size : func(0, [Tree; int])
+constant thinginess : func(0, [Tree; int])
 
 constraint:
   env [ ]
-  lhs {v : Tree | 666 < size v }
+  lhs {v : Tree | 666 < thinginess v }
   rhs {v : Tree | $k1  }
   id 1 tag []
 
@@ -13,7 +13,7 @@ constraint:
 constraint:
   env [ ]
   lhs {v : Tree | $k1  }
-  rhs {v : Tree | 0 < size v }
+  rhs {v : Tree | 0 < thinginess v }
   id 2 tag []
 
 wf: 

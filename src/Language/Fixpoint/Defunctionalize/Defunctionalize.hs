@@ -35,20 +35,10 @@ class Defunc a where
 --------------------------------------------------------------------------------
 instance Defunc Sort where
   defunc s = do
-    hoFlag <- dfHO <$> get
-    return $ if hoFlag then defuncSort s else s
+    hoFlag <- dfHO  <$> get
+    env    <- dfenv <$> get
+    return $ if hoFlag then elaborate env s else s
 
-defuncSort :: Sort -> Sort
-defuncSort = go
- where
-    go s | isString s = strSort
-    go (FAbs i s)    = FAbs i $ go s
-    go (FFunc s1 s2) = funSort (go s1) (go s2)
-    go (FApp s1 s2)  = FApp    (go s1) (go s2)
-    go s             = s
-
-funSort :: Sort -> Sort -> Sort
-funSort = FApp . FApp funcSort
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
 --------------------------------------------------------------------------------

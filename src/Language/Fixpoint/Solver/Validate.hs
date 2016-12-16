@@ -51,8 +51,10 @@ sanitize cfg =    -- banIllScopedKvars
 --------------------------------------------------------------------------------
 elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
 elaborateRefinements cfg si = si
-  { F.cm      = elaborate senv <$> F.cm si
-  , F.bs      = elaborate senv  $  F.bs si
+  { F.cm    = elaborate senv <$> F.cm    si
+  , F.bs    = elaborate senv  $  F.bs    si
+  , F.gLits = elaborate senv <$> F.gLits si
+  , F.dLits = elaborate senv <$> F.dLits si
   }
   where senv  = symbolEnv cfg si
 

@@ -82,6 +82,23 @@ isMono             = null . foldSort fv []
 class Elaborate a where
   elaborate :: SEnv Sort -> a -> a
 
+instance Elaborate Sort where
+  elaborate _ = go
+   where
+      go s | isString s = strSort
+      go (FAbs i s)    = FAbs i $ go s
+      go (FFunc s1 s2) = funSort (go s1) (go s2)
+      go (FApp s1 s2)  = FApp    (go s1) (go s2)
+      go s             = s
+      funSort :: Sort -> Sort -> Sort
+      funSort = FApp . FApp funcSort
+
+instance Elaborate a => Elaborate (Symbol, a) where
+  elaborate env (x, y) = (x, elaborate env y)
+
+instance Elaborate a => Elaborate [a] where
+  elaborate = map . elaborate
+
 instance Elaborate Expr where
   elaborate = elabExpr
 
@@ -96,6 +113,11 @@ instance Elaborate BindEnv where
 
 instance Elaborate (SimpC a) where
   elaborate env c = c {_crhs = elaborate env (_crhs c) }
+
+instance Elaborate Qualifier where
+  elaborate env q = q { qParams = elaborate env (qParams q)
+                      , qBody   = elaborate [env ++ qParams] (qBody q)
+                      }
 
 elabExpr :: SEnv Sort -> Expr -> Expr
 elabExpr γ e
