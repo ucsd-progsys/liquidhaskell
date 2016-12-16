@@ -98,10 +98,11 @@ instance Elaborate a => Elaborate [a] where
   elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate env e = tracepp msg e'
+  elaborate env e = tracepp msg e2
     where
       msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
-      e'  = elabExpr env  e
+      e1  = elabExpr env  e
+      e2 = elabApply e1
 
 instance Elaborate SortedReft where
   elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
@@ -135,6 +136,37 @@ elabExpr γ e
                , "in environment"
                , nest 4 (pprint $ subEnv γ' e)
                ]
+
+elabApply :: Expr -> Expr
+elabApply = go Nothing
+  where
+    goB                   = go (Just boolSort)
+    go'                   = go Nothing
+    go _ (PAnd [])        = PTrue
+    go _ (POr [])         = PFalse
+    go s e@(EApp {})      = defuncEApp s (go' f) (mapFst go' <$> es) where (f, es) = splitArgs e
+    go s (ENeg e)         = ENeg (go s e)
+    go _ (EBin o e1 e2)   = EBin o (go' e1) (go' e2)
+    go s (EIte e1 e2 e3)  = EIte (go (Just boolSort) e1) (go s e2) (go s e3)
+    go _ (ECst e t)       = ECst (go (Just t) e) t
+    go _ (PAnd ps)        = PAnd (goB <$> ps)
+    go _ (POr ps)         = POr  (goB <$> ps)
+    go _ (PNot p)         = PNot (goB p)
+    go _ (PImp p q)       = PImp (goB p) (goB q)
+    go _ (PIff p q)       = PIff (goB p) (goB q)
+    go _ (PExist bs p)    = PExist bs (goB p)
+    go _ (PAll   bs p)    = PAll   bs (goB p)
+    go _ (PAtom r e1 e2)  = PAtom r (go' e1) (go' e2)
+    go _ PGrad            = PGrad
+    go _ e                = e
+  -- go _ e@(ESym _)       = e
+  -- go _ e@(ECon _)       = e
+  -- go _ e@(EVar _)       = e
+  -- go _ e@(PKVar _ _)    = e
+  -- go _ e@(PTrue)        = e
+  -- go _ e@(PFalse)       = e
+  --  (ELam x ex)      = (df_lam <$> get) >>= defuncELam x ex
+  --  go _ e                = errorstar ("defunc Pred: " ++ show e)
 
 --------------------------------------------------------------------------------
 -- | Sort Inference ------------------------------------------------------------
@@ -328,6 +360,9 @@ addEnv f bs x
       Just s  -> Found s
       Nothing -> f x
 
+eAppC :: Sort -> Expr -> Expr -> Expr
+eAppC s e1 e2 = ECst (EApp e1 e2) s
+
 --------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------
@@ -340,12 +375,12 @@ elab f e@(EBin o e1 e2) = do
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (defuncEApp (Just s) {- NOPROP EApp -} e1' (ECst e2' s2), s)
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  return (eAppC s e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (defuncEApp (Just s) {- NOPROP EApp -} (ECst e1' s1) (ECst e2' s2), s)
+  return (eAppC s (EApp (ECst e1' s1) (ECst e2' s2)), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -455,7 +490,7 @@ elabAppAs f t g e = do
   g'       <- elabAs f tg g
   let te    = apply su eT
   e'       <- elabAs f te e
-  return    $ defuncEApp (Just (apply su t)) (ECst g' tg) (ECst e' te)
+  return    $ EApp (ECst g' tg) (ECst e' te)
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
@@ -467,19 +502,21 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
-defuncEApp :: Maybe Sort -> Expr -> Expr -> Expr
-defuncEApp s e1 e2 = tracepp msg $ defuncEApp' s e1 e2
+defuncEApp :: Maybe Sort -> Expr -> [(Expr, Sort)] -> Expr
+defuncEApp s e es = tracepp msg $ defuncEApp' s e es
   where
-    msg = "DEFUNCEAPP: s := " ++ showpp s ++ " e1 := " ++ showpp e1 ++ " e2 := " ++ showpp e2
+    msg = "DEFUNCEAPP: s := " ++ showpp s ++ " e1 := " ++ showpp e ++ " e2 := " ++ showpp es
 
-defuncEApp' :: Maybe Sort -> Expr -> Expr -> Expr
-defuncEApp' ms e1 e2
-  | Thy.isSmt2App (stripCasts f) es
-  = eApps f es
+defuncEApp' :: Maybe Sort -> Expr -> [Expr] -> Expr
+defuncEApp' ms e es
+  | tracepp msg $ Thy.isSmt2App (stripCasts e) es
+  = eApps e es
   | otherwise
-  = makeApplication ms e1 e2
+  = makeApplication ms e es
   where
-    (f, es) = splitArgs $ EApp e1 e2
+    msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
+    -- (f, es) = splitArgs $ EApp e1 e2
+
 
 -- e1 e2 => App (App runFun e1) (toInt e2)
 makeApplication :: Maybe Sort -> Expr -> Expr -> Expr
@@ -519,7 +556,7 @@ makeFunSymbol s
   | otherwise
   = intApplyName 1
 
-splitArgs :: Expr -> (Expr, [Expr])
+splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
   where
     go acc (EApp e1 e) = go (e:acc) e1
