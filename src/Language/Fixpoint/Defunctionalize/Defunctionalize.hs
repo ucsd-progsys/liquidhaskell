@@ -5,7 +5,7 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 
--- Defunctionalization of higher order logic
+-- | Defunctionalization of higher order logic
 
 module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 
@@ -33,12 +33,12 @@ class Defunc a where
 --------------------------------------------------------------------------------
 -- | Sort defunctionalization [should be done by elaboration] ------------------
 --------------------------------------------------------------------------------
--- instance Defunc Sort where
---   defunc = return . defuncSort
--- defuncSort :: Sort -> DF Sort
--- defuncSort s = do
-  -- hoFlag <- dfHO <$> get
-  -- return $ if hoFlag then go s else s
+-- NOPROP instance Defunc Sort where
+-- NOPROP   defunc = return . defuncSort
+-- NOPROP defuncSort :: Sort -> DF Sort
+-- NOPROP defuncSort s = do
+  -- NOPROP hoFlag <- dfHO <$> get
+  -- NOPROP return $ if hoFlag then go s else s
 
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
@@ -51,11 +51,11 @@ txCastedExpr = txExpr
 
 txExpr :: Expr -> DF Expr
 txExpr e = do
-  -- env    <- dfenv <$> get
+  -- NOPROP env    <- dfenv <$> get
   hoFlag <- dfHO  <$> get
   exFlag <- dfExt <$> get
   stFlag <- dfStr <$> get
-  txExpr' stFlag hoFlag exFlag e -- [NOTE: all `Expr` should be elaborated prior to defunc]
+  txExpr' stFlag hoFlag exFlag e -- [NOTE: NOPROP all `Expr` should be elaborated prior to defunc]
 
 txExpr' :: Bool -> Bool -> Bool -> Expr -> DF Expr
 txExpr' stFlag hoFlag exFlag e
@@ -74,7 +74,7 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ e@(ECon _)       = return e
     go _ e@(EVar _)       = return e
     go _ e@(PKVar _ _)    = return e
-    go s e@(EApp e1 e2)   = logRedex e >> (EApp <$> go s e1 <*> go s e2)
+    go s e@(EApp e1 e2)   = logRedex e >> (EApp <$> go s e1 <*> go s e2)    -- NOPROP : defuncEApp moved to elaborate
     go s (ENeg e)         = ENeg <$> go s e
     go _ (EBin o e1 e2)   = EBin o <$> go Nothing e1 <*> go Nothing e2
     go s (EIte e1 e2 e3)  = EIte <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3
@@ -88,12 +88,13 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ (PNot p)         = PNot <$> go (Just boolSort) p
     go _ (PImp p q)       = PImp <$> go (Just boolSort) p <*> go (Just boolSort) q
     go _ (PIff p q)       = PIff <$> go (Just boolSort) p <*> go (Just boolSort) q
-    go _ (PExist bs p)    = do bs' <- mapM defunc bs
-                               p'  <- withExtendedEnv bs $ go (Just boolSort) p
-                               return $ PExist bs' p'
-    go _ (PAll   bs p)    = do bs' <- mapM defunc bs
-                               p'  <- withExtendedEnv bs $ go (Just boolSort) p
-                               return $ PAll bs' p'
+    go _ (PExist bs p)    = PExist bs <$> withExtendedEnv bs (go (Just boolSort) p)
+    go _ (PAll   bs p)    = PAll   bs <$> withExtendedEnv bs (go (Just boolSort) p)
+                            -- NOPROP do bs' <- mapM defunc bs
+                            -- NOPROP return $ PExist bs p'
+    -- NOPROP do bs' <- mapM defunc bs
+    -- NOPROP p'  <- withExtendedEnv bs $ go (Just boolSort) p
+    -- NOPROP return $ PAll bs' p'
     go _ (PAtom r e1 e2)  = PAtom r <$> go Nothing e1 <*> go Nothing e2
     go _ PGrad            = return PGrad
     go _ (ELam x ex)      = (dfLam <$> get) >>= defuncELam x ex
@@ -155,9 +156,9 @@ makeGenStringLen e
  = EApp (ECst (EVar Thy.genLen) (FFunc strSort intSort)) (ECst e strSort)
    `ECst` intSort
 
--------------------------------------------------------------------------------
---------  Alpha Equivalence  --------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- |Alpha Equivalence ----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 logLam :: (Symbol, Sort) -> Expr -> DF Expr
 logLam xs bd = do
@@ -267,7 +268,7 @@ makeEq e1 e2
 
 makeEqForAll :: Expr -> Expr -> [Expr]
 makeEqForAll e1 e2 =
-  [ makeEq (closeLam su e1') (closeLam su e2') | su <- instantiate xs] -- , su2 <- instantiate xs]
+  [ makeEq (closeLam su e1') (closeLam su e2') | su <- instantiate xs]
   where
     (xs1, e1') = splitPAll [] e1
     (xs2, e2') = splitPAll [] e2
@@ -369,17 +370,17 @@ mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
 instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
   defunc fi = do
     cm'    <- defunc $ cm    fi
-    ws'    <- defunc $ ws    fi
+    -- NOPROP ws'    <- defunc $ ws    fi
     setBinds $ mconcat ((senv <$> M.elems (cm fi)) ++ (wenv <$> M.elems (ws fi)))
-    gLits' <- defunc $ gLits fi
-    dLits' <- defunc $ dLits fi
+    -- NOPROP gLits' <- defunc $ gLits fi
+    -- NOPROP dLits' <- defunc $ dLits fi
     bs'    <- defunc $ bs    fi
     quals' <- defunc $ quals fi
     axioms <- makeAxioms
     return $ fi { cm      = cm'
-                , ws      = ws'
-                , gLits   = gLits'
-                , dLits   = dLits'
+                -- , ws      = ws'
+                -- NOPROP , gLits   = gLits'
+                -- NOPROP , dLits   = dLits'
                 , bs      = bs'
                 , quals   = quals'
                 , asserts = axioms
@@ -389,15 +390,15 @@ instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc
                  return $ sc {_crhs = crhs'}
 
-instance Defunc (WfC a)   where
-  defunc wf = do wrft' <- defunc $ wrft wf
-                 return $ wf {wrft = wrft'}
+-- NOPROP instance Defunc (WfC a)   where
+  -- NOPROP defunc wf = do wrft' <- defunc $ wrft wf
+                 -- NOPROP return $ wf {wrft = wrft'}
 
 instance Defunc Qualifier where
-  defunc q = do qParams' <- defunc $ qParams q
+  defunc q = -- NOPROP qParams' <- defunc $ qParams q
                 withExtendedEnv (qParams q) $ withNoEquivalence $ do
-                qBody'   <- defunc $ qBody   q
-                return    $ q {qParams = qParams', qBody = qBody'}
+                  qBody'   <- defunc $ qBody   q
+                  return    $ q {{- NOPROP qParams = qParams', -} qBody = qBody'}
 
 instance Defunc SortedReft where
   defunc (RR s r) = RR s <$> defunc r
@@ -422,14 +423,14 @@ instance Defunc BindEnv   where
   defunc bs = do dfbs <- dfbenv <$> get
                  let f (i, xs) = if i `memberIBindEnv` dfbs
                                        then  (i,) <$> defunc xs
-                                       else  (i,) <$> matchSort xs
+                                       else  return (i, xs) -- NOPROP (i,) <$> matchSort xs
                  mapWithKeyMBindEnv f bs
    where
     -- The refinement cannot be elaborated thus defunc-ed because
     -- the bind does not appear in any contraint,
     -- thus unique binders does not perform properly
     -- The sort should be defunc, to ensure same sort on double binders
-    matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
+    -- NOPROP matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
 
 instance Defunc a => Defunc [a] where
   defunc = mapM defunc
