@@ -302,8 +302,7 @@ toInt e s
   = e
 
 castWith :: Symbol -> Expr -> Expr
-castWith s = EApp (EVar s)
-
+castWith s = eAppC intSort (EVar s)
 
 --------------------------------------------------------------------------------
 -- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`

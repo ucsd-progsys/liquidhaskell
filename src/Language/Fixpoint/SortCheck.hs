@@ -352,9 +352,6 @@ addEnv f bs x
       Just s  -> Found s
       Nothing -> f x
 
-eAppC :: Sort -> Expr -> Expr -> Expr
-eAppC s e1 e2 = ECst (EApp e1 e2) s
-
 --------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------

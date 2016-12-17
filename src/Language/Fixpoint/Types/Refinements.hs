@@ -77,6 +77,7 @@ module Language.Fixpoint.Types.Refinements (
   , flattenRefas
   , conjuncts
   , eApps
+  , eAppC
   , splitEApp
   , reftConjuncts
 
@@ -259,6 +260,11 @@ splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
+
+eAppC :: Sort -> Expr -> Expr -> Expr
+eAppC s e1 e2 = ECst (EApp e1 e2) s
+
+
 
 debruijnIndex :: Expr -> Int
 debruijnIndex = go
