@@ -253,17 +253,17 @@ smt2App (EVar f) (d:ds)
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
-isSmt2App :: Expr -> [a] -> Bool
-isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
+-- isSmt2App :: Expr -> [a] -> Bool
+-- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
 
-isSmt2App' :: Expr -> [a] -> Bool
-isSmt2App' (EVar f) [_]
+isSmt2App :: Expr -> [a] -> Bool
+isSmt2App (EVar f) [_]
   | f == setEmpty = True
   | f == setEmp   = True
   | f == setSng   = True
-isSmt2App' (EVar f) _
+isSmt2App (EVar f) _
   =  isJust $ M.lookup f theorySymbols
-isSmt2App' _ _
+isSmt2App _ _
   = False
 
 

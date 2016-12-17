@@ -100,8 +100,8 @@ instance Elaborate a => Elaborate [a] where
 instance Elaborate Expr where
   elaborate env e = e2
     where
-      msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
-      e1  = tracepp msg $ elabExpr env  e
+      -- msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
+      e1  = {- tracepp msg $ -} elabExpr env e
       e2 = elabApply e1
 
 instance Elaborate SortedReft where
@@ -459,14 +459,14 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
-elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t e = tracepp msg <$> elabAs' f t e
-  where
-    msg  = "elabAs: t = " ++ show t ++ " e = " ++ show e
+-- elabAs :: Env -> Sort -> Expr -> CheckM Expr
+-- elabAs f t e = tracepp msg <$> elabAs' f t e
+--  where
+--    msg  = "elabAs: t = " ++ show t ++ " e = " ++ show e
 
-elabAs' :: Env -> Sort -> Expr -> CheckM Expr
-elabAs' f t (EApp e1 e2) = elabAppAs f t e1 e2
-elabAs' f _ e            = fst <$> elab f e
+elabAs :: Env -> Sort -> Expr -> CheckM Expr
+elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs f _ e            = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
@@ -491,19 +491,19 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
-defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
-defuncEApp e es = tracepp msg $ defuncEApp' e es
-  where
-    msg = "DEFUNCEAPP: s := " ++ " e := " ++ showpp e ++ " es := " ++ showpp es
+-- defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
+-- defuncEApp e es = tracepp msg $ defuncEApp' e es
+--  where
+--    msg = "DEFUNCEAPP: s := " ++ " e := " ++ showpp e ++ " es := " ++ showpp es
 
-defuncEApp' :: Expr -> [(Expr, Sort)] -> Expr
-defuncEApp' e es
-  | tracepp msg $ Thy.isSmt2App (stripCasts e) es
+defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
+defuncEApp e es
+  | {- tracepp msg $ -} Thy.isSmt2App (stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
   where
-    msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
+    -- msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
     -- (f, es) = splitArgs $ EApp e1 e2
 
 -- e1 e2 => App (App runFun e1) (toInt e2)
