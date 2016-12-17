@@ -10,19 +10,19 @@
 module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 
 import           Language.Fixpoint.Misc            (secondM, errorstar, mapSnd)
-import           Language.Fixpoint.Solver.Validate (symbolEnv) 
+import           Language.Fixpoint.Solver.Validate (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config -- hiding (eliminate)
 import           Language.Fixpoint.SortCheck
-import           Language.Fixpoint.Types.Visitor   (stripCasts, mapExpr, mapMExpr)
+import           Language.Fixpoint.Types.Visitor   (stripCasts, mapExpr)
 
-import qualified Language.Fixpoint.Smt.Theories as Thy
+--  import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Control.Monad.State
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
 import qualified Data.List           as L
 
-import qualified Data.Text                 as T
+--  import qualified Data.Text                 as T
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
@@ -45,8 +45,8 @@ instance Defunc Sort where
 instance Defunc Expr where
   defunc = txExpr
 
-txCastedExpr :: Expr -> DF Expr
-txCastedExpr = txExpr
+-- txCastedExpr :: Expr -> DF Expr
+-- txCastedExpr = txExpr
 
 txExpr :: Expr -> DF Expr
 txExpr e = do
@@ -131,24 +131,27 @@ makeAxioms = do
 -- | Symbols -------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-logSym :: SymConst -> DF ()
-logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
+_logSym :: SymConst -> DF ()
+_logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
 
 makeSymbolAxioms :: DF [Expr]
-makeSymbolAxioms = ((map go . dfSyms) <$> get) >>= mapM txCastedExpr
-  where
-    go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) (expr (T.length s) `ECst` intSort)
+makeSymbolAxioms = return []
 
-symbolExpr :: SymConst -> Expr
-symbolExpr = EVar . symbol
-
-makeStringLen :: Expr -> Expr
-makeStringLen = EApp (EVar Thy.strLen)
-
-makeGenStringLen :: Expr -> Expr
-makeGenStringLen e
- = EApp (ECst (EVar Thy.genLen) (FFunc strSort intSort)) (ECst e strSort)
-   `ECst` intSort
+-- NOPROP _makeSymbolAxioms :: DF [Expr]
+-- NOPROP _makeSymbolAxioms = ((map go . dfSyms) <$> get) >>= mapM txCastedExpr
+  -- NOPROP where
+    -- NOPROP go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) (expr (T.length s) `ECst` intSort)
+-- NOPROP
+-- NOPROP symbolExpr :: SymConst -> Expr
+-- NOPROP symbolExpr = EVar . symbol
+-- NOPROP
+-- NOPROP makeStringLen :: Expr -> Expr
+-- NOPROP makeStringLen = EApp (EVar Thy.strLen)
+-- NOPROP
+-- NOPROP makeGenStringLen :: Expr -> Expr
+-- NOPROP makeGenStringLen e
+ -- NOPROP = EApp (ECst (EVar Thy.genLen) (FFunc strSort intSort)) (ECst e strSort)
+   -- NOPROP `ECst` intSort
 
 --------------------------------------------------------------------------------
 -- |Alpha Equivalence ----------------------------------------------------------
@@ -298,33 +301,38 @@ txnumOverloading = mapExpr go
       = e
 
 txStr :: Bool -> Expr -> DF Expr
-txStr flag e
-  | flag      = return (mapExpr goStr e)
-  | otherwise = mapMExpr goNoStr e
-  where
-    goStr e@(EApp _ _)
-      | Just a <- isStringLen e
-      = makeStringLen a
-    goStr e
-       = e
-    goNoStr (ESym s)
-      = logSym s >> return (symbolExpr s)
-    goNoStr e
-      = return e
+txStr _ = return
 
-
-isStringLen :: Expr -> Maybe Expr
-isStringLen e
-  = case stripCasts e of
-     EApp (EVar f) a | Thy.genLen == f && hasStringArg e
-                     -> Just a
-     _               -> Nothing
-  where
-    hasStringArg (ECst e _) = hasStringArg e
-    hasStringArg (EApp _ a) = isString $ exprSort a
-    hasStringArg _          = False
-
--------------------------------------------------------------------------------
+-- WHAT ON EARTH IS THE BELOW?!
+-- NOPROP txStr flag e
+  -- NOPROP | flag      = return (mapExpr goStr e)
+  -- NOPROP | otherwise = mapMExpr goNoStr e
+  -- NOPROP where
+    -- NOPROP goStr e@(EApp _ _)
+      -- NOPROP | Just a <- isStringLen e
+      -- NOPROP = makeStringLen a
+    -- NOPROP goStr e
+       -- NOPROP = e
+    -- NOPROP -- RJ: AAAAAGGHGHGHGHHH THIS IS HORRIBLE
+    -- NOPROP -- PLEASE DON'T DO STUFF LIKE THIS
+    -- NOPROP goNoStr (ESym s)
+      -- NOPROP = logSym s >> return (symbolExpr s)
+    -- NOPROP goNoStr e
+      -- NOPROP = return e
+-- NOPROP
+-- NOPROP
+-- NOPROP isStringLen :: Expr -> Maybe Expr
+-- NOPROP isStringLen e
+  -- NOPROP = case stripCasts e of
+     -- NOPROP EApp (EVar f) a | Thy.genLen == f && hasStringArg e
+                     -- NOPROP -> Just a
+     -- NOPROP _               -> Nothing
+  -- NOPROP where
+    -- NOPROP hasStringArg (ECst e _) = hasStringArg e
+    -- NOPROP hasStringArg (EApp _ a) = isString $ exprSort a
+    -- NOPROP hasStringArg _          = False
+-- NOPROP
+-- NOPROP -------------------------------------------------------------------------------
 --------  Extensionality  -----------------------------------------------------
 -------------------------------------------------------------------------------
 

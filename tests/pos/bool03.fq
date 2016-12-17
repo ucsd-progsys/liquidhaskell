@@ -3,6 +3,8 @@
 
 qualif LE(v:a, x:a): (x <= v)
 
+constant lit$36$not$45$the$45$hippopotamus : (Str)
+
 bind 1 bx : {v: bool | true }
 
 constraint:
