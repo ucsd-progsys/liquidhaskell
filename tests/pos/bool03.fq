@@ -4,8 +4,12 @@
 qualif LE(v:a, x:a): (x <= v)
 
 constant lit$36$not$45$the$45$hippopotamus : (Str)
+constant lit#cat : (Str)
+constant lit#dog : (Str)
 
 bind 1 bx : {v: bool | true }
+
+bind 2 zx : {v: bool | lit#cat /= lit#dog }
 
 constraint:
   env [ 1 ]
@@ -14,7 +18,7 @@ constraint:
   id 1 tag []
 
 constraint:
-  env [ 1 ]
+  env [ 1; 2 ]
   lhs {v : bool | $k1 }
   rhs {v : bool | bx <= v }
   id 2 tag []

@@ -142,9 +142,10 @@ makeSymbolAxioms = return []
   -- NOPROP where
     -- NOPROP go (SL s) = EEq (makeGenStringLen $ symbolExpr $ SL s) (expr (T.length s) `ECst` intSort)
 -- NOPROP
--- NOPROP symbolExpr :: SymConst -> Expr
--- NOPROP symbolExpr = EVar . symbol
--- NOPROP
+
+-- symbolExpr :: SymConst -> Expr
+-- symbolExpr = EVar . symbol
+
 -- NOPROP makeStringLen :: Expr -> Expr
 -- NOPROP makeStringLen = EApp (EVar Thy.strLen)
 -- NOPROP
@@ -315,10 +316,8 @@ txStr _ = return
        -- NOPROP = e
     -- NOPROP -- RJ: AAAAAGGHGHGHGHHH THIS IS HORRIBLE
     -- NOPROP -- PLEASE DON'T DO STUFF LIKE THIS
-    -- NOPROP goNoStr (ESym s)
-      -- NOPROP = logSym s >> return (symbolExpr s)
-    -- NOPROP goNoStr e
-      -- NOPROP = return e
+    -- NOPROP goNoStr (ESym s) = logSym s >> return (symbolExpr s)
+    -- NOPROP goNoStr e        = return e
 -- NOPROP
 -- NOPROP
 -- NOPROP isStringLen :: Expr -> Maybe Expr

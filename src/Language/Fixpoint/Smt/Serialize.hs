@@ -64,7 +64,7 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = build "({} {})" (smt2 sym, smt2 t)
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s)  = build "\"{}\"" (Only s)
+  smt2 = smt2 . symbol -- build "\"{}\"" (Only s)
 
 
 instance SMTLIB2 Constant where
