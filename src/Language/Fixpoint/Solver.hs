@@ -25,9 +25,10 @@ import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-import           Language.Fixpoint.Solver.Validate  (sanitize)
+import           Language.Fixpoint.Solver.Validate  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 -- NOPROP import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
+import           Language.Fixpoint.SortCheck            (Elaborate (..))
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config
@@ -169,7 +170,7 @@ solveNative' !cfg !fi0 = do
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1 = either die id $ {-# SCC "validate" #-} sanitize cfg $!! si0
+  let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
@@ -178,7 +179,7 @@ solveNative' !cfg !fi0 = do
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   -- writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
   -- NOPROP let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
-  let si4 = si3
+  let si4 = elaborate (symbolEnv cfg si3) si3
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res

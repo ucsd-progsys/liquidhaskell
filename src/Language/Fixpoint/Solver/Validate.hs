@@ -13,7 +13,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
-import           Language.Fixpoint.SortCheck     (elaborate, isFirstOrder)
+import           Language.Fixpoint.SortCheck     (isFirstOrder)
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
@@ -31,9 +31,9 @@ import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
+sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize _cfg =    -- banIllScopedKvars
+sanitize =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -41,21 +41,7 @@ sanitize _cfg =    -- banIllScopedKvars
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
-         >=> Misc.fM (_elaborateRefinements _cfg)
 
-
---------------------------------------------------------------------------------
--- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
---   refinements except for KVars. This is now mandatory due to the `no-prop`
---------------------------------------------------------------------------------
-_elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
-_elaborateRefinements cfg si = si
-  { F.cm    = elaborate senv <$> F.cm    si
-  , F.bs    = elaborate senv  $  F.bs    si
-  , F.gLits = elaborate senv <$> F.gLits si
-  , F.dLits = elaborate senv <$> F.dLits si
-  }
-  where senv  = symbolEnv cfg si
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,

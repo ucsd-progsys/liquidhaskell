@@ -77,8 +77,22 @@ isMono             = null . foldSort fv []
 -- | Elaborate: make polymorphic instantiation explicit via casts,
 --   make applications monomorphic for SMTLIB
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
+--   refinements except for KVars. This is now mandatory due to the `no-prop`
+--------------------------------------------------------------------------------
+
 class Elaborate a where
   elaborate :: SEnv Sort -> a -> a
+
+instance Elaborate (SInfo a) where
+  elaborate senv si = si
+    { cm    = elaborate senv <$> cm    si
+    , bs    = elaborate senv  $  bs    si
+    , gLits = elaborate senv <$> gLits si
+    , dLits = elaborate senv <$> dLits si
+    }
 
 instance Elaborate Sort where
   elaborate _ = go
