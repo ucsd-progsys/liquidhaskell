@@ -98,10 +98,10 @@ instance Elaborate a => Elaborate [a] where
   elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate env e = tracepp msg e2
+  elaborate env e = e2
     where
       msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
-      e1  = elabExpr env  e
+      e1  = tracepp msg $ elabExpr env  e
       e2 = elabApply e1
 
 instance Elaborate SortedReft where
@@ -140,31 +140,25 @@ elabExpr γ e
 elabApply :: Expr -> Expr
 elabApply = go
   where
-    go (PAnd [])        = PTrue
-    go (POr [])         = PFalse
-    go e@(EApp {})      = defuncEApp (go f) (mapFst go <$> es) where (f, es) = splitArgs e
-    go (ENeg e)         = ENeg (go  e)
-    go (EBin o e1 e2)   = EBin o (go e1) (go e2)
-    go (EIte e1 e2 e3)  = EIte (go e1) (go e2) (go e3)
-    go (ECst e t)       = ECst (go e) t
-    go (PAnd ps)        = PAnd (go <$> ps)
-    go (POr ps)         = POr  (go <$> ps)
-    go (PNot p)         = PNot (go p)
-    go (PImp p q)       = PImp (go p) (go q)
-    go (PIff p q)       = PIff (go p) (go q)
-    go (PExist bs p)    = PExist bs (go p)
-    go (PAll   bs p)    = PAll   bs (go p)
-    go (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
-    go PGrad            = PGrad
-    go e                = e
-  -- go _ e@(ESym _)       = e
-  -- go _ e@(ECon _)       = e
-  -- go _ e@(EVar _)       = e
-  -- go _ e@(PKVar _ _)    = e
-  -- go _ e@(PTrue)        = e
-  -- go _ e@(PFalse)       = e
-  --  (ELam x ex)      = (df_lam <$> get) >>= defuncELam x ex
-  --  go _ e                = errorstar ("defunc Pred: " ++ show e)
+    go e                  = case splitArgs e of
+                             (e', []) -> step e'
+                             (f , es) -> defuncEApp (go f) (mapFst go <$> es)
+    step (PAnd [])        = PTrue
+    step (POr [])         = PFalse
+    step (ENeg e)         = ENeg (go  e)
+    step (EBin o e1 e2)   = EBin o (go e1) (go e2)
+    step (EIte e1 e2 e3)  = EIte (go e1) (go e2) (go e3)
+    step (ECst e t)       = ECst (go e) t
+    step (PAnd ps)        = PAnd (go <$> ps)
+    step (POr ps)         = POr  (go <$> ps)
+    step (PNot p)         = PNot (go p)
+    step (PImp p q)       = PImp (go p) (go q)
+    step (PIff p q)       = PIff (go p) (go q)
+    step (PExist bs p)    = PExist bs (go p)
+    step (PAll   bs p)    = PAll   bs (go p)
+    step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
+    step PGrad            = PGrad
+    step e                = e
 
 --------------------------------------------------------------------------------
 -- | Sort Inference ------------------------------------------------------------
@@ -557,8 +551,8 @@ splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
   where
     go acc (ECst (EApp e1 e) s) = go ((e, s) : acc) e1
-    go acc (ECst e _)           = go acc e
-    go _   EApp{}               = errorstar "UNEXPECTED: splitArgs: EApp without output type"
+    go _   e@EApp{}             = errorstar $ "UNEXPECTED: splitArgs: EApp without output type: " ++ showpp e
+    -- go acc (ECst e _)           = go acc e
     go acc e                    = (e, acc)
 
 --------------------------------------------------------------------------------
