@@ -138,27 +138,25 @@ elabExpr γ e
                ]
 
 elabApply :: Expr -> Expr
-elabApply = go Nothing
+elabApply = go
   where
-    goB                   = go (Just boolSort)
-    go'                   = go Nothing
-    go _ (PAnd [])        = PTrue
-    go _ (POr [])         = PFalse
-    go s e@(EApp {})      = defuncEApp s (go' f) (mapFst go' <$> es) where (f, es) = splitArgs e
-    go s (ENeg e)         = ENeg (go s e)
-    go _ (EBin o e1 e2)   = EBin o (go' e1) (go' e2)
-    go s (EIte e1 e2 e3)  = EIte (go (Just boolSort) e1) (go s e2) (go s e3)
-    go _ (ECst e t)       = ECst (go (Just t) e) t
-    go _ (PAnd ps)        = PAnd (goB <$> ps)
-    go _ (POr ps)         = POr  (goB <$> ps)
-    go _ (PNot p)         = PNot (goB p)
-    go _ (PImp p q)       = PImp (goB p) (goB q)
-    go _ (PIff p q)       = PIff (goB p) (goB q)
-    go _ (PExist bs p)    = PExist bs (goB p)
-    go _ (PAll   bs p)    = PAll   bs (goB p)
-    go _ (PAtom r e1 e2)  = PAtom r (go' e1) (go' e2)
-    go _ PGrad            = PGrad
-    go _ e                = e
+    go (PAnd [])        = PTrue
+    go (POr [])         = PFalse
+    go e@(EApp {})      = defuncEApp (go f) (mapFst go <$> es) where (f, es) = splitArgs e
+    go (ENeg e)         = ENeg (go  e)
+    go (EBin o e1 e2)   = EBin o (go e1) (go e2)
+    go (EIte e1 e2 e3)  = EIte (go e1) (go e2) (go e3)
+    go (ECst e t)       = ECst (go e) t
+    go (PAnd ps)        = PAnd (go <$> ps)
+    go (POr ps)         = POr  (go <$> ps)
+    go (PNot p)         = PNot (go p)
+    go (PImp p q)       = PImp (go p) (go q)
+    go (PIff p q)       = PIff (go p) (go q)
+    go (PExist bs p)    = PExist bs (go p)
+    go (PAll   bs p)    = PAll   bs (go p)
+    go (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
+    go PGrad            = PGrad
+    go e                = e
   -- go _ e@(ESym _)       = e
   -- go _ e@(ECon _)       = e
   -- go _ e@(EVar _)       = e
@@ -375,12 +373,12 @@ elab f e@(EBin o e1 e2) = do
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  (e1', _, e2', s2, s) <- elabEApp f e1 e2
   return (eAppC s e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s (EApp (ECst e1' s1) (ECst e2' s2)), s)
+  return (eAppC s (ECst e1' s1) (ECst e2' s2), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -502,35 +500,34 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
-defuncEApp :: Maybe Sort -> Expr -> [(Expr, Sort)] -> Expr
-defuncEApp s e es = tracepp msg $ defuncEApp' s e es
+defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
+defuncEApp e es = tracepp msg $ defuncEApp' e es
   where
-    msg = "DEFUNCEAPP: s := " ++ showpp s ++ " e1 := " ++ showpp e ++ " e2 := " ++ showpp es
+    msg = "DEFUNCEAPP: s := " ++ " e := " ++ showpp e ++ " es := " ++ showpp es
 
-defuncEApp' :: Maybe Sort -> Expr -> [Expr] -> Expr
-defuncEApp' ms e es
+defuncEApp' :: Expr -> [(Expr, Sort)] -> Expr
+defuncEApp' e es
   | tracepp msg $ Thy.isSmt2App (stripCasts e) es
-  = eApps e es
+  = eApps e (fst <$> es)
   | otherwise
-  = makeApplication ms e es
+  = L.foldl' makeApplication e es
   where
     msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
     -- (f, es) = splitArgs $ EApp e1 e2
 
-
 -- e1 e2 => App (App runFun e1) (toInt e2)
-makeApplication :: Maybe Sort -> Expr -> Expr -> Expr
-makeApplication sO e1 e2 = ECst (EApp (EApp (EVar f) e1) e2') s
+makeApplication :: Expr -> (Expr, Sort) -> Expr
+makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
   where
-    f                    = makeFunSymbol (spec s)
-    e2'                  = Thy.toInt e2 (exprSort e2)
-    s                    = fromMaybe (resultType e1 e2) sO
+    f                      = makeFunSymbol (spec s)
+    e2'                    = Thy.toInt e2 (exprSort e2)
+    -- s                      = fromMaybe (resultType e1 e2) sO
     spec                 :: Sort -> Sort
     spec (FAbs _ s)      = spec s
     spec s               = s
 
-resultType :: Expr -> Expr -> Sort
-resultType e _ = go $ exprSort e
+_resultType :: Expr -> Expr -> Sort
+_resultType e _ = go $ exprSort e
   where
     go (FAbs i s)               = FAbs i $ go s
     go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
@@ -559,9 +556,10 @@ makeFunSymbol s
 splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
   where
-    go acc (EApp e1 e) = go (e:acc) e1
-    go acc (ECst e _)  = go acc e
-    go acc e           = (e, acc)
+    go acc (ECst (EApp e1 e) s) = go ((e, s) : acc) e1
+    go acc (ECst e _)           = go acc e
+    go _   EApp{}               = errorstar "UNEXPECTED: splitArgs: EApp without output type"
+    go acc e                    = (e, acc)
 
 --------------------------------------------------------------------------------
 -- | Expressions sort  ---------------------------------------------------------
