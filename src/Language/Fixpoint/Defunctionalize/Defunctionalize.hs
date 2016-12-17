@@ -36,8 +36,8 @@ class Defunc a where
 instance Defunc Sort where
   defunc s = do
     hoFlag <- dfHO  <$> get
-    _env    <- dfenv <$> get
-    return $ if hoFlag then error "FIXME:elaborate env s" else s
+    env   <- dfenv <$> get
+    return $ if hoFlag then elaborate env s else s
 
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------

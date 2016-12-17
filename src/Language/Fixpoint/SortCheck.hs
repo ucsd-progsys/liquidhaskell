@@ -90,9 +90,12 @@ instance Elaborate (SInfo a) where
   elaborate senv si = si
     { cm    = elaborate senv <$> cm    si
     , bs    = elaborate senv  $  bs    si
-    , gLits = elaborate senv <$> gLits si
-    , dLits = elaborate senv <$> dLits si
+    -- , gLits = gLs' -- elaborate senv <$> gLits si
+    -- , dLits = elaborate senv <$> dLits si
     }
+    -- where gLs  = tracepp "ORIG: gLits" $ gLits si
+    --       gLs' = tracepp "NEW: gLits'" $ (elaborate senv <$> gLs)
+
 
 instance Elaborate Sort where
   elaborate _ = go

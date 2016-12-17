@@ -27,7 +27,7 @@ import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Validate  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
--- NOPROP import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
+import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.SortCheck            (Elaborate (..))
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
@@ -178,8 +178,8 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   -- writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  -- NOPROP let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
-  let si4 = elaborate (symbolEnv cfg si3) si3
+  let si3a = elaborate (symbolEnv cfg si3) si3
+  let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3a
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res

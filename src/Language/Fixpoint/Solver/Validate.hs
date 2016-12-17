@@ -209,7 +209,7 @@ symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
-    defs            = F.toListSEnv $ F.gLits fi
+    defs            = F.tracepp "DEFS/gLITS" . F.toListSEnv . F.gLits $ fi
     txFun
       | allowHO cfg = id
       | otherwise   = defuncSort
@@ -240,7 +240,7 @@ bindSorts fi
   | otherwise  = Left $ dupBindErrors [ (x, ts) | (x, ts) <- bad]
   where
     (bad, ok)  = L.partition multiSorted . binds $ fi
-    binds      = symBinds . F.bs
+    binds      = F.tracepp "SYMBINDS" . symBinds . F.bs
 
 
 multiSorted :: (x, [t]) -> Bool
