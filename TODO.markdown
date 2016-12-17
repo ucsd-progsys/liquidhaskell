@@ -4,233 +4,109 @@ TODO
 Deprecate Prop
 --------------
 
-+ pair.hs, eq-poly-measure.hs, deptup.hs, tests/pos/dropwhile.hs, tests/pos/filterabs.hs
-  works with --higherorder which actually does the defunc. sigh.
-
 - jeff.hs, inline.hs
   min, max unbound?
   need to "expand" the gsAssumes
 
-- tests/pos/elems.hs
-  expand Data.Set.Base.member to set_mem using the CoreToLogic business.
-  i.e. make sure that LMap expansion also done by `expand`
+rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
-- To get tests to pass
-  - parse 'Prop' as 'Bool' and 'Prop e' as 'e'
-  - and run with --higherorder
-  rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
-  liquidhaskell-0.6.0.0: test (suite: test, args: -p pos)
+      rangeAdt.hs:                       FAIL (1.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
 
-  Tests
-    Unit
-      pos
-        StackMachine.hs:                   FAIL (1.23s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Solver.hs:                         FAIL (2.19s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        SafePartialFunctions.hs:           FAIL (1.35s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 1
-        rangeAdt.hs:                       FAIL (1.86s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        PointDist.hs:                      FAIL (1.30s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        MultipleInvariants.hs:             FAIL (0.89s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        mapTvCrash.hs:                     FAIL (1.01s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        MapReduceVerified.hs:              FAIL (1.24s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Map2.hs:                           FAIL (19.17s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Map0.hs:                           FAIL (19.78s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Map.hs:                            FAIL (21.59s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        ListMSort-LType.hs:                FAIL (3.61s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        jeff.hs:                           FAIL (1.50s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        inline.hs:                         FAIL (0.99s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        imp0.hs:                           FAIL (0.93s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Holes.hs:                          FAIL (0.93s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        filterAbs.hs:                      FAIL (1.29s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        eq-poly-measure.hs:                FAIL (1.07s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        elems.hs:                          FAIL (0.95s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        dropwhile.hs:                      FAIL (1.45s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        coretologic.hs:                    FAIL (1.18s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Class.hs:                          FAIL (1.73s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Books.hs:                          FAIL (0.88s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-    Benchmarks
-      icfp_pos
-        WhileTest.hs:                      FAIL (0.44s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        WhileM.hs:                         FAIL (0.44s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        TwiceM.hs:                         FAIL (0.47s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        TestM.hs:                          FAIL (0.44s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        RIO2.hs:                           FAIL (0.50s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Privileges.hs:                     FAIL (0.51s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Overview.lhs:                      FAIL (1.11s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Incr.hs:                           FAIL (0.45s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Incr-elim.hs:                      FAIL (0.52s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        IfM2.hs:                           FAIL (0.53s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        IfM.hs:                            FAIL (0.45s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        ICFP15.lhs:                        FAIL (0.65s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        FoldAbs.hs:                        FAIL (0.49s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        FindRec.hs:                        FAIL (0.49s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Filter.lhs:                        FAIL (0.70s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        dropwhile.hs:                      FAIL (0.62s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        DBMovies.hs:                       FAIL (0.59s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        CopyRec.hs:                        FAIL (0.58s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Composition.hs:                    FAIL (0.45s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        CompareConstraints.hs:             FAIL (0.51s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Append.hs:                         FAIL (0.42s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-      icfp_neg
-        Composition.hs:                    FAIL (0.51s)
-          Wrong exit code
-          expected: ExitFailure 1
-           but got: ExitFailure 2
-      pldi17_pos
-        Unification.hs:                    FAIL (1.55s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Solver.hs:                         FAIL (0.65s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        ProofCombinators.hs:               FAIL (1.03s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Fibonacci.hs:                      FAIL (4.59s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-        Ackermann.hs:                      FAIL (10.72s)
-          Wrong exit code
-          expected: ExitSuccess
-           but got: ExitFailure 2
-
-
-
+      PointDist.hs:                      FAIL (0.86s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      pair00.hs:                         FAIL (2.37s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      pair0.hs:                          FAIL (2.41s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      pair.hs:                           FAIL (2.72s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      MultipleInvariants.hs:             FAIL (0.91s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      mapTvCrash.hs:                     FAIL (0.94s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      MapReduceVerified.hs:              FAIL (1.56s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map2.hs:                           FAIL (20.31s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map0.hs:                           FAIL (19.74s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map.hs:                            FAIL (20.48s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListMSort-LType.hs:                FAIL (3.35s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      jeff.hs:                           FAIL (1.56s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      inline.hs:                         FAIL (1.03s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      imp0.hs:                           FAIL (0.96s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Holes.hs:                          FAIL (0.97s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      fixme.hs:                          FAIL (1.01s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      filterAbs.hs:                      FAIL (1.66s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      eq-poly-measure.hs:                FAIL (1.49s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      elems.hs:                          FAIL (1.46s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      dropwhile.hs:                      FAIL (1.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      coretologic.hs:                    FAIL (1.09s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Class.hs:                          FAIL (1.44s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Books.hs:                          FAIL (0.91s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
 
 Check Covariance
 ----------------
@@ -252,19 +128,6 @@ automatically get types abstracted over properties.
 Traversal should create such functions.
 Maybe we can automatically refine them.
 
-
-Check refinements using `Eq` and `Ord` info
--------------------------------------------
-Currently we arbitrary allow `=` and comparison operators in refinements to arbitraty types.
-This can lead to non-well formed refinements.
-
-promotion of haskell functions to measures
-------------------------------------------
-
-+ test that promotion happens on proper functions (inductive with 1 ADT argument)
-+ make sure that user and derived signature are met
-+ make Haskell's function post conditions invariants
-
 benchmarks
 -----------
 
@@ -277,173 +140,6 @@ benchmarks
 
 * error messages (see issues on github)
 
-remove-parens
--------------
-
-+ x16 to v
-+ Range {0} {100} -- allow Range 0 100 instead.
-+ extra PARENS in refinement printout.
-+ qualifier duplication
-
-
-
-exists-based constraints
-------------------------
-
-GHC introduces a bunch of:
-
-    let x = e1 in e2
-
-and
-
-    case x of C y -> e
-
-constraints, which possibly blow up the `Kvar`.
-
-Can we minimize KVars and hence, simplify constraints with exists?
-
-1. profile and find the KVar break down.
-
-  + lambda (including recursion)
-  + polymorphic instantiation
-  + case-of with *multiple* cases
-  - case-of with *single* case
-  - local-let
-
-2. eliminate the last two cases using exists-templates
-
-
-
-vector
-------
-
-Wordcount for vector
-
-    1476 ./Vector/Fusion/Stream/Monadic.hs
-      87 ./Vector/Fusion/Stream/Size.hs
-     634 ./Vector/Fusion/Stream.hs
-      57 ./Vector/Fusion/Util.hs
-     142 ./Vector/Generic/Base.hs
-     884 ./Vector/Generic/Mutable.hs
-     172 ./Vector/Generic/New.hs
-    2027 ./Vector/Generic.hs
-     163 ./Vector/Internal/Check.hs
-     398 ./Vector/Mutable.hs
-     332 ./Vector/Primitive/Mutable.hs
-    1328 ./Vector/Primitive.hs
-      45 ./Vector/Storable/Internal.hs
-     490 ./Vector/Storable/Mutable.hs
-    1421 ./Vector/Storable.hs
-     389 ./Vector/Unboxed/Base.hs
-     285 ./Vector/Unboxed/Mutable.hs
-    1368 ./Vector/Unboxed.hs
-    1510 ./Vector.hs
-   13208 total
-
-
-Dependency order for vector
-
-[ 1 of 19]  [45]      Data.Vector.Storable.Internal
-[ 2 of 19]  [57]      Data.Vector.Fusion.Util
-[ 4 of 19]  [163]     Data.Vector.Internal.Check
-[ 3 of 19]  [87]      Data.Vector.Fusion.Stream.Size      (SKIP:STREAM?)
-[ 5 of 19]  [1476]    Data.Vector.Fusion.Stream.Monadic   (SKIP:STREAM?)
-[ 6 of 19]  [634]     Data.Vector.Fusion.Stream           (SKIP:STREAM?)
-[ 7 of 19]  [884]     Data.Vector.Generic.Mutable
-[ 8 of 19]  [142]     Data.Vector.Generic.Base            (REDO: no class instances...)
-[ 9 of 19]  [172]     Data.Vector.Generic.New             (TODO:FORALL/APP/github issue #202)
-
-HEREHEREHERE
-
-[10 of 19]  [2027]    Data.Vector.Generic
-[11 of 19]  [332]     Data.Vector.Primitive.Mutable
-[12 of 19]  [1328]    Data.Vector.Primitive
-[13 of 19]  [490]     Data.Vector.Storable.Mutable
-[14 of 19]  [1421]    Data.Vector.Storable
-[15 of 19]  [389]     Data.Vector.Unboxed.Base
-[16 of 19]  [1368]    Data.Vector.Unboxed
-[17 of 19]  [285]     Data.Vector.Unboxed.Mutable
-[18 of 19]  [398]     Data.Vector.Mutable
-[19 of 19]  [1510]    Data.Vector
-
-
-
-
-hmatrix
--------
-
-Dependency order for hmatrix
-
-NA [ 1 of 36] Data.Packed.Internal.Signatures
-TY [ 2 of 36] Data.Packed.Internal.Common
-  > see tests/pos/transpose.hs
-
-[ 3 of 36] Data.Packed.Internal.Vector
-[ 4 of 36] Numeric.GSL.Vector
-[ 5 of 36] Data.Packed.Internal.Matrix
-[ 6 of 36] Numeric.Conversion
-[ 7 of 36] Data.Packed.Internal
-[ 8 of 36] Data.Packed.ST
-[ 9 of 36] Data.Packed.Foreign
-[10 of 36] Numeric.GSL.Differentiation
-[11 of 36] Numeric.GSL.Integration
-[12 of 36] Numeric.GSL.Fourier
-[13 of 36] Numeric.GSL.Polynomials
-[14 of 36] Numeric.GSL.Internal
-[15 of 36] Numeric.GSL.ODE
-[16 of 36] Data.Packed.Development
-[17 of 36] Data.Packed.Matrix
-[18 of 36] Numeric.GSL.Minimization
-[19 of 36] Numeric.GSL.Root
-[20 of 36] Numeric.LinearAlgebra.LAPACK
-[21 of 36] Data.Packed.Vector
-[22 of 36] Data.Packed
-[23 of 36] Numeric.ContainerBoot
-[24 of 36] Numeric.Chain
-[25 of 36] Numeric.LinearAlgebra.Algorithms
-[26 of 36] Numeric.IO
-[27 of 36] Data.Packed.Random
-[28 of 36] Numeric.Container
-[29 of 36] Numeric.Matrix
-[30 of 36] Numeric.Vector
-[31 of 36] Numeric.LinearAlgebra
-[32 of 36] Numeric.GSL.Fitting
-[33 of 36] Numeric.GSL
-[34 of 36] Numeric.LinearAlgebra.Util.Convolution
-[35 of 36] Numeric.LinearAlgebra.Util
-[36 of 36] Graphics.Plot
-
-Embed
-=====
-
-see
-
-    tests/pos/ptr.hs
-    tests/pos/ptr2.hs
-
-run with
-
-    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs
-
-GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
-but with raw pointer arithmetic. I.e. give plusPtr the right signature:
-  (v = base + off)
-Can do so now, by:
-
-  embed Ptr as int
-
-but the problem is that then it throws off all qualifier definitions like
-
-  qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x)
-  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x)
-
-because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
-Meaning we have to rewrite the above to the rather lame:
-
-  qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
-
-
-
 Benchmarks
 ==========
 
@@ -453,63 +149,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-
-
-Blog Todo List
-==============
-
-- Cleanup output (tests/pos/poly0.hs)
-
-Basic Refinement Types
-----------------------
-
-[DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
-[DONE] Dep Refinements: (Data.Vector, recursion-sum, dotprod, range, map, fold)
-[DONE] Lists I       (append, reverse, map-length, filter)
-[DONE] Lists II      (take, transpose)
-[DONE] MapReduce
-[DONE] KMeans        (++ zipWith etc.)
-
-Measures
---------
-
-[DONE] Lists I-Sets  ("" but with Sets as the measure)
-- LambdaEval
-
-Abstract Refinements
---------------------
-
-[DONE] ParaPoly/Ty  
-[DONE] Sorting      <--------------- STOP
-
-- Maps I        (BST property, add, delete)
-- Map II        (Data.Map with elements etc.)
-- Pats Vectors
-- Niki DataBase
-- Induction-Loop
-- Induction-List (efoldr)
-
-Real World
-----------
-
-- Bytestring (internal)
-- Bytestring (api)
-- Text       (internal)
-- Text       (api)
-- Text       (bug)
-- Lazy/Termination
-- Termination examples
-? mcbride stack machine
-? hasochism text layout
-
-
-Future Work
------------
-
-- Xmonad: StackSet
-- Binary Tree/ Finger Tree?
-- BDD
-- Union Find
 
 
 Benchmarks
@@ -546,7 +185,6 @@ Other Benchmarks
 ->   FingerTrees (containers / Data.Seq)
 ->   Union-Find (PLDI09 port if necessary?)
 ->   BDD        (PLDI09 port if necessary?)
-
 
 [NO] Data.Set (Map redux)
         > ordering
