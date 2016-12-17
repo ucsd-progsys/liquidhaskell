@@ -1,0 +1,10 @@
+
+bind 0 x  : {VV : Tree | [] }
+bind 1 x  : {VV : List | [] }
+bind 2 x  : {VV : real | [] }
+
+constraint:
+  env [0]
+  lhs {VV : Tree | [ VV = x ] }
+  rhs {VV : Tree | [ VV = x ] }
+  id 1 tag [1]

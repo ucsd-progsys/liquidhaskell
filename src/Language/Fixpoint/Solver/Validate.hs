@@ -33,7 +33,7 @@ type ValidateM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize cfg =    -- banIllScopedKvars
+sanitize _cfg =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -41,19 +41,19 @@ sanitize cfg =    -- banIllScopedKvars
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
-         >=> Misc.fM (elaborateRefinements cfg)
+         >=> Misc.fM (_elaborateRefinements _cfg)
 
 
 --------------------------------------------------------------------------------
 -- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
 --   refinements except for KVars. This is now mandatory due to the `no-prop`
 --------------------------------------------------------------------------------
-elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
-elaborateRefinements cfg si = si
+_elaborateRefinements :: Config -> F.SInfo a -> F.SInfo a
+_elaborateRefinements cfg si = si
   { F.cm    = elaborate senv <$> F.cm    si
   , F.bs    = elaborate senv  $  F.bs    si
-  -- , F.gLits = elaborate senv <$> F.gLits si
-  -- , F.dLits = elaborate senv <$> F.dLits si
+  , F.gLits = elaborate senv <$> F.gLits si
+  , F.dLits = elaborate senv <$> F.dLits si
   }
   where senv  = symbolEnv cfg si
 
