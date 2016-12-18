@@ -67,7 +67,7 @@ refineK ho env qs (v, t, k) = {- F.tracepp _msg -} (k, eqs')
    where
     eqs                     = instK ho env v t qs
     eqs'                    = Sol.qbFilter (okInst env v t) eqs
-  --  _msg                    = printf "\n\nrefineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    -- _msg                    = printf "\n\nrefineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
 
 --------------------------------------------------------------------------------
 instK :: Bool
@@ -113,12 +113,13 @@ match _   _   xs []
 --------------------------------------------------------------------------------
 candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 --------------------------------------------------------------------------------
-candidates env tyss tx
-  = [(su, y) | (t, ys) <- tyss
+candidates env tyss tx = -- traceShow _msg
+    [(su, y) | (t, ys) <- tyss
              , su      <- maybeToList $ So.unifyFast mono env tx t
              , y       <- ys                                   ]
   where
     mono = So.isMono tx
+    _msg  = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp tx
 
 --------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool

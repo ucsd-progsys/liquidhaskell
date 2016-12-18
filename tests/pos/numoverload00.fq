@@ -20,4 +20,4 @@ constraint:
 
 wf:
   env []
-  reft {v : [real] | $k1 }
+  reft {v : real | $k1 }
