@@ -8,105 +8,183 @@ Deprecate Prop
   min, max unbound?
   need to "expand" the gsAssumes
 
+
 rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
-      rangeAdt.hs:                       FAIL (1.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+  WrapUnWrap.hs:                     FAIL (1.13s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  T819.hs:                           FAIL (1.27s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  T675.hs:                           FAIL (1.29s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  StringLit.hs:                      FAIL (1.01s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  StackMachine.hs:                   FAIL (1.02s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Solver.hs:                         FAIL (2.27s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  SimplerNotation.hs:                FAIL (0.95s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  SafePartialFunctions.hs:           FAIL (1.11s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  RefinedADTs.hs:                    FAIL (0.97s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  rangeAdt.hs:                       FAIL (2.06s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Product.hs:                        FAIL (1.63s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  PointDist.hs:                      FAIL (0.87s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  OrdList.hs:                        FAIL (18.56s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  NatClass.hs:                       FAIL (1.36s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  MultipleInvariants.hs:             FAIL (0.93s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  mr-blow.hs:                        FAIL (3.58s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  mapTvCrash.hs:                     FAIL (0.91s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  MapReduceVerified.hs:              FAIL (1.23s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Map2.hs:                           FAIL (22.13s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Map0.hs:                           FAIL (20.98s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Map.hs:                            FAIL (20.88s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  LogicCurry1.hs:                    FAIL (0.99s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  lit.hs:                            FAIL (1.03s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  ListMSort-LType.hs:                FAIL (3.69s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  jeff.hs:                           FAIL (1.54s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  inline.hs:                         FAIL (1.02s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  imp0.hs:                           FAIL (0.92s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Holes.hs:                          FAIL (0.91s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Graph.hs:                          FAIL (1.73s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  FractionalInstance.hs:             FAIL (1.05s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  Foldl.hs:                          FAIL (10.50s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  filterAbs.hs:                      FAIL (2.84s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  FFI.hs:                            FAIL (1.82s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  ExactFunApp.hs:                    FAIL (1.20s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  elems.hs:                          FAIL (1.45s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  dropwhile.hs:                      FAIL (1.46s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  coretologic.hs:                    FAIL (1.01s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  ClojurVector.hs:                   FAIL (1.43s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
+  Cat.hs:                            FAIL (1.12s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  CasesToLogic.hs:                   FAIL (0.99s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Books.hs:                          FAIL (0.89s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Avg.hs:                            FAIL (0.98s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 1
 
-      PointDist.hs:                      FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      pair00.hs:                         FAIL (2.37s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      pair0.hs:                          FAIL (2.41s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      pair.hs:                           FAIL (2.72s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MultipleInvariants.hs:             FAIL (0.91s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      mapTvCrash.hs:                     FAIL (0.94s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MapReduceVerified.hs:              FAIL (1.56s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Map2.hs:                           FAIL (20.31s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Map0.hs:                           FAIL (19.74s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Map.hs:                            FAIL (20.48s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ListMSort-LType.hs:                FAIL (3.35s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      jeff.hs:                           FAIL (1.56s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      inline.hs:                         FAIL (1.03s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      imp0.hs:                           FAIL (0.96s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Holes.hs:                          FAIL (0.97s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      fixme.hs:                          FAIL (1.01s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      filterAbs.hs:                      FAIL (1.66s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      eq-poly-measure.hs:                FAIL (1.49s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      elems.hs:                          FAIL (1.46s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      dropwhile.hs:                      FAIL (1.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      coretologic.hs:                    FAIL (1.09s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Class.hs:                          FAIL (1.44s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Books.hs:                          FAIL (0.91s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+
+
+JUNK
+
+
 
 Check Covariance
 ----------------

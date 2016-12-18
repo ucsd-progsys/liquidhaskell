@@ -6,13 +6,13 @@ module Avg where
   @-}
 
 {-@ measure lenD :: [Double] -> Double
-    lenD([]) = 0.0
+    lenD([])   = 0.0
     lenD(x:xs) = (1.0) + (lenD xs)
   @-}
 
 {-@ expression Avg Xs = ((sumD Xs) / (lenD Xs))  @-}
 
-{-@ meansD :: xs:{v:[Double] | ((lenD v) > 0.0)} 
+{-@ meansD :: xs:{v:[Double] | ((lenD v) > 0.0)}
            -> {v:Double | v = Avg xs} @-}
 meansD :: [Double] -> Double
 meansD xs = sumD xs / lenD xs
