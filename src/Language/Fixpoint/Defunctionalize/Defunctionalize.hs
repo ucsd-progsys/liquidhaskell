@@ -293,10 +293,12 @@ txnumOverloading :: Expr -> Expr
 txnumOverloading = mapExpr go
   where
     go (ETimes e1 e2)
-      | exprSort e1 == FReal, exprSort e2 == FReal
+      | exprSort "txn1" e1 == FReal
+      , exprSort "txn2" e2 == FReal
       = ERTimes e1 e2
     go (EDiv   e1 e2)
-      | exprSort e1 == FReal, exprSort e2 == FReal
+      | exprSort ("txn3: " ++ showpp e1) e1 == FReal
+      , exprSort "txn4" e2 == FReal
       = ERDiv   e1 e2
     go e
       = e
@@ -339,7 +341,8 @@ txExtensionality :: Expr -> Expr
 txExtensionality = mapExpr' go
   where
     go (EEq e1 e2)
-      | FFunc _ _ <- exprSort e1, FFunc _ _ <- exprSort e2
+      | FFunc _ _ <- exprSort "txn5" e1
+      , FFunc _ _ <- exprSort "txn6" e2
       = mkExFunEq e1 e2
     go e
       = e
@@ -354,7 +357,7 @@ mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
     es      = zipWith (\x s -> ECst (EVar x) s) xs ss
     xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss]
     (s, ss) = splitFun [] s1
-    s1      = exprSort e1
+    s1      = exprSort "txn7" e1
 
     splitFun acc (FFunc s ss) = splitFun (s:acc) ss
     splitFun acc s            = (s, reverse acc)

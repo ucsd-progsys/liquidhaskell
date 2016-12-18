@@ -115,11 +115,11 @@ instance Elaborate Sort where
   -- elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate env e = e2
+  elaborate env e = tracepp msg e2
     where
-      -- msg = ("ELABORATE e := " ++ showpp e) --  ++ " e' := " ++ show e')
-      e1  = {- tracepp msg $ -} elabExpr env e
-      e2 = elabApply e1
+      e1  = elabExpr env e
+      e2  = elabApply e1
+      msg = ("ELABORATE e := " ++ showpp e)
 
 instance Elaborate SortedReft where
   elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
@@ -528,19 +528,19 @@ makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
   where
     f                      = makeFunSymbol (spec s)
-    e2'                    = Thy.toInt e2 (exprSort e2)
+    e2'                    = Thy.toInt e2 (exprSort "makeApplication" e2)
     -- s                      = fromMaybe (resultType e1 e2) sO
     spec                 :: Sort -> Sort
     spec (FAbs _ s)      = spec s
     spec s               = s
 
-_resultType :: Expr -> Expr -> Sort
-_resultType e _ = go $ exprSort e
-  where
-    go (FAbs i s)               = FAbs i $ go s
-    go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
-    go (FFunc _ sx)             = sx
-    go sj                       = errorstar ("\nmakeFunSymbol on non Fun " ++ showpp (stripCasts e, sj) ++ "\nuneliminated\n" ++ showpp e)
+-- _resultType :: Expr -> Expr -> Sort
+-- _resultType e _ = go $ exprSort e
+  -- where
+    -- go (FAbs i s)               = FAbs i $ go s
+    -- go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
+    -- go (FFunc _ sx)             = sx
+    -- go sj                       = errorstar ("\nmakeFunSymbol on non Fun " ++ showpp (stripCasts e, sj) ++ "\nuneliminated\n" ++ showpp e)
 
 makeFunSymbol :: Sort -> Symbol
 makeFunSymbol s
@@ -572,19 +572,19 @@ splitArgs = go []
 --------------------------------------------------------------------------------
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
-exprSort :: Expr -> Sort
-exprSort (ECst _ s)
-  = s
-exprSort (ELam (_, sx) e)
-  = FFunc sx $ exprSort e
-exprSort (EApp e ex) | FFunc sx s <- gen $ exprSort e
-  = maybe s (`apply` s) $ unifySorts (exprSort ex) sx
+exprSort :: String -> Expr -> Sort
+exprSort msg = go
   where
-    gen (FAbs _ t) = gen t
-    gen t          = t
-exprSort e
-  = errorstar ("\nexprSort on unexpected expressions" ++ show e)
+    go (ECst _ s) = s
+    go (ELam (_, sx) e) = FFunc sx (go e)
+    go (EApp e ex)
+      | FFunc sx s <- genSort (go e)
+      = maybe s (`apply` s) $ unifySorts (go ex) sx
+    go e = errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
 
+genSort :: Sort -> Sort
+genSort (FAbs _ t) = genSort t
+genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
