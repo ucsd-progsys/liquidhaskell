@@ -55,7 +55,7 @@ import           Data.Maybe                (mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
-import           Language.Fixpoint.Types.Visitor  (stripCasts, foldSort)
+import           Language.Fixpoint.Types.Visitor  (mapExpr, stripCasts, foldSort)
 import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -115,11 +115,26 @@ instance Elaborate Sort where
   -- elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate env e = tracepp msg e2
+  elaborate env e = tracepp msg e3
     where
       e1  = elabExpr env e
-      e2  = elabApply e1
+      e2  = elabApply   e1
+      e3  = elabNumeric e2
       msg = ("ELABORATE e := " ++ showpp e)
+
+elabNumeric :: Expr -> Expr
+elabNumeric = mapExpr go
+  where
+    go (ETimes e1 e2)
+      | exprSort "txn1" e1 == FReal
+      , exprSort "txn2" e2 == FReal
+      = ERTimes e1 e2
+    go (EDiv   e1 e2)
+      | exprSort ("txn3: " ++ showpp e1) e1 == FReal
+      , exprSort "txn4" e2 == FReal
+      = ERDiv   e1 e2
+    go e
+      = e
 
 instance Elaborate SortedReft where
   elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))

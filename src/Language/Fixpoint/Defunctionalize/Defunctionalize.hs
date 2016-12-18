@@ -14,7 +14,7 @@ import           Language.Fixpoint.Solver.Validate (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config -- hiding (eliminate)
 import           Language.Fixpoint.SortCheck
-import           Language.Fixpoint.Types.Visitor   (stripCasts, mapExpr)
+import           Language.Fixpoint.Types.Visitor   (stripCasts)
 
 --  import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Control.Monad.State
@@ -59,11 +59,11 @@ txExpr e = do
 txExpr' :: Bool -> Bool -> Bool -> Expr -> DF Expr
 txExpr' stFlag hoFlag exFlag e
   | exFlag && hoFlag
-  = (txExtensionality . txnumOverloading <$> txStr stFlag e) >>= defuncExpr
+  = (txExtensionality <$> txStr stFlag e) >>= defuncExpr
   | hoFlag
-  = (txnumOverloading <$> txStr stFlag e) >>= defuncExpr
+  = txStr stFlag e >>= defuncExpr
   | otherwise
-  = txnumOverloading <$> txStr stFlag e
+  = txStr stFlag e
 
 
 defuncExpr :: Expr -> DF Expr
@@ -289,19 +289,7 @@ instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
 --------------------------------------------------------------------------------
 -- | Numeric Overloading  ------------------------------------------------------
 --------------------------------------------------------------------------------
-txnumOverloading :: Expr -> Expr
-txnumOverloading = mapExpr go
-  where
-    go (ETimes e1 e2)
-      | exprSort "txn1" e1 == FReal
-      , exprSort "txn2" e2 == FReal
-      = ERTimes e1 e2
-    go (EDiv   e1 e2)
-      | exprSort ("txn3: " ++ showpp e1) e1 == FReal
-      , exprSort "txn4" e2 == FReal
-      = ERDiv   e1 e2
-    go e
-      = e
+
 
 txStr :: Bool -> Expr -> DF Expr
 txStr _ = return
