@@ -179,7 +179,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo          <- cgInfoFInfo info cgi
-  F.Result r sol <- solve (traceShow "FIXCFG" $ fixConfig tgt cfg) finfo
+  F.Result r sol <- solve (fixConfig tgt cfg) finfo
   let resErr      = applySolution sol . cinfoError . snd <$> r
   resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
   let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
