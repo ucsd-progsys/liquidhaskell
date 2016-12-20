@@ -88,14 +88,14 @@ mapSto   = "Map_store"
 
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
-strLen    = "stringLen"
+strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
 -- NOPROP genLen :: Symbol
 -- NOPROP genLen = "len"
 
 -- NOPROP strlen, strsubstr, strconcat :: Raw
--- NOPROP strlen    = "stringLen"
+-- NOPROP strlen    = "strLen"
 -- NOPROP strsubstr = "subString"
 -- NOPROP strconcat = "concatString"
 
@@ -411,7 +411,7 @@ makeApplies i =
     go i s = FFunc intSort $ go (i-1) s
 
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
-axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
+axiomLiterals lts = tracepp "axiomLiterals" $ catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
   where
     lenAxiom l n  = EEq (EApp (expr (strLen :: Symbol)) (expr l)) (expr n `ECst` intSort)
     litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol
