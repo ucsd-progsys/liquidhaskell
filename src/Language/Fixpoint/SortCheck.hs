@@ -84,21 +84,17 @@ isMono             = null . foldSort fv []
 --------------------------------------------------------------------------------
 
 class Elaborate a where
-  elaborate :: SEnv Sort -> a -> a
+  elaborate :: String -> SEnv Sort -> a -> a
 
 instance Elaborate (SInfo a) where
-  elaborate senv si = si
-    { cm    = elaborate senv <$> cm    si
-    , bs    = elaborate senv  $  bs    si
-    -- , gLits = gLs' -- elaborate senv <$> gLits si
-    -- , dLits = elaborate senv <$> dLits si
+  elaborate x senv si = si
+    { cm    = elaborate x senv <$> cm    si
+    , bs    = elaborate x senv  $  bs    si
     }
-    -- where gLs  = tracepp "ORIG: gLits" $ gLits si
-    --       gLs' = tracepp "NEW: gLits'" $ (elaborate senv <$> gLs)
 
 
 instance Elaborate Sort where
-  elaborate _ = go
+  elaborate _ _ = go
    where
       go s | isString s = strSort
       go (FAbs i s)    = FAbs i $ go s
@@ -115,12 +111,12 @@ instance Elaborate Sort where
   -- elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate env e = tracepp msg e3
+  elaborate msg env e = tracepp msg' e3
     where
-      e1  = elabExpr env e
-      e2  = elabApply   e1
-      e3  = elabNumeric e2
-      msg = ("ELABORATE e := " ++ showpp e)
+      e1  = elabExpr msg env e
+      e2  = elabApply       e1
+      e3  = elabNumeric     e2
+      msg' = msg ++ " ELABORATE e := " ++ showpp e
 
 elabNumeric :: Expr -> Expr
 elabNumeric = mapExpr go
@@ -137,31 +133,34 @@ elabNumeric = mapExpr go
       = e
 
 instance Elaborate SortedReft where
-  elaborate env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
+  elaborate x env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = elaborate env' e
+      e'   = elaborate x env' e
       env' = insertSEnv v s env
 
 instance Elaborate BindEnv where
-  elaborate env = mapBindEnv (mapSnd (elaborate env))
+  elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
+    where
+      msg i x sr  = unwords ["elabBE",  show i, show x, show sr]
+  --  (mapSnd (elaborate x env))
 
 instance Elaborate (SimpC a) where
-  elaborate env c = c {_crhs = elaborate env (_crhs c) }
+  elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
 
 -- instance Elaborate Qualifier where
   -- elaborate env q = q { qParams = elaborate env (qParams q)
                       -- , qBody   = elaborate [env ++ qParams] (qBody q)
                       -- }
 
-elabExpr :: SEnv Sort -> Expr -> Expr
-elabExpr γ e
+elabExpr :: String -> SEnv Sort -> Expr -> Expr
+elabExpr msg γ e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
       Right s  -> fst s
   where
     f   = (`lookupSEnvWithDistance` γ')
     γ'  = γ `mappend` Thy.theorySEnv
-    d m = vcat [ "elaborate failed on:"
+    d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
                , nest 4 (pprint e)
                , "with error"
                , nest 4 (text m)

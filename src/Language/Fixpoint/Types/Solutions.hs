@@ -191,7 +191,7 @@ qbPreds :: Solution -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
 qbPreds s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred          = elaborate env . subst su . eqPred
+    elabPred          = elaborate "qbPreds" env . subst su . eqPred
     env               = sEnv s
 
 --------------------------------------------------------------------------------
@@ -216,12 +216,6 @@ lookup s k
 
 lookupElab :: Solution -> KVar -> Maybe QBind
 lookupElab s k = M.lookup k (sMap s)
--- of
---  Just qb -> Just (QB (tx <$> qbEQuals qb))
---  Nothing  -> Nothing
---  where
---    tx eq = eq { eqPred = elaborate env (eqPred eq) }
---    env   = sEnv s
 
 --------------------------------------------------------------------------------
 updateK :: KVar -> a -> Sol a -> Sol a

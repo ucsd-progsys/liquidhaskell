@@ -220,8 +220,8 @@ declare env ess = withContext $ \me -> do
     thyXTs     =               filter (isKind 1) xts
     qryXTs     = mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind . fst
-    xts        = F.toListSEnv env
-    tx         = elaborate    env
+    xts        = F.toListSEnv           env
+    tx         = elaborate    "declare" env
 
 -- | symKind returns 0,1,2 where: 0 = Theory-Definition, 1 = Theory-Declaration, 2 = Query
 symKind :: F.Symbol -> Int

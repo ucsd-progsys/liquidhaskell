@@ -74,12 +74,12 @@ ignoreQualifiers cfg fi
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg q
-  | parts cfg    = partition  cfg        $!! q
-  | stats cfg    = statistics cfg        $!! q
-  | minimize cfg = minQuery   cfg solve' $!! q
-  | minimizeQs cfg = minQuals cfg solve' $!! q
-  | minimizeKs cfg = minKvars cfg solve' $!! q
-  | otherwise    = solve'     cfg        $!! q
+  | parts cfg      = partition  cfg        $!! q
+  | stats cfg      = statistics cfg        $!! q
+  | minimize cfg   = minQuery   cfg solve' $!! q
+  | minimizeQs cfg = minQuals cfg solve'   $!! q
+  | minimizeKs cfg = minKvars cfg solve'   $!! q
+  | otherwise      = solve'     cfg        $!! q
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
@@ -177,8 +177,8 @@ solveNative' !cfg !fi0 = do
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
-  -- writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  let si3a = elaborate (symbolEnv cfg si3) si3
+  writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
+  let si3a = elaborate "solver" (tracepp "SYMBOLENV" $ symbolEnv cfg si3) si3
   let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3a
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"

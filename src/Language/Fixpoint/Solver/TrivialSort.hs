@@ -3,7 +3,6 @@
 module Language.Fixpoint.Solver.TrivialSort (nontrivsorts) where
 
 import           GHC.Generics        (Generic)
-import           Control.Arrow       (second)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor
 import           Language.Fixpoint.Types.Config
@@ -143,7 +142,7 @@ simplifyFInfo tm fi = fi {
 }
 
 simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
-simplifyBindEnv = mapBindEnv . second . simplifySortedReft
+simplifyBindEnv tm = mapBindEnv (\_ (x, sr) -> (x, simplifySortedReft tm sr))
 
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
 simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)
