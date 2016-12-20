@@ -49,6 +49,7 @@ import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
 import qualified Data.Text
+import           Data.String                 (IsString(..))
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
@@ -86,17 +87,17 @@ mapSel   = "Map_select"
 mapSto   = "Map_store"
 
 
-strLen, strSubstr, strConcat :: Symbol
+strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "stringLen"
 strSubstr = "subString"
 strConcat = "concatString"
 -- NOPROP genLen :: Symbol
 -- NOPROP genLen = "len"
 
-strlen, strsubstr, strconcat :: Raw
-strlen    = "stringLen"
-strsubstr = "subString"
-strconcat = "concatString"
+-- NOPROP strlen, strsubstr, strconcat :: Raw
+-- NOPROP strlen    = "stringLen"
+-- NOPROP strsubstr = "subString"
+-- NOPROP strconcat = "concatString"
 
 z3strlen, z3strsubstr, z3strconcat :: Raw
 z3strlen    = "str.len"
@@ -203,21 +204,21 @@ stringPreamble cfg | stringTheory cfg
   = [
       format "(define-sort {} () String)" (Only string)
     , format "(define-fun {} ((s {})) Int ({} s))"
-        (strlen, string, z3strlen)
+        (strLen :: Raw, string, z3strlen)
     , format "(define-fun {} ((s {}) (i Int) (j Int)) {} ({} s i j))"
-        (strsubstr, string, string, z3strsubstr)
+        (strSubstr :: Raw, string, string, z3strsubstr)
     , format "(define-fun {} ((x {}) (y {})) {} ({} x y))"
-        (strconcat, string, string, string, z3strconcat)
+        (strConcat :: Raw, string, string, string, z3strconcat)
     ]
 stringPreamble _
   = [
       format "(define-sort {} () Int)" (Only string)
     , format "(declare-fun {} ({}) Int)"
-        (strlen, string)
+        (strLen :: Raw, string)
     , format "(declare-fun {} ({} Int Int) {})"
-        (strsubstr, string, string)
+        (strSubstr :: Raw, string, string)
     , format "(declare-fun {} ({} {}) {})"
-        (strconcat, string, string, string)
+        (strConcat :: Raw, string, string, string)
     ]
 
 
@@ -332,9 +333,9 @@ interpSymbols =
   , interpSym mapSto   sto   mapStoSort
   , interpSym bvOrName "bvor"   bvBopSort
   , interpSym bvAndName "bvand" bvBopSort
-  , interpSym strLen    strlen    strLenSort
-  , interpSym strSubstr strsubstr substrSort
-  , interpSym strConcat strconcat concatstrSort
+  , interpSym strLen    strLen    strLenSort
+  , interpSym strSubstr strSubstr substrSort
+  , interpSym strConcat strConcat concatstrSort
   , interpSym boolInt   boolInt   (FFunc boolSort intSort)
   ]
   where
@@ -412,5 +413,5 @@ makeApplies i =
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
 axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
   where
-    lenAxiom l n  = EEq (EApp (expr strLen) (expr l)) (expr n `ECst` intSort)
+    lenAxiom l n  = EEq (EApp (expr (strLen :: Symbol)) (expr l)) (expr n `ECst` intSort)
     litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol
