@@ -32,14 +32,15 @@ renameAll fi2 = fi5
 -- | `dropUnusedBinds` replaces the refinements of "unused" binders with "true".
 --   see tests/pos/unused.fq for an example of why this phase is needed.
 dropUnusedBinds :: SInfo a -> SInfo a
-dropUnusedBinds fi = fi { bs = mapBindEnv tx (bs fi) }
+dropUnusedBinds fi = fi {bs = filterBindEnv isUsed (bs fi)}-- { bs = mapBindEnv tx (bs fi) }
   where
-    tx i (x, r)
-     | isUsed i    = (x, r)
-     | otherwise   = (x, top r)
-    isUsed i       = tracepp ("isUsed " ++ show i) $ memberIBindEnv i usedBinds
-    usedBinds      = L.foldl' unionIBindEnv emptyIBindEnv (senv <$> cs)
-    cs             = M.elems (cm fi)
+    -- _tx i (x, r)
+    -- | isUsed i    = (x, r)
+    -- | otherwise   = (x, top r)
+    isUsed i x _   = {- tracepp (unwords ["isUsed", show i, show x]) $ -} memberIBindEnv i usedBinds
+    usedBinds      = L.foldl' unionIBindEnv emptyIBindEnv (cEnvs ++ wEnvs)
+    wEnvs          = wenv <$> M.elems (ws fi)
+    cEnvs          = senv <$> M.elems (cm fi)
 
 data Ref
   = RB !BindId    -- ^ Bind identifier

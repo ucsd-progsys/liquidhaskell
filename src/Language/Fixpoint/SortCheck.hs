@@ -111,12 +111,12 @@ instance Elaborate Sort where
   -- elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate msg env e = tracepp msg' e3
+  elaborate msg env e = {- tracepp _msg' -} e3
     where
       e1  = elabExpr msg env e
       e2  = elabApply       e1
       e3  = elabNumeric     e2
-      msg' = msg ++ " ELABORATE e := " ++ showpp e
+      _msg' = msg ++ " ELABORATE e := " ++ showpp e
 
 elabNumeric :: Expr -> Expr
 elabNumeric = mapExpr go

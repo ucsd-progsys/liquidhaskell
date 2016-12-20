@@ -178,7 +178,7 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  let si3a = elaborate "solver" (tracepp "SYMBOLENV" $ symbolEnv cfg si3) si3
+  let si3a = elaborate "solver" (symbolEnv cfg si3) si3
   let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3a
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
