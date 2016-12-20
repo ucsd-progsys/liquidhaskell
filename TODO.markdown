@@ -4,97 +4,59 @@ TODO
 Deprecate Prop
 --------------
 
-- jeff.hs, inline.hs
-  min, max unbound?
-  need to "expand" the gsAssumes
-
-
 rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
+  NatClass.hs:                       FAIL (1.36s)
   WrapUnWrap.hs:                     FAIL (1.13s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
   T819.hs:                           FAIL (1.27s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  T675.hs:                           FAIL (1.29s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+  mr-blow.hs:                        FAIL (3.58s)
+  MapReduceVerified.hs:              FAIL (1.23s)
+    multiple-sorts
+    higherorder
+
   StringLit.hs:                      FAIL (1.01s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  StackMachine.hs:                   FAIL (1.02s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  Solver.hs:                         FAIL (2.27s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  SimplerNotation.hs:                FAIL (0.95s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  SafePartialFunctions.hs:           FAIL (1.11s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  RefinedADTs.hs:                    FAIL (0.97s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+    string-literals
+
+    SafePartialFunctions.hs:           FAIL (1.11s)
+    missing / malsorted qual ***
+
   rangeAdt.hs:                       FAIL (2.06s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  Product.hs:                        FAIL (1.63s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  PointDist.hs:                      FAIL (0.87s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+    crash: SMTLIB2 respSat = Error "line 1367 column 55859: invalid function application for =, sort mismatch on argument at position 2, expected Int but given Bool"
+
   OrdList.hs:                        FAIL (18.56s)
     Wrong exit code
     expected: ExitSuccess
      but got: ExitFailure 2
-  NatClass.hs:                       FAIL (1.36s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  MultipleInvariants.hs:             FAIL (0.93s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  mr-blow.hs:                        FAIL (3.58s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  mapTvCrash.hs:                     FAIL (0.91s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  MapReduceVerified.hs:              FAIL (1.23s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+
+  ExactFunApp.hs:                    FAIL (1.20s)
+  CasesToLogic.hs:                   FAIL (0.99s)
+    easy?
+    higher-order
+    multiple-sorts?
+
+  elems.hs:                          FAIL (1.45s)
+  coretologic.hs:                    FAIL (1.01s)
+  StackMachine.hs:                   FAIL (1.02s)
+  Cat.hs:                            FAIL (1.12s)
+  Books.hs:                          FAIL (0.89s)
+    inline
+
   Map2.hs:                           FAIL (22.13s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
   Map0.hs:                           FAIL (20.98s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
   Map.hs:                            FAIL (20.88s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+
+  zipper.hs badsubst?
+  liquid-fixpoint #274
+  https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
+     :1:1-1:1: Error
+  elaborate qbPreds failed on:
+      VV##F##342 < lq_tmp$x##4960
+  with error
+      Unbound Symbol lq_tmp$x##4960
+ Perhaps you meant: lq_tmp$x##4990
+  in environment
+      VV##F##342 := k_a1hx
+
   LogicCurry1.hs:                    FAIL (0.99s)
     Wrong exit code
     expected: ExitSuccess
@@ -123,65 +85,11 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     Wrong exit code
     expected: ExitSuccess
      but got: ExitFailure 2
-  Graph.hs:                          FAIL (1.73s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  FractionalInstance.hs:             FAIL (1.05s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  Foldl.hs:                          FAIL (10.50s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  filterAbs.hs:                      FAIL (2.84s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+
   FFI.hs:                            FAIL (1.82s)
     Wrong exit code
     expected: ExitSuccess
      but got: ExitFailure 2
-  ExactFunApp.hs:                    FAIL (1.20s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  elems.hs:                          FAIL (1.45s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  dropwhile.hs:                      FAIL (1.46s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  coretologic.hs:                    FAIL (1.01s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  ClojurVector.hs:                   FAIL (1.43s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-  Cat.hs:                            FAIL (1.12s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  CasesToLogic.hs:                   FAIL (0.99s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  Books.hs:                          FAIL (0.89s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  Avg.hs:                            FAIL (0.98s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
-
-
-
 JUNK
 
 

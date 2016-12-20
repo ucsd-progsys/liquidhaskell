@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 
-#define DISCOUNT_PERCENTAGE   2
-#define BOOK_THRESHOLD        2
+define DISCOUNT_PERCENTAGE   2
+define BOOK_THRESHOLD        2
 
 module Books where
 
