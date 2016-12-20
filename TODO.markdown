@@ -14,10 +14,7 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     multiple-sorts
     higherorder
 
-  StringLit.hs:                      FAIL (1.01s)
-    string-literals
-
-    SafePartialFunctions.hs:           FAIL (1.11s)
+  SafePartialFunctions.hs:           FAIL (1.11s)
     missing / malsorted qual ***
 
   rangeAdt.hs:                       FAIL (2.06s)
@@ -44,7 +41,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
-
   zipper.hs badsubst?
   liquid-fixpoint #274
   https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
@@ -61,10 +57,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     Wrong exit code
     expected: ExitSuccess
      but got: ExitFailure 2
-  lit.hs:                            FAIL (1.03s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 1
   ListMSort-LType.hs:                FAIL (3.69s)
     Wrong exit code
     expected: ExitSuccess
@@ -85,14 +77,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     Wrong exit code
     expected: ExitSuccess
      but got: ExitFailure 2
-
-  FFI.hs:                            FAIL (1.82s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-JUNK
-
-
 
 Check Covariance
 ----------------
