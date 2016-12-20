@@ -23,10 +23,9 @@ module Language.Fixpoint.Smt.Theories
      , theorySymbols
      , theorySEnv
 
-       -- * String
-     , string
-     , strLen
-     , genLen
+     -- * String
+     -- , string
+     -- , genLen
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
@@ -35,7 +34,7 @@ module Language.Fixpoint.Smt.Theories
       -- * Query Theories
      , isSmt2App
      , isConName
-
+     , axiomLiterals
      ) where
 
 import           Prelude hiding (map)
@@ -44,8 +43,8 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
-import Data.Maybe (isJust)
-import Data.Monoid
+import           Data.Maybe (catMaybes, isJust)
+import           Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format
@@ -87,19 +86,17 @@ mapSel   = "Map_select"
 mapSto   = "Map_store"
 
 
-strLen, strSubstr, genLen, strConcat :: Symbol
+strLen, strSubstr, strConcat :: Symbol
 strLen    = "stringLen"
 strSubstr = "subString"
 strConcat = "concatString"
-
-genLen = "len"
-
+-- NOPROP genLen :: Symbol
+-- NOPROP genLen = "len"
 
 strlen, strsubstr, strconcat :: Raw
 strlen    = "stringLen"
 strsubstr = "subString"
 strconcat = "concatString"
-
 
 z3strlen, z3strsubstr, z3strconcat :: Raw
 z3strlen    = "str.len"
@@ -112,7 +109,7 @@ substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
 concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
 
 string :: Raw
-string = "Str"
+string = strConName
 
 z3Preamble :: Config -> [T.Text]
 z3Preamble u
@@ -411,3 +408,9 @@ makeApplies i =
   where
     go 0 s = FFunc intSort s
     go i s = FFunc intSort $ go (i-1) s
+
+axiomLiterals :: [(Symbol, Sort)] -> [Expr]
+axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
+  where
+    lenAxiom l n  = EEq (EApp (expr strLen) (expr l)) (expr n `ECst` intSort)
+    litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol

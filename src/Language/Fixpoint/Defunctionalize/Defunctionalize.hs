@@ -53,17 +53,17 @@ txExpr e = do
   -- NOPROP env    <- dfenv <$> get
   hoFlag <- dfHO  <$> get
   exFlag <- dfExt <$> get
-  stFlag <- dfStr <$> get
-  txExpr' stFlag hoFlag exFlag e -- [NOTE: NOPROP all `Expr` should be elaborated prior to defunc]
+  -- stFlag <- dfStr <$> get
+  txExpr' {- stFlag -} hoFlag exFlag e -- [NOTE: NOPROP all `Expr` should be elaborated prior to defunc]
 
-txExpr' :: Bool -> Bool -> Bool -> Expr -> DF Expr
-txExpr' stFlag hoFlag exFlag e
+txExpr' :: {- Bool -> -} Bool -> Bool -> Expr -> DF Expr
+txExpr' {- stFlag -} hoFlag exFlag e
   | exFlag && hoFlag
-  = (txExtensionality <$> txStr stFlag e) >>= defuncExpr
+  = defuncExpr (txExtensionality e)
   | hoFlag
-  = txStr stFlag e >>= defuncExpr
+  = defuncExpr e
   | otherwise
-  = txStr stFlag e
+  = return e
 
 
 defuncExpr :: Expr -> DF Expr
@@ -131,8 +131,8 @@ makeAxioms = do
 -- | Symbols -------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-_logSym :: SymConst -> DF ()
-_logSym x = modify $ \s -> s{dfSyms = x:dfSyms s}
+-- _logSym :: SymConst -> DF ()
+-- _logSym x = modify $ \s -> s { dfSyms = x:dfSyms s}
 
 makeSymbolAxioms :: DF [Expr]
 makeSymbolAxioms = return []
@@ -291,8 +291,8 @@ instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
 --------------------------------------------------------------------------------
 
 
-txStr :: Bool -> Expr -> DF Expr
-txStr _ = return
+-- txStr :: Bool -> Expr -> DF Expr
+-- txStr _ = return
 
 -- WHAT ON EARTH IS THE BELOW?!
 -- NOPROP txStr flag e

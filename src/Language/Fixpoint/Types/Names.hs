@@ -497,20 +497,22 @@ dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
-listConName, listLConName, tupConName, _propConName, _hpropConName, strConName, vvName, setConName, mapConName :: Symbol
+listConName, listLConName, tupConName, _propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
-strConName   = "Str"
 vvName       = "VV"
 _propConName  = "Prop"
 _hpropConName = "HProp"
+
+strConName  :: (IsString a) => a
+strConName   = "Str"
 -- symSepName   :: Char
 -- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
-symSepName   :: (IsString a) => a -- Symbol
+symSepName   :: (IsString a) => a
 symSepName   = "##"
 
 nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol

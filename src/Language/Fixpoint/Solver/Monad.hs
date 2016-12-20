@@ -93,16 +93,17 @@ runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI _ _ act =
   bracket acquire release $ \ctx -> do
-    res <- runStateT act' (SS ctx be $ stats0 fi)
+    res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    act'     = declare initEnv ess >> assumes (F.asserts fi) >> act
+    s0 ctx   = SS ctx be (stats0 fi)
+    act'     = declare initEnv lts {- ess -} >> assumes (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
-    -- xts      = symbolSorts cfg fi
-    ess      = distinctLiterals fi
+    lts      = F.toListSEnv (F.dLits fi)
+    -- ess   = distinctLiterals fi
     be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
@@ -209,14 +210,17 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: F.SEnv F.Sort -> [[F.Expr]] -> SolveM ()
+declare :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)] -> SolveM ()
 --------------------------------------------------------------------------------
-declare env ess = withContext $ \me -> do
+declare env lts = withContext $ \me -> do
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
+  forM_ axs    $           smtAssert   me
   return ()
   where
+    ess        = distinctLiterals  lts
+    axs        = Thy.axiomLiterals lts
     thyXTs     =               filter (isKind 1) xts
     qryXTs     = mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind . fst
@@ -232,23 +236,16 @@ symKind x = case M.lookup x Thy.theorySymbols of
 assumes :: [F.Expr] -> SolveM ()
 assumes es = withContext $ \me -> forM_  es $ smtAssert me
 
--- declareInitEnv :: SolveM ()
--- declareInitEnv
-  -- = withContext $ \me ->
-      -- forM_ (F.toListSEnv Thy.uninterpSEnv) $ uncurry $ smtDecl me
-
 -- | `distinctLiterals` is used solely to determine the set of literals
 --   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
 --   or string literals "cat", "dog", "mouse". These should only include
 --   non-function sorted values.
-
-distinctLiterals :: F.GInfo c a -> [[F.Expr]]
-distinctLiterals fi  = [ es | (_, es) <- tess ]
+distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
+distinctLiterals xts = [ es | (_, es) <- tess ]
    where
-    tess             = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.dLits fi)
-                                                , notFun t                            ]
+    tess             = groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
+    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats

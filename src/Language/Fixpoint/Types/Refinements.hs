@@ -306,9 +306,9 @@ instance Fixpoint Constant where
   toFix (R i)   = toFix i
   toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t
 
----------------------------------------------------------------
--- | String Constants -----------------------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | String Constants ----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
@@ -589,8 +589,7 @@ instance Expression Expr where
 -- | The symbol may be an encoding of a SymConst.
 
 instance Expression Symbol where
-  expr s = eVar s -- ) ESym (decodeSymConst s)
-  -- expr = eVar
+  expr s = eVar s
 
 instance Expression Text where
   expr = ESym . SL

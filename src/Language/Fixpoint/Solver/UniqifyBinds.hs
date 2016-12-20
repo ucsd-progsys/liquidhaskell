@@ -37,7 +37,7 @@ dropUnusedBinds fi = fi {bs = filterBindEnv isUsed (bs fi)}-- { bs = mapBindEnv 
     -- _tx i (x, r)
     -- | isUsed i    = (x, r)
     -- | otherwise   = (x, top r)
-    isUsed i x _   = {- tracepp (unwords ["isUsed", show i, show x]) $ -} memberIBindEnv i usedBinds
+    isUsed i _ _   = {- tracepp (unwords ["isUsed", show i, show x]) $ -} memberIBindEnv i usedBinds
     usedBinds      = L.foldl' unionIBindEnv emptyIBindEnv (cEnvs ++ wEnvs)
     wEnvs          = wenv <$> M.elems (ws fi)
     cEnvs          = senv <$> M.elems (cm fi)
