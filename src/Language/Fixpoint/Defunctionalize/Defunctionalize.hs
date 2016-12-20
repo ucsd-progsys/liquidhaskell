@@ -415,7 +415,8 @@ instance Defunc BindEnv   where
 
 -- Sort defunctionalization [should be done by elaboration]
 instance Defunc Sort where
-  defunc = return 
+  defunc = return
+  
   -- NOPROP defunc s = do
     -- NOPROP hoFlag <- dfHO  <$> get
     -- NOPROP env   <- dfenv <$> get
