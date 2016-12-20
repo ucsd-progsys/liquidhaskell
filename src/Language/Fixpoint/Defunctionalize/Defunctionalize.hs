@@ -31,30 +31,21 @@ class Defunc a where
   defunc :: a -> DF a
 
 --------------------------------------------------------------------------------
--- | Sort defunctionalization [should be done by elaboration] ------------------
---------------------------------------------------------------------------------
-instance Defunc Sort where
-  defunc s = do
-    hoFlag <- dfHO  <$> get
-    env   <- dfenv <$> get
-    return $ if hoFlag then elaborate "defuncSort" env s else s
-
---------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
 --------------------------------------------------------------------------------
 instance Defunc Expr where
   defunc = txExpr
 
--- txCastedExpr :: Expr -> DF Expr
--- txCastedExpr = txExpr
+-- NOPROP txCastedExpr :: Expr -> DF Expr
+-- NOPROP txCastedExpr = txExpr
 
 txExpr :: Expr -> DF Expr
 txExpr e = do
   -- NOPROP env    <- dfenv <$> get
   hoFlag <- dfHO  <$> get
   exFlag <- dfExt <$> get
-  -- stFlag <- dfStr <$> get
-  txExpr' {- stFlag -} hoFlag exFlag e -- [NOTE: NOPROP all `Expr` should be elaborated prior to defunc]
+  -- NOPROP stFlag <- dfStr <$> get
+  txExpr' {- NOPROP stFlag -} hoFlag exFlag e -- [NOTE: NOPROP all `Expr` should be elaborated prior to defunc]
 
 txExpr' :: {- Bool -> -} Bool -> Bool -> Expr -> DF Expr
 txExpr' {- stFlag -} hoFlag exFlag e
@@ -421,6 +412,14 @@ instance Defunc BindEnv   where
     -- thus unique binders does not perform properly
     -- The sort should be defunc, to ensure same sort on double binders
     matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
+
+-- Sort defunctionalization [should be done by elaboration]
+instance Defunc Sort where
+  defunc = return 
+  -- NOPROP defunc s = do
+    -- NOPROP hoFlag <- dfHO  <$> get
+    -- NOPROP env   <- dfenv <$> get
+    -- NOPROP return $ if hoFlag then elaborate "defuncSort" env s else s
 
 instance Defunc a => Defunc [a] where
   defunc = mapM defunc
