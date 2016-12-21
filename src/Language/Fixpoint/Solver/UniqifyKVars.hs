@@ -49,9 +49,7 @@ remakeSubsts :: SInfo a -> SInfo a
 remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
-remakeSubst fi k su = foldl' (updateSubst k) su kDom
-  where
-    kDom = kvarDomain fi k
+remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym
@@ -74,13 +72,15 @@ updateWfc fi w    = fi' { ws = M.insert k w' (ws fi) }
     w'            = w { wenv = env', wrft = (kArgSymbol v (kv k), t, k) }
 
 insertNewBinds :: WfC a -> SInfo a -> KVar -> (SInfo a, [BindId])
-insertNewBinds w fi k = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
+insertNewBinds w fi k = "FIXMEHERE: add kArgSymbol v (kv k) := trueSortedReft t to binds"
+  where
+    (fi', bs) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
 
 accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)
   where
-    (_, sr) = lookupBindEnv i (bs fi)
-    renamable = isValidInRefinements $ sr_sort sr
+    (_, sr)                     = lookupBindEnv i      (bs fi)
+    renamable                   = isValidInRefinements (sr_sort sr)
 
 accumBinds :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)

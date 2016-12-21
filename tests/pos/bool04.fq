@@ -1,7 +1,7 @@
+fixpoint "--eliminate=some"
 
 bind 1 bx : {v: int  | true }
 bind 2 by : {v: bool | true }
-bind 3 zz : {v: int  | $k1  }
 
 constraint:
   env [ 2 ]
@@ -10,7 +10,7 @@ constraint:
   id 1 tag []
 
 constraint:
-  env [ 2; 3 ]
+  env [ 1 ]
   lhs {v : int | $k1    }
   rhs {v : int | 0 <= v }
   id 2 tag []

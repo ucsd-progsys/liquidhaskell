@@ -17,12 +17,13 @@ import           Control.Arrow (second)
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (maybeToList, isNothing)
+import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
+import qualified Language.Fixpoint.Smt.Theories       as Thy
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
@@ -136,7 +137,7 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = F.tracepp _msg $  fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -215,8 +216,8 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
-    (_  , psu')     = substElim g' k su'
-    (xts, psu)      = substElim g  k su
+    (_  , psu')     = substElim s g' k su'
+    (xts, psu)      = substElim s g  k su
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
 
@@ -247,16 +248,36 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
-substElim :: CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
-substElim g _ (F.Su m) = (xts, p)
+substElim :: Sol.Solution -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
+substElim s g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
+    -- p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
+    p      = F.pAnd [ mkSubst s x e | (x, e, _) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t) ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
+
+
+mkSubst :: Sol.Solution -> F.Symbol -> F.Expr -> F.Expr
+mkSubst s x ey@(F.EVar y)
+  | tx == ty    = F.EEq ex ey
+  | otherwise   = F.EEq ex' ey'
+  where
+    ex          = F.expr x
+    ex'         = Thy.toInt ex tx
+    ey'         = Thy.toInt ey ty
+    [tx, ty]    = getSort <$> [x, y]
+    getSort x   = fromMaybe (err x) $ F.lookupSEnv x env
+    err x       = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
+    env         = F.tracepp "mkSubst-ENV" (Sol.sEnv s)
+
+mkSubst _   x e = error msg
+  where
+    msg         = "panic: non-variable subst " ++ F.showpp (x, e)
+
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

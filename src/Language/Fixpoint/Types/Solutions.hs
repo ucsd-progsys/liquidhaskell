@@ -18,7 +18,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution
-  , Sol
+  , Sol, sEnv
   , sScp
   , CMap
 
