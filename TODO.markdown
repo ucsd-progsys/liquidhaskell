@@ -6,17 +6,16 @@ Deprecate Prop
 
 rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
+  rangeAdt.hs:                       FAIL (2.06s)
+    see liquid-fixpoint/tests/pos/bool04.fq
+    crash: SMTLIB2 respSat = Error "line 1367 column 55859: invalid function application for =, sort mismatch on argument at position 2, expected Int but given Bool"
+
   NatClass.hs:                       FAIL (1.36s)
     ?
   mr-blow.hs:                        FAIL (3.58s)
   MapReduceVerified.hs:              FAIL (1.23s)
     inline + higherorder
-
-  SafePartialFunctions.hs:           FAIL (1.11s)
-    missing / malsorted qual ***
-
-  rangeAdt.hs:                       FAIL (2.06s)
-    crash: SMTLIB2 respSat = Error "line 1367 column 55859: invalid function application for =, sort mismatch on argument at position 2, expected Int but given Bool"
+    defuncSort
 
   inline.hs:                         FAIL (1.02s)
   jeff.hs:                           FAIL (1.54s)
@@ -26,8 +25,9 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   Cat.hs:                            FAIL (1.12s)
   Books.hs:                          FAIL (0.89s)
     inline
-
-  Map2.hs:                           FAIL (22.13s)
+  Holes.hs:                          FAIL (0.91s)
+    unexpanded hole
+    Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
   zipper.hs badsubst
@@ -44,9 +44,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
  Perhaps you meant: lq_tmp$x##4990
   in environment
       VV##F##342 := k_a1hx
-
-  Holes.hs:                          FAIL (0.91s)
-    unexpanded hole
 
 
 Check Covariance
