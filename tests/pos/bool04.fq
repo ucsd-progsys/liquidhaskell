@@ -12,7 +12,7 @@ constraint:
 constraint:
   env [ 1 ]
   lhs {v : int | $k1    }
-  rhs {v : int | 0 <= v }
+  rhs {v : int | v <= v + 1 }
   id 2 tag []
 
 wf:

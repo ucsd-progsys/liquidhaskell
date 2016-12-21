@@ -137,7 +137,7 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.tracepp _msg $  fst $ apply g s bs
+lhsPred be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -165,18 +165,14 @@ envConcKVars g bs = (concat pss, concat kss)
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
--- applyKVars g s  = mrExprInfos (applyKVars' g s) F.pAnd mconcat . map singleton
--- applyKVars' :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
--- applyKVars' g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
-
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
-applyKVar g s (k, su) = case Sol.lookup s k of
-  Left cs   -> hypPred g s k su cs
-  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds s su eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+  Left cs   -> hypPred g s ksu cs
+  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
 
-hypPred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Hyp  -> ExprInfo
-hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
+hypPred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Hyp  -> ExprInfo
+hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
 
 {- | `cubePred g s k su c` returns the predicate for
 
@@ -193,13 +189,13 @@ hypPred g s k su = mrExprInfos (cubePred g s k su) F.pOr mconcatPlus
 
  -}
 
-cubePred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Cube -> ExprInfo
-cubePred g s k su c   = ( F.pExist xts (psu &.& p) , kI )
+cubePred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Cube -> ExprInfo
+cubePred g s ksu c    = ( F.pExist xts (psu &.& p) , kI )
   where
-    ((xts,psu,p), kI) = cubePredExc g s k su c bs'
+    ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
     bs'               = delCEnv s k bs g
     bs                = Sol.cuBinds c
-
+    k                 = F.ksuKVar ksu
 
 type Binders = [(F.Symbol, F.Sort)]
 
@@ -207,10 +203,10 @@ type Binders = [(F.Symbol, F.Sort)]
 --   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
 --   we want is `Exists xts. (psu /\ p)`.
 
-cubePredExc :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Cube -> F.IBindEnv
+cubePredExc :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> ((Binders, F.Pred, F.Pred), KInfo)
 
-cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
+cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
   where
     cubeP           = ( xts, psu, F.pExist yts' (p' &.& psu') )
     yts'            = symSorts g bs'
@@ -220,7 +216,8 @@ cubePredExc g s k su c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     (xts, psu)      = substElim s g  k su
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
-
+    k               = F.ksuKVar   ksu
+    su              = F.ksuSubst  ksu
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
@@ -252,32 +249,28 @@ substElim :: Sol.Solution -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.
 substElim s g _ (F.Su m) = (xts, p)
   where
     -- p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
-    p      = F.pAnd [ mkSubst s x e | (x, e, _) <- xets  ]
+    p      = F.pAnd [ mkSubst s x e t | (x, e, t) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t) ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e
+                         , not (isClass t), F.memberSEnv x (Sol.sEnv s) ]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
 
 
-mkSubst :: Sol.Solution -> F.Symbol -> F.Expr -> F.Expr
-mkSubst s x ey@(F.EVar y)
+mkSubst :: Sol.Solution -> F.Symbol -> F.Expr -> F.Sort -> F.Expr
+mkSubst s x ey ty
   | tx == ty    = F.EEq ex ey
   | otherwise   = F.EEq ex' ey'
   where
     ex          = F.expr x
     ex'         = Thy.toInt ex tx
     ey'         = Thy.toInt ey ty
-    [tx, ty]    = getSort <$> [x, y]
+    tx          = getSort x
     getSort x   = fromMaybe (err x) $ F.lookupSEnv x env
     err x       = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
-    env         = F.tracepp "mkSubst-ENV" (Sol.sEnv s)
-
-mkSubst _   x e = error msg
-  where
-    msg         = "panic: non-variable subst " ++ F.showpp (x, e)
-
+    env         = {- F.tracepp "mkSubst-ENV" -} Sol.sEnv s
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

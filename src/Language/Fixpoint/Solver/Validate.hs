@@ -42,7 +42,6 @@ sanitize =    -- banIllScopedKvars
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
 
-
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
 --      G1        |- K.su1

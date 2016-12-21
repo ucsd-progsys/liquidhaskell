@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Refinements (
   , pattern EEq
   , KVar (..)
   , Subst (..)
-  , KVSub
+  , KVSub (..)
   , Reft (..)
   , SortedReft (..)
 
@@ -188,7 +188,15 @@ instance Fixpoint Subst where
 instance PPrint Subst where
   pprintTidy _ = toFix
 
-type KVSub       = (KVar, Subst)
+data KVSub = KVS
+  { ksuVV    :: Symbol
+  , ksuSort  :: Sort
+  , ksuKVar  :: KVar
+  , ksuSubst :: Subst
+  } deriving (Eq, Data, Typeable, Generic)
+
+instance PPrint KVSub where
+  pprintTidy k ksu = pprintTidy k (ksuKVar ksu, ksuSubst ksu)
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------
