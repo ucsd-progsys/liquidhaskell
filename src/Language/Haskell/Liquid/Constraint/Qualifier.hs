@@ -65,9 +65,10 @@ specBinders info = mconcat
   , if (info `hasOpt` scrapeInternals) then (gsInSigs sp) else []
   ]
   where
-    sp   = trace (msg sp0) sp0
-    msg  = showpp . typeAliases . gsRTAliases
-    sp0  = spec info
+    sp   = spec info 
+    -- sp   = trace (msg sp0) sp0
+    -- msg  = showpp . typeAliases . gsRTAliases
+    -- sp0  = spec info
 
 
 specAxiomVars :: GhcInfo -> [Var]
