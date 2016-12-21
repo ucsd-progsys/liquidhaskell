@@ -1,11 +1,11 @@
-module Compose where
 {-@ LIQUID "--no-termination" @-}
 
+module Compose where
 
 import Prelude hiding ((++))
 {-@ type OList a = [a]<{\x v -> v >= x}> @-}
 
-{-@ (++) :: forall <p :: a -> Prop, q :: a -> Prop, w :: a -> a -> Prop>.
+{-@ (++) :: forall <p :: a -> Bool, q :: a -> Bool, w :: a -> a -> Bool>.
         {x::a<p> |- a<q> <: a<w x>}
         [a<p>]<w> -> [a<q>]<w> -> [a]<w> @-}
 (++) []      ys = ys
@@ -13,4 +13,4 @@ import Prelude hiding ((++))
 
 {-@ qsort :: xs:[a] -> OList a  @-}
 qsort []     = []
-qsort (x:xs) = (qsort [y | y <- xs, y < x]) ++ (x:(qsort [z | z <- xs, z >= x])) 
+qsort (x:xs) = (qsort [y | y <- xs, y < x]) ++ (x:(qsort [z | z <- xs, z >= x]))

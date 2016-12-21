@@ -25,7 +25,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     expected: ExitSuccess
      but got: ExitFailure 2
 
-  ExactFunApp.hs:                    FAIL (1.20s)
   CasesToLogic.hs:                   FAIL (0.99s)
     easy?
     higher-order
@@ -53,10 +52,6 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   in environment
       VV##F##342 := k_a1hx
 
-  LogicCurry1.hs:                    FAIL (0.99s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
   ListMSort-LType.hs:                FAIL (3.69s)
     Wrong exit code
     expected: ExitSuccess
@@ -1222,3 +1217,4 @@ GHC 7.10
 
 - termination metrics are required in a few places where they were not previously
   - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed
+

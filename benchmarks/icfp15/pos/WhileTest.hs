@@ -33,22 +33,22 @@ decrM = undefined
 
 
 get :: RIO Int
-{-@ get :: forall <p :: World -> Prop >.
+{-@ get :: forall <p :: World -> Bool>.
        RIO <p,\w x -> {v:World<p> | x = counter v && v == w}> Int @-}
 get = undefined
 
-{-@ qual99 :: n:Int -> RIO <{v:World | counter v >= 0}, \w1 b -> {v:World |  (Prop b <=> n >= 0) && (Prop b <=> counter v >= 0)}> {v:Bool | Prop v <=> n >= 0} @-}
+{-@ qual99 :: n:Int -> RIO <{v:World | counter v >= 0}, \w1 b -> {v:World |  (b <=> n >= 0) && (b <=> counter v >= 0)}> {v:Bool | v <=> n >= 0} @-}
 qual99 :: Int -> RIO Bool
 qual99 = undefined -- \x -> return (x >= 0)
 
-{-@ qual3 :: m:Int ->  n:Int -> RIO <{v:World | counter v >= m}, \w1 b -> {v:World |  (Prop b <=> n >= m) && (Prop b <=> counter v >= m)}> {v:Bool | Prop v <=> n >= m} @-}
+{-@ qual3 :: m:Int ->  n:Int -> RIO <{v:World | counter v >= m}, \w1 b -> {v:World |  (b <=> n >= m) && (b <=> counter v >= m)}> {v:Bool | v <=> n >= m} @-}
 qual3 :: Int -> Int -> RIO Bool
 qual3 = undefined -- \x -> return (x >= 0)
 
-{-@ qual1 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b <=> n > 0) && (Prop b <=> counter v > 0)}> {v:Bool | Prop v <=> n > 0} @-}
+{-@ qual1 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (b <=> n > 0) && (b <=> counter v > 0)}> {v:Bool | v <=> n > 0} @-}
 qual1 :: Int -> RIO Bool
 qual1 = undefined
 
-{-@ qual2 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b <=> counter w2 /= 0}> Bool @-}
+{-@ qual2 :: RIO <{\x -> true}, {\w1 b w2 -> b <=> counter w2 /= 0}> Bool @-}
 qual2 :: RIO Bool
 qual2 = undefined
