@@ -1,9 +1,10 @@
 {-@ LIQUID "--higherorder"      @-}
 {-@ LIQUID "--totality"         @-}
 {-@ LIQUID "--exact-data-cons"  @-}
-{-@ LIQUID "--alphaequivalence" @-}
-{-@ LIQUID "--betaequivalence"  @-}
-{-@ LIQUID "--normalform"       @-}
+
+{- LIQUID "--alphaequivalence" @-}
+{- LIQUID "--betaequivalence"  @-}
+{- LIQUID "--normalform"       @-} -- NOPROP probably breaks some fixpoint flag 
 
 module MonadReader where
 import Proves
