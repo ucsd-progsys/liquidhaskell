@@ -7,12 +7,10 @@ Deprecate Prop
 rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
   NatClass.hs:                       FAIL (1.36s)
-  WrapUnWrap.hs:                     FAIL (1.13s)
-  T819.hs:                           FAIL (1.27s)
+    ?
   mr-blow.hs:                        FAIL (3.58s)
   MapReduceVerified.hs:              FAIL (1.23s)
-    multiple-sorts
-    higherorder
+    inline + higherorder
 
   SafePartialFunctions.hs:           FAIL (1.11s)
     missing / malsorted qual ***
@@ -20,16 +18,8 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   rangeAdt.hs:                       FAIL (2.06s)
     crash: SMTLIB2 respSat = Error "line 1367 column 55859: invalid function application for =, sort mismatch on argument at position 2, expected Int but given Bool"
 
-  OrdList.hs:                        FAIL (18.56s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-
-  CasesToLogic.hs:                   FAIL (0.99s)
-    easy?
-    higher-order
-    multiple-sorts?
-
+  inline.hs:                         FAIL (1.02s)
+  jeff.hs:                           FAIL (1.54s)
   elems.hs:                          FAIL (1.45s)
   coretologic.hs:                    FAIL (1.01s)
   StackMachine.hs:                   FAIL (1.02s)
@@ -40,7 +30,10 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
-  zipper.hs badsubst?
+  zipper.hs badsubst
+  ListMSort-LType.hs:                FAIL (3.69s)
+
+  wierd crashes in icfp-pos
   liquid-fixpoint #274
   https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
      :1:1-1:1: Error
@@ -52,26 +45,9 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
   in environment
       VV##F##342 := k_a1hx
 
-  ListMSort-LType.hs:                FAIL (3.69s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  jeff.hs:                           FAIL (1.54s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  inline.hs:                         FAIL (1.02s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
-  imp0.hs:                           FAIL (0.92s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
   Holes.hs:                          FAIL (0.91s)
-    Wrong exit code
-    expected: ExitSuccess
-     but got: ExitFailure 2
+    unexpanded hole
+
 
 Check Covariance
 ----------------
@@ -1217,4 +1193,3 @@ GHC 7.10
 
 - termination metrics are required in a few places where they were not previously
   - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed
-
