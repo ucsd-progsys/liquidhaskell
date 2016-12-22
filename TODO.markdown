@@ -1,31 +1,42 @@
 TODO
 ====
 
-Deprecate Prop
---------------
+## no-prop / inline
 
-rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
++ The action is in `makeGhcSpec4`,
+
++ Ensure that whatever _was_ done in `txRefToLogic lmap inlmap`
+
++ _is_ now done inside `expand` which is in `Bare/Expand.hs`
+
+```
+$ stack test liquidhaskell --fast --test-arguments "-p pos"
+```
+
+
+INLINE
+
+  elems.hs:                          FAIL (1.45s)
+  coretologic.hs:                    FAIL (1.01s)
+    Data.Set.member / logicmap?
+
+  Books.hs:                          FAIL (0.89s)
+    looking up GHC with wrong name...
+    inline
+
+  Holes.hs:                          FAIL (0.91s)
+    unexpanded hole
+
+FIXPOINT
 
   mr-blow.hs:                        FAIL (3.58s)
   MapReduceVerified.hs:              FAIL (1.23s)
     inline + higherorder
     defuncSort
 
-  inline.hs:                         FAIL (1.02s)
-  jeff.hs:                           FAIL (1.54s)
-  elems.hs:                          FAIL (1.45s)
-  coretologic.hs:                    FAIL (1.01s)
-  StackMachine.hs:                   FAIL (1.02s)
-  Cat.hs:                            FAIL (1.12s)
-  Books.hs:                          FAIL (0.89s)
-    inline
-  Holes.hs:                          FAIL (0.91s)
-    unexpanded hole
-
   Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
-  zipper.hs badsubst
   ListMSort-LType.hs:                FAIL (3.69s)
   wierd crashes in icfp-pos
   liquid-fixpoint #274
