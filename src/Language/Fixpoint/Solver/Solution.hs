@@ -137,7 +137,7 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.tracepp _msg $ fst $ apply g s bs
+lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -157,8 +157,8 @@ apply g s bs     = (F.pAnd (pks : ps), kI)
 envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub])
 envConcKVars g bs = (concat pss, concat kss)
   where
-    (pss, kss)    = unzip [ F.tracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs           = (\i -> F.tracepp ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
+    (pss, kss)    = unzip [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+    xrs           = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
     is            = F.elemsIBindEnv bs
     be            = F.soeBinds (snd3 g)
 
@@ -259,25 +259,16 @@ substElim sEnv g _ (F.Su m) = (xts, p)
     sortOf = maybeToList . So.checkSortExpr env
 
 substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
-substSort sEnv frees x t
-  | S.member x frees = fromMaybe (err x) $ F.lookupSEnv x sEnv
-  | otherwise        = t
+substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
+  -- | S.member x frees = fromMaybe (err x) $ F.lookupSEnv x sEnv
+  -- | otherwise        = t
   where
     err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
-
-{-
-
-x1:=e1:t1 ... xn:=en:tn
-x1,x2,x3 in XTS [quantified]
-
-y1...ynin
-
--}
 
 mkSubst :: F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = F.tracepp msg (F.EEq ex' ey')
+  | otherwise   = F.notracepp msg (F.EEq ex' ey')
   where
     msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
