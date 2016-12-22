@@ -88,6 +88,9 @@ data SizedEnv a    = BE { _beSize  :: !Int
                         , beBinds :: !(BindMap a)
                         } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 
+instance PPrint a => PPrint (SizedEnv a) where
+  pprintTidy k (BE _ m) = pprintTidy k m 
+
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 

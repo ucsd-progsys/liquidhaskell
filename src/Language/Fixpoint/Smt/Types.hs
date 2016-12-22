@@ -35,6 +35,7 @@ import           Language.Fixpoint.Types
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
+import           Text.PrettyPrint.HughesPJ 
 
 import           System.IO                (Handle)
 import           System.Process
@@ -58,6 +59,20 @@ data Command      = Push
                   | GetValue  [Symbol]
                   | CMany [Command]
                   deriving (Eq, Show)
+
+instance PPrint Command where
+  pprintTidy _ = ppCmd
+
+ppCmd :: Command -> Doc
+ppCmd Push          = text "Push"
+ppCmd Pop           = text "Pop"
+ppCmd CheckSat      = text "CheckSat"
+ppCmd (Declare {})  = text "Declare ..."
+ppCmd (Define {})   = text "Define ..."
+ppCmd (Assert _ e)  = text "Assert" <+> pprint e
+ppCmd (Distinct {}) = text "Distinct ..."
+ppCmd (GetValue {}) = text "GetValue ..."
+ppCmd (CMany {})    = text "CMany ..."
 
 -- | Responses received from SMT engine
 data Response     = Ok

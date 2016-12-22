@@ -158,7 +158,6 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 newtype KVar = KV { kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
-
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
 
@@ -193,10 +192,10 @@ data KVSub = KVS
   , ksuSort  :: Sort
   , ksuKVar  :: KVar
   , ksuSubst :: Subst
-  } deriving (Eq, Data, Typeable, Generic)
+  } deriving (Eq, Data, Typeable, Generic, Show)
 
 instance PPrint KVSub where
-  pprintTidy k ksu = pprintTidy k (ksuKVar ksu, ksuSubst ksu)
+  pprintTidy k ksu = pprintTidy k (ksuVV ksu, ksuKVar ksu, ksuSubst ksu)
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------

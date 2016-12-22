@@ -6,6 +6,7 @@
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types.Visitor
 import           Language.Fixpoint.Misc          (fst3, mlookup)
 
 import qualified Data.HashMap.Strict as M
@@ -17,20 +18,34 @@ import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
 import           Control.Arrow       (second)
 import           Control.DeepSeq     (NFData, ($!!))
+-- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 renameAll    :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
-renameAll fi2 = fi5
+renameAll fi2 = fi6
   where
-    fi5       =                           dropUnusedBinds fi4
+    fi6       = {-# SCC "dropDead"    #-} dropDeadSubsts  fi5
+    fi5       = {-# SCC "dropUnused"  #-} dropUnusedBinds fi4
     fi4       = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
     fi3       = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
     rnm       = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
     idm       = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 
+--------------------------------------------------------------------------------
+-- | `dropRnSubstitutions` removes dead `K[x := e]`` where `x` is NOT in the domain of K.
+--------------------------------------------------------------------------------
+dropDeadSubsts :: SInfo a -> SInfo a
+dropDeadSubsts si = mapKVarSubsts (filterSubst . f) si
+  where
+    kvsM          = M.mapWithKey (\k _ -> kvDom k) (ws si)
+    kvDom         = S.fromList . kvarDomain si
+    f k x _       = S.member x (M.lookupDefault mempty k kvsM)
+
+--------------------------------------------------------------------------------
 -- | `dropUnusedBinds` replaces the refinements of "unused" binders with "true".
 --   see tests/pos/unused.fq for an example of why this phase is needed.
+--------------------------------------------------------------------------------
 dropUnusedBinds :: SInfo a -> SInfo a
 dropUnusedBinds fi = fi {bs = filterBindEnv isUsed (bs fi)}-- { bs = mapBindEnv tx (bs fi) }
   where

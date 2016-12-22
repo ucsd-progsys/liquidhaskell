@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -59,8 +60,7 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , betaEquivalence
                                                 , normalForm
                                                 , stringTheory)
-
-import           Language.Fixpoint.Misc         (errorstar)
+import           Language.Fixpoint.Misc         (traceShow, errorstar)
 import           Language.Fixpoint.Types.Errors
 -- import           Language.Fixpoint.SortCheck    (elaborate)
 import           Language.Fixpoint.Utils.Files
@@ -71,6 +71,7 @@ import           Language.Fixpoint.Smt.Serialize ()
 
 import           Control.Applicative      ((<|>))
 import           Control.Monad
+import           Control.Exception
 import           Data.Char
 import           Data.Monoid
 import qualified Data.Text                as T
@@ -117,7 +118,7 @@ theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, not (tsI
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
-  smtBracket me $
+  smtBracket me "checkValidWithContext" $
     checkValid' me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
@@ -142,11 +143,11 @@ checkValids cfg f xts ps
   = do me <- makeContext cfg f
        smtDecls me xts
        forM ps $ \p ->
-          smtBracket me $
+          smtBracket me "checkValids" $
             smtAssert me (PNot p) >> smtCheckUnsat me
 
--- debugFile :: FilePath
--- debugFile = "DEBUG.smt2"
+debugFile :: FilePath
+debugFile = "DEBUG.smt2"
 
 --------------------------------------------------------------------------
 -- | SMT IO --------------------------------------------------------------
@@ -156,9 +157,18 @@ checkValids cfg f xts ps
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd       = say cmd >> hear cmd
+command me !cmd       = do putStrLn ("SAY:BEGIN:" ++ showpp cmd)
+                           -- say cmd
+                           let raw = cmdRaw cmd
+
+                           smtWrite me raw
+                           putStrLn "SAY:DONE"
+                           rv <- hear cmd
+                           putStrLn "HEAR:DONE"
+                           return rv
   where
-    say               = smtWrite me . Builder.toLazyText . runSmt2
+    cmdRaw            = Builder.toLazyText . runSmt2
+    -- say               = smtWrite me . Builder.toLazyText . runSmt2
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -220,8 +230,10 @@ negativeP
 
 smtWriteRaw      :: Context -> Raw -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
+  LTIO.appendFile debugFile (s <> "\n")
+  LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
   hPutStrLnNow (ctxCout me) s
-  -- whenLoud $ TIO.appendFile debugFile (s <> "\n")
+  -- whenLoud $
   maybe (return ()) (`hPutStrLnNow` s) (ctxLog me)
 
 smtReadRaw       :: Context -> IO T.Text
@@ -265,8 +277,8 @@ makeProcess cfg
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
        loud <- isLoud
        return Ctx { ctxPid     = pid
-                  , ctxCin     = hIn
-                  , ctxCout    = hOut
+                  , ctxCin     = traceShow "ctxCIN"  hIn
+                  , ctxCout    = traceShow "ctxCOUT" hOut
                   , ctxLog     = Nothing
                   , ctxVerbose = loud
                   , ctxExt     = extensionality cfg
@@ -279,11 +291,22 @@ makeProcess cfg
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
 --------------------------------------------------------------------------
-cleanupContext (Ctx {..})
-  = do hClose ctxCin
-       hClose ctxCout
-       maybe (return ()) hClose ctxLog
-       waitForProcess ctxPid
+cleanupContext (Ctx {..}) = do
+  hCloseMe "ctxCin"  ctxCin
+  hCloseMe "ctxCout" ctxCout
+  maybe (return ()) (hCloseMe "ctxLog") ctxLog
+  rv <- waitForProcess ctxPid
+  putStrLn "cleanup 5"
+  return rv
+
+hCloseMe :: String -> Handle -> IO ()
+hCloseMe msg h = hClose h `catch` (\(exn :: IOException) -> putStrLn $ "OOPS, hClose breaks: " ++ msg ++ show exn)
+-- hCloseCatch  topMain:: IO ()
+-- topMain = runCompiler `catch` esHandle stderr exitFailure
+
+-- esHandle :: Handle -> IO a -> [UserError] -> IO a
+-- esHandle h exitF es = renderErrors es >>= hPutStrLn h >> exitF
+
 
 {- "z3 -smt2 -in"                   -}
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
@@ -364,11 +387,13 @@ smtDistinct me az = interact' me (Distinct az)
 smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
 
-smtBracket :: Context -> IO a -> IO a
-smtBracket me a   = do
+smtBracket :: Context -> String -> IO a -> IO a
+smtBracket me msg a   = do
   smtPush me
+  putStrLn ("SMT-PUSH: " ++ msg)
   r <- a
   smtPop me
+  putStrLn ("SMT-POP: " ++ msg)
   return r
 
 respSat :: Response -> Bool

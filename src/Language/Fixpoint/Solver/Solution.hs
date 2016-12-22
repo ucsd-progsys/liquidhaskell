@@ -137,7 +137,7 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = {- F.tracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = F.tracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -157,8 +157,8 @@ apply g s bs     = (F.pAnd (pks : ps), kI)
 envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub])
 envConcKVars g bs = (concat pss, concat kss)
   where
-    (pss, kss)    = unzip [ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs           = (`F.lookupBindEnv` be) <$> is
+    (pss, kss)    = unzip [ F.tracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+    xrs           = (\i -> F.tracepp ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
     is            = F.elemsIBindEnv bs
     be            = F.soeBinds (snd3 g)
 
@@ -212,12 +212,13 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
-    (_  , psu')     = substElim s g' k su'
-    (xts, psu)      = substElim s g  k su
+    (_  , psu')     = substElim sEnv g' k su'
+    (xts, psu)      = substElim sEnv g  k su
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
     k               = F.ksuKVar   ksu
     su              = F.ksuSubst  ksu
+    sEnv            = F.insertSEnv (F.ksuVV ksu) (F.ksuSort ksu) (Sol.sEnv s)
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
@@ -245,32 +246,43 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
-substElim :: Sol.Solution -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
-substElim s g _ (F.Su m) = (xts, p)
+substElim :: F.SEnv F.Sort -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
+substElim sEnv g _ (F.Su m) = (xts, p)
   where
-    -- p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
-    p      = F.pAnd [ mkSubst s x e t | (x, e, t) <- xets  ]
+  -- p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
+    p      = F.pAnd [ mkSubst x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e
-                         , not (isClass t), F.memberSEnv x (Sol.sEnv s) ]
+    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
     sortOf = maybeToList . So.checkSortExpr env
 
-
-mkSubst :: Sol.Solution -> F.Symbol -> F.Expr -> F.Sort -> F.Expr
-mkSubst s x ey ty
-  | tx == ty    = F.EEq ex ey
-  | otherwise   = F.EEq ex' ey'
+substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
+substSort sEnv frees x t
+  | S.member x frees = fromMaybe (err x) $ F.lookupSEnv x sEnv
+  | otherwise        = t
   where
+    err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
+
+{-
+
+x1:=e1:t1 ... xn:=en:tn
+x1,x2,x3 in XTS [quantified]
+
+y1...ynin
+
+-}
+
+mkSubst :: F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
+mkSubst x tx ey ty
+  | tx == ty    = F.EEq ex ey
+  | otherwise   = F.tracepp msg (F.EEq ex' ey')
+  where
+    msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
     ex'         = Thy.toInt ex tx
     ey'         = Thy.toInt ey ty
-    tx          = getSort x
-    getSort x   = fromMaybe (err x) $ F.lookupSEnv x env
-    err x       = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
-    env         = {- F.tracepp "mkSubst-ENV" -} Sol.sEnv s
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

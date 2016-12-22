@@ -47,12 +47,12 @@ reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 -- | Split a SortedReft into its concrete and KVar components
 --------------------------------------------------------------------------------
 sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub])
-sortedReftConcKVars x sr = mapEither (exprKind x t) es
+sortedReftConcKVars x sr = mapEither (exprKind t) ves
   where
-    es                   = [p `subst1` (v, eVar x) | Reft (v, p) <- rs ]
+    ves                  = [(v, p `subst1` (v, eVar x)) | Reft (v, p) <- rs ]
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
-exprKind :: Symbol -> Sort -> Expr -> Either Expr KVSub
-exprKind x t (PKVar k su) = Right (KVS x t k su)
-exprKind _ _ p            = Left p
+exprKind :: Sort -> (Symbol, Expr) -> Either Expr KVSub
+exprKind t (v, PKVar k su) = Right (KVS v t k su)
+exprKind _ (_, p         ) = Left p

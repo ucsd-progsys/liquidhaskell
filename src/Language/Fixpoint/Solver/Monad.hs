@@ -52,7 +52,7 @@ import           Data.Maybe           (catMaybes)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
-import           Control.Exception.Base (bracket)
+-- import           Control.Exception.Base (bracket)
 
 --------------------------------------------------------------------------------
 -- | Solver Monadic API --------------------------------------------------------
@@ -91,20 +91,25 @@ instance F.PTable Stats where
 --------------------------------------------------------------------------------
 runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI _ _ act =
-  bracket acquire release $ \ctx -> do
-    res <- runStateT act' (s0 ctx)
-    smtWrite ctx "(exit)"
-    return $ fst res
+runSolverM cfg sI _ _ act = do
+  ctx <- acquire
+  res <- runStateT act' (s0 ctx)
+  -- smtWrite ctx "(exit)"
+  -- release ctx
+  return $ fst res
+  -- bracket acquire release $ \ctx -> do
+    -- res <- runStateT act' (s0 ctx)
+    -- smtWrite ctx "(exit)"
+    -- return $ fst res
   where
     s0 ctx   = SS ctx be (stats0 fi)
     act'     = declare initEnv lts {- ess -} >> assumes (F.asserts fi) >> act
-    release  = cleanupContext
+    _release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
     lts      = F.toListSEnv (F.dLits fi)
     -- ess   = distinctLiterals fi
-    be       = F.SolEnv (F.bs fi)
+    be       = F.SolEnv (F.tracepp "BINDINGS" $ F.bs fi)
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
@@ -179,7 +184,7 @@ filterValid :: F.Expr -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
-           smtBracket me $
+           smtBracket me "filterValidLHS" $
              filterValid_ p qs me
   -- stats
   incBrkt
@@ -189,9 +194,10 @@ filterValid p qs = do
 
 filterValid_ :: F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
+  putStrLn ("SMTASSERT: " ++ F.showpp p)
   smtAssert me p
   forM qs $ \(q, x) ->
-    smtBracket me $ do
+    smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
@@ -206,7 +212,7 @@ checkSat :: F.Expr -> SolveM  Bool
 --------------------------------------------------------------------------------
 checkSat p
   = withContext $ \me ->
-      smtBracket me $
+      smtBracket me "checkSat" $
         smtCheckSat me p
 
 --------------------------------------------------------------------------------

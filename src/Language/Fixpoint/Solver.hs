@@ -41,6 +41,7 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
+-- import Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -179,7 +180,9 @@ solveNative' !cfg !fi0 = do
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
   let si3a = elaborate "solver" (symbolEnv cfg si3) si3
+  writeLoud $ "fq file after Uniqify & Rename 2:\n" ++ render (toFixpoint cfg si3a)
   let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3a
+  writeLoud $ "fq file after Uniqify & Rename 3:\n" ++ render (toFixpoint cfg si4)
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res

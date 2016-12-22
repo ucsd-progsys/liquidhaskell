@@ -388,8 +388,12 @@ instance Defunc SortedReft where
   defunc (RR s r) = RR s <$> defunc r
 
 instance Defunc (Symbol, SortedReft) where
-  defunc (x, RR s (Reft (v, e)))
-    = (x,) <$> defunc (RR s (Reft (x, subst1 e (v, EVar x))))
+  defunc (x, sr) = (x,) <$> defunc sr
+    -- NOPROP WHY DO THIS?
+    -- WE LOSE THE TYPE OF v!
+    -- BREAKS Eliminate
+    -- defunc (x, RR s (Reft (v, e)))
+    --  = (x, ) <$> defunc (RR s (Reft (x, subst1 e (v, EVar x))))
 
 instance Defunc (Symbol, Sort) where
   defunc (x, t) = (x,) <$> defunc t
@@ -416,7 +420,7 @@ instance Defunc BindEnv   where
 -- Sort defunctionalization [should be done by elaboration]
 instance Defunc Sort where
   defunc = return
-  
+
   -- NOPROP defunc s = do
     -- NOPROP hoFlag <- dfHO  <$> get
     -- NOPROP env   <- dfenv <$> get
