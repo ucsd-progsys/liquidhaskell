@@ -6,12 +6,6 @@ Deprecate Prop
 
 rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fast --test-arguments "-p pos"
 
-  rangeAdt.hs:                       FAIL (2.06s)
-    see liquid-fixpoint/tests/pos/bool04.fq
-    crash: SMTLIB2 respSat = Error "line 1367 column 55859: invalid function application for =, sort mismatch on argument at position 2, expected Int but given Bool"
-
-  NatClass.hs:                       FAIL (1.36s)
-    ?
   mr-blow.hs:                        FAIL (3.58s)
   MapReduceVerified.hs:              FAIL (1.23s)
     inline + higherorder
@@ -27,12 +21,12 @@ rjhala@borscht ~/r/s/liquidhaskell (no-prop) [1]> stack test liquidhaskell --fas
     inline
   Holes.hs:                          FAIL (0.91s)
     unexpanded hole
-    Map2.hs:                           FAIL (22.13s)
+
+  Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
   zipper.hs badsubst
   ListMSort-LType.hs:                FAIL (3.69s)
-
   wierd crashes in icfp-pos
   liquid-fixpoint #274
   https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
