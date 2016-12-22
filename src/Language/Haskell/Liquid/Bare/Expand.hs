@@ -28,13 +28,32 @@ instance ExpandAliases Expr where
 instance ExpandAliases Reft where
   expand = txPredReft' expandExpr
 
-
 instance ExpandAliases SpecType where
   expand = mapReftM expand
 
-instance (ExpandAliases b) => ExpandAliases (a, b) where
-  -- expand (x, y) = (x, ) <$> expand y
-  expand = mapM expand -- (x, y) = (x, ) <$> expand y
+instance ExpandAliases Body where
+  expand (E e)   = E   <$> expand e
+  expand (P e)   = P   <$> expand e
+  expand (R x e) = R x <$> expand e
+
+instance ExpandAliases ty => ExpandAliases (Def ty ctor) where
+  expand (Def f xts c t bxts b) =
+    Def f <$> expand xts
+          <*> pure c
+          <*> expand t
+          <*> expand bxts
+          <*> expand b
+
+instance ExpandAliases ty => ExpandAliases (Measure ty ctor) where
+  expand (M n t ds) =
+    M n <$> expand t <*> expand ds
+
+instance ExpandAliases DataConP where
+  expand d = do
+    tyRes'    <- expand $ tyRes    d
+    tyConsts' <- expand $ tyConsts d
+    tyArgs'   <- expand $ tyArgs   d
+    return d { tyRes = tyRes', tyConsts = tyConsts', tyArgs = tyArgs' }
 
 instance ExpandAliases RReft where
   expand = mapM expand
@@ -42,8 +61,15 @@ instance ExpandAliases RReft where
 instance (ExpandAliases a) => ExpandAliases (Located a) where
   expand = mapM expand
 
+instance (ExpandAliases a) => ExpandAliases (Maybe a) where
+  expand = mapM expand
+
 instance (ExpandAliases a) => ExpandAliases [a] where
   expand = mapM expand
+
+instance (ExpandAliases b) => ExpandAliases (a, b) where
+  -- expand (x, y) = (x, ) <$> expand y
+  expand = mapM expand -- (x, y) = (x, ) <$> expand y
 
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------

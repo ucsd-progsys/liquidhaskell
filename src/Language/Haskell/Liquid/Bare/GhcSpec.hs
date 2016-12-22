@@ -136,7 +136,7 @@ makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> Nam
 makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
-       xils          <- concatMapM (makeHaskellInlines embs cbs name) specs -- HOIST ME
+       xils          <- concatMapM (makeHaskellInlines embs cbs name) specs
        makeRTEnv name xils specs
        (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs
@@ -330,7 +330,7 @@ makeGhcSpec4 :: [Qualifier]
              -> BareM GhcSpec
 makeGhcSpec4 quals defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
-       texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
+       gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
        defs'   <- mkThing makeDefs
@@ -342,9 +342,16 @@ makeGhcSpec4 quals defVars specs name su sp
        mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hinls
        mapM_ insertHMeasLogicEnv $ S.toList hmeas
        mapM_ insertHMeasLogicEnv $ S.toList hinls
-       lmap'   <- logicEnv <$> get
-       isgs    <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-       msgs    <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+       lmap'       <- logicEnv <$> get
+       isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
+       gsTySigs'   <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+       gsMeasures' <- expand $ gsMeasures   sp
+       gsAsmSigs'  <- expand $ gsAsmSigs    sp
+       gsInSigs'   <- expand $ gsInSigs     sp
+       gsInvarnts' <- expand $ gsInvariants sp
+       gsCtors'    <- expand $ gsCtors      sp
+       gsIaliases' <- expand $ gsIaliases   sp
+       gsDconsP'   <- expand $ gsDconsP     sp
        -- lmap    <- logicEnv <$> get
        -- inlmap  <- inlines  <$> get
        -- let mtx  = txRefToLogic lmap inlmap
@@ -357,15 +364,15 @@ makeGhcSpec4 quals defVars specs name su sp
                      , gsAutosize   = asize'
                      , gsLazy       = S.insert dictionaryVar lazies
                      , gsLogicMap   = lmap'
-                     , gsTySigs     = {- tx  <$>      -} msgs
-                     , gsTexprs     = {- mapSnd f <$> -} texprs'
-                     -- , gsAsmSigs    = tx  <$> gsAsmSigs  sp
-                     -- , gsInSigs     = tx  <$> gsInSigs   sp
-                     -- , gsMeasures   = mtx <$> gsMeasures sp
-                     -- , gsInvariants = tx <$> gsInvariants sp
-                     -- , gsCtors      = tx <$> gsCtors      sp
-                     -- , gsIaliases   = tx <$> gsIaliases   sp
-                     -- , gsDconsP     = mapSnd txdcons <$> gsDconsP sp
+                     , gsTySigs     = {- tx  <$>      -}           gsTySigs'
+                     , gsTexprs     = {- mapSnd f <$> -}           gsTexprs'
+                     , gsMeasures   = {- mtx <$> gsMeasures sp -}  gsMeasures'
+                     , gsAsmSigs    = {- tx  <$> gsAsmSigs  sp -}  gsAsmSigs'
+                     , gsInSigs     = {- tx  <$> gsInSigs   sp -}  gsInSigs'
+                     , gsInvariants = {- tx <$> gsInvariants sp -} gsInvarnts'
+                     , gsCtors      = {- tx <$> gsCtors      sp -} gsCtors'
+                     , gsIaliases   = {- tx <$> gsIaliases   sp -} gsIaliases'
+                     , gsDconsP     = {- mapSnd txdcons <$> gsDconsP sp -} gsDconsP'
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]

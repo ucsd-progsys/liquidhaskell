@@ -346,7 +346,7 @@ data GhcSpec = SP {
   , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
   , gsConfig     :: !Config                        -- ^ Configuration Options
-  , gsExports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
