@@ -72,14 +72,14 @@ instance VerifiedMonoid (List a) where
 {-@ measure mappend :: a -> a -> a @-}
 {-@ measure mempty  :: a @-}
 
--- | 1. One uninterpreted function is generated for each reflected function
+-- | 2. One uninterpreted function is generated for each reflected function
 
 
 {-@ measure mappendList :: List a -> List a -> List a @-}
 {-@ measure memptyList  :: List a @-}
 
 
--- | 2. The reflected methods are reflected in the result type as assumed types, 
+-- | 3. The reflected methods are reflected in the result type as assumed types, 
 -- |    and the proof obligations are coppied to the proof methods. 
 
 {-@ instance VerifiedMonoid (List a) where 
