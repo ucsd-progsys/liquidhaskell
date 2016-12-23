@@ -48,21 +48,13 @@ makeAxiom :: F.TCEmb TyCon
           -> LocSymbol
           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
 --------------------------------------------------------------------------------
-makeAxiom tce lmap cbs' spec _ x
+makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
         (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
         (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
-        _                  -> throwError $ mkError x ("Cannot extract measure from haskell function" ++ 
-                              show (map (map (dropModuleNames . simplesymbol) .binders) cbs)
-                              ++ "\n NOT EQ \n" ++ show (val x)
-                              )
-  where 
-    cbs :: [CoreBind]
-    cbs = concatMap unMutualRec cbs' 
-    unMutualRec :: CoreBind -> [CoreBind]
-    unMutualRec (NonRec x d) = [NonRec x d] 
-    unMutualRec (Rec xess)   = [Rec [xes] | xes <- xess]
-
+        [Rec xes]          -> throwError $ mkError x 
+                                ("Cannot extract measure from mutually recursive haskell functions" ++ (show (fst <$> xes)))
+        _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
 --------------------------------------------------------------------------------
 makeAxiom' :: F.TCEmb TyCon
