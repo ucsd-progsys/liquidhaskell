@@ -68,7 +68,15 @@ instance VerifiedMonoid (List a) where
 -- || in the class definition 
 
 
+-- | 1. One uninterpreted function is generated for each reflected function
 
+
+{-@ measure mappendList :: List a -> List a -> List a @-}
+{-@ measure memptyList  :: List a @-}
+
+
+-- | 2. The reflected methods are reflected in the result type as assumed types, 
+-- |    and the proof obligations are coppied to the proof methods. 
 
 {-@ instance VerifiedMonoid (List a) where 
   assume mempty  :: {v:List a | (v = N) && (v = memptyList) };
@@ -78,18 +86,3 @@ instance VerifiedMonoid (List a) where
   rightId :: x:List a -> {v:Proof | mappendList x memptyList = x } ;
   assoc   :: x:List a -> y:List a -> z:List a -> {v:Proof | mappendList x (mappendList y z) = mappendList (mappendList x y) z}
   @-}
-
-
-
-
-{-@ measure mappendList :: List a -> List a -> List a @-}
-{-@ measure memptyList  :: List a @-}
-
-{-@ assume $cmempty :: {v:List a | (v = N) && (v = memptyList) } @-}
-
-{-@ assume $cmappend :: {v:
-               (x:List a -> y:List a 
-            -> {v:List a | (v = mappendList x y) && (if (is_N x) then (v == y) else (v == C (select_C_1 x) (mappendList (select_C_2 x) y) )) })
-            | v == mappendList} @-}
-
-
