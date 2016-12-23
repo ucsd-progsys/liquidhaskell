@@ -89,10 +89,6 @@ INLINE
     looking up GHC with wrong name...
     inline
 
-  #3
-  Holes.hs:                          FAIL (0.91s)
-    unexpanded hole
-
 FIXPOINT
 
   #4

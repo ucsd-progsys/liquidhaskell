@@ -252,9 +252,14 @@ holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole)
 holeRefP :: Parser (r -> RType c tv (UReft r))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 
+-- NOPROP refasHoleP :: Parser Expr
+-- NOPROP refasHoleP  = try refaP
+-- NOPROP          <|> (reserved "_" >> return hole)
+
 refasHoleP :: Parser Expr
-refasHoleP  = try refaP
-           <|> (reserved "_" >> return hole)
+refasHoleP
+  =  (reserved "_" >> return hole)
+ <|> refaP
 
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
