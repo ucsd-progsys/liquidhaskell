@@ -6,6 +6,7 @@ class Foo a where
   @-}
   foo :: a -> a       
 
+{- 
 
 instance Foo Int where
   {-@ instance Foo Int where
@@ -16,4 +17,4 @@ instance Foo Integer where
   {-@ instance Foo Integer where
        foo :: x:Integer -> {v:Integer | v = x + 1} @-}
   foo x = x + 1
-
+-}
