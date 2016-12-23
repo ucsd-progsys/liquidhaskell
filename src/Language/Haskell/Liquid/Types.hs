@@ -191,7 +191,7 @@ module Language.Haskell.Liquid.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -383,7 +383,7 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es
+  | Just (LMap _ xs e) <- traceShow ("LOOKUP " ++ show (f, es, def) ++ "\nlmap = \n" ++ show (logic_map lmap)) (M.lookup (val f) (logic_map lmap)), length xs <= length es
   = subst (mkSubst $ zip xs es) e
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
@@ -966,10 +966,15 @@ instance Show BTyCon where
 data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
-  , risigs  :: [(LocSymbol, t)]
+  , risigs  :: [(LocSymbol, RISig t)] 
   } deriving (Functor, Data, Typeable)
 
-newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid, Show)
+data RISig t = RIAssumed t | RISig t 
+  deriving (Functor, Data, Typeable, Show)
+
+
+
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty))) deriving (Monoid, Show)
 
 type RDEnv = DEnv Var SpecType
 

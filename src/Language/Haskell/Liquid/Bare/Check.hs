@@ -66,7 +66,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
-                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
+--                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (traceShow "clsSigs" $ clsSigs    sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
                      ++ checkIAl allowHO emb tcEnv env (gsIaliases   sp)
                      ++ checkMeasures emb env ms
@@ -79,9 +79,9 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (gsDconsP sp)
-                     ++ checkRefinedClasses                        rClasses rInsts
-    rClasses         = concatMap (Ms.classes   . snd) specs
-    rInsts           = concatMap (Ms.rinstance . snd) specs
+--                      ++ checkRefinedClasses                        rClasses rInsts
+    _rClasses         = concatMap (Ms.classes   . snd) specs
+    _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
     dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
@@ -91,7 +91,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp
-    clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
+    _clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
 
@@ -104,8 +104,8 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
   where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
-checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
-checkRefinedClasses definitions instances
+_checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
+_checkRefinedClasses definitions instances
   = mkError <$> duplicates
   where
     duplicates

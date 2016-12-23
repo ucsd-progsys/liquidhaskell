@@ -41,7 +41,6 @@ import           Data.List                            (foldl', isInfixOf)
 
 import qualified Data.List                            as L
 
-
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e

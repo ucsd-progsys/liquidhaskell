@@ -452,7 +452,7 @@ consCB _ _ γ (NonRec x def)
   , Just d      <- dlookup (denv γ) w
   = do t        <- trueTy τ
        addW      $ WfC γ t
-       let xts   = dmap (f t) d
+       let xts   = dmap (mapRISig (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
@@ -800,7 +800,7 @@ consE γ e'@(App e a@(Type τ))
 -- out to the top-level.
 consE γ e'@(App e a) | isDictionary a
   = if isJust tt
-      then return $ fromJust tt
+      then return $ fromRISig $ fromJust tt
       else do ([], πs, ls, te) <- bkUniv <$> consE γ e
               te0              <- instantiatePreds γ e' $ foldr RAllP te πs
               te'              <- instantiateStrata ls te0
