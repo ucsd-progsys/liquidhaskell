@@ -13,6 +13,64 @@ TODO
 $ stack test liquidhaskell --fast --test-arguments "-p pos"
 ```
 
+convert `logic_map`:
+
+```
+Data.Set.Base.isSubsetOf := Data.Set.Base.isSubsetOf    [x, y] |-> Set_sub x y
+`------ Symbol ---------`   `------ lvar ----------`    `largs`    `---expr---`
+```
+
+
+predicate Data.Set.Base.isSubsetOf X Y := Set_sub X Y
+
+So:
+
+1. `lMapExprAlias :: LMap -> RTAlias Symbol Expr`
+2. `lmapExprAliases :: M.HashMap Symbol LMap -> M.HashMap Symbol (RTAlias ...)`
+
+use the `LogicMap` in
+
+```haskell
+makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> LogicMap -> BareM ()
+```
+
+and the `lMapExprAlias` functions to convert the logic_map stuff into plain old aliases.
+
+
+
+```haskell
+data LogicMap = LM
+  { logic_map :: M.HashMap Symbol LMap
+  , axiom_map :: M.HashMap Var    Symbol
+  }
+
+data LMap = LMap
+  { lvar  :: Symbol
+  , largs :: [Symbol]
+  , lexpr :: Expr
+  }
+```
+
+into:
+
+```haskell
+data RTEnv = RTE
+  { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
+  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+  }
+
+data RTAlias x a = RTA
+  { rtName  :: Symbol             -- ^ name of the alias
+  , rtTArgs :: [x]                -- ^ type parameters
+  , rtVArgs :: [x]                -- ^ value parameters
+  , rtBody  :: a                  -- ^ what the alias expands to
+  , rtPos   :: SourcePos          -- ^ start position
+  , rtPosE  :: SourcePos          -- ^ end   position
+  }
+```
+
+
+
 
 INLINE
 

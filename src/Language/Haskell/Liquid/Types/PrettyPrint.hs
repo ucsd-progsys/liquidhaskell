@@ -118,6 +118,16 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
   where
     xd          = maybe "unknown" (pprintTidy k) x
 
+instance PPrint LMap where
+  pprintTidy _ (LMap x xs e) = hcat [pprint x, pprint xs, text "|->", pprint e ]
+
+instance PPrint LogicMap where
+  pprintTidy _ (LM lm am) = vcat [ text "Logic Map"
+                                 , nest 2 $ text "logic-map"
+                                 , nest 4 $ pprint lm
+                                 , nest 2 $ text "axiom-map"
+                                 , nest 4 $ pprint am
+                                 ]
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------

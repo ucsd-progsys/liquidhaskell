@@ -138,7 +138,7 @@ expandExpr (PExist s e)
   = PExist s <$> expandExpr e
 
 
-expandEApp :: (Expr,[Expr]) -> BareM Expr
+expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es)
   = do env <- gets (exprAliases . rtEnv)
        case M.lookup f env of

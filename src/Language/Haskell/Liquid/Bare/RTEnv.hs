@@ -24,14 +24,18 @@ import           Language.Haskell.Liquid.Bare.OfType
 import           Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
-makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> BareM ()
-makeRTEnv m xils specs
-  = do makeREAliases (tracepp "eAliases" $ eAs ++ eAs')
-       makeRTAliases tAs
-    where
-      tAs   = [ (m, t) | (m, s) <- specs,    t <- Ms.aliases s     ]
-      eAs   = [ (m, e) | (m, s) <- specs,    e <- Ms.ealiases s    ]
-      eAs'  = [ (m, e) | xil    <- xils, let e  = inlineEAlias xil ]
+makeRTEnv :: ModName
+          -> [(LocSymbol, TInline)]
+          -> [(ModName, Ms.Spec ty bndr)]
+          -> LogicMap
+          -> BareM ()
+makeRTEnv m xils specs _lmap = do
+  makeREAliases (tracepp "eAliases" $ eAs ++ eAs')
+  makeRTAliases tAs
+  where
+    tAs   = [ (m, t) | (m, s) <- specs,    t <- Ms.aliases s     ]
+    eAs   = [ (m, e) | (m, s) <- specs,    e <- Ms.ealiases s    ]
+    eAs'  = [ (m, e) | xil    <- xils, let e  = inlineEAlias xil ]
 
 inlineEAlias :: (LocSymbol, TInline) -> RTAlias Symbol Expr
 inlineEAlias (x, TI ys e) = RTA (val x) [] ys e (loc x) (loc x)

@@ -86,7 +86,7 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+    initEnv   = BE name mempty mempty mempty env (tracepp "LogicMap" lmap') mempty mempty
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 listLMap :: LogicMap
@@ -550,18 +550,18 @@ traverseBinds allowHO b k = withExtendedEnv allowHO (bindersOf b) $ do
 
 -- RJ: this function is incomprehensible, what does it do?!
 withExtendedEnv :: Bool -> [Var] -> ReplaceM b -> ReplaceM b
-withExtendedEnv allowHO vs k
-  = do RE env' fenv' emb tyi <- ask
-       let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
-           fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
-       withReaderT (const (RE env fenv emb tyi)) $ do
-         mapM_ (replaceLocalBindsOne allowHO) vs
-         k
+withExtendedEnv allowHO vs k = do
+  RE env' fenv' emb tyi <- ask
+  let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
+      fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+  withReaderT (const (RE env fenv emb tyi)) $ do
+    mapM_ (replaceLocalBindsOne allowHO) vs
+    k
 
 varShortSymbol :: Var -> Symbol
 varShortSymbol = symbol . takeWhile (/= '#') . showPpr . getName
 
--- RJ: this function is incomprehensible
+-- RJ: this function is incomprehensible, what does it do?!
 replaceLocalBindsOne :: Bool -> Var -> ReplaceM ()
 replaceLocalBindsOne allowHO v
   = do mt <- gets (M.lookup v . fst)
