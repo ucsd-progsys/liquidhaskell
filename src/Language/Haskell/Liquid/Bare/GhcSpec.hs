@@ -110,9 +110,9 @@ postProcess cbs specEnv sp@(SP {..})
        , gsTexprs     = ts
        }
   where
-    (sigs, ts')     = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsTySigs  gsTexprs specEnv cbs
-    (assms, ts'')   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsAsmSigs ts'   specEnv cbs
-    (insigs, ts)    = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsInSigs  ts''  specEnv cbs
+    (sigs, ts')     = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv (tracepp "TYSIGS: POST" gsTySigs)  gsTexprs specEnv cbs
+    (assms, ts'')   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsAsmSigs ts'      specEnv cbs
+    (insigs, ts)    = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsInSigs  ts''     specEnv cbs
     txSort          = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
     addTCI          = (addTCI' <$>)
     addTCI'         = addTyConInfo gsTcEmbeds gsTyconEnv
@@ -280,7 +280,7 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
-       return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
+       return $ sp { gsTySigs   = tracepp "TYSIGS: PRE" $ filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
                    , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
                    , gsMeas     = measSyms
@@ -512,6 +512,7 @@ type ReplaceState = ( M.HashMap Var LocSpecType
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
+-- RJ: WHAT DOES THIS FUNCTION DO?!!!!
 replaceLocalBinds :: Bool
                   -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon

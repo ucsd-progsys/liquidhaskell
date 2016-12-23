@@ -27,9 +27,8 @@ import           Language.Haskell.Liquid.Bare.Resolve
 makeRTEnv :: ModName
           -> [(LocSymbol, TInline)]
           -> [(ModName, Ms.Spec ty bndr)]
-          -> LogicMap
           -> BareM ()
-makeRTEnv m xils specs _lmap = do
+makeRTEnv m xils specs {- NOPROP: _lmap -} = do
   makeREAliases (tracepp "eAliases" $ eAs ++ eAs')
   makeRTAliases tAs
   where

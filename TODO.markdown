@@ -3,6 +3,10 @@ TODO
 
 ## no-prop / inline
 
+
+
+### 1. LogicMap
+
 + The action is in `makeGhcSpec4`,
 
 + Ensure that whatever _was_ done in `txRefToLogic lmap inlmap`
@@ -74,24 +78,30 @@ data RTAlias x a = RTA
 
 INLINE
 
+  #1 LogicMap (defer to 'import-reflections')
+
   elems.hs:                          FAIL (1.45s)
   coretologic.hs:                    FAIL (1.01s)
     Data.Set.member / logicmap?
 
+  #2
   Books.hs:                          FAIL (0.89s)
     looking up GHC with wrong name...
     inline
 
+  #3
   Holes.hs:                          FAIL (0.91s)
     unexpanded hole
 
 FIXPOINT
 
+  #4
   mr-blow.hs:                        FAIL (3.58s)
   MapReduceVerified.hs:              FAIL (1.23s)
     inline + higherorder
     defuncSort
 
+  #5
   Map2.hs:                           FAIL (22.13s)
   Map0.hs:                           FAIL (20.98s)
   Map.hs:                            FAIL (20.88s)
