@@ -383,7 +383,7 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- traceShow ("LOOKUP " ++ show (f, es, def) ++ "\nlmap = \n" ++ show (logic_map lmap)) (M.lookup (val f) (logic_map lmap)), length xs <= length es
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs <= length es
   = subst (mkSubst $ zip xs es) e
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
