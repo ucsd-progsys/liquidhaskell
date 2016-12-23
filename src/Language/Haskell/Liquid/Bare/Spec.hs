@@ -43,7 +43,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 
-import           Language.Fixpoint.Misc                     (group, snd3, groupList, mapFst)
+import           Language.Fixpoint.Misc                     (group, snd3, groupList)
 -- import           Language.Fixpoint.Misc                     (traceShow)
 
 
@@ -181,16 +181,23 @@ makeAssumeSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
                -> BareM [(ModName, Var, LocSpecType)]
 makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
+  = makeLocalSpec cfg cmod vs lvs (grepClassAssumes (Ms.rinstance spec))  $ Ms.asmSigs spec
   | otherwise
   = inModule mod $ makeSpec True vs  $ Ms.asmSigs spec
 
-grepClassAsserts :: [RInstance t2] -> [(Located F.Symbol, t2)]
+grepClassAsserts :: [RInstance t] -> [(Located F.Symbol, t)]
 grepClassAsserts  = concatMap go
    where
-    go    = map goOne . risigs
-    goOne = mapFst (fmap (F.symbol . (".$c" ++ ) . F.symbolString))
+    go    xts              = catMaybes $ map goOne $ risigs xts 
+    goOne (x, RISig t)     = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
+    goOne (_, RIAssumed _) = Nothing
 
+grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
+grepClassAssumes  = concatMap go
+   where
+    go    xts              = catMaybes $ map goOne $ risigs xts 
+    goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
+    goOne (_, RISig _)     = Nothing
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
                    -> [(ModName, Var ,Located SpecType)]
@@ -299,24 +306,33 @@ makeSpecDictionaries embs vars specs sp
 
 
 makeSpecDictionary :: F.TCEmb TyCon -> [Var] -> (a, Ms.BareSpec)
-                   -> BareM [(Var, M.HashMap F.Symbol SpecType)]
+                   -> BareM [(Var, M.HashMap F.Symbol (RISig SpecType))]
 makeSpecDictionary embs vars (_, spec)
   = (catMaybes . resolveDictionaries vars) <$> mapM (makeSpecDictionaryOne embs) (Ms.rinstance spec)
 
 
 makeSpecDictionaryOne :: F.TCEmb TyCon -> RInstance (Located BareType)
-                      -> BareM (F.Symbol, M.HashMap F.Symbol SpecType)
+                      -> BareM (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
 makeSpecDictionaryOne embs (RI x t xts)
   = do t'  <- mapM mkLSpecType t
        tyi <- gets tcEnv
-       ts' <- map (val . txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
+       ts' <- map (tidy tyi) <$> (mapM mkLSpecIType ts)
        return $ makeDictionary $ RI x (val <$> t') $ zip xs ts'
   where
+    mkTy' :: Located BareType -> BareM (Located SpecType)
     mkTy' t  = fmap generalize <$> mkLSpecType t
+
     (xs, ts) = unzip xts
 
+    tidy :: TCEnv -> RISig (Located SpecType) -> RISig SpecType
+    tidy tyi = fmap (val . txRefSort tyi embs . fmap txExpToBind)
 
-resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol SpecType)] -> [Maybe (Var, M.HashMap F.Symbol SpecType)]
+    mkLSpecIType :: RISig (Located BareType) -> BareM (RISig (Located SpecType))
+    mkLSpecIType (RISig     t) = RISig     <$> mkTy' t
+    mkLSpecIType (RIAssumed t) = RIAssumed <$> mkTy' t
+
+
+resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol (RISig SpecType))] -> [Maybe (Var, M.HashMap F.Symbol (RISig SpecType))]
 resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
  where
     go (x,is)           = addIndex 0 x $ reverse is

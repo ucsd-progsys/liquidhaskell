@@ -961,7 +961,7 @@ instanceP
        c    <- classBTyConP
        spaces
        tvs  <- (try oneClassArg) <|> (manyTill iargsP (try $ reserved "where"))
-       ms   <- sepBy tyBindP semi
+       ms   <- sepBy riMethodSigP semi
        spaces
        return $ RI c tvs ms
   where
@@ -978,6 +978,13 @@ instanceP
     mkVar v  = dummyLoc $ RVar v mempty
 
 
+riMethodSigP :: Parser (LocSymbol, RISig (Located BareType))
+riMethodSigP 
+  = try (do reserved "assume"
+            (x, t) <- tyBindP
+            return (x, RIAssumed t) )
+ <|> do (x, t) <- tyBindP
+        return (x, RISig t) 
 
 
 

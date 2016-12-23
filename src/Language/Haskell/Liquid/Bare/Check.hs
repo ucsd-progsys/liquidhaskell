@@ -79,9 +79,11 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (gsDconsP sp)
-                     ++ checkRefinedClasses                        rClasses rInsts
-    rClasses         = concatMap (Ms.classes   . snd) specs
-    rInsts           = concatMap (Ms.rinstance . snd) specs
+                     -- NV TODO: allow instances of refined classes to be refined
+                     -- but make sure that all the specs are checked. 
+                     -- ++ checkRefinedClasses                        rClasses rInsts
+    _rClasses         = concatMap (Ms.classes   . snd) specs
+    _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
     dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
@@ -104,8 +106,8 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
   where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
-checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
-checkRefinedClasses definitions instances
+_checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
+_checkRefinedClasses definitions instances
   = mkError <$> duplicates
   where
     duplicates
