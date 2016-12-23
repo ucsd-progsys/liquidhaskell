@@ -66,7 +66,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
---                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (traceShow "clsSigs" $ clsSigs    sp)
+                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
                      ++ checkIAl allowHO emb tcEnv env (gsIaliases   sp)
                      ++ checkMeasures emb env ms
@@ -79,7 +79,9 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (gsDconsP sp)
---                      ++ checkRefinedClasses                        rClasses rInsts
+                     -- NV TODO: allow instances of refined classes to be refined
+                     -- but make sure that all the specs are checked. 
+                     -- ++ checkRefinedClasses                        rClasses rInsts
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -91,7 +93,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp
-    _clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
+    clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
 
