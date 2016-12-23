@@ -30,7 +30,7 @@ data Expr [elen]
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
-{-@  measure isValue :: Expr -> Prop
+{-@  measure isValue :: Expr -> Bool
      isValue (Lam x e)    = true 
      isValue (Var x)      = false
      isValue (App e1 e2)  = false

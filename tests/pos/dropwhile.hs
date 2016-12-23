@@ -15,7 +15,7 @@ main =
 -- | The `head` function returns a value that satisfies the abstract refinement
 -------------------------------------------------------------------------------
 
-{-@ head ::  forall <p :: a -> Prop>. List <p> a -> a<p> @-}
+{-@ head ::  forall <p :: a -> Bool>. List <p> a -> a<p> @-}
 head (x ::: _) = x
 
 -------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ infixr 5 :::
 -- in the below, `hd :: a<p>` means the "head" is a value of type `a` that
 -- additionally, satisfies `p hd`.
 
-{-@ data List a <p :: a -> Prop> = Emp
+{-@ data List a <p :: a -> Bool> = Emp
                                  | (:::) { hd :: a<p>
                                          , tl :: List a }
   @-}
@@ -50,7 +50,7 @@ one = 3 ::: 2 ::: 1 ::: Emp
 -- | dropWhile some predicate `f` is not satisfied
 -------------------------------------------------------------------------------
 
-{-@ dropWhile :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>.
+{-@ dropWhile :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
                    (Witness a p w) =>
                    (x:a -> Bool<w x>) -> List a -> List <p> a
   @-}
@@ -76,6 +76,6 @@ dropUntilOne' = dropWhile (/= 3)
 
 -- | Currently needed for the qual; should be made redundant by `--eliminate`
 
-{-@ eqOne :: x:Int -> {v:Bool | Prop v <=> x /= 3} @-}
+{-@ eqOne :: x:Int -> {v:Bool | v <=> x /= 3} @-}
 eqOne :: Int -> Bool
 eqOne x = x /= 3

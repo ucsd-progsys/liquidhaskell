@@ -4,17 +4,17 @@ module Blank where
 
 data Vec a = V (Int -> a)
 
-{-@ data Vec a < dom :: Int -> Prop,
-                 rng :: Int -> a -> Prop >
+{-@ data Vec a < dom :: Int -> Bool,
+                 rng :: Int -> a -> Bool >
       = V {a :: i:Int<dom> -> a <rng i>}  @-}
 
-{-@ empty :: forall <p :: Int -> a -> Prop>. 
+{-@ empty :: forall <p :: Int -> a -> Bool>. 
                Vec <{v:Int|0=1}, p> a     @-}
 
 empty     = V $ \_ -> error "empty vector!"
 
-{-@ set :: forall a <d :: Int -> Prop,
-                     r :: Int -> a -> Prop>.
+{-@ set :: forall a <d :: Int -> Bool,
+                     r :: Int -> a -> Bool>.
            key: Int<d> -> val: a<r key>
         -> vec: Vec<{v:Int<d>| v /= key},r> a
         -> Vec <d, r> a                     @-}
@@ -22,7 +22,7 @@ set key val (V f) = V $ \k -> if k == key
                                 then val 
                                 else f k
 
-{- loop :: forall a <p :: Int -> a -> Prop>.
+{- loop :: forall a <p :: Int -> a -> Bool>.
         lo:Int
      -> hi:{Int | lo <= hi}
      -> base:a<p lo>
@@ -35,7 +35,7 @@ set key val (V f) = V $ \k -> if k == key
 --       | i < hi    = go (i+1) (f i acc)
 --       | otherwise = acc
 
-{-@ loop :: forall a <p :: Int -> a -> Prop>.
+{-@ loop :: forall a <p :: Int -> a -> Bool>.
         lo:Nat
      -> hi:{Nat | lo <= hi}
      -> base:Vec <{v:Nat | (v < lo)}, p> a

@@ -6,7 +6,7 @@ flags:
 
 
 packages:
-- ./prover
+- ./prover 
 - ./liquid-fixpoint
 - ./liquiddesugar
 - '.'

@@ -2,7 +2,7 @@
 
 module Div where
 
-{-@ type Valid = {v:Bool | ( (Prop v) <=> true ) } @-}
+{-@ type Valid = {v:Bool | v } @-}
 
 {-@ mulAssoc :: Double -> Double -> Double -> Valid @-}
 mulAssoc :: Double -> Double -> Double -> Bool

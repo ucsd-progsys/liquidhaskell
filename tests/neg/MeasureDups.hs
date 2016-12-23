@@ -28,7 +28,7 @@ foo (C x xs) = if member x (elements xs) then singleton x `union` foo xs else fo
 
 
 
-{-@ prop :: { v: Bool  | (Prop v) <=> true } @-}
+{-@ prop :: { v: Bool | v } @-}
 prop = dups s == empty
   where 
   	s = C 1 (C 3 (F 1)) :: F Int

@@ -130,21 +130,21 @@ toUsedPVars :: [(Symbol, Symbol)] -> Expr -> (Symbol, [PVar ()])
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = case unProp e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
+    x = case {- unProp -} e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
-unProp :: Expr -> Expr
-unProp (EApp (EVar f) e)
-  | f == propConName
-  = e
-unProp e
-  = e
+-- unProp :: Expr -> Expr
+-- unProp (EApp (EVar f) e)
+--    | f == propConName
+--    = e
+-- unProp e
+--    = e
 
 toUsedPVar :: [(Symbol, Symbol)] -> Expr -> PVar ()
 toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
-     EVar e = unProp $ last es
+     EVar e = {- unProp $ -} last es
      es'    = init es
      Just q = lookup p penv
      (EVar p, es) = splitEApp ee

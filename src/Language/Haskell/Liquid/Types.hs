@@ -346,7 +346,7 @@ data GhcSpec = SP {
   , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
   , gsConfig     :: !Config                        -- ^ Configuration Options
-  , gsExports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
@@ -359,22 +359,23 @@ data GhcSpec = SP {
 instance HasConfig GhcSpec where
   getConfig = gsConfig
 
-data LogicMap = LM { logic_map :: M.HashMap Symbol LMap
-                   , axiom_map :: M.HashMap Var Symbol
-                   } deriving (Show)
+data LogicMap = LM
+  { logic_map :: M.HashMap Symbol LMap
+  , axiom_map :: M.HashMap Var    Symbol
+  } deriving (Show)
 
 instance Monoid LogicMap where
   mempty                        = LM M.empty M.empty
   mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
 
-data LMap = LMap { lvar  :: Symbol
-                 , largs :: [Symbol]
-                 , lexpr :: Expr
-                 }
+data LMap = LMap
+  { lvar  :: Symbol
+  , largs :: [Symbol]
+  , lexpr :: Expr
+  }
 
 instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t|->\t" ++ show e
-
 
 toLogicMap :: [(Symbol, [Symbol], Expr)] -> LogicMap
 toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
@@ -810,7 +811,7 @@ data UReft r
             , ur_pred   :: !Predicate
             , ur_strata :: !Strata
             }
-    deriving (Generic, Data, Typeable, Functor)
+    deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
 
 type BRType     = RType BTyCon BTyVar
 type RRType     = RType RTyCon RTyVar
@@ -1040,14 +1041,14 @@ instance Show DataDecl where
               (show $ tycTyVars dd)
 
 -- | Refinement Type Aliases
-data RTAlias tv ty
-  = RTA { rtName  :: Symbol
-        , rtTArgs :: [tv]
-        , rtVArgs :: [tv]
-        , rtBody  :: ty
-        , rtPos   :: SourcePos
-        , rtPosE  :: SourcePos
-        } deriving (Data, Typeable)
+data RTAlias x a = RTA
+  { rtName  :: Symbol             -- ^ name of the alias
+  , rtTArgs :: [x]                -- ^ type parameters
+  , rtVArgs :: [x]                -- ^ value parameters
+  , rtBody  :: a                  -- ^ what the alias expands to
+  , rtPos   :: SourcePos          -- ^ start position
+  , rtPosE  :: SourcePos          -- ^ end   position
+  } deriving (Data, Typeable)
 
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty

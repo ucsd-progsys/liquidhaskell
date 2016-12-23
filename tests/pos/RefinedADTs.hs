@@ -12,7 +12,7 @@
   | Cons1 :: listHead:a -> listTail:List a -> List1 a b
 @-}
 
-{-@ data List2 a b <p :: a -> Prop> where
+{-@ data List2 a b <p :: a -> Bool> where
     Nil2  :: List2 a 
   | Cons2 :: listHead:a -> listTail:List a -> List2 a b
 @-}

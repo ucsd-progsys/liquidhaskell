@@ -59,6 +59,9 @@ type TCEnv = M.HashMap TyCon RTyCon
 
 type InlnEnv = M.HashMap Symbol TInline
 
+-- HEREHEREHEREHEREHEREHERE DELETE this TInline nonsense; fold it into RTEnv/rtEnv
+-- see what tests fail
+
 data TInline = TI { tiargs :: [Symbol]
                   , tibody :: Expr
                   } deriving (Show)
@@ -69,7 +72,7 @@ data BareEnv = BE { modName  :: !ModName
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv
                   , logicEnv :: LogicMap
-                  , inlines  :: InlnEnv
+                  -- , inlines  :: InlnEnv
                   , bounds   :: RBEnv
                   , embeds   :: TCEmb TyCon
                   }

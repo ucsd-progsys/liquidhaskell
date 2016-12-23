@@ -8,10 +8,10 @@ import Prelude hiding (Monad, return )
 
 data ST s a = ST {runState :: s -> (a,s)}
 
-{-@ data ST s a <r :: a -> Prop> 
+{-@ data ST s a <r :: a -> Bool> 
   = ST (runState :: x:s -> (a<r>, s)) @-}
 
-{-@ runState :: forall <r :: a -> Prop>. ST <r> s a -> x:s -> (a<r>, s) @-}
+{-@ runState :: forall <r :: a -> Bool>. ST <r> s a -> x:s -> (a<r>, s) @-}
 
 
 class Foo m where

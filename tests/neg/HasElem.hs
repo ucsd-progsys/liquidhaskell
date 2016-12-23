@@ -9,7 +9,7 @@ hasElem :: Eq a => a -> L a -> Bool
 hasElem x Nil = False
 hasElem x (Cons y ys) = x == y || hasElem x ys
 
-{-@ prop, prop1, prop2 :: {v:Bool | Prop v <=> true} @-}
+{-@ prop, prop1, prop2 :: {v:Bool | v} @-}
 prop :: Bool
 prop = hasElem 1 (Cons 1 Nil)
 

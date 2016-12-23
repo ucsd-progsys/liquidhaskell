@@ -43,13 +43,11 @@ fmap_id' = abstract (fmap id) id fmap_id
 fmap_id :: Maybe a -> Proof
 fmap_id Nothing
   =   fmap id Nothing
-  ==. Nothing
   ==. id Nothing
   *** QED
 fmap_id (Just x)
   = fmap id (Just x)
   ==. Just (id x)
-  ==. Just x
   ==. id (Just x)
   *** QED
 
@@ -69,7 +67,7 @@ fmap_distrib' f g
                -> { fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
 fmap_distrib :: (b -> c) -> (a -> b) -> Maybe a -> Proof
 fmap_distrib f g Nothing
-  = 
+  =
       (compose (fmap f) (fmap g)) Nothing
         ==. (fmap f) ((fmap g) Nothing)
         ==. fmap f (fmap g Nothing)

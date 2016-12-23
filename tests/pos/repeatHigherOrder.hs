@@ -12,7 +12,7 @@ goal   :: Int -> Int
 step :: (a -> a -> Bool) -> (Int -> a -> Bool) -> Int -> a -> a -> Bool
 step pf pr = \ i x x' -> pr (i - 1) x ==> pf x x' ==> pr i x'
 
-{-@ repeat :: forall a <f :: a -> a -> Prop, r :: Int -> a -> Prop>.
+{-@ repeat :: forall a <f :: a -> a -> Bool, r :: Int -> a -> Bool>.
                 (Step a f r) =>
                  n:Nat -> (y:a -> a<f y>) -> a<r 0> -> a<r n>
   @-}

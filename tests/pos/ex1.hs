@@ -37,7 +37,7 @@ sizeOf (Cons _ xs) = 1 + sizeOf xs
 -- for our `Vec` type. Note that the `op` argument takes an extra /ghost/
 -- parameter that will let us properly describe the type of `efoldr`
 
-{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>.
+{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>.
                 (xs:Vec a -> x:a -> b <p xs> -> b <p (Ex.Cons x xs)>)
               -> b <p Ex.Nil>
               -> ys: Vec a

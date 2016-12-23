@@ -1,6 +1,120 @@
 TODO
 ====
 
+## no-prop / inline
+
+
+
+### 1. LogicMap
+
++ The action is in `makeGhcSpec4`,
+
++ Ensure that whatever _was_ done in `txRefToLogic lmap inlmap`
+
++ _is_ now done inside `expand` which is in `Bare/Expand.hs`
+
+```
+$ stack test liquidhaskell --fast --test-arguments "-p pos"
+```
+
+convert `logic_map`:
+
+```
+Data.Set.Base.isSubsetOf := Data.Set.Base.isSubsetOf    [x, y] |-> Set_sub x y
+`------ Symbol ---------`   `------ lvar ----------`    `largs`    `---expr---`
+```
+
+
+predicate Data.Set.Base.isSubsetOf X Y := Set_sub X Y
+
+So:
+
+1. `lMapExprAlias :: LMap -> RTAlias Symbol Expr`
+2. `lmapExprAliases :: M.HashMap Symbol LMap -> M.HashMap Symbol (RTAlias ...)`
+
+use the `LogicMap` in
+
+```haskell
+makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> LogicMap -> BareM ()
+```
+
+and the `lMapExprAlias` functions to convert the logic_map stuff into plain old aliases.
+
+
+
+```haskell
+data LogicMap = LM
+  { logic_map :: M.HashMap Symbol LMap
+  , axiom_map :: M.HashMap Var    Symbol
+  }
+
+data LMap = LMap
+  { lvar  :: Symbol
+  , largs :: [Symbol]
+  , lexpr :: Expr
+  }
+```
+
+into:
+
+```haskell
+data RTEnv = RTE
+  { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
+  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+  }
+
+data RTAlias x a = RTA
+  { rtName  :: Symbol             -- ^ name of the alias
+  , rtTArgs :: [x]                -- ^ type parameters
+  , rtVArgs :: [x]                -- ^ value parameters
+  , rtBody  :: a                  -- ^ what the alias expands to
+  , rtPos   :: SourcePos          -- ^ start position
+  , rtPosE  :: SourcePos          -- ^ end   position
+  }
+```
+
+
+
+
+INLINE
+
+  #1 LogicMap (defer to 'import-reflections')
+
+  elems.hs:                          FAIL (1.45s)
+  coretologic.hs:                    FAIL (1.01s)
+    Data.Set.member / logicmap?
+
+  #2
+  Books.hs:                          FAIL (0.89s)
+    looking up GHC with wrong name...
+    inline
+
+FIXPOINT
+
+  #4
+  mr-blow.hs:                        FAIL (3.58s)
+  MapReduceVerified.hs:              FAIL (1.23s)
+    inline + higherorder
+    defuncSort
+
+  #5
+  Map2.hs:                           FAIL (22.13s)
+  Map0.hs:                           FAIL (20.98s)
+  Map.hs:                            FAIL (20.88s)
+  ListMSort-LType.hs:                FAIL (3.69s)
+  wierd crashes in icfp-pos
+  liquid-fixpoint #274
+  https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
+     :1:1-1:1: Error
+  elaborate qbPreds failed on:
+      VV##F##342 < lq_tmp$x##4960
+  with error
+      Unbound Symbol lq_tmp$x##4960
+ Perhaps you meant: lq_tmp$x##4990
+  in environment
+      VV##F##342 := k_a1hx
+
+
 Check Covariance
 ----------------
 
@@ -21,19 +135,6 @@ automatically get types abstracted over properties.
 Traversal should create such functions.
 Maybe we can automatically refine them.
 
-
-Check refinements using `Eq` and `Ord` info
--------------------------------------------
-Currently we arbitrary allow `=` and comparison operators in refinements to arbitraty types.
-This can lead to non-well formed refinements.
-
-promotion of haskell functions to measures
-------------------------------------------
-
-+ test that promotion happens on proper functions (inductive with 1 ADT argument)
-+ make sure that user and derived signature are met
-+ make Haskell's function post conditions invariants
-
 benchmarks
 -----------
 
@@ -46,173 +147,6 @@ benchmarks
 
 * error messages (see issues on github)
 
-remove-parens
--------------
-
-+ x16 to v
-+ Range {0} {100} -- allow Range 0 100 instead.
-+ extra PARENS in refinement printout.
-+ qualifier duplication
-
-
-
-exists-based constraints
-------------------------
-
-GHC introduces a bunch of:
-
-    let x = e1 in e2
-
-and
-
-    case x of C y -> e
-
-constraints, which possibly blow up the `Kvar`.
-
-Can we minimize KVars and hence, simplify constraints with exists?
-
-1. profile and find the KVar break down.
-
-  + lambda (including recursion)
-  + polymorphic instantiation
-  + case-of with *multiple* cases
-  - case-of with *single* case
-  - local-let
-
-2. eliminate the last two cases using exists-templates
-
-
-
-vector
-------
-
-Wordcount for vector
-
-    1476 ./Vector/Fusion/Stream/Monadic.hs
-      87 ./Vector/Fusion/Stream/Size.hs
-     634 ./Vector/Fusion/Stream.hs
-      57 ./Vector/Fusion/Util.hs
-     142 ./Vector/Generic/Base.hs
-     884 ./Vector/Generic/Mutable.hs
-     172 ./Vector/Generic/New.hs
-    2027 ./Vector/Generic.hs
-     163 ./Vector/Internal/Check.hs
-     398 ./Vector/Mutable.hs
-     332 ./Vector/Primitive/Mutable.hs
-    1328 ./Vector/Primitive.hs
-      45 ./Vector/Storable/Internal.hs
-     490 ./Vector/Storable/Mutable.hs
-    1421 ./Vector/Storable.hs
-     389 ./Vector/Unboxed/Base.hs
-     285 ./Vector/Unboxed/Mutable.hs
-    1368 ./Vector/Unboxed.hs
-    1510 ./Vector.hs
-   13208 total
-
-
-Dependency order for vector
-
-[ 1 of 19]  [45]      Data.Vector.Storable.Internal
-[ 2 of 19]  [57]      Data.Vector.Fusion.Util
-[ 4 of 19]  [163]     Data.Vector.Internal.Check
-[ 3 of 19]  [87]      Data.Vector.Fusion.Stream.Size      (SKIP:STREAM?)
-[ 5 of 19]  [1476]    Data.Vector.Fusion.Stream.Monadic   (SKIP:STREAM?)
-[ 6 of 19]  [634]     Data.Vector.Fusion.Stream           (SKIP:STREAM?)
-[ 7 of 19]  [884]     Data.Vector.Generic.Mutable
-[ 8 of 19]  [142]     Data.Vector.Generic.Base            (REDO: no class instances...)
-[ 9 of 19]  [172]     Data.Vector.Generic.New             (TODO:FORALL/APP/github issue #202)
-
-HEREHEREHERE
-
-[10 of 19]  [2027]    Data.Vector.Generic
-[11 of 19]  [332]     Data.Vector.Primitive.Mutable
-[12 of 19]  [1328]    Data.Vector.Primitive
-[13 of 19]  [490]     Data.Vector.Storable.Mutable
-[14 of 19]  [1421]    Data.Vector.Storable
-[15 of 19]  [389]     Data.Vector.Unboxed.Base
-[16 of 19]  [1368]    Data.Vector.Unboxed
-[17 of 19]  [285]     Data.Vector.Unboxed.Mutable
-[18 of 19]  [398]     Data.Vector.Mutable
-[19 of 19]  [1510]    Data.Vector
-
-
-
-
-hmatrix
--------
-
-Dependency order for hmatrix
-
-NA [ 1 of 36] Data.Packed.Internal.Signatures
-TY [ 2 of 36] Data.Packed.Internal.Common
-  > see tests/pos/transpose.hs
-
-[ 3 of 36] Data.Packed.Internal.Vector
-[ 4 of 36] Numeric.GSL.Vector
-[ 5 of 36] Data.Packed.Internal.Matrix
-[ 6 of 36] Numeric.Conversion
-[ 7 of 36] Data.Packed.Internal
-[ 8 of 36] Data.Packed.ST
-[ 9 of 36] Data.Packed.Foreign
-[10 of 36] Numeric.GSL.Differentiation
-[11 of 36] Numeric.GSL.Integration
-[12 of 36] Numeric.GSL.Fourier
-[13 of 36] Numeric.GSL.Polynomials
-[14 of 36] Numeric.GSL.Internal
-[15 of 36] Numeric.GSL.ODE
-[16 of 36] Data.Packed.Development
-[17 of 36] Data.Packed.Matrix
-[18 of 36] Numeric.GSL.Minimization
-[19 of 36] Numeric.GSL.Root
-[20 of 36] Numeric.LinearAlgebra.LAPACK
-[21 of 36] Data.Packed.Vector
-[22 of 36] Data.Packed
-[23 of 36] Numeric.ContainerBoot
-[24 of 36] Numeric.Chain
-[25 of 36] Numeric.LinearAlgebra.Algorithms
-[26 of 36] Numeric.IO
-[27 of 36] Data.Packed.Random
-[28 of 36] Numeric.Container
-[29 of 36] Numeric.Matrix
-[30 of 36] Numeric.Vector
-[31 of 36] Numeric.LinearAlgebra
-[32 of 36] Numeric.GSL.Fitting
-[33 of 36] Numeric.GSL
-[34 of 36] Numeric.LinearAlgebra.Util.Convolution
-[35 of 36] Numeric.LinearAlgebra.Util
-[36 of 36] Graphics.Plot
-
-Embed
-=====
-
-see
-
-    tests/pos/ptr.hs
-    tests/pos/ptr2.hs
-
-run with
-
-    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs
-
-GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
-but with raw pointer arithmetic. I.e. give plusPtr the right signature:
-  (v = base + off)
-Can do so now, by:
-
-  embed Ptr as int
-
-but the problem is that then it throws off all qualifier definitions like
-
-  qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x)
-  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x)
-
-because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
-Meaning we have to rewrite the above to the rather lame:
-
-  qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
-
-
-
 Benchmarks
 ==========
 
@@ -222,63 +156,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-
-
-Blog Todo List
-==============
-
-- Cleanup output (tests/pos/poly0.hs)
-
-Basic Refinement Types
-----------------------
-
-[DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
-[DONE] Dep Refinements: (Data.Vector, recursion-sum, dotprod, range, map, fold)
-[DONE] Lists I       (append, reverse, map-length, filter)
-[DONE] Lists II      (take, transpose)
-[DONE] MapReduce
-[DONE] KMeans        (++ zipWith etc.)
-
-Measures
---------
-
-[DONE] Lists I-Sets  ("" but with Sets as the measure)
-- LambdaEval
-
-Abstract Refinements
---------------------
-
-[DONE] ParaPoly/Ty  
-[DONE] Sorting      <--------------- STOP
-
-- Maps I        (BST property, add, delete)
-- Map II        (Data.Map with elements etc.)
-- Pats Vectors
-- Niki DataBase
-- Induction-Loop
-- Induction-List (efoldr)
-
-Real World
-----------
-
-- Bytestring (internal)
-- Bytestring (api)
-- Text       (internal)
-- Text       (api)
-- Text       (bug)
-- Lazy/Termination
-- Termination examples
-? mcbride stack machine
-? hasochism text layout
-
-
-Future Work
------------
-
-- Xmonad: StackSet
-- Binary Tree/ Finger Tree?
-- BDD
-- Union Find
 
 
 Benchmarks
@@ -315,7 +192,6 @@ Other Benchmarks
 ->   FingerTrees (containers / Data.Seq)
 ->   Union-Find (PLDI09 port if necessary?)
 ->   BDD        (PLDI09 port if necessary?)
-
 
 [NO] Data.Set (Map redux)
         > ordering

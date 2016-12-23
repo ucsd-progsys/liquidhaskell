@@ -39,16 +39,13 @@ import           TysWiredIn
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
-
-import           Language.Fixpoint.Misc                (snd3)
-
+import           Language.Fixpoint.Misc                (snd3, mapSnd)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
-import           Language.Fixpoint.Misc          (mapSnd)
 -- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
@@ -66,17 +63,16 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, 
     res = mkResType $ ty_res t
     (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-
     mkResType t
 --      | isBool t   = propType
      | otherwise  = t
 
 
-{- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
+{- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
 
-CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
+   CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
 
-CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+   CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
 -}
 
 strengthenResult :: Var -> SpecType
@@ -87,15 +83,16 @@ strengthenResult v
   | otherwise
   = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
     fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
-  where rep = toRTypeRep t
-        res = ty_res rep
-        xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
-        r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
-        vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
-        f   = dummyLoc $ dropModuleNames $ simplesymbol v
-        t   = (ofType $ varType v) :: SpecType
-        mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
+  where
+    rep = toRTypeRep t
+    res = ty_res rep
+    xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
+    r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
+    r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
+    vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
+    f   = dummyLoc $ dropModuleNames $ simplesymbol v
+    t   = (ofType $ varType v) :: SpecType
+    mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
 strengthenResult' :: Var -> SpecType
@@ -109,8 +106,8 @@ strengthenResult' v
 
         -- refine types of meaures: keep going until you find the last data con!
         -- this code is a hack! we refine the last data constructor,
-        -- it got complicated to suport both
-        -- 1. multy parameter measures     (see tests/pos/HasElem.hs)
+        -- it got complicated to support both
+        -- 1. multi parameter measures     (see tests/pos/HasElem.hs)
         -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
         -- to simplify, drop support for multi parameter measures
         go f args i (RAllT a t)
@@ -127,7 +124,7 @@ strengthenResult' v
         go f args _ t
           = t `strengthen` f args
 
-        hasRApps (RApp _ _ _ _)   = True
+        hasRApps (RApp {})        = True
         hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
         hasRApps _                = False
 
@@ -219,8 +216,8 @@ coreToPd (C.Var x)
   = return PFalse
   | x == trueDataConId
   = return PTrue
-  | eqType boolTy (varType x)
-  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
+--  | eqType boolTy (varType x)
+--  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToPd p@(C.App _ _) = toPredApp p
 coreToPd e
   = coreToLg e
@@ -248,8 +245,8 @@ coreToLg (C.Var x)
   = return PFalse
   | x == trueDataConId
   = return PTrue
-  | eqType boolTy (varType x)
-  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
+--  | eqType boolTy (varType x)
+--  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy

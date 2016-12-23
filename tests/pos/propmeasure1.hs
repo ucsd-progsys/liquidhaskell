@@ -1,4 +1,4 @@
-module PropMeasure where
+module BoolMeasure where
 
 nil  = []
 

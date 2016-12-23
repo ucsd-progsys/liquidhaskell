@@ -22,7 +22,7 @@ import           Test.QuickCheck.All             (monomorphic)
 import           Text.Printf                     (printf)
 
 import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Smt.Interface hiding (verbose)
+import           Language.Fixpoint.Smt.Interface 
 import qualified Language.Fixpoint.Types.Config  as F
 
 import           Test.Target.Monad
@@ -85,7 +85,7 @@ targetResultWith f name path opts
                  test f ty
           _ <- cleanupContext ctx
           return r
-        `onException` terminateProcess (pId ctx)
+        `onException` terminateProcess (ctxPid ctx)
   where
     mkContext = if logging opts
                 then makeContext F.defConfig{F.solver = solver opts} (".target/" ++ name)

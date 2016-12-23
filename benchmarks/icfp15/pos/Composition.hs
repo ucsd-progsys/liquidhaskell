@@ -1,10 +1,10 @@
 module Compose where
 
-{-@ 
-cmp :: forall < p :: b -> c -> Prop
-              , q :: a -> b -> Prop
-              , r :: a -> c -> Prop
-              >. 
+{-@
+cmp :: forall < p :: b -> c -> Bool
+              , q :: a -> b -> Bool
+              , r :: a -> c -> Bool
+              >.
        {x::a, w::b<q x> |- c<p w> <: c<r x>}
        f:(y:b -> c<p y>)
     -> g:(z:a -> b<q z>)
@@ -15,7 +15,7 @@ cmp :: (b -> c)
     -> (a -> b)
     ->  a -> c
 
-cmp f g x = f (g x)    
+cmp f g x = f (g x)
 
 
 
@@ -39,7 +39,7 @@ plusminus n m = (n+) `cmp` (m-)
 
 {-@ plus :: n:a -> x:a -> {v:a | v = (x + n)} @-}
 plus :: Num a => a -> a -> a
-plus = undefined 
+plus = undefined
 minus :: Num a => a -> a -> a
 {-@ minus :: n:a -> x:a -> {v:a | v = x - n} @-}
 minus _ _ = undefined
@@ -61,8 +61,3 @@ plus42 = cmp plus2 plus1
 {- qualif PLUSMINUS(v:int, x:int, y:int, z:int): (v = (x - y) + z) @-}
 {- qualif PLUS     (v:int, x:int, y:int)       : (v = x + y)       @-}
 {- qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
-
-
-
-
-

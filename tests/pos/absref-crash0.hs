@@ -9,7 +9,7 @@ data List a = N | C a (List a)
 
 infixr 9 `C`
 
-{-@ ifoldr :: forall a b <p :: List a -> b -> Prop>. 
+{-@ ifoldr :: forall a b <p :: List a -> b -> Bool>. 
                  (xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)>) 
                -> b<p N> 
                -> ys:List a
@@ -17,7 +17,7 @@ infixr 9 `C`
 ifoldr :: (List a -> a -> b -> b) -> b -> List a -> b
 ifoldr = undefined
 
-{-@ data List a <p :: a -> a -> Prop> 
+{-@ data List a <p :: a -> a -> Bool> 
      = N | C {x :: a, xs :: List<p> a<p x>} @-}
 
 {-@ type IncrList a = List <{\x y -> x <= y}> a @-} 

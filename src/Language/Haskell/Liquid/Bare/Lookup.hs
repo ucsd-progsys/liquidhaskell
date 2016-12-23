@@ -36,12 +36,12 @@ import           Text.PrettyPrint.HughesPJ        (text)
 import qualified Data.List                        as L
 import qualified Data.HashMap.Strict              as M
 
-import           Language.Fixpoint.Types.Names    (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
+import           Language.Fixpoint.Types.Names    (isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 
 import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.WiredIn
+-- import           Language.Haskell.Liquid.WiredIn
 
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -140,7 +140,7 @@ lookupGhcVar x
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing err ftc s)
-                       `catchError` (tryPropTyCon s)
+                       -- `catchError` (tryPropTyCon s)
                        `catchError` (\_ -> lookupGhcThing err fdc s)
   where
     ftc (ATyCon x)
@@ -155,13 +155,13 @@ lookupGhcTyCon s     = (lookupGhcThing err ftc s)
 
     err = "type constructor or class"
 
-tryPropTyCon :: (Symbolic a, MonadError e m) => a -> e -> m TyCon
-tryPropTyCon s e
-  | sx == propConName  = return propTyCon
-  | sx == hpropConName = return hpropTyCon
-  | otherwise          = throwError e
-  where
-    sx                 = symbol s
+-- tryPropTyCon :: (Symbolic a, MonadError e m) => a -> e -> m TyCon
+-- tryPropTyCon s e
+--   | sx == propConName  = return propTyCon
+--   | sx == hpropConName = return hpropTyCon
+--   | otherwise          = throwError e
+-- where
+    -- sx                 = symbol s
 
 lookupGhcDataCon :: (MonadIO m, MonadError (TError t) m, MonadState BareEnv m)
                  => Located Symbol -> m DataCon
