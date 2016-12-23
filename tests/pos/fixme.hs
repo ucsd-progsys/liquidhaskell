@@ -1,5 +1,7 @@
-module Holes (incr) where
+module Books where
 
-{-@ incr :: Nat -> {v:_ | _ } @-}
-incr :: Int -> Int
-incr x = x + 1
+data Customer = Vip | Reg deriving (Eq)
+
+{-@ inline foo @-}
+foo :: Customer -> Bool
+foo c = c == Vip

@@ -1,11 +1,10 @@
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module Language.Haskell.Liquid.Bare.Lookup (
     GhcLookup(..)
-
   , lookupGhcThing
   , lookupGhcVar
   , lookupGhcTyCon

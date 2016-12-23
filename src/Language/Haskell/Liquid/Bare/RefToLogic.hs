@@ -119,9 +119,9 @@ mexpr _ (Right (TI _ e)) = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
 txEApp :: (Symbol, Either LMap TInline) -> Expr -> Expr
-txEApp (s,m) e = go f
+txEApp (s,m) e  = go f
   where
-    (f, es) = splitEApp e
+    (f, es)     = splitEApp e
     go (EVar x) = txEApp' (s,m) x  (tx s m <$> es)
     go f        = eApps (tx s m f) (tx s m <$> es)
 
