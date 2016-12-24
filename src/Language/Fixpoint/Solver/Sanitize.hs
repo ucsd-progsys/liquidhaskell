@@ -98,15 +98,8 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
     outs       = [(k, o) | (KVar k, Cstr o) <- es ]
     ins        = [(k, i) | (Cstr i, KVar k) <- es ]
 
-
-
 --------------------------------------------------------------------------------
--- | remove substitutions `K[x := e]` where `x` is not in the domain of K or `e`
---   is not a "known" var, i.e. one corresponding to some binder.
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- | `dropDeadSubsts` removes dead `K[x := e]`` where `x` is NOT in the domain of K.
+-- | `dropDeadSubsts` removes dead `K[x := e]` where `x` NOT in the domain of K.
 --------------------------------------------------------------------------------
 dropDeadSubsts :: F.SInfo a -> F.SInfo a
 dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
@@ -114,7 +107,6 @@ dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
     kvsM          = M.mapWithKey (\k _ -> kvDom k) (F.ws si)
     kvDom         = S.fromList . F.kvarDomain si
     f k x _       = S.member x (M.lookupDefault mempty k kvsM)
-
 
 --------------------------------------------------------------------------------
 -- | `restrictKVarDomain` updates the kvar-domains in the wf constraints
@@ -141,15 +133,50 @@ restrictWf kve k w = w { F.wenv = F.filterIBindEnv f (F.wenv w) }
 --   where `y` is not in the env.
 
 type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
+type KvBads    = M.HashMap F.KVar [F.Symbol]
 
 safeKvarEnv :: F.SInfo a -> KvDom
-safeKvarEnv si = L.foldl' (refineKvarEnv si) env0 cs
+safeKvarEnv si = L.foldl' (dropKvarEnv si) env0 cs
   where
+    cs         = M.elems  (F.cm si)
     env0       = initKvarEnv si
-    cs         = M.elems (F.cm si)
 
-refineKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
-refineKvarEnv = error "TODO:refineKvarEnv"
+dropKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
+dropKvarEnv si kve c = M.mapWithKey (dropBadParams kBads) kve
+  where
+    kBads            = badParams si c
+
+dropBadParams :: KvBads -> F.KVar -> F.SEnv F.BindId -> F.SEnv F.BindId
+dropBadParams kBads k kEnv = L.foldl' (flip F.deleteSEnv) kEnv xs
+  where
+    xs                     = M.lookupDefault mempty k kBads
+
+badParams :: F.SInfo a -> F.SimpC a -> M.HashMap F.KVar [F.Symbol]
+badParams si c = Misc.group bads
+  where
+    bads       = [ (k, x) | (v, k, F.Su su) <- subcKSubs xsrs c
+                          , let vEnv = maybe sEnv (`S.insert` sEnv) v
+                          , (x, e)          <- M.toList su
+                          , badArg vEnv e
+                 ]
+    sEnv       = S.fromList (fst <$> xsrs)
+    xsrs       = F.envCs (F.bs si) (F.senv c)
+
+badArg :: S.HashSet F.Symbol -> F.Expr -> Bool
+badArg sEnv (F.EVar y) = not (y `S.member` sEnv)
+badArg _    _          = True
+
+type KSub = (Maybe F.Symbol, F.KVar, F.Subst)
+
+subcKSubs :: [(F.Symbol, F.SortedReft)] -> F.SimpC a -> [KSub]
+subcKSubs xsrs c = rhs ++ lhs
+  where
+    lhs          = [ (Just v, k, su) | (_, sr) <- xsrs
+                                     , let rs   = F.reftConjuncts (F.sr_reft sr)
+                                     , F.Reft (v, F.PKVar k su) <- rs
+                   ]
+    rhs          = [(Nothing, k, su) | F.PKVar k su <- [F.crhs c]]
+
 
 initKvarEnv :: F.SInfo a -> KvDom
 initKvarEnv si = initEnv si <$> F.ws si
@@ -176,6 +203,7 @@ initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
   -- NOPROP where
     -- NOPROP vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
                    -- NOPROP , y <- [x, v] ]
+
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
@@ -240,7 +268,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
                                           , nest 4 (pprint (F.crhs c)) ]
 
 --------------------------------------------------------------------------------
--- | symbol |-> sort for EVERY variable in the FInfo [TODO: move elsewhere]
+-- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SEnv F.Sort
 symbolEnv cfg si = Thy.theorySEnv
