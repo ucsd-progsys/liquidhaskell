@@ -187,11 +187,11 @@ fromList env kXs kYs = Sol env kXm kYm -- kBm
  -- kBm              = const () <$> kXm
 
 --------------------------------------------------------------------------------
-qbPreds :: Solution -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: String -> Solution -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
-qbPreds s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
+qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred          = elaborate "qbPreds" env . subst su . eqPred
+    elabPred          = elaborate ("qbPreds:" ++ msg) env . subst su . eqPred
     env               = sEnv s
 
 --------------------------------------------------------------------------------

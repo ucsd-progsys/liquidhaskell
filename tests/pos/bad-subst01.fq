@@ -1,4 +1,4 @@
-fixpoint "--eliminate=some"
+// fixpoint "--eliminate=some"
 
 
 qualif Zog(v:a) : (10 <= v)

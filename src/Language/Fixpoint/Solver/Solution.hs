@@ -168,8 +168,9 @@ applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred g s ksu cs
-  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
-
+  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  where
+    msg     = "applyKVar: " ++ show (fst3 g) ++ show ksu
 
 hypPred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
