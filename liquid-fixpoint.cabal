@@ -99,7 +99,7 @@ Library
                    Language.Fixpoint.Solver.UniqifyKVars,
                    Language.Fixpoint.Solver.UniqifyBinds,
                    Language.Fixpoint.Solver.Eliminate,
-                   Language.Fixpoint.Solver.Validate,
+                   Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
 

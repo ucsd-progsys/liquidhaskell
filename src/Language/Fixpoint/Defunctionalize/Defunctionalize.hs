@@ -10,7 +10,7 @@
 module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
 
 import           Language.Fixpoint.Misc            (secondM, errorstar, mapSnd)
-import           Language.Fixpoint.Solver.Validate (symbolEnv)
+import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config -- hiding (eliminate)
 import           Language.Fixpoint.SortCheck

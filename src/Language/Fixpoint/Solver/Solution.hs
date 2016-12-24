@@ -30,7 +30,7 @@ import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
-import           Language.Fixpoint.Solver.Validate
+import           Language.Fixpoint.Solver.Sanitize 
 
 -- DEBUG
 -- import Text.Printf (printf)

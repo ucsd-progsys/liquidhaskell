@@ -43,7 +43,7 @@ import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 -- import qualified Language.Fixpoint.Solver.Index as Index
-import           Language.Fixpoint.Solver.Validate
+import           Language.Fixpoint.Solver.Sanitize 
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution

@@ -16,7 +16,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
-import           Language.Fixpoint.Solver.Validate
+import           Language.Fixpoint.Solver.Sanitize
 
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
