@@ -9,6 +9,9 @@ module Language.Fixpoint.Solver.Sanitize
 
     -- * Sorts for each Symbol (move elsewhere)
   , symbolEnv
+
+    -- * Remove substitutions K[x := e] where `x` is not in dom(K)
+  , dropDeadSubsts
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -37,7 +40,7 @@ sanitize =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
-         >=> Misc.fM dropBogusSubstitutions
+         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
@@ -101,15 +104,37 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
 -- | remove substitutions `K[x := e]` where `x` is not in the domain of K or `e`
 --   is not a "known" var, i.e. one corresponding to some binder.
 --------------------------------------------------------------------------------
-dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
-dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
+
+--------------------------------------------------------------------------------
+-- | `dropDeadSubsts` removes dead `K[x := e]`` where `x` is NOT in the domain of K.
+--------------------------------------------------------------------------------
+dropDeadSubsts :: F.SInfo a -> F.SInfo a
+dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
   where
-    kvM                    = kvarDomainM si0
-    kvXs k                 = M.lookupDefault S.empty k kvM
-    keepSubst k x e        = x `S.member` kvXs k && knownRhs e
-    knownRhs (F.EVar y)    = y `S.member` xs
-    knownRhs _             = False
-    xs                     = knownVars si0
+    kvsM          = M.mapWithKey (\k _ -> kvDom k) (F.ws si)
+    kvDom         = S.fromList . F.kvarDomain si
+    f k x _       = S.member x (M.lookupDefault mempty k kvsM)
+
+-- | `restrictKVarDomain` updates the kvar-domains in the wf constraints
+--   to a subset of the original binders, where we DELETE the parameters
+--   `x` which appear in substitutions of the form `K[x := y]` where `y`
+--   is not in the env.
+
+restrictKVarDomain :: F.SInfo a -> F.SInfo a
+restrictKVarDomain si = L.foldl' (restrictWfC kvM) si ks
+  where
+    ks                = M.keys (F.ws si)
+    kvM               = kvarDomainM si
+
+-- NOPROP dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
+-- NOPROP dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
+  -- NOPROP where
+    -- NOPROP kvM                    = kvarDomainM si0
+    -- NOPROP kvXs k                 = M.lookupDefault S.empty k kvM
+    -- NOPROP keepSubst k x e        = x `S.member` kvXs k && knownRhs e
+    -- NOPROP knownRhs (F.EVar y)    = y `S.member` xs
+    -- NOPROP knownRhs _             = False
+    -- NOPROP xs                     = knownVars si0
 
 knownVars :: F.SInfo a -> S.HashSet F.Symbol
 knownVars si = S.fromList vs
@@ -128,6 +153,8 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
     ks         = M.keys (F.ws si)
     dom        = S.fromList . F.kvarDomain si
 
+restrictWfC :: KvDom -> F.SInfo a -> F.KVar -> F.SInfo a
+restrictWfC = error "TODO:restrictWfC"
 
 
 

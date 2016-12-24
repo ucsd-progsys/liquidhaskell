@@ -6,7 +6,7 @@
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Visitor
+import           Language.Fixpoint.Solver.Sanitize (dropDeadSubsts)
 import           Language.Fixpoint.Misc          (fst3, mlookup)
 
 import qualified Data.HashMap.Strict as M
@@ -32,15 +32,6 @@ renameAll fi2 = fi6
     rnm       = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
     idm       = {-# SCC "mkIdMap"     #-} mkIdMap fi2
 
---------------------------------------------------------------------------------
--- | `dropRnSubstitutions` removes dead `K[x := e]`` where `x` is NOT in the domain of K.
---------------------------------------------------------------------------------
-dropDeadSubsts :: SInfo a -> SInfo a
-dropDeadSubsts si = mapKVarSubsts (filterSubst . f) si
-  where
-    kvsM          = M.mapWithKey (\k _ -> kvDom k) (ws si)
-    kvDom         = S.fromList . kvarDomain si
-    f k x _       = S.member x (M.lookupDefault mempty k kvsM)
 
 --------------------------------------------------------------------------------
 -- | `dropUnusedBinds` replaces the refinements of "unused" binders with "true".
