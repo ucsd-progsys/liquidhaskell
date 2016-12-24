@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.Solver.Validate
+module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
     sanitize
 
@@ -28,10 +28,10 @@ import           Data.Maybe          (isNothing, mapMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
-type ValidateM a = Either E.Error a
+type SanitizeM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
+sanitize :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
@@ -49,7 +49,7 @@ sanitize =    -- banIllScopedKvars
 --   then
 --      G1 \cap G2 \subseteq wenv(k)
 --------------------------------------------------------------------------------
-_banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
+_banIllScopedKvars :: F.SInfo a ->  SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 _banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
@@ -117,8 +117,11 @@ knownVars si = S.fromList vs
     vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
                    , y <- [x, v] ]
 
-type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
+-- | `kvarDomainM` computes the "real" domain of each kvar, which is a SUBSET
+--   of the input domain, in which we KILL the parameters `x` which appear in
+--   substitutions of the form `K[x := y]` where `y` is not in the env.
 
+type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
 kvarDomainM :: F.SInfo a -> KvDom
 kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
   where
@@ -128,11 +131,10 @@ kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
 
 
 
-
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
-banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
     fi = mapKVars (const $ Just F.PTrue) fi0
@@ -155,7 +157,7 @@ badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
 --------------------------------------------------------------------------------
 -- | check that no qualifier has free variables
 --------------------------------------------------------------------------------
-banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
@@ -177,7 +179,7 @@ nubDiff a b = a' `S.difference` b'
 --------------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]
 --------------------------------------------------------------------------------
-banMixedRhs :: F.SInfo a -> ValidateM (F.SInfo a)
+banMixedRhs :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
@@ -203,7 +205,7 @@ symbolEnv cfg si = Thy.theorySEnv
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
-symbolSorts' :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts' :: Config -> F.GInfo c a -> SanitizeM [(F.Symbol, F.Sort)]
 symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))

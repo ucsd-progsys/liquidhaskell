@@ -61,11 +61,12 @@ data Visitor acc ctx = Visitor {
 ---------------------------------------------------------------------------------
 defaultVisitor :: Monoid acc => Visitor acc ctx
 ---------------------------------------------------------------------------------
-defaultVisitor = Visitor {
-    ctxExpr    = const -- \c _ -> c
+defaultVisitor = Visitor
+  { ctxExpr    = const -- \c _ -> c
   , txExpr     = \_ x -> x
   , accExpr    = \_ _ -> mempty
   }
+
 
 ------------------------------------------------------------------------
 
@@ -106,8 +107,8 @@ instance Visitable BindEnv where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
--- Warning: these instances were written for mapKVars over GInfos only;
---  check that they behave as expected before using with other clients.
+-- WARNING: these instances were written for mapKVars over GInfos only;
+-- check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do
     rhs' <- visit v c (_crhs x)
@@ -197,13 +198,11 @@ mapMExpr f = go
     go p@(PKVar _ _)   = f p
     go PGrad           = f PGrad
 
-
-
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []
   where
     kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su) = PKVar k $ f k su
+    txK _ (PKVar k su) = PKVar k (f k su)
     txK _ p            = p
 
 newtype MInt = MInt Integer
