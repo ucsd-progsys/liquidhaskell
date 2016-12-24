@@ -115,16 +115,51 @@ dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
     kvDom         = S.fromList . F.kvarDomain si
     f k x _       = S.member x (M.lookupDefault mempty k kvsM)
 
+
+--------------------------------------------------------------------------------
 -- | `restrictKVarDomain` updates the kvar-domains in the wf constraints
 --   to a subset of the original binders, where we DELETE the parameters
 --   `x` which appear in substitutions of the form `K[x := y]` where `y`
 --   is not in the env.
-
+--------------------------------------------------------------------------------
 restrictKVarDomain :: F.SInfo a -> F.SInfo a
-restrictKVarDomain si = L.foldl' (restrictWfC kvM) si ks
+restrictKVarDomain si = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
   where
-    ks                = M.keys (F.ws si)
-    kvM               = kvarDomainM si
+    kvm               = safeKvarEnv si
+
+-- | `restrictWf kve k w` restricts the env of `w` to the parameters in `kve k`.
+restrictWf :: KvDom -> F.KVar -> F.WfC a -> F.WfC a
+restrictWf kve k w = w { F.wenv = F.filterIBindEnv f (F.wenv w) }
+  where
+    f i            = S.member i kis
+    kis            = S.fromList [ i | (_, i) <- F.toListSEnv kEnv ]
+    kEnv           = M.lookupDefault mempty k kve
+
+-- | `safeKvarEnv` computes the "real" domain of each kvar, which is
+--   a SUBSET of the input domain, in which we KILL the parameters
+--   `x` which appear in substitutions of the form `K[x := y]`
+--   where `y` is not in the env.
+
+type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
+
+safeKvarEnv :: F.SInfo a -> KvDom
+safeKvarEnv si = L.foldl' (refineKvarEnv si) env0 cs
+  where
+    env0       = initKvarEnv si
+    cs         = M.elems (F.cm si)
+
+refineKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
+refineKvarEnv = error "TODO:refineKvarEnv"
+
+initKvarEnv :: F.SInfo a -> KvDom
+initKvarEnv si = initEnv si <$> F.ws si
+
+initEnv :: F.SInfo a -> F.WfC a -> F.SEnv F.BindId
+initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
+  where
+    is       = F.elemsIBindEnv $ F.wenv w
+    bind i   = fst (F.lookupBindEnv i be)
+    be       = F.bs si
 
 -- NOPROP dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
 -- NOPROP dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
@@ -136,28 +171,11 @@ restrictKVarDomain si = L.foldl' (restrictWfC kvM) si ks
     -- NOPROP knownRhs _             = False
     -- NOPROP xs                     = knownVars si0
 
-knownVars :: F.SInfo a -> S.HashSet F.Symbol
-knownVars si = S.fromList vs
-  where
-    vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
-                   , y <- [x, v] ]
-
--- | `kvarDomainM` computes the "real" domain of each kvar, which is a SUBSET
---   of the input domain, in which we KILL the parameters `x` which appear in
---   substitutions of the form `K[x := y]` where `y` is not in the env.
-
-type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
-kvarDomainM :: F.SInfo a -> KvDom
-kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
-  where
-    ks         = M.keys (F.ws si)
-    dom        = S.fromList . F.kvarDomain si
-
-restrictWfC :: KvDom -> F.SInfo a -> F.KVar -> F.SInfo a
-restrictWfC = error "TODO:restrictWfC"
-
-
-
+-- NOPROP knownVars :: F.SInfo a -> S.HashSet F.Symbol
+-- NOPROP knownVars si = S.fromList vs
+  -- NOPROP where
+    -- NOPROP vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
+                   -- NOPROP , y <- [x, v] ]
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------

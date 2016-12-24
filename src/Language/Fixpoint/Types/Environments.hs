@@ -36,6 +36,7 @@ module Language.Fixpoint.Types.Environments (
   , diffIBindEnv
   , intersectionIBindEnv
   , nullIBindEnv
+  , filterIBindEnv
 
   -- * Global Binder Environments
   , BindEnv, beBinds
@@ -89,7 +90,7 @@ data SizedEnv a    = BE { _beSize  :: !Int
                         } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 
 instance PPrint a => PPrint (SizedEnv a) where
-  pprintTidy k (BE _ m) = pprintTidy k m 
+  pprintTidy k (BE _ m) = pprintTidy k m
 
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
@@ -223,6 +224,9 @@ lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
+
+filterIBindEnv :: (BindId -> Bool) -> IBindEnv -> IBindEnv
+filterIBindEnv f (FB m) = FB (S.filter f m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
