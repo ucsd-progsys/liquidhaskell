@@ -17,6 +17,3 @@ things :: [String]
 things = undefined 
 
 bar = foo ["director"] things 
-
-
-poo = ["year", "star", "director", "title"]
