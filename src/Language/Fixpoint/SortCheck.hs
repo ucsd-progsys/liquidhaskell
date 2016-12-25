@@ -75,14 +75,11 @@ isMono             = null . foldSort fv []
 
 --------------------------------------------------------------------------------
 -- | Elaborate: make polymorphic instantiation explicit via casts,
---   make applications monomorphic for SMTLIB
+--   make applications monomorphic for SMTLIB. This deals with
+--   polymorphism by `elaborate`-ing all refinements except for
+--   KVars. THIS IS NOW MANDATORY as sort-variables can be instantiated
+--   to `int` and `bool`.
 --------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- | `elaborateRefinements` deals with polymorphism by `elaborate`-ing all
---   refinements except for KVars. This is now mandatory due to the `no-prop`
---------------------------------------------------------------------------------
-
 class Elaborate a where
   elaborate :: String -> SEnv Sort -> a -> a
 
@@ -467,6 +464,12 @@ elab f e@(PAtom Eq e1 e2) = do
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
+
+elab f (PAtom r e1 e2)
+  | r == Ueq || r == Une = do
+  (e1', _) <- elab f e1
+  (e2', _) <- elab f e2
+  return (PAtom r e1' e2', boolSort)
 
 elab f (PAtom r e1 e2) = do
   e1' <- uncurry Thy.toInt <$> elab f e1
