@@ -3,7 +3,7 @@ module Goo where
 import Data.Set as S 
 
 {-@ predicate ValidMovieScheme V =
-	  ((listElts V ~~ Set_cup (Set_sng "year")
+	  ((listElts V == Set_cup (Set_sng "year")
 	  	                      (Set_cup (Set_sng "star")
 	  	                      (Set_cup (Set_sng "director")
 	  	                               (Set_sng "title"))))) @-}
@@ -12,7 +12,7 @@ import Data.Set as S
 foo :: [String] -> [String] -> Int 
 foo = undefined
 
-{-@ things :: {v:[String] | ValidMovieScheme v} @-}
+{-@ assume things :: {v:[String] | ValidMovieScheme v} @-}
 things :: [String] 
 things = undefined 
 
