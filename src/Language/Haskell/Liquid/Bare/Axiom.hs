@@ -52,6 +52,8 @@ makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
         (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
         (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
+        [Rec xes]          -> throwError $ mkError x 
+                                ("Cannot extract measure from mutually recursive haskell functions" ++ (show (fst <$> xes)))
         _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
 --------------------------------------------------------------------------------
