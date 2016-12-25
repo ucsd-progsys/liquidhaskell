@@ -1,0 +1,9 @@
+
+constant lit$cat : (Str)
+distinct lit$cat : (Str)
+
+constraint:
+  env []
+  lhs {v : Str | v = lit$cat }
+  rhs {v : Str | strLen v = 3 }
+  id 1 tag [6]
