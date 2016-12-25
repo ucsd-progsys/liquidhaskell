@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Sanitize
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
+import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
 import           Language.Fixpoint.SortCheck     (isFirstOrder)
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
@@ -44,6 +44,20 @@ sanitize =    -- banIllScopedKvars
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
+         >=> Misc.fM addLiterals
+
+
+--------------------------------------------------------------------------------
+-- | `addLiterals` traverses the constraints to find (string) literals that
+--   are then added to the `dLits` field.
+--------------------------------------------------------------------------------
+addLiterals :: F.SInfo a -> F.SInfo a
+--------------------------------------------------------------------------------
+addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
+                    , F.gLits = F.unionSEnv (F.gLits si) lits' 
+                    }
+  where
+    lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
@@ -56,10 +70,10 @@ _banIllScopedKvars :: F.SInfo a ->  SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 _banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
-    errs             = concatMap (checkIllScope si kDs) ks
-    kDs              = kvarDefUses si
-    ks               = filter notKut $ M.keys (F.ws si)
-    notKut           = not . (`F.ksMember` F.kuts si)
+    errs              = concatMap (checkIllScope si kDs) ks
+    kDs               = kvarDefUses si
+    ks                = filter notKut $ M.keys (F.ws si)
+    notKut            = not . (`F.ksMember` F.kuts si)
 
 badKs :: [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)] -> F.Error
 badKs = E.catErrors . map E.errIllScopedKVar
@@ -187,22 +201,6 @@ initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
     is       = F.elemsIBindEnv $ F.wenv w
     bind i   = fst (F.lookupBindEnv i be)
     be       = F.bs si
-
--- NOPROP dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
--- NOPROP dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
-  -- NOPROP where
-    -- NOPROP kvM                    = kvarDomainM si0
-    -- NOPROP kvXs k                 = M.lookupDefault S.empty k kvM
-    -- NOPROP keepSubst k x e        = x `S.member` kvXs k && knownRhs e
-    -- NOPROP knownRhs (F.EVar y)    = y `S.member` xs
-    -- NOPROP knownRhs _             = False
-    -- NOPROP xs                     = knownVars si0
-
--- NOPROP knownVars :: F.SInfo a -> S.HashSet F.Symbol
--- NOPROP knownVars si = S.fromList vs
-  -- NOPROP where
-    -- NOPROP vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
-                   -- NOPROP , y <- [x, v] ]
 
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)

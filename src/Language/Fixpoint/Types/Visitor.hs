@@ -125,6 +125,9 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
     cm' <- mapM (visit v c) (cm x)
     bs' <- visit v c (bs x)
     return x { cm = cm', bs = bs' }
+
+
+
 ---------------------------------------------------------------------------------
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
@@ -299,12 +302,13 @@ mapSort f = step
 class SymConsts a where
   symConsts :: a -> [SymConst]
 
-instance  SymConsts (FInfo a) where
+-- instance  SymConsts (FInfo a) where
+instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
     where
       csLits   = concatMap symConsts $ M.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi
-      qsLits   = concatMap symConsts $ qBody  <$> quals fi
+      qsLits   = concatMap symConsts $ qBody   <$> quals fi
 
 instance SymConsts BindEnv where
   symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
@@ -312,6 +316,9 @@ instance SymConsts BindEnv where
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (slhs c) ++
                  symConsts (srhs c)
+
+instance SymConsts (SimpC a) where
+  symConsts c  = symConsts (crhs c)
 
 instance SymConsts SortedReft where
   symConsts = symConsts . sr_reft
