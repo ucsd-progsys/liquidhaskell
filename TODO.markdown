@@ -5,10 +5,6 @@ TODO
 
 Failing Tests [+ `pldi17/*` ]
 
-  #1 String Literal Issue?
-
-  Tests/Benchmarks/icfp_pos/DBMovies.hs, 10.1089, False
-
   #2 inline + higherorder + defuncSort
 
   Tests/Unit/pos/mr-blow.hs, 3.0054, False
@@ -26,44 +22,6 @@ Failing Tests [+ `pldi17/*` ]
   Tests/Unit/pos/coretologic.hs, 1.0531, False
   Tests/Unit/neg/errmsg.hs, 0.9726, False
   Tests/Unit/neg/coretologic.hs, 1.0269, False
-
-### 1 String Literal Hassle
-
-Make this into a standalone FP query SVP.
-
-HUNCH: the binder for `?a` has a refinement that gets a "cast-to-int" UIF...
-
-```
- /Users/rjhala/research/stack/liquidhaskell/benchmarks/icfp15/pos/DBMovies.hs:123:13-39: Error: Liquid Type Mismatch
-
- 123 | directors = project ["director"] movies
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-   Inferred type
-     VV : {VV : (Dict [Char] Value) | listElts (ddom VV) ~~ Set_cup (Set_sng "year") (Set_cup (Set_sng "star") (Set_cup (Set_sng "director") (Set_sng "title")))}
-
-   not a subtype of Required type
-     VV : {VV : (Dict [Char] Value) | Set_sub (listElts ?b) (listElts (ddom VV))}
-
-   In Context
-     ?c : {?c : [Char] | ?c ~~ ?a
-                         && len ?c == strLen ?a
-                         && len ?c >= 0}
-
-     ?b : {?b : [[Char]] | listElts ?b == Set_cup (Set_sng ?c) (listElts ?d)
-                           && len ?b == 1 + len ?d
-                           && (null ?b <=> false)
-                           && tail ?b == ?d
-                           && head ?b == ?c
-                           && len ?b >= 0}
-
-     ?d : {?d : [[Char]] | Set_emp (listElts ?d)
-                           && len ?d == 0
-                           && (null ?d <=> true)
-                           && len ?d >= 0}
-
-     ?a : {?a : Addr# | ?a == "director"}
-```
 
 ### 4 LogicMap
 
