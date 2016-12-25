@@ -38,7 +38,7 @@ maxEvens2 xs = maximumPoly (0 : xs')
 -- | Induction over Int Ranges ------------------------------------------
 -------------------------------------------------------------------------
 
-{-@ foldN :: forall a <p :: x0:Int -> x1:a -> Prop>. 
+{-@ foldN :: forall a <p :: x0:Int -> x1:a -> Bool>. 
                 (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
               -> a <p 0> 
@@ -85,7 +85,7 @@ sizeOf (Cons _ xs) = 1 + sizeOf xs
 -- for our `Vec` type. Note that the `op` argument takes an extra /ghost/
 -- parameter that will let us properly describe the type of `efoldr` 
 
-{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>. 
+{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>. 
                 (xs:Vec a -> x:a -> b <p xs> -> b <p (Toy.Cons x xs)>) 
               -> b <p Toy.Nil> 
               -> ys: Vec a

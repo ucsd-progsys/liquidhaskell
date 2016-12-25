@@ -22,7 +22,7 @@ data AstF f = Lit Int    AstIndex
             | Paren f
 
 {-@
-  data AstF f <ix :: AstIndex -> Prop>
+  data AstF f <ix :: AstIndex -> Bool>
     = Lit Int    (i :: AstIndex<ix>)
     | Var String (i :: AstIndex<ix>)
     | App (fn :: f) (arg :: f)
@@ -44,9 +44,9 @@ type Ast = Fix AstF
 
 {-@ astExpr :: Fix (AstF <{\ix -> isExprIndex ix}>)  @-}
 astExpr :: Ast
-astExpr = undefined 
+astExpr = undefined
 
-{-@ id1 :: forall <p :: AstIndex -> Prop>. Fix (AstF <p>) -> Fix (AstF <p>)  @-}
+{-@ id1 :: forall <p :: AstIndex -> Bool>. Fix (AstF <p>) -> Fix (AstF <p>)  @-}
 id1 :: Fix AstF -> Fix AstF
 id1 z = z
 

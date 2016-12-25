@@ -5,7 +5,7 @@
 
 module Main where
 
-{-@ id2 :: forall <p :: Int -> Prop>. Int<p> -> Int<p> @-}
+{-@ id2 :: forall <p :: Int -> Bool>. Int<p> -> Int<p> @-}
 id2 :: Int -> Int
 id2 x = x
 
@@ -13,4 +13,3 @@ id2 x = x
 
 {-@ three :: Neg @-}
 three = id2 3
-

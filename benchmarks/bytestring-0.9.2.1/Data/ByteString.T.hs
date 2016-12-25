@@ -503,7 +503,7 @@ unpack (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
 
 -- unpack ps = build (unpackFoldr ps)
 
--- LIQUID TODO unpackFoldr :: forall <p :: Int -> a -> Prop>. 
+-- LIQUID TODO unpackFoldr :: forall <p :: Int -> a -> Bool>. 
 --                   b:ByteString 
 --                -> (i:Int -> Word8 -> a<p i> -> a<p (i+1)>)
 --                -> (a<p 0>)
@@ -561,7 +561,7 @@ unpackList (PS fp off len) = withPtr fp $ \p -> do
 -- Basic interface
 
 -- | /O(1)/ Test whether a ByteString is empty.
-{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLength b) = 0))} @-}
+{-@ null :: b:ByteString -> {v:Bool | (v <=> ((bLength b) = 0))} @-}
 null :: ByteString -> Bool
 null (PS _ _ l) = assert (l >= 0) $ l <= 0
 {-# INLINE null #-}

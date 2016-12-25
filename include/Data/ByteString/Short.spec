@@ -24,7 +24,7 @@ assume empty :: { bs : Data.ByteString.Short.ShortByteString | sbslen bs == 0 }
 
 assume null
     :: bs : Data.ByteString.Short.ShortByteString
-    -> { b : Bool | Prop b <=> sbslen bs == 0 }
+    -> { b : Bool | b <=> sbslen bs == 0 }
 
 assume length
     :: bs : Data.ByteString.Short.ShortByteString -> { n : Int | sbslen bs == n }

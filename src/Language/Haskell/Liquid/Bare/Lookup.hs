@@ -40,7 +40,6 @@ import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 
 import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Types
--- import           Language.Haskell.Liquid.WiredIn
 
 import           Language.Haskell.Liquid.Bare.Env
 

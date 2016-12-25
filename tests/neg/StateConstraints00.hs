@@ -2,16 +2,16 @@ module Compose where
 
 import Prelude hiding (Monad, return )
 
--- | TODO 
--- | 
+-- | TODO
+-- |
 -- | 1. default methods are currently not supported
 
 data ST s a = ST {runState :: s -> (a,s)}
 
-{-@ data ST s a <r :: a -> Prop> 
+{-@ data ST s a <r :: a -> Bool>
   = ST (runState :: x:s -> (a<r>, s)) @-}
 
-{-@ runState :: forall <r :: a -> Prop>. ST <r> s a -> x:s -> (a<r>, s) @-}
+{-@ runState :: forall <r :: a -> Bool>. ST <r> s a -> x:s -> (a<r>, s) @-}
 
 
 class Foo m where
@@ -23,7 +23,7 @@ instance Foo (ST s) where
     return :: forall s a. x:a -> ST <{\v -> x == v}> s a
     @-}
   return x     = ST $ \s -> (x, s)
- 
+
 
 {-@ foo :: w:a -> ST <{v:a | v > w}>  Bool a @-}
 foo :: a -> ST Bool a
@@ -31,17 +31,3 @@ foo x = return x
 
 
 bar = runState (foo 0) True
-
-
-
-
-
-
-
-
-
-
-
-
-
-

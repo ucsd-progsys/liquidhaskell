@@ -71,7 +71,7 @@ class Lexicographic e where
 {-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
 {-@ terminate :: (Lexicographic e) => x:e -> n:Int
-              -> {v:Bool | (((n+1) >= maxPasses) => (Prop v))}
+              -> {v:Bool | (((n+1) >= maxPasses) => v)}
   @-}
 
 {-@ measure maxPasses :: Int @-}
@@ -234,7 +234,7 @@ sort v = sortBy compare terminate (size e) index maxPasses v
 
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => (Comparison e)
-       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPasses) => (Prop v) )})
+       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPasses) => v )})
        -> buckets:Nat
        -> (Int -> e -> {v:Nat | v < buckets})
        -> {v:Nat | v = maxPasses}

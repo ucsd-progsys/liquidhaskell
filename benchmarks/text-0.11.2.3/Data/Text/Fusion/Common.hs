@@ -354,7 +354,7 @@ compareLengthI (Stream next s0 len) n =
 {-# INLINE[0] compareLengthI #-}
 
 {-@ assume isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
-                       -> {v:Bool | (Prop v) <=> (slen s = 1)}
+                       -> {v:Bool | v <=> (slen s = 1)}
   @-}
 -- | /O(n)/ Indicate whether a string contains exactly one element.
 isSingleton :: Stream Char -> Bool

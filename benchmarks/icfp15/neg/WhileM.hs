@@ -7,10 +7,10 @@ module WhileM where
 import RIO
 
 {-@
-whileM  :: forall < p   :: World -> Prop
-               , qc :: World -> Bool -> World -> Prop
-               , qe :: World -> () -> World -> Prop
-               , q  :: World -> () -> World -> Prop>.
+whileM  :: forall < p   :: World -> Bool
+               , qc :: World -> Bool -> World -> Bool
+               , qe :: World -> () -> World -> Bool
+               , q  :: World -> () -> World -> Bool>.
        {x::(), s1::World<p>, b::{v:Bool | v}, s2::World<qc s1 b> |- World<qe s2 x> <: World<p>}
        {b::{v:Bool | v}, x2::(), s1::World<p>, s3::World |- World<q s3 x2> <: World<q s1 x2> }
        {b::{v:Bool | not (v)}, x2::(), s1::World<p> |- World<qc s1 b> <: World<q s1 x2> }
@@ -30,7 +30,7 @@ whileM (RIO cond) (RIO e)
 -}
 
 -- First Condition Used to be:
---        {x::(), s1::World<p>, b::{v:Bool | Prop v}, s2::World<qc s1 b> |- World<qe s2 x> <: World<p>}
+--        {x::(), s1::World<p>, b::{v:Bool | v}, s2::World<qc s1 b> |- World<qe s2 x> <: World<p>}
 --
 -- But it got simplify to fit it one line
 
@@ -53,7 +53,7 @@ decrM = undefined
 
 
 get :: RIO Int
-{-@ get :: forall <p :: World -> Prop >.
+{-@ get :: forall <p :: World -> Bool >.
        RIO <p,\w x -> {v:World<p> | x = counter v && v == w}> Int @-}
 get = undefined
 

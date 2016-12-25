@@ -71,9 +71,7 @@ union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key v
 union xs ys = xs ++ ys
 diff  xs ys = xs \\ ys
 
-{-@ predicate Append XS YS V =
-  ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
-  @-}
+{-@ predicate Append XS YS V = (listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) @-}
 
 
 {-@ product :: forall <range1  :: key -> val -> Bool,

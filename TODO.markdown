@@ -3,9 +3,69 @@ TODO
 
 ## no-prop / inline
 
+Failing Tests [+ `pldi17/*` ]
 
+  #1 String Literal Issue?
 
-### 1. LogicMap
+  Tests/Benchmarks/icfp_pos/DBMovies.hs, 10.1089, False
+
+  #2 inline + higherorder + defuncSort
+
+  Tests/Unit/pos/mr-blow.hs, 3.0054, False
+  Tests/Unit/pos/MapReduceVerified.hs, 1.3136, False
+
+  #3 Inline looking up GHC with wrong name...
+
+  Tests/Unit/neg/Books.hs, 0.9048, False  #2
+  Tests/Unit/pos/Books.hs, 0.8572, False  #2
+
+  #4 LogicMap (DEFER to 'import-reflections')
+
+  Tests/Unit/pos/fixme.hs, 0.9842, False
+  Tests/Unit/pos/elems.hs, 1.0091, False
+  Tests/Unit/pos/coretologic.hs, 1.0531, False
+  Tests/Unit/neg/errmsg.hs, 0.9726, False
+  Tests/Unit/neg/coretologic.hs, 1.0269, False
+
+### 1 String Literal Hassle
+
+Make this into a standalone FP query SVP.
+
+HUNCH: the binder for `?a` has a refinement that gets a "cast-to-int" UIF...
+
+```
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/icfp15/pos/DBMovies.hs:123:13-39: Error: Liquid Type Mismatch
+
+ 123 | directors = project ["director"] movies
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+   Inferred type
+     VV : {VV : (Dict [Char] Value) | listElts (ddom VV) ~~ Set_cup (Set_sng "year") (Set_cup (Set_sng "star") (Set_cup (Set_sng "director") (Set_sng "title")))}
+
+   not a subtype of Required type
+     VV : {VV : (Dict [Char] Value) | Set_sub (listElts ?b) (listElts (ddom VV))}
+
+   In Context
+     ?c : {?c : [Char] | ?c ~~ ?a
+                         && len ?c == strLen ?a
+                         && len ?c >= 0}
+
+     ?b : {?b : [[Char]] | listElts ?b == Set_cup (Set_sng ?c) (listElts ?d)
+                           && len ?b == 1 + len ?d
+                           && (null ?b <=> false)
+                           && tail ?b == ?d
+                           && head ?b == ?c
+                           && len ?b >= 0}
+
+     ?d : {?d : [[Char]] | Set_emp (listElts ?d)
+                           && len ?d == 0
+                           && (null ?d <=> true)
+                           && len ?d >= 0}
+
+     ?a : {?a : Addr# | ?a == "director"}
+```
+
+### 4 LogicMap
 
 + The action is in `makeGhcSpec4`,
 
@@ -72,48 +132,6 @@ data RTAlias x a = RTA
   , rtPosE  :: SourcePos          -- ^ end   position
   }
 ```
-
-
-
-
-INLINE
-
-  #1 LogicMap (defer to 'import-reflections')
-
-  elems.hs:                          FAIL (1.45s)
-  coretologic.hs:                    FAIL (1.01s)
-    Data.Set.member / logicmap?
-
-  #2
-  Books.hs:                          FAIL (0.89s)
-    looking up GHC with wrong name...
-    inline
-
-FIXPOINT
-
-  #4
-  mr-blow.hs:                        FAIL (3.58s)
-  MapReduceVerified.hs:              FAIL (1.23s)
-    inline + higherorder
-    defuncSort
-
-  #5
-  Map2.hs:                           FAIL (22.13s)
-  Map0.hs:                           FAIL (20.98s)
-  Map.hs:                            FAIL (20.88s)
-  ListMSort-LType.hs:                FAIL (3.69s)
-  wierd crashes in icfp-pos
-  liquid-fixpoint #274
-  https://github.com/ucsd-progsys/liquid-fixpoint/issues/274
-     :1:1-1:1: Error
-  elaborate qbPreds failed on:
-      VV##F##342 < lq_tmp$x##4960
-  with error
-      Unbound Symbol lq_tmp$x##4960
- Perhaps you meant: lq_tmp$x##4990
-  in environment
-      VV##F##342 := k_a1hx
-
 
 Check Covariance
 ----------------

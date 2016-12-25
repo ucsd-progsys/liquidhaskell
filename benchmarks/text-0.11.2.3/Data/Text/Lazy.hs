@@ -568,7 +568,7 @@ init_go t Empty         = chunk (T.init t) Empty
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
 {-@ null :: t:Text
-         -> {v:Bool | ((Prop v) <=> (((ltlength t) = 0) && ((ltlen t) == 0)))}
+         -> {v:Bool | (v <=> (((ltlength t) = 0) && ((ltlen t) == 0)))}
   @-}
 null :: Text -> Bool
 null Empty = True
@@ -584,7 +584,7 @@ null _     = False
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
-{-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((ltlength t) = 1))} @-}
+{-@ isSingleton :: t:Text -> {v:Bool | (v <=> ((ltlength t) = 1))} @-}
 isSingleton :: Text -> Bool
 --LIQUID isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t

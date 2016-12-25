@@ -143,7 +143,7 @@ empty :: Text
 empty = Empty
 
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
-{-@ foldrChunks :: forall <p :: Text -> a -> Prop>.
+{-@ foldrChunks :: forall <p :: Text -> a -> Bool>.
                    (ts:Text -> t:TextNE -> a<p ts> -> a<p (Chunk t ts)>)
                 -> a<p Empty>
                 -> t:Text

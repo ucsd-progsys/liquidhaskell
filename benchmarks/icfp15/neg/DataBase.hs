@@ -74,7 +74,7 @@ union xs ys = xs ++ ys
 diff  xs ys = xs \\ ys
 
 {-@ predicate Append XS YS V =
-  ((listElts (ddom v)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
+  ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
   @-}
 
 
@@ -150,9 +150,9 @@ projectD ks (D _ f) = D ks f
           -> {v:[Dict <range> key val] | Set_sub (listElts v) (listElts x)}
   @-}
 select :: (Dict key val -> Bool) -> Table key val -> Table key val
-select _    []          = []
-select Bool (x:xs) | Bool x    = x : select Bool xs
-                   | otherwise = select Bool xs
+select _    []              = []
+select p (x:xs) | p x       = x : select p xs
+                | otherwise =     select p xs
 
 {-@ values :: forall <range :: key -> val -> Bool>.
   k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}

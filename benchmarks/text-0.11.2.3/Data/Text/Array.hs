@@ -228,7 +228,7 @@ unsafeIndexF a o l i = let x = unsafeIndex a i
                        in liquidAssume (unsafeIndexFQ x a o l i) x
 
 {-@ unsafeIndexFQ :: x:Word16 -> a:Array -> o:Int -> l:Int -> i:Int
-                  -> {v:Bool | ((Prop v) <=> (if (BtwnI x 55296 56319)
+                  -> {v:Bool | (v <=> (if (BtwnI x 55296 56319)
                                               then (SpanChar 2 a o l i)
                                               else (SpanChar 1 a o l i)))}
   @-}
@@ -251,7 +251,7 @@ unsafeIndexB a o l i = let x = unsafeIndex a i
                        in liquidAssume (unsafeIndexBQ x a o i) x
 
 {-@ unsafeIndexBQ :: x:Word16 -> a:Array -> o:Int -> i:Int
-                  -> {v:Bool | ((Prop v) <=>
+                  -> {v:Bool | (v <=>
                                 (if ((x >= 56320) && (x <= 57343))
                                  then ((numchars(a, o, (i-o)+1)
                                      = (1 + numchars(a, o, (i-o)-1)))
@@ -292,7 +292,7 @@ empty = runST (new 0 >>= unsafeFreeze)
 -- its result.
 
 {-
-run :: forall <p :: Int -> Prop>.
+run :: forall <p :: Int -> Bool>.
        (forall s. GHC.ST.ST s (Data.Text.Array.MArray s)<p>)
      -> exists[z:Int<p>]. Data.Text.Array.Array<p>
 @-}
@@ -369,7 +369,7 @@ copyI dest i0 src j0 top
           -> a2:Data.Text.Array.Array
           -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
           -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (alen a1)) && ((v+o2) < (alen a2)))}
-          -> {v:Bool | ((Prop v) <=> (a1 = a2))}
+          -> {v:Bool | (v <=> (a1 = a2))}
   @-}
 equal :: Array                  -- ^ First
       -> Int                    -- ^ Offset into first
