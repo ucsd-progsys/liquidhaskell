@@ -112,15 +112,16 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
 checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
   where
-    mkError (tcp, msg)  = ErrTyCon (sourcePosSrcSpan $ ty_loc tcp) 
-                                   (text "Size function should have type int." <+> msg)
+    mkError ((f, tc, tcp), msg)  = ErrTyCon (sourcePosSrcSpan $ ty_loc tcp) 
+                                   (text "Size function" <+> pprint (f x) <+> text "should have type int." $+$   msg)
+                                   (pprint tc)
     go (tc, tcp)      = case sizeFun tcp of 
                         Nothing  -> Nothing 
                         Just f -> checkWFSize f tc tcp 
 
-    checkWFSize f tc tcp = (tcp,) <$> checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
+    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
 
-    x                    = symbol ("sizeArgument" :: String)
+    x                    = symbol ("x" :: String)
 
     mkTySort tc tcp       = rTypeSortedReft emb $ (ofType $ TyConApp tc (rtyVarType <$> freeTyVarsTy tcp) :: RRType ())
 
