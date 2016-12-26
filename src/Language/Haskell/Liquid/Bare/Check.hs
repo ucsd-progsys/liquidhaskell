@@ -112,7 +112,8 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
 checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
   where
-    mkError (tcp, _)  = ErrOther (sourcePosSrcSpan $ ty_loc tcp) (text "FOO")
+    mkError (tcp, msg)  = ErrTyCon (sourcePosSrcSpan $ ty_loc tcp) 
+                                   (text "Size function should have type int." <+> msg)
     go (tc, tcp)      = case sizeFun tcp of 
                         Nothing  -> Nothing 
                         Just f -> checkWFSize f tc tcp 
