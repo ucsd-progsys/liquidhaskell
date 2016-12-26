@@ -201,7 +201,7 @@ module Language.Haskell.Liquid.Types (
 
   , Axiom(..), HAxiom, LAxiom
 
-  , rtyVarUniqueSymbol, tyVarUniqueSymbol
+  , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
   where
 
@@ -564,6 +564,9 @@ rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
+
+rtyVarType :: RTyVar -> Type 
+rtyVarType (RTV v) = TyVarTy v 
 
 mkBTyCon :: LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False

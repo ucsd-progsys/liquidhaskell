@@ -18,6 +18,9 @@ import           Name                                      (getSrcSpan)
 import           Prelude                                   hiding (error)
 import           TyCon
 import           Var
+import           TypeRep (Type(TyConApp))
+
+import           SrcLoc (noSrcSpan)
 
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -82,6 +85,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked. 
                      -- ++ checkRefinedClasses                        rClasses rInsts
+                     ++ checkSizeFun emb env                        (gsTconsP sp)
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -105,6 +109,21 @@ checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
   where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
+
+
+checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
+checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
+  where
+    mkError _         = ErrOther (noSrcSpan) (text "FOO")
+    go (tc, tcp)      = case sizeFun tcp of 
+                        Nothing  -> Nothing 
+                        Just f -> checkWFSize f tc tcp 
+
+    checkWFSize f tc tcp = checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
+
+    x                    = symbol ("sizeArgument" :: String)
+
+    mkTySort tc tcp       = rTypeSortedReft emb $ (ofType $ TyConApp tc (rtyVarType <$> freeTyVarsTy tcp) :: RRType ())
 
 _checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 _checkRefinedClasses definitions instances
