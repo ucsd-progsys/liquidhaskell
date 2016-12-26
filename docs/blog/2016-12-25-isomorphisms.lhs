@@ -12,23 +12,17 @@ demo: Iso.hs
 
 [Previously][refinement-reflection] we saw how Refinement Reflection
 can be used to write and prove **in Haskell** theorems **about Haskell**
-functions and have such proofs machine checked.
+functions and have such proofs machine checked by Liquid Haskell.
 
-Today, we will see how Refinement Reflection works on **recursive data types**.
+As a limitation, Liquid Haskell offers no proof generation techniques: 
+The user needs to manually provide all the proofs. 
 
-As an example, we will prove that **lists are monoids** (under nil and append).
+Today we will see how proof generation can be simplified by data type isomorphisms. 
 
-Lets see how to express
+As an example, a user defined `Peano` data type enjoyes all the 
+arithmetic properties of natural numbers since `Peano` and natural numbers 
+are provably **isomorphic**. 
 
-* the (monoid) laws as liquid types,
-* the (monoid) proofs as plain haskell functions,
-
-and have LiquidHaskell check that the code indeed
-proves the corresponding laws.
-
-In this blog post, we show how to use Liquid Haskell to build "verified" typeclasses. A verified typeclass allows one to
-express typeclass laws directly as Haskell code. We also show a technique to build verified instances and scale them up
-to compound datatypes using isomorphisms.
 <!-- more -->
 
 <br>
@@ -56,7 +50,7 @@ to compound datatypes using isomorphisms.
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--totalhaskell" @-}
 {-@ LIQUID "--exactdc" @-}
-{- LIQUID "--diffcheck" @-}
+{-@ LIQUID "--diffcheck" @-}
 {-@ LIQUID "--eliminate=some" @-}
 
 module Iso where
@@ -65,6 +59,59 @@ import Language.Haskell.Liquid.ProofCombinators
 \end{code}
 
 </div>
+
+First, we define `Peano` numbers as a data type 
+and the function `leqPeano` that compares two peano numbers.
+
+
+\begin{code}
+{-@ data Peano [toNat] = Z | S Peano @-}
+data Peano = Z | S Peano deriving (Eq)
+
+{-@ axiomatize leqPeano @-}
+leqPeano :: Peano -> Peano -> Bool
+leqPeano Z _         = True
+leqPeano _ Z         = False
+leqPeano (S n) (S m) = leqPeano n m
+\end{code}
+
+We can use Refinement Reflection to provide an 
+explicit proof that comparison on peano numbers is *total*, 
+that is, for every two numbers `n` and `m` 
+either `leqPeano n m` or `leqPeano m n` always holds. 
+
+{-@ leqNTotal :: n:Peano -> m:Peano 
+              -> {(leqPeano n m) || (leqPeano m n)} 
+              / [toNat n + toNat m] @-}
+leqNTotal :: Peano -> Peano -> Proof
+leqNTotal Z m = leqPeano Z m *** QED
+leqNTotal n Z = leqPeano Z n *** QED
+leqNTotal (S n) (S m)
+  =   (leqPeano (S n) (S m) || leqPeano (S m) (S n))
+  ==. (leqPeano n m || leqPeano (S m) (S n)) 
+      ? (leqNTotal n m)
+  ==. (leqPeano n m || leqPeano m n) 
+      ? (leqNTotal m n)
+  *** QED
+\end{code}
+
+The proof proceeds by induction on the sum of `n` and `m`. 
+Liquid Haskell captures this generalized induction by 
+ensuring that the value `toNat n + toNat m` is decreasing
+where `toNat` maps Peano to Natural numbers. 
+
+\begin{code}
+{-@ measure toNat @-}
+{-@ toNat :: Peano -> Nat @-}
+toNat :: Peano -> Int
+toNat Z = 0
+toNat (S n) = 1 + toNat n
+\end{code}
+
+Note, that the type `Nat` is just a refinement for the Haskell's integers
+\begin{spec}
+type Nat = {v:Int | 0 <= v}
+\end{spec}
 
 
 
@@ -129,11 +176,7 @@ proofs follow by induction. For conciseness, we only show totality and elide the
 {-@ data Peano [toNat] = Z | S Peano @-}
 data Peano = Z | S Peano deriving (Eq)
 
-{-@ measure toNat @-}
-{-@ toNat :: Peano -> { n:Int | 0 <= n } @-}
-toNat :: Peano -> Int
-toNat Z = 0
-toNat (S n) = 1 + toNat n
+
 
 {-@ axiomatize leqPeano @-}
 leqPeano :: Peano -> Peano -> Bool

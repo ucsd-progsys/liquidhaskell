@@ -18,7 +18,7 @@ import           Name                                      (getSrcSpan)
 import           Prelude                                   hiding (error)
 import           TyCon
 import           Var
-import           TypeRep (Type(TyConApp))
+import           TypeRep (Type(TyConApp, TyVarTy))
 
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -119,11 +119,11 @@ checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
                         Nothing  -> Nothing 
                         Just f -> checkWFSize f tc tcp 
 
-    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
+    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc) env) intSort (f x)
 
     x                    = symbol ("x" :: String)
 
-    mkTySort tc tcp       = rTypeSortedReft emb $ (ofType $ TyConApp tc (rtyVarType <$> freeTyVarsTy tcp) :: RRType ())
+    mkTySort tc         = rTypeSortedReft emb $ (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
 _checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 _checkRefinedClasses definitions instances
