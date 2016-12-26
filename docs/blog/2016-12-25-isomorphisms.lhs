@@ -56,7 +56,7 @@ to compound datatypes using isomorphisms.
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--totalhaskell" @-}
 {-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--diffcheck" @-}
+{- LIQUID "--diffcheck" @-}
 {-@ LIQUID "--eliminate=some" @-}
 
 module Iso where

@@ -20,8 +20,6 @@ import           TyCon
 import           Var
 import           TypeRep (Type(TyConApp))
 
-import           SrcLoc (noSrcSpan)
-
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
 
@@ -114,12 +112,12 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
 checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
   where
-    mkError _         = ErrOther (noSrcSpan) (text "FOO")
+    mkError (tcp, _)  = ErrOther (sourcePosSrcSpan $ ty_loc tcp) (text "FOO")
     go (tc, tcp)      = case sizeFun tcp of 
                         Nothing  -> Nothing 
                         Just f -> checkWFSize f tc tcp 
 
-    checkWFSize f tc tcp = checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
+    checkWFSize f tc tcp = (tcp,) <$> checkSortFull (insertSEnv x (mkTySort tc tcp) env) intSort (f x)
 
     x                    = symbol ("sizeArgument" :: String)
 

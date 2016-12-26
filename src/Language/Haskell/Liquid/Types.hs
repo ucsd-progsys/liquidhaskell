@@ -400,7 +400,8 @@ isApp (EApp (EVar _) (EVar _)) = True
 isApp (EApp e (EVar _))        = isApp e
 isApp _                        = False
 
-data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
+data TyConP = TyConP { ty_loc       :: !SourcePos
+                     , freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
                      , varianceTs   :: !VarianceInfo
