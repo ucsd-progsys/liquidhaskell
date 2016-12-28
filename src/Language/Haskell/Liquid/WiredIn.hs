@@ -107,7 +107,7 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
+listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
                    , [(nilDataCon, DataConP l0 [RTV tyv] [p] [] [] [] lt l0)
                    , (consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt l0)])
     where
@@ -127,7 +127,7 @@ listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just 
       fsize z    = mkEApp (dummyLoc "len") [EVar z]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
+tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
                     , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt l0)])
   where
     tyvarinfo     = replicate n     Covariant

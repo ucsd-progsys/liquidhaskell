@@ -56,7 +56,7 @@ makeTyConInfo :: [(TC.TyCon, TyConP)] -> M.HashMap TC.TyCon RTyCon
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps _ tyvariance predvariance size) = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
+mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size) = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
         pvs' = subts (zip αs' τs) <$> ps
 
@@ -81,7 +81,7 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
-  pprintTidy k (TyConP vs ps ls _ _ _)
+  pprintTidy k (TyConP _ vs ps ls _ _ _)
     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))

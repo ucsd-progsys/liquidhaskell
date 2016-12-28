@@ -24,11 +24,10 @@ import           Class
 import           Data.Maybe
 import           TypeRep
 
-
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon)
+import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
@@ -120,7 +119,7 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
        let varInfo = L.nub $  concatMap (getPsSig initmap True) tys
        let defaultPs = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvarinfo, pvarinfo) = f defaultPs
-       return ((tc', TyConP αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc lc') <$> cts'))
+       return ((tc', TyConP lc αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc lc') <$> cts'))
     where
        αs          = RTV . symbolTyVar <$> as
        n           = length αs
@@ -138,9 +137,10 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
 
 ofBDataDecl Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon tc
-       return ((tc', TyConP [] [] [] tcov tcontr Nothing), [])
+       return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing), [])
   where
     (tcov, tcontr) = (is, [])
+    srcpos = dummyPos "LH.DataType.Variance"
 
 ofBDataDecl Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"

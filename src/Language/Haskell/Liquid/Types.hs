@@ -201,7 +201,7 @@ module Language.Haskell.Liquid.Types (
 
   , Axiom(..), HAxiom, LAxiom
 
-  , rtyVarUniqueSymbol, tyVarUniqueSymbol
+  , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
   where
 
@@ -400,7 +400,8 @@ isApp (EApp (EVar _) (EVar _)) = True
 isApp (EApp e (EVar _))        = isApp e
 isApp _                        = False
 
-data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
+data TyConP = TyConP { ty_loc       :: !SourcePos
+                     , freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
                      , varianceTs   :: !VarianceInfo
@@ -564,6 +565,9 @@ rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
+
+rtyVarType :: RTyVar -> Type 
+rtyVarType (RTV v) = TyVarTy v 
 
 mkBTyCon :: LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
