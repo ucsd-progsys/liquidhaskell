@@ -23,6 +23,7 @@ module Language.Fixpoint.Types.Names (
   , Symbolic (..)
   , LocSymbol
   , LocText
+  , symbolicString
 
   -- * Conversion to/from Text
   , symbolSafeText
@@ -453,6 +454,9 @@ isNonSymbol = (== nonSymbol)
 
 class Symbolic a where
   symbol :: a -> Symbol
+
+symbolicString :: (Symbolic a) => a -> String
+symbolicString = symbolString . symbol
 
 instance Symbolic T.Text where
   symbol = textSymbol
