@@ -5,15 +5,16 @@ TODO
 
 Failing Tests [+ `pldi17/*` ]
 
+  #2 Inline looking up GHC with wrong name...
+
+  Tests/Unit/neg/Books.hs, 0.9048, False  #2
+  Tests/Unit/pos/Books.hs, 0.8572, False  #2
+  
   #1 inline + higherorder + defuncSort
 
   Tests/Unit/pos/mr-blow.hs, 3.0054, False
   Tests/Unit/pos/MapReduceVerified.hs, 1.3136, False
 
-  #2 Inline looking up GHC with wrong name...
-
-  Tests/Unit/neg/Books.hs, 0.9048, False  #2
-  Tests/Unit/pos/Books.hs, 0.8572, False  #2
 
   #3 LogicMap (DEFER to 'import-reflections')
 

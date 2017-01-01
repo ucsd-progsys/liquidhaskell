@@ -31,7 +31,7 @@ import           Data.Maybe
 import           Control.Monad.Except                       (catchError)
 import           TypeRep                                    (Type(TyConApp))
 
-import           Text.PrettyPrint.HughesPJ (text )
+import           Text.PrettyPrint.HughesPJ (text, vcat)
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -575,7 +575,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (vcat [text "MWAHAHAHA", pprint v, pprint fenv]) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing -> modify (first $ M.insert v (Loc l l' t'))

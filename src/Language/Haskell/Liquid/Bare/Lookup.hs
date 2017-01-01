@@ -27,7 +27,7 @@ import           TyCon
 import           TysWiredIn
 import           Var
 
-import           Control.Monad.Except             (MonadError, catchError, throwError)
+import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
@@ -43,9 +43,9 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Env
 
------------------------------------------------------------------
------- Querying GHC for Id, Type, Class, Con etc. ---------------
------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Querying GHC for Id, Type, Class, Con etc. --------------------------------
+--------------------------------------------------------------------------------
 
 class Symbolic a => GhcLookup a where
   lookupName :: HscEnv -> ModName -> a -> IO [Name]
@@ -59,31 +59,30 @@ instance GhcLookup Name where
   lookupName _ _ = return . (:[])
   srcSpan        = nameSrcSpan
 
-
-
--- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
-lookupGhcThing
-  :: (MonadIO m,MonadError (TError t) m,MonadState BareEnv m,GhcLookup a)
-  => [Char] -> (TyThing -> Maybe b) -> a -> m b
-lookupGhcThing name f x
-  = do zs <- lookupGhcThing' name f x
-       case zs of
-         Just x' -> return x'
-         Nothing -> throwError $ ErrGhc (srcSpan x) (text msg)
+lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
+lookupGhcThing name f x = lookupGhcThing' err f x >>= maybe (throwError err) return
   where
-    msg = "Not in scope: " ++ name ++ " `" ++ symbolString (symbol x) ++ "'"
+    err                 = ErrGhc (srcSpan x) (text msg)
+    msg                 = unwords [ "Not in scope:", name, "`", sx, "'"]
+    sx                  = symbolString (symbol x)
 
--- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
-lookupGhcThing'
-  :: (MonadIO m,MonadState BareEnv m,GhcLookup a)
-  => t -> (TyThing -> Maybe a1) -> a -> m (Maybe a1)
-lookupGhcThing' _    f x
-  = do BE {modName = mod, hscEnv = env} <- get
-       ns                 <- liftIO $ lookupName env mod x
-       mts                <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
-       case catMaybes mts of
-         []    -> return Nothing
-         (t:_) -> return $ Just t
+lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing' _err f x = do
+  be     <- get
+  let env = hscEnv be
+  _      <- liftIO $ putStrLn ("lookupGhcThing: " ++ symbolicString x)
+  ns     <- liftIO $ lookupName env (modName be) x
+  mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
+  return  $ firstMaybes mts
+
+symbolicString :: Symbolic a => a -> String
+symbolicString = symbolString . symbol
+
+-- liftIOErr :: TError e -> IO a -> BareM a
+-- liftIOErr e act = liftIO (act `catchError` \_ -> throwError e)
+
+firstMaybes :: [Maybe a] -> Maybe a
+firstMaybes = listToMaybe . catMaybes
 
 symbolLookup :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookup env mod k
@@ -91,7 +90,6 @@ symbolLookup env mod k
   = return $ maybeToList $ M.lookup k wiredIn
   | otherwise
   = symbolLookupEnv env mod k
-
 
 wiredIn      :: M.HashMap Symbol Name
 wiredIn      = M.fromList $ special ++ wiredIns
@@ -118,7 +116,6 @@ symbolLookupEnv env mod s
          Just ns -> return ns
          _       -> return []
 
-
 -- | It's possible that we have already resolved the 'Name' we are looking for,
 -- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
 -- as in @{v:Ordering | v = EQ}@. In this case, the fully-qualified 'Name'
@@ -137,9 +134,8 @@ lookupGhcVar x
 
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s     = (lookupGhcThing err ftc s)
-                       -- `catchError` (tryPropTyCon s)
-                       `catchError` (\_ -> lookupGhcThing err fdc s)
+lookupGhcTyCon s     = lookupGhcThing err ftc s `catchError` \_ ->
+                         lookupGhcThing err fdc s
   where
     ftc (ATyCon x)
       = Just x
@@ -153,25 +149,16 @@ lookupGhcTyCon s     = (lookupGhcThing err ftc s)
 
     err = "type constructor or class"
 
--- tryPropTyCon :: (Symbolic a, MonadError e m) => a -> e -> m TyCon
--- tryPropTyCon s e
---   | sx == propConName  = return propTyCon
---   | sx == hpropConName = return hpropTyCon
---   | otherwise          = throwError e
--- where
-    -- sx                 = symbol s
-
-lookupGhcDataCon :: (MonadIO m, MonadError (TError t) m, MonadState BareEnv m)
-                 => Located Symbol -> m DataCon
+lookupGhcDataCon :: Located Symbol -> BareM DataCon
 lookupGhcDataCon dc
- | Just n <- isTupleDC (val dc)
- = return $ tupleCon BoxedTuple n
- | val dc == "[]"
- = return nilDataCon
- | val dc == ":"
- = return consDataCon
- | otherwise
- = lookupGhcDataCon' dc
+  | Just n <- isTupleDC (val dc)
+  = return $ tupleCon BoxedTuple n
+  | val dc == "[]"
+  = return nilDataCon
+  | val dc == ":"
+  = return consDataCon
+  | otherwise
+  = lookupGhcDataCon' dc
 
 isTupleDC :: Symbol -> Maybe Int
 isTupleDC zs
@@ -180,9 +167,8 @@ isTupleDC zs
   | otherwise
   = Nothing
 
-lookupGhcDataCon' :: (MonadIO m, MonadError (TError t) m, MonadState BareEnv m, GhcLookup a)
-                  => a -> m DataCon
-lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
+lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
+lookupGhcDataCon' = lookupGhcThing "data constructor" fdc
   where
     fdc (AConLike (RealDataCon x)) = Just x
     fdc _            = Nothing
