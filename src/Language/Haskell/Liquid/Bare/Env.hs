@@ -46,9 +46,9 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
 
------------------------------------------------------------------------------------
--- | Error-Reader-IO For Bare Transformation --------------------------------------
------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Error-Reader-IO For Bare Transformation -----------------------------------
+--------------------------------------------------------------------------------
 
 -- FIXME: don't use WriterT [], very slow
 type BareM = WriterT [Warn] (ExceptT Error (StateT BareEnv IO))
@@ -62,8 +62,8 @@ type InlnEnv = M.HashMap Symbol TInline
 -- HEREHEREHEREHEREHEREHERE DELETE this TInline nonsense; fold it into RTEnv/rtEnv
 -- see what tests fail
 
-data TInline = TI { tiargs :: [Symbol]
-                  , tibody :: Expr
+data TInline = TI { tiArgs :: [Symbol]
+                  , tiBody :: Expr
                   } deriving (Show)
 
 data BareEnv = BE { modName  :: !ModName
@@ -72,7 +72,6 @@ data BareEnv = BE { modName  :: !ModName
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv
                   , logicEnv :: LogicMap
-                  -- , inlines  :: InlnEnv
                   , bounds   :: RBEnv
                   , embeds   :: TCEmb TyCon
                   }

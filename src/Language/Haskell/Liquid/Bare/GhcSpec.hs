@@ -155,7 +155,7 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms embs cbs name specs
          >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
-         -- This step need the updated logic map, ie should happen after makeGhcAxioms
+         -- This step need the updated logic map, ie should happen AFTER makeGhcAxioms
          >>= makeGhcSpec4 quals defVars specs name su
          >>= addProofType
          >>= addRTEnv

@@ -49,14 +49,14 @@ specificationQualifiers k info lEnv
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
-  [ gsTySigs sp
+  [ gsTySigs  sp
   , gsAsmSigs sp
-  , gsCtors sp
-  , if (info `hasOpt` scrapeInternals) then (gsInSigs sp) else []
+  , gsCtors   sp
+  , if info `hasOpt` scrapeInternals then gsInSigs sp else []
   ]
   where
     sp   = trace (msg sp0) sp0
-    msg  = showpp . typeAliases . gsRTAliases
+    msg  = ("SPECBINDERS: " ++ ) . showpp . typeAliases . gsRTAliases
     sp0  = spec info
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap

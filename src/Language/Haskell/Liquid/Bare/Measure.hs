@@ -94,8 +94,8 @@ makeHaskellInlines tce cbs name' (name, spec)
 makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, TInline)
 makeMeasureInline tce lmap cbs x =
   case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok -- >>= updateInlines x
-    (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok -- >>= updateInlines x
+    (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok
+    (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok
     _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
     ok (xs, e) = return (TI (symbol <$> xs) (either id id e))
@@ -106,19 +106,6 @@ binders (Rec xes)    = fst <$> xes
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
--- -- RJ: gross in place substitutions!!!
--- _updateInlines :: LocSymbol -> TInline -> BareM ()
--- _updateInlines x v = modify $ \s -> let iold    = M.insert (val x) v (inlines s) in
-                                   -- s { inlines = M.map (f iold) iold }
-  -- where
-    -- f             = txRefToLogic mempty
-
-
-
-
-
-
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition tce lmap cbs x
@@ -140,20 +127,20 @@ makeMeasureDefinition tce lmap cbs x
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
-strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
 
-strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
 
-strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskell strengthen hmeas sigs
   = go <$> groupList (reverse sigs ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
 
-meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
+meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Bool -> Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
@@ -250,10 +237,6 @@ varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
 
 isSimpleType :: Type -> Bool
 isSimpleType = isFirstOrder . typeSort M.empty
-
--- OLD isSimpleType t   = null tvs && isNothing (splitFunTy_maybe tb)
--- OLD  where
--- OLD    (tvs, tb)    = splitForAllTys t
 
 varSpecType :: (Monoid r) => Var -> Located (RRType r)
 varSpecType v    = Loc l l' (ofType $ varType v)

@@ -139,15 +139,15 @@ instance (OkRT c tv r) => PPrint (RType c tv r) where
 instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
   pprintTidy = ppAlias
 
-pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
-pprints k c = sep . punctuate c . map (pprintTidy k)
-
 ppAlias :: (PPrint tv, PPrint ty) => Tidy -> RTAlias tv ty -> Doc
 ppAlias k a = text "type" <+> pprint (rtName a)
                           <+> pprints k space (rtTArgs a)
                           <+> pprints k space (rtVArgs a)
                           <+> text " = "
                           <+> pprint (rtBody a)
+
+pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
+pprints k c = sep . punctuate c . map (pprintTidy k)
 
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc
