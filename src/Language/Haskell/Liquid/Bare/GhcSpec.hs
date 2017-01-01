@@ -31,7 +31,7 @@ import           Data.Maybe
 import           Control.Monad.Except                       (catchError)
 import           TypeRep                                    (Type(TyConApp))
 
-import           Text.PrettyPrint.HughesPJ (text, vcat)
+import           Text.PrettyPrint.HughesPJ (text)
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -86,7 +86,7 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env ({- tracepp "LogicMap" -} lmap') mempty mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 listLMap :: LogicMap
@@ -110,13 +110,14 @@ postProcess cbs specEnv sp@(SP {..})
        , gsTexprs     = ts
        }
   where
-    (sigs, ts')     = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv (tracepp "TYSIGS: POST" gsTySigs)  gsTexprs specEnv cbs
-    (assms, ts'')   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsAsmSigs ts'      specEnv cbs
-    (insigs, ts)    = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv gsInSigs  ts''     specEnv cbs
-    txSort          = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
-    addTCI          = (addTCI' <$>)
-    addTCI'         = addTyConInfo gsTcEmbeds gsTyconEnv
-    allowHO         = higherOrderFlag gsConfig
+    (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
+    (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
+    (insigs, ts)      = replaceLocBinds gsInSigs  ts''
+    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
+    txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
+    addTCI            = (addTCI' <$>)
+    addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
+    allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -516,12 +517,12 @@ type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 replaceLocalBinds :: Bool
                   -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
-                  -> [(Var, LocSpecType)]
-                  -> [(Var, [Located Expr])]
                   -> SEnv SortedReft
                   -> CoreProgram
+                  -> [(Var, LocSpecType)]
+                  -> [(Var, [Located Expr])]
                   -> ([(Var, LocSpecType)], [(Var, [Located Expr])])
-replaceLocalBinds allowHO emb tyi sigs texprs senv cbs
+replaceLocalBinds allowHO emb tyi senv cbs sigs texprs
   = (M.toList s, M.toList t)
   where
     (s, t) = execState (runReaderT (mapM_ (\x -> traverseBinds allowHO x (return ())) cbs)
@@ -575,7 +576,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (vcat [text "MWAHAHAHA", pprint v, pprint fenv]) t'
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing -> modify (first $ M.insert v (Loc l l' t'))

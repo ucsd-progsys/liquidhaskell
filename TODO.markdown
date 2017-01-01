@@ -5,26 +5,20 @@ TODO
 
 Failing Tests [+ `pldi17/*` ]
 
-  #2 Inline looking up GHC with wrong name...
-
-  Tests/Unit/neg/Books.hs, 0.9048, False  #2
-  Tests/Unit/pos/Books.hs, 0.8572, False  #2
-  
   #1 inline + higherorder + defuncSort
 
-  Tests/Unit/pos/mr-blow.hs, 3.0054, False
-  Tests/Unit/pos/MapReduceVerified.hs, 1.3136, False
+  Tests/Unit/pos/mr-blow.hs
+  Tests/Unit/pos/MapReduceVerified.hs
+  Tests/Unit/pos/fixme.hs
 
+  #2 LogicMap (DEFER to 'import-reflections')
 
-  #3 LogicMap (DEFER to 'import-reflections')
-
-  Tests/Unit/pos/fixme.hs, 0.9842, False
   Tests/Unit/pos/elems.hs, 1.0091, False
   Tests/Unit/pos/coretologic.hs, 1.0531, False
   Tests/Unit/neg/errmsg.hs, 0.9726, False
   Tests/Unit/neg/coretologic.hs, 1.0269, False
 
-### 3 LogicMap
+### 2 LogicMap
 
 + The action is in `makeGhcSpec4`,
 

@@ -34,8 +34,8 @@ import           Text.PrettyPrint.HughesPJ        (text)
 
 import qualified Data.List                        as L
 import qualified Data.HashMap.Strict              as M
-
-import           Language.Fixpoint.Types.Names    (isPrefixOfSym, lengthSym, symbolString)
+import qualified Data.Text                        as T
+import           Language.Fixpoint.Types.Names    (isPrefixOfSym, lengthSym, symbolText, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 
 import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
@@ -63,15 +63,15 @@ lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM 
 lookupGhcThing name f x = lookupGhcThing' err f x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
-    msg                 = unwords [ "Not in scope:", name, "`", sx, "'"]
-    sx                  = symbolString (symbol x)
+    msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
 
 lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _err f x = do
   be     <- get
   let env = hscEnv be
-  _      <- liftIO $ putStrLn ("lookupGhcThing: " ++ symbolicString x)
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -103,18 +103,21 @@ symbolLookupEnv :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnv env mod s
   | isSrcImport mod
   = do let modName = getModName mod
-       L _ rn <- hscParseIdentifier env $ symbolString s
+       L _ rn <- hscParseIdentifier env $ ghcSymbolString s
        res    <- lookupRdrName env modName rn
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
        res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
        return $ catMaybes [res, res']
   | otherwise
-  = do rn             <- hscParseIdentifier env $ symbolString s
+  = do rn             <- hscParseIdentifier env $ ghcSymbolString s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
          _       -> return []
+
+ghcSymbolString :: Symbol -> String
+ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
 
 -- | It's possible that we have already resolved the 'Name' we are looking for,
 -- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
