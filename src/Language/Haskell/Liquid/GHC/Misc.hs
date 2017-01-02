@@ -526,18 +526,29 @@ instance NFData Var where
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-dropModuleNames, takeModuleNames, dropModuleUnique :: Symbol -> Symbol
+dropModuleNamesAndUnique :: Symbol -> Symbol
+dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
+
+dropModuleNames  :: Symbol -> Symbol
 dropModuleNames  = mungeNames lastName sepModNames "dropModuleNames: "
   where
     lastName msg = symbol . safeLast msg
 
+takeModuleNames  :: Symbol -> Symbol
 takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
   where
     initName msg = symbol . T.intercalate "." . safeInit msg
 
+dropModuleUnique :: Symbol -> Symbol
 dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
   where
     headName msg = symbol . safeHead msg
+
+
+cmpSymbol :: Symbol -> Symbol -> Bool
+cmpSymbol coreSym logicSym
+  =  (dropModuleUnique coreSym == dropModuleNamesAndUnique logicSym)
+  || (dropModuleUnique coreSym == dropModuleUnique         logicSym)
 
 sepModNames :: T.Text
 sepModNames = "."

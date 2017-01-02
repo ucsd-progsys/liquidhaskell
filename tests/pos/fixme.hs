@@ -37,15 +37,15 @@ chunk :: Int -> List a -> List (List a)
 sum  :: List Int -> Int
 plus :: Int -> Int -> Int
 
-{-@ axiomatize msum @-}
-msum :: Int -> List Int -> Int
-msum n is = mapReduce n sum plus is
+{-@ axiomatize gobble @-}
+gobble :: Int -> List Int -> Int
+gobble n is = mapReduce n sum plus is
 
 
 mapReduceSum :: Int -> List Int -> Proof
 {-@ mapReduceSum :: n:Int -> is:List Int -> { sum is == mapReduce n sum plus is} @-}
 mapReduceSum n is
-  =   msum n is
+  =   gobble n is
   ==. mapReduce n sum plus is
   ==. sum is  ? mapReduceTheorem n sum plus sumLeftId sumDistributes is
   *** QED

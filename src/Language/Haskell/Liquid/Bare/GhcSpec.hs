@@ -31,7 +31,7 @@ import           Data.Maybe
 import           Control.Monad.Except                       (catchError)
 import           TypeRep                                    (Type(TyConApp))
 
-import           Text.PrettyPrint.HughesPJ (text)
+import           Text.PrettyPrint.HughesPJ (vcat, text)
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -269,11 +269,11 @@ makeGhcSpec1 :: [Var]
              -> M.HashMap TyCon RTyCon
              -> NameSet
              -> ModName
-             -> [(Var,Located (RRType RReft))]
-             -> [(Var,Located (RRType RReft))]
-             -> [(Var,Located (RRType RReft))]
-             -> [(Symbol,Located (RRType Reft))]
-             -> [(Symbol,Located (RRType Reft))]
+             -> [(Var,    LocSpecType)]
+             -> [(Var,    LocSpecType)]
+             -> [(Var,    LocSpecType)]
+             -> [(Symbol, Located (RRType Reft))]
+             -> [(Symbol, Located (RRType Reft))]
              -> Subst
              -> GhcSpec
              -> BareM GhcSpec
@@ -281,7 +281,7 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
-       return $ sp { gsTySigs   = tracepp "TYSIGS: PRE" $ filter (\(v,_) -> v `elem` vs) tySigs
+       return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
                    , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
                    , gsMeas     = measSyms
@@ -294,9 +294,9 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
       measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'
 
 makeGhcSpec2 :: Monad m
-             => [(Maybe Var, LocSpecType)]
-             -> [(TyCon, LocSpecType)]
-             -> [(LocSpecType,LocSpecType)]
+             => [(Maybe Var  , LocSpecType)]
+             -> [(TyCon      , LocSpecType)]
+             -> [(LocSpecType, LocSpecType)]
              -> MSpec SpecType DataCon
              -> Subst
              -> GhcSpec
@@ -365,7 +365,7 @@ makeGhcSpec4 quals defVars specs name su sp
                      , gsAutosize   = asize'
                      , gsLazy       = S.insert dictionaryVar lazies
                      , gsLogicMap   = lmap'
-                     , gsTySigs     = {- tx  <$>      -}           gsTySigs'
+                     , gsTySigs     = {- tx  <$>      -} tracepp ("LOGIC-MAP: " ++ showpp lmap') gsTySigs'
                      , gsTexprs     = {- mapSnd f <$> -}           gsTexprs'
                      , gsMeasures   = {- mtx <$> gsMeasures sp -}  gsMeasures'
                      , gsAsmSigs    = {- tx  <$> gsAsmSigs  sp -}  gsAsmSigs'
@@ -493,9 +493,7 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        let xs'      = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
 
-txRefSort'
-  :: NamedThing a
-  => a -> TCEnv -> TCEmb TyCon -> SpecType -> Located SpecType
+txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType
 txRefSort' v tyi embs t = txRefSort tyi embs (atLoc' v t)
 
 atLoc' :: NamedThing a1 => a1 -> a -> Located a
@@ -576,10 +574,10 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (vcat [text "MWAHAHA", pprint fenv, pprint v]) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
-             Nothing -> modify (first $ M.insert v (Loc l l' t'))
+             Nothing  -> modify (first $ M.insert v (Loc l l' t'))
            mes <- gets (M.lookup v . snd)
            case mes of
              Nothing -> return ()

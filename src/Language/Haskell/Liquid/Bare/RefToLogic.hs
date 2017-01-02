@@ -3,8 +3,7 @@
 
 module Language.Haskell.Liquid.Bare.RefToLogic (
     Transformable
-   , txRefToLogic
-
+  , txRefToLogic
   ) where
 
 import           Prelude hiding (error)
@@ -12,12 +11,11 @@ import           Language.Haskell.Liquid.Types
 import           Language.Fixpoint.Misc (mapSnd)
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Fixpoint.Types hiding (R)
-import           Language.Haskell.Liquid.GHC.Misc (dropModuleUnique, dropModuleNames)
+import           Language.Haskell.Liquid.GHC.Misc (cmpSymbol)
 import qualified Data.HashMap.Strict as M
 
 txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'
-
 
 class Transformable a where
   tx  :: Symbol -> Either LMap TInline -> a -> a
@@ -50,10 +48,6 @@ instance Transformable Reft where
   tx s m (Reft (v, p)) = if v == s
                          then impossible Nothing "Transformable: v != s"
                          else Reft(v, tx s m p)
-
--- OLD instance Transformable Refa where
--- OLD   tx s m (RConc p)     = RConc $ tx s m p
--- OLD   tx _ _ (RKvar x sub) = RKvar x sub
 
 instance (Transformable a, Transformable b) => Transformable (Either a b) where
   tx s m (Left  x) = Left  (tx s m x)
@@ -115,7 +109,7 @@ instance Transformable Body where
 mexpr :: Symbol -> Either LMap TInline -> Expr
 mexpr _ (Left  (LMap _ [] e)) = e
 mexpr _ (Left  (LMap s _  _)) = EVar s
-mexpr _ (Right (TI _ e)) = e
+mexpr _ (Right (TI _ e))      = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
 txEApp :: (Symbol, Either LMap TInline) -> Expr -> Expr
@@ -138,7 +132,6 @@ txEApp' (s, Right (TI xs e)) f es
   | otherwise
   = mkEApp (dummyLoc f) es
 
-
 {-
 txPApp (s, (Right (TI xs e))) f es
   | cmpSymbol s (val f)
@@ -148,12 +141,3 @@ txPApp (s, (Right (TI xs e))) f es
 
 txPApp (s, m) f es = txEApp (s, m) f es
 -}
-
-cmpSymbol :: Symbol -> Symbol -> Bool
-cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  =  (dropModuleUnique s1 == dropModuleNamesAndUnique s2)
-  || (dropModuleUnique s1 == dropModuleUnique s2)
-
-
-dropModuleNamesAndUnique :: Symbol -> Symbol
-dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
