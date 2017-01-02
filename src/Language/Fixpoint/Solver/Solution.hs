@@ -191,7 +191,7 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
  -}
 
 elabExist :: Sol.Solution -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist s xts = F.pExist (const xts xts')
+elabExist s xts = F.pExist xts'
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
     elab        = So.elaborate "elabExist" env
