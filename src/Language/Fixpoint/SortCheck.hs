@@ -281,7 +281,6 @@ instance Freshable [Int] where
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
-
 checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
   where

@@ -54,7 +54,7 @@ sanitize =    -- banIllScopedKvars
 addLiterals :: F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
-                    , F.gLits = F.unionSEnv (F.gLits si) lits' 
+                    , F.gLits = F.unionSEnv (F.gLits si) lits'
                     }
   where
     lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]

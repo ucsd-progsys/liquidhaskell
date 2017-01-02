@@ -43,7 +43,7 @@ import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 -- import qualified Language.Fixpoint.Solver.Index as Index
-import           Language.Fixpoint.Solver.Sanitize 
+import           Language.Fixpoint.Solver.Sanitize
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
@@ -227,7 +227,11 @@ declare env lts = withContext $ \me -> do
     xts        = F.toListSEnv           env
     tx         = elaborate    "declare" env
 
--- | symKind returns 0,1,2 where: 0 = Theory-Definition, 1 = Theory-Declaration, 2 = Query
+-- | symKind returns {0, 1, 2} where:
+--   0 = Theory-Definition,
+--   1 = Theory-Declaration,
+--   2 = Query-Binder
+
 symKind :: F.Symbol -> Int
 symKind x = case M.lookup x Thy.theorySymbols of
               Just t  -> if tsInterp t then 0 else 1
