@@ -3,11 +3,10 @@
 
 -- | Niki Vazou Sep 2016 
 
-
-
-{-@ LIQUID "--higherorder"         @-}
-{-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
+{-@ LIQUID "--higherorder"   @-}
+{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--exactdc"       @-}
+{-@ LIQUID "--eliminate=all" @-}
 
 
 module MapReduce where 
