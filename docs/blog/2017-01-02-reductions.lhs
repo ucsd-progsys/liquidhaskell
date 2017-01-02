@@ -20,7 +20,7 @@ the user needs to manually provide all the proofs.
 
 Today we will see how proof generation can be simplified by proof reduction on homomorphic data types. 
 
-As an example, a user-defined `Peano` data type enjoyes all the 
+As an example, a user-defined `Peano` data type enjoys all the 
 arithmetic properties of natural numbers since Peano 
 numbers are homomorphic to Natural numbers.
 <!-- more -->
@@ -93,7 +93,7 @@ We can use Refinement Reflection to provide an
 geqZero n = leqPeano Z n *** QED 
 \end{code}
 
-The proof procceds simply by invocation of the 
+The proof proceeds simply by invocation of the 
 first case of the `leqPeano` definition. 
 
 As another Peano property, we can use Refinement Reflection to 
@@ -241,7 +241,7 @@ Conclusion
 -----------
 
 We presented an example of how the SMT-automated proofs on 
-Natural numbers can be reduced to the respecive proofs on the 
+Natural numbers can be reduced to the respective proofs on the 
 Peano numbers, because Peano are homomorphic to Natural numbers. 
 
 Proof reduction greatly simplifies proof composition
