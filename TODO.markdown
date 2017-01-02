@@ -3,6 +3,12 @@ TODO
 
 ## no-prop / inline
 
+major changes on 1/1/17 (that cause some new failures, sigh.)
+
+- in Lookup.hs add the bit that drops `##` before looking up GHC
+- in GhcSpec.hs / Expand.hs see `expandSym`
+
+
 Failing Tests [+ `pldi17/*` ]
 
   #1 inline + higherorder + defuncSort

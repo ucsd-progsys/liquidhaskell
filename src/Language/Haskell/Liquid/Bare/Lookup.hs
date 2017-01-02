@@ -31,16 +31,13 @@ import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
-
 import qualified Data.List                        as L
 import qualified Data.HashMap.Strict              as M
--- import qualified Data.Text                        as T
-import           Language.Fixpoint.Types.Names    (isPrefixOfSym, lengthSym, symbolString)
+import qualified Data.Text                        as T
+import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
-
-import           Language.Haskell.Liquid.GHC.Misc (dropModuleUnique, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Types
-
 import           Language.Haskell.Liquid.Bare.Env
 
 --------------------------------------------------------------------------------
@@ -117,7 +114,8 @@ symbolLookupEnv env mod s
          _       -> return []
 
 ghcSymbolString :: Symbol -> String
-ghcSymbolString = symbolString . dropModuleUnique -- T.unpack . fst . T.breakOn "##" . symbolText
+ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
+-- ghcSymbolString = symbolString . dropModuleUnique
 
 -- | It's possible that we have already resolved the 'Name' we are looking for,
 -- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
