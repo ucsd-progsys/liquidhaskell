@@ -60,6 +60,9 @@ import Language.Haskell.Liquid.ProofCombinators
 
 </div>
 
+Properties of Peano Numbers
+----------------------------
+
 First, we define `Peano` numbers as a data type 
 and the function `leqPeano` that compares two peano numbers.
 
@@ -80,6 +83,7 @@ explicit proof that comparison on peano numbers is *total*,
 that is, for every two numbers `n` and `m` 
 either `leqPeano n m` or `leqPeano m n` always holds. 
 
+\begin{code}
 {-@ leqNTotal :: n:Peano -> m:Peano 
               -> {(leqPeano n m) || (leqPeano m n)} 
               / [toNat n + toNat m] @-}
@@ -109,9 +113,152 @@ toNat (S n) = 1 + toNat n
 \end{code}
 
 Note, that the type `Nat` is just a refinement for the Haskell's integers
-\begin{spec}
-type Nat = {v:Int | 0 <= v}
-\end{spec}
+\begin{code}
+{-@ type Nat = { n:Int | 0 <= n } @-}
+type Nat     = Int
+\end{code}
+
+Following the totality proof, 
+one can prove further properties of peano comparisons, 
+like reflexivity and transitivity.
+
+Instead of explicitely writing down all such proofs 
+we now we will reduce all these proofs to the respective properties 
+of Integer comparisons by proving that Peano numbers are isomorphic to integers. 
+
+
+Proving Isomorphisms
+---------------------
+
+An isomorphism between types `a` and `b` is a pair of functions 
+`to :: a -> b` and `from :: b -> a` that are mutually
+inverse to each other. 
+We encode this requirement in an `Iso` data type. 
+
+\begin{code}
+{-@ data Iso a b = Iso {
+      to   :: a -> b
+    , from :: b -> a
+    , tof  :: y:b -> { to (from y) == y }
+    , fot  :: x:a -> { from (to x) == x }
+    }
+@-}
+data Iso a b = Iso {
+    to   :: a -> b
+  , from :: b -> a
+  , tof  :: b -> Proof
+  , fot  :: a -> Proof
+}
+\end{code}
+
+
+We can now prove that `Peano` numbers
+are isomorphic to `Nat` by providing a proof term 
+of type `Iso Nat Peano`
+
+\begin{code}
+{-@ isoNatPeano :: Iso Nat Peano @-}
+isoNatPeano :: Iso Nat Peano
+isoNatPeano = Iso fromNat toNat fromTo toFrom
+\end{code}
+
+Our proof uses the function `fromNat` that maps Natural numbers 
+to Peano and its inverse function `toNat`
+combined with two explict proof of the inverse property. 
+
+\begin{code}
+{-@ axiomatize fromNat @-}
+{-@ fromNat :: Nat -> Peano @-}
+fromNat :: Nat -> Peano
+fromNat n
+  | n == 0    = Z
+  | otherwise = S (fromNat (n - 1))
+
+{-@ toFrom :: x:Nat -> { toNat (fromNat x) == x } @-}
+toFrom :: Nat -> Proof
+toFrom n
+  | n == 0 
+  = toNat (fromNat 0) ==. toNat Z ==. 0 *** QED
+  | n > 0 
+  =   toNat (fromNat n)
+  ==. toNat (S (fromNat (n - 1)))
+  ==. 1 + toNat (fromNat (n - 1))
+  ==. 1 + (n - 1) ? toFrom (n - 1)
+  ==. n
+  *** QED
+
+{-@ fromTo :: x:Peano -> { fromNat (toNat x) == x } @-}
+fromTo :: Peano -> Proof
+fromTo Z 
+  =   fromNat (toNat Z) 
+  ==. fromNat 0 
+  ==. Z 
+  *** QED
+fromTo (S n) 
+  =   fromNat (toNat (S n))
+  ==. fromNat (1 + toNat n)
+  ==. S (fromNat ((1 + toNat n) - 1))
+  ==. S (fromNat (toNat n))
+  ==. S n ? fromTo n
+  *** QED
+\end{code}
+
+
+Proof Reduction via Isomorphisms
+---------------------------------
+
+When two types `a` and `b` are isomorphic 
+we can use the operator that compares `a`s to compare `b`s.
+
+\begin{code}
+{-@ axiomatize leqFrom @-}
+leqFrom :: (a -> a -> Bool)
+        -> (b -> a)
+        -> (b -> b -> Bool)
+leqFrom leqa from x y = leqa (from x) (from y)
+\end{code}
+
+Then proof of totality of the `b` operator reduces to proof of totality of the `a` operator.
+
+\begin{code}
+{-@ leqFromTotal :: leqa:(a -> a -> Bool) 
+                 -> leqaTotal:(x:a -> y:a -> { Prop (leqa x y) || Prop (leqa y x) })
+                 -> from:(b -> a) 
+                 -> x:b -> y:b -> { leqFrom leqa from x y || leqFrom leqa from y x }
+@-}
+leqFromTotal :: (a -> a -> Bool) -> (a -> a -> Proof)
+             -> (b -> a) -> b -> b -> Proof
+leqFromTotal leqa leqaTotal from x y 
+  =   (leqFrom leqa from x y  || leqFrom leqa from y x)
+  ==. (leqa (from x) (from y) || leqa (from y) (from x))
+  ==. True ? (leqaTotal (from x) (from y) &&& leqaTotal (from y) (from x))
+  *** QED
+\end{code}
+
+With this, proof of totality of comparison on peano numbers, 
+reduces to totality of Natural numbers! 
+\begin{code}
+leqPeanoTotal :: Peano -> Peano -> Proof 
+{-@ leqPeanoTotal :: n:Peano -> m:Peano 
+                  -> {(leqPeano n m) || (leqPeano m n)} @-}
+leqPeanoTotal 
+  = leqFromTotal ((<=) :: Int -> Int -> Bool)
+     (\ _ _ -> trivial)
+     toNat
+\end{code}
+
+
+
+
+
+
+\begin{code}
+vordNat :: VerifiedOrd Nat
+vordNat = VerifiedOrd leqInt leqIntRefl leqIntAntisym leqIntTrans leqIntTotal
+
+vordPeano :: VerifiedOrd Peano
+vordPeano = vordIso isoNatPeano vordNat
+\end{code}
 
 
 
@@ -172,60 +319,18 @@ vordInt = VerifiedOrd leqInt leqIntRefl leqIntAntisym leqIntTrans leqIntTotal
 How about a complex datatype? Let's consider an inductive datatype, the peano natural numbers. Not surprisingly, the
 proofs follow by induction. For conciseness, we only show totality and elide the rest.
 
-\begin{code}
-{-@ data Peano [toNat] = Z | S Peano @-}
-data Peano = Z | S Peano deriving (Eq)
-
-
-
-{-@ axiomatize leqPeano @-}
-leqPeano :: Peano -> Peano -> Bool
-leqPeano Z _ = True
-leqPeano _ Z = False
-leqPeano (S n) (S m) = leqPeano n m
-
-{-@ leqNTotal :: n:Peano -> m:Peano -> {(leqPeano n m) || (leqPeano m n)} / [toNat n + toNat m] @-}
-leqNTotal :: Peano -> Peano -> Proof
-leqNTotal Z m = leqPeano Z m *** QED
-leqNTotal n Z = leqPeano Z n *** QED
-leqNTotal (S n) (S m)
-  =   (leqPeano (S n) (S m) || leqPeano (S m) (S n))
-  ==. (leqPeano n m || leqPeano (S m) (S n)) ? (leqNTotal n m )
-  ==. (leqPeano n m || leqPeano m n) ? (leqNTotal m n)
-  *** QED
-\end{code}
-
 Writing down proofs for more complex datatypes is tedious, it requires case analysis for each constructor and using the
 induction hypothesis. However, we can decompose Haskell datatypes into sums and products, and we can build up compound
 proofs using isomorphisms! To that end, we design some machinery to express isomorphisms, and prove that laws are
 preserved under isomorphic images.
 
-\begin{code}
-{-@ data Iso a b = Iso {
-      to   :: a -> b
-    , from :: b -> a
-    , tof  :: y:b -> { to (from y) == y }
-    , fot  :: x:a -> { from (to x) == x }
-    }
-@-}
-data Iso a b = Iso {
-    to   :: a -> b
-  , from :: b -> a
-  , tof  :: b -> Proof
-  , fot  :: a -> Proof
-}
-\end{code}
 
-An isomorphism between types `a` and `b` is a pair of functions `to :: a -> b` and `from :: b -> a` that are mutually
-inverse to each other. We now claim that total order laws are preserved under `Iso`; this amounts to building up a
+
+We now claim that total order laws are preserved under `Iso`; this amounts to building up a
 `VerifiedOrd b`, given a `VerifiedOrd a` and an `Iso a b`.
 
 \begin{code}
-{-@ axiomatize leqFrom @-}
-leqFrom :: (a -> a -> Bool)
-        -> (b -> a)
-        -> (b -> b -> Bool)
-leqFrom leqa from x y = leqa (from x) (from y)
+
 
 {-@ leqFromRefl :: leqa:(a -> a -> Bool) -> leqaRefl:(x:a -> { Prop (leqa x x) })
                 -> from:(b -> a)
@@ -274,18 +379,8 @@ leqFromTrans leqa leqaTrans from x y z =
   ==. leqFrom leqa from x z
   *** QED
 
-{-@ leqFromTotal :: leqa:(a -> a -> Bool) -> leqaTotal:(x:a -> y:a -> { Prop (leqa x y) || Prop (leqa y x) })
-                 -> from:(b -> a) -> x:b -> y:b -> { leqFrom leqa from x y || leqFrom leqa from y x }
-@-}
-leqFromTotal :: (a -> a -> Bool) -> (a -> a -> Proof)
-             -> (b -> a) -> b -> b -> Proof
-leqFromTotal leqa leqaTotal from x y =
-      (leqFrom leqa from x y || leqFrom leqa from y x)
-  ==. (leqa (from x) (from y) || leqa (from y) (from x))
-  ==. True ? leqaTotal (from x) (from y)
-  ==. leqFrom leqa from y x
-  *** QED
 
+-- There is no Iso requirement here, fot is never actually used. 
 vordIso :: (Eq a, Eq b) => Iso a b -> VerifiedOrd a -> VerifiedOrd b
 vordIso (Iso to from tof fot) (VerifiedOrd leqa leqaRefl leqaAntisym leqaTrans leqaTotal) =
   VerifiedOrd
@@ -294,52 +389,6 @@ vordIso (Iso to from tof fot) (VerifiedOrd leqa leqaRefl leqaAntisym leqaTrans l
     (leqFromAntisym leqa leqaAntisym to from tof)
     (leqFromTrans leqa leqaTrans from)
     (leqFromTotal leqa leqaTotal from)
-\end{code}
-
-We can now write a `VerifiedOrd` for `Peano` by mapping it onto `type Nat = { n:Int | 0 <= n }`, which is easier to
-prove properties about because it's just an integer!
-
-\begin{code}
-{-@ type Nat = { n:Int | 0 <= n } @-}
-type Nat = Int
-
-{-@ axiomatize fromNat @-}
-{-@ fromNat :: Nat -> Peano @-}
-fromNat :: Nat -> Peano
-fromNat n
-  | n == 0 = Z
-  | otherwise = S (fromNat (n - 1))
-
-{-@ toFrom :: x:Nat -> { toNat (fromNat x) == x } @-}
-toFrom :: Nat -> Proof
-toFrom n
-  | n == 0 = toNat (fromNat 0) ==. toNat Z ==. 0 *** QED
-  | n > 0 = toNat (fromNat n)
-        ==. toNat (S (fromNat (n - 1)))
-        ==. 1 + toNat (fromNat (n - 1))
-        ==. 1 + (n - 1) ? toFrom (n - 1)
-        ==. n
-        *** QED
-
-{-@ fromTo :: x:Peano -> { fromNat (toNat x) == x } @-}
-fromTo :: Peano -> Proof
-fromTo Z = fromNat (toNat Z) ==. fromNat 0 ==. Z *** QED
-fromTo (S n) = fromNat (toNat (S n))
-           ==. fromNat (1 + toNat n)
-           ==. S (fromNat ((1 + toNat n) - 1))
-           ==. S (fromNat (toNat n))
-           ==. S n ? fromTo n
-           *** QED
-
-{-@ isoNatPeano :: Iso Nat Peano @-}
-isoNatPeano :: Iso Nat Peano
-isoNatPeano = Iso fromNat toNat fromTo toFrom
-
-vordNat :: VerifiedOrd Nat
-vordNat = VerifiedOrd leqInt leqIntRefl leqIntAntisym leqIntTrans leqIntTotal
-
-vordPeano :: VerifiedOrd Peano
-vordPeano = vordIso isoNatPeano vordNat
 \end{code}
 
 Similarly, we can break down compound datatypes into sums and products, just like what happens in `GHC.Generics`, and
