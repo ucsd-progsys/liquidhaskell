@@ -375,7 +375,7 @@ data LMap = LMap
   }
 
 instance Show LMap where
-  show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t|->\t" ++ show e
+  show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t |-> \t" ++ show e
 
 toLogicMap :: [(Symbol, [Symbol], Expr)] -> LogicMap
 toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
@@ -384,9 +384,11 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  , length xs == length es
   = subst (mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  , isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = def
@@ -1644,11 +1646,10 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
 --------------------------------------------------------------------------------
-
-data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
-                   , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
-                   }
-
+data RTEnv = RTE
+  { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
+  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+  }
 
 instance Monoid RTEnv where
   mempty                          = RTE M.empty M.empty

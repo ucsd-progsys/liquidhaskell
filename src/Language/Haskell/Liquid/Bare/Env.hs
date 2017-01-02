@@ -38,8 +38,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
--- import           Language.Fixpoint.Misc (traceShow)
+import           Language.Fixpoint.Types              (tracepp, Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -69,11 +68,12 @@ data TInline = TI { tiArgs :: [Symbol]
 data BareEnv = BE { modName  :: !ModName
                   , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
-                  , varEnv   :: ![(Symbol,Var)]
+                  , varEnv   :: ![(Symbol, Var)]
                   , hscEnv   :: HscEnv
                   , logicEnv :: LogicMap
                   , bounds   :: RBEnv
                   , embeds   :: TCEmb TyCon
+                  , axSyms   :: M.HashMap Symbol LocSymbol
                   }
 
 setEmbeds :: TCEmb TyCon -> BareM ()
@@ -84,9 +84,11 @@ addDefs :: S.HashSet (Var, Symbol) -> BareM ()
 addDefs ds
   = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
 
-insertLogicEnv :: Symbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv x ys e
+insertLogicEnv :: String -> Symbol -> [Symbol] -> Expr -> BareM ()
+insertLogicEnv _msg x ys e'
   = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ logicEnv be}}
+  where
+    e = tracepp ("INSERTLOGICENV @" ++ _msg ++ showpp (x, ys, e')) e'
 
 insertAxiom :: Var -> Symbol -> BareM ()
 insertAxiom x s

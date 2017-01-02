@@ -1,14 +1,13 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Language.Haskell.Liquid.Bare.Expand ( ExpandAliases (..) ) where
 
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
 import qualified Data.HashMap.Strict              as M
-import           Language.Fixpoint.Types          (Expr(..), Reft(..), symbolText, mkSubst, subst, eApps, splitEApp, Symbol, Subable)
+import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
 import           Language.Haskell.Liquid.Misc     (safeZipWithError)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
@@ -88,7 +87,7 @@ expandExpr :: Expr -> BareM Expr
 expandExpr = go
   where
     go e@(EApp _ _)    = expandEApp   $ splitEApp e
-    go (EVar x)        = return (EVar (expandSym x))
+    go (EVar x)        = EVar        <$> expandSym x
     go (ENeg e)        = ENeg        <$> go e
     go (ECst e s)      = (`ECst` s)  <$> go e
     go (PAnd ps)       = PAnd        <$> mapM go ps
@@ -104,15 +103,17 @@ expandExpr = go
     go (PIff p q)      = PIff        <$> go p   <*> go q
     go (PAtom b e e')  = PAtom b     <$> go e   <*> go e'
     go (EIte p e1 e2)  = EIte        <$> go p   <*> go e1 <*> go e2
-    go e@(PKVar {})    = return e
+    -- go e@(EVar _)      = return e
+    go e@(PKVar _ _)   = return e
     go e@PGrad         = return e
     go e@(ESym _)      = return e
     go e@(ECon _)      = return e
 
-expandSym :: Symbol -> Symbol
-expandSym s@(symbolText -> x)
-  | isQualified x = dropModuleNamesAndUnique s
-  | otherwise     = s
+expandSym :: Symbol -> BareM Symbol
+expandSym s = do
+  axs <- gets axSyms
+  let s' = dropModuleNamesAndUnique s
+  return $ if M.member s' axs then s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es)

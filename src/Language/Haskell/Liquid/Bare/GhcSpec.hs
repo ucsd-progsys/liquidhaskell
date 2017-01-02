@@ -76,7 +76,7 @@ makeGhcSpec :: Config
             -> NameSet
             -> HscEnv
             -> Either Error LogicMap
-            -> [(ModName,Ms.BareSpec)]
+            -> [(ModName, Ms.BareSpec)]
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
@@ -86,8 +86,14 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
+    axs       = initAxSymbols name specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+
+initAxSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initAxSymbols name = tracepp "INITAXSYMBOLS" . locMap . Ms.axioms . fromMaybe mempty . lookup name
+  where
+    locMap xs      = M.fromList [ (val x, x) | x <- S.toList xs]
 
 listLMap :: LogicMap
 listLMap  = toLogicMap [ (nilName , []     , hNil)
@@ -204,14 +210,14 @@ makeGhcAxioms tce cbs name bspecs sp = makeAxioms tce cbs sp spec
     spec = fromMaybe mempty $ lookup name bspecs
 
 makeAxioms :: TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
-makeAxioms tce cbs spec sp
-  = do lmap          <- logicEnv <$> get
-       (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
-       lmap'         <- logicEnv <$> get
-       return $ spec { gsMeas     = ms         ++ gsMeas     spec
-                     , gsAsmSigs  = concat tys ++ gsAsmSigs  spec
-                     , gsAxioms   = concat as  ++ gsAxioms spec
-                     , gsLogicMap = lmap' }
+makeAxioms tce cbs spec sp = do
+  lmap          <- logicEnv <$> get
+  (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
+  lmap'         <- logicEnv <$> get
+  return $ spec { gsMeas     = ms         ++ gsMeas     spec
+                , gsAsmSigs  = concat tys ++ gsAsmSigs  spec
+                , gsAxioms   = concat as  ++ gsAxioms spec
+                , gsLogicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP
@@ -379,11 +385,10 @@ makeGhcSpec4 quals defVars specs name su sp
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
        makeASize  = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
-
 insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()
 insertHMeasLogicEnv (x, s)
   | isBool res
-  = insertLogicEnv (val s) (fst <$> vxs) $ mkProp $ mkEApp s ((EVar . fst) <$> vxs)
+  = insertLogicEnv "insertHMeasLogicENV" (val s) (fst <$> vxs) $ mkProp $ mkEApp s ((EVar . fst) <$> vxs)
   where
     rep = toRTypeRep  t
     res = ty_res rep

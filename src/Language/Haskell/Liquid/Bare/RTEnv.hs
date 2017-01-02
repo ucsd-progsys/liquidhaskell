@@ -12,6 +12,7 @@ import Data.Maybe
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
+
 import           Language.Fixpoint.Misc (fst3)
 import           Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
@@ -29,7 +30,7 @@ makeRTEnv :: ModName
           -> [(ModName, Ms.Spec ty bndr)]
           -> BareM ()
 makeRTEnv m xils specs = do
-  makeREAliases ({- tracepp "eAliases" $ -} eAs ++ eAs')
+  makeREAliases (eAs ++ eAs')
   makeRTAliases tAs
   where
     tAs   = [ (m, t) | (m, s) <- specs,    t <- Ms.aliases s     ]

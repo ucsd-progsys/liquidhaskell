@@ -54,18 +54,11 @@ import           Language.Haskell.Liquid.Types.RefType
 import qualified Data.HashMap.Strict                   as M
 
 
-
-
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, ty_refts = refts}
+logicType τ = fromRTypeRep $ t { ty_binds = binds, ty_args = args, ty_refts = refts}
   where
-    t   = toRTypeRep $ ofType τ
-    res = mkResType $ ty_res t
+    t       = toRTypeRep $ ofType τ
     (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
-
-    mkResType t
---      | isBool t   = propType
-     | otherwise  = t
 
 
 {- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
@@ -79,7 +72,7 @@ strengthenResult :: Var -> SpecType
 strengthenResult v
   | isBool res
   = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    fromRTypeRep $ rep{ty_res = res `strengthen` r, ty_binds = xs}
+    fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
   | otherwise
   = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
     fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
@@ -158,7 +151,7 @@ runToLogic = runToLogicWithBoolBinds []
 runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
            -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
 runToLogicWithBoolBinds xs tce lmap ferror m
-  = evalState (runExceptT m) (LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs })
+  = evalState (runExceptT m) LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs}
 
 
 
@@ -172,14 +165,14 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
       | otherwise        = mapM (goalt      (reverse $ tail args) (head args)) alts
     go _ _               = throw "Measure Functions should have a case at top level"
 
-    goalt args dx ((C.DataAlt d), xs, e)
-      = ((Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs)) . E)
+    goalt args dx (C.DataAlt d, xs, e)
+      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . E
         <$> coreToLg e
     goalt _ _ alt
        = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop args dx ((C.DataAlt d), xs, e)
-      = ((Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs)) . P)
+    goalt_prop args dx (C.DataAlt d, xs, e)
+      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . P
         <$> coreToPd  e
     goalt_prop _ _ alt
       = throw $ "Bad alternative" ++ showPpr alt
@@ -208,22 +201,22 @@ coreToPred e = coreToPd $ normalize e
 
 
 coreToPd :: C.CoreExpr -> LogicM Expr
-coreToPd (C.Let b p)  = subst1 <$> coreToPd p <*>  makesub b
-coreToPd (C.Tick _ p) = coreToPd p
-coreToPd (C.App (C.Var v) e) | ignoreVar v = coreToPd e
+coreToPd (C.Let b p)
+  = subst1 <$> coreToPd p <*>  makesub b
+coreToPd (C.Tick _ p)
+  = coreToPd p
+coreToPd (C.App (C.Var v) e)
+  | ignoreVar v
+  = coreToPd e
 coreToPd (C.Var x)
   | x == falseDataConId
   = return PFalse
   | x == trueDataConId
   = return PTrue
---  | eqType boolTy (varType x)
---  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
-coreToPd p@(C.App _ _) = toPredApp p
+coreToPd p@(C.App _ _)
+  = toPredApp p
 coreToPd e
   = coreToLg e
--- coreToPd e
---  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
-
 
 instance Show C.CoreExpr where
   show = showPpr
@@ -273,13 +266,13 @@ checkBoolAlts alts
 
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
 casesToLg v e alts
-  = (mapM (altToLg e) alts) >>= go
+  = mapM (altToLg e) alts >>= go
   where
     go :: [(DataCon, Expr)] -> LogicM Expr
     go [(_,p)]     = return (p `subst1` su)
     go ((d,p):dps) = do c <- checkDataCon d e
                         e' <- go dps
-                        return $ (EIte c p e' `subst1` su)
+                        return (EIte c p e' `subst1` su)
     go []          = throw "Bah"
 
     su = (symbol v, e)
@@ -316,7 +309,7 @@ toPredApp p
   where
     go (Just f) [e1, e2]
       | Just rel <- M.lookup f brels
-      = PAtom rel <$> (coreToLg e1) <*> (coreToLg e2)
+      = PAtom rel <$> coreToLg e1 <*> coreToLg e2
     go (Just f) [e]
       | f == symbol ("not" :: String)
       = PNot <$>  coreToPd e
@@ -335,17 +328,16 @@ toPredApp p
     go _ _ = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
-toLogicApp e = go e
-  where
-    go e = do let (f, es) = splitArgs e
-              case f of
-                C.Var x -> do args       <- mapM coreToLg es
-                              lmap       <- symbolMap <$> getState
-                              def        <- (`mkEApp` args) <$> tosymbol f
-                              bbs        <- boolbinds <$> get
-                              (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
-                _ -> do (fe:args) <- mapM coreToLg (f:es)
-                        return $ foldl EApp fe args
+toLogicApp e = do
+  let (f, es) = splitArgs e
+  case f of
+    C.Var x -> do args <- mapM coreToLg es
+                  lmap       <- symbolMap <$> getState
+                  def        <- (`mkEApp` args) <$> tosymbol f
+                  bbs        <- boolbinds <$> get
+                  (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
+    _       -> do (fe:args) <- mapM coreToLg (f:es)
+                  return $ foldl EApp fe args
 
 liftBoolBinds :: Var -> [Var] -> Expr -> Expr
 liftBoolBinds x xs e
@@ -365,18 +357,26 @@ makeApp def lmap f es
   = eAppWithMap lmap f es def
 
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
-eVarWithMap x lmap
-  = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
-       return $ eAppWithMap lmap f' [] (eVar x )
-  where
-    eVar x | isPolyCst $ varType x  = mkEApp (dummyLoc $ symbol x) []
-           | otherwise              = EVar $ symbol x
+eVarWithMap x lmap = do
+  f' <- tosymbol' (C.Var x :: C.CoreExpr)
+  return $ tracepp ("EVARWITHMAP: x = " ++ showPpr x) $ eAppWithMap lmap f' [] (varExpr x)
 
-    isPolyCst (ForAllTy _ t) = isCst t
-    isPolyCst _              = False
-    isCst     (ForAllTy _ t) = isCst t
-    isCst     (FunTy _ _)    = False
-    isCst     _              = True
+varExpr :: Var -> Expr
+varExpr x
+  | isPolyCst t = mkEApp (dummyLoc s) []
+  | otherwise   = EVar s
+  where
+    t           = varType x
+    s           = symbol x
+
+isPolyCst :: Type -> Bool
+isPolyCst (ForAllTy _ t) = isCst t
+isPolyCst _              = False
+
+isCst :: Type -> Bool
+isCst (ForAllTy _ t) = isCst t
+isCst (FunTy _ _)    = False
+isCst _              = True
 
 
 brels :: M.HashMap Symbol Brel

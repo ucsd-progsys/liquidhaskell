@@ -146,7 +146,7 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv
-  = insertLogicEnv (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv "UPDATELMAP" (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
     makeProp e
       | isBool (ty_res trep)
