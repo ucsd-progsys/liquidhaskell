@@ -10,13 +10,11 @@
 module MonadReader where
 import Proves
 
-
-
 {-
 
-equivalence via Debruijin representation breaks here, as a lambda is inserted
-verification requires normal form equality axioms
-
+equivalence via Debruijin representation breaks here, 
+as a lambda is inserted, verification requires normal 
+form equality axioms. 
 instance taken from MonadReader.associativity
 
 -}

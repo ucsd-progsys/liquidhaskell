@@ -3,21 +3,28 @@ TODO
 
 ## no-prop / inline
 
-major changes on 1/1/17 (that cause some new failures, sigh.)
+1. Failing Tests [+ `pldi17/*` ] 
+    * pldi17/pos/NormalForm.hs
+    * Vikraman/Nat
+ 
+2. "predicate"
+  * allow lower case predicate names
+  * allow lower case parameters (resolve per use)
+  * allow zero-ary predicates (e.g. `empty`-set) 
 
-- in Lookup.hs add the bit that drops `##` before looking up GHC
-- in GhcSpec.hs / Expand.hs see `expandSym`
+3. Delete `coretologic` (use the above instead)
+   Challenge: allow using `union` as both Haskell code **and** a predicate
+   alias, so we can write a single function and lift it up as a measure.
 
+###1 LogicMap (DEFER to 'import-reflections')
 
-Failing Tests [+ `pldi17/*` ]
+Instead of the hackery inside the coretologic.lg, we should 
+just allow aliases like:
 
-  #1 inline + higherorder + defuncSort
-
-  Tests/Unit/pos/mr-blow.hs
-  Tests/Unit/pos/MapReduceVerified.hs
-  Tests/Unit/pos/fixme.hs
-
-  #2 LogicMap (DEFER to 'import-reflections')
+```
+predicate Data.Set.Base.isSubsetOf X Y := Set_sub X Y
+predicate Data.Set.Base.union      X Y := Set_cup X Y
+```
 
   Tests/Unit/pos/elems.hs, 1.0091, False
   Tests/Unit/pos/coretologic.hs, 1.0531, False
@@ -27,9 +34,7 @@ Failing Tests [+ `pldi17/*` ]
 ### 2 LogicMap
 
 + The action is in `makeGhcSpec4`,
-
 + Ensure that whatever _was_ done in `txRefToLogic lmap inlmap`
-
 + _is_ now done inside `expand` which is in `Bare/Expand.hs`
 
 ```
@@ -43,9 +48,6 @@ Data.Set.Base.isSubsetOf := Data.Set.Base.isSubsetOf    [x, y] |-> Set_sub x y
 `------ Symbol ---------`   `------ lvar ----------`    `largs`    `---expr---`
 ```
 
-
-predicate Data.Set.Base.isSubsetOf X Y := Set_sub X Y
-
 So:
 
 1. `lMapExprAlias :: LMap -> RTAlias Symbol Expr`
@@ -58,8 +60,6 @@ makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -
 ```
 
 and the `lMapExprAlias` functions to convert the logic_map stuff into plain old aliases.
-
-
 
 ```haskell
 data LogicMap = LM
