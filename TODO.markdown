@@ -3,93 +3,12 @@ TODO
 
 ## no-prop / inline
 
-1. Failing Tests [+ `pldi17/*` ] 
+1. Failing Tests `pldi17/*` 
     * pldi17/pos/NormalForm.hs
     * Vikraman/Nat
  
-2. "predicate"
-  * allow lower case predicate names
-  * allow lower case parameters (resolve per use)
-  * allow zero-ary predicates (e.g. `empty`-set) 
-
-3. Delete `coretologic` (use the above instead)
-   Challenge: allow using `union` as both Haskell code **and** a predicate
-   alias, so we can write a single function and lift it up as a measure.
-
-###1 LogicMap (DEFER to 'import-reflections')
-
-Instead of the hackery inside the coretologic.lg, we should 
-just allow aliases like:
-
-```
-predicate Data.Set.Base.isSubsetOf X Y := Set_sub X Y
-predicate Data.Set.Base.union      X Y := Set_cup X Y
-```
-
-  Tests/Unit/pos/elems.hs, 1.0091, False
-  Tests/Unit/pos/coretologic.hs, 1.0531, False
-  Tests/Unit/neg/errmsg.hs, 0.9726, False
-  Tests/Unit/neg/coretologic.hs, 1.0269, False
-
-### 2 LogicMap
-
-+ The action is in `makeGhcSpec4`,
-+ Ensure that whatever _was_ done in `txRefToLogic lmap inlmap`
-+ _is_ now done inside `expand` which is in `Bare/Expand.hs`
-
 ```
 $ stack test liquidhaskell --fast --test-arguments "-p pos"
-```
-
-convert `logic_map`:
-
-```
-Data.Set.Base.isSubsetOf := Data.Set.Base.isSubsetOf    [x, y] |-> Set_sub x y
-`------ Symbol ---------`   `------ lvar ----------`    `largs`    `---expr---`
-```
-
-So:
-
-1. `lMapExprAlias :: LMap -> RTAlias Symbol Expr`
-2. `lmapExprAliases :: M.HashMap Symbol LMap -> M.HashMap Symbol (RTAlias ...)`
-
-use the `LogicMap` in
-
-```haskell
-makeRTEnv :: ModName -> [(LocSymbol, TInline)] -> [(ModName, Ms.Spec ty bndr)] -> LogicMap -> BareM ()
-```
-
-and the `lMapExprAlias` functions to convert the logic_map stuff into plain old aliases.
-
-```haskell
-data LogicMap = LM
-  { logic_map :: M.HashMap Symbol LMap
-  , axiom_map :: M.HashMap Var    Symbol
-  }
-
-data LMap = LMap
-  { lvar  :: Symbol
-  , largs :: [Symbol]
-  , lexpr :: Expr
-  }
-```
-
-into:
-
-```haskell
-data RTEnv = RTE
-  { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
-  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
-  }
-
-data RTAlias x a = RTA
-  { rtName  :: Symbol             -- ^ name of the alias
-  , rtTArgs :: [x]                -- ^ type parameters
-  , rtVArgs :: [x]                -- ^ value parameters
-  , rtBody  :: a                  -- ^ what the alias expands to
-  , rtPos   :: SourcePos          -- ^ start position
-  , rtPosE  :: SourcePos          -- ^ end   position
-  }
 ```
 
 Check Covariance
