@@ -62,28 +62,28 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ e@(EVar _)       = return e
     go _ e@(PKVar _ _)    = return e
     go s e@(EApp e1 e2)   = logRedex e >> (EApp <$> go s e1 <*> go s e2)    -- NOPROP : defuncEApp moved to elaborate
-    go s (ENeg e)         = ENeg <$> go s e
-    go _ (EBin o e1 e2)   = EBin o <$> go Nothing e1 <*> go Nothing e2
-    go s (EIte e1 e2 e3)  = EIte <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3
+    go s (ENeg e)         = ENeg    <$> go s e
+    go _ (EBin o e1 e2)   = EBin o  <$> go Nothing e1 <*> go Nothing e2
+    go s (EIte e1 e2 e3)  = EIte    <$> go (Just boolSort) e1 <*> go s e2 <*> go s e3
     go _ (ECst e t)       = (`ECst` t) <$> go (Just t) e
     go _ (PTrue)          = return PTrue
     go _ (PFalse)         = return PFalse
     go _ (PAnd [])        = return PTrue
-    go _ (PAnd ps)        = PAnd <$> mapM (go (Just boolSort)) ps
     go _ (POr [])         = return PFalse
-    go _ (POr ps)         = POr    <$> mapM (go (Just boolSort)) ps
-    go _ (PNot p)         = PNot   <$> go (Just boolSort) p
-    go _ (PImp p q)       = PImp   <$> go (Just boolSort) p <*> go (Just boolSort) q
-    go _ (PIff p q)       = PIff   <$> go (Just boolSort) p <*> go (Just boolSort) q
-    go _ (PExist bs p)    = PExist <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
-    go _ (PAll   bs p)    = PAll   <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
+    go _ (PAnd ps)        = PAnd    <$> mapM (go (Just boolSort)) ps
+    go _ (POr ps)         = POr     <$> mapM (go (Just boolSort)) ps
+    go _ (PNot p)         = PNot    <$> go (Just boolSort) p
+    go _ (PImp p q)       = PImp    <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PIff p q)       = PIff    <$> go (Just boolSort) p <*> go (Just boolSort) q
+    go _ (PExist bs p)    = PExist  <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
+    go _ (PAll   bs p)    = PAll    <$> mapM defunc bs <*> withExtendedEnv bs (go (Just boolSort) p)
     go _ (PAtom r e1 e2)  = PAtom r <$> go Nothing e1 <*> go Nothing e2
     go _ PGrad            = return PGrad
-    go _ (ELam x ex)      = (dfLam <$> get) >>= defuncELam x ex
+    go _ (ELam x ex)      = (dfLam  <$> get) >>= defuncELam x ex
     go _ e                = errorstar ("defunc Pred: " ++ show e)
 
 defuncELam :: (Symbol, Sort) -> Expr -> Bool -> DF Expr
-defuncELam (x, s) e aeq | aeq
+defuncELam (x, s) e True
   = do y  <- freshSym
        de <- defuncExpr $ subst1 e (x, EVar y)
        logLam (y, s) (subst1 e (x, EVar y))
