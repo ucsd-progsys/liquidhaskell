@@ -512,8 +512,9 @@ instance PPrint Expr where
                                    "then" <+> pprintPrec (zi+1) k e1 <+>
                                    "else" <+> pprintPrec (zi+1) k e2
     where zi = 1
-  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> pprintTidy k so
 
+  -- pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> const (text "...") (pprintTidy k so)
+  pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $

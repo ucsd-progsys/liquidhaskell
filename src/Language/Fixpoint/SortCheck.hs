@@ -108,7 +108,7 @@ instance Elaborate Sort where
   -- elaborate = map . elaborate
 
 instance Elaborate Expr where
-  elaborate msg env e = {- tracepp _msg' -} e3
+  elaborate msg env e = tracepp _msg' e3
     where
       e1  = elabExpr msg env e
       e2  = elabApply       e1
@@ -138,7 +138,7 @@ instance Elaborate SortedReft where
 instance Elaborate BindEnv where
   elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
     where
-      msg i x sr  = unwords ["elabBE",  show i, show x, show sr]
+      msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
   --  (mapSnd (elaborate x env))
 
 instance Elaborate (SimpC a) where
@@ -186,7 +186,7 @@ elabApply = go
     step (PAll   bs p)    = PAll   bs (go p)
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step PGrad            = PGrad
-    step e                = e
+    step e                = error $ "TODO elabApply: " ++ showpp e
 
 --------------------------------------------------------------------------------
 -- | Sort Inference ------------------------------------------------------------
@@ -531,12 +531,12 @@ elabEApp f e1 e2 = do
 
 defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
 defuncEApp e es
-  | {- tracepp msg $ -} Thy.isSmt2App (stripCasts e) es
+  | tracepp msg $ Thy.isSmt2App (stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
   where
-    -- msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
+    msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
     -- (f, es) = splitArgs $ EApp e1 e2
 
 -- e1 e2 => App (App runFun e1) (toInt e2)

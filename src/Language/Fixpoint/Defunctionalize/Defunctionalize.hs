@@ -33,9 +33,6 @@ class Defunc a where
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
 --------------------------------------------------------------------------------
-instance Defunc Expr where
-  defunc = txExpr
-
 -- NOPROP txCastedExpr :: Expr -> DF Expr
 -- NOPROP txCastedExpr = txExpr
 
@@ -84,8 +81,6 @@ defuncExpr = {- writeLog ("DEFUNC EXPR " ++ showpp (eliminate e)) >> -} go Nothi
     go _ PGrad            = return PGrad
     go _ (ELam x ex)      = (dfLam <$> get) >>= defuncELam x ex
     go _ e                = errorstar ("defunc Pred: " ++ show e)
-
-
 
 defuncELam :: (Symbol, Sort) -> Expr -> Bool -> DF Expr
 defuncELam (x, s) e aeq | aeq
@@ -226,10 +221,9 @@ normalizeLamsFromTo i   = go
     go (PAll bs e)      = mapSnd (PAll bs) (go e)
     go e                = (i, e)
 
--------------------------------------------------------------------------------
---------  Beta Equivalence  ---------------------------------------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Beta Equivalence ----------------------------------------------------------
+--------------------------------------------------------------------------------
 logRedex :: Expr -> DF ()
 logRedex e@(EApp f _)
   | (ELam _ _) <- stripCasts f
@@ -238,22 +232,18 @@ logRedex e@(EApp f _)
 logRedex _
   = return ()
 
-
 makeBetaAxioms :: DF [Expr]
 makeBetaAxioms = do
   red <- dfRedex <$> get
   concat <$> mapM makeBetaEq red
 
-
 makeBetaEq :: Expr -> DF [Expr]
 makeBetaEq e = mapM defuncExpr $ makeEqForAll (normalizeLams e) (normalize e)
-
 
 makeEq :: Expr -> Expr -> Expr
 makeEq e1 e2
   | e1 == e2  = PTrue
   | otherwise = EEq e1 e2
-
 
 makeEqForAll :: Expr -> Expr -> [Expr]
 makeEqForAll e1 e2 =
@@ -276,10 +266,6 @@ instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
     instOne (x, s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
     combine xs []  = [[x] | x <- xs]
     combine xs acc = concat [(x:) <$> acc | x <- xs]
-
---------------------------------------------------------------------------------
--- | Numeric Overloading  ------------------------------------------------------
---------------------------------------------------------------------------------
 
 
 -- txStr :: Bool -> Expr -> DF Expr
@@ -312,9 +298,10 @@ instantiate xs = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
     -- NOPROP hasStringArg (EApp _ a) = isString $ exprSort a
     -- NOPROP hasStringArg _          = False
 -- NOPROP
--- NOPROP -------------------------------------------------------------------------------
---------  Extensionality  -----------------------------------------------------
--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | Extensionality ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 txExtensionality :: Expr -> Expr
 txExtensionality = mapExpr' go
@@ -400,6 +387,9 @@ instance Defunc (Symbol, Sort) where
 
 instance Defunc Reft where
   defunc (Reft (x, e)) = Reft . (x,) <$> defunc e
+
+instance Defunc Expr where
+  defunc = txExpr
 
 instance Defunc a => Defunc (SEnv a) where
   defunc = mapMSEnv defunc
