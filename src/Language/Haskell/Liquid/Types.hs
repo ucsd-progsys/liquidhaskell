@@ -369,7 +369,7 @@ instance Monoid LogicMap where
   mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
 
 data LMap = LMap
-  { lvar  :: Symbol
+  { lvar  :: LocSymbol
   , largs :: [Symbol]
   , lexpr :: Expr
   }
@@ -377,10 +377,10 @@ data LMap = LMap
 instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t |-> \t" ++ show e
 
-toLogicMap :: [(Symbol, [Symbol], Expr)] -> LogicMap
+toLogicMap :: [(LocSymbol, [Symbol], Expr)] -> LogicMap
 toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
   where
-    toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
+    toLMap (x, ys, e) = (val x, LMap {lvar = x, largs = ys, lexpr = e})
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def

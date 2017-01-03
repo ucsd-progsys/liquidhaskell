@@ -37,6 +37,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -77,9 +78,6 @@ symbolicString = symbolString . symbol
 
 -- liftIOErr :: TError e -> IO a -> BareM a
 -- liftIOErr e act = liftIO (act `catchError` \_ -> throwError e)
-
-firstMaybes :: [Maybe a] -> Maybe a
-firstMaybes = listToMaybe . catMaybes
 
 symbolLookup :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookup env mod k
@@ -172,4 +170,4 @@ lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
 lookupGhcDataCon' = lookupGhcThing "data constructor" fdc
   where
     fdc (AConLike (RealDataCon x)) = Just x
-    fdc _            = Nothing
+    fdc _                          = Nothing

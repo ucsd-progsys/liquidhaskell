@@ -43,7 +43,7 @@ import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc           (dropModuleNames, showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
+import           Language.Haskell.Liquid.GHC.Misc           (dropModuleUnique, dropModuleNames, showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
@@ -98,13 +98,14 @@ initAxSymbols name = tracepp "INITAXSYMBOLS" . locMap . Ms.axioms . fromMaybe me
     locMap xs      = M.fromList [ (val x, x) | x <- S.toList xs]
 
 listLMap :: LogicMap
-listLMap  = toLogicMap [ (nilName , []     , hNil)
-                       , (consName, [x, xs], hCons (EVar <$> [x, xs])) ]
+listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
+                       , (dummyLoc consName, [x, xs], hCons (EVar <$> [x, xs])) ]
   where
     x     = symbol "x"
     xs    = symbol "xs"
-    hNil  = mkEApp (dummyLoc $ symbol nilDataCon ) []
-    hCons = mkEApp (dummyLoc $ symbol consDataCon)
+    hNil  = mkEApp (dcSym nilDataCon ) []
+    hCons = mkEApp (dcSym consDataCon)
+    dcSym = dummyLoc . dropModuleUnique . symbol
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
@@ -146,11 +147,8 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
        xils          <- concatMapM (makeHaskellInlines embs cbs name) specs
-       HEREHEREHERE
-       -- lmap <- logic_map . logicEnv <$> get
-       -- makeRTEnv name xils specs lmap
-       -- inside makeRTEnv, convert the `lmap` and pass into `makeREAliases`
-       makeRTEnv name xils specs
+       lmap          <- logic_map . logicEnv <$> get
+       makeRTEnv name xils specs lmap
        (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs
        modify                                   $ \be -> be { tcEnv = tyi }
@@ -394,7 +392,7 @@ makeGhcSpec4 quals defVars specs name su sp
 insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()
 insertHMeasLogicEnv (x, s)
   | isBool res
-  = insertLogicEnv "insertHMeasLogicENV" (val s) (fst <$> vxs) $ mkProp $ mkEApp s ((EVar . fst) <$> vxs)
+  = insertLogicEnv "insertHMeasLogicENV" s (fst <$> vxs) $ mkProp $ mkEApp s ((EVar . fst) <$> vxs)
   where
     rep = toRTypeRep  t
     res = ty_res rep

@@ -156,13 +156,13 @@ toLogicP :: Parser LogicMap
 toLogicP
   = toLogicMap <$> many toLogicOneP
 
-toLogicOneP :: Parser  (Symbol, [Symbol], Expr)
+toLogicOneP :: Parser  (LocSymbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
-       (x:xs) <- many1 symbolP
+       (x:xs) <- many1 (locParserP symbolP)
        reserved "="
        e      <- exprP
-       return (x, xs, e)
+       return (x, val <$> xs, e)
 
 
 defineP :: Parser (LocSymbol, Symbol)

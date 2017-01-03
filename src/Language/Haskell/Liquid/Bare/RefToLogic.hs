@@ -108,7 +108,7 @@ instance Transformable Body where
 
 mexpr :: Symbol -> Either LMap TInline -> Expr
 mexpr _ (Left  (LMap _ [] e)) = e
-mexpr _ (Left  (LMap s _  _)) = EVar s
+mexpr _ (Left  (LMap s _  _)) = EVar (val s)
 mexpr _ (Right (TI _ e))      = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 

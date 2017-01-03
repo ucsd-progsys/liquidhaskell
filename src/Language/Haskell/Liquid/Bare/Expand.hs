@@ -7,8 +7,8 @@ module Language.Haskell.Liquid.Bare.Expand ( ExpandAliases (..) ) where
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
 import qualified Data.HashMap.Strict              as M
-import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
-import           Language.Haskell.Liquid.Misc     (safeZipWithError)
+import           Language.Fixpoint.Types          (tracepp, Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
+import           Language.Haskell.Liquid.Misc     (firstMaybes, safeZipWithError)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -86,7 +86,7 @@ txPredReft' f (Reft (v, ra)) = Reft . (v,) <$> f ra
 expandExpr :: Expr -> BareM Expr
 expandExpr = go
   where
-    go e@(EApp _ _)    = expandEApp   $ splitEApp e
+    go e@(EApp _ _)    = tracepp ("EXPANDEAPP e = " ++ showpp e ) <$> expandEApp (splitEApp e)
     go (EVar x)        = EVar        <$> expandSym x
     go (ENeg e)        = ENeg        <$> go e
     go (ECst e s)      = (`ECst` s)  <$> go e
@@ -113,16 +113,20 @@ expandSym :: Symbol -> BareM Symbol
 expandSym s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
-  return $ if M.member s' axs then s' else s
+  return $ tracepp ("expandSym " ++ show s) $ if M.member s' axs then s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es)
-  = do mBody <- M.lookup f . exprAliases . rtEnv <$> get
+  = do eAs   <- gets (exprAliases . rtEnv)
+       let mBody = firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
        case mBody of
          Just re -> expandApp re   <$> mapM expandExpr es
          Nothing -> eApps (EVar f) <$> mapM expandExpr es
 expandEApp (f, es)
   = return $ eApps f es
+
+
+
 
 --------------------------------------------------------------------------------
 -- | Expand Alias Application --------------------------------------------------

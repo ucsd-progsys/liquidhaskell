@@ -157,6 +157,8 @@ mapSnd3 f (x, y, z) = (x, f y, z)
 mapThd3 :: (t -> t3) -> (t1, t2, t) -> (t1, t2, t3)
 mapThd3 f (x, y, z) = (x, y, f z)
 
+firstMaybes :: [Maybe a] -> Maybe a
+firstMaybes = listToMaybe . catMaybes
 
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))

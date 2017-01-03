@@ -84,9 +84,9 @@ addDefs :: S.HashSet (Var, Symbol) -> BareM ()
 addDefs ds
   = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
 
-insertLogicEnv :: String -> Symbol -> [Symbol] -> Expr -> BareM ()
+insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
 insertLogicEnv _msg x ys e'
-  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ logicEnv be}}
+  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
   where
     e = tracepp ("INSERTLOGICENV @" ++ _msg ++ showpp (x, ys, e')) e'
 

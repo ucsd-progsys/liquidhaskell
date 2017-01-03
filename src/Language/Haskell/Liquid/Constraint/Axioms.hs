@@ -344,16 +344,16 @@ updateLMap _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x vv
-  = insertLogicEnv x' ys (F.eApps (F.EVar $ val x) (F.EVar <$> ys))
+  = insertLogicEnv xvv ys (F.eApps (F.EVar $ val x) (F.EVar <$> ys))
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
-    ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
-    x' = simpleSymbolVar vv
+    ys    = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    xvv   = F.atLoc x (simpleSymbolVar vv)
 
-insertLogicEnv :: MonadState AEnv m => Symbol -> [Symbol] -> F.Expr -> m ()
+insertLogicEnv :: MonadState AEnv m => LocSymbol -> [Symbol] -> F.Expr -> m ()
 insertLogicEnv x ys e
-  = modify $ \be -> be {ae_lmap = (ae_lmap be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ ae_lmap be}}
+  = modify $ \be -> be {ae_lmap = (ae_lmap be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ ae_lmap be}}
 
 simpleSymbolVar :: NamedThing a => a -> Symbol
 simpleSymbolVar  x = dropModuleNames $ symbol $ showPpr $ getName x
