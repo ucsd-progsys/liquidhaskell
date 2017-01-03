@@ -182,20 +182,20 @@ mapMExpr f = go
     go e@(ESym _)      = f e
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
-    go (EApp g e)      = (EApp       <$> go g  <*> go e) >>= f
-    go (ENeg e)        = (ENeg       <$> go e) >>= f
-    go (EBin o e1 e2)  = (EBin o     <$> go e1 <*> go e2) >>= f
-    go (EIte p e1 e2)  = (EIte       <$> go p  <*> go e1 <*> go e2) >>= f
-    go (ECst e t)      = ((`ECst` t) <$> go e) >>= f
-    go (PAnd  ps)      = (PAnd       <$> (go <$$> ps)) >>= f
-    go (POr  ps)       = (POr        <$> (go <$$> ps)) >>= f
-    go (PNot p)        = (PNot       <$> go p) >>= f
-    go (PImp p1 p2)    = (PImp       <$> go p1 <*> go p2) >>= f
-    go (PIff p1 p2)    = (PIff       <$> go p1 <*> go p2) >>= f
-    go (PAtom r e1 e2) = (PAtom r    <$> go e1 <*> go e2) >>= f
-    go (PAll xts p)    = (PAll   xts <$> go p) >>= f
-    go (ELam (x,t) e)  = (ELam (x,t) <$> go e) >>= f
-    go (PExist xts p)  = (PExist xts <$> go p) >>= f
+    go (EApp g e)      = (EApp        <$> go g  <*> go e) >>= f
+    go (ENeg e)        = (ENeg        <$> go e) >>= f
+    go (EBin o e1 e2)  = (EBin o      <$> go e1 <*> go e2) >>= f
+    go (EIte p e1 e2)  = (EIte        <$> go p  <*> go e1 <*> go e2) >>= f
+    go (ECst e t)      = ((`ECst` t)  <$> go e) >>= f
+    go (PAnd  ps)      = (PAnd        <$> (go <$$> ps)) >>= f
+    go (POr  ps)       = (POr         <$> (go <$$> ps)) >>= f
+    go (PNot p)        = (PNot        <$> go p) >>= f
+    go (PImp p1 p2)    = (PImp        <$> go p1 <*> go p2) >>= f
+    go (PIff p1 p2)    = (PIff        <$> go p1 <*> go p2) >>= f
+    go (PAtom r e1 e2) = (PAtom r     <$> go e1 <*> go e2) >>= f
+    go (PAll xts p)    = (PAll   xts  <$> go p) >>= f
+    go (ELam (x,t) e)  = (ELam (x,t)  <$> go e) >>= f
+    go (PExist xts p)  = (PExist xts  <$> go p) >>= f
     go (ETApp e s)     = ((`ETApp` s) <$> go e) >>= f
     go (ETAbs e s)     = ((`ETAbs` s) <$> go e) >>= f
     go p@(PKVar _ _)   = f p

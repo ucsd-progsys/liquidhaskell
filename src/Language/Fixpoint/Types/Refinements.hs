@@ -93,7 +93,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Data.List                 (partition) -- , foldl', sort, sortBy)
+import           Data.List                 (foldl', partition) -- , sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -260,7 +260,7 @@ mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp = eApps . EVar . val
 
 eApps :: Expr -> [Expr] -> Expr
-eApps f es  = foldl EApp f es
+eApps f es  = foldl' EApp f es
 
 splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go []
