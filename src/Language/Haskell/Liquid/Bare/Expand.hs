@@ -71,12 +71,6 @@ instance (ExpandAliases b) => ExpandAliases (a, b) where
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------
 --------------------------------------------------------------------------------
--- expandReft :: RReft -> BareM RReft
--- expandReft = txPredReft expandExpr
---
--- txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
--- txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' f (ur_reft u)
-
 txPredReft' :: (Expr -> BareM Expr) -> Reft -> BareM Reft
 txPredReft' f (Reft (v, ra)) = Reft . (v,) <$> f ra
 
@@ -86,8 +80,8 @@ txPredReft' f (Reft (v, ra)) = Reft . (v,) <$> f ra
 expandExpr :: Expr -> BareM Expr
 expandExpr = go
   where
-    go e@(EApp _ _)    = tracepp ("EXPANDEAPP e = " ++ showpp e ) <$> expandEApp (splitEApp e)
-    go (EVar x)        = EVar        <$> expandSym x
+    go e@(EApp _ _)    = {- tracepp ("EXPANDEAPP e = " ++ showpp e ) <$> -} expandEApp (splitEApp e)
+    go (EVar x)        = expandSym x
     go (ENeg e)        = ENeg        <$> go e
     go (ECst e s)      = (`ECst` s)  <$> go e
     go (PAnd ps)       = PAnd        <$> mapM go ps
@@ -109,33 +103,35 @@ expandExpr = go
     go e@(ESym _)      = return e
     go e@(ECon _)      = return e
 
-expandSym :: Symbol -> BareM Symbol
+expandSym :: Symbol -> BareM Expr
 expandSym s = do
+  s' <- expandSym' s
+  expandEApp (EVar s', [])
+
+expandSym' :: Symbol -> BareM Symbol
+expandSym' s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
   return $ tracepp ("expandSym " ++ show s) $ if M.member s' axs then s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
-expandEApp (EVar f, es)
-  = do eAs   <- gets (exprAliases . rtEnv)
-       let mBody = firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
-       case mBody of
-         Just re -> expandApp re   <$> mapM expandExpr es
-         Nothing -> eApps (EVar f) <$> mapM expandExpr es
-expandEApp (f, es)
-  = return $ eApps f es
-
-
-
+expandEApp (EVar f, es) = do
+  eAs   <- gets (exprAliases . rtEnv)
+  let mBody = firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
+  case mBody of
+    Just re -> expandApp re   <$> mapM expandExpr es
+    Nothing -> eApps (EVar f) <$> mapM expandExpr es
+expandEApp (f, es) =
+  return $ eApps f es
 
 --------------------------------------------------------------------------------
 -- | Expand Alias Application --------------------------------------------------
 --------------------------------------------------------------------------------
 expandApp :: Subable ty => RTAlias Symbol ty -> [Expr] -> ty
-expandApp re es
-  = subst su $ rtBody re
-  where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
-        msg = "Malformed alias application" ++ "\n\t"
+expandApp re es = subst su $ rtBody re
+  where
+    su          = mkSubst $ safeZipWithError msg (rtVArgs re) es
+    msg         = "Malformed alias application" ++ "\n\t"
                ++ show (rtName re)
                ++ " defined at " ++ show (rtPos re)
                ++ "\n\texpects " ++ show (length $ rtVArgs re)
