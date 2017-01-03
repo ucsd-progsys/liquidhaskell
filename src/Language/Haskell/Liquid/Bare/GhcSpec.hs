@@ -86,7 +86,9 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
+
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+                     (tracepp ("LOGIC-MAP-0: " ++ showpp lmap') axs)
     axs       = initAxSymbols name specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
@@ -144,6 +146,10 @@ makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
        xils          <- concatMapM (makeHaskellInlines embs cbs name) specs
+       HEREHEREHERE
+       -- lmap <- logic_map . logicEnv <$> get
+       -- makeRTEnv name xils specs lmap
+       -- inside makeRTEnv, convert the `lmap` and pass into `makeREAliases`
        makeRTEnv name xils specs
        (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
        makeBounds embs name defVars cbs specs
