@@ -14,9 +14,7 @@
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
--- | This module contains the data types for representing terms in the
---   refinement logic; currently split into @Expr@ and @Pred@ but which
---   will be unified.
+-- | This module has the types for representing terms in the refinement logic.
 
 module Language.Fixpoint.Types.Refinements (
 
