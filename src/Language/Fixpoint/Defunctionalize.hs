@@ -32,7 +32,7 @@ import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config
 -- NOPROP import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types.Visitor   (mapMExpr, stripCasts)
-
+import Debug.Trace (trace)
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
@@ -44,14 +44,6 @@ txExpr :: Expr -> DF Expr
 txExpr e = do
   hoFlag <- gets dfHO
   if hoFlag then defuncExpr e else return e
-
--- NOPROP txExpr' :: Bool -> Expr -> DF Expr
--- NOPROP txExpr' hoFlag e
-  -- NOPROP = defuncExpr (txExtensionality e)
-  -- NOPROP | hoFlag
-  -- NOPROP = defuncExpr e
-  -- NOPROP | otherwise
-  -- NOPROP = return e
 
 defuncExpr :: Expr -> DF Expr
 defuncExpr = mapMExpr reBind
@@ -146,7 +138,9 @@ normalizeLamsFromTo i   = go
 -- | Beta Equivalence ----------------------------------------------------------
 --------------------------------------------------------------------------------
 makeBetaAxioms :: Expr -> [Expr]
-makeBetaAxioms e = makeEqForAll (tracepp ("BETA-NL e = " ++ showpp e) $ normalizeLams e) (normalize e)
+makeBetaAxioms e0 = makeEqForAll (normalizeLams e) (normalize e)
+  where
+    e             = trace ("BETA-NL e = " ++ showpp e0) e0
 
 makeEq :: Expr -> Expr -> Expr
 makeEq e1 e2
