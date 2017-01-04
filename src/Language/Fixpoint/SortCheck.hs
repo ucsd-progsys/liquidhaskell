@@ -179,7 +179,13 @@ elabApply = go
     step (PExist bs p)    = PExist bs (go p)
     step (PAll   bs p)    = PAll   bs (go p)
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
-    step PGrad            = PGrad
+    step e@(EApp {})      = go e
+    step e@PGrad          = e
+    step e@(PKVar {})     = e
+    step e@(ESym {})      = e
+    step e@(ECon {})      = e
+    step e@(EVar {})      = e
+    -- ELam, ETApp, ETAbs, PAll, PExist
     step e                = error $ "TODO elabApply: " ++ showpp e
 
 --------------------------------------------------------------------------------

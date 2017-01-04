@@ -229,8 +229,6 @@ data Expr = ESym !SymConst
           | ELam !(Symbol, Sort)   !Expr
           | ETApp !Expr !Sort
           | ETAbs !Expr !Symbol
-
---- Used to be predicates
           | PAnd   ![Expr]
           | POr    ![Expr]
           | PNot   !Expr
