@@ -18,7 +18,7 @@
 --   `EApp` and `ELam` to determine the lambdas and redexes.
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize) where
+module Language.Fixpoint.Defunctionalize (defunctionalize) where
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
