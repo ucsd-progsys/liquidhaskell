@@ -85,10 +85,10 @@ class Elaborate a where
 
 instance Elaborate (SInfo a) where
   elaborate x senv si = si
-    { cm    = elaborate x senv <$> cm    si
-    , bs    = elaborate x senv  $  bs    si
+    { cm      = elaborate x senv <$> cm      si
+    , bs      = elaborate x senv  $  bs      si
+    , asserts = elaborate x senv <$> asserts si
     }
-
 
 instance Elaborate Sort where
   elaborate _ _ = go
