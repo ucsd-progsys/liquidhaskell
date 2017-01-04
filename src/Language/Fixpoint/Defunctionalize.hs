@@ -26,7 +26,7 @@ import           Data.Maybe             (maybeToList)
 import qualified Data.List           as L
 
 import           Control.Monad.State
-import           Language.Fixpoint.Misc            (fM, whenM, secondM, mapSnd)
+import           Language.Fixpoint.Misc            (sortNub, fM, whenM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config
@@ -146,7 +146,7 @@ normalizeLamsFromTo i   = go
 -- | Beta Equivalence ----------------------------------------------------------
 --------------------------------------------------------------------------------
 makeBetaAxioms :: Expr -> [Expr]
-makeBetaAxioms e = makeEqForAll (normalizeLams e) (normalize e)
+makeBetaAxioms e = makeEqForAll (tracepp ("BETA-NL e = " ++ showpp e) $ normalizeLams e) (normalize e)
 
 makeEq :: Expr -> Expr -> Expr
 makeEq e1 e2
@@ -401,5 +401,5 @@ closeLams :: SEnv Sort -> Expr -> Expr
 closeLams env e = PAll (freeBinds env e) e
 
 freeBinds :: SEnv Sort -> Expr -> [(Symbol, Sort)]
-freeBinds env e = [ (y, t) | y <- syms e
+freeBinds env e = [ (y, t) | y <- sortNub (syms e)
                            , t <- maybeToList (lookupSEnv y env) ]
