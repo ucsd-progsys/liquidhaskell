@@ -4,9 +4,9 @@
 {-@ LIQUID "--eliminate=all"    @-}
 
 -- NOPROP probably breaks some fixpoint flag 
-{- LIQUID "--alphaequivalence" @-}
-{- LIQUID "--betaequivalence"  @-}
-{- LIQUID "--normalform"       @-} 
+{-@ LIQUID "--alphaequivalence" @-}
+{-@ LIQUID "--betaequivalence"  @-}
+{-@ LIQUID "--normalform"       @-} 
 
 module MonadReader where
 import Proves
