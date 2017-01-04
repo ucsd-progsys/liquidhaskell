@@ -1,6 +1,7 @@
 {-@ LIQUID "--higherorder"      @-}
 {-@ LIQUID "--totality"         @-}
 {-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--eliminate=all"    @-}
 
 -- NOPROP probably breaks some fixpoint flag 
 {- LIQUID "--alphaequivalence" @-}
@@ -22,7 +23,10 @@ instance taken from MonadReader.associativity
 
 foo :: (a -> c) -> Proof 
 {-@ foo :: f:(a ->  c) 
-  -> {(\x:a -> (\y:b -> f x) )  == (\x:a -> (\z:c -> (\y:b -> f x))(f x) )   } @-} 
+  -> {(\x:a -> (\y:b -> f x))  == (\x:a -> (\z:c -> (\y:b -> f x)) (f x)) } @-} 
+foo _ = simpleProof 
+
+
 {- foo :: f:(a ->  c) 
   -> {(\x:a -> (\y:a -> f y) )  == (\x:a -> (\z:c -> (\y:a -> f x))(f x) )   } @-} 
-foo _ = simpleProof 
+
