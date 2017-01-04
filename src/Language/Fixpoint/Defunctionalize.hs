@@ -32,7 +32,7 @@ import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.SortCheck       (checkSortExpr)
 import           Language.Fixpoint.Types.Visitor   (mapMExpr, stripCasts)
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
@@ -142,9 +142,9 @@ normalizeLamsFromTo i   = go
 -- | Beta Equivalence ----------------------------------------------------------
 --------------------------------------------------------------------------------
 makeBetaAxioms :: Expr -> [Expr]
-makeBetaAxioms e0 = makeEqForAll (normalizeLams e) (normalize e)
-  where
-    e             = trace ("BETA-NL e = " ++ showpp e0) e0
+makeBetaAxioms e = makeEqForAll (normalizeLams e) (normalize e)
+  -- where
+  --  e             = trace ("BETA-NL e = " ++ showpp e0) e0
 
 makeEq :: Expr -> Expr -> Expr
 makeEq e1 e2
