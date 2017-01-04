@@ -1,9 +1,6 @@
 {-@ LIQUID "--higherorder"      @-}
 {-@ LIQUID "--totality"         @-}
 {-@ LIQUID "--exact-data-cons"  @-}
-{-@ LIQUID "--eliminate=all"    @-}
-
--- NOPROP probably breaks some fixpoint flag 
 {-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
 {-@ LIQUID "--normalform"       @-} 

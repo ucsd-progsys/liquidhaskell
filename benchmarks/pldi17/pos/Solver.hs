@@ -10,7 +10,6 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
-{-@ LIQUID "--eliminate=all"   @-}
 
 module Solver where
 

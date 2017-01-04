@@ -31,7 +31,7 @@ import           Data.Maybe
 import           Control.Monad.Except                       (catchError)
 import           TypeRep                                    (Type(TyConApp))
 
-import           Text.PrettyPrint.HughesPJ (vcat, text)
+import           Text.PrettyPrint.HughesPJ (text)
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -63,7 +63,6 @@ import           Language.Haskell.Liquid.Bare.RTEnv
 import           Language.Haskell.Liquid.Bare.Spec
 import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
--- import           Language.Haskell.Liquid.Bare.RefToLogic
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 
 --------------------------------------------------------------------------------
@@ -86,14 +85,12 @@ makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
   where
     act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
-                     (tracepp ("LOGIC-MAP-0: " ++ showpp lmap') axs)
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
     axs       = initAxSymbols name specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 initAxSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initAxSymbols name = tracepp "INITAXSYMBOLS" . locMap . Ms.axioms . fromMaybe mempty . lookup name
+initAxSymbols name = locMap . Ms.axioms . fromMaybe mempty . lookup name
   where
     locMap xs      = M.fromList [ (val x, x) | x <- S.toList xs]
 
@@ -321,16 +318,14 @@ makeGhcSpec2 invs ntys ialias measures su sp
                 }
 
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(t, Var)] -> GhcSpec -> BareM GhcSpec
-makeGhcSpec3 datacons tycons embs syms sp
-  = do tcEnv       <- tcEnv    <$> get
-       -- lmap        <- logicEnv <$> get
-       -- inlmap      <- inlines  <$> get
-       -- let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
-       return  $ sp { gsTyconEnv = tcEnv
-                    , gsDconsP   = datacons -- dcons'
-                    , gsTconsP   = tycons
-                    , gsTcEmbeds = embs
-                    , gsFreeSyms = [(symbol v, v) | (_, v) <- syms] }
+makeGhcSpec3 datacons tycons embs syms sp = do
+  tcEnv  <- tcEnv    <$> get
+  return  $ sp { gsTyconEnv = tcEnv
+               , gsDconsP   = datacons -- dcons'
+               , gsTconsP   = tycons
+               , gsTcEmbeds = embs
+               , gsFreeSyms = [(symbol v, v) | (_, v) <- syms]
+               }
 
 makeGhcSpec4 :: [Qualifier]
              -> [Var]
@@ -363,27 +358,21 @@ makeGhcSpec4 quals defVars specs name su sp
        gsCtors'    <- expand $ gsCtors      sp
        gsIaliases' <- expand $ gsIaliases   sp
        gsDconsP'   <- expand $ gsDconsP     sp
-       -- lmap    <- logicEnv <$> get
-       -- inlmap  <- inlines  <$> get
-       -- let mtx  = txRefToLogic lmap inlmap
-       -- let f    = fmap mtx
-       -- let tx   = mapSnd f
-       -- let txdcons d = d { tyRes = f $ tyRes d, tyConsts = f <$> tyConsts d, tyArgs = tx <$> tyArgs d}
        return   $ sp { gsQualifiers = subst su quals
                      , gsDecr       = decr'
                      , gsLvars      = lvars'
                      , gsAutosize   = asize'
                      , gsLazy       = S.insert dictionaryVar lazies
                      , gsLogicMap   = lmap'
-                     , gsTySigs     = {- tx  <$>      -} tracepp ("LOGIC-MAP: " ++ showpp lmap') gsTySigs'
-                     , gsTexprs     = {- mapSnd f <$> -}           gsTexprs'
-                     , gsMeasures   = {- mtx <$> gsMeasures sp -}  gsMeasures'
-                     , gsAsmSigs    = {- tx  <$> gsAsmSigs  sp -}  gsAsmSigs'
-                     , gsInSigs     = {- tx  <$> gsInSigs   sp -}  gsInSigs'
-                     , gsInvariants = {- tx <$> gsInvariants sp -} gsInvarnts'
-                     , gsCtors      = {- tx <$> gsCtors      sp -} gsCtors'
-                     , gsIaliases   = {- tx <$> gsIaliases   sp -} gsIaliases'
-                     , gsDconsP     = {- mapSnd txdcons <$> gsDconsP sp -} gsDconsP'
+                     , gsTySigs     = gsTySigs'
+                     , gsTexprs     = gsTexprs'
+                     , gsMeasures   = gsMeasures'
+                     , gsAsmSigs    = gsAsmSigs'
+                     , gsInSigs     = gsInSigs'
+                     , gsInvariants = gsInvarnts'
+                     , gsCtors      = gsCtors'
+                     , gsIaliases   = gsIaliases'
+                     , gsDconsP     = gsDconsP'
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
@@ -583,7 +572,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (vcat [text "MWAHAHA", pprint fenv, pprint v]) t'
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))

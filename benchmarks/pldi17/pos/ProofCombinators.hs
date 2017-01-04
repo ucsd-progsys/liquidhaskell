@@ -4,8 +4,6 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
 
-{-@ LIQUID "--eliminate=all"       @-}
-
 module ProofCombinators (
 
     (==:), (<=:), (<:), (>:)
