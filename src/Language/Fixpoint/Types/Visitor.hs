@@ -182,24 +182,24 @@ mapMExpr f = go
     go e@(ESym _)      = f e
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
-    go (EApp g e)      = (EApp        <$> go g  <*> go e) >>= f
-    go (ENeg e)        = (ENeg        <$> go e) >>= f
-    go (EBin o e1 e2)  = (EBin o      <$> go e1 <*> go e2) >>= f
-    go (EIte p e1 e2)  = (EIte        <$> go p  <*> go e1 <*> go e2) >>= f
-    go (ECst e t)      = ((`ECst` t)  <$> go e) >>= f
-    go (PAnd  ps)      = (PAnd        <$> (go <$$> ps)) >>= f
-    go (POr  ps)       = (POr         <$> (go <$$> ps)) >>= f
-    go (PNot p)        = (PNot        <$> go p) >>= f
-    go (PImp p1 p2)    = (PImp        <$> go p1 <*> go p2) >>= f
-    go (PIff p1 p2)    = (PIff        <$> go p1 <*> go p2) >>= f
-    go (PAtom r e1 e2) = (PAtom r     <$> go e1 <*> go e2) >>= f
-    go (PAll xts p)    = (PAll   xts  <$> go p) >>= f
-    go (ELam (x,t) e)  = (ELam (x,t)  <$> go e) >>= f
-    go (PExist xts p)  = (PExist xts  <$> go p) >>= f
-    go (ETApp e s)     = ((`ETApp` s) <$> go e) >>= f
-    go (ETAbs e s)     = ((`ETAbs` s) <$> go e) >>= f
-    go p@(PKVar _ _)   = f p
-    go PGrad           = f PGrad
+    go e@(PKVar _ _)   = f e
+    go e@PGrad         = f e
+    go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
+    go (PNot p)        = f =<< (PNot        <$>  go p                     )
+    go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
+    go (PAll xts p)    = f =<< (PAll   xts  <$>  go p                     )
+    go (ELam (x,t) e)  = f =<< (ELam (x,t)  <$>  go e                     )
+    go (PExist xts p)  = f =<< (PExist xts  <$>  go p                     )
+    go (ETApp e s)     = f =<< ((`ETApp` s) <$>  go e                     )
+    go (ETAbs e s)     = f =<< ((`ETAbs` s) <$>  go e                     )
+    go (EApp g e)      = f =<< (EApp        <$>  go g  <*> go e           )
+    go (EBin o e1 e2)  = f =<< (EBin o      <$>  go e1 <*> go e2          )
+    go (PImp p1 p2)    = f =<< (PImp        <$>  go p1 <*> go p2          )
+    go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
+    go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
+    go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
+    go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
+    go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []

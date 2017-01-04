@@ -101,12 +101,6 @@ instance Elaborate Sort where
       funSort :: Sort -> Sort -> Sort
       funSort = FApp . FApp funcSort
 
--- instance Elaborate a => Elaborate (Symbol, a) where
-  -- elaborate env (x, y) = (x, elaborate env y)
-
--- instance Elaborate a => Elaborate [a] where
-  -- elaborate = map . elaborate
-
 instance Elaborate Expr where
   elaborate msg env e = tracepp _msg' e3
     where
