@@ -180,6 +180,7 @@ elabApply = go
     step (PAll   bs p)    = PAll   bs (go p)
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
+    step (ELam b e)       = ELam b (go e)
     step e@PGrad          = e
     step e@(PKVar {})     = e
     step e@(ESym {})      = e
