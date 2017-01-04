@@ -22,7 +22,7 @@ module Language.Fixpoint.Defunctionalize (defunctionalize) where
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
-import           Data.Maybe             (maybeToList)
+import           Data.Maybe             (isJust, maybeToList)
 import qualified Data.List           as L
 
 import           Control.Monad.State
@@ -30,7 +30,7 @@ import           Language.Fixpoint.Misc            (sortNub, fM, whenM, secondM,
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config
--- NOPROP import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.SortCheck       (checkSortExpr)
 import           Language.Fixpoint.Types.Visitor   (mapMExpr, stripCasts)
 import Debug.Trace (trace)
 
@@ -69,7 +69,11 @@ makeAxioms :: DF [Expr]
 makeAxioms = do
   alphEqs <- concatMap makeAlphaAxioms <$> getLams
   betaEqs <- concatMap makeBetaAxioms  <$> getRedexes
-  return   $ alphEqs ++ betaEqs
+  env     <- gets dfEnv
+  return   $ filter (validAxiom env) (alphEqs ++ betaEqs)
+
+validAxiom :: SEnv Sort -> Expr -> Bool
+validAxiom env = isJust . checkSortExpr env
 
 --------------------------------------------------------------------------------
 -- | Alpha Equivalence ---------------------------------------------------------
@@ -148,12 +152,11 @@ makeEq e1 e2
   | otherwise = EEq e1 e2
 
 makeEqForAll :: Expr -> Expr -> [Expr]
-makeEqForAll e1 e2 =
-  [ makeEq (closeLam su e1') (closeLam su e2') | su <- instantiate xs]
+makeEqForAll e1 e2 = [ makeEq (closeLam su e1') (closeLam su e2') | su <- instantiate xs]
   where
-    (xs1, e1') = splitPAll [] e1
-    (xs2, e2') = splitPAll [] e2
-    xs         = L.nub (xs1 ++ xs2)
+    (xs1, e1')     = splitPAll [] e1
+    (xs2, e2')     = splitPAll [] e2
+    xs             = L.nub (xs1 ++ xs2)
 
 closeLam :: [(Symbol, (Symbol, Sort))] -> Expr -> Expr
 closeLam ((x,(y,s)):su) e = ELam (y,s) (subst1 (closeLam su e) (x, EVar y))
@@ -163,77 +166,22 @@ splitPAll :: [(Symbol, Sort)] -> Expr -> ([(Symbol, Sort)], Expr)
 splitPAll acc (PAll xs e) = splitPAll (acc ++ xs) e
 splitPAll acc e           = (acc, e)
 
-instantiate :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
-instantiate []     = [[]]
-instantiate xs     = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
-  where
-    instOne (x, s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
-    combine xs []  = [[x] | x <- xs]
-    combine xs acc = concat [(x:) <$> acc | x <- xs]
+-- NOPROP instantiate :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
+-- NOPROP instantiate []     = [[]]
+-- NOPROP instantiate xs     = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
+  -- NOPROP where
+    -- NOPROP instOne (x, s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
+    -- NOPROP combine xs []  = [[x] | x <- xs]
+    -- NOPROP combine xs acc = concat [(x:) <$> acc | x <- xs]
 
--- NOPROP
--- NOPROP --------------------------------------------------------------------------------
--- NOPROP -- | Extensionality ------------------------------------------------------------
--- NOPROP --------------------------------------------------------------------------------
--- NOPROP
--- NOPROP txExtensionality :: Expr -> Expr
--- NOPROP txExtensionality = mapExpr' go
-  -- NOPROP where
-    -- NOPROP go (EEq e1 e2)
-      -- NOPROP | FFunc _ _ <- exprSort "txn5" e1
-      -- NOPROP , FFunc _ _ <- exprSort "txn6" e2
-      -- NOPROP = mkExFunEq e1 e2
-    -- NOPROP go e
-      -- NOPROP = e
--- NOPROP
--- NOPROP mkExFunEq :: Expr -> Expr -> Expr
--- NOPROP mkExFunEq e1 e2 = PAnd [PAll (zip xs ss)
-                             -- NOPROP (EEq
-                                -- NOPROP (ECst (eApps e1' es) s)
-                                -- NOPROP (ECst (eApps e2' es) s))
-                       -- NOPROP , EEq e1 e2]
-  -- NOPROP where
-    -- NOPROP es      = zipWith (\x s -> ECst (EVar x) s) xs ss
-    -- NOPROP xs      = (\i -> symbol ("local_fun_arg" ++ show i)) <$> [1..length ss]
-    -- NOPROP (s, ss) = splitFun [] s1
-    -- NOPROP s1      = exprSort "txn7" e1
--- NOPROP
-    -- NOPROP splitFun acc (FFunc s ss) = splitFun (s:acc) ss
-    -- NOPROP splitFun acc s            = (s, reverse acc)
--- NOPROP
-    -- NOPROP e1' = ECst e1 s1
-    -- NOPROP e2' = ECst e2 s1
--- NOPROP
--- NOPROP -- RJ: according to https://github.com/ucsd-progsys/liquid-fixpoint/commit/d8b742b29c8a892fc947eb90fe6eb949207f65cb
--- NOPROP -- the `Visitor.mapExpr` "diverges".
--- NOPROP -- This is because the mapper works in a "top-down" fashion, i.e. it first
--- NOPROP -- converts `e` into `e /\ e1` and then recursively traverses `e` which means
--- NOPROP -- it spins forever.
--- NOPROP
--- NOPROP mapExpr' :: (Expr -> Expr) -> Expr -> Expr
--- NOPROP mapExpr' f = go
-  -- NOPROP where
-    -- NOPROP go (ELam bs e)     = f (ELam bs (go e))
-    -- NOPROP go (ECst e s)      = f (ECst (go e) s)
-    -- NOPROP go (EApp e1 e2)    = f (EApp (go e1) (go e2))
-    -- NOPROP go e@(ESym _)      = f e
-    -- NOPROP go e@(ECon _)      = f e
-    -- NOPROP go e@(EVar _)      = f e
-    -- NOPROP go (ENeg e)        = f $ ENeg (go e)
-    -- NOPROP go (EBin b e1 e2)  = f $ EBin b (go e1) (go e2)
-    -- NOPROP go (EIte e e1 e2)  = f $ EIte (go e) (go e1) (go e2)
-    -- NOPROP go (ETAbs e t)     = f $ ETAbs (go e) t
-    -- NOPROP go (ETApp e t)     = f $ ETApp (go e) t
-    -- NOPROP go (PAnd es)       = f $ PAnd $ map go es
-    -- NOPROP go (POr es)        = f $ POr  $ map go es
-    -- NOPROP go (PNot e)        = f $ PNot $ go e
-    -- NOPROP go (PImp e1 e2)    = f $ PImp (go e1) (go e2)
-    -- NOPROP go (PIff e1 e2)    = f $ PIff (go e1) (go e2)
-    -- NOPROP go (PAtom a e1 e2) = f $ PAtom a (go e1) (go e2)
-    -- NOPROP go (PAll bs e)     = f $ PAll bs   $  go e
-    -- NOPROP go (PExist bs e)   = f $ PExist bs $ go e
-    -- NOPROP go e@(PKVar _ _ )  = f e
-    -- NOPROP go e@PGrad         = f e
+instantiate    :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
+instantiate     = choices . map inst1
+  where
+    inst1 (x,s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
+
+choices :: [[a]] -> [[a]]
+choices []       = [[]]
+choices (xs:xss) = [a:as | a <- xs, as <- choices xss]
 
 --------------------------------------------------------------------------------
 -- | Containers defunctionalization --------------------------------------------
