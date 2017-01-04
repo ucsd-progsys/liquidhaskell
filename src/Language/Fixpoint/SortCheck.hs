@@ -102,12 +102,14 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-  elaborate msg env e = tracepp _msg' e3
-    where
-      e1  = elabExpr msg env e
-      e2  = elabApply       e1
-      e3  = elabNumeric     e2
-      _msg' = msg ++ " ELABORATE e := " ++ showpp e
+  elaborate msg env = elabNumeric . elabApply . elabExpr msg env
+
+  -- elaborate msg env e = {- tracepp _msg' -} e3
+    -- where
+      -- e1              = elabExpr msg env e
+      -- e2              = elabApply       e1
+      -- e3              = elabNumeric     e2
+      -- -- _msg' = msg ++ " ELABORATE e := " ++ showpp e
 
 elabNumeric :: Expr -> Expr
 elabNumeric = mapExpr go
@@ -525,20 +527,12 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
--- defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
--- defuncEApp e es = tracepp msg $ defuncEApp' e es
---  where
---    msg = "DEFUNCEAPP: s := " ++ " e := " ++ showpp e ++ " es := " ++ showpp es
-
 defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
 defuncEApp e es
-  | tracepp msg $ Thy.isSmt2App (stripCasts e) es
+  | Thy.isSmt2App (stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
-  where
-    msg     = ("ISSMT2APP e :=" ++ showpp e ++ " es := " ++ showpp es)
-    -- (f, es) = splitArgs $ EApp e1 e2
 
 -- e1 e2 => App (App runFun e1) (toInt e2)
 makeApplication :: Expr -> (Expr, Sort) -> Expr
@@ -550,14 +544,6 @@ makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
     spec                 :: Sort -> Sort
     spec (FAbs _ s)      = spec s
     spec s               = s
-
--- _resultType :: Expr -> Expr -> Sort
--- _resultType e _ = go $ exprSort e
-  -- where
-    -- go (FAbs i s)               = FAbs i $ go s
-    -- go (FFunc (FFunc s1 s2) sx) = FFunc (go (FFunc s1 s2)) sx
-    -- go (FFunc _ sx)             = sx
-    -- go sj                       = errorstar ("\nmakeFunSymbol on non Fun " ++ showpp (stripCasts e, sj) ++ "\nuneliminated\n" ++ showpp e)
 
 makeFunSymbol :: Sort -> Symbol
 makeFunSymbol s
