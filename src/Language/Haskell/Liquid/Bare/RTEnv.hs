@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import           Language.Fixpoint.Misc (fst3)
-import           Language.Fixpoint.Types (Expr(..), Symbol, symbol, tracepp)
+import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
 import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import           Language.Haskell.Liquid.Types
@@ -33,7 +33,7 @@ makeRTEnv :: ModName
           -> BareM ()
 --------------------------------------------------------------------------------
 makeRTEnv m xils specs lm = do
-  makeREAliases $ tracepp "EALIASES" (eAs ++ eAs' ++ eAs'')
+  makeREAliases (eAs ++ eAs' ++ eAs'')
   makeRTAliases tAs
   where
     tAs   = [ (m, t) | (m, s) <- specs,          t <- Ms.aliases   s   ]

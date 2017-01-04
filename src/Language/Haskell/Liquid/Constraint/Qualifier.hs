@@ -3,9 +3,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
-module Language.Haskell.Liquid.Constraint.Qualifier (
-  specificationQualifiers
-  ) where
+module Language.Haskell.Liquid.Constraint.Qualifier (qualifiers) where
 
 import TyCon
 import Var (Var)
@@ -13,24 +11,66 @@ import Prelude hiding (error)
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
+import Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
+import Language.Haskell.Liquid.Misc             (condNull)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Types hiding (mkQual)
+import Language.Fixpoint.Types                  hiding (mkQual)
 import Language.Fixpoint.SortCheck
 
--- import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet as S
--- import Data.Bifunctor           (second)
 import Debug.Trace (trace)
 
------------------------------------------------------------------------------------
-specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
------------------------------------------------------------------------------------
-specificationQualifiers k info lEnv
-  =[ q | (x, t) <- specBinders info
+
+--------------------------------------------------------------------------------
+qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+qualifiers info lEnv
+  =  condNull (useSpcQuals info) (spcQualifiers info     )
+  ++ condNull (useSigQuals info) (sigQualifiers info lEnv)
+--  ++ condNull (useAlsQuals info) (alsQualifiers info lEnv)
+
+-- --------------------------------------------------------------------------------
+-- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+-- --------------------------------------------------------------------------------
+-- qualifiers info env = spcQs ++ genQs
+  -- where
+    -- spcQs           = gsQualifiers spc
+    -- genQs           = specificationQualifiers info env
+    -- n               = maxParams (getConfig spc)
+    -- spc             = spec info
+
+maxQualParams :: (HasConfig t) => t -> Int
+maxQualParams = maxParams . getConfig
+
+spcQualifiers :: GhcInfo -> [Qualifier]
+spcQualifiers = gsQualifiers . spec
+
+-- | Use explicitly given qualifiers .spec or source (.hs, .lhs) files
+useSpcQuals :: (HasConfig t) => t -> Bool
+useSpcQuals info = not (info `hasOpt` higherOrderFlag)
+
+-- | Scrape qualifiers from function signatures (incr :: x:Int -> {v:Int | v > x})
+useSigQuals :: (HasConfig t) => t -> Bool
+useSigQuals _ = True
+
+-- TODO:sorted-aliases  -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
+-- TODO:sorted-aliases useAlsQuals :: (HasConfig t) => t -> Bool
+-- TODO:sorted-aliases useAlsQuals _ = False
+
+-- --------------------------------------------------------------------------------
+-- alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+-- --------------------------------------------------------------------------------
+-- alsQualifiers _info _lEnv
+  -- = undefined
+
+--------------------------------------------------------------------------------
+sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+sigQualifiers info lEnv
+  = [ q | (x, t) <- specBinders info
         , x `S.member` (S.fromList $ defVars info ++
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
@@ -45,7 +85,7 @@ specificationQualifiers k info lEnv
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
-    -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
+    where k = maxQualParams info
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat

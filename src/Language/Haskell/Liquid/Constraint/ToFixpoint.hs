@@ -37,15 +37,7 @@ targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
-    qs               = targetQuals info cgi
+    qs               = qualifiers info (fEnv cgi)
     bi               = (`Ci` Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
-
-targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
-targetQuals info cgi = spcQs ++ genQs
-  where
-    spcQs     = gsQualifiers spc
-    genQs     = specificationQualifiers n info (fEnv cgi)
-    n         = maxParams $ getConfig spc
-    spc       = spec info

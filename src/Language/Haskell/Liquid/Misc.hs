@@ -223,7 +223,8 @@ tryIgnore s a = catch a $ \e ->
 (<<=) :: Monad m => (b -> m a) -> m b -> m b
 (<<=) = flip (=>>)
 
-
+condNull :: Bool -> [a] -> [a]
+condNull c xs = if c then xs else []
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
 firstJust f xs = listToMaybe $ mapMaybe f xs
