@@ -2,8 +2,8 @@
 {-@ LIQUID "--totality"         @-}
 {-@ LIQUID "--exact-data-cons"  @-}
 
--- NOPROP {- LIQUID "--alphaequivalence" @-}
--- NOPROP {- LIQUID "--betaequivalence"  @-}
+{-@ LIQUID "--alphaequivalence" @-}
+{-@ LIQUID "--betaequivalence"  @-}
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
