@@ -1112,7 +1112,7 @@ verification attempts.
   your system. If not, `hscolour` is used to render the HTML.
 
   It is also possible to generate *slide shows* from the above.
-  See the [tutorial directory](docs/tutorial) for an example.
+  See the [slides directory](docs/slides) for an example.
 
 Editor Integration
 ==================
