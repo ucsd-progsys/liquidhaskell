@@ -30,7 +30,7 @@ qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 qualifiers info lEnv
   =  condNull (useSpcQuals info) (spcQualifiers info     )
   ++ condNull (useSigQuals info) (sigQualifiers info lEnv)
---  ++ condNull (useAlsQuals info) (alsQualifiers info lEnv)
+  ++ condNull (useAlsQuals info) (alsQualifiers info lEnv)
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
