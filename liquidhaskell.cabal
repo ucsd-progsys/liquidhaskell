@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.6.0.0
+Version:             0.7.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -139,7 +139,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint
+                , liquid-fixpoint >= 0.6
                 , located-base
                 -- , prover
                 , aeson >= 0.10 && < 1.0 

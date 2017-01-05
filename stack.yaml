@@ -9,7 +9,6 @@ packages:
 - ./liquid-fixpoint
 - ./liquiddesugar
 - '.'
-# - ./prover 
 
 extra-deps:
 - dotgen-0.4.2
