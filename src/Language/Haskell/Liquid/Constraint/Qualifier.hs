@@ -3,6 +3,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
+
 module Language.Haskell.Liquid.Constraint.Qualifier
   ( qualifiers
   , useSpcQuals
@@ -94,15 +95,7 @@ sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 sigQualifiers info lEnv
   = [ q | (x, t) <- specBinders info
-        , x `S.member` (S.fromList $ defVars info ++
-                                     -- NOTE: this mines extra, useful qualifiers but causes
-                                     -- a significant increase in running time, so we hide it
-                                     -- behind `--scrape-imports` and `--scrape-used-imports`
-                                     if info `hasOpt` scrapeUsedImports
-                                     then useVars info
-                                     else if info `hasOpt` scrapeImports
-                                     then impVars info
-                                     else [])
+        , x `S.member` qbs
         , q <- refTypeQuals lEnv (getSourcePos x) tce (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
@@ -111,6 +104,22 @@ sigQualifiers info lEnv
     where
       k   = maxQualParams info
       tce = gsTcEmbeds (spec info)
+      qbs = qualifyingBinders info
+
+qualifyingBinders :: GhcInfo -> S.HashSet Var
+qualifyingBinders info = S.difference sTake sDrop
+  where
+    sTake              = S.fromList $ defVars       info ++ scrapeVars info
+    sDrop              = S.fromList $ specAxiomVars info
+
+-- NOTE: this mines extra, useful qualifiers but causes
+-- a significant increase in running time, so we hide it
+-- behind `--scrape-imports` and `--scrape-used-imports`
+scrapeVars :: GhcInfo -> [Var]
+scrapeVars info
+  | info `hasOpt` scrapeUsedImports = useVars info
+  | info `hasOpt` scrapeImports     = impVars info
+  | otherwise                       = []
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
@@ -120,9 +129,10 @@ specBinders info = mconcat
   , if info `hasOpt` scrapeInternals then gsInSigs sp else []
   ]
   where
-    sp  = spec info
-    -- sp   = trace (msg sp0) sp0
-    -- msg  = ("SPECBINDERS: " ++ ) . showpp . typeAliases . gsRTAliases
+    sp  = spec info 
+
+specAxiomVars :: GhcInfo -> [Var]
+specAxiomVars =  map (fst . aname) . gsAxioms . spec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs

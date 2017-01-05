@@ -179,7 +179,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo          <- cgInfoFInfo info cgi
-  F.Result r sol <- solve (traceShow "FIXCFG" $ fixConfig tgt cfg) finfo
+  F.Result r sol <- solve (fixConfig tgt cfg) finfo
   let resErr      = applySolution sol . cinfoError . snd <$> r
   resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
   let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
@@ -192,7 +192,7 @@ fixConfig tgt cfg = def
   { FC.solver           = fromJust (smtsolver cfg)
   , FC.linear           = linear            cfg
   , FC.eliminate        = eliminate         cfg
-  , FC.nonLinCuts       = not (eliminate cfg == FC.All) 
+  , FC.nonLinCuts       = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
   , FC.save             = saveQuery         cfg
   , FC.srcFile          = tgt
   , FC.cores            = cores             cfg
@@ -208,7 +208,7 @@ fixConfig tgt cfg = def
   , FC.normalForm       = normalForm       cfg
   , FC.stringTheory     = stringTheory     cfg
   }
- 
+
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s
 

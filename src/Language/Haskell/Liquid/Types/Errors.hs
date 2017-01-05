@@ -327,6 +327,11 @@ data TError t =
   | ErrFilePragma { pos :: !SrcSpan
                   }
 
+  | ErrTyCon    { pos    :: !SrcSpan
+                , msg    :: !Doc
+                , tcname :: !Doc 
+                }
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -746,5 +751,8 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       =   text "Refined instance for:" <+> t
       $+$ text "Defined at:" <+> pprint p
 
+ppError' _ dSp _ (ErrTyCon _ msg ty)
+  = dSp <+> text "Bad Data Refinement for " <+> ty 
+    $+$ (nest 4 msg)
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "'"
