@@ -1,5 +1,4 @@
 // adapted from LH test vector2.hs
 
-constant foo : (func(1, [@(0); @(0)]))
-
+constant foo :     func(1, [@(0); @(0)])
 bind 6 foo : {VV : func(1, [@(0); @(0)]) | []}

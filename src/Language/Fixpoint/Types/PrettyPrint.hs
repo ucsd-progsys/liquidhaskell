@@ -90,6 +90,9 @@ showTable k = render . pprintKVs k
 tracepp :: (PPrint a) => String -> a -> a
 tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
+notracepp :: (PPrint a) => String -> a -> a
+notracepp _ x = x
+
 instance PPrint Doc where
   pprintTidy _ = id
 

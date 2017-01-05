@@ -23,6 +23,7 @@ module Language.Fixpoint.Types.Names (
   , Symbolic (..)
   , LocSymbol
   , LocText
+  , symbolicString
 
   -- * Conversion to/from Text
   , symbolSafeText
@@ -80,8 +81,10 @@ module Language.Fixpoint.Types.Names (
   , listConName
   , listLConName
   , tupConName
-  , propConName
-  , hpropConName
+  , setConName
+  , mapConName
+  -- , propConName
+  -- , hpropConName
   , strConName
   , nilName
   , consName
@@ -143,8 +146,6 @@ type SafeText = T.Text
 --     lq$i
 --
 --   where i is a unique integer (for each text)
-
-
 
 data Symbol
   = S { _symbolId      :: !Id
@@ -454,6 +455,9 @@ isNonSymbol = (== nonSymbol)
 class Symbolic a where
   symbol :: a -> Symbol
 
+symbolicString :: (Symbolic a) => a -> String
+symbolicString = symbolString . symbol
+
 instance Symbolic T.Text where
   symbol = textSymbol
 
@@ -473,13 +477,14 @@ lambdaName = "smt_lambda"
 intArgName :: Int -> Symbol
 intArgName = intSymbol "lam_int_arg"
 
-setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
+setToIntName, bitVecToIntName, mapToIntName, realToIntName :: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
-boolToIntName   = "bool_to_int"
 realToIntName   = "real_to_int"
 
+boolToIntName :: (IsString a) => a
+boolToIntName   = "bool_to_int"
 
 setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName :: Int -> Symbol
 setApplyName    = intSymbol "set_apply_"
@@ -496,19 +501,22 @@ dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
-listConName, listLConName, tupConName, propConName, hpropConName, strConName, vvName :: Symbol
+listConName, listLConName, tupConName, _propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
-propConName  = "Prop"
-hpropConName = "HProp"
-strConName   = "Str"
+setConName   = "Set_Set"
+mapConName   = "Map_t"
 vvName       = "VV"
+_propConName  = "Prop"
+_hpropConName = "HProp"
 
+strConName  :: (IsString a) => a
+strConName   = "Str"
 -- symSepName   :: Char
 -- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
-symSepName   :: (IsString a) => a -- Symbol
+symSepName   :: (IsString a) => a
 symSepName   = "##"
 
 nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
@@ -525,13 +533,13 @@ mulFuncName  = "Z3_OP_MUL"
 divFuncName  = "Z3_OP_DIV"
 
 prims :: [Symbol]
-prims = [ propConName
-        , hpropConName
+prims = [ _propConName
+        , _hpropConName
         , vvName
         , "Pred"
         , "List"
         , "[]"
-        , "Set_Set"
+        , setConName
         , "Set_sng"
         , "Set_cup"
         , "Set_cap"
@@ -540,7 +548,7 @@ prims = [ propConName
         , "Set_empty"
         , "Set_mem"
         , "Set_sub"
-        , "Map_t"
+        , mapConName
         , "Map_select"
         , "Map_store"
         , size32Name

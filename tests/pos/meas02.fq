@@ -1,0 +1,25 @@
+
+qualif SumZ(v:[real]): (sumD v = 0.0)
+
+qualif SumZ(v:[real]): (((sumD v) / (sumD v)) = 1.0)
+
+constant sumD : (func(0, [[real]; real]))
+
+bind 0 zero    : {VV : real     | VV = 0.0 }
+bind 1 pumpkin : {VV : [real] | sumD VV = 0.0 }
+
+constraint:
+  env [ 0; 1 ]
+  lhs {v : [real] | v = pumpkin }
+  rhs {v : [real] | $k1 }
+  id 1 tag []
+
+constraint:
+  env [ ]
+  lhs {v : [real] | $k1 }
+  rhs {v : [real] | sumD v = 0.0 }
+  id 2 tag []
+
+wf:
+  env []
+  reft {v : [real] | $k1 }

@@ -64,7 +64,7 @@ data Config
     , solver      :: SMTSolver           -- ^ which SMT solver to use
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
     , stringTheory :: Bool               -- ^ interpretation of string theory by SMT
-    , defunction  :: Bool                -- ^ Allow higher order binders into fixpoint environment
+    , defunction  :: Bool                -- ^ defunctionalize (use 'apply' for all uninterpreted applications)
     , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
     , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
     , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars

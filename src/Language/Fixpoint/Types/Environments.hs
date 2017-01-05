@@ -25,14 +25,25 @@ module Language.Fixpoint.Types.Environments (
   , lookupSEnvWithDistance
   , envCs
 
+  -- * Local Constraint Environments
   , IBindEnv, BindId, BindMap
-  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv, memberIBindEnv
+  , emptyIBindEnv
+  , insertsIBindEnv
+  , deleteIBindEnv
+  , elemsIBindEnv
+  , memberIBindEnv
+  , unionIBindEnv
+  , diffIBindEnv
+  , intersectionIBindEnv
+  , nullIBindEnv
+  , filterIBindEnv
 
+  -- * Global Binder Environments
   , BindEnv, beBinds
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
-  , bindEnvFromList, bindEnvToList
-  , elemsBindEnv
-  , unionIBindEnv, diffIBindEnv, intersectionIBindEnv, nullIBindEnv
+  , emptyBindEnv
+  , insertBindEnv, lookupBindEnv
+  , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
+  , bindEnvFromList, bindEnvToList, elemsBindEnv
 
   -- * Information needed to lookup and update Solutions
   , SolEnv (..)
@@ -78,6 +89,9 @@ data SizedEnv a    = BE { _beSize  :: !Int
                         , beBinds :: !(BindMap a)
                         } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 
+instance PPrint a => PPrint (SizedEnv a) where
+  pprintTidy k (BE _ m) = pprintTidy k m
+
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
@@ -101,7 +115,7 @@ mapSEnv                 :: (a -> b) -> SEnv a -> SEnv b
 mapSEnv f (SE env)      = SE (fmap f env)
 
 mapMSEnv                :: (Monad m) => (a -> m b) -> SEnv a -> m (SEnv b)
-mapMSEnv f env          = fromListSEnv <$> (mapM (secondM f) $ toListSEnv env)
+mapMSEnv f env          = fromListSEnv <$> mapM (secondM f) (toListSEnv env)
 
 mapSEnvWithKey          :: ((Symbol, a) -> (Symbol, b)) -> SEnv a -> SEnv b
 mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
@@ -181,6 +195,9 @@ insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
+filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv -> BindEnv
+filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n (x, r) -> f n x r) be)
+
 bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
 bindEnvFromList [] = emptyBindEnv
 bindEnvFromList bs = BE (1 + maxId) be
@@ -194,8 +211,11 @@ elemsBindEnv be = fst3 <$> bindEnvToList be
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
 
-mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
-mapBindEnv f (BE n m) = BE n $ M.map f m
+mapBindEnv :: (BindId -> (Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
+mapBindEnv f (BE n m) = BE n $ M.mapWithKey f m
+-- (\i z -> tracepp (msg i z) $ f z) m
+--  where
+--    msg i z = "beMap " ++ show i ++ " " ++ show z
 
 mapWithKeyMBindEnv :: (Monad m) => ((BindId, (Symbol, SortedReft)) -> m (BindId, (Symbol, SortedReft))) -> BindEnv -> m BindEnv
 mapWithKeyMBindEnv f (BE n m) = (BE n . M.fromList) <$> mapM f (M.toList m)
@@ -204,6 +224,9 @@ lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
+
+filterIBindEnv :: (BindId -> Bool) -> IBindEnv -> IBindEnv
+filterIBindEnv f (FB m) = FB (S.filter f m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2

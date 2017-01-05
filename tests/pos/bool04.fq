@@ -1,0 +1,20 @@
+fixpoint "--eliminate=some"
+
+bind 1 bx : {v: int  | true }
+bind 2 by : {v: bool | true }
+
+constraint:
+  env [ 2 ]
+  lhs {v : int | true }
+  rhs {v : int | $k1[bx := by] }
+  id 1 tag []
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | $k1    }
+  rhs {v : int | v <= v + 1 }
+  id 2 tag []
+
+wf:
+  env [1]
+  reft {v : int | $k1 }

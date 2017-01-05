@@ -1,0 +1,245 @@
+fixpoint "--allowho"
+
+qualif Fst(v : @(1), y : @(0)): ((v = (fst y))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.spec" (line 28, column 8)
+qualif Snd(v : @(1), y : @(0)): ((v = (snd y))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.spec" (line 29, column 8)
+qualif Auto(v##1 : int, n : int, x : int): ((v##1 = (ack n x))) // "/Users/rjhala/research/stack/liquidhaskell/tests/pos/LogicCurry1.hs" (line 10, column 1)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]): ((v <=> ((len xs) > 0))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]): ((v <=> ((len xs) = 0))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 14, column 8)
+qualif ListZ(v : [@(0)]): (((len v) = 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 16, column 8)
+qualif ListZ(v : [@(0)]): (((len v) >= 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 17, column 8)
+qualif ListZ(v : [@(0)]): (((len v) > 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 18, column 8)
+qualif CmpLen(v : [@(1)], xs : [@(0)]): (((len v) = (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 20, column 8)
+qualif CmpLen(v : [@(1)], xs : [@(0)]): (((len v) >= (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 21, column 8)
+qualif CmpLen(v : [@(1)], xs : [@(0)]): (((len v) > (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 22, column 8)
+qualif CmpLen(v : [@(1)], xs : [@(0)]): (((len v) <= (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 23, column 8)
+qualif CmpLen(v : [@(1)], xs : [@(0)]): (((len v) < (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 24, column 8)
+qualif EqLen(v : int, xs : [@(0)]): ((v = (len xs))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 26, column 8)
+qualif LenEq(v : [@(0)], x : int): ((x = (len v))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 27, column 8)
+qualif LenDiff(v : [@(0)], x : int): (((len v) = (x + 1))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 28, column 8)
+qualif LenDiff(v : [@(0)], x : int): (((len v) = (x - 1))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 29, column 8)
+qualif LenAcc(v : int, xs : [@(0)], n : int): ((v = ((len xs) + n))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/GHC/Base.hquals" (line 30, column 8)
+qualif Bot(v : @(0)): ((0 = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 3, column 8)
+qualif Bot(v : @(0)): ((0 = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 4, column 8)
+qualif Bot(v : @(0)): ((0 = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 5, column 8)
+qualif Bot(v : bool): ((0 = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 6, column 8)
+qualif Bot(v : int): ((0 = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 7, column 8)
+qualif CmpZ(v : @(0)): ((v < 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 9, column 8)
+qualif CmpZ(v : @(0)): ((v <= 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 10, column 8)
+qualif CmpZ(v : @(0)): ((v > 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 11, column 8)
+qualif CmpZ(v : @(0)): ((v >= 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 12, column 8)
+qualif CmpZ(v : @(0)): ((v = 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 13, column 8)
+qualif CmpZ(v : @(0)): ((v != 0)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 14, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v < x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 16, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v <= x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 17, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v > x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 18, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v >= x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 19, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v = x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 20, column 8)
+qualif Cmp(v : @(0), x : @(0)): ((v != x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 21, column 8)
+qualif One(v : int): ((v = 1)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 28, column 8)
+qualif True1(v : GHC.Types.Bool): (v) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 29, column 8)
+qualif False1(v : GHC.Types.Bool): ((~ (v))) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 30, column 8)
+qualif Papp(v : @(0), p : (Pred  @(0))): ((papp1 p v)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 34, column 8)
+qualif Papp2(v : @(1), x : @(0), p : (Pred  @(1)  @(0))): ((papp2 p v x)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 37, column 8)
+qualif Papp3(v : @(2), x : @(0), y : @(1), p : (Pred  @(2)  @(0)  @(1))): ((papp3 p v x y)) // "/Users/rjhala/research/stack/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2016-05-21/7.10.3/share/x86_64-osx-ghc-7.10.3/liquidhaskell-0.6.0.0/include/Prelude.hquals" (line 39, column 8)
+
+
+
+
+constant runFun : (func(2, [(Arrow  @(0)  @(1)); @(0); @(1)]))
+constant addrLen : (func(0, [Str; int]))
+constant papp5 : (func(10, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4));
+                            @(5);
+                            @(6);
+                            @(7);
+                            @(8);
+                            @(9);
+                            bool]))
+constant x_Tuple21 : (func(2, [(Tuple  @(0)  @(1)); @(0)]))
+constant GHC.Types.False##68 : (bool)
+constant x_Tuple65 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(4)]))
+constant x_Tuple55 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(4)]))
+constant x_Tuple33 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(2)]))
+constant x_Tuple77 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(6)]))
+constant papp3 : (func(6, [(Pred  @(0)  @(1)  @(2));
+                           @(3);
+                           @(4);
+                           @(5);
+                           bool]))
+constant GHC.Types.True##6u : (bool)
+constant x_Tuple63 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(2)]))
+constant x_Tuple41 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(0)]))
+constant GHC.Types.LT##6S : (GHC.Types.Ordering)
+constant papp4 : (func(8, [(Pred  @(0)  @(1)  @(2)  @(3));
+                           @(4);
+                           @(5);
+                           @(6);
+                           @(7);
+                           bool]))
+constant x_Tuple64 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(3)]))
+constant GHC.Types.GT##6W : (GHC.Types.Ordering)
+constant autolen : (func(1, [@(0); int]))
+constant x_Tuple52 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(1)]))
+constant head : (func(1, [[@(0)]; @(0)]))
+constant null : (func(1, [[@(0)]; bool]))
+constant papp2 : (func(4, [(Pred  @(0)  @(1)); @(2); @(3); bool]))
+constant x_Tuple62 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(1)]))
+constant fromJust : (func(1, [(GHC.Base.Maybe  @(0)); @(0)]))
+constant papp7 : (func(14, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                            @(7);
+                            @(8);
+                            @(9);
+                            @(10);
+                            @(11);
+                            @(12);
+                            @(13);
+                            bool]))
+constant x_Tuple53 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(2)]))
+constant x_Tuple71 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(0)]))
+constant ack : (func(0, [int; int; int]))
+constant x_Tuple74 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(3)]))
+constant len : (func(2, [(@(0)  @(1)); int]))
+constant papp6 : (func(12, [(Pred  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                            @(6);
+                            @(7);
+                            @(8);
+                            @(9);
+                            @(10);
+                            @(11);
+                            bool]))
+constant x_Tuple22 : (func(2, [(Tuple  @(0)  @(1)); @(1)]))
+constant x_Tuple66 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(5)]))
+constant x_Tuple44 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(3)]))
+constant GHC.Err.undefined##02v : (func(1, [@(0)]))
+constant strLen : (func(0, [[Char]; int]))
+constant x_Tuple72 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(1)]))
+constant isJust : (func(1, [(GHC.Base.Maybe  @(0)); bool]))
+constant x_Tuple31 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(0)]))
+constant x_Tuple75 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(4)]))
+constant papp1 : (func(2, [(Pred  @(0)); @(1); bool]))
+constant x_Tuple61 : (func(6, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5));
+                               @(0)]))
+constant x_Tuple43 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(2)]))
+constant tail : (func(1, [[@(0)]; [@(0)]]))
+constant GHC.Types.EQ##6U : (GHC.Types.Ordering)
+constant x_Tuple51 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(0)]))
+constant x_Tuple73 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(2)]))
+constant Main.ack##rjG : (func(0, [int; int; int]))
+constant x_Tuple54 : (func(5, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4));
+                               @(3)]))
+constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
+constant x_Tuple32 : (func(3, [(Tuple  @(0)  @(1)  @(2)); @(1)]))
+constant x_Tuple76 : (func(7, [(Tuple  @(0)  @(1)  @(2)  @(3)  @(4)  @(5)  @(6));
+                               @(5)]))
+constant snd : (func(2, [(Tuple  @(0)  @(1)); @(1)]))
+constant fst : (func(2, [(Tuple  @(0)  @(1)); @(0)]))
+constant x_Tuple42 : (func(4, [(Tuple  @(0)  @(1)  @(2)  @(3));
+                               @(1)]))
+
+
+distinct GHC.Types.False##68 : (bool)
+distinct GHC.Types.True##6u : (bool)
+distinct GHC.Types.LT##6S : (GHC.Types.Ordering)
+distinct GHC.Types.GT##6W : (GHC.Types.Ordering)
+distinct GHC.Types.EQ##6U : (GHC.Types.Ordering)
+
+
+bind 0 GHC.Err.undefined##02v : {VV : func(1, [@(0)]) | []}
+bind 1 GHC.Types.True##6u : {VV##9 : bool | [(VV##9 = GHC.Types.True##6u)]}
+bind 2 GHC.Types.False##68 : {VV##10 : bool | [(VV##10 = GHC.Types.False##68)]}
+bind 3 GHC.Types.EQ##6U : {VV##11 : GHC.Types.Ordering | [(VV##11 = GHC.Types.EQ##6U)]}
+bind 4 GHC.Types.LT##6S : {VV##12 : GHC.Types.Ordering | [(VV##12 = GHC.Types.LT##6S)]}
+bind 5 GHC.Types.GT##6W : {VV##13 : GHC.Types.Ordering | [(VV##13 = GHC.Types.GT##6W)]}
+bind 6 Main.ack##rjG : {VV : func(0, [int; int; int]) | []}
+bind 7 Main.ack##rjG : {VV : func(0, [int; int; int]) | []}
+bind 8 m##alH : {VV##41 : int | []}
+bind 9 Main.bar##rlx : {VV : func(0, [int; int; int]) | []}
+bind 10 VV##55 : {VV##55 : int | []}
+bind 11 m##alH : {VV##57 : int | []}
+bind 12 VV##58 : {VV##58 : int | []}
+bind 13 lq_tmp$x##51 : {v : int | []}
+bind 14 VV##61 : {VV##61 : int | []}
+bind 15 VV##63 : {VV##63 : int | []}
+bind 16 lq_tmp$x##40 : {v : int | []}
+bind 17 VV##66 : {VV##66 : int | [(VV##66 = (ack m##alH lq_tmp$x##40))]}
+bind 18 VV##68 : {VV##68 : int | [(VV##68 = m##alH)]}
+bind 19 VV##70 : {VV##70 : int | []}
+bind 20 lq_tmp$x##17 : {VV##72 : int | []}
+bind 21 VV##73 : {VV##73 : int | []}
+bind 22 lq_tmp$x##19 : {VV##75 : int | []}
+bind 23 VV##76 : {VV##76 : int | [$k_##31[lq_tmp$x##22:=lq_tmp$x##17][VV##30:=VV##76][lq_tmp$x##26:=lq_tmp$x##19][lq_tmp$x##35:=VV##76]]}
+bind 24 VV##23 : {VV##23 : int | [$k_##24]}
+bind 25 lq_tmp$x##22 : {VV##23 : int | [$k_##24]}
+bind 26 VV##27 : {VV##27 : int | [$k_##28]}
+bind 27 lq_tmp$x##26 : {VV##27 : int | [$k_##28]}
+bind 28 VV##30 : {VV##30 : int | [$k_##31]}
+
+
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8]
+  lhs {VV##F##1 : func(0, [int; int]) | [(VV##F##1 = (ack m##alH))]}
+  rhs {VV##F##1 : func(0, [int; int]) | [(VV##F##1 = (ack m##alH))]}
+  id 1 tag [2]
+  // META constraint id 1 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6]
+  lhs {VV##F##2 : int | []}
+  rhs {VV##F##2 : int | [$k_##24[VV##70:=VV##F##2][VV##23:=VV##F##2][VV##F:=VV##F##2][lq_tmp$x##33:=VV##F##2]]}
+  id 2 tag [1]
+  // META constraint id 2 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 20]
+  lhs {VV##F##3 : int | []}
+  rhs {VV##F##3 : int | [$k_##28[lq_tmp$x##22:=lq_tmp$x##17][lq_tmp$x##34:=VV##F##3][VV##27:=VV##F##3][VV##73:=VV##F##3][VV##F:=VV##F##3]]}
+  id 3 tag [1]
+  // META constraint id 3 : ()
+
+
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 25]
+  reft {VV##27 : int | [$k_##28]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 25; 27]
+  reft {VV##30 : int | [$k_##31]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6]
+  reft {VV##23 : int | [$k_##24]}
+  // META wf : ()
+
+
+
+
+
+
+

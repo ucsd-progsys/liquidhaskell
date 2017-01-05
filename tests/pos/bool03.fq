@@ -1,0 +1,28 @@
+
+//qualif LE(v:a, x:a): (bool_to_int x <= bool_to_int v)
+
+qualif LE(v:a, x:a): (x <= v)
+
+constant lit$36$not$45$the$45$hippopotamus : (Str)
+constant lit#cat : (Str)
+constant lit#dog : (Str)
+
+bind 1 bx : {v: bool | true }
+
+bind 2 zx : {v: bool | lit#cat /= lit#dog }
+
+constraint:
+  env [ 1 ]
+  lhs {v : bool | bx <= v }
+  rhs {v : bool | $k1     }
+  id 1 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : bool | $k1 }
+  rhs {v : bool | bx <= v }
+  id 2 tag []
+
+wf:
+  env [1]
+  reft {v : bool | $k1 }

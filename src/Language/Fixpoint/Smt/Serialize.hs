@@ -4,17 +4,15 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
+
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize
-       ( initSMTEnv )
-       where
+module Language.Fixpoint.Smt.Serialize () where
 
 import           Language.Fixpoint.Types
---import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Data.Monoid
@@ -23,56 +21,43 @@ import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar)
 import           Data.Maybe (fromMaybe)
 
-{-
+-- instance SMTLIB2 Sort where
+--   smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ showpp s
+--   smt2 FInt                    = "Int"
+--   smt2 FReal                   = "Real"
+--   smt2 t
+--     | t == boolSort            = "Bool"
+--   smt2 t
+--     | Just d <- Thy.smt2Sort t = d
+--   smt2 _                       = "Int"
 
-    (* (L t1 t2 t3) is now encoded as
-        ---> (((L @ t1) @ t2) @ t3)
-        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
-        The following decodes the above as
-     *)
-    let rec app_args_of_t acc = function
-      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1
-      | App (c, [])                       -> (c, acc)
-      | t                                 -> (tc_app, t :: acc)
+instance SMTLIB2 (Symbol, Sort) where
+  smt2 c@(sym, t) = build "({} {})" (smt2 sym, smt2Sort c t)
 
-      (*
-      | Ptr (Loc s)                       -> (tycon s, acc)
-      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
-      *)
-
-    let app_of_t = function
-      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
-      | App (c, ts)                       -> Some (c, ts)
-      | _                                 -> None
-
--}
-
-instance SMTLIB2 Sort where
-  smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
-  smt2 FInt                    = "Int"
-  smt2 FReal                   = "Real"
-  smt2 t
-    | t == boolSort            = "Bool"
-  smt2 t
-    | Just d <- Thy.smt2Sort t = d
-  smt2 _                       = "Int"
+smt2Sort :: (PPrint a) => a -> Sort -> Builder.Builder
+smt2Sort msg = go
+  where
+    go s@(FFunc _ _)             = errorstar $ unwords ["smt2 FFunc:", showpp msg, showpp s]
+    go FInt                      = "Int"
+    go FReal                     = "Real"
+    go t
+      | t == boolSort            = "Bool"
+    go t
+      | Just d <- Thy.smt2Sort t = d
+    go _                         = "Int"
 
 instance SMTLIB2 Symbol where
   smt2 s
     | Just t <- Thy.smt2Symbol s = t
   smt2 s                         = Builder.fromText $ symbolSafeText  s
 
-instance SMTLIB2 (Symbol, Sort) where
-  smt2 (sym, t) = build "({} {})" (smt2 sym, smt2 t)
-
 instance SMTLIB2 SymConst where
-  smt2 (SL s)  = build "\"{}\"" (Only s)
-
+  smt2 = smt2 . symbol
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = build "{}" (Only n)
   smt2 (R d)   = build "{}" (Only d)
-  smt2 (L t _) = build "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
+  smt2 (L t _) = build "{}" (Only t)
 
 instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
@@ -155,8 +140,8 @@ mkNe  e1 e2              = build "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
-  smt2 (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 x, smt2s ts, smt2 t)
-  smt2 (Define t)          = build "(declare-sort {})"            (Only $ smt2 t)
+  smt2 c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 x, smt2many (smt2Sort c <$> ts), smt2Sort c t) -- HEREHEREHERE (smt2 x, smt2s ts, smt2 t)
+  smt2 c@(Define t)        = build "(declare-sort {})"            (Only $ smt2Sort c t)
   smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
   smt2 (Distinct az)
@@ -170,68 +155,12 @@ instance SMTLIB2 Command where
   smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
 
 
+{-# INLINE smt2s #-}
 smt2s    :: SMTLIB2 a => [a] -> Builder.Builder
 smt2s as = smt2many (map smt2 as)
-{-# INLINE smt2s #-}
 
 smt2many :: [Builder.Builder] -> Builder.Builder
 smt2many []     = mempty
 smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 {-# INLINE smt2many #-}
-
-
-{-
-(declare-fun x () Int)
-(declare-fun y () Int)
-(assert (<= 0 x))
-(assert (< x y))
-(push 1)
-(assert (not (<= 0 y)))
-(check-sat)
-(pop 1)
-(push 1)
-(assert (<= 0 y))
-(check-sat)
-(pop 1)
--}
-
-
-initSMTEnv :: SEnv Sort
-initSMTEnv = fromListSEnv $
-  [ (setToIntName,    FFunc (setSort intSort)   intSort)
-  , (bitVecToIntName, FFunc bitVecSort intSort)
-  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  , (boolToIntName,   FFunc boolSort   intSort)
-  , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
-  ]
-  ++ concatMap makeApplies [1..maxLamArg]
-  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
-
-
--- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
-maxLamArg :: Int
-maxLamArg = 7
-
-sorts :: [Sort]
-sorts = [intSort]
-
--- NIKI TODO: allow non integer lambda arguments
--- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
-
-makeLamArg :: Sort -> Int  -> Symbol
-makeLamArg _ i = intArgName i
-
-makeApplies :: Int -> [(Symbol, Sort)]
-makeApplies i =
-  [ (intApplyName i,    go i intSort)
-  , (setApplyName i,    go i (setSort intSort))
-  , (bitVecApplyName i, go i bitVecSort)
-  , (mapApplyName i,    go i $ mapSort intSort intSort)
-  , (realApplyName i,   go i realSort)
-  , (boolApplyName i,   go i boolSort)
-  ]
-  where
-    go 0 s = FFunc intSort s
-    go i s = FFunc intSort $ go (i-1) s

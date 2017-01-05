@@ -25,9 +25,10 @@ import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-import           Language.Fixpoint.Solver.Validate  (sanitize)
+import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
-import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
+import           Language.Fixpoint.Defunctionalize (defunctionalize)
+import           Language.Fixpoint.SortCheck            (Elaborate (..))
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config
@@ -40,6 +41,7 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
+-- import Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -67,18 +69,18 @@ ignoreQualifiers cfg fi
   | otherwise            = fi
 
 
----------------------------------------------------------------------------
--- | Solve FInfo system of horn-clause constraints ------------------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Solve FInfo system of horn-clause constraints -----------------------------
+--------------------------------------------------------------------------------
 solve :: (NFData a, Fixpoint a) => Solver a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solve cfg q
-  | parts cfg    = partition  cfg        $!! q
-  | stats cfg    = statistics cfg        $!! q
-  | minimize cfg = minQuery   cfg solve' $!! q
-  | minimizeQs cfg = minQuals cfg solve' $!! q
-  | minimizeKs cfg = minKvars cfg solve' $!! q
-  | otherwise    = solve'     cfg        $!! q
+  | parts cfg      = partition  cfg        $!! q
+  | stats cfg      = statistics cfg        $!! q
+  | minimize cfg   = minQuery   cfg solve' $!! q
+  | minimizeQs cfg = minQuals cfg solve'   $!! q
+  | minimizeKs cfg = minKvars cfg solve'   $!! q
+  | otherwise      = solve'     cfg        $!! q
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
@@ -90,9 +92,9 @@ configSW cfg
   | multicore cfg = solveParWith
   | otherwise     = solveSeqWith
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo (), [String])
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 readFInfo f
   | isBinary f = (,) <$> readBinFq f <*> return []
   | otherwise  = readFq f
@@ -106,19 +108,19 @@ readFq file = do
 readBinFq :: FilePath -> IO (FInfo ())
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
 solveSeqWith s c fi0 = {- withProgressFI fi $ -} s c fi
   where
     fi               = slice fi0
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solveParWith :: (Fixpoint a) => Solver a -> Solver a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
   let fi    = slice fi0
@@ -135,11 +137,11 @@ solveParWith s c fi0 = do
     where
       f s c (j, fi) = s (c {srcFile = queryFile (Part j) c}) fi
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 inParallelUsing f xs = do
    setNumCapabilities (length xs)
    rs <- asyncMapM f xs
@@ -159,6 +161,11 @@ result e = Result (Crash [] msg) mempty
   where
     msg  = showpp e
 
+loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
+loudDump i cfg si = writeLoud $ msg ++ render (toFixpoint cfg si)
+  where
+    msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
+
 solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
@@ -169,16 +176,20 @@ solveNative' !cfg !fi0 = do
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
-  -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
+  let si1 = either die id $ {-# SCC "sanitize" #-} sanitize $!! si0
+  -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
+  let si3  = {-# SCC "renameAll"  #-} renameAll  $!! si2
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
-  writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
-  let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
+  loudDump 1 cfg si3
+  let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
+  -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
+  loudDump 2 cfg si4
+  let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
+  loudDump 3 cfg si5
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si5
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res

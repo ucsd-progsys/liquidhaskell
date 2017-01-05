@@ -1,0 +1,22 @@
+fixpoint "--eliminate=none"
+
+qualif Eq(v:a, x:a): (v = x)
+
+bind 0 x0 : {v: a0 | true }
+bind 1 x1 : {v: a1 | true }
+
+constraint:
+  env [ 1 ]
+  lhs {v : a1 | v = x1 }
+  rhs {v : a1 | $k0[v0 := v][x0 := x1] }
+  id 1 tag []
+
+constraint:
+  env [ ]
+  lhs {v : a2 | $k0[v0 := v][x0 := x2] }
+  rhs {v : a2 | 2 < 3 + 4 }
+  id 2 tag []
+
+wf:
+  env [ 0 ]
+  reft {v0 : a0 | $k0 }

@@ -1,0 +1,14 @@
+constant listElts : (func(0, [LLChar; (Set_Set Str)]))
+constant Set_sng : (func(1, [@(0); (Set_Set  @(0))]))
+
+bind 1 a  : {a : Str | a == "director" }
+bind 2 things : {v : LLChar | (listElts v == (Set_cup (Set_sng "year") 
+                                               (Set_cup (Set_sng "star") 
+                                                 (Set_cup (Set_sng "director") 
+                                                   (Set_sng "title"))))) }
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | true }
+  rhs {v : int | Set_mem a (listElts things)} 
+  id 1 tag []

@@ -1,0 +1,11 @@
+constant len : func(0, [Tree; int])
+
+bind 0 x : {v : int  | true} 
+bind 1 x : {v : Tree | true} 
+bind 2 y : {v : int  | v = len x } 
+
+constraint:
+  env [ ]
+  lhs {v : Tree | 666 < len v }
+  rhs {v : Tree | 66  < len v }
+  id 1 tag []

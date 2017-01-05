@@ -30,7 +30,7 @@ module Language.Fixpoint.Solver.Monad
 import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
-import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Misc    (mapSnd, groupList)
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
@@ -38,19 +38,20 @@ import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
+import           Language.Fixpoint.Smt.Types (tsInterp)
+import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 -- import qualified Language.Fixpoint.Solver.Index as Index
-import           Language.Fixpoint.Solver.Validate
+import           Language.Fixpoint.Solver.Sanitize
+import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
-import           Data.Maybe           (isJust, catMaybes)
+import           Data.Maybe           (catMaybes)
 -- import           Data.Char            (isUpper)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
-
 import           Control.Exception.Base (bracket)
 
 --------------------------------------------------------------------------------
@@ -92,33 +93,24 @@ runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI _ _ act =
   bracket acquire release $ \ctx -> do
-    res <- runStateT act' (SS ctx be $ stats0 fi)
+    res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    act'     = declareInitEnv >> declare xts ess p >> assumes (F.asserts fi) >> act
-    acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
+    s0 ctx   = SS ctx be (stats0 fi)
+    act'     = declare initEnv lts {- ess -} >> assumes (F.asserts fi) >> act
     release  = cleanupContext
-    ess      = distinctLiterals fi
-    (xts, p) = background cfg fi
-    be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
+    acquire  = makeContextWithSEnv cfg file initEnv
+    initEnv  = symbolEnv   cfg fi
+    lts      = F.toListSEnv (F.dLits fi)
+    -- ess   = distinctLiterals fi
+    be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
-    -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
-    -- binds    = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
--- getPacks :: Config -> F.SInfo a -> F.Packs
--- getPacks cfg fi
--- /   | C.pack cfg = F.packs fi
--- /   | otherwise  = mempty
 
-background :: F.TaggedC c a => Config -> F.GInfo c a -> ([(F.Symbol, F.Sort)], F.Pred)
-background cfg fi = (bts ++ xts, p)
-  where
-    xts           = symbolSorts cfg fi
-    (bts, p)      = ([], F.PTrue) -- maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 --------------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -187,7 +179,7 @@ filterValid :: F.Expr -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
-           smtBracket me $
+           smtBracket me "filterValidLHS" $
              filterValid_ p qs me
   -- stats
   incBrkt
@@ -199,7 +191,7 @@ filterValid_ :: F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
-    smtBracket me $ do
+    smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
@@ -214,42 +206,50 @@ checkSat :: F.Expr -> SolveM  Bool
 --------------------------------------------------------------------------------
 checkSat p
   = withContext $ \me ->
-      smtBracket me $
+      smtBracket me "checkSat" $
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
+declare :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)] -> SolveM ()
 --------------------------------------------------------------------------------
-declare xts' ess p = withContext $ \me -> do
-  let xts      = filter (not . isThy . fst) xts'
-  forM_ xts    $ uncurry $ smtDecl     me
+declare env lts = withContext $ \me -> do
+  forM_ thyXTs $ uncurry $ smtDecl     me
+  forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
-  _           <-           smtAssert   me p
+  forM_ axs    $           smtAssert   me
   return ()
   where
-    isThy   = isJust . Thy.smt2Symbol
+    ess        = distinctLiterals  lts
+    axs        = Thy.axiomLiterals lts
+    thyXTs     =               filter (isKind 1) xts
+    qryXTs     = mapSnd tx <$> filter (isKind 2) xts
+    isKind n   = (n ==)  . symKind . fst
+    xts        = F.toListSEnv           env
+    tx         = elaborate    "declare" env
+
+-- | symKind returns {0, 1, 2} where:
+--   0 = Theory-Definition,
+--   1 = Theory-Declaration,
+--   2 = Query-Binder
+
+symKind :: F.Symbol -> Int
+symKind x = case M.lookup x Thy.theorySymbols of
+              Just t  -> if tsInterp t then 0 else 1
+              Nothing -> 2
 
 assumes :: [F.Expr] -> SolveM ()
-assumes es = withContext $ \me ->
-  forM_  es $ smtAssert me
-
-declareInitEnv :: SolveM ()
-declareInitEnv
-  = withContext $ \me ->
-      forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
+assumes es = withContext $ \me -> forM_  es $ smtAssert me
 
 -- | `distinctLiterals` is used solely to determine the set of literals
 --   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
 --   or string literals "cat", "dog", "mouse". These should only include
 --   non-function sorted values.
-
-distinctLiterals :: F.GInfo c a -> [[F.Expr]]
-distinctLiterals fi  = [ es | (_, es) <- tess ]
+distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
+distinctLiterals xts = [ es | (_, es) <- tess ]
    where
-    tess             = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv (F.dLits fi)
-                                                , notFun t                            ]
+    tess             = groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
+    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats

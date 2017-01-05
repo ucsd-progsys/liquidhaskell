@@ -14,9 +14,7 @@
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
--- | This module contains the data types for representing terms in the
---   refinement logic; currently split into @Expr@ and @Pred@ but which
---   will be unified.
+-- | This module has the types for representing terms in the refinement logic.
 
 module Language.Fixpoint.Types.Refinements (
 
@@ -31,7 +29,7 @@ module Language.Fixpoint.Types.Refinements (
   , pattern EEq
   , KVar (..)
   , Subst (..)
-  , KVSub
+  , KVSub (..)
   , Reft (..)
   , SortedReft (..)
 
@@ -61,7 +59,7 @@ module Language.Fixpoint.Types.Refinements (
   , uexprReft               -- singleton: v ~~ e
   , symbolReft              -- singleton: v == x
   , usymbolReft             -- singleton: v ~~ x
-  , propReft                -- singleton: Prop(v) <=> p
+  , propReft                -- singleton: v <=> p
   , predReft                -- any pred : p
   , reftPred
   , reftBind
@@ -77,6 +75,7 @@ module Language.Fixpoint.Types.Refinements (
   , flattenRefas
   , conjuncts
   , eApps
+  , eAppC
   , splitEApp
   , reftConjuncts
 
@@ -92,7 +91,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Data.List                 (partition) -- , foldl', sort, sortBy)
+import           Data.List                 (foldl', partition) -- , sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -157,7 +156,6 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 newtype KVar = KV { kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
-
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
 
@@ -187,7 +185,15 @@ instance Fixpoint Subst where
 instance PPrint Subst where
   pprintTidy _ = toFix
 
-type KVSub       = (KVar, Subst)
+data KVSub = KVS
+  { ksuVV    :: Symbol
+  , ksuSort  :: Sort
+  , ksuKVar  :: KVar
+  , ksuSubst :: Subst
+  } deriving (Eq, Data, Typeable, Generic, Show)
+
+instance PPrint KVSub where
+  pprintTidy k ksu = pprintTidy k (ksuVV ksu, ksuKVar ksu, ksuSubst ksu)
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------
@@ -221,8 +227,6 @@ data Expr = ESym !SymConst
           | ELam !(Symbol, Sort)   !Expr
           | ETApp !Expr !Sort
           | ETAbs !Expr !Symbol
-
---- Used to be predicates
           | PAnd   ![Expr]
           | POr    ![Expr]
           | PNot   !Expr
@@ -237,27 +241,33 @@ data Expr = ESym !SymConst
 
 type Pred = Expr
 
-pattern PTrue  = PAnd []
-pattern PTop   = PAnd []
-pattern PFalse = POr []
-pattern EBot   = POr []
+pattern PTrue         = PAnd []
+pattern PTop          = PAnd []
+pattern PFalse        = POr  []
+pattern EBot          = POr  []
 pattern EEq e1 e2     = PAtom Eq    e1 e2
 pattern ETimes e1 e2  = EBin Times  e1 e2
 pattern ERTimes e1 e2 = EBin RTimes e1 e2
 pattern EDiv e1 e2    = EBin Div    e1 e2
 pattern ERDiv e1 e2   = EBin RDiv   e1 e2
 
+
 mkEApp :: LocSymbol -> [Expr] -> Expr
-mkEApp f = eApps (EVar $ val f)
+mkEApp = eApps . EVar . val
 
 eApps :: Expr -> [Expr] -> Expr
-eApps f es  = foldl EApp f es
+eApps f es  = foldl' EApp f es
 
 splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
+
+eAppC :: Sort -> Expr -> Expr -> Expr
+eAppC s e1 e2 = ECst (EApp e1 e2) s
+
+
 
 debruijnIndex :: Expr -> Int
 debruijnIndex = go
@@ -299,9 +309,9 @@ instance Fixpoint Constant where
   toFix (R i)   = toFix i
   toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t
 
----------------------------------------------------------------
--- | String Constants -----------------------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | String Constants ----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
@@ -498,8 +508,9 @@ instance PPrint Expr where
                                    "then" <+> pprintPrec (zi+1) k e1 <+>
                                    "else" <+> pprintPrec (zi+1) k e2
     where zi = 1
-  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> pprintTidy k so
 
+  -- pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> const (text "...") (pprintTidy k so)
+  pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $
@@ -582,8 +593,7 @@ instance Expression Expr where
 -- | The symbol may be an encoding of a SymConst.
 
 instance Expression Symbol where
-  expr s = eVar s -- ) ESym (decodeSymConst s)
-  -- expr = eVar
+  expr s = eVar s
 
 instance Expression Text where
   expr = ESym . SL
@@ -637,7 +647,7 @@ pExist []  p = p
 pExist xts p = PExist xts p
 
 mkProp :: Expr -> Pred
-mkProp = EApp (EVar propConName)
+mkProp = id -- EApp (EVar propConName)
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -713,6 +723,7 @@ conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
   | otherwise       = [p]
+
 
 -------------------------------------------------------------------------
 -- | TODO: This doesn't seem to merit a TC ------------------------------

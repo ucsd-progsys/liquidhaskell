@@ -327,21 +327,21 @@ addOperator (FPostfix p x f) ops
 makePrec :: Maybe Int -> Int
 makePrec = fromMaybe 9
 
-makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr)
+makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
 makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
 
-makePrefixFun :: String -> Maybe (Expr -> Expr) -> (Expr -> Expr)
-makePrefixFun x = fromMaybe (\e -> EApp (EVar $ symbol x) e)
+makePrefixFun :: String -> Maybe (Expr -> Expr) -> Expr -> Expr
+makePrefixFun x = fromMaybe (EApp (EVar $ symbol x))
 
 insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
-insertOperator i op ops = go (9-i) ops
+insertOperator i op ops = go (9 - i) ops
   where
     go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
     go 0 (xs:xss) = (xs++[op]):xss
     go i (xs:xss) = xs:go (i-1) xss
 
 initOpTable :: OpTable
-initOpTable = take 10 (repeat [])
+initOpTable = replicate 10 [] --  take 10 (repeat [])
 
 bops :: OpTable
 bops = foldl (flip addOperator) initOpTable buildinOps
@@ -473,6 +473,7 @@ pred0P =  trueP
       <|> try (parens predP)
       <|> try (reserved "?" *> exprP)
       <|> try funAppP
+      <|> try (eVar <$> symbolP)
       <|> try (reservedOp "&&" >> PAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
 
@@ -546,7 +547,7 @@ refBindP bp rp kindP
 
 -- bindP      = symbol    <$> (lowerIdP <* colon)
 bindP :: Parser Symbol
-bindP      = symbolP <* colon
+bindP = symbolP <* colon
 
 optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x

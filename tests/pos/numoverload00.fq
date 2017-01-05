@@ -1,0 +1,23 @@
+
+qualif Foo(v:real, xiggety:real): (v = xiggety * xiggety)
+qualif Bar(v:real): (v = 0.0)
+
+bind 0 zero  : {VV : real | VV = 0.0 }
+bind 1 one   : {VV : real | VV = (1.0 / 1.0) }
+bind 2 thing : {VV : real | VV = zero }
+
+constraint:
+  env [ 0; 1; 2 ]
+  lhs {v : real | v = thing }
+  rhs {v : real | $k1 }
+  id 1 tag []
+
+constraint:
+  env [ ]
+  lhs {v : real | $k1 }
+  rhs {v : real | v = 0.0 }
+  id 2 tag []
+
+wf:
+  env []
+  reft {v : real | $k1 }

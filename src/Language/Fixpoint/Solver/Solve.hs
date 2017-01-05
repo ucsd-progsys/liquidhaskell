@@ -87,7 +87,7 @@ solve_ :: (NFData a, F.Fixpoint a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
-  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi ks
+  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
@@ -143,12 +143,13 @@ refineC _i s c
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
-rhsCands s c   = (fst <$> ks, kqs)
+rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- Sol.lookupQBind s k]
-    ks         = predKs . F.crhs $ c
-    cnd k su q = (F.subst su (F.eqPred q), (k, q))
+    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
+    ks          = predKs . F.crhs $ c
+    cnd k su    = Sol.qbPreds msg s su (Sol.lookupQBind s k)
+    msg         = "rhsCands: " ++ show (F.sid c) 
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps

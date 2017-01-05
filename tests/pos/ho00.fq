@@ -1,0 +1,21 @@
+fixpoint "--allowho"
+fixpoint "--eliminate=all"
+
+bind 1 foo : {v : func(0, [Tuple; (MapReduce.List a)]) | []}
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | v = 12 }
+  rhs {v : int | $k0    }
+  id 1 tag [6]
+
+constraint:
+  env [ ]
+  lhs {v : int | $k0    }
+  rhs {v : int | 10 < v }
+  id 2 tag [6]
+
+wf:
+  env [ ]
+  reft {v: int | $k0}
+

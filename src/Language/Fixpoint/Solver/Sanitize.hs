@@ -3,22 +3,25 @@
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.Solver.Validate
-       ( -- * Transform FInfo to enforce invariants
-         sanitize
+module Language.Fixpoint.Solver.Sanitize
+  ( -- * Transform FInfo to enforce invariants
+    sanitize
 
-         -- * Sorts for each Symbol
-       , symbolSorts
-       )
-       where
+    -- * Sorts for each Symbol (move elsewhere)
+  , symbolEnv
+
+    -- * Remove substitutions K[x := e] where `x` is not in dom(K)
+  , dropDeadSubsts
+  ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor (isConcC, isKvarC, mapKVars, mapKVarSubsts)
+import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
 import           Language.Fixpoint.SortCheck     (isFirstOrder)
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
 import qualified Language.Fixpoint.Types.Errors                    as E
+import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
@@ -28,20 +31,33 @@ import           Data.Maybe          (isNothing, mapMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
-type ValidateM a = Either E.Error a
+type SanitizeM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
+sanitize :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize   =    -- banIllScopedKvars
+sanitize =    -- banIllScopedKvars
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
-         >=> Misc.fM dropBogusSubstitutions
+         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
          >=>         banMixedRhs
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
+         >=> Misc.fM addLiterals
 
+
+--------------------------------------------------------------------------------
+-- | `addLiterals` traverses the constraints to find (string) literals that
+--   are then added to the `dLits` field.
+--------------------------------------------------------------------------------
+addLiterals :: F.SInfo a -> F.SInfo a
+--------------------------------------------------------------------------------
+addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
+                    , F.gLits = F.unionSEnv (F.gLits si) lits'
+                    }
+  where
+    lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
@@ -50,14 +66,14 @@ sanitize   =    -- banIllScopedKvars
 --   then
 --      G1 \cap G2 \subseteq wenv(k)
 --------------------------------------------------------------------------------
-_banIllScopedKvars :: F.SInfo a ->  ValidateM (F.SInfo a)
+_banIllScopedKvars :: F.SInfo a ->  SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 _banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
   where
-    errs             = concatMap (checkIllScope si kDs) ks
-    kDs              = kvarDefUses si
-    ks               = filter notKut $ M.keys (F.ws si)
-    notKut           = not . (`F.ksMember` F.kuts si)
+    errs              = concatMap (checkIllScope si kDs) ks
+    kDs               = kvarDefUses si
+    ks                = filter notKut $ M.keys (F.ws si)
+    notKut            = not . (`F.ksMember` F.kuts si)
 
 badKs :: [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)] -> F.Error
 badKs = E.catErrors . map E.errIllScopedKVar
@@ -96,44 +112,100 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
     outs       = [(k, o) | (KVar k, Cstr o) <- es ]
     ins        = [(k, i) | (Cstr i, KVar k) <- es ]
 
-
+--------------------------------------------------------------------------------
+-- | `dropDeadSubsts` removes dead `K[x := e]` where `x` NOT in the domain of K.
+--------------------------------------------------------------------------------
+dropDeadSubsts :: F.SInfo a -> F.SInfo a
+dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
+  where
+    kvsM          = M.mapWithKey (\k _ -> kvDom k) (F.ws si)
+    kvDom         = S.fromList . F.kvarDomain si
+    f k x _       = S.member x (M.lookupDefault mempty k kvsM)
 
 --------------------------------------------------------------------------------
--- | remove substitutions `K[x := e]` where `x` is not in the domain of K or `e`
---   is not a "known" var, i.e. one corresponding to some binder.
+-- | `restrictKVarDomain` updates the kvar-domains in the wf constraints
+--   to a subset of the original binders, where we DELETE the parameters
+--   `x` which appear in substitutions of the form `K[x := y]` where `y`
+--   is not in the env.
 --------------------------------------------------------------------------------
-dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
-dropBogusSubstitutions si0 = mapKVarSubsts (F.filterSubst . keepSubst) si0
+restrictKVarDomain :: F.SInfo a -> F.SInfo a
+restrictKVarDomain si = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
   where
-    kvM                    = kvarDomainM si0
-    kvXs k                 = M.lookupDefault S.empty k kvM
-    keepSubst k x e        = x `S.member` kvXs k && knownRhs e
-    knownRhs (F.EVar y)    = y `S.member` xs
-    knownRhs _             = False
-    xs                     = knownVars si0
+    kvm               = safeKvarEnv si
 
-knownVars :: F.SInfo a -> S.HashSet F.Symbol
-knownVars si = S.fromList vs
+-- | `restrictWf kve k w` restricts the env of `w` to the parameters in `kve k`.
+restrictWf :: KvDom -> F.KVar -> F.WfC a -> F.WfC a
+restrictWf kve k w = w { F.wenv = F.filterIBindEnv f (F.wenv w) }
   where
-    vs       = [ y | (_, x, F.RR _ (F.Reft (v,_))) <- F.bindEnvToList . F.bs $ si
-                   , y <- [x, v] ]
+    f i            = S.member i kis
+    kis            = S.fromList [ i | (_, i) <- F.toListSEnv kEnv ]
+    kEnv           = M.lookupDefault mempty k kve
 
-type KvDom     = M.HashMap F.KVar (S.HashSet F.Symbol)
+-- | `safeKvarEnv` computes the "real" domain of each kvar, which is
+--   a SUBSET of the input domain, in which we KILL the parameters
+--   `x` which appear in substitutions of the form `K[x := y]`
+--   where `y` is not in the env.
 
-kvarDomainM :: F.SInfo a -> KvDom
-kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
+type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
+type KvBads    = M.HashMap F.KVar [F.Symbol]
+
+safeKvarEnv :: F.SInfo a -> KvDom
+safeKvarEnv si = L.foldl' (dropKvarEnv si) env0 cs
   where
-    ks         = M.keys (F.ws si)
-    dom        = S.fromList . F.kvarDomain si
+    cs         = M.elems  (F.cm si)
+    env0       = initKvarEnv si
+
+dropKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
+dropKvarEnv si kve c = M.mapWithKey (dropBadParams kBads) kve
+  where
+    kBads            = badParams si c
+
+dropBadParams :: KvBads -> F.KVar -> F.SEnv F.BindId -> F.SEnv F.BindId
+dropBadParams kBads k kEnv = L.foldl' (flip F.deleteSEnv) kEnv xs
+  where
+    xs                     = M.lookupDefault mempty k kBads
+
+badParams :: F.SInfo a -> F.SimpC a -> M.HashMap F.KVar [F.Symbol]
+badParams si c = Misc.group bads
+  where
+    bads       = [ (k, x) | (v, k, F.Su su) <- subcKSubs xsrs c
+                          , let vEnv = maybe sEnv (`S.insert` sEnv) v
+                          , (x, e)          <- M.toList su
+                          , badArg vEnv e
+                 ]
+    sEnv       = S.fromList (fst <$> xsrs)
+    xsrs       = F.envCs (F.bs si) (F.senv c)
+
+badArg :: S.HashSet F.Symbol -> F.Expr -> Bool
+badArg sEnv (F.EVar y) = not (y `S.member` sEnv)
+badArg _    _          = True
+
+type KSub = (Maybe F.Symbol, F.KVar, F.Subst)
+
+subcKSubs :: [(F.Symbol, F.SortedReft)] -> F.SimpC a -> [KSub]
+subcKSubs xsrs c = rhs ++ lhs
+  where
+    lhs          = [ (Just v, k, su) | (_, sr) <- xsrs
+                                     , let rs   = F.reftConjuncts (F.sr_reft sr)
+                                     , F.Reft (v, F.PKVar k su) <- rs
+                   ]
+    rhs          = [(Nothing, k, su) | F.PKVar k su <- [F.crhs c]]
 
 
+initKvarEnv :: F.SInfo a -> KvDom
+initKvarEnv si = initEnv si <$> F.ws si
 
-
+initEnv :: F.SInfo a -> F.WfC a -> F.SEnv F.BindId
+initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
+  where
+    is       = F.elemsIBindEnv $ F.wenv w
+    bind i   = fst (F.lookupBindEnv i be)
+    be       = F.bs si
 
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
-banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
     fi = mapKVars (const $ Just F.PTrue) fi0
@@ -150,13 +222,13 @@ cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)
     fv   = cRng `nubDiff` (lits ++ cDom ++ F.prims)
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
-badCs = E.catErrors . map (E.errFreeVarInConstraint . (Misc.mapFst F.subcId))
+badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
 
 
 --------------------------------------------------------------------------------
 -- | check that no qualifier has free variables
 --------------------------------------------------------------------------------
-banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
@@ -178,7 +250,7 @@ nubDiff a b = a' `S.difference` b'
 --------------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]
 --------------------------------------------------------------------------------
-banMixedRhs :: F.SInfo a -> ValidateM (F.SInfo a)
+banMixedRhs :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
@@ -196,15 +268,20 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --------------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
+symbolEnv :: Config -> F.SInfo a -> F.SEnv F.Sort
+symbolEnv cfg si = Thy.theorySEnv
+                   `mappend`
+                   F.fromListSEnv (symbolSorts cfg si)
+
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
-symbolSorts' :: Config -> F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts' :: Config -> F.GInfo c a -> SanitizeM [(F.Symbol, F.Sort)]
 symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
-    defs            = F.toListSEnv $ F.gLits fi
+    defs            = F.toListSEnv . F.gLits $ fi
     txFun
       | allowHO cfg = id
       | otherwise   = defuncSort

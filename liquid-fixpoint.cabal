@@ -1,6 +1,7 @@
+
 name:                liquid-fixpoint
-version:             0.5.0.1
-Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
+version:             0.6.0.1
+Copyright:           2010-17 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
 license:             BSD3
@@ -79,7 +80,7 @@ Library
                    Language.Fixpoint.Graph.Partition,
                    Language.Fixpoint.Graph.Deps,
                    Language.Fixpoint.Graph,
-                   Language.Fixpoint.Defunctionalize.Defunctionalize,
+                   Language.Fixpoint.Defunctionalize,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
@@ -99,7 +100,7 @@ Library
                    Language.Fixpoint.Solver.UniqifyKVars,
                    Language.Fixpoint.Solver.UniqifyBinds,
                    Language.Fixpoint.Solver.Eliminate,
-                   Language.Fixpoint.Solver.Validate,
+                   Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
 

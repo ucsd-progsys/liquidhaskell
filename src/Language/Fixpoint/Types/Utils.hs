@@ -20,6 +20,7 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc (mapEither, fst3)
 
 --------------------------------------------------------------------------------
@@ -46,11 +47,12 @@ reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 -- | Split a SortedReft into its concrete and KVar components
 --------------------------------------------------------------------------------
 sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub])
-sortedReftConcKVars x sr = mapEither exprKind es
+sortedReftConcKVars x sr = mapEither (exprKind t) ves
   where
-    es                   = [p `subst1` (v, eVar x) | Reft (v, p) <- rs ]
-    rs                   = reftConjuncts $ sr_reft sr
+    ves                  = [(v, p `subst1` (v, eVar x)) | Reft (v, p) <- rs ]
+    rs                   = reftConjuncts (sr_reft sr)
+    t                    = sr_sort sr
 
-exprKind :: Expr -> Either Expr KVSub
-exprKind (PKVar k su) = Right (k, su)
-exprKind p            = Left p
+exprKind :: Sort -> (Symbol, Expr) -> Either Expr KVSub
+exprKind t (v, PKVar k su) = Right (KVS v t k su)
+exprKind _ (_, p         ) = Left p

@@ -22,6 +22,7 @@ module Language.Fixpoint.Types.Visitor (
   , fold
 
   -- * Clients
+  , stripCasts
   , kvars
   , size, lamSize
   , envKVars
@@ -60,11 +61,12 @@ data Visitor acc ctx = Visitor {
 ---------------------------------------------------------------------------------
 defaultVisitor :: Monoid acc => Visitor acc ctx
 ---------------------------------------------------------------------------------
-defaultVisitor = Visitor {
-    ctxExpr    = const -- \c _ -> c
+defaultVisitor = Visitor
+  { ctxExpr    = const -- \c _ -> c
   , txExpr     = \_ x -> x
   , accExpr    = \_ _ -> mempty
   }
+
 
 ------------------------------------------------------------------------
 
@@ -105,8 +107,8 @@ instance Visitable BindEnv where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
--- Warning: these instances were written for mapKVars over GInfos only;
---  check that they behave as expected before using with other clients.
+-- WARNING: these instances were written for mapKVars over GInfos only;
+-- check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do
     rhs' <- visit v c (_crhs x)
@@ -123,8 +125,10 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
     cm' <- mapM (visit v c) (cm x)
     bs' <- visit v c (bs x)
     return x { cm = cm', bs = bs' }
----------------------------------------------------------------------------------
 
+
+
+---------------------------------------------------------------------------------
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where
@@ -136,20 +140,20 @@ visitExpr v = vE
     step _ e@(ESym _)      = return e
     step _ e@(ECon _)      = return e
     step _ e@(EVar _)      = return e
-    step c (EApp f e)      = EApp       <$> vE c f  <*> vE c e
-    step c (ENeg e)        = ENeg       <$> vE c e
-    step c (EBin o e1 e2)  = EBin o     <$> vE c e1 <*> vE c e2
-    step c (EIte p e1 e2)  = EIte       <$> vE c p  <*> vE c e1 <*> vE c e2
-    step c (ECst e t)      = (`ECst` t) <$> vE c e
-    step c (PAnd  ps)      = PAnd       <$> (vE c <$$> ps)
-    step c (POr  ps)       = POr        <$> (vE c <$$> ps)
-    step c (PNot p)        = PNot       <$> vE c p
-    step c (PImp p1 p2)    = PImp       <$> vE c p1 <*> vE c p2
-    step c (PIff p1 p2)    = PIff       <$> vE c p1 <*> vE c p2
-    step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
-    step c (PAll xts p)    = PAll   xts <$> vE c p
-    step c (ELam (x,t) e)  = ELam (x,t) <$> vE c e
-    step c (PExist xts p)  = PExist xts <$> vE c p
+    step c (EApp f e)      = EApp        <$> vE c f  <*> vE c e
+    step c (ENeg e)        = ENeg        <$> vE c e
+    step c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
+    step c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
+    step c (ECst e t)      = (`ECst` t)  <$> vE c e
+    step c (PAnd  ps)      = PAnd        <$> (vE c <$$> ps)
+    step c (POr  ps)       = POr         <$> (vE c <$$> ps)
+    step c (PNot p)        = PNot        <$> vE c p
+    step c (PImp p1 p2)    = PImp        <$> vE c p1 <*> vE c p2
+    step c (PIff p1 p2)    = PIff        <$> vE c p1 <*> vE c p2
+    step c (PAtom r e1 e2) = PAtom r     <$> vE c e1 <*> vE c e2
+    step c (PAll xts p)    = PAll   xts  <$> vE c p
+    step c (ELam (x,t) e)  = ELam (x,t)  <$> vE c e
+    step c (PExist xts p)  = PExist xts  <$> vE c p
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
@@ -178,32 +182,30 @@ mapMExpr f = go
     go e@(ESym _)      = f e
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
-    go (EApp g e)      = (EApp       <$> go g  <*> go e) >>= f
-    go (ENeg e)        = (ENeg       <$> go e) >>= f
-    go (EBin o e1 e2)  = (EBin o     <$> go e1 <*> go e2) >>= f
-    go (EIte p e1 e2)  = (EIte       <$> go p  <*> go e1 <*> go e2) >>= f
-    go (ECst e t)      = ((`ECst` t) <$> go e) >>= f
-    go (PAnd  ps)      = (PAnd       <$> (go <$$> ps)) >>= f
-    go (POr  ps)       = (POr        <$> (go <$$> ps)) >>= f
-    go (PNot p)        = (PNot       <$> go p) >>= f
-    go (PImp p1 p2)    = (PImp       <$> go p1 <*> go p2) >>= f
-    go (PIff p1 p2)    = (PIff       <$> go p1 <*> go p2) >>= f
-    go (PAtom r e1 e2) = (PAtom r    <$> go e1 <*> go e2) >>= f
-    go (PAll xts p)    = (PAll   xts <$> go p) >>= f
-    go (ELam (x,t) e)  = (ELam (x,t) <$> go e) >>= f
-    go (PExist xts p)  = (PExist xts <$> go p) >>= f
-    go (ETApp e s)     = ((`ETApp` s) <$> go e) >>= f
-    go (ETAbs e s)     = ((`ETAbs` s) <$> go e) >>= f
-    go p@(PKVar _ _)   = f p
-    go PGrad           = f PGrad
-
-
+    go e@(PKVar _ _)   = f e
+    go e@PGrad         = f e
+    go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
+    go (PNot p)        = f =<< (PNot        <$>  go p                     )
+    go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
+    go (PAll xts p)    = f =<< (PAll   xts  <$>  go p                     )
+    go (ELam (x,t) e)  = f =<< (ELam (x,t)  <$>  go e                     )
+    go (PExist xts p)  = f =<< (PExist xts  <$>  go p                     )
+    go (ETApp e s)     = f =<< ((`ETApp` s) <$>  go e                     )
+    go (ETAbs e s)     = f =<< ((`ETAbs` s) <$>  go e                     )
+    go (EApp g e)      = f =<< (EApp        <$>  go g  <*> go e           )
+    go (EBin o e1 e2)  = f =<< (EBin o      <$>  go e1 <*> go e2          )
+    go (PImp p1 p2)    = f =<< (PImp        <$>  go p1 <*> go p2          )
+    go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
+    go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
+    go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
+    go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
+    go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []
   where
     kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su) = PKVar k $ f k su
+    txK _ (PKVar k su) = PKVar k (f k su)
     txK _ p            = p
 
 newtype MInt = MInt Integer
@@ -263,6 +265,12 @@ isKvar _          = False
 isConc :: Expr -> Bool
 isConc = null . kvars
 
+stripCasts :: Expr -> Expr
+stripCasts = mapExpr go
+  where
+    go (ECst e _) = e
+    go e          = e
+
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
 ---------------------------------------------------------------------------------
@@ -294,12 +302,13 @@ mapSort f = step
 class SymConsts a where
   symConsts :: a -> [SymConst]
 
-instance  SymConsts (FInfo a) where
+-- instance  SymConsts (FInfo a) where
+instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
     where
       csLits   = concatMap symConsts $ M.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi
-      qsLits   = concatMap symConsts $ qBody  <$> quals fi
+      qsLits   = concatMap symConsts $ qBody   <$> quals fi
 
 instance SymConsts BindEnv where
   symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
@@ -307,6 +316,9 @@ instance SymConsts BindEnv where
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (slhs c) ++
                  symConsts (srhs c)
+
+instance SymConsts (SimpC a) where
+  symConsts c  = symConsts (crhs c)
 
 instance SymConsts SortedReft where
   symConsts = symConsts . sr_reft

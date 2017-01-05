@@ -1,9 +1,9 @@
 qualif Zog(v:a) : (10 <= v)
 qualif Bog(v:a, x:a) : (x <= v)
 
-bind 0 a : {va: int | $k0[v := va][thing := thang] }
-bind 1 thing : {v: int | true }
-bind 2 thang : {v: int | true }
+bind 0 a  : {v: int  | $k0}
+bind 1 tt : {v: bool | v}
+
 
 constraint:
   env [ ]
@@ -24,5 +24,5 @@ constraint:
   id 3 tag []
 
 wf:
-  env [ 2 ]
+  env [ ]
   reft {v: int | $k0}

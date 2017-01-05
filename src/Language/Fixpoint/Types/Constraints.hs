@@ -44,8 +44,6 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
-  , EQual (..)
-  , eQual
   , qualifier
   , mkQual, remakeQual
 
@@ -312,10 +310,7 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
-  pprintTidy k q = hcat [ "qualif"
-                        , pprintTidy k (qName q)
-                        , "defined at"
-                        , pprintTidy k (qPos q) ]
+  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
@@ -561,31 +556,6 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
     cm'           = M.insert i subc' $ cm fi
 
-
-
---------------------------------------------------------------------------------
--- | Instantiated Qualfiers ----------------------------------------
---------------------------------------------------------------------------------
-
-data EQual = EQL { eqQual :: !Qualifier
-                 , eqPred :: !Expr
-                 , eqArgs :: ![Expr]
-                 }
-             deriving (Eq, Show, Data, Typeable, Generic)
-
-instance PPrint EQual where
-  pprintTidy k = pprintTidy k . eqPred
-
-instance NFData EQual
-
-{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
-eQual :: Qualifier -> [Symbol] -> EQual
-eQual q xs = EQL q p es
-  where
-    p      = subst su $  qBody q
-    su     = mkSubst  $  safeZip "eQual" qxs es
-    es     = eVar    <$> xs
-    qxs    = fst     <$> qParams q
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------

@@ -216,6 +216,7 @@ instance Reftable SortedReft where
   ofReft   = errorstar "No instance of ofReft for SortedReft"
   params _ = []
   bot s    = s { sr_reft = falseReft }
+  top s    = s { sr_reft = trueReft }
 
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
@@ -255,7 +256,6 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 --------------------------------------------------------------------------------
 -- | TODO: Rewrite using visitor -----------------------------------------------
 --------------------------------------------------------------------------------
-
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where

@@ -10,6 +10,7 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Serialized Representation
       Raw
+    , symbolBuilder
 
     -- * Commands
     , Command  (..)
@@ -34,14 +35,18 @@ import           Language.Fixpoint.Types
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
+import           Text.PrettyPrint.HughesPJ 
+
 import           System.IO                (Handle)
 import           System.Process
 
---------------------------------------------------------------------------
--- | Types ---------------------------------------------------------------
---------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Types ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 type Raw          = LT.Text
+
+symbolBuilder :: Symbol -> LT.Builder
+symbolBuilder = LT.fromText . symbolSafeText
 
 -- | Commands issued to SMT engine
 data Command      = Push
@@ -55,6 +60,20 @@ data Command      = Push
                   | CMany [Command]
                   deriving (Eq, Show)
 
+instance PPrint Command where
+  pprintTidy _ = ppCmd
+
+ppCmd :: Command -> Doc
+ppCmd Push          = text "Push"
+ppCmd Pop           = text "Pop"
+ppCmd CheckSat      = text "CheckSat"
+ppCmd (Declare {})  = text "Declare ..."
+ppCmd (Define {})   = text "Define ..."
+ppCmd (Assert _ e)  = text "Assert" <+> pprint e
+ppCmd (Distinct {}) = text "Distinct ..."
+ppCmd (GetValue {}) = text "GetValue ..."
+ppCmd (CMany {})    = text "CMany ..."
+
 -- | Responses received from SMT engine
 data Response     = Ok
                   | Sat
@@ -65,25 +84,29 @@ data Response     = Ok
                   deriving (Eq, Show)
 
 -- | Information about the external SMT process
-data Context      = Ctx { pId     :: !ProcessHandle
-                        , cIn     :: !Handle
-                        , cOut    :: !Handle
-                        , cLog    :: !(Maybe Handle)
-                        , verbose :: !Bool
-                        , c_ext   :: !Bool              -- flag to enable function extentionality axioms
-                        , c_aeq   :: !Bool              -- flag to enable lambda a-equivalence axioms
-                        , c_beq   :: !Bool              -- flag to enable lambda b-equivalence axioms
-                        , c_norm  :: !Bool              -- flag to enable lambda normal form equivalence axioms
-                        , smtenv  :: !SMTEnv
-                        }
+data Context = Ctx
+  { ctxPid     :: !ProcessHandle
+  , ctxCin     :: !Handle
+  , ctxCout    :: !Handle
+  , ctxLog     :: !(Maybe Handle)
+  , ctxVerbose :: !Bool
+  , ctxExt     :: !Bool              -- ^ flag to enable function extentionality axioms
+  , ctxAeq     :: !Bool              -- ^ flag to enable lambda a-equivalence axioms
+  , ctxBeq     :: !Bool              -- ^ flag to enable lambda b-equivalence axioms
+  , ctxNorm    :: !Bool              -- ^ flag to enable lambda normal form equivalence axioms
+  , ctxSmtEnv  :: !SMTEnv
+  }
+
 type SMTEnv = SEnv Sort
 
 -- | Theory Symbol
-data TheorySymbol  = Thy { tsSym  :: !Symbol
-                         , tsRaw  :: !Raw
-                         , tsSort :: !Sort
-                         }
-                     deriving (Eq, Ord, Show)
+data TheorySymbol  = Thy
+  { tsSym    :: !Symbol    -- ^ name
+  , tsRaw    :: !Raw       -- ^ serialized SMTLIB2 name
+  , tsSort   :: !Sort      -- ^ sort
+  , tsInterp :: !Bool      -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
+  }
+  deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------
