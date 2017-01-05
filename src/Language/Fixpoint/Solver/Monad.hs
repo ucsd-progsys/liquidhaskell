@@ -42,7 +42,6 @@ import           Language.Fixpoint.Smt.Types (tsInterp)
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
--- import qualified Language.Fixpoint.Solver.Index as Index
 import           Language.Fixpoint.Solver.Sanitize
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
@@ -89,9 +88,9 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI _ _ act =
+runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"

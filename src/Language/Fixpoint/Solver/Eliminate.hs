@@ -46,12 +46,6 @@ kvScopes sI es = is2env <$> kiM
 
 --------------------------------------------------------------------------------
 
--- TODO: delete/deprecated
--- solverIndex :: Config -> SInfo a -> [(KVar, Sol.Hyp)] -> CDeps -> Maybe Sol.Index
--- solverIndex cfg sI kHyps cD
-  -- // | oldElim cfg    = Nothing
-  -- // | otherwise      = Just $ Index.create cfg sI kHyps cD
-
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
