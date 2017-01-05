@@ -257,7 +257,6 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
 substElim :: F.SEnv F.Sort -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim sEnv g _ (F.Su m) = (xts, p)
   where
-  -- p      = F.pAnd [ F.PAtom F.Ueq (F.eVar x) e | (x, e, _) <- xets  ]
     p      = F.pAnd [ mkSubst x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
@@ -268,8 +267,6 @@ substElim sEnv g _ (F.Su m) = (xts, p)
 
 substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
 substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
-  -- | S.member x frees = fromMaybe (err x) $ F.lookupSEnv x sEnv
-  -- | otherwise        = t
   where
     err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
 
