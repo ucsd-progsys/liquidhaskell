@@ -69,7 +69,7 @@ import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVar
 import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Literals
-import           Language.Haskell.Liquid.Constraint.Axioms
+-- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
@@ -89,8 +89,10 @@ consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ'    <- initEnv      info
   sflag <- scheck   <$> get
-  γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
-  cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
+  γ     <- {- NOPROVER if expandProofsMode then addCombine τProof γ' else -}
+           return  γ'
+  cbs'  <- {- NOPROVER if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else -}
+           return $ cbs info
   foldM_ (consCBTop cfg info) γ cbs'
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
@@ -103,29 +105,28 @@ consAct cfg info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
-  modify $ \st -> st { fEnv     = fixEnv γ
+  modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
                      , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
   where
-    expandProofsMode = autoproofs $ getConfig info
-    τProof           = gsProofType $ spec info
-    fixEnv           = feEnv . fenv
-    mkSigs γ         = toListREnv (renv  γ) ++
-                       toListREnv (assms γ) ++
-                       toListREnv (intys γ) ++
-                       toListREnv (grtys γ)
+    -- NOPROVER expandProofsMode = autoproofs $ getConfig info
+    -- NOPROVER τProof           = gsProofType $ spec info
+    -- NOPROVER mkSigs γ         = toListREnv (renv  γ) ++
+                       -- NOPROVER toListREnv (assms γ) ++
+                       -- NOPROVER toListREnv (intys γ) ++
+                       -- NOPROVER toListREnv (grtys γ)
 
-addCombine :: Maybe Type -> CGEnv -> CG CGEnv
-addCombine τ γ
-  = do t <- trueTy combineType
-       γ += ("combineProofs", combineSymbol, t)
-    where
-       combineType   = makeCombineType τ
-       combineVar    = makeCombineVar  combineType
-       combineSymbol = F.symbol combineVar
+-- NOPROVER addCombine :: Maybe Type -> CGEnv -> CG CGEnv
+-- NOPROVER addCombine τ γ
+  -- NOPROVER = do t <- trueTy combineType
+       -- NOPROVER γ += ("combineProofs", combineSymbol, t)
+    -- NOPROVER where
+       -- NOPROVER combineType   = makeCombineType τ
+       -- NOPROVER combineVar    = makeCombineVar  combineType
+       -- NOPROVER combineSymbol = F.symbol combineVar
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
