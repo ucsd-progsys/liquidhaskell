@@ -359,7 +359,7 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f' <- tosymbol' (C.Var x :: C.CoreExpr)
-  return $ tracepp ("EVARWITHMAP: x = " ++ showPpr x) $ eAppWithMap lmap f' [] (varExpr x)
+  return $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x

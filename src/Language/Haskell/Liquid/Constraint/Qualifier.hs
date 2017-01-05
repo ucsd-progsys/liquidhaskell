@@ -3,7 +3,11 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
-module Language.Haskell.Liquid.Constraint.Qualifier (qualifiers) where
+module Language.Haskell.Liquid.Constraint.Qualifier
+  ( qualifiers
+  , useSpcQuals
+  )
+  where
 
 import           Prelude hiding (error)
 import           Data.List                (delete, nub)
@@ -14,6 +18,7 @@ import           Debug.Trace (trace)
 import           TyCon
 import           Var (Var)
 import           Language.Fixpoint.Types                  hiding (mkQual)
+import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.Types.RefType
@@ -27,9 +32,9 @@ import           Language.Haskell.Liquid.Types
 qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 qualifiers info lEnv
-  =  condNull (tracepp "useSpecQuals"  $ useSpcQuals info) (gsQualifiers $ spec info)
-  ++ condNull (tracepp "useSigQuals "  $ useSigQuals info) (sigQualifiers  info lEnv)
-  ++ condNull (tracepp "useAliasQuals" $ useAlsQuals info) (alsQualifiers  info lEnv)
+  =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
+  ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
+  ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -46,15 +51,19 @@ maxQualParams = maxParams . getConfig
 
 -- | Use explicitly given qualifiers .spec or source (.hs, .lhs) files
 useSpcQuals :: (HasConfig t) => t -> Bool
-useSpcQuals = not . useAlsQuals
+useSpcQuals i = useQuals i && not (useAlsQuals i)
 
 -- | Scrape qualifiers from function signatures (incr :: x:Int -> {v:Int | v > x})
 useSigQuals :: (HasConfig t) => t -> Bool
-useSigQuals = not . useAlsQuals
+useSigQuals i = useQuals i && not (useAlsQuals i)
 
- -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
+-- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
 useAlsQuals :: (HasConfig t) => t -> Bool
-useAlsQuals info = info `hasOpt` higherOrderFlag
+useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag
+
+useQuals :: (HasConfig t) => t -> Bool
+useQuals = not . (FC.All == ) . eliminate . getConfig
+
 
 --------------------------------------------------------------------------------
 alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -111,9 +120,9 @@ specBinders info = mconcat
   , if info `hasOpt` scrapeInternals then gsInSigs sp else []
   ]
   where
-    sp   = trace (msg sp0) sp0
-    msg  = ("SPECBINDERS: " ++ ) . showpp . typeAliases . gsRTAliases
-    sp0  = spec info
+    sp  = spec info
+    -- sp   = trace (msg sp0) sp0
+    -- msg  = ("SPECBINDERS: " ++ ) . showpp . typeAliases . gsRTAliases
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
