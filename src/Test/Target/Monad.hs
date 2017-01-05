@@ -43,7 +43,7 @@ import qualified Data.Text.Lazy.Builder           as Builder
 import           System.IO.Unsafe
 -- import           Text.Printf
 
-import           Language.Fixpoint.Smt.Interface  hiding (verbose, SMTLIB2(..))
+import           Language.Fixpoint.Smt.Interface  hiding (SMTLIB2(..))
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (SMTSolver(..))
 import           Language.Haskell.Liquid.Types.PredType
