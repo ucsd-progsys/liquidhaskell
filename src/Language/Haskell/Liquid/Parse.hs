@@ -413,7 +413,7 @@ mkPredVarType t
   | isOk      = Right $ zip xs ts
   | otherwise = Left err
   where
-    isOk      = isPropBareType tOut -- || isHPropBareType tOut
+    isOk      = isPropBareType tOut --  isHPropBareType tOut
     tOut      = ty_res trep
     trep      = toRTypeRep t
     xs        = ty_binds trep
