@@ -6,7 +6,6 @@
 {-@ LIQUID "--higherorder"   @-}
 {-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--exactdc"       @-}
-{- LIQUID "--eliminate=all" @-}
 
 
 module MapReduce where 
