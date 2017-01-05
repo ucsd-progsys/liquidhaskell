@@ -5,32 +5,31 @@
 
 module Language.Haskell.Liquid.Constraint.Qualifier (qualifiers) where
 
-import TyCon
-import Var (Var)
-import Prelude hiding (error)
-
-import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
-import Language.Haskell.Liquid.Misc             (condNull)
-import Language.Haskell.Liquid.Types.PredType
-import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Types                  hiding (mkQual)
-import Language.Fixpoint.SortCheck
-
-import Data.List                (delete, nub)
-import Data.Maybe               (catMaybes, fromMaybe, isNothing)
-import qualified Data.HashSet as S
-import Debug.Trace (trace)
+import           Prelude hiding (error)
+import           Data.List                (delete, nub)
+import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothing)
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
+import           Debug.Trace (trace)
+import           TyCon
+import           Var (Var)
+import           Language.Fixpoint.Types                  hiding (mkQual)
+import           Language.Fixpoint.SortCheck
+import           Language.Haskell.Liquid.Bare
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
+import           Language.Haskell.Liquid.Misc             (condNull)
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types
 
 
 --------------------------------------------------------------------------------
 qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 qualifiers info lEnv
-  =  condNull (useSpcQuals info) (spcQualifiers info     )
-  ++ condNull (useSigQuals info) (sigQualifiers info lEnv)
-  ++ condNull (useAlsQuals info) (alsQualifiers info lEnv)
+  =  condNull (tracepp "useSpecQuals"  $ useSpcQuals info) (gsQualifiers $ spec info)
+  ++ condNull (tracepp "useSigQuals "  $ useSigQuals info) (sigQualifiers  info lEnv)
+  ++ condNull (tracepp "useAliasQuals" $ useAlsQuals info) (alsQualifiers  info lEnv)
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -45,26 +44,41 @@ qualifiers info lEnv
 maxQualParams :: (HasConfig t) => t -> Int
 maxQualParams = maxParams . getConfig
 
-spcQualifiers :: GhcInfo -> [Qualifier]
-spcQualifiers = gsQualifiers . spec
-
 -- | Use explicitly given qualifiers .spec or source (.hs, .lhs) files
 useSpcQuals :: (HasConfig t) => t -> Bool
-useSpcQuals info = not (info `hasOpt` higherOrderFlag)
+useSpcQuals = not . useAlsQuals
 
 -- | Scrape qualifiers from function signatures (incr :: x:Int -> {v:Int | v > x})
 useSigQuals :: (HasConfig t) => t -> Bool
-useSigQuals _ = True
+useSigQuals = not . useAlsQuals
 
--- TODO:sorted-aliases  -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
--- TODO:sorted-aliases useAlsQuals :: (HasConfig t) => t -> Bool
--- TODO:sorted-aliases useAlsQuals _ = False
+ -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
+useAlsQuals :: (HasConfig t) => t -> Bool
+useAlsQuals info = info `hasOpt` higherOrderFlag
 
--- --------------------------------------------------------------------------------
--- alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
--- --------------------------------------------------------------------------------
--- alsQualifiers _info _lEnv
-  -- = undefined
+--------------------------------------------------------------------------------
+alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+alsQualifiers info lEnv
+  = [ q | a <- specAliases info
+        , q <- refTypeQuals lEnv (rtPos a) tce (rtBody a)
+        , length (qParams q) <= k + 1
+        , validQual lEnv q
+    ]
+    where
+      k   = maxQualParams info
+      tce = gsTcEmbeds (spec info)
+
+    -- Symbol (RTAlias RTyVar SpecType)
+
+specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
+specAliases = M.elems . typeAliases . gsRTAliases . spec
+
+validQual :: SEnv Sort -> Qualifier -> Bool
+validQual lEnv q = isJust $ checkSortExpr env (qBody q)
+  where
+    env          = unionSEnv lEnv qEnv
+    qEnv         = M.fromList (qParams q)
 
 --------------------------------------------------------------------------------
 sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -80,12 +94,14 @@ sigQualifiers info lEnv
                                      else if info `hasOpt` scrapeImports
                                      then impVars info
                                      else [])
-        , q <- refTypeQuals lEnv (getSourcePos x) (gsTcEmbeds $ spec info) (val t)
+        , q <- refTypeQuals lEnv (getSourcePos x) tce (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
-    where k = maxQualParams info
+    where
+      k   = maxQualParams info
+      tce = gsTcEmbeds (spec info)
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
@@ -117,7 +133,9 @@ specBinders info = mconcat
 
 
 -- TODO: rewrite using foldReft'
+--------------------------------------------------------------------------------
 refTypeQuals :: SEnv Sort -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
+--------------------------------------------------------------------------------
 refTypeQuals lEnv l tce t0    = go emptySEnv t0
   where
     scrape                    = refTopQuals lEnv l tce t0
