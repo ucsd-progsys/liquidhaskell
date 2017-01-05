@@ -3,7 +3,7 @@ module DataBase  (
   Table, Dict(..), (+=), P(..), values, empty,
 
   emptyTable, singleton, fromList, elem,
-  
+
   union, diff, product, project, select, productD
   ) where
 
@@ -15,16 +15,16 @@ import Prelude hiding (product, union, filter, elem)
 type Table t v = [Dict t v]
 
 data Dict key val = D {ddom :: [key], dfun :: key -> val}
-{-@ ddom :: forall <range :: key -> val -> Prop>.
+{-@ ddom :: forall <range :: key -> val -> Bool>.
            x:Dict <range> key val  -> {v:[key] | v = ddom x}
   @-}
 
-{-@ dfun :: forall <range :: key -> val -> Prop>.
+{-@ dfun :: forall <range :: key -> val -> Bool>.
                x:Dict <range> key val
             -> i:{v:key | Set_mem v (listElts (ddom x))} -> val<range i>
   @-}
 
-{-@ data Dict key val <range :: key -> val -> Prop>
+{-@ data Dict key val <range :: key -> val -> Bool>
   = D ( ddom :: [key])
       ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
   @-}
@@ -38,31 +38,31 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
 -- LIQUID : This discards the refinement of the Dict
 -- for example the ddom
 
-{-@ fromList :: forall <range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+{-@ fromList :: forall <range :: key -> val -> Bool, p :: Dict key val -> Bool>.
                 x:[Dict <range> key val <<p>>] -> {v:[Dict <range> key val <<p>>] | x = v}
   @-}
 fromList :: [Dict key val] -> Table key val
 fromList xs = xs
 
-{-@ singleton :: forall <range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+{-@ singleton :: forall <range :: key -> val -> Bool, p :: Dict key val -> Bool>.
                  Dict <range> key val <<p>> -> [Dict <range> key val <<p>>]
   @-}
 singleton :: Dict key val -> Table key val
 singleton d = [d]
 
 
-{-@ emptyTable :: forall <range :: key -> val -> Prop>.
+{-@ emptyTable :: forall <range :: key -> val -> Bool>.
                    [Dict <range> key val]
   @-}
 emptyTable :: Table t v
 emptyTable = []
 
-{-@ union :: forall <range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+{-@ union :: forall <range :: key -> val -> Bool, p :: Dict key val -> Bool>.
               x:[Dict <range> key val <<p>>]
           ->  y:[Dict <range> key val <<p>>]
           -> {v:[Dict <range> key val <<p>>] | listElts v = Set_cup (listElts x) (listElts y)}
   @-}
-{-@ diff :: forall <range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+{-@ diff :: forall <range :: key -> val -> Bool, p :: Dict key val -> Bool>.
               x:[Dict <range> key val <<p>>]
           ->  y:[Dict <range> key val <<p>>]
           -> {v:[Dict <range> key val <<p>>] | listElts v = Set_dif (listElts x) (listElts y)}
@@ -71,17 +71,15 @@ union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key v
 union xs ys = xs ++ ys
 diff  xs ys = xs \\ ys
 
-{-@ predicate Append XS YS V =
-  ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
-  @-}
+{-@ predicate Append XS YS V = (listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) @-}
 
 
-{-@ product :: forall <range1  :: key -> val -> Prop,
-                       range2  :: key -> val -> Prop,
-                       range   :: key -> val -> Prop,
-                       p :: Dict key val -> Prop,
-                       q :: Dict key val -> Prop,
-                       r :: Dict key val -> Prop>.
+{-@ product :: forall <range1  :: key -> val -> Bool,
+                       range2  :: key -> val -> Bool,
+                       range   :: key -> val -> Bool,
+                       p :: Dict key val -> Bool,
+                       q :: Dict key val -> Bool,
+                       r :: Dict key val -> Bool>.
                        {x::Dict key val <<p>>, y :: Dict key val <<q>> |- {v:Set.Set key |  v = Set_cap (listElts (ddom x)) (listElts (ddom y))}  <: {v:Set.Set key | Set_emp v }}
                        {x::Dict key val <<p>>, y :: Dict key val <<q>> |-  {v:Dict key val | Append x y v} <: Dict key val <<r>>}
                        {x::Dict key val <<p>>, k::{v:key | Set_mem v (listElts (ddom x))} |- val<range1 k> <: val<range k> }
@@ -101,11 +99,11 @@ product xs ys = go xs ys
 instance (Eq key, Eq val) => Eq (Dict key val) where
   (D ks1 f1) == (D ks2 f2) = all (\k -> k `elem` ks2 && f1 k == f2 k) ks1
 
-{-@ productD :: forall <range1  :: key -> val -> Prop,
-                       range2  :: key -> val -> Prop,
-                       range   :: key -> val -> Prop,
-                       p :: Dict key val -> Prop,
-                       q :: Dict key val -> Prop>.
+{-@ productD :: forall <range1  :: key -> val -> Bool,
+                       range2  :: key -> val -> Bool,
+                       range   :: key -> val -> Bool,
+                       p :: Dict key val -> Bool,
+                       q :: Dict key val -> Bool>.
                        {x::Dict key val <<p>>, y :: Dict key val <<q>> |- {v:Set.Set key |  v = Set_cap (listElts (ddom x)) (listElts (ddom y))}  <: {v:Set.Set key | Set_emp v }}
                        {x::Dict key val <<p>>, k::{v:key | Set_mem v (listElts (ddom x))} |- val<range1 k> <: val<range k> }
                        {x::Dict key val <<q>>, k::{v:key | Set_mem v (listElts (ddom x))}|- val<range2 k> <: val<range k> }
@@ -122,7 +120,7 @@ productD (D ks1 f1) (D ks2 f2)
     D ks f
 
 
-{-@ project :: forall <range :: key -> val -> Prop>.
+{-@ project :: forall <range :: key -> val -> Bool>.
                keys:[key]
             -> [{v:Dict <range> key val | (Set_sub (listElts keys) (listElts (ddom v)))}]
             -> [{v:Dict <range> key val  | (listElts (ddom v)) = listElts keys}]
@@ -132,14 +130,14 @@ project ks [] = []
 project ks (x:xs) = projectD ks x : project ks xs
 
 
-{-@ projectD :: forall <range :: key -> val -> Prop>.
+{-@ projectD :: forall <range :: key -> val -> Bool>.
                keys:[key]
             -> {v:Dict <range> key val | (Set_sub (listElts keys) (listElts (ddom v)))}
             -> {v:Dict <range> key val  | (listElts (ddom v)) = listElts keys}
    @-}
 projectD ks (D _ f) = D ks f
 
-{-@ select :: forall <range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+{-@ select :: forall <range :: key -> val -> Bool, p :: Dict key val -> Bool>.
               (Dict <range> key val <<p>>  -> Bool)
           -> x:[Dict <range> key val <<p>>]
           -> {v:[Dict <range> key val <<p>>] | Set_sub (listElts v) (listElts x)}
@@ -147,13 +145,13 @@ projectD ks (D _ f) = D ks f
 select :: (Dict key val -> Bool) -> Table key val -> Table key val
 select prop xs = filter prop xs
 
-{-@ values :: forall <range :: key -> val -> Prop>.
+{-@ values :: forall <range :: key -> val -> Bool>.
   k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map (go k)
   where
-    go :: key -> Dict key val -> val 
-    {-@ go :: forall <rr :: key -> val -> Prop>. 
+    go :: key -> Dict key val -> val
+    {-@ go :: forall <rr :: key -> val -> Bool>.
               k:key -> {v:Dict <rr> key val | Set_mem k (listElts (ddom v))} -> val<rr k>  @-}
     go k (D _ f) = f k
 
@@ -164,7 +162,7 @@ empty = D [] (\x -> liquidError "call empty")   -- TODO: replace error with liqu
 
 
 extend :: Eq key => key -> val -> Dict key val -> Dict key val
-{-@ extend :: forall <range :: key -> val -> Prop>.
+{-@ extend :: forall <range :: key -> val -> Bool>.
               k:key-> val<range k>
            -> x:Dict <range> key val
            -> {v:Dict <range> key val | (listElts (ddom v)) = (Set_cup (listElts (ddom x)) (Set_sng k))} @-}
@@ -173,12 +171,12 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
 data P k v = k := v
-{-@ data P k v <range :: k -> v -> Prop>
+{-@ data P k v <range :: k -> v -> Bool>
   = (:=) (kkey :: k) (kval :: v<range kkey>)
   @-}
 infixr 3 +=
 
-{-@ += :: forall <range :: key -> val -> Prop>.
+{-@ += :: forall <range :: key -> val -> Bool>.
               pp:P <range> key val
            -> x:Dict <range> key val
            -> {v:Dict <range> key val | (listElts (ddom v)) = (Set_cup (listElts (ddom x)) (Set_sng (kkey pp)))} @-}
@@ -193,7 +191,7 @@ infixr 3 +=
 -------------------------    HELPERS   ----------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ ensuredomain :: forall <p ::a -> Prop>. Eq a => xs:[a<p>] -> x:{v:a | Set_mem v (listElts xs)} -> {v:a<p> | Set_mem v (listElts xs) && v = x} @-}
+{-@ ensuredomain :: forall <p ::a -> Bool>. Eq a => xs:[a<p>] -> x:{v:a | Set_mem v (listElts xs)} -> {v:a<p> | Set_mem v (listElts xs) && v = x} @-}
 ensuredomain :: Eq a => [a] -> a -> a
 ensuredomain (y:ys) x | x == y    = y
                       | otherwise = ensuredomain ys x
@@ -202,7 +200,7 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 
 -- | List functions
 
-{-@ (\\) :: forall<p :: a -> Prop>. xs:[a<p>] -> ys:[a] -> {v:[a<p>] | (listElts v)  = (Set_dif (listElts xs) (listElts ys))} @-}
+{-@ (\\) :: forall<p :: a -> Bool>. xs:[a<p>] -> ys:[a] -> {v:[a<p>] | (listElts v)  = (Set_dif (listElts xs) (listElts ys))} @-}
 (\\) :: Eq a => [a] -> [a] -> [a]
 []     \\ _ = []
 (x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
@@ -210,7 +208,7 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 
 {-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
 
-{-@ assume elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
+{-@ assume elem :: x:a -> xs:[a] -> {v:Bool | v <=> Set_mem x (listElts xs)} @-}
 elem :: a -> [a] -> Bool
 elem = undefined
 
@@ -231,7 +229,7 @@ liquidError = error
 qual :: [a] -> a
 qual = undefined
 
-{-@ qual' :: forall <range :: key -> val -> Prop>. k:key -> val<range k> @-}
+{-@ qual' :: forall <range :: key -> val -> Bool>. k:key -> val<range k> @-}
 qual' :: key -> val
 qual' = undefined
 

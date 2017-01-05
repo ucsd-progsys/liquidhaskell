@@ -68,7 +68,7 @@ toBool _     = liquidError "impossible"
 {-@ type BoolExpr      = {v: Expr | ((isValue v) && (IsTBool v))} @-}
 
 
-{-@ measure isValue       :: Expr -> Prop
+{-@ measure isValue       :: Expr -> Bool
     isValue (I i)         = true
     isValue (B b)         = true
     isValue (Equal e1 e2) = false 
@@ -82,7 +82,7 @@ toBool _     = liquidError "impossible"
     eType (Equal e1 e2) = TBool 
   @-}
 
-{-@ measure isValid       :: Expr -> Prop
+{-@ measure isValid       :: Expr -> Bool
     isValid (I i)         = true
     isValid (B b)         = true
     isValid (Equal e1 e2) = (((eType e1) = (eType e2)) && (isValid e1) && (isValid e2))

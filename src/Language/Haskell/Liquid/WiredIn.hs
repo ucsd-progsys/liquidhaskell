@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.WiredIn
-       ( propType
-       , propTyCon
-       , hpropTyCon
-       , pdVarReft
-       , wiredTyCons, wiredDataCons
+       (
+       -- propType
+       -- , propTyCon
+       -- , hpropTyCon,
+         pdVarReft
+       , wiredTyCons
+       , wiredDataCons
        , wiredSortedSyms
 
        -- | Constants for automatic proofs
@@ -70,7 +72,6 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
-propTyCon, hpropTyCon :: TyCon
 
 
 {- ATTENTION: Uniques should be different when defining TyCons
@@ -78,15 +79,18 @@ propTyCon, hpropTyCon :: TyCon
    bool in fixpoint, as propTyCon is a bool
  -}
 
-propTyCon  = symbolTyCon 'w' 25 propConName
-hpropTyCon = symbolTyCon 'w' 26 hpropConName
+-- propTyCon :: TyCon
+-- propTyCon  = symbolTyCon 'w' 25 propConName
+
+-- hpropTyCon :: TyCon
+-- hpropTyCon = symbolTyCon 'w' 26 hpropConName
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
 -----------------------------------------------------------------------
 
-propType :: Reftable r => RRType r
-propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
+-- propType :: Reftable r => RRType r
+-- propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------

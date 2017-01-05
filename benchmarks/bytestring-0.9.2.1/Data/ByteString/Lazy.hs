@@ -488,7 +488,7 @@ unpackWith k (LPS ss) = L.concatMap (S.unpackWith k) ss
 -- Basic interface
 
 -- | /O(1)/ Test whether a ByteString is empty.
-{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((lbLength b) = 0))} @-}
+{-@ null :: b:ByteString -> {v:Bool | v <=> (lbLength b = 0)} @-}
 null :: ByteString -> Bool
 null Empty = True
 null _     = False

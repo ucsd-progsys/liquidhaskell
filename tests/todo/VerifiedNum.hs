@@ -5,24 +5,27 @@ import Prelude hiding (Num(..))
 
 import qualified Prelude as Prelude 
 
-class VerifiedNum a where
-	(+) :: a -> a -> a 
+class VerifiedNum a where 
+  (+) :: a -> a -> a 
+  (-) :: a -> a -> a 
 
+{-@ predicate BoundInt X = 0 < X + 10000 && X < 10000 @-}
 
--- Say that + overflows at 10, 
--- when addition exceeds 10, then its result is undefined 
+{-@ type OkInt N = {v:Int | BoundInt N => v == N} @-}
+
+{-@ type ValidInt = {v:Int | BoundInt v} @-}
+
 
 instance VerifiedNum Int where
 {-@ instance VerifiedNum Int where 
-  + :: x:Int -> y:Int -> {v:Int | (x + y < 10) => x + y = v} @-}
+    + :: x:Int -> y:Int -> OkInt {x + y} 
+  @-}
 	x + y = (Prelude.+) x y  
+{-@ instance VerifiedNum Int where 
+    - :: x:Int -> y:Int -> OkInt {x - y} 
+  @-}
+	x - y = (Prelude.-) x y  
 
--- 10 + 20 overflows, cannot reason about its result
-{-@ overflow :: {v:Int | v == 30} @-}
-overflow :: Int 
-overflow = 10 + 20 
 
--- no overflow
-{-@ safe :: {v:Int | v == 3} @-}
-safe :: Int 
-safe = 1 + 2
+
+

@@ -57,7 +57,7 @@ qualTwoC _ = ()
 ord :: Char -> Int
 ord c@(C# c#) = let i = I# (ord# c#)
                 in liquidAssume (axiom_ord c i) i
-{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | ((Prop v) <=> (i = (ord c)))} @-}
+{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | (v <=> (i = (ord c)))} @-}
 axiom_ord :: Char -> Int -> Bool
 axiom_ord = undefined
 {-# INLINE ord #-}

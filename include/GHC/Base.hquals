@@ -1,8 +1,8 @@
 //qualif NonNull(v: [a])        : (? (nonnull([v])))
 //qualif Null(v: [a])           : (~ (? (nonnull([v]))))
-//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+//qualif EqNull(v:Bool, ~A: [a]): (v <=> (? (nonnull([~A]))))
 
-// qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+// qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : ((v) <=> len([~A]) [ > ;  = ] 0)
 // qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
 // qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
 // qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
@@ -10,8 +10,8 @@
 // qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
 // qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
 
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (Prop(v) <=> len([xs]) > 0)
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (Prop(v) <=> len([xs]) = 0)
+qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (v <=> (len xs > 0))
+qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (v <=> (len xs = 0))
 
 qualif ListZ(v: [a])          : (len([v]) =  0) 
 qualif ListZ(v: [a])          : (len([v]) >= 0) 

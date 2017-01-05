@@ -14,7 +14,7 @@ import Privileges
 {- ** API ** -}
 {-@ measure caps :: World -> Map FHandle Privilege @-}
 {-@ measure active :: World -> Set FHandle @-}
-{-@ measure derive :: Path -> Prop @-}
+{-@ measure derive :: Path -> Bool @-}
 
 data Path = P String deriving Eq
 data FHandle = FH Int deriving Eq
@@ -88,7 +88,7 @@ isDir :: FHandle -> Bool
 isDir = undefined
 
 {-@
-forM_ :: forall <i :: World -> Prop>.
+forM_ :: forall <i :: World -> Bool>.
          [a] ->
          (a -> RIO <i,\w1 x -> {v:World<i> | true}> b) ->
          RIO <i,\w1 x -> {v:World<i> | true}> ()
@@ -98,7 +98,7 @@ forM_ []     _ = return ()
 forM_ (x:xs) m = m x >> forM_ xs m
 
 {-@
-when :: forall <p    :: World -> Prop>.
+when :: forall <p    :: World -> Bool>.
         z:Bool ->
         RIO <p, \w1 x -> {v:World<p> | true}> () ->
         RIO <p, \w1 x -> {v:World<p> | true}> ()
@@ -110,7 +110,7 @@ when False  _ = return ()
 {-@ predicate StableInv W1 W2 X Y = NoChange W1 W2 || (UpdActive W1 W2 Y && (UpdCaps W1 W2 Y X || DeriveCaps W1 W2 Y X)) @-}
 
 {-@
-copyRec :: forall <i :: World -> Prop>.
+copyRec :: forall <i :: World -> Bool>.
   { a :: FHandle, b :: FHandle, w :: World<i> |- {v:World | StableInv w v a b } <: World<i> }
   Bool ->
   f:FHandle ->

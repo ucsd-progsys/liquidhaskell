@@ -6,10 +6,10 @@ flags:
 
 
 packages:
-- ./prover
 - ./liquid-fixpoint
 - ./liquiddesugar
 - '.'
+
 extra-deps:
 - dotgen-0.4.2
 - fgl-visualize-0.1.0.1

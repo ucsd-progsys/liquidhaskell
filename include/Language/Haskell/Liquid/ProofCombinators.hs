@@ -61,17 +61,17 @@ f ? y = f y
 {-@ (==>) :: p:Proof
           -> q:Proof
           -> {v:Proof |
-          ((Prop (proofBool p)) && (Prop (proofBool p) => Prop (proofBool q)))
+          (((proofBool p)) && ((proofBool p) => (proofBool q)))
           =>
-          ((Prop (proofBool p) && Prop (proofBool q)))
+          (((proofBool p) && (proofBool q)))
           } @-}
 (==>) :: Proof -> Proof -> Proof
 _ ==> _ = ()
 
 
-{- (&&&) :: p:{Proof | Prop (proofBool p) }
-          -> q:{Proof | Prop (proofBool q) }
-          -> {v:Proof | Prop (proofBool p) && Prop (proofBool q) } @-}
+{- (&&&) :: p:{Proof | (proofBool p) }
+          -> q:{Proof | (proofBool q) }
+          -> {v:Proof | (proofBool p) && (proofBool q) } @-}
 (&&&) :: Proof -> Proof -> Proof
 _ &&& _ = ()
 

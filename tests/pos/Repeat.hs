@@ -4,13 +4,13 @@ import Prelude hiding (repeat, take)
 data L a = N | C a (L a)
 
 {-@
-data L a <p :: (L a) -> Prop>
+data L a <p :: (L a) -> Bool>
   = N
   | C (x::a) (xs::L <p> a <<p>>)
 @-}
 
 {-@
-measure isCons :: L a -> Prop
+measure isCons :: L a -> Bool
 isCons (N)     = false
 isCons (C a l) = true
 @-}

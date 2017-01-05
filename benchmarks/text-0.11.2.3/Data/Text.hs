@@ -566,7 +566,7 @@ init t@(Text arr off len)
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
-{-@ null :: t:Text -> {v:Bool | ((Prop v) <=> (((tlength t) = 0) && ((tlen t) = 0)))} @-}
+{-@ null :: t:Text -> {v:Bool | (v <=> (((tlength t) = 0) && ((tlen t) = 0)))} @-}
 null :: Text -> Bool
 null (Text _arr _off len) =
 --LIQUID #if defined(ASSERTS)
@@ -584,7 +584,7 @@ null (Text _arr _off len) =
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
-{-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((tlength t) = 1))} @-}
+{-@ isSingleton :: t:Text -> {v:Bool | (v <=> ((tlength t) = 1))} @-}
 isSingleton :: Text -> Bool
 --LIQUID COMPOSE isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t
@@ -1096,7 +1096,7 @@ mul :: Int -> Int -> Int
 mul = P.undefined
 
 {-@ axiom_mul :: i:Nat -> n:Nat -> l:Nat -> len0:Nat -> d0:Nat
-    -> {v:Bool | (Prop(v) <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
+    -> {v:Bool | (v <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
                                => (((d0 + l) <= len0) && ((d0+l) = (mul (l) (i+1))))))}
   @-}
 axiom_mul :: Int -> Int -> Int -> Int -> Int -> Bool
@@ -1801,7 +1801,7 @@ unwords = intercalate (singleton ' ')
 -- | /O(n)/ The 'isPrefixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a prefix of the second.  Subject to fusion.
 {-@ isPrefixOf :: t1:Text -> t2:Text
-               -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
+               -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isPrefixOf :: Text -> Text -> Bool
 isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
@@ -1816,7 +1816,7 @@ isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
 -- | /O(n)/ The 'isSuffixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a suffix of the second.
 {-@ isSuffixOf :: t1:Text -> t2:Text
-               -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
+               -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isSuffixOf :: Text -> Text -> Bool
 isSuffixOf a@(Text _aarr _aoff alen) b@(Text barr boff blen) =

@@ -3,7 +3,7 @@ module ListRange () where
 import Language.Haskell.Liquid.Prelude
 
 {-@
-data List [llen] a <p :: x0:a -> x1:a -> Prop>
+data List [llen] a <p :: x0:a -> x1:a -> Bool>
   = Nil
   | Cons (h :: a) (t :: List <p> (a <p h>))
 @-}

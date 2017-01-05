@@ -6,10 +6,10 @@ measure lenRight :: [Data.Either.Either a b] -> GHC.Types.Int
 lenRight (x:xs) = if (isLeft x) then (lenRight xs) else (lenRight xs + 1)
 lenRight ([])   = 0
 
-measure isLeftHd :: [Data.Either.Either a b] -> Prop
+measure isLeftHd :: [Data.Either.Either a b] -> Bool 
 isLeftHd (x:xs) = (isLeft x)
 isLeftHd ([])   = false
 
-measure isLeft :: Data.Either.Either a b -> Prop 
+measure isLeft :: Data.Either.Either a b -> Bool
 isLeft (Left x)  = true
 isLeft (Right x) = false

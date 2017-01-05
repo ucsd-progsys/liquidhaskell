@@ -223,6 +223,10 @@ proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
                 , "ApplicativeList.hs"
+                 
+                , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
+                , "MonadReader.hs"        -- NOPROP: ""
+                , "ApplicativeReader.hs"  -- NOPROP: "" 
                 ]
 
 

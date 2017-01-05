@@ -32,5 +32,5 @@ incr2 = do x <- incr
 
 
 lassert :: Bool -> a -> a
-{-@ lassert :: {v:Bool| Prop v} -> x:a -> {v:a | v == x} @-}
+{-@ lassert :: {v:Bool| v} -> x:a -> {v:a | v == x} @-}
 lassert b x = if b then x else error "lassert failure"

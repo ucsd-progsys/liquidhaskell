@@ -118,6 +118,16 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
   where
     xd          = maybe "unknown" (pprintTidy k) x
 
+instance PPrint LMap where
+  pprintTidy _ (LMap x xs e) = hcat [pprint x, pprint xs, text "|->", pprint e ]
+
+instance PPrint LogicMap where
+  pprintTidy _ (LM lm am) = vcat [ text "Logic Map"
+                                 , nest 2 $ text "logic-map"
+                                 , nest 4 $ pprint lm
+                                 , nest 2 $ text "axiom-map"
+                                 , nest 4 $ pprint am
+                                 ]
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -129,15 +139,15 @@ instance (OkRT c tv r) => PPrint (RType c tv r) where
 instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
   pprintTidy = ppAlias
 
-pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
-pprints k c = sep . punctuate c . map (pprintTidy k)
-
 ppAlias :: (PPrint tv, PPrint ty) => Tidy -> RTAlias tv ty -> Doc
 ppAlias k a = text "type" <+> pprint (rtName a)
                           <+> pprints k space (rtTArgs a)
                           <+> pprints k space (rtVArgs a)
                           <+> text " = "
                           <+> pprint (rtBody a)
+
+pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
+pprints k c = sep . punctuate c . map (pprintTidy k)
 
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc
@@ -329,8 +339,8 @@ ppr_pvar_def bb p (PV s t _ xts)
 
 
 ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
-ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name propConName
-ppr_pvar_kind _ _ (PVHProp)   = ppr_name hpropConName
+ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name boolConName -- propConName
+ppr_pvar_kind _ _ (PVHProp)   = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
 
 ppr_name :: Symbol -> Doc
 ppr_name                      = text . symbolString

@@ -6,12 +6,12 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 
 data Vec a = V (Int -> a)
 {-@
-data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
+data Vec a <dom :: Int -> Bool, rng :: Int -> a -> Bool>
      = V {a :: i:Int<dom> -> a <rng i>}
   @-}
 
 
-{-@ empty :: forall <p :: Int -> a -> Prop>. Vec <{\v -> 0=1}, p> a @-}
+{-@ empty :: forall <p :: Int -> a -> Bool>. Vec <{\v -> 0=1}, p> a @-}
 empty     :: Vec  a
 empty     = V $ \_ -> (error "Empty array!")
 
@@ -20,14 +20,14 @@ empty     = V $ \_ -> (error "Empty array!")
 create     :: a -> Vec  a
 create x   = V $ \_ -> x
 
-{-@ get :: forall a <r :: x0: Int -> x1: a -> Prop, d :: x0: Int -> Prop>.
+{-@ get :: forall a <r :: x0: Int -> x1: a -> Bool, d :: x0: Int -> Bool>.
              i: Int<d> ->
              a: Vec<d, r> a ->
              a<r i> @-}
 get :: Int -> Vec a -> a
 get i (V f) = f i
 
-{-@ set :: forall a <r :: x0: Int -> x1: a -> Prop, d :: x0: Int -> Prop>.
+{-@ set :: forall a <r :: x0: Int -> x1: a -> Bool, d :: x0: Int -> Bool>.
       i: Int<d> ->
       x: a<r i> ->
       a: Vec <{v:Int<d> | v != i}, r> a -> 
@@ -85,7 +85,7 @@ stridedZeroes = zeroEveryOther z ten empty
   where z     = 0
         ten   = 10
 
-{-@ initArray :: forall a <p :: x0: Int -> x1: a -> Prop>.
+{-@ initArray :: forall a <p :: x0: Int -> x1: a -> Bool>.
       f: Vec <{\v ->  0=0}, p> a ->
       i: {v: Int | v >= 0} ->
       n: Int ->
@@ -150,7 +150,7 @@ upperCaseString n s = upperCaseString' n 0 s
 {-@ type FibV = Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = fib(j)))}> Int @-}
 
 
-{-@ assume axiom_fib :: i:Int -> {v: Bool | Prop v <=> (fib i = (if i <= 1 then 1 else (fib (i-1) + fib (i-2)))) } @-}
+{-@ assume axiom_fib :: i:Int -> {v: Bool | v <=> (fib i = (if i <= 1 then 1 else (fib (i-1) + fib (i-2)))) } @-}
 axiom_fib :: Int -> Bool
 axiom_fib i = undefined
 

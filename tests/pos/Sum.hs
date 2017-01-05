@@ -1,6 +1,6 @@
 module Sum where
 
-{-@ ssum :: forall<p :: a -> Prop, q :: a -> Prop>. 
+{-@ ssum :: forall<p :: a -> Bool, q :: a -> Bool>. 
             {{v:a | v == 0} <: a<q>}
             {x::a<p> |- {v:a | x <= v} <: a<q>}
             xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } @-}

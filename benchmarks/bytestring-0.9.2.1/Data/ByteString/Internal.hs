@@ -440,7 +440,7 @@ createAndTrimMEQ l f = do
 -- LIQUID CONSTRUCTIVE VERSION (Till we support pred-applications properly,
 -- cf. tests/pos/cont2.hs
 
-{-@ createAndTrim'' :: forall <p :: Int -> Prop>.
+{-@ createAndTrim'' :: forall <p :: Int -> Bool>.
                       l:Nat<p>
                    -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
                    -> IO ({v:Nat<p> | v <= l}, ByteString, a)<{\sz v -> (bLength v) = sz},{\o l v -> true}>

@@ -56,7 +56,7 @@ data OrdList a
 
 
 {-@ nilOL    :: OrdListN a {0} @-}
-{-@ isNilOL  :: xs:OrdList a -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
+{-@ isNilOL  :: xs:OrdList a -> {v:Bool | v <=> (olen xs == 0)} @-}
 
 {-@ unitOL   :: a              -> OrdListN a {1} @-}
 {-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1+(olen xs)} @-}

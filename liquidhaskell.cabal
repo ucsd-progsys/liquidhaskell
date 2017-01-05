@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.6.0.0
+Version:             0.7.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -66,9 +66,9 @@ Executable liquid
                , deepseq
                , pretty
                , process
-               , liquid-fixpoint
+               , liquid-fixpoint >= 0.6
                , located-base
-               , prover
+               -- , prover
                , liquidhaskell
 
   Main-is: src/Liquid.hs
@@ -139,9 +139,9 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint
+                , liquid-fixpoint >= 0.6
                 , located-base
-                , prover
+                -- , prover
                 , aeson >= 0.10 && < 1.0 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
@@ -172,8 +172,8 @@ Library
                     Language.Haskell.Liquid.Constraint.Env,
                     Language.Haskell.Liquid.Constraint.Types,
                     Language.Haskell.Liquid.Constraint.Split,
-                    Language.Haskell.Liquid.Constraint.Axioms,
-                    Language.Haskell.Liquid.Constraint.ProofToCore,
+                    -- Language.Haskell.Liquid.Constraint.Axioms,
+                    -- Language.Haskell.Liquid.Constraint.ProofToCore,
                     Language.Haskell.Liquid.Constraint.Generate,
                     Language.Haskell.Liquid.Constraint.ToFixpoint,
                     Language.Haskell.Liquid.Measure,
@@ -220,7 +220,6 @@ Library
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
-                    Language.Haskell.Liquid.Bare.RefToLogic,
                     Language.Haskell.Liquid.Bare.Check,
                     Language.Haskell.Liquid.Bare.DataType,
                     Language.Haskell.Liquid.Bare.Env,

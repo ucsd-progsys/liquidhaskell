@@ -1,17 +1,16 @@
 -- | Correctness of sat solver as in Trellys
 -- | http://www.seas.upenn.edu/~sweirich/papers/popl14-trellys.pdf
 
-
 -- | This code is terrible.
 -- | Should use cases and auto translate like in the paper's theory
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
-module Solver where
 
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
-{-@ LIQUID "--eliminate=all"   @-}
+
+module Solver where
 
 import Data.Tuple
 import Data.List (nub)
@@ -39,7 +38,7 @@ solve f = find (`sat` f) (asgns f)
 witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
 witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
 
-{-@ find :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>.
+{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
             (Witness a p w) =>
             (x:a -> Bool<w x>) -> [a ]-> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a

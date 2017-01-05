@@ -83,7 +83,7 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType)
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> Located SpecType
 makeAssumeType tce lmap x v xts ams def = assumedtype
   where
     assumedtype
@@ -148,7 +148,7 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv
-  = insertLogicEnv (val x) ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv "UPDATELMAP" x ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
     makeProp e
       | isBool (ty_res trep)
@@ -280,7 +280,7 @@ axiomType :: LocSymbol -> SpecType -> SpecType
 axiomType s t' = fromRTypeRep $ t{ty_res = res, ty_binds = xs'}
   where
     t   = toRTypeRep t'
-    xs  = fst $ unzip $ (dropWhile (isClassType . snd) $ zip xs' (ty_args t))
+    xs  = fst $ unzip (dropWhile (isClassType . snd) $ zip xs' (ty_args t))
     xs' = if isUnique (ty_binds t)
             then ty_binds t
              else (\i -> symbol ("xa" ++ show i)) <$> [1..(length $ ty_binds t)]

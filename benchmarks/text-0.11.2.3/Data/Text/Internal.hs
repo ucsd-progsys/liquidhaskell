@@ -211,13 +211,13 @@ firstf _  Nothing      = Nothing
 
 --LIQUID
 {-@ tlEqNumchars :: t:Text -> a:A.Array -> o:Int -> l:Int
-                 -> {v:Bool | ((Prop v) <=> ((tlength t) = (numchars a o l)))}
+                 -> {v:Bool | (v <=> ((tlength t) = (numchars a o l)))}
   @-}
 tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
 tlEqNumchars = undefined
 
 {-@ numcharsZ :: a:A.Array -> o:Int -> l:Int
-              -> {v:Bool | ((Prop v) <=> ((numchars a o l) = 0))}
+              -> {v:Bool | (v <=> ((numchars a o l) = 0))}
   @-}
 numcharsZ :: A.Array -> Int -> Int -> Bool
 numcharsZ = undefined

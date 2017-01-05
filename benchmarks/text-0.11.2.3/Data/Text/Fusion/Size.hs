@@ -49,7 +49,7 @@ data Size = Exact (getExact::{v:Int | v >= 0})
     getSize (Data.Text.Fusion.Size.Max   n) = n
   @-}
 
-{-@ measure isUnknown :: Data.Text.Fusion.Size.Size -> Prop
+{-@ measure isUnknown :: Data.Text.Fusion.Size.Size -> Bool
     isUnknown (Data.Text.Fusion.Size.Exact n) = false
     isUnknown (Data.Text.Fusion.Size.Max   n) = false
     isUnknown (Data.Text.Fusion.Size.Unknown) = true
@@ -187,7 +187,7 @@ upperBound k _         = k
 {-# INLINE upperBound #-}
 
 {-@ isEmpty :: s:Size
-            -> {v:Bool | Prop v <=> ((not (isUnknown s) && (getSize s = 0))) }
+            -> {v:Bool | v <=> ((not (isUnknown s) && (getSize s = 0))) }
   @-}
 isEmpty :: Size -> Bool
 isEmpty (Exact n) = n <= 0

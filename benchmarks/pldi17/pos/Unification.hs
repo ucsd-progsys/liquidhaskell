@@ -147,7 +147,7 @@ append_apply (C su θ) θ2 t
 
 
 {-@ theoremVar :: t:Term
-             -> i:{Int | not (S.member i (freeVars t)) }
+             -> i:{Int | not (Set_mem i (freeVars t)) }
              -> {apply (C (P i t) Emp) (TVar i) == apply (C (P i t) Emp) t } @-}
 theoremVar :: Term -> Int ->Proof
 theoremVar t i
@@ -162,7 +162,7 @@ theoremVar t i
   *** QED
 
 {-@ theoremVarOne :: t:Term
-             -> i:{Int | not (S.member i (freeVars t)) }
+             -> i:{Int | not (Set_mem i (freeVars t)) }
              -> ti:Term
              -> { t == applyOne (P i ti) t } @-}
 theoremVarOne :: Term -> Int -> Term -> Proof

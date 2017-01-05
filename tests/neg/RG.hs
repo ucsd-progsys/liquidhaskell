@@ -12,9 +12,9 @@ import Data.IORef as R
    The key idea in that paper is to augment each reference with a predicate refining
    the referent and heap reachable from it, and binary relations describing permitted
    local actions (the guarantee) and possible remote actions (the rely):
-   
+
                 ref{T|P}[R,G]
-   
+
    The terminology comes from rely-guarantee reasoning, from the concurrent program
    logic literature.  As long as
    each reference's guarantee relation is a subrelation of any alias's rely (plus some
@@ -41,7 +41,7 @@ import Data.IORef as R
    relation(s).  It is a standard GHC optimization to eliminate the overhead since there is a single
    constructor with one physical argument, so at runtime these will look the same as IORefs:
    we won't pay time or space overhead. -}
-{-@ data RGRef a <p :: a -> Prop, r :: a -> a -> Prop > 
+{-@ data RGRef a <p :: a -> Bool, r :: a -> a -> Bool>
     = Wrap (rr :: R.IORef a<p>) @-}
 data RGRef a = Wrap (R.IORef a)
 
@@ -55,7 +55,7 @@ stable_monocount :: Int -> Int -> Int
 stable_monocount x y = y
 
 -- Testing / debugging function
-{-@ generic_accept_stable :: forall <p :: a -> Prop, r :: a -> a -> Prop >.
+{-@ generic_accept_stable :: forall <p :: a -> Bool, r :: a -> a -> Bool >.
                     f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->
                     ()
                     @-}
@@ -75,8 +75,8 @@ proves_nothing x y = y --proves_nothing x y
 
 {- TODO: e2 is a hack to sidestep the inference of false for r,
    it forces r to be inhabited. -}
-{-@ newRGRef :: forall <p :: a -> Prop, r :: a -> a -> Prop >.
-                    e:a<p> -> 
+{-@ newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.
+                    e:a<p> ->
                     e2:a<r e> ->
                     f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->
                     IO (RGRef <p, r> a) @-}
@@ -87,7 +87,7 @@ newRGRef e e2 stabilityPf = do {
                          }
 
 -- LH's assume statement seems to only affect spec files
-{-@ readRGRef :: forall <p :: a -> Prop, r :: a -> a -> Prop >.
+{-@ readRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.
                     RGRef<p, r> a -> IO (a<p>) @-}
 readRGRef (Wrap x) = readIORef x
 
@@ -96,7 +96,7 @@ writeRGRef :: RGRef a -> a -> (a -> a -> Bool) -> IO ()
 writeRGRef  (Wrap x) e pf = writeIORef x e
 
 
-{- modifyRGRef :: forall <p :: a -> Prop, r :: a -> a -> Prop >.
+{- modifyRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.
                     r:(RGRef<p, r> a) ->
                     f:(x:a<p> -> a<r x>) ->
                     pf:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->
@@ -104,7 +104,7 @@ writeRGRef  (Wrap x) e pf = writeIORef x e
 modifyRGRef :: RGRef a -> (a -> a) -> (a -> a -> a) -> IO ()
 modifyRGRef (Wrap x) f pf = modifyIORef x (\ v -> pf v (f v))
 --
---{- modifyRGRef' :: forall <p :: a -> Prop, r :: a -> a -> Prop >.
+--{- modifyRGRef' :: forall <p :: a -> Bool, r :: a -> a -> Bool >.
 --                    RGRef<p, r> a ->
 --                    f:(x:a<p> -> a<r x>) ->
 --                    IO () @-}

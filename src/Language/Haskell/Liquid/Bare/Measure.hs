@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TupleSections    #-}
-{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
@@ -24,10 +23,8 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
-
-
 import Data.Default
-
+-- import Data.Either (either)
 import Prelude hiding (mapM, error)
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Except hiding (forM, mapM)
@@ -36,7 +33,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
--- import TysWiredIn (boolTyCon)
+import TysWiredIn (boolTyCon)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -55,7 +52,7 @@ import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.WiredIn  (propTyCon)
+-- import Language.Haskell.Liquid.WiredIn  (propTyCon)
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types
@@ -69,7 +66,7 @@ import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.RefToLogic
+-- import Language.Haskell.Liquid.Bare.RefToLogic
 
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   _   name' (name, _   ) | name /= name'
@@ -82,43 +79,33 @@ makeHaskellMeasures tce cbs _     (_   , spec)
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM ()
-makeHaskellInlines _   _   name' (name, _   ) | name /= name'
+makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM [(LocSymbol, TInline)]
+makeHaskellInlines tce cbs name' (name, spec)
+  | name /= name'
   = return mempty
-makeHaskellInlines tce cbs _     (_   , spec)
+  | otherwise
   = do lmap <- gets logicEnv
-       mapM_ (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
+       mapM (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
+    where
+      cbs'                  = concatMap unrec cbs
+      unrec cb@(NonRec _ _) = [cb]
+      unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+
+makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, TInline)
+makeMeasureInline tce lmap cbs x =
+  case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
+    (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok
+    (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok
+    _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
-    cbs'                  = concatMap unrec cbs
-    unrec cb@(NonRec _ _) = [cb]
-    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+    ok (xs, e) = return (TI (symbol <$> xs) (either id id e))
 
-makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM ()
-makeMeasureInline tce lmap cbs  x
-  = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> do {e <- coreToFun' tce x v def; updateInlines x e}
-    (Rec [(v, def)]:_) -> do {e <- coreToFun' tce x v def; updateInlines x e}
-    _                  -> throwError $ mkError "Cannot inline haskell function"
-  where
-    binders (NonRec z _) = [z]
-    binders (Rec xes)    = fst <$> xes
+binders :: CoreBind -> [Id]
+binders (NonRec z _) = [z]
+binders (Rec xes)    = fst <$> xes
 
-    coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Right (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
-                           Left e -> throwError e
-
-    fromLR (Left l)  = l
-    fromLR (Right r) = r
-
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
-
-updateInlines :: MonadState BareEnv m => Located Symbol -> TInline -> m ()
-updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
-                                   s{inlines = M.map (f iold) iold }
-  where
-    f             = txRefToLogic mempty
+errHMeas :: LocSymbol -> String -> Error
+errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition tce lmap cbs x
@@ -140,18 +127,20 @@ makeMeasureDefinition tce lmap cbs x
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
 
-strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
-strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
+
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
-strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, Located SpecType)] -> [(Var, Located SpecType)]
+
+strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskell strengthen hmeas sigs
-  = go <$> groupList ((reverse sigs) ++ hsigs)
+  = go <$> groupList (reverse sigs ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
-    go (v, xs) = (v,) $ L.foldl1' (\t1 t2 -> t2 `meetLoc` t1) xs
+    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
 
-meetLoc :: Located SpecType -> Located SpecType -> Located SpecType
+meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Bool -> Bool -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
@@ -172,7 +161,7 @@ makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
     n             = length xts
-    bareBool      = RApp (RTyCon propTyCon [] def) [] [] mempty :: SpecType
+    bareBool      = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
     checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n
 
@@ -185,7 +174,7 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 
 -- tyConDataCons
 makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon
-makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> (filter (/=dc) dcs))}
+makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> filter (/=dc) dcs)}
   where
     eqn    = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (P F.PTrue)
     eqns d = Def x [] d Nothing (((, Nothing) . mkx) <$> [1 .. (length $ dataConOrigArgTys d)]) (P F.PFalse)
@@ -249,10 +238,6 @@ varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
 isSimpleType :: Type -> Bool
 isSimpleType = isFirstOrder . typeSort M.empty
 
--- OLD isSimpleType t   = null tvs && isNothing (splitFunTy_maybe tb)
--- OLD  where
--- OLD    (tvs, tb)    = splitForAllTys t
-
 varSpecType :: (Monoid r) => Var -> Located (RRType r)
 varSpecType v    = Loc l l' (ofType $ varType v)
   where
@@ -266,28 +251,27 @@ makeHaskellBounds tce cbs xs
        M.fromList <$> mapM (makeHaskellBound tce lmap cbs) (S.toList xs)
 
 
-makeHaskellBound :: MonadError Error m
-                 => F.TCEmb TyCon
+makeHaskellBound :: F.TCEmb TyCon
                  -> LogicMap
                  -> [Bind Var]
                  -> (Var, Located Symbol)
-                 -> m (LocSymbol, RBound)
-makeHaskellBound tce lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
-    (NonRec v def:_)   -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
-    (Rec [(v, def)]:_) -> do {e <- coreToFun' tce x v def; return $ toBound v x e}
-    _                  -> throwError $ mkError "Cannot make bound of haskell function"
+                 -> BareM (LocSymbol, RBound)
+makeHaskellBound tce lmap  cbs (v, x) =
+  case filter ((v  `elem`) . binders) cbs of
+    (NonRec v def:_)   -> toBound v x <$> coreToFun' tce lmap x v def return
+    (Rec [(v, def)]:_) -> toBound v x <$> coreToFun' tce lmap x v def return
+    _                  -> throwError $ errHMeas x "Cannot make bound of haskell function"
 
-  where
-    binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes
-
-    coreToFun' tce x v def = case runToLogic tce lmap mkError $ coreToFun x v def of
-                           Right (xs, e) -> return (xs, e)
-                           Left e      -> throwError e
-
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
+coreToFun' :: F.TCEmb TyCon
+           -> LogicMap
+           -> LocSymbol
+           -> Var
+           -> CoreExpr
+           -> (([Var], Either F.Expr F.Expr) -> BareM a)
+           -> BareM a
+coreToFun' tce lmap x v def ok
+  = either throwError ok
+  $ runToLogic tce lmap (errHMeas x) (coreToFun x v def)
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)
 toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
@@ -324,6 +308,6 @@ expandMeasureDef d
        return $ d { body = body }
 
 expandMeasureBody :: SourcePos -> Body -> BareM Body
-expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandExpr p)
-expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandExpr p)
+expandMeasureBody l (P p)   = P   <$> (resolve l =<< expand p)
+expandMeasureBody l (R x p) = R x <$> (resolve l =<< expand p)
 expandMeasureBody l (E e)   = E   <$> resolve l e

@@ -176,13 +176,13 @@ advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g dec =
 -- | Check whether an attempt to index into the haystack at the
 -- given offset would fail.
 {-@ lackingHay :: q:Nat64 -> t:TextNE -> ts:Text
-               -> {v:Bool | ((Prop v) <=> (q > ((tlen t) + (ltlen ts))))}
+               -> {v:Bool | (v <=> (q > ((tlen t) + (ltlen ts))))}
   @-}
 lackingHay :: Int64 -> T.Text -> Text -> Bool
 lackingHay q t ts = lackingHay_go q 0 t ts
 
 {-@ lackingHay_go :: q:Nat64 -> p:Nat64 -> t:TextNE -> ts:Text
-               -> {v:Bool | ((Prop v) <=> (q > (p + (tlen t) + (ltlen ts))))}
+               -> {v:Bool | (v <=> (q > (p + (tlen t) + (ltlen ts))))}
   @-}
 {-@ Decrease lackingHay_go 4 @-}
 lackingHay_go :: Int64 -> Int64 -> T.Text -> Text -> Bool

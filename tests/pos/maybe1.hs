@@ -2,7 +2,7 @@ module Test () where
 
 data MaybeS a = NothingS | JustS !a
 
-{-@ measure isJustS :: forall a. MaybeS a -> Prop
+{-@ measure isJustS :: forall a. MaybeS a -> Bool
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}

@@ -1,8 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bare.RTEnv (
-    makeRTEnv
-  ) where
+module Language.Haskell.Liquid.Bare.RTEnv ( makeRTEnv ) where
 
 import Prelude hiding (error)
 
@@ -13,31 +11,41 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
-import Language.Fixpoint.Misc (fst3)
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
-
-import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
-import Language.Haskell.Liquid.Types
-
-
+import           Language.Fixpoint.Misc (fst3)
+import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
+import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
+import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
+import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
-
-import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.Bare.Resolve
+import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.Bare.Expand
+import           Language.Haskell.Liquid.Bare.OfType
+import           Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
+-- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
+--   that is, the below needs to be called *before* we use `Expand.expand`
+--------------------------------------------------------------------------------
+makeRTEnv :: ModName
+          -> [(LocSymbol, TInline)]
+          -> [(ModName, Ms.Spec ty bndr)]
+          -> M.HashMap Symbol LMap
+          -> BareM ()
+--------------------------------------------------------------------------------
+makeRTEnv m xils specs lm = do
+  makeREAliases (eAs ++ eAs' ++ eAs'')
+  makeRTAliases tAs
+  where
+    tAs   = [ (m, t) | (m, s) <- specs,          t <- Ms.aliases   s   ]
+    eAs   = [ (m, e) | (m, s) <- specs,          e <- Ms.ealiases  s   ]
+    eAs'  = [ (m, e) | xil    <- xils,       let e  = inlineEAlias xil ]
+    eAs'' = [ (m, e) | xl    <- M.toList lm, let e  = lmapEAlias   xl  ]
 
-makeRTEnv :: [(ModName, Ms.Spec ty bndr)] -> BareM ()
-makeRTEnv specs
-  = do makeREAliases ets
-       makeRTAliases rts
-    where
-       rts = concat [(m,) <$> Ms.aliases  s | (m, s) <- specs]
-       ets = concat [(m,) <$> Ms.ealiases s | (m, s) <- specs]
+lmapEAlias :: (Symbol, LMap) -> RTAlias Symbol Expr
+lmapEAlias (x, LMap v ys e) = RTA x [] ys e (loc v) (loc v)
 
+inlineEAlias :: (LocSymbol, TInline) -> RTAlias Symbol Expr
+inlineEAlias (x, TI ys e)   = RTA (val x) [] ys e (loc x) (loc x)
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody
@@ -46,7 +54,7 @@ makeRTAliases = graphExpand buildTypeEdges expBody
       let l  = rtPos  xt
       let l' = rtPosE xt
       body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
-      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
+      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body }
 
 makeREAliases :: [(ModName, RTAlias Symbol Expr)] -> BareM ()
 makeREAliases
@@ -56,7 +64,7 @@ makeREAliases
       = inModule mod $
           do let l  = rtPos  xt
              let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expandExpr (rtBody xt)
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expand (rtBody xt)
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 
@@ -68,7 +76,6 @@ graphExpand buildEdges expBody xts
   = do let table = buildAliasTable xts
            graph = buildAliasGraph (buildEdges table) (map snd xts)
        checkCyclicAliases table graph
-
        mapM_ expBody $ genExpandOrder table graph
 
 --------------------------------------------------------------------------------

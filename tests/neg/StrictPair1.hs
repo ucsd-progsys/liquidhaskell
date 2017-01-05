@@ -16,22 +16,21 @@ data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 
 {-@ qualif PSnd(v: a, x:b): v = (psnd x)                            @-}
 
-{-@ data PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)   @-}
+{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)   @-}
 
-{-@ measure pfst :: (PairS a b) -> a 
-    pfst ((:*:) x y) = x 
-  @-} 
+{-@ measure pfst :: (PairS a b) -> a
+    pfst ((:*:) x y) = x
+  @-}
 
-{-@ measure psnd :: (PairS a b) -> b 
-    psnd ((:*:) x y) = y 
-  @-} 
+{-@ measure psnd :: (PairS a b) -> b
+    psnd ((:*:) x y) = y
+  @-}
 
 {-@ type FooS a = PairS <{\z v -> v <= (psnd z)}> (PairS a Int) Int @-}
 
 {-@ moo :: a -> Int -> (FooS a) @-}
-moo :: a -> Int -> PairS (PairS a Int) Int 
+moo :: a -> Int -> PairS (PairS a Int) Int
 moo x n = (x :*: n :*: m)
 -- moo x n = (x :*: 1 :*: 100) -- ALAS, also reported "SAFE"
   where
     m   = n + 1
-

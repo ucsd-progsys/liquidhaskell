@@ -16,7 +16,7 @@ compareLengthI :: s:Data.Text.Fusion.Internal.Stream Char
                -> {v:GHC.Types.Ordering | ((v = GHC.Types.EQ) <=> ((slen s) = l))}
 
 isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
-            -> {v:GHC.Types.Bool | ((Prop v) <=> ((slen s) = 1))}
+            -> {v:GHC.Types.Bool | (v <=> ((slen s) = 1))}
 
 singleton   :: GHC.Types.Char
             -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = 1}

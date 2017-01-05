@@ -3,14 +3,12 @@
 
 -- | Niki Vazou Sep 2016 
 
+{-@ LIQUID "--higherorder"   @-}
+{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--exactdc"       @-}
 
 
-{-@ LIQUID "--higherorder"         @-}
-{-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
-
-
-module MapRecude where 
+module MapReduce where 
 
 import Prelude hiding (mconcat, map, split, take, drop, sum)
 import Language.Haskell.Liquid.ProofCombinators 
