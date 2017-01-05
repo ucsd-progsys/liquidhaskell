@@ -5,7 +5,6 @@
 -- | Should use cases and auto translate like in the paper's theory
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
 
-
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}

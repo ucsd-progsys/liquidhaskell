@@ -191,7 +191,7 @@ module Language.Haskell.Liquid.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -201,7 +201,7 @@ module Language.Haskell.Liquid.Types (
 
   , Axiom(..), HAxiom, LAxiom
 
-  , rtyVarUniqueSymbol, tyVarUniqueSymbol
+  , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
   where
 
@@ -386,6 +386,7 @@ eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
   , length xs == length es
+  -- NOPROP , length xs <= length es
   = subst (mkSubst $ zip xs es) e
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
   , isApp e
@@ -403,7 +404,8 @@ isApp (EApp (EVar _) (EVar _)) = True
 isApp (EApp e (EVar _))        = isApp e
 isApp _                        = False
 
-data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
+data TyConP = TyConP { ty_loc       :: !SourcePos
+                     , freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
                      , varianceTs   :: !VarianceInfo
@@ -567,6 +569,9 @@ rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
+
+rtyVarType :: RTyVar -> Type 
+rtyVarType (RTV v) = TyVarTy v 
 
 mkBTyCon :: LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
@@ -969,10 +974,15 @@ instance Show BTyCon where
 data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
-  , risigs  :: [(LocSymbol, t)]
+  , risigs  :: [(LocSymbol, RISig t)] 
   } deriving (Functor, Data, Typeable)
 
-newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid, Show)
+data RISig t = RIAssumed t | RISig t 
+  deriving (Functor, Data, Typeable, Show)
+
+
+
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty))) deriving (Monoid, Show)
 
 type RDEnv = DEnv Var SpecType
 

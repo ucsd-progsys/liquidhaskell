@@ -4,7 +4,7 @@ data SortedList a =
      Mt
    | Ln{h :: a, t :: SortedList a}
 
-{-@ data SortedList [sortedlen]  @-}
+{-@ data SortedList [sortedlen] @-}
 
 
 {-@ measure sortedlen @-}

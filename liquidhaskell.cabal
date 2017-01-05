@@ -162,6 +162,7 @@ Library
    Exposed-Modules: LiquidHaskell,
 
                     Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.ProofCombinators,
                     Language.Haskell.Liquid.Foreign,
                     Language.Haskell.Liquid.List,
                     Language.Haskell.Liquid.Bare,
