@@ -5,8 +5,8 @@ machine:
     - sudo add-apt-repository -y ppa:hvr/z3
     - sudo apt-get -y update
     - sudo apt-get -y install z3
-    - ls -a
-    - rm .cabal-sandbox
+    - ls -a liquidhaskell
+    - rm -r liquidhaskell/.cabal-sandbox
 
 checkout:
   post:
