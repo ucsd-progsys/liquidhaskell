@@ -80,6 +80,7 @@ explicit proof that comparison on peano numbers is *total*,
 that is, for every two numbers `n` and `m` 
 either `leqPeano n m` or `leqPeano m n` always holds. 
 
+\begin{code}
 {-@ leqNTotal :: n:Peano -> m:Peano 
               -> {(leqPeano n m) || (leqPeano m n)} 
               / [toNat n + toNat m] @-}
@@ -114,17 +115,16 @@ type Nat = {v:Int | 0 <= v}
 \end{spec}
 
 
-
 First, we'll express verified typeclasses using Haskell records, but with LiquidHaskell refinements to express laws. As
 an example, let's define `VerifiedOrd`, which is the same as the `Ord` typeclass, but with total order laws added.
 
 \begin{code}
 {-@ data VerifiedOrd a = VerifiedOrd {
       leq     :: a -> a -> Bool
-    , refl    :: x:a -> { Prop (leq x x) }
-    , antisym :: x:a -> y:a -> { Prop (leq x y) && Prop (leq y x) ==> x == y }
-    , trans   :: x:a -> y:a -> z:a -> { Prop (leq x y) && Prop (leq y z) ==> Prop (leq x z) }
-    , total   :: x:a -> y:a -> { Prop (leq x y) || Prop (leq y x) }
+    , refl    :: x:a -> { leq x x }
+    , antisym :: x:a -> y:a -> { leq x y && leq y x ==> x == y }
+    , trans   :: x:a -> y:a -> z:a -> { leq x y && leq y z ==> leq x z }
+    , total   :: x:a -> y:a -> { leq x y || leq y x }
     }
 @-}
 data VerifiedOrd a = VerifiedOrd {
@@ -172,29 +172,6 @@ vordInt = VerifiedOrd leqInt leqIntRefl leqIntAntisym leqIntTrans leqIntTotal
 How about a complex datatype? Let's consider an inductive datatype, the peano natural numbers. Not surprisingly, the
 proofs follow by induction. For conciseness, we only show totality and elide the rest.
 
-\begin{code}
-{-@ data Peano [toNat] = Z | S Peano @-}
-data Peano = Z | S Peano deriving (Eq)
-
-
-
-{-@ axiomatize leqPeano @-}
-leqPeano :: Peano -> Peano -> Bool
-leqPeano Z _ = True
-leqPeano _ Z = False
-leqPeano (S n) (S m) = leqPeano n m
-
-{-@ leqNTotal :: n:Peano -> m:Peano -> {(leqPeano n m) || (leqPeano m n)} / [toNat n + toNat m] @-}
-leqNTotal :: Peano -> Peano -> Proof
-leqNTotal Z m = leqPeano Z m *** QED
-leqNTotal n Z = leqPeano Z n *** QED
-leqNTotal (S n) (S m)
-  =   (leqPeano (S n) (S m) || leqPeano (S m) (S n))
-  ==. (leqPeano n m || leqPeano (S m) (S n)) ? (leqNTotal n m )
-  ==. (leqPeano n m || leqPeano m n) ? (leqNTotal m n)
-  *** QED
-\end{code}
-
 Writing down proofs for more complex datatypes is tedious, it requires case analysis for each constructor and using the
 induction hypothesis. However, we can decompose Haskell datatypes into sums and products, and we can build up compound
 proofs using isomorphisms! To that end, we design some machinery to express isomorphisms, and prove that laws are
@@ -227,7 +204,7 @@ leqFrom :: (a -> a -> Bool)
         -> (b -> b -> Bool)
 leqFrom leqa from x y = leqa (from x) (from y)
 
-{-@ leqFromRefl :: leqa:(a -> a -> Bool) -> leqaRefl:(x:a -> { Prop (leqa x x) })
+{-@ leqFromRefl :: leqa:(a -> a -> Bool) -> leqaRefl:(x:a -> { leqa x x })
                 -> from:(b -> a)
                 -> x:b -> { leqFrom leqa from x x }
 @-}
@@ -241,7 +218,7 @@ leqFromRefl leqa leqaRefl from x =
   *** QED
 
 {-@ leqFromAntisym :: leqa:(a -> a -> Bool)
-                   -> leqaAntisym:(x:a -> y:a -> { Prop (leqa x y) && Prop (leqa y x) ==> x == y })
+                   -> leqaAntisym:(x:a -> y:a -> { leqa x y && leqa y x ==> x == y })
                    -> to:(a -> b) -> from:(b -> a) -> tof:(y:b -> { to (from y) == y })
                    -> x:b -> y:b -> { leqFrom leqa from x y && leqFrom leqa from y x ==> x == y }
 @-}
@@ -259,7 +236,7 @@ leqFromAntisym leqa leqaAntisym to from tof x y
   *** QED
 
 {-@ leqFromTrans :: leqa:(a -> a -> Bool)
-                 -> leqaTrans:(x:a -> y:a -> z:a -> { Prop (leqa x y) && Prop (leqa y z) ==> Prop (leqa x z) })
+                 -> leqaTrans:(x:a -> y:a -> z:a -> { (leqa x y) && (leqa y z) ==> (leqa x z) })
                  -> from:(b -> a)
                  -> x:b -> y:b -> z:b
                  -> { leqFrom leqa from x y && leqFrom leqa from y z ==> leqFrom leqa from x z }
@@ -274,7 +251,7 @@ leqFromTrans leqa leqaTrans from x y z =
   ==. leqFrom leqa from x z
   *** QED
 
-{-@ leqFromTotal :: leqa:(a -> a -> Bool) -> leqaTotal:(x:a -> y:a -> { Prop (leqa x y) || Prop (leqa y x) })
+{-@ leqFromTotal :: leqa:(a -> a -> Bool) -> leqaTotal:(x:a -> y:a -> { (leqa x y) || (leqa y x) })
                  -> from:(b -> a) -> x:b -> y:b -> { leqFrom leqa from x y || leqFrom leqa from y x }
 @-}
 leqFromTotal :: (a -> a -> Bool) -> (a -> a -> Proof)
