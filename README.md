@@ -166,8 +166,6 @@ Working With Submodules
     cd ..
     ```
 
- - Updating `prover` submodule follows similarly
-
 Command Line Options
 ====================
 
