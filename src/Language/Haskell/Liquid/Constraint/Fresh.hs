@@ -125,8 +125,17 @@ trueRefType (RAllE y ty tx)
 trueRefType (RRTy e o r t)
   = RRTy e o r <$> trueRefType t
 
-trueRefType t
-  = return t
+trueRefType (REx _ t t')
+  = REx <$> fresh <*> true t <*> true t'
+
+trueRefType t@(RExprArg _)
+  = return t 
+
+trueRefType t@(RHole _)
+  = return t 
+
+trueRefType (RAllS _ t)
+  = RAllS <$> fresh <*> true t  
 
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
