@@ -570,8 +570,8 @@ tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 
-rtyVarType :: RTyVar -> Type 
-rtyVarType (RTV v) = TyVarTy v 
+rtyVarType :: RTyVar -> Type
+rtyVarType (RTV v) = TyVarTy v
 
 mkBTyCon :: LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
@@ -974,10 +974,10 @@ instance Show BTyCon where
 data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
-  , risigs  :: [(LocSymbol, RISig t)] 
+  , risigs  :: [(LocSymbol, RISig t)]
   } deriving (Functor, Data, Typeable)
 
-data RISig t = RIAssumed t | RISig t 
+data RISig t = RIAssumed t | RISig t
   deriving (Functor, Data, Typeable, Show)
 
 
