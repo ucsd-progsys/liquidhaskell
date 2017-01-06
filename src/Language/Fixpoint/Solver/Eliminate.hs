@@ -41,15 +41,10 @@ kvScopes :: SInfo a -> [CEdge] -> M.HashMap KVar IBindEnv
 kvScopes sI es = is2env <$> kiM
   where
     is2env = foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
-    kiM    = group [(k, i) | (Cstr i, KVar k) <- es ]
+    kiM    = group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
+                     [(k, i) | (KVar k, Cstr i) <- es ]
 
 --------------------------------------------------------------------------------
-
--- TODO: delete/deprecated
--- solverIndex :: Config -> SInfo a -> [(KVar, Sol.Hyp)] -> CDeps -> Maybe Sol.Index
--- solverIndex cfg sI kHyps cD
-  -- // | oldElim cfg    = Nothing
-  -- // | otherwise      = Just $ Index.create cfg sI kHyps cD
 
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
