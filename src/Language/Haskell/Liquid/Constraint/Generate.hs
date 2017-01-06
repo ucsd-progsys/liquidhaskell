@@ -941,7 +941,7 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
  where
-   go (RApp _ ts _ _)
+   go (RApp _ ts [] _)
      | length ts > 0 = last ts
    go (RAppTy _ t _) = t
    go t              = checkErr x g t
