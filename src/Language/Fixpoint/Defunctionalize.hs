@@ -198,6 +198,7 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
     gLits' <- defunc $ gLits fi
     dLits' <- defunc $ dLits fi
     bs'    <- defunc $ bs    fi
+    ass'   <- defunc $ asserts fi 
     -- NOPROP quals' <- defunc $ quals fi
     axioms <- makeAxioms
     return $ fi { cm      = cm'
@@ -206,7 +207,7 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
                 , dLits   = dLits'
                 , bs      = bs'
                 -- NOPROP , quals   = quals'
-                , asserts = axioms
+                , asserts = axioms ++ ass' 
                 }
 
 instance Defunc (SimpC a) where

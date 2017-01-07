@@ -412,8 +412,9 @@ fi :: [SubC a]
    -> M.HashMap BindId a
    -> Bool
    -> Bool
+   -> [Expr]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq
+fi cs ws binds ls ds ks qs bi aHO aHOq es 
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -423,7 +424,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq
        , quals    = qs
        , bindInfo = bi
        , hoInfo   = HOI aHO aHOq
-       , asserts  = mempty
+       , asserts  = es
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
