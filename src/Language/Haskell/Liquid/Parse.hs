@@ -688,6 +688,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | HMeas   LocSymbol
   | Axiom   LocSymbol
+  | Reflect LocSymbol
   | Inline  LocSymbol
   | ASize   LocSymbol
   | HBound  LocSymbol
@@ -723,6 +724,7 @@ instance Show (Pspec a b) where
   show (LVars  _) = "LVars"
   show (Lazy   _) = "Lazy"
   show (Axiom  _) = "Axiom"
+  show (Reflect _) = "Reflect"
   show (HMeas  _) = "HMeas"
   show (HBound _) = "HBound"
   show (Inline _) = "Inline"
@@ -758,6 +760,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
   , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
+  , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
@@ -780,7 +783,7 @@ specP
     <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
     <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
-    <|> (reservedToken "reflect"      >> liftM Axiom  axiomP    )
+    <|> (reservedToken "reflect"      >> liftM Reflect  axiomP    )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "define"   >> liftM Define defineP   )
     <|> try (reservedToken "infixl"   >> liftM BFix   infixlP   )

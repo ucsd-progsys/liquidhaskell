@@ -64,7 +64,8 @@ data Spec ty bndr  = Spec
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
   , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms 
+  , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
@@ -148,6 +149,7 @@ instance Monoid (Spec ty bndr) where
            , lvars      =           lvars s1      ++ lvars s2
            , lazy       = S.union   (lazy s1)        (lazy s2)
            , axioms     = S.union   (axioms s1)      (axioms s2)
+           , reflects   = S.union   (reflects s1)    (reflects s2)
            , hmeas      = S.union   (hmeas s1)       (hmeas s2)
            , hbounds    = S.union   (hbounds s1)     (hbounds s2)
            , inlines    = S.union   (inlines s1)     (inlines s2)
@@ -183,6 +185,7 @@ instance Monoid (Spec ty bndr) where
            , lazy       = S.empty
            , hmeas      = S.empty
            , axioms     = S.empty
+           , reflects   = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
            , autosize   = S.empty

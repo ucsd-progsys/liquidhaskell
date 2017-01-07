@@ -39,6 +39,8 @@ import           Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dr
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
+
+
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
           -> LogicMap
@@ -46,7 +48,7 @@ makeAxiom :: F.TCEmb TyCon
           -> GhcSpec
           -> Ms.BareSpec
           -> LocSymbol
-          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
@@ -64,7 +66,7 @@ makeAxiom' :: F.TCEmb TyCon
            -> LocSymbol
            -> Var
            -> CoreExpr
-           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom])
+           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
 --------------------------------------------------------------------------------
 makeAxiom' tce lmap cbs spec x v def = do
   let anames = findAxiomNames x cbs
@@ -72,10 +74,11 @@ makeAxiom' tce lmap cbs spec x v def = do
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  let t = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
+  let (t, e) = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
   return ( (val x, mkType x v)
          , (v, t) : vts
-         , defAxioms anames v def )
+         , defAxioms anames v def
+         , e )
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -83,16 +86,19 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> Located SpecType
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType, F.Expr)
 makeAssumeType tce lmap x v xts ams def = assumedtype
   where
     assumedtype
       | not (null ams)
-      = x {val = at}
+      = (x {val = at}, F.PTrue)
       | isBool (ty_res trep)
-      = x {val = at `strengthenRes` F.subst su bref}
+      = (x {val = at `strengthenRes` F.subst su bref}, makeSMTAxiomBool xss ble)
       | otherwise
-      = x {val = at `strengthenRes` F.subst su ref}
+      = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom     xss le )
+
+    makeSMTAxiomBool xss ble = F.PAll xss (F.PAtom F.Eq (F.mkEApp x (F.EVar . fst <$> xss)) ble)
+    makeSMTAxiom     xss  le = F.PAll xss (F.PIff (F.mkProp (F.mkEApp x (F.EVar . fst <$> xss))) le)
 
     trep = toRTypeRep t
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
@@ -121,6 +127,8 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
     grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e')
     grapBody (Tick _ e) = grapBody e
     grapBody e          = ([], e)
+
+    xss = [(F.symbol x, rTypeSort tce t) | (x, t) <- zip xs (ty_args (toRTypeRep at)), not (isClassType t)]
 
 
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
