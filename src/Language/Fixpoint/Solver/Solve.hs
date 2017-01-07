@@ -39,7 +39,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n s0 act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -149,7 +149,7 @@ rhsCands s c    = (fst <$> ks, kqs)
     kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
     ks          = predKs . F.crhs $ c
     cnd k su    = Sol.qbPreds msg s su (Sol.lookupQBind s k)
-    msg         = "rhsCands: " ++ show (F.sid c) 
+    msg         = "rhsCands: " ++ show (F.sid c)
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps

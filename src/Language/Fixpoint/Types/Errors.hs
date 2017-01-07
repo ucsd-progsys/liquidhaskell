@@ -185,6 +185,7 @@ errFreeVarInConstraint (i, ss) = err dummySpan $
   vcat [ "Constraint with free vars"
        , pprint i
        , pprint ss
+       , "Try using the --prune-unsorted flag"
        ]
 
 errIllScopedKVar :: (PPrint k, PPrint bs) => (k, Integer, Integer, bs) -> Error
