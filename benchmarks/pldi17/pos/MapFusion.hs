@@ -14,11 +14,11 @@ import Prelude hiding (map)
 
 import Proves
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
-{-@ axiomatize map @-}
+{-@ reflect map @-}
 map :: (a -> b) -> L a -> L b
 map f xs
   | llen xs == 0 = N
