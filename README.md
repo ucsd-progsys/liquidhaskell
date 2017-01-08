@@ -929,7 +929,7 @@ states that the *inner* `a` enjoys the property that the *outer* container
 is definitely a `Just` and furthermore, the inner value is exactly the same
 as the `fromJust` property of the outer container.
 
-As another example, suppose we have a [measure](include/Data/Set/Set.spec):
+As another example, suppose we have a [measure](include/Data/Set.spec):
 
     measure listElts :: [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
