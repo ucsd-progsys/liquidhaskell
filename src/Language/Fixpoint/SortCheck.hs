@@ -104,6 +104,12 @@ instance Elaborate Sort where
 instance Elaborate Expr where
   elaborate msg env = elabNumeric . elabApply . elabExpr msg env
 
+instance Elaborate (Symbol, Sort) where
+  elaborate msg env (x, s) = (x,) (elaborate msg env s)
+
+instance Elaborate a => Elaborate [a]  where
+  elaborate msg env xs = elaborate msg env <$> xs 
+
   -- elaborate msg env e = {- tracepp _msg' -} e3
     -- where
       -- e1              = elabExpr msg env e
@@ -480,15 +486,18 @@ elab f (PAtom r e1 e2) = do
 
 elab f (PExist bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  return (PExist bs e', s)
+  let bs' = elaborate "PExist Args" mempty bs 
+  return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  return (PAll bs e', s)
+  let bs' = elaborate "PAll Args" mempty bs 
+  return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (addEnv f [(x,t)]) e
-  return (ELam (x,t) (ECst e' s), FFunc t s)
+  let t' = elaborate "ELam Arg" mempty t 
+  return (ELam (x,t') (ECst e' s), FFunc t s)
 
 elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
