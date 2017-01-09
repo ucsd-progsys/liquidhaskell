@@ -21,11 +21,11 @@ import Proves
 {-@ data Reader r a = Reader { runIdentity :: r -> a } @-}
 data Reader r a     = Reader { runIdentity :: r -> a }
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> Reader r a
 return x = Reader (\r -> x)
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: Reader r a -> (a -> Reader r b) -> Reader r b
 bind (Reader x) f = Reader (\r -> fromReader (f (x r)) r)
 

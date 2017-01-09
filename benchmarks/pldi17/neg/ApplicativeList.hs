@@ -50,7 +50,7 @@ id x = x
 idollar :: a -> (a -> b) -> b
 idollar x f = f x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
