@@ -14,7 +14,7 @@ import Helper
 
 -- | First ackermann definition
 
-{-@ axiomatize ack @-}
+{-@ reflect ack @-}
 {-@ ack :: n:Nat -> x:Nat -> Nat / [n, x] @-}
 ack :: Int -> Int -> Int
 ack n x
@@ -27,7 +27,7 @@ ack n x
 
 -- | Second ackermann definition
 
-{-@ axiomatize iack @-}
+{-@ reflect iack @-}
 {-@ iack :: Nat -> Nat -> Nat -> Nat @-}
 
 iack :: Int -> Int -> Int -> Int
@@ -290,7 +290,7 @@ lemma10_helper n x l
 
 
 -- | Lader as helper definition and properties
-{-@ axiomatize ladder @-}
+{-@ reflect ladder @-}
 {-@ ladder :: Nat -> {n:Int | 0 < n } -> Nat -> Nat @-}
 ladder :: Int -> Int -> Int -> Int
 ladder l n b

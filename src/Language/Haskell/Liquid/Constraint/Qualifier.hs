@@ -132,7 +132,7 @@ specBinders info = mconcat
     sp  = spec info 
 
 specAxiomVars :: GhcInfo -> [Var]
-specAxiomVars =  map (fst . aname) . gsAxioms . spec
+specAxiomVars =  map (fst . aname) . gsReflects . spec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs

@@ -46,11 +46,11 @@ fmap f xs
 id :: a -> a
 id x = x
 
-{-@ axiomatize idollar @-}
+{-@ reflect idollar @-}
 idollar :: a -> (a -> b) -> b
 idollar x f = f x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 

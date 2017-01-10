@@ -212,12 +212,14 @@ makeGhcAxioms tce cbs name bspecs sp = makeAxioms tce cbs sp spec
 
 makeAxioms :: TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
 makeAxioms tce cbs spec sp = do
-  lmap          <- logicEnv <$> get
-  (ms, tys, as) <- unzip3 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms sp)
-  lmap'         <- logicEnv <$> get
-  return $ spec { gsMeas     = ms         ++ gsMeas     spec
-                , gsAsmSigs  = concat tys ++ gsAsmSigs  spec
-                , gsAxioms   = concat as  ++ gsAxioms spec
+  lmap             <- logicEnv <$> get
+  (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
+  (msR, tysR, asR, _   ) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.reflects sp)
+  lmap'            <- logicEnv <$> get
+  return $ spec { gsMeas     = msA ++ msR ++ gsMeas     spec
+                , gsAsmSigs  = concat tysA ++ concat tysR ++ gsAsmSigs  spec
+                , gsReflects = concat asA  ++ concat asR  ++ gsReflects spec
+                , gsAxioms   = smtA ++ gsAxioms spec 
                 , gsLogicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
@@ -248,6 +250,7 @@ emptySpec cfg = SP
   , gsTyconEnv   = mempty
   , gsDicts      = mempty
   , gsAxioms     = mempty
+  , gsReflects   = mempty 
   , gsLogicMap   = mempty
   , gsProofType  = Nothing
   , gsRTAliases  = mempty
