@@ -21,6 +21,7 @@ import TyCon
 import Id
 import Name
 import Type hiding (isFunTy)
+import qualified Type 
 import Var
 
 import Data.Default
