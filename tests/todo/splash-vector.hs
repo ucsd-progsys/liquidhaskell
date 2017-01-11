@@ -2,21 +2,51 @@
 module SplashVector where
 
 import Prelude hiding (length)
--- import Data.Vector (Vector, (!), length)
-import qualified Data.Vector            as V
+import Data.Vector (Vector, (!), length)
+-- import qualified Data.Vector            as V
 import qualified Data.ByteString        as B
 import qualified Data.ByteString.Unsafe as B
 
--- REPLACE `n` with `n - 1`
+vectorSum :: (Num a) => Vector a -> a
+dotProduct :: (Num a) => Vector a -> Vector a -> a
 
-vectorSum :: (Num a) => V.Vector a -> a
-vectorSum x = sum [ x V.! i | i <- [ 0 .. n ]]
+-- vectorSum  :: `[0 .. n] ` with `[0 .. n - 1]`
+-- dotProduct :: (Num a) => x:Vector a -> {y:Vector a | vlen y = vlen x} -> a
+-- type VectorN a N = {v:Vector a | vlen v == N}
+-- dotProduct :: (Num a) => x:Vector a -> VectorN a {vlen x} -> a
+
+
+
+{-@ vectorSum :: (Num a) => Vector a -> a @-}
+vectorSum x = sum [ x ! i | i <- [ 0 .. n - 1 ]]
   where
-    n       = V.length x
+    n       = length x
 
--- REPLACE 60 with 6
+
+{-@ type VectorN a N = {v:Vector a | vlen v == N} @-}
+
+{- type VectorX a X = {v:Vector a | vlen v == vlen X} -}
+
+{-@ type VectorEq a X = {v:Vector a | vlen v == vlen X} @-}
+
+{-@ dotProduct :: (Num a) => x:Vector a -> VectorEq a x -> a @-}
+dotProduct x y = sum [ (x ! i) * (y ! i) | i <- [0 .. n - 1]]
+  where
+    n          = length x
+
+
+
+
+
+
+-- 60
+-- 6
+-- 16
+-- 14
+
+
 liquid :: B.ByteString
-liquid = B.unsafeTake 60 (pack "LiquidHaskell")
+liquid = B.unsafeTake 14 (pack "LiquidHaskell  ")
 
 
 
