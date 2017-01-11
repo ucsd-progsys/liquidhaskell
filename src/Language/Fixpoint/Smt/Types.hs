@@ -55,6 +55,7 @@ data Command      = Push
                   | Declare   !Symbol [Sort] !Sort
                   | Define    !Sort
                   | Assert    !(Maybe Int) !Expr
+                  | AssertAxiom  !(Triggered Expr)
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   | CMany [Command]
@@ -70,6 +71,7 @@ ppCmd CheckSat      = text "CheckSat"
 ppCmd (Declare {})  = text "Declare ..."
 ppCmd (Define {})   = text "Define ..."
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
+ppCmd (AssertAxiom _) = text "AssertAxiom ..."
 ppCmd (Distinct {}) = text "Distinct ..."
 ppCmd (GetValue {}) = text "GetValue ..."
 ppCmd (CMany {})    = text "CMany ..."

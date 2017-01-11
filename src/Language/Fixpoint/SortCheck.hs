@@ -90,6 +90,9 @@ instance Elaborate (SInfo a) where
     , asserts = elaborate x senv <$> asserts si
     }
 
+instance (Elaborate e) => (Elaborate (Triggered e)) where
+  elaborate x env t = fmap (elaborate x env) t
+
 instance Elaborate Sort where
   elaborate _ _ = go
    where

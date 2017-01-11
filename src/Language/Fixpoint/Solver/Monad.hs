@@ -97,7 +97,7 @@ runSolverM cfg sI _ act =
     return $ fst res
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = declare initEnv lts {- ess -} >> assumes (F.asserts fi) >> act
+    act'     = declare initEnv lts {- ess -} >> assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
@@ -236,8 +236,11 @@ symKind x = case M.lookup x Thy.theorySymbols of
               Just t  -> if tsInterp t then 0 else 1
               Nothing -> 2
 
-assumes :: [F.Expr] -> SolveM ()
-assumes es = withContext $ \me -> forM_  es $ smtAssert me
+assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
+assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
+
+-- assumes :: [F.Expr] -> SolveM ()
+-- assumes es = withContext $ \me -> forM_  es $ smtAssert me
 
 -- | `distinctLiterals` is used solely to determine the set of literals
 --   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
