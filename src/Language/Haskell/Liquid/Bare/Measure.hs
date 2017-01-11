@@ -21,6 +21,7 @@ import TyCon
 import Id
 import Name
 import Type hiding (isFunTy)
+import qualified Type 
 import Var
 
 import Data.Default
@@ -98,7 +99,11 @@ makeMeasureInline tce lmap cbs x =
     (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok
     _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
-    ok (xs, e) = return (TI (symbol <$> xs) (either id id e))
+    ok (xs, e) = return (TI (varSymbol <$> xs) (either id id e))
+
+varSymbol :: Var -> Symbol
+varSymbol v | Type.isFunTy (varType v) = simplesymbol v
+varSymbol v                            = symbol v 
 
 binders :: CoreBind -> [Id]
 binders (NonRec z _) = [z]
