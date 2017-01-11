@@ -199,7 +199,7 @@ module Language.Haskell.Liquid.Types (
   -- * String Literals
   , liquidBegin, liquidEnd
 
-  , Axiom(..), HAxiom, LAxiom
+  , Axiom(..), HAxiom, LAxiom, SMTAxiom
 
   , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
@@ -350,7 +350,8 @@ data GhcSpec = SP {
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [HAxiom]                       -- ^ Axioms from axiomatized functions
+  , gsAxioms    :: [SMTAxiom]                     -- ^ Axioms from axiomatized functions
+  , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions 
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
   , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
@@ -1001,6 +1002,7 @@ data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
 type HAxiom = Axiom Var Type CoreExpr
 type LAxiom = Axiom Symbol Sort Expr
 
+type SMTAxiom = Expr 
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++

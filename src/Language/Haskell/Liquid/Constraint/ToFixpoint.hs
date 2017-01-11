@@ -35,7 +35,7 @@ ignoreQualifiers info fi
   -- NOPROP where noQuals = (FC.All == ) . eliminate . getConfig . spec $ info
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
-targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs
+targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es 
   where
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
@@ -47,3 +47,4 @@ targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs
     bi               = (`Ci` Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
+    es               = gsAxioms (spec info)

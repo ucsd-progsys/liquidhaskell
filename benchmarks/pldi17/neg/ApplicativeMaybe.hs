@@ -18,32 +18,32 @@ import Helper
 -- | interchange   u <*> pure y = pure ($ y) <*> u
 
 
-{-@ axiomatize pure @-}
+{-@ reflect pure @-}
 pure :: a -> Maybe a
 pure x = Just x
 
-{-@ axiomatize seq @-}
+{-@ reflect seq @-}
 seq :: Maybe (a -> b) -> Maybe a -> Maybe b
 seq f x
   | is_Just f, is_Just x = Just (from_Just f (from_Just x))
   | otherwise            = Nothing
 
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> Maybe a -> Maybe b
 fmap f x
   | is_Just x  = Just (f (from_Just x))
   | otherwise = Nothing
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize idollar @-}
+{-@ reflect idollar @-}
 idollar :: a -> (a -> b) -> b
 idollar x f = f x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 

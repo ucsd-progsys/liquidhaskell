@@ -20,17 +20,17 @@ import Helper
 
 
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> L a -> L b
 fmap f xs
   | llen xs == 0 = N
   | otherwise    = C (f (hd xs)) (fmap f (tl xs))
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 

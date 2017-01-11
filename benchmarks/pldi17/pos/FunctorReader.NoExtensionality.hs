@@ -20,15 +20,15 @@ import Proves
 {-@ data Reader r a = Reader { runIdentity :: r -> a } @-}
 data Reader r a     = Reader { runIdentity :: r -> a }
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> Reader r a -> Reader r b
 fmap f (Reader rd) = Reader (\r -> f (rd r))
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 

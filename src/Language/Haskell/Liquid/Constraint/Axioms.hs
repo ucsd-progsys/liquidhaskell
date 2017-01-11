@@ -556,7 +556,7 @@ initAEEnv info sigs
          lts   <- cgLits      <$> get
          i     <- freshIndex  <$> get
          modify $ \s -> s{freshIndex = i + 1}
-         return $ AE { ae_axioms  = gsAxioms spc
+         return $ AE { ae_axioms  = gsReflects spc
                      , ae_binds   = []
                      , ae_lmap    = gsLogicMap spc
                      , ae_consts  = L.nub vs
