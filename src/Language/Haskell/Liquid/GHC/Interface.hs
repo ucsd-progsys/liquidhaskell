@@ -304,8 +304,8 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  liftedSpec          <- loadLiftedSpec modName
-  let bareSpec         = commSpec <> liftedSpec 
+  liftedSpec          <- liftIO $ loadLiftedSpec file modName
+  let bareSpec         = commSpec `mappend` liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if not (file `S.member` tgtFiles)
@@ -359,7 +359,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   specSpecs         <- findAndParseSpecFiles cfg paths modSummary reachable
   let homeSpecs      = cachedBareSpecs specEnv reachable
   let impSpecs       = specSpecs ++ homeSpecs
-  (spc, imps, incs) <- toGhcSpec cfg coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
+  (spc, imps, incs) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualsFiles       <- moduleHquals modGuts paths file imps incs
   return GI { target    = file
@@ -377,6 +377,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
 toGhcSpec :: GhcMonad m
           => Config
+          -> FilePath
           -> [CoreBind]
           -> [Var]
           -> [Var]
@@ -386,7 +387,7 @@ toGhcSpec :: GhcMonad m
           -> Either Error LogicMap
           -> [(ModName, Ms.BareSpec)]
           -> m (GhcSpec, [String], [FilePath])
-toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
+toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
@@ -395,7 +396,7 @@ toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath

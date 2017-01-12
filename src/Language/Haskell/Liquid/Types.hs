@@ -79,6 +79,7 @@ module Language.Haskell.Liquid.Types (
   , UReft(..)
 
   -- * Parse-time entities describing refined data types
+  , SizeFun  (..), szFun
   , DataDecl (..)
   , DataConP (..)
   , TyConP (..)
@@ -226,18 +227,12 @@ import           Var
 
 
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
-
-
 import           Control.DeepSeq
-
 import           Data.Bifunctor
 --import           Data.Bifunctor.TH
 import           Data.Typeable                          (Typeable)
 import           Data.Generics                          (Data)
-
-
-
-
+import qualified Data.Binary                            as B
 import qualified Data.Foldable                          as F
 import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
@@ -406,24 +401,26 @@ isApp (EApp (EVar _) (EVar _)) = True
 isApp (EApp e (EVar _))        = isApp e
 isApp _                        = False
 
-data TyConP = TyConP { ty_loc       :: !SourcePos
-                     , freeTyVarsTy :: ![RTyVar]
-                     , freePredTy   :: ![PVar RSort]
-                     , freeLabelTy  :: ![Symbol]
-                     , varianceTs   :: !VarianceInfo
-                     , variancePs   :: !VarianceInfo
-                     , sizeFun      :: !(Maybe (Symbol -> Expr))
-                     } deriving (Generic, Data, Typeable)
+data TyConP = TyConP
+  { ty_loc       :: !SourcePos
+  , freeTyVarsTy :: ![RTyVar]
+  , freePredTy   :: ![PVar RSort]
+  , freeLabelTy  :: ![Symbol]
+  , varianceTs   :: !VarianceInfo
+  , variancePs   :: !VarianceInfo
+  , sizeFun      :: !(Maybe SizeFun) -- REFLECT-IMPORTS (Symbol -> Expr))
+  } deriving (Generic, Data, Typeable)
 
-data DataConP = DataConP { dc_loc     :: !SourcePos
-                         , freeTyVars :: ![RTyVar]
-                         , freePred   :: ![PVar RSort]
-                         , freeLabels :: ![Symbol]
-                         , tyConsts   :: ![SpecType] -- FIXME: WHAT IS THIS??
-                         , tyArgs     :: ![(Symbol, SpecType)] -- FIXME: These are backwards, why??
-                         , tyRes      :: !SpecType
-                         , dc_locE    :: !SourcePos
-                         } deriving (Generic, Data, Typeable)
+data DataConP = DataConP
+  { dc_loc     :: !SourcePos
+  , freeTyVars :: ![RTyVar]
+  , freePred   :: ![PVar RSort]
+  , freeLabels :: ![Symbol]
+  , tyConsts   :: ![SpecType] -- FIXME: WHAT IS THIS??
+  , tyArgs     :: ![(Symbol, SpecType)] -- FIXME: These are backwards, why??
+  , tyRes      :: !SpecType
+  , dc_locE    :: !SourcePos
+  } deriving (Generic, Data, Typeable)
 
 
 -- | Which Top-Level Binders Should be Verified
@@ -447,7 +444,8 @@ instance Eq (PVar t) where
 instance Ord (PVar t) where
   compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
 
-instance NFData t => NFData (PVar t)
+instance B.Binary t => B.Binary (PVar t)
+instance NFData t   => NFData   (PVar t)
 
 instance Hashable (PVar a) where
   hashWithSalt i (PV n _ _ _) = hashWithSalt i n
@@ -462,15 +460,19 @@ data PVKind t
   | PVHProp
   deriving (Generic, Data, Typeable, Functor, F.Foldable, Traversable, Show)
 
-instance NFData a => NFData (PVKind a)
+instance B.Binary a => B.Binary (PVKind a)
+instance NFData a   => NFData   (PVKind a)
 
 
---------------------------------------------------------------------
------------------- Predicates --------------------------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Predicates ----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
+
 newtype Predicate  = Pr [UsedPVar] deriving (Generic, Data, Typeable)
+
+instance B.Binary Predicate
 
 instance NFData Predicate where
   rnf _ = ()
@@ -531,11 +533,10 @@ instance Ord BTyVar where
 instance IsString BTyVar where
   fromString = BTV . fromString
 
+instance B.Binary BTyVar
 instance Hashable BTyVar
-
-instance NFData BTyVar
-
-instance NFData RTyVar
+instance NFData   BTyVar
+instance NFData   RTyVar
 
 instance Symbolic BTyVar where
   symbol (BTV tv) = tv
@@ -550,6 +551,7 @@ data BTyCon = BTyCon
   }
   deriving (Generic, Data, Typeable)
 
+instance B.Binary BTyCon
 
 data RTyCon = RTyCon
   { rtc_tc    :: TyCon         -- ^ GHC Type Constructor
@@ -651,9 +653,9 @@ instance Default TyConInfo where
 --
 
 data TyConInfo = TyConInfo
-  { varianceTyArgs  :: !VarianceInfo             -- ^ variance info for type variables
-  , variancePsArgs  :: !VarianceInfo             -- ^ variance info for predicate variables
-  , sizeFunction    :: !(Maybe (Symbol -> Expr)) -- ^ logical function that computes the size of the structure
+  { varianceTyArgs  :: !VarianceInfo      -- ^ variance info for type variables
+  , variancePsArgs  :: !VarianceInfo      -- ^ variance info for predicate variables
+  , sizeFunction    :: !(Maybe SizeFun)   -- ^ logical UNARY function that computes the size of the structure
   } deriving (Generic, Data, Typeable)
 
 instance NFData TyConInfo
@@ -731,7 +733,8 @@ data RType c tv r
             --   see tests/pos/Holes.hs
   deriving (Generic, Data, Typeable, Functor)
 
-instance (NFData c, NFData tv, NFData r) => NFData (RType c tv r)
+instance (B.Binary c, B.Binary tv, B.Binary r) => B.Binary (RType c tv r)
+instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
 
 ignoreOblig :: RType t t1 t2 -> RType t t1 t2
 ignoreOblig (RRTy _ _ _ t) = t
@@ -744,10 +747,10 @@ makeRTVar a = RTVar a RTVNoInfo
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
 
-data RTVar tv s
-  = RTVar { ty_var_value :: tv
-          , ty_var_info  :: RTVInfo s
-          } deriving (Generic, Data, Typeable)
+data RTVar tv s = RTVar
+  { ty_var_value :: tv
+  , ty_var_info  :: RTVInfo s
+  } deriving (Generic, Data, Typeable)
 
 mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
@@ -776,8 +779,10 @@ rtvinfo_is_val :: RTVInfo s -> Bool
 rtvinfo_is_val RTVNoInfo      = False
 rtvinfo_is_val (RTVInfo {..}) = rtv_is_val
 
-instance (NFData tv, NFData s) => NFData (RTVar tv s) where
-instance (NFData s) => NFData (RTVInfo s) where
+instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
+instance (NFData tv, NFData s)     => NFData   (RTVar tv s)
+instance (NFData s)                => NFData   (RTVInfo s)
+instance (B.Binary s)              => B.Binary (RTVInfo s)
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
 --   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
@@ -793,7 +798,8 @@ data Ref τ t = RProp
   , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`
   } deriving (Generic, Data, Typeable, Functor)
 
-instance (NFData τ, NFData t) => NFData (Ref τ t)
+instance (B.Binary τ, B.Binary t) => B.Binary (Ref τ t)
+instance (NFData τ,   NFData t)   => NFData   (Ref τ t)
 
 rPropP :: [(Symbol, τ)] -> r -> Ref τ (RType c tv r)
 rPropP τ r = RProp τ (RHole r)
@@ -815,12 +821,14 @@ data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
                 | HVar UsedPVar
                 deriving (Generic, Data, Typeable)
 
-data UReft r
-  = MkUReft { ur_reft   :: !r
-            , ur_pred   :: !Predicate
-            , ur_strata :: !Strata
-            }
-    deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
+data UReft r = MkUReft
+  { ur_reft   :: !r
+  , ur_pred   :: !Predicate
+  , ur_strata :: !Strata
+  }
+  deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
+
+instance B.Binary r => B.Binary (UReft r)
 
 type BRType     = RType BTyCon BTyVar
 type RRType     = RType RTyCon RTyVar
@@ -842,7 +850,9 @@ type LocSpecType = Located SpecType
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
                   deriving (Generic, Data, Typeable, Eq)
-instance NFData Stratum
+
+instance NFData   Stratum
+instance B.Binary Stratum
 
 type Strata = [Stratum]
 
@@ -977,12 +987,13 @@ data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
   , risigs  :: [(LocSymbol, RISig t)]
-  } deriving (Functor, Data, Typeable)
+  } deriving (Generic, Functor, Data, Typeable)
 
 data RISig t = RIAssumed t | RISig t
-  deriving (Functor, Data, Typeable, Show)
+  deriving (Generic, Functor, Data, Typeable, Show)
 
-
+instance (B.Binary t) => B.Binary (RInstance t)
+instance (B.Binary t) => B.Binary (RISig t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty))) deriving (Monoid, Show)
 
@@ -1018,31 +1029,37 @@ instance Show (Axiom Var Type CoreExpr) where
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
+data SizeFun
+  = IdSizeFun            -- ^ \x -> EVar x
+  | SymSizeFun LocSymbol -- ^ \x -> f x
+  deriving (Data, Typeable, Generic)
 
+szFun :: SizeFun -> Symbol -> Expr
+szFun IdSizeFun      = EVar
+szFun (SymSizeFun f) = \x -> mkEApp (symbol <$> f) [EVar x]
+
+instance NFData   SizeFun
+instance B.Binary SizeFun
 
 -- | Data type refinements
-data DataDecl   = D { tycName   :: LocSymbol
-                                -- ^ Type  Constructor Name
-                    , tycTyVars :: [Symbol]
-                                -- ^ Tyvar Parameters
-                    , tycPVars  :: [PVar BSort]
-                                -- ^ PVar  Parameters
-                    , tycTyLabs :: [Symbol]
-                                -- ^ PLabel  Parameters
-                    , tycDCons  :: [(LocSymbol, [(Symbol, BareType)])]
-                                -- ^ [DataCon, [(fieldName, fieldType)]]
-                    , tycSrcPos :: !SourcePos
-                                -- ^ Source Position
-                    , tycSFun   :: (Maybe (Symbol -> Expr))
-                                -- ^ Measure that should decrease in recursive calls
-                    } deriving (Data, Typeable)
+data DataDecl   = D
+  { tycName   :: LocSymbol                           -- ^ Type  Constructor Name
+  , tycTyVars :: [Symbol]                            -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]                        -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]                            -- ^ PLabel  Parameters
+  , tycDCons  :: [(LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
+  , tycSrcPos :: !SourcePos                          -- ^ Source Position
+  , tycSFun   :: Maybe SizeFun                       -- ^ Measure that should decrease in recursive calls
+  -- REFLECT-IMPORTS , tycSFun   :: (Maybe (Symbol -> Expr))            -- ^ Measure that should decrease in recursive calls
+  } deriving (Data, Typeable, Generic)
 
+instance B.Binary DataDecl
 
 instance Eq DataDecl where
-   d1 == d2 = tycName d1 == tycName d2
+  d1 == d2 = tycName d1 == tycName d2
 
 instance Ord DataDecl where
-   compare d1 d2 = compare (tycName d1) (tycName d2)
+  compare d1 d2 = compare (tycName d1) (tycName d2)
 
 -- | For debugging.
 instance Show DataDecl where
@@ -1058,8 +1075,9 @@ data RTAlias x a = RTA
   , rtBody  :: a                  -- ^ what the alias expands to
   , rtPos   :: SourcePos          -- ^ start position
   , rtPosE  :: SourcePos          -- ^ end   position
-  } deriving (Data, Typeable)
+  } deriving (Data, Typeable, Generic)
 
+instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
@@ -1684,7 +1702,7 @@ mapRE f e = e { exprAliases = f $ exprAliases e }
 
 
 --------------------------------------------------------------------------------
---- Measures
+-- | Measures
 --------------------------------------------------------------------------------
 data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e }
@@ -1718,6 +1736,10 @@ instance Bifunctor Measure where
     M n (f s) (map (first f) es)
   second f (M n s es) =
     M n s (map (second f) es)
+
+instance                             B.Binary Body
+instance (B.Binary t, B.Binary c) => B.Binary (Def     t c)
+instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
 
 -- NOTE: don't use the TH versions since they seem to cause issues
 -- building on windows :(
@@ -1794,12 +1816,16 @@ instance Subable t => Subable (WithModel t) where
 
   subst su = fmap (subst su)
 
-data RClass ty
-  = RClass { rcName    :: BTyCon
-           , rcSupers  :: [ty]
-           , rcTyVars  :: [BTyVar]
-           , rcMethods :: [(LocSymbol,ty)]
-           } deriving (Show, Functor, Data, Typeable)
+data RClass ty = RClass
+  { rcName    :: BTyCon
+  , rcSupers  :: [ty]
+  , rcTyVars  :: [BTyVar]
+  , rcMethods :: [(LocSymbol,ty)]
+  } deriving (Show, Functor, Data, Typeable, Generic)
+
+
+
+instance B.Binary ty => B.Binary (RClass ty)
 
 
 ------------------------------------------------------------------------

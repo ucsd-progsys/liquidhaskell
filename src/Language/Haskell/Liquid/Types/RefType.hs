@@ -673,7 +673,7 @@ isNumeric tce c
 
 addNumSizeFun :: RTyCon -> RTyCon
 addNumSizeFun c
-  = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
+  = c {rtc_info = (rtc_info c) {sizeFunction = Just IdSizeFun } }
 
 
 generalize :: (Eq tv) => RType c tv r -> RType c tv r
@@ -1368,7 +1368,7 @@ isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRe
 
 mkDecrFun :: S.HashSet TyCon -> RType RTyCon t t1 -> Symbol -> Expr
 mkDecrFun autoenv (RApp c _ _ _)
-  | Just f <- sizeFunction $ rtc_info c
+  | Just f <- szFun <$> sizeFunction (rtc_info c)
   = f
   | isSizeable autoenv $ rtc_tc c
   = \v -> F.mkEApp lenLocSymbol [F.EVar v]
@@ -1405,11 +1405,11 @@ makeLexReft _ _ _ _
   = panic Nothing "RefType.makeLexReft on invalid input"
 
 --------------------------------------------------------------------------------
-mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> (Maybe (Symbol -> Expr)) -> TyConInfo
-mkTyConInfo c usertyvar userprvariance f
-  = TyConInfo (if null usertyvar then defaulttyvar else usertyvar) userprvariance f
+mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> Maybe SizeFun -> TyConInfo
+mkTyConInfo c userTv userPv f = TyConInfo tcTv userPv f
   where
-        defaulttyvar      = makeTyConVariance c
+    tcTv                      = if null userTv then defTv else userTv
+    defTv                     = makeTyConVariance c
 
 
 makeTyConVariance :: TyCon -> VarianceInfo

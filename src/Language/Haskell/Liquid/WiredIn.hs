@@ -128,7 +128,8 @@ listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Ju
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
-      fsize z    = mkEApp (dummyLoc "len") [EVar z]
+      fsize      = SymSizeFun (dummyLoc "len")
+      -- REFLECT-IMPORTS fsize z    = mkEApp (dummyLoc "len") [EVar z]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]

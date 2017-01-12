@@ -3,6 +3,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
+{-# LANGUAGE DeriveGeneric          #-}
 
 module Language.Haskell.Liquid.Measure (
     Spec (..)
@@ -22,7 +23,9 @@ import           Text.PrettyPrint.HughesPJ              hiding (first)
 import           Text.Printf                            (printf)
 import           Type
 import           Var
-
+-- import           Data.Serialize                         (Serialize)
+import           Data.Binary                            as B
+import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.List                              (foldl', partition)
@@ -45,6 +48,8 @@ import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
 type BareSpec      = Spec (Located BareType) LocSymbol
+
+instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
@@ -79,7 +84,7 @@ data Spec ty bndr  = Spec
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap LocSymbol Symbol)
-  }
+  } deriving (Generic)
 
 
 qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr

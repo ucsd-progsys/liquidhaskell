@@ -145,6 +145,7 @@ Library
                 , Cabal >= 1.18
                 , bifunctors >= 5.1
                 , cereal
+                , binary
                 , temporary >= 1.2
                 , transformers >= 0.3
                 , text-format

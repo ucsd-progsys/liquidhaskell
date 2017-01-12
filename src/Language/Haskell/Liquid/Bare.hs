@@ -77,6 +77,7 @@ import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
+            -> FilePath
             -> ModName
             -> [CoreBind]
             -> Maybe [ClsInst]
@@ -88,12 +89,12 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> IO GhcSpec
 --------------------------------------------------------------------------------
-makeGhcSpec cfg name cbs instenv vars defVars exports env lmap specs = do
+makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
   let renv = ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
-    act       = makeGhcSpec' cfg cbs instenv vars defVars exports specs
+    act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
     axs       = initAxSymbols name specs
@@ -152,47 +153,52 @@ ghcSpecEnv sp        = fromListSEnv binds
 --      makeHaskell{Inlines, Measures, Bounds}
 -- 2. SAVE the LiftedSpec, which will be reloaded
 
-makeLiftedSpec :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
-makeLiftedSpec embs cbs mySpec = do
+makeLiftedSpec :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
+makeLiftedSpec file name embs cbs mySpec = do
   xils  <- makeHaskellInlines embs cbs mySpec
-  return $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils }
+  let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils }
+  liftIO $ saveLiftedSpec file name lSpec
+  return lSpec
 
-saveLiftedSpec :: ModName -> Ms.BareSpec -> IO ()
+saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec = impossible Nothing "TODO:saveLiftedSpec"
 
-loadLiftedSpec :: ModName -> IO Ms.BareSpec
+loadLiftedSpec :: FilePath -> ModName -> IO Ms.BareSpec
 loadLiftedSpec = impossible Nothing "TODO:loadLiftedSpec"
 
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
+makeGhcSpec'
+  :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
+  -> NameSet -> [(ModName, Ms.BareSpec)]
+  -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' cfg cbs instenv vars defVars exports specs
-  = do name          <- modName <$> get
-       let mySpec     = fromMaybe mempty (lookup name specs)
-       embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
-       lfSpec        <- makeLiftedSpec embs cbs mySpec
-       lmap          <- logic_map . logicEnv    <$> get
-       makeRTEnv name lfSpec specs lmap
-       (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
-       makeBounds embs name defVars cbs specs
-       modify                                   $ \be -> be { tcEnv = tyi }
-       (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
-       (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       quals   <- mconcat <$> mapM makeQualifiers specs
-       syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
-       let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
-       makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
-         >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
-         >>= makeGhcSpec2 invs ntys ialias measures su
-         >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
-         >>= makeSpecDictionaries embs vars specs
-         >>= makeGhcAxioms embs cbs mySpec -- name specs
-         >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
-         -- This step needs the UPDATED logic map, ie should happen AFTER makeGhcAxioms
-         >>= makeGhcSpec4 quals defVars specs name su
-         >>= addProofType
-         >>= addRTEnv
+makeGhcSpec' cfg file cbs instenv vars defVars exports specs = do
+  name          <- modName <$> get
+  let mySpec     = fromMaybe mempty (lookup name specs)
+  embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
+  lfSpec        <- makeLiftedSpec file name embs cbs mySpec
+  lmap          <- logic_map . logicEnv    <$> get
+  makeRTEnv name lfSpec specs lmap
+  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
+  makeBounds embs name defVars cbs specs
+  modify                                   $ \be -> be { tcEnv = tyi }
+  (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
+  (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
+  (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
+  quals   <- mconcat <$> mapM makeQualifiers specs
+  syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
+  let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
+  makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
+    >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
+    >>= makeGhcSpec2 invs ntys ialias measures su
+    >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
+    >>= makeSpecDictionaries embs vars specs
+    >>= makeGhcAxioms embs cbs mySpec -- name specs
+    >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
+    -- This step needs the UPDATED logic map, ie should happen AFTER makeGhcAxioms
+    >>= makeGhcSpec4 quals defVars specs name su
+    >>= addProofType
+    >>= addRTEnv
 
 addProofType :: GhcSpec -> BareM GhcSpec
 addProofType spec = do

@@ -357,7 +357,7 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)
-      | Just f <- sizeFunction $ rtc_info c
+      | Just f <- szFun <$> sizeFunction (rtc_info c)
       = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty mempty)
       | otherwise
       = RApp c ts rs mempty

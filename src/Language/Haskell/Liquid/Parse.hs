@@ -982,12 +982,12 @@ instanceP
 
 
 riMethodSigP :: Parser (LocSymbol, RISig (Located BareType))
-riMethodSigP 
+riMethodSigP
   = try (do reserved "assume"
             (x, t) <- tyBindP
             return (x, RIAssumed t) )
  <|> do (x, t) <- tyBindP
-        return (x, RISig t) 
+        return (x, RISig t)
 
 
 
@@ -1164,12 +1164,13 @@ dataConNameP
      bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = symbol $ "(" <> s <> ")"
 
-dataSizeP :: Parser (Maybe (Symbol -> Expr))
+dataSizeP :: Parser (Maybe SizeFun) -- (Symbol -> Expr))
 dataSizeP
-  = brackets (Just . mkFun <$> locLowerIdP)
+  = brackets (Just . SymSizeFun <$> locLowerIdP)
+  -- REFLECT-IMPORTS brackets (Just . mkFun <$> locLowerIdP)
   <|> return Nothing
-  where
-    mkFun s x = mkEApp (symbol <$> s) [EVar x]
+  -- REFLECT-IMPORTS where
+  -- REFLECT-IMPORTS  mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
 dataDeclP
@@ -1181,40 +1182,40 @@ newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
 
 dataDeclSizeP :: Parser DataDecl
-dataDeclSizeP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       return $ D x [] [] [] [] pos fsize
+dataDeclSizeP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  return $ D x [] [] [] [] pos fsize
 
 dataDeclFullP :: Parser DataDecl
-dataDeclFullP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       spaces
-       ts  <- sepBy tyVarIdP blanks
-       ps  <- predVarDefsP
-       whiteSpace >> reservedOp "=" >> whiteSpace
-       dcs <- sepBy dataConP (reserved "|")
-       whiteSpace
-       return $ D x ts ps [] dcs pos fsize
+dataDeclFullP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  spaces
+  ts  <- sepBy tyVarIdP blanks
+  ps  <- predVarDefsP
+  whiteSpace >> reservedOp "=" >> whiteSpace
+  dcs <- sepBy dataConP (reserved "|")
+  whiteSpace
+  return $ D x ts ps [] dcs pos fsize
 
 
 adtDataDeclFullP :: Parser DataDecl
-adtDataDeclFullP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       spaces
-       (ts, ps) <- tsps
-       spaces
-       dcs <- sepBy adtDataConP (reserved "|")
-       whiteSpace
-       return $ D x ts ps [] dcs pos fsize
+adtDataDeclFullP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  spaces
+  (ts, ps) <- tsps
+  spaces
+  dcs <- sepBy adtDataConP (reserved "|")
+  whiteSpace
+  return $ D x ts ps [] dcs pos fsize
   where
     tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
         <|> do ts <- sepBy tyVarIdP blanks
