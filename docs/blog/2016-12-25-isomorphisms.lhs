@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "Isomorphisms for Proof Reductions"
+title: Isomorphisms for Proof Reductions
 date: 2016-12-25
 comments: true
 external-url:
 author: Vikraman Choudhury and Niki Vazou
 published: true
-categories: reflection, isomorphisms, isomorphisms, reductions
+categories: reflection 
 demo: Iso.hs
 ---
 
