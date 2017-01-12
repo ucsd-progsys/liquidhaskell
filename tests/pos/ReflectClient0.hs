@@ -2,6 +2,10 @@ module ReflectClient0 where
 
 import ReflectLib0
 
-{-@ incr :: x:Nat -> {v:Nat | greaterThan x v } @-}
+
+-- the below works with GreaterThanA instead of GreaterThan,
+-- as the former is defined as a "predicate" alias.
+
+{-@ incr :: x:Nat -> {v:Nat | GreaterThan v x} @-}
 incr :: Int -> Int
 incr x = x + 1

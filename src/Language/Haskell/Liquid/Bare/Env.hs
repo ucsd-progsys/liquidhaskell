@@ -58,23 +58,22 @@ type TCEnv = M.HashMap TyCon RTyCon
 
 type InlnEnv = M.HashMap Symbol TInline
 
--- HEREHEREHEREHEREHEREHERE DELETE this TInline nonsense; fold it into RTEnv/rtEnv
--- see what tests fail
+data TInline = TI
+  { tiArgs :: [Symbol]
+  , tiBody :: Expr
+  } deriving (Show)
 
-data TInline = TI { tiArgs :: [Symbol]
-                  , tiBody :: Expr
-                  } deriving (Show)
-
-data BareEnv = BE { modName  :: !ModName
-                  , tcEnv    :: !TCEnv
-                  , rtEnv    :: !RTEnv
-                  , varEnv   :: ![(Symbol, Var)]
-                  , hscEnv   :: HscEnv
-                  , logicEnv :: LogicMap
-                  , bounds   :: RBEnv
-                  , embeds   :: TCEmb TyCon
-                  , axSyms   :: M.HashMap Symbol LocSymbol
-                  }
+data BareEnv = BE
+  { modName  :: !ModName
+  , tcEnv    :: !TCEnv
+  , rtEnv    :: !RTEnv
+  , varEnv   :: ![(Symbol, Var)]
+  , hscEnv   :: HscEnv
+  , logicEnv :: LogicMap
+  , bounds   :: RBEnv
+  , embeds   :: TCEmb TyCon
+  , axSyms   :: M.HashMap Symbol LocSymbol
+  }
 
 setEmbeds :: TCEmb TyCon -> BareM ()
 setEmbeds emb

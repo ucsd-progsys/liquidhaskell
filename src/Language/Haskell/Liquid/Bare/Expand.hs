@@ -16,9 +16,6 @@ import           Language.Haskell.Liquid.Bare.Env
 class ExpandAliases a where
   expand :: a -> BareM a
 
--- instance (ExpandAliases a) => ExpandAliases (UReft a) where
-  -- expand (MkUReft a y z) = (\b -> MkUReft b y z) <$> expand a
-
 instance ExpandAliases Expr where
   expand = expandExpr
 
@@ -65,8 +62,7 @@ instance (ExpandAliases a) => ExpandAliases [a] where
   expand = mapM expand
 
 instance (ExpandAliases b) => ExpandAliases (a, b) where
-  -- expand (x, y) = (x, ) <$> expand y
-  expand = mapM expand -- (x, y) = (x, ) <$> expand y
+  expand = mapM expand
 
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------

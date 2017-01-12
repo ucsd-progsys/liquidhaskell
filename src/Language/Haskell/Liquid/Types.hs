@@ -351,7 +351,7 @@ data GhcSpec = SP {
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
   , gsAxioms    :: [SMTAxiom]                     -- ^ Axioms from axiomatized functions
-  , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions 
+  , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
   , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
@@ -370,9 +370,9 @@ instance Monoid LogicMap where
   mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
 
 data LMap = LMap
-  { lvar  :: LocSymbol
-  , largs :: [Symbol]
-  , lexpr :: Expr
+  { lmVar  :: LocSymbol
+  , lmArgs :: [Symbol]
+  , lmExpr :: Expr
   }
 
 instance Show LMap where
@@ -381,7 +381,7 @@ instance Show LMap where
 toLogicMap :: [(LocSymbol, [Symbol], Expr)] -> LogicMap
 toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
   where
-    toLMap (x, ys, e) = (val x, LMap {lvar = x, largs = ys, lexpr = e})
+    toLMap (x, ys, e) = (val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
@@ -1002,7 +1002,7 @@ data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
 type HAxiom = Axiom Var Type CoreExpr
 type LAxiom = Axiom Symbol Sort Expr
 
-type SMTAxiom = Expr 
+type SMTAxiom = Expr
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++

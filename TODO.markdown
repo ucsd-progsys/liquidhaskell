@@ -1,16 +1,25 @@
 TODO
 ====
 
-## no-prop / inline
+Reflect-Imports
+---------------
 
-1. Failing Tests `pldi17/*` 
-    * pldi17/pos/NormalForm.hs
-    * Vikraman/Nat
- 
-```
-$ stack test liquidhaskell --fast --test-arguments "-p pos"
-```
+* rename fields of LMap 
+* collapse TInline and LMap
 
+
+```haskell
+data TInline = TI
+  { tiArgs :: [Symbol]
+  , tiBody :: Expr
+  } deriving (Show)
+
+data LMap = LMap
+  { lvar  :: LocSymbol
+  , largs :: [Symbol]
+  , lexpr :: Expr
+  }
+```  
 Check Covariance
 ----------------
 
