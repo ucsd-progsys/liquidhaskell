@@ -27,25 +27,28 @@ import           Language.Haskell.Liquid.Bare.Resolve
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
 makeRTEnv :: ModName
-          -> [(LocSymbol, LMap)]
-          -> [(ModName, Ms.Spec ty bndr)]
+          -> Ms.BareSpec
+          -> [(ModName, Ms.BareSpec)]
           -> M.HashMap Symbol LMap
           -> BareM ()
 --------------------------------------------------------------------------------
-makeRTEnv m xils specs lm = do
+makeRTEnv m lfSpec specs lm = do
   makeREAliases (eAs ++ eAs' ++ eAs'')
   makeRTAliases tAs
   where
-    tAs   = [ (m, t) | (m, s) <- specs,          t <- Ms.aliases   s   ]
-    eAs   = [ (m, e) | (m, s) <- specs,          e <- Ms.ealiases  s   ]
-    eAs'  = [ (m, e) | xil    <- xils,       let e  = inlineEAlias xil ]
-    eAs'' = [ (m, e) | xl    <- M.toList lm, let e  = lmapEAlias   xl  ]
+    tAs   = [ (m, t) | (m, s)  <- specs,           t <- Ms.aliases   s ]
+    eAs   = [ (m, e) | (m, s)  <- specs,           e <- Ms.ealiases  s ]
+    eAs'  = [ (m, e) | e       <- Ms.ealiases lfSpec                   ]
+    eAs'' = [ (m, e) | (_, xl) <- M.toList lm, let e  = lmapEAlias  xl ]
+    -- let e  = lmapEAlias  xl ]
 
-lmapEAlias :: (Symbol, LMap) -> RTAlias Symbol Expr
-lmapEAlias (x, LMap v ys e) = RTA x [] ys e (loc v) (loc v)
-
-inlineEAlias :: (LocSymbol, LMap) -> RTAlias Symbol Expr
-inlineEAlias (x, LMap _ ys e) = RTA (val x) [] ys e (loc x) (loc x)
+-- lmapEAlias   (x, LMap v ys e) = RTA x       [] ys e (loc v) (loc v)
+--
+-- lmapEAlias :: (Symbol, LMap) -> RTAlias Symbol Expr
+-- lmapEAlias   (x, LMap v ys e) = RTA x       [] ys e (loc v) (loc v)
+--
+-- inlineEAlias :: (LocSymbol, LMap) -> RTAlias Symbol Expr
+-- inlineEAlias (x, LMap _ ys e) = RTA (val x) [] ys e (loc x) (loc x)
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody

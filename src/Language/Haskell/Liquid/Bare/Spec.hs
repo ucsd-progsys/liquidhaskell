@@ -188,14 +188,14 @@ makeAssumeSpec cmod cfg vs lvs (mod, spec)
 grepClassAsserts :: [RInstance t] -> [(Located F.Symbol, t)]
 grepClassAsserts  = concatMap go
    where
-    go    xts              = catMaybes $ map goOne $ risigs xts 
+    go    xts              = catMaybes $ map goOne $ risigs xts
     goOne (x, RISig t)     = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RIAssumed _) = Nothing
 
 grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
 grepClassAssumes  = concatMap go
    where
-    go    xts              = catMaybes $ map goOne $ risigs xts 
+    go    xts              = catMaybes $ map goOne $ risigs xts
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
@@ -342,7 +342,7 @@ resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
     addIndex _ x [i]    = [(x,i)]
     addIndex j x (i:is) = (F.symbol (F.symbolString x ++ show j),i):addIndex (j+1) x is
 
-    lookupVar (s, i)    = ((,i) <$> lookupName s)
+    lookupVar (s, i)    = (, i) <$> lookupName s
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
                 [(_, x)] -> Just x

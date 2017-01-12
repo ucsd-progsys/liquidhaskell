@@ -222,7 +222,6 @@ Library
                     Language.Haskell.Liquid.Bare.Env,
                     Language.Haskell.Liquid.Bare.Expand,
                     Language.Haskell.Liquid.Bare.Existential,
-                    Language.Haskell.Liquid.Bare.GhcSpec,
                     Language.Haskell.Liquid.Bare.Lookup,
                     Language.Haskell.Liquid.Bare.Axiom,
                     Language.Haskell.Liquid.Bare.Measure,

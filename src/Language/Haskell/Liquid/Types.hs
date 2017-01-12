@@ -57,6 +57,7 @@ module Language.Haskell.Liquid.Types (
   , RTyVar (..)
   , RTAlias (..)
   , OkRT
+  , lmapEAlias
 
   -- * Worlds
   , HSeg (..)
@@ -1064,6 +1065,10 @@ mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
                      , rtVArgs = f <$> rtVArgs rt
                      }
+
+lmapEAlias :: LMap -> RTAlias Symbol Expr
+lmapEAlias (LMap v ys e) = RTA (val v) [] ys e (loc v) (loc v)
+
 
 ------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ----------------------------

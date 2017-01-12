@@ -69,28 +69,23 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 -- import Language.Haskell.Liquid.Bare.RefToLogic
 
-makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
-makeHaskellMeasures _   _   name' (name, _   ) | name /= name'
-  = return mempty
-makeHaskellMeasures tce cbs _     (_   , spec)
-  = do lmap <- gets logicEnv
-       Ms.mkMSpec' <$> mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
+makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM (Ms.MSpec SpecType DataCon)
+makeHaskellMeasures tce cbs spec = do
+    lmap <- gets logicEnv
+    Ms.mkMSpec' <$> mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
   where
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM [(LocSymbol, LMap)]
-makeHaskellInlines tce cbs name' (name, spec)
-  | name /= name'
-  = return mempty
-  | otherwise
-  = do lmap <- gets logicEnv
-       mapM (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
-    where
-      cbs'                  = concatMap unrec cbs
-      unrec cb@(NonRec _ _) = [cb]
-      unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM [(LocSymbol, LMap)]
+makeHaskellInlines tce cbs spec = do
+  lmap <- gets logicEnv
+  mapM (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
+  where
+    cbs'                  = concatMap unrec cbs
+    unrec cb@(NonRec _ _) = [cb]
+    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, LMap)
 makeMeasureInline tce lmap cbs x =
@@ -102,8 +97,9 @@ makeMeasureInline tce lmap cbs x =
     ok (xs, e) = return (LMap x (varSymbol <$> xs) (either id id e))
 
 varSymbol :: Var -> Symbol
-varSymbol v | Type.isFunTy (varType v) = simplesymbol v
-varSymbol v                            = symbol v
+varSymbol v
+  | Type.isFunTy (varType v) = simplesymbol v
+  | otherwise                = symbol v
 
 binders :: CoreBind -> [Id]
 binders (NonRec z _) = [z]

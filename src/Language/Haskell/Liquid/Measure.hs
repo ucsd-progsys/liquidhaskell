@@ -64,7 +64,7 @@ data Spec ty bndr  = Spec
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
   , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms 
+  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions

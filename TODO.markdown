@@ -4,22 +4,63 @@ TODO
 Reflect-Imports
 ---------------
 
-* rename fields of LMap 
-* collapse TInline and LMap
+The crux is the `[(ModName, BareSpec)]` that is passed into `makeRTEnv`
+
+* type BareSpec      = Spec (Located BareType) LocSymbol
+
+* How is it CREATED?
+  - `Interface.processModule` calls `hsSpecificationP` to scrape BareSpec from file.
+
+```haskell
+processModule = do
+  ...
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+  let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
+```
+
+* How shall we SAVE it so the next MODULE can get it?
+
+* Does it include THIS module? (yes?)
+
+toGhcSpec --> makeGhcSpec
+
+Interface.hs
+
+* toGhcSpec ... tgtSpec ... impSpecs
+
+
+need to pull
+
+1. `makeHaskellInlines`
+2. `makeHaskellMeasures`
+3. `makeHaskellBounds`
+
+```haskell
+  processTargetModule =
+    let homeSpecs      = getCachedBareSpecs specEnv reachable
+
+type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
+```
+
+```haskell
+saveLiftedSpec :: ModName -> BareSpec -> IO ()
+loadLiftedSpec :: ModName -> IO BareSpec
+```
+
+btw, what are ty and bndr ?
 
 
 ```haskell
-data TInline = TI
-  { tiArgs :: [Symbol]
-  , tiBody :: Expr
-  } deriving (Show)
-
-data LMap = LMap
-  { lvar  :: LocSymbol
-  , largs :: [Symbol]
-  , lexpr :: Expr
-  }
+makeRTEnv :: ModName
+          -> [(LocSymbol, LMap)]
+          -> [(ModName, Ms.Spec ty bndr)]
+          -> M.HashMap Symbol LMap
+          -> BareM ()
 ```  
+
+
+
+
 Check Covariance
 ----------------
 
@@ -28,6 +69,7 @@ It is safe is 100 is changed to 0. WHY?
 
 LAZYVAR
 -------
+
 Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
 
 
