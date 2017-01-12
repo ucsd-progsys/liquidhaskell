@@ -21,7 +21,7 @@ import TyCon
 import Id
 import Name
 import Type hiding (isFunTy)
-import qualified Type 
+import qualified Type
 import Var
 
 import Data.Default
@@ -80,7 +80,7 @@ makeHaskellMeasures tce cbs _     (_   , spec)
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM [(LocSymbol, TInline)]
+makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM [(LocSymbol, LMap)]
 makeHaskellInlines tce cbs name' (name, spec)
   | name /= name'
   = return mempty
@@ -92,18 +92,18 @@ makeHaskellInlines tce cbs name' (name, spec)
       unrec cb@(NonRec _ _) = [cb]
       unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, TInline)
+makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, LMap)
 makeMeasureInline tce lmap cbs x =
   case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
     (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok
     (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok
     _                  -> throwError $ errHMeas x "Cannot inline haskell function"
   where
-    ok (xs, e) = return (TI (varSymbol <$> xs) (either id id e))
+    ok (xs, e) = return (LMap x (varSymbol <$> xs) (either id id e))
 
 varSymbol :: Var -> Symbol
 varSymbol v | Type.isFunTy (varType v) = simplesymbol v
-varSymbol v                            = symbol v 
+varSymbol v                            = symbol v
 
 binders :: CoreBind -> [Id]
 binders (NonRec z _) = [z]

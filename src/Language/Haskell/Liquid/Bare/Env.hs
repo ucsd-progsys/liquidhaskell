@@ -7,7 +7,8 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , BareEnv(..)
 
-  , TInline(..), InlnEnv
+  -- , TInline(..)
+  , InlnEnv
 
   , inModule
   , withVArgs
@@ -56,12 +57,12 @@ type Warn  = String
 
 type TCEnv = M.HashMap TyCon RTyCon
 
-type InlnEnv = M.HashMap Symbol TInline
+type InlnEnv = M.HashMap Symbol LMap
 
-data TInline = TI
-  { tiArgs :: [Symbol]
-  , tiBody :: Expr
-  } deriving (Show)
+-- REFLECT-IMPORTS data TInline = TI
+  -- REFLECT-IMPORTS { tiArgs :: [Symbol]
+  -- REFLECT-IMPORTS , tiBody :: Expr
+  -- REFLECT-IMPORTS } deriving (Show)
 
 data BareEnv = BE
   { modName  :: !ModName

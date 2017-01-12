@@ -27,7 +27,7 @@ import           Language.Haskell.Liquid.Bare.Resolve
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
 makeRTEnv :: ModName
-          -> [(LocSymbol, TInline)]
+          -> [(LocSymbol, LMap)]
           -> [(ModName, Ms.Spec ty bndr)]
           -> M.HashMap Symbol LMap
           -> BareM ()
@@ -44,8 +44,8 @@ makeRTEnv m xils specs lm = do
 lmapEAlias :: (Symbol, LMap) -> RTAlias Symbol Expr
 lmapEAlias (x, LMap v ys e) = RTA x [] ys e (loc v) (loc v)
 
-inlineEAlias :: (LocSymbol, TInline) -> RTAlias Symbol Expr
-inlineEAlias (x, TI ys e)   = RTA (val x) [] ys e (loc x) (loc x)
+inlineEAlias :: (LocSymbol, LMap) -> RTAlias Symbol Expr
+inlineEAlias (x, LMap _ ys e) = RTA (val x) [] ys e (loc x) (loc x)
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody
