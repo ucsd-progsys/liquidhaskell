@@ -55,10 +55,10 @@ import qualified Data.HashMap.Strict                   as M
 
 
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t { ty_binds = binds, ty_args = args, ty_refts = refts}
+logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
   where
-    t       = toRTypeRep $ ofType τ
-    (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
+    t            = toRTypeRep $ ofType τ
+    (bs, as, rs) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
 
 {- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
@@ -144,8 +144,8 @@ throw str = do fmkError  <- mkError <$> get
 getState :: LogicM LState
 getState = get
 
-runToLogic :: TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogic :: TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
+           -> Either Error t
 runToLogic = runToLogicWithBoolBinds []
 
 runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
