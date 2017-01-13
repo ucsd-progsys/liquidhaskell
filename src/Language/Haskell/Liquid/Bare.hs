@@ -161,10 +161,10 @@ makeLiftedSpec file name embs cbs mySpec = do
   return lSpec
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
-saveLiftedSpec = impossible Nothing "TODO:saveLiftedSpec"
+saveLiftedSpec _srcF _mod _lspec = putStrLn "TODO:saveLiftedSpec" -- impossible Nothing "TODO:saveLiftedSpec"
 
 loadLiftedSpec :: FilePath -> ModName -> IO Ms.BareSpec
-loadLiftedSpec = impossible Nothing "TODO:loadLiftedSpec"
+loadLiftedSpec _srcF _mod = putStrLn "TODO:loadLiftedSpec" >> return mempty -- impossible Nothing "TODO:loadLiftedSpec"
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec'
