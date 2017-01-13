@@ -47,4 +47,4 @@ targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es
     bi               = (`Ci` Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
-    es               = gsAxioms (spec info)
+    es               = F.defaultTrigger <$> gsAxioms (spec info)
