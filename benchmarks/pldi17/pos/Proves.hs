@@ -14,7 +14,7 @@ module Proves (
   , (==.), (<=.), (<.), (>.), (>=.)
 
   -- Function Equality 
-  , Arg
+  , Arg (..)
 
   , (=*=.)
 
