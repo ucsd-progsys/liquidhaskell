@@ -38,7 +38,8 @@ need to pull
 HEREHEREHEREHEREHERE `CHOP2`
 
 1. rewrite `makeMeasureDefinition` (and makeHaskellMeasures) so it returns a
-     Measure (Located BareType) LocSymbol (or whatever is in BareSpec in the `measures` field)
+   `Measure (Located BareType) LocSymbol` (or whatever is in BareSpec in
+   the `measures` field)
 
 2. tuck that result into the measures field of `mySpec` which is `mappend`-ed
 

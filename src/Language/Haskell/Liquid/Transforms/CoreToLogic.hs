@@ -128,32 +128,39 @@ strengthenResult' v
 simplesymbol :: Var -> Symbol
 simplesymbol = symbol . getName
 
-
 type LogicM = ExceptT Error (StateT LState Identity)
 
-data LState = LState { symbolMap :: LogicMap
-                     , mkError   :: String -> Error
-                     , ltce      :: TCEmb TyCon
-                     , boolbinds :: [Var]
-                     }
+data LState = LState
+  { symbolMap :: LogicMap
+  , mkError   :: String -> Error
+  , ltce      :: TCEmb TyCon
+  , boolbinds :: [Var]
+  }
 
 throw :: String -> LogicM a
-throw str = do fmkError  <- mkError <$> get
-               throwError $ fmkError str
+throw str = do
+  fmkError  <- mkError <$> get
+  throwError $ fmkError str
 
 getState :: LogicM LState
 getState = get
 
-runToLogic :: TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
-           -> Either Error t
+runToLogic
+  :: TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
+  -> Either Error t
 runToLogic = runToLogicWithBoolBinds []
 
-runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogicWithBoolBinds
+  :: [Var] -> TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
+  -> Either Error t
 runToLogicWithBoolBinds xs tce lmap ferror m
-  = evalState (runExceptT m) LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs}
-
-
+       = evalState (runExceptT m) s0
+  where
+    s0 = LState { symbolMap = lmap
+                , mkError   = ferror
+                , ltce      = tce
+                , boolbinds = xs
+                }
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e

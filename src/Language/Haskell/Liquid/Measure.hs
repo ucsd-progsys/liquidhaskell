@@ -6,9 +6,16 @@
 {-# LANGUAGE DeriveGeneric          #-}
 
 module Language.Haskell.Liquid.Measure (
+  -- * Specifications
     Spec (..)
-  , BareSpec
   , MSpec (..)
+
+  -- * Type Aliases
+  , BareSpec
+  , BareMeasure
+  , SpecMeasure
+
+  -- * Constructors
   , mkM, mkMSpec, mkMSpec'
   , qualifySpec
   , dataConTypes
@@ -29,11 +36,6 @@ import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.List                              (foldl', partition)
-
-
-
-
-
 import           Data.Maybe                             (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
@@ -46,7 +48,10 @@ import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type BareSpec      = Spec (Located BareType) LocSymbol
+type LocBareType   = Located BareType
+type BareSpec      = Spec    LocBareType LocSymbol
+type BareMeasure   = Measure LocBareType LocSymbol
+type SpecMeasure   = Measure SpecType    DataCon
 
 instance B.Binary BareSpec
 
@@ -99,9 +104,6 @@ mkM name typ eqns
   = M name typ eqns
   | otherwise
   = panic Nothing $ "invalid measure definition for " ++ show name
-
--- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
---         -> MSpec ty LocSymbol
 
 mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
 mkMSpec' ms = MSpec cm mm M.empty []

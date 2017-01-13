@@ -155,10 +155,15 @@ ghcSpecEnv sp        = fromListSEnv binds
 --      makeHaskell{Inlines, Measures, Bounds}
 -- 2. SAVE the LiftedSpec, which will be reloaded
 
-makeLiftedSpec :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
+makeLiftedSpec
+  :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
+  -> BareM Ms.BareSpec
 makeLiftedSpec file name embs cbs mySpec = do
-  xils  <- makeHaskellInlines embs cbs mySpec
-  let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils }
+  xils  <- makeHaskellInlines  embs cbs mySpec
+  ms    <- makeHaskellMeasures embs cbs mySpec
+  let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
+                     , Ms.measures = ms
+                     }
   liftIO $ saveLiftedSpec file name lSpec
   return lSpec
 
@@ -177,7 +182,7 @@ loadLiftedSpec srcF = do
   where
     specF = extFileName BinSpec srcF
 
-------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
@@ -516,12 +521,12 @@ makeGhcSpecCHOP2 :: [CoreBind]
                           , [(Symbol, Located (RRType Reft))]
                           , [(Var,    LocSpecType)]
                           , [Symbol] )
-makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
+makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs
   = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
        tyi         <- gets tcEnv
-       name        <- gets modName
-       hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
-       let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors, hmeas ]
+       -- name        <- gets modName
+       -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
+       let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
        let (cs, ms) = makeMeasureSpec' measures
        let cms      = makeClassMeasureSpec measures
        let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
