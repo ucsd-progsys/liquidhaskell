@@ -71,6 +71,7 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
+                   Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,

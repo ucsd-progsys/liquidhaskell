@@ -207,8 +207,11 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
                 , dLits   = dLits'
                 , bs      = bs'
                 -- NOPROP , quals   = quals'
-                , asserts = axioms ++ ass' 
+                , asserts = (noTrigger <$> axioms) ++ ass' 
                 }
+
+instance (Defunc a) => Defunc (Triggered a) where
+  defunc (TR t e) = TR t <$> defunc e 
 
 instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc

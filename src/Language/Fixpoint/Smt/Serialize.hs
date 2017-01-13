@@ -148,11 +148,21 @@ instance SMTLIB2 Command where
     -- Distinct must have at least 2 arguments
     | length az < 2        = ""
     | otherwise            = build "(assert (distinct {}))"       (Only $ smt2s az)
+  smt2 (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2 t)
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
   smt2 (GetValue xs)       = "(get-value (" <> smt2s xs <> "))"
   smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
+
+instance SMTLIB2 (Triggered Expr) where
+  smt2 (TR NoTrigger e)       = smt2 e  
+  smt2 (TR _ (PExist [] p))   = smt2 p
+  smt2 t@(TR _ (PExist bs p)) = build "(exists ({}) (! {} :pattern({})))"  (smt2s bs, smt2 p, smt2s $ makeTriggers t)
+  smt2 (TR _ (PAll   [] p))   = smt2 p
+  smt2 t@(TR _ (PAll   bs p)) = build "(forall ({}) (! {} :pattern({})))"  (smt2s bs, smt2 p, smt2s $ makeTriggers t)
+  smt2 (TR _ e)               = smt2 e
+
 
 
 {-# INLINE smt2s #-}
