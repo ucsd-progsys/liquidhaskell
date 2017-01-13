@@ -285,7 +285,8 @@ type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
                -> ModuleGraph
                -> Ghc [GhcInfo]
-processModules cfg logicMap tgtFiles depGraph homeModules =
+processModules cfg logicMap tgtFiles depGraph homeModules = do
+  liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
   where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
@@ -295,8 +296,9 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  _                   <- liftIO $ whenLoud $ putStrLn $ "Module: " ++ showPpr (moduleName mod)
+  _                   <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
+  let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments parsed
@@ -304,13 +306,13 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  liftedSpec          <- liftIO $ loadLiftedSpec file modName
+  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec file -- modName
   let bareSpec         = commSpec `mappend` liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
-  (specEnv', ) <$> if not (file `S.member` tgtFiles)
-                     then return Nothing
-                     else Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+  (specEnv', ) <$> if isTarget
+                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+                     else return Nothing
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary

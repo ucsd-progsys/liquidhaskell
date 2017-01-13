@@ -35,6 +35,7 @@ import           InstEnv
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor
+import qualified Data.Binary                                as B
 import           Data.Maybe
 
 
@@ -48,7 +49,8 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 
-import           Language.Fixpoint.Misc                     (thd3, mapSnd)
+import           Language.Fixpoint.Utils.Files              -- (extFileName)
+import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -161,10 +163,21 @@ makeLiftedSpec file name embs cbs mySpec = do
   return lSpec
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
-saveLiftedSpec _srcF _mod _lspec = putStrLn "TODO:saveLiftedSpec" -- impossible Nothing "TODO:saveLiftedSpec"
+saveLiftedSpec srcF _ lspec = do
+  putStrLn $ "Saving Binary Lifted Spec: " ++ specF
+  ensurePath specF
+  B.encodeFile specF lspec
+  where
+    specF = extFileName BinSpec srcF
 
-loadLiftedSpec :: FilePath -> ModName -> IO Ms.BareSpec
-loadLiftedSpec _srcF _mod = putStrLn "TODO:loadLiftedSpec" >> return mempty -- impossible Nothing "TODO:loadLiftedSpec"
+loadLiftedSpec :: FilePath -> IO Ms.BareSpec
+loadLiftedSpec srcF = do
+  putStrLn $ "Loading Binary Lifted Spec: " ++ specF
+  B.decodeFile specF
+  where
+    specF = extFileName BinSpec srcF
+
+  -- putStrLn "TODO:loadLiftedSpec" >> return mempty -- impossible Nothing "TODO:loadLiftedSpec"
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec'
