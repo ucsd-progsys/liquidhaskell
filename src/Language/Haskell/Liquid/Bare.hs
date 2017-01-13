@@ -177,8 +177,6 @@ loadLiftedSpec srcF = do
   where
     specF = extFileName BinSpec srcF
 
-  -- putStrLn "TODO:loadLiftedSpec" >> return mempty -- impossible Nothing "TODO:loadLiftedSpec"
-
 ------------------------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]

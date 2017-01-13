@@ -51,13 +51,12 @@ import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
 
-import Language.Haskell.Liquid.Transforms.CoreToLogic
-import Language.Haskell.Liquid.Misc
--- import Language.Haskell.Liquid.WiredIn  (propTyCon)
-import Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
-import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.Transforms.CoreToLogic
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
+import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -67,9 +66,9 @@ import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
--- import Language.Haskell.Liquid.Bare.RefToLogic
 
-makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM (Ms.MSpec SpecType DataCon)
+makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
+                    -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures tce cbs spec = do
     lmap <- gets logicEnv
     Ms.mkMSpec' <$> mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
@@ -108,22 +107,28 @@ binders (Rec xes)    = fst <$> xes
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
-makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
-makeMeasureDefinition tce lmap cbs x
-  = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
-    (Rec [(v, def)]:_) -> Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
-    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
+makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
+                      -> BareM (Measure SpecType DataCon)
+makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ findVarDef (val x) cbs
   where
-    binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes
-
-    coreToDef' x v def = case runToLogic tce lmap mkError $ coreToDef x v def of
+    chomp x (v, def)   = Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
+    coreToDef' x v def = case runToLogic tce lmap mkErr (coreToDef x v def) of
                            Right l -> return     l
                            Left e  -> throwError e
+    mkErr :: String -> Error
+    mkErr str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
+    err       = throwError $ mkErr "Cannot extract measure from haskell function"
 
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
+findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+findVarDef x cbs = case xCbs of
+                     (NonRec v def   : _ ) -> Just (v, def)
+                     (Rec [(v, def)] : _ ) -> Just (v, def)
+                     _                     -> Nothing
+  where
+    xCbs         = [ cb | cb <- cbs, x `elem` coreBindSymbols cb ]
+
+coreBindSymbols :: CoreBind -> [Symbol]
+coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
