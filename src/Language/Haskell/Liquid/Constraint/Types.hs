@@ -50,7 +50,7 @@ module Language.Haskell.Liquid.Constraint.Types
   , addArgument, addArguments
 
   -- * Axiom Instantiation
-  , AxiomEnv(..), Equation
+  , AxiomEnv(..), Equation(..)
   ) where
 
 import Prelude hiding (error)
@@ -127,7 +127,10 @@ instance Show CGEnv where
 
 
 data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation]}
-data Equation
+data Equation = Eq   { eqName :: F.Symbol
+                     , eqArgs :: [F.Symbol]
+                     , eqBody :: F.Expr
+                     }
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------

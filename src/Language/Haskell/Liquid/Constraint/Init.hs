@@ -288,5 +288,5 @@ coreBindLits tce info
 
 
 makeAxiomEnvironment :: GhcInfo -> AxiomEnv 
-makeAxiomEnvironment info = AEnv (axiomName <$> gsAxioms (spec info)) []
+makeAxiomEnvironment info = AEnv (axiomName <$> gsAxioms (spec info)) [ Eq x xs e | AxiomEq x xs e _ <- gsAxioms (spec info) ]
 
