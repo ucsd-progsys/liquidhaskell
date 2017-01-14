@@ -72,6 +72,9 @@ import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
+import           Language.Haskell.Liquid.Constraint.Instantiate
+
+import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
 
 -- import Debug.Trace (trace)
 
@@ -104,11 +107,12 @@ consAct cfg info = do
   let hcs' = if sflag then subsS smap hcs else hcs
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
+  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms (makeAxiomEnvironment info) <$> fcs else  fcs 
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
-                     , fixCs    = fcs
+                     , fixCs    = fcs'
                      , fixWfs   = fws
                      , annotMap = annot' }
   where

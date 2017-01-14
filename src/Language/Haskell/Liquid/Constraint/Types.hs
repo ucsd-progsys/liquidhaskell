@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE EmptyDataDecls    #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -47,6 +48,9 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
+
+  -- * Axiom Instantiation
+  , AxiomEnv(..), Equation
   ) where
 
 import Prelude hiding (error)
@@ -122,6 +126,8 @@ instance Show CGEnv where
   show = showpp
 
 
+data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation]}
+data Equation
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------

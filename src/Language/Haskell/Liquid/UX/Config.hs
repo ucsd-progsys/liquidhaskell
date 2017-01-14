@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.UX.Config (
 
    , Instantiate (..)
    , allowSMTInstationation
+   , allowLiquidInstationation
    ) where
 
 import Prelude hiding (error)
@@ -103,8 +104,9 @@ instance Serialize Config
 data Instantiate = NoInstances | SMTInstances | LiquidInstances
   deriving (Eq, Data, Typeable, Generic)
 
-allowSMTInstationation :: Config -> Bool 
-allowSMTInstationation cfg = instantiate cfg == SMTInstances
+allowSMTInstationation, allowLiquidInstationation :: Config -> Bool 
+allowSMTInstationation    cfg = instantiate cfg == SMTInstances
+allowLiquidInstationation cfg = instantiate cfg == LiquidInstances
 
 instance Default Instantiate where
   def = NoInstances

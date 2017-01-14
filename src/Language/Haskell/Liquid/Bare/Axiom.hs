@@ -48,7 +48,7 @@ makeAxiom :: F.TCEmb TyCon
           -> GhcSpec
           -> Ms.BareSpec
           -> LocSymbol
-          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
+          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], AxiomEq)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
@@ -66,7 +66,7 @@ makeAxiom' :: F.TCEmb TyCon
            -> LocSymbol
            -> Var
            -> CoreExpr
-           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
+           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], AxiomEq)
 --------------------------------------------------------------------------------
 makeAxiom' tce lmap cbs spec x v def = do
   let anames = findAxiomNames x cbs
@@ -86,19 +86,19 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType, F.Expr)
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType, AxiomEq)
 makeAssumeType tce lmap x v xts ams def = assumedtype
   where
     assumedtype
       | not (null ams)
-      = (x {val = at}, F.PTrue)
+      = (x {val = at}, AxiomEq (val x) [] F.PTrue F.PTrue)
       | isBool (ty_res trep)
       = (x {val = at `strengthenRes` F.subst su bref}, makeSMTAxiomBool xss ble)
       | otherwise
       = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom     xss le )
 
-    makeSMTAxiomBool xss ble = F.PAll xss (F.PAtom F.Eq (F.mkEApp x (F.EVar . fst <$> xss)) ble)
-    makeSMTAxiom     xss  le = F.PAll xss (F.PIff (F.mkProp (F.mkEApp x (F.EVar . fst <$> xss))) le)
+    makeSMTAxiomBool xss ble = AxiomEq (val x) (fst <$> xss) ble $ F.PAll xss (F.PAtom F.Eq (F.mkEApp x (F.EVar . fst <$> xss)) ble)
+    makeSMTAxiom     xss  le = AxiomEq (val x) (fst <$> xss) le  $ F.PAll xss (F.PIff (F.mkProp (F.mkEApp x (F.EVar . fst <$> xss))) le)
 
     trep = toRTypeRep t
     t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)

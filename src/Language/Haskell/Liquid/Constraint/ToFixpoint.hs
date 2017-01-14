@@ -54,6 +54,6 @@ targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es
 makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
 makeAxioms info 
   | allowSMTInstationation (getConfig info)
-  = F.defaultTrigger <$> gsAxioms (spec info)
+  = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
   | otherwise
   = [] 

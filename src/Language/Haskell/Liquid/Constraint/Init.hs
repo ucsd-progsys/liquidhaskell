@@ -10,7 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI ) where
+module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI, makeAxiomEnvironment ) where
 
 import           Prelude                                       hiding (error, undefined)
 import           Coercion
@@ -283,3 +283,10 @@ coreBindLits tce info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
+
+
+
+
+makeAxiomEnvironment :: GhcInfo -> AxiomEnv 
+makeAxiomEnvironment info = AEnv (axiomName <$> gsAxioms (spec info)) []
+
