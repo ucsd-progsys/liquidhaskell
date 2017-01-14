@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.Constraint.Instantiate (
 
 import           Language.Fixpoint.Misc            
 import           Language.Fixpoint.Types            
+import           Language.Fixpoint.Types.Visitor (eapps)            
 -- import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Constraint.Types
@@ -37,16 +38,17 @@ instancesLoop :: [Symbol] -> [Equation] -> [Expr] -> [Expr]
 instancesLoop as eqs = go []  
   where 
     go acc es = let fes   = concatMap (grepOccurences as) es 
-                    is    = concatMap (unfold eqs) fes 
+                    is    = concatMap (unfold eqs) $ traceShow "Occurences" fes 
                     newIs = (L.\\) is acc 
                 in  if null newIs then acc else go (newIs ++ acc) newIs
 
       
 grepOccurences :: [Symbol] -> Expr -> [Occurence]
-grepOccurences _ _ = [] 
+grepOccurences xs e = [Occ x es | (EVar x, es) <- splitEApp <$> eapps e, x `elem` xs]  
 
 unfold :: [Equation] -> Occurence -> [Expr]
 unfold _ _ = []  
 
 
-data Occurence -- = Occ {_ofun :: Symbol, _oargs :: [Expr]}
+data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr]}
+ deriving (Show)
