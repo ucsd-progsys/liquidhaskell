@@ -1,5 +1,7 @@
 module Automate where
 
+{-@ LIQUID "--instantiate=smtinstances" @-}
+
 import Language.Haskell.Liquid.ProofCombinators 
 
 
