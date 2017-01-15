@@ -9,8 +9,6 @@ branches:
 
 matrix:
   include:
-    - env: SMT="z3" CABAL=1.22 GHC=7.8.4
-      addons: {apt: {packages: [cabal-install-1.22,ghc-7.8.4,],sources: [hvr-ghc]}}
     - env: SMT="z3" CABAL=1.22 GHC=7.10.3
       addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,],sources: [hvr-ghc]}}
     - env: SMT="z3" CABAL=1.24 GHC=8.0.1

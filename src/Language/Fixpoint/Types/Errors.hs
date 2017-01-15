@@ -58,6 +58,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
+import qualified Text.PrettyPrint.Annotated.HughesPJ as Ann
 -- import           Text.Printf
 import           Data.Function (on)
 
@@ -65,6 +66,7 @@ import           Data.Function (on)
 
 instance Serialize Error1
 instance Serialize TextDetails
+instance Serialize a => Serialize (Ann.Doc a)
 instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
