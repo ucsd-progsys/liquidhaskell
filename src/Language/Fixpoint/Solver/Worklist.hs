@@ -1,4 +1,3 @@
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE TupleSections         #-}
 
