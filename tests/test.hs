@@ -15,7 +15,6 @@ import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
-import Data.Semigroup ((<>))
 import Data.Tagged
 import Data.Typeable
 import Options.Applicative
