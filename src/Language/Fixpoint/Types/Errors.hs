@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -65,7 +66,10 @@ import           Data.Function (on)
 -- import           Debug.Trace
 
 instance Serialize Error1
+-- FIXME: orphans are bad...
 instance Serialize TextDetails
+deriving instance Generic (Ann.AnnotDetails a)
+instance Serialize a => Serialize (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.Doc a)
 instance Serialize Doc
 instance Serialize Error
