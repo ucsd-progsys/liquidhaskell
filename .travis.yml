@@ -9,12 +9,17 @@ branches:
 
 matrix:
   include:
-    - env: SMT="z3" CABAL=1.22 GHC=7.10.2
-      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.2,ocaml,camlidl],sources: [hvr-ghc]}}
+    - env: SMT="z3" CABAL=1.22 GHC=7.8.4
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.8.4,],sources: [hvr-ghc]}}
+    - env: SMT="z3" CABAL=1.22 GHC=7.10.3
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,],sources: [hvr-ghc]}}
+    - env: SMT="z3" CABAL=1.24 GHC=8.0.1
+      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,],sources: [hvr-ghc]}}
+    - env: CABALVER=head GHCVER=head
+      addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
-# env:
-#   - SMT="z3"   GHC="7.10.1" CABAL="1.22"
-#   - SMT="cvc4" GHC="7.10.1" CABAL="1.22"
+  allow_failures:
+   - env: CABALVER=head GHCVER=head
 
 cache:
   directories:
