@@ -36,6 +36,7 @@ module Language.Fixpoint.Types.Constraints (
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
+  , strengthenLhs
 
   -- * Accessing Constraints
   , addIds
@@ -119,6 +120,11 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _cinfo :: !a
                      }
               deriving (Generic, Functor)
+
+strengthenLhs :: Expr -> SubC a -> SubC a
+strengthenLhs e subc = subc {slhs = go (slhs subc)}
+  where
+    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv

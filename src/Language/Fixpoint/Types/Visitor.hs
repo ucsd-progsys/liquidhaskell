@@ -23,7 +23,7 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , stripCasts
-  , kvars
+  , kvars, eapps
   , size, lamSize
   , envKVars
   , envKVarsN
@@ -229,6 +229,12 @@ lamSize t    = n
     accum _ (ELam _ _) = MInt 1
     accum _ _          = MInt 0
 
+eapps :: Visitable t => t -> [Expr]
+eapps                 = fold eappVis () []
+  where
+    eappVis              = (defaultVisitor :: Visitor [KVar] t) { accExpr = eapp' }
+    eapp' _ e@(EApp _ _) = [e]
+    eapp' _ _            = []
 
 kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []
