@@ -587,6 +587,12 @@ class Expression a where
 class Predicate a where
   prop   :: a -> Expr
 
+instance Expression SortedReft where
+  expr (RR _ r) = expr r  
+
+instance Expression Reft where
+  expr (Reft(_, e)) = e  
+
 instance Expression Expr where
   expr = id
 
