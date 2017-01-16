@@ -76,7 +76,8 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, traceShow "Data Con Types" f4, f5]
+       modify $ \s -> s{dataConTys = f4}
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -242,6 +243,7 @@ initCGI cfg info = CGInfo {
   , isBind     = []
   , fixWfs     = []
   , freshIndex = 0
+  , dataConTys = [] 
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes spc)
@@ -287,6 +289,16 @@ coreBindLits tce info
 
 
 
-makeAxiomEnvironment :: GhcInfo -> AxiomEnv 
-makeAxiomEnvironment info = AEnv (axiomName <$> gsAxioms (spec info)) [ Eq x xs e | AxiomEq x xs e _ <- gsAxioms (spec info) ]
+makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)]  -> AxiomEnv 
+makeAxiomEnvironment info xts
+  = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
+         ([ Eq x xs (F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e) | AxiomEq x xs e _ <- gsAxioms (spec info) ]
+         ++ (specTypToEq  <$> xts) )
+  where
+    specTypToEq (x, t) 
+      = Eq (F.symbol x) (ty_binds trep) 
+            (mkExpr $ F.toReft $ fromMaybe mempty (stripRTypeBase $ ty_res trep))
+      where
+        mkExpr (F.Reft (v, e)) = F.subst1 e (v, F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds trep))
+        trep = toRTypeRep t 
 

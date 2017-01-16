@@ -130,7 +130,7 @@ data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation]}
 data Equation = Eq   { eqName :: F.Symbol
                      , eqArgs :: [F.Symbol]
                      , eqBody :: F.Expr
-                     }
+                     } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -207,6 +207,7 @@ data CGInfo = CGInfo {
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
+  , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   }
 
 instance PPrint CGInfo where
