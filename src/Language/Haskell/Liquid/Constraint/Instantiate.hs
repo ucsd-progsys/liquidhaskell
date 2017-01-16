@@ -17,9 +17,8 @@ module Language.Haskell.Liquid.Constraint.Instantiate (
 
 import           Language.Fixpoint.Misc            
 import           Language.Fixpoint.Types hiding (Eq)
-import qualified Language.Fixpoint.Types as F        
+-- import qualified Language.Fixpoint.Types as F        
 import           Language.Fixpoint.Types.Visitor (eapps)            
--- import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Constraint.Types hiding (senv)
 
@@ -30,22 +29,15 @@ import Data.Maybe (catMaybes)
 instantiateAxioms :: BindEnv  -> AxiomEnv -> FixSubC -> FixSubC
 instantiateAxioms bds aenv sub 
   = let is = instances aenv (pAnd ((expr $ slhs sub):(expr $ srhs sub):(expr . snd <$> envCs bds (senv sub) )))
-    in  strengthenLhs (traceShow ("LHS = " ++ showpp (slhs sub) ++ "\nRHS = " ++ showpp (srhs sub) ++ "\n\nStrengthened with\n" ++ showExpr is) is)
-                       sub
-
-showExpr :: Expr -> String 
-showExpr (PAnd eqs) 
-  = L.intercalate "\n" (showpp . lhs <$> eqs )
-  where
-    lhs (PAtom F.Eq l _) = l 
-    lhs e                = e 
-showExpr e = showpp e 
-
-fuel :: Fuel
-fuel = 1
+    in  strengthenLhs {- (traceShow ("LHS = " ++ showpp (slhs sub) ++ "\nRHS = " ++ showpp (srhs sub) ++ "\n\nStrengthened with\n" ++ showExpr is) is) -}
+                       is sub
 
 instances :: AxiomEnv -> Expr -> Expr 
-instances (AEnv as eqs) e = traceShow ("\n\nAXIOMS = \n\n" ++ show eqs) $ pAnd $ instancesLoop ( (,fuel) <$> as) ( (,fuel) <$> eqs) [e]
+instances (AEnv as eqsAll fuel) e 
+  = traceShow ("FUEL = " ++ show fuel ++ "\t INSTANCES = " ++ show (length is)) $ pAnd $ ((eqBody <$> eqsZero) ++ is)
+  where
+    (eqsZero, eqs) = L.partition (null . eqArgs) eqsAll
+    is             = instancesLoop ( (,fuel) <$> as) ( (,fuel) <$> eqs) [e]
 
 -- Currently: Instantiation happens arbitrary times (in recursive functions it diverges)
 -- Step 1: Hack it so that instantiation of axiom A happens from an occurences and its 
@@ -57,11 +49,10 @@ instancesLoop :: [(Symbol, Fuel)] -> [(Equation, Fuel)] -> [Expr] -> [Expr]
 instancesLoop as eqs es = go [] (concatMap (makeInitOccurences as eqs) es)
   where 
     go :: [Expr] -> [Occurence] -> [Expr]
-    go acc occs = let -- fes   = concatMap (grepOccurences as) es 
-                    is    = traceShow "Instances" $ concatMap (unfold eqs) $ traceShow "Occurences" occs 
-                    newIs = traceShow "NewInstances" $ findNewEqs is acc 
-                in  if null newIs then acc else go ((fst <$> newIs) ++ acc) 
-                                                   (concatMap (grepOccurences eqs) newIs)
+    go acc occs = let is      = concatMap (unfold eqs) occs 
+                      newIs   = findNewEqs is acc 
+                      newOccs = concatMap (grepOccurences eqs) newIs
+                  in  if null newIs then acc else go ((fst <$> newIs) ++ acc) newOccs
 
 
 findNewEqs :: [(Expr, FuelMap)] -> [Expr] -> [(Expr, FuelMap)]
@@ -73,17 +64,21 @@ findNewEqs ((e, f):xss) es
 makeInitOccurences :: [(Symbol, Fuel)] -> [(Equation, Fuel)] -> Expr -> [Occurence]
 makeInitOccurences xs eqs e 
   = [Occ x es xs | (EVar x, es) <- splitEApp <$> eapps e
-                 , (Eq x' xs' _, _) <- eqs, x == x', length xs' == length es]  
+                 , (Eq x' xs' _, _) <- eqs, x == x'
+                 , length xs' == length es]  
 
 grepOccurences :: [(Equation, Fuel)] -> (Expr, FuelMap) -> [Occurence]
 grepOccurences eqs (e, fs) 
   = [Occ x es (makeFuelMap id fs x f) | (EVar x, es) <- splitEApp <$> eapps e
-                                      , (Eq x' xs' _, f) <- eqs, x == x', length xs' == length es]  
+                                      , (Eq x' xs' _, f) <- eqs, x == x'
+                                      , length xs' == length es]  
 
 unfold :: [(Equation, Fuel)] -> Occurence -> [(Expr, FuelMap)]
 unfold eqs (Occ x es fs) 
   = catMaybes [if hasFuel fs x then Just (subst (mkSubst $ zip  xs' es) e, makeFuelMap (\x -> x-1) fs x f) else Nothing 
-              | (Eq x' xs' e, f) <- eqs, x == x', length xs' == length es]  
+              | (Eq x' xs' e, f) <- eqs
+              , x == x'
+              , length xs' == length es]  
 
 hasFuel :: FuelMap -> Symbol -> Bool 
 hasFuel fm x = maybe True (\x -> 0 <= x) (L.lookup x fm)
@@ -100,4 +95,16 @@ data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr], _ofuel :: FuelMap}
 type Fuel = Int 
 
 type FuelMap = [(Symbol, Fuel)]
+
+
+
+{- 
+showExpr :: Expr -> String 
+showExpr (PAnd eqs) 
+  = L.intercalate "\n" (showpp . lhs <$> eqs )
+  where
+    lhs (PAtom F.Eq l _) = l 
+    lhs e                = e 
+showExpr e = showpp e 
+-}
 

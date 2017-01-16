@@ -312,10 +312,13 @@ config = cmdArgsMode $ Config {
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
-  , instantiate
+  , autoInstantiate
     = def
           &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
-          &= name "instantiate"
+          &= name "automatic-instances"
+  , fuel 
+    = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
+        &= name "fuel"
 
  } &= verbosity
    &= program "liquid"
@@ -492,8 +495,12 @@ defConfig = Config { files             = def
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
-                   , instantiate       = def 
+                   , autoInstantiate   = def 
+                   , fuel              = defFuel
                    }
+
+defFuel :: Int 
+defFuel = 2
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------

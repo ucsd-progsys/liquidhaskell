@@ -15,5 +15,6 @@ extra-deps:
 - fgl-visualize-0.1.0.1
 - intern-0.9.1.4
 - located-base-0.1.1.0
+- pretty-1.1.3.4
 compiler-check: newer-minor
 resolver: nightly-2016-05-21

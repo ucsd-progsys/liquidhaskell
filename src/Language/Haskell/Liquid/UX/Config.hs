@@ -94,7 +94,8 @@ data Config = Config {
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
-  , instantiate     :: Instantiate -- ^ How to instantiate axioms
+  , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
+  , fuel            :: Int 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize Instantiate
@@ -105,8 +106,8 @@ data Instantiate = NoInstances | SMTInstances | LiquidInstances
   deriving (Eq, Data, Typeable, Generic)
 
 allowSMTInstationation, allowLiquidInstationation :: Config -> Bool 
-allowSMTInstationation    cfg = instantiate cfg == SMTInstances
-allowLiquidInstationation cfg = instantiate cfg == LiquidInstances
+allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
+allowLiquidInstationation cfg = autoInstantiate cfg == LiquidInstances
 
 instance Default Instantiate where
   def = NoInstances

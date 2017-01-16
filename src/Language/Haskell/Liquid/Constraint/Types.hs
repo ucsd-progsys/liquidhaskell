@@ -126,7 +126,7 @@ instance Show CGEnv where
   show = showpp
 
 
-data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation]}
+data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation], aenvFuel :: Int }
 data Equation = Eq   { eqName :: F.Symbol
                      , eqArgs :: [F.Symbol]
                      , eqBody :: F.Expr
