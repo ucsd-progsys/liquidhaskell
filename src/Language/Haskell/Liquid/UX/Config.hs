@@ -12,15 +12,21 @@ module Language.Haskell.Liquid.UX.Config (
    , hasOpt
    , totalityCheck
    , terminationCheck
+
+   , Instantiate (..)
+   , allowSMTInstationation
+   , allowLiquidInstationation
    ) where
 
 import Prelude hiding (error)
 
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
-import Data.Typeable  (Typeable)
-import Data.Generics  (Data)
+-- import Data.Typeable  (Typeable)
+-- import Data.Generics  (Data)
 import GHC.Generics
+
+import System.Console.CmdArgs
 
 
 totalityCheck :: Config -> Bool
@@ -88,10 +94,28 @@ data Config = Config {
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
+  , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
+  , fuel            :: Int 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
+instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
+
+data Instantiate = NoInstances | SMTInstances | LiquidInstances
+  deriving (Eq, Data, Typeable, Generic)
+
+allowSMTInstationation, allowLiquidInstationation :: Config -> Bool 
+allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
+allowLiquidInstationation cfg = autoInstantiate cfg == LiquidInstances
+
+instance Default Instantiate where
+  def = NoInstances
+
+instance Show Instantiate where
+  show NoInstances     = "none"
+  show SMTInstances    = "SMT"
+  show LiquidInstances = "liquid"  
 
 
 class HasConfig t where

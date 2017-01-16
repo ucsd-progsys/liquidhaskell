@@ -67,6 +67,7 @@ import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
+import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -311,6 +312,14 @@ config = cmdArgsMode $ Config {
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
+  , autoInstantiate
+    = def
+          &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
+          &= name "automatic-instances"
+  , fuel 
+    = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
+        &= name "fuel"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -486,7 +495,12 @@ defConfig = Config { files             = def
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
+                   , autoInstantiate   = def 
+                   , fuel              = defFuel
                    }
+
+defFuel :: Int 
+defFuel = 2
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE EmptyDataDecls    #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -47,6 +48,9 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
+
+  -- * Axiom Instantiation
+  , AxiomEnv(..), Equation(..)
   ) where
 
 import Prelude hiding (error)
@@ -122,6 +126,11 @@ instance Show CGEnv where
   show = showpp
 
 
+data AxiomEnv = AEnv {aenvSyms :: [F.Symbol], aenvEqs :: [Equation], aenvFuel :: Int }
+data Equation = Eq   { eqName :: F.Symbol
+                     , eqArgs :: [F.Symbol]
+                     , eqBody :: F.Expr
+                     } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -198,6 +207,7 @@ data CGInfo = CGInfo {
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
+  , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   }
 
 instance PPrint CGInfo where

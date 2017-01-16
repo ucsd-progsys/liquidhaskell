@@ -226,7 +226,8 @@ proverIgnored = [ "OverviewListInfix.hs"
                  
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
-                , "ApplicativeReader.hs"  -- NOPROP: "" 
+                , "ApplicativeReader.hs"  -- NOPROP: ""
+                , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
                 ]
 
 
