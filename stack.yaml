@@ -17,3 +17,4 @@ extra-deps:
 - located-base-0.1.1.0
 compiler-check: newer-minor
 resolver: nightly-2016-05-21
+pvp-bounds: both
