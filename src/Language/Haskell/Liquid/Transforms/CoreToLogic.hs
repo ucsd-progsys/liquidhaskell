@@ -162,7 +162,8 @@ runToLogicWithBoolBinds xs tce lmap ferror m
                 , boolbinds = xs
                 }
 
-coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
+coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
+          -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
   where
     go args (C.Lam  x e) = go (x:args) e
@@ -173,20 +174,23 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
     go _ _               = throw "Measure Functions should have a case at top level"
 
     goalt args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . E
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . E
         <$> coreToLg e
     goalt _ _ alt
        = throw $ "Bad alternative" ++ showPpr alt
 
     goalt_prop args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . P
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . P
         <$> coreToPd  e
     goalt_prop _ _ alt
       = throw $ "Bad alternative" ++ showPpr alt
 
-    toArgs f args = [(symbol x, f $ ofType $ varType x) | x <- args]
+    toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
     inline_preds = inline (eqType boolTy . varType)
+
+varRType :: (Reftable r) => Var -> Located (RRType r)
+varRType = varLocInfo ofType
 
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
 coreToFun _ v e = go [] $ normalize e

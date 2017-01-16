@@ -305,12 +305,18 @@ realSrcSpanSourcePosE s = newPos file line col
     line                = srcSpanEndLine       s
     col                 = srcSpanEndCol        s
 
-
 getSourcePos :: NamedThing a => a -> SourcePos
-getSourcePos           = srcSpanSourcePos  . getSrcSpan
+getSourcePos = srcSpanSourcePos  . getSrcSpan
 
 getSourcePosE :: NamedThing a => a -> SourcePos
-getSourcePosE          = srcSpanSourcePosE . getSrcSpan
+getSourcePosE = srcSpanSourcePosE . getSrcSpan
+
+varLocInfo :: (Type -> a) -> Var -> F.Located a
+varLocInfo f x = F.Loc l lE i
+  where
+    l          = getSourcePos  x
+    lE         = getSourcePosE x
+    i          = f (varType x)
 
 
 --------------------------------------------------------------------------------

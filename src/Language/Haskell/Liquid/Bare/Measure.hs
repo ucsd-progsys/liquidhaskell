@@ -53,7 +53,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
+import           Language.Haskell.Liquid.GHC.Misc (varLocInfo, dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
@@ -98,10 +98,10 @@ makeMeasureInline tce lmap cbs x = maybe err (chomp x) $ findVarDef (val x) cbs
     ok (xs, e)                   = return (LMap x (varSymbol <$> xs) (either id id e))
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
-                      -> BareM (Measure SpecType DataCon)
+                      -> BareM (Measure LocSpecType DataCon)
 makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ findVarDef (val x) cbs
   where
-    chomp x (v, def)   = Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
+    chomp x (v, def)   = Ms.mkM x (varLocInfo logicType v) <$> coreToDef' x v def
     coreToDef' x v def = case runToLogic tce lmap mkErr (coreToDef x v def) of
                            Right l -> return     l
                            Left e  -> throwError e
@@ -109,6 +109,7 @@ makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ findVarDef (val x) 
     mkErr :: String -> Error
     mkErr str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     err       = throwError $ mkErr "Cannot extract measure from haskell function"
+
 
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
 findVarDef x cbs = case xCbs of

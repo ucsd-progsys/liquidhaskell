@@ -10,11 +10,23 @@ module Language.Haskell.Liquid.Bare.ToBare
   )
   where
 
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Measure
+import           DataCon
+import           Data.Bifunctor
+import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Measure
 
-specToBare :: SpecType -> BareType
-specToBare = error "TODO:specToBare"
+
+dataConToBare :: DataCon -> LocSymbol
+dataConToBare d = Loc l e x
+  where
+    l           = getSourcePos  d
+    e           = getSourcePosE d
+    x           = dropModuleUnique (F.symbol d)
 
 measureToBare :: SpecMeasure -> BareMeasure
-measureToBare = error "TODO:measureToBare"
+measureToBare = bimap (fmap specToBare) dataConToBare
+
+specToBare :: RRType r -> BRType r
+specToBare = error "TODO:specToBare"

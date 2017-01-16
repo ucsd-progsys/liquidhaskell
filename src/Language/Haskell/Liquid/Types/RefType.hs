@@ -39,7 +39,7 @@ module Language.Haskell.Liquid.Types.RefType (
   , quantifyFreeRTy
 
   -- TODO: categorize these!
-  , ofType, toType
+  , ofType, toType, bareOfType
   , bTyVar, rTyVar, rVar, rApp, rEx
   , symbolRTyVar, bareRTyVar
   , addTyConInfo
@@ -354,28 +354,48 @@ instance Hashable RTyCon where
 --------------------------------------------------------------------
 
 rVar :: Monoid r => TyVar -> RType c RTyVar r
-rVar        = (`RVar` mempty) . RTV
+rVar   = (`RVar` mempty) . RTV
 
 rTyVar :: TyVar -> RTyVar
-rTyVar      = RTV
-
+rTyVar = RTV
 
 updateRTVar :: Monoid r => RTVar RTyVar i -> RTVar RTyVar (RType RTyCon RTyVar r)
 updateRTVar (RTVar (RTV a) _) = RTVar (RTV a) (rTVarInfo a)
 
-
-rTVar :: Monoid r => TyVar -> RTVar RTyVar (RType RTyCon RTyVar r)
+rTVar :: Monoid r => TyVar -> RTVar RTyVar (RRType r)
 rTVar a = RTVar (RTV a) (rTVarInfo a)
 
-rTVarInfo :: Monoid r => TyVar -> RTVInfo (RType RTyCon RTyVar r)
-rTVarInfo a = RTVInfo { rtv_name   = symbol $ varName a
-                      , rtv_kind   = kindToRType $ tyVarKind a
-                      , rtv_is_val = isValKind $ tyVarKind a
-                      }
+bTVar :: Monoid r => TyVar -> RTVar BTyVar (BRType r)
+bTVar a = RTVar (BTV (symbol a)) (bTVarInfo a)
 
+bTVarInfo :: Monoid r => TyVar -> RTVInfo (BRType r)
+bTVarInfo = mkTVarInfo kindToBRType
 
-kindToRType :: Monoid r => Type -> RType RTyCon RTyVar r
-kindToRType = ofType . go
+rTVarInfo :: Monoid r => TyVar -> RTVInfo (RRType r)
+rTVarInfo = mkTVarInfo kindToRType
+
+-- REFLECT-IMPORTS rTVarInfo :: Monoid r => TyVar -> RTVInfo (RRType r)
+-- REFLECT-IMPORTS rTVarInfo a = RTVInfo
+-- REFLECT-IMPORTS   { rtv_name   = symbol $ varName a
+-- REFLECT-IMPORTS   , rtv_kind   = kindToRType $ tyVarKind a
+-- REFLECT-IMPORTS   , rtv_is_val = isValKind $ tyVarKind a
+-- REFLECT-IMPORTS   }
+
+mkTVarInfo :: (Kind -> s) -> TyVar -> RTVInfo s
+mkTVarInfo k2t a = RTVInfo
+  { rtv_name   = symbol    $ varName a
+  , rtv_kind   = k2t       $ tyVarKind a
+  , rtv_is_val = isValKind $ tyVarKind a
+  }
+
+kindToRType :: Monoid r => Type -> RRType r
+kindToRType = kindToRType_ ofType
+
+kindToBRType :: Monoid r => Type -> BRType r
+kindToBRType = kindToRType_ bareOfType
+
+kindToRType_ :: (Type -> z) -> Type -> z
+kindToRType_ ofType        = ofType . go
   where
     go t
      | t == typeSymbolKind = stringTy
@@ -411,7 +431,7 @@ rApp :: TyCon
      -> [RTProp RTyCon tv r]
      -> r
      -> RType RTyCon tv r
-rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing))
+rApp c = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing))
 
 --- NV TODO : remove this code!!!
 
@@ -1040,30 +1060,88 @@ subvUReft f (MkUReft r p s) = MkUReft r (subvPredicate f p) s
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+ofType :: Monoid r => Type -> RRType r
+--------------------------------------------------------------------------------
+ofType      = ofType_ $ TyConv
+  { tcFVar  = rVar
+  , tcFTVar = rTVar
+  , tcFApp  = \c ts -> rApp c ts [] mempty
+  , tcFLit  = ofLitType
+  }
 
-ofType :: Monoid r => Type -> RType RTyCon RTyVar r
-ofType = ofType_ . expandTypeSynonyms
+--------------------------------------------------------------------------------
+bareOfType :: Monoid r => Type -> BRType r
+--------------------------------------------------------------------------------
+bareOfType  = ofType_ $ TyConv
+  { tcFVar  = (`RVar` mempty) . BTV . symbol
+  , tcFTVar = bTVar
+  , tcFApp  = error "TODO:HEREHEREHERE" -- undefined -- \c ts -> rApp c ts [] mempty
+  , tcFLit  = error "TODO:HEREHEREHERE" -- undefined -- ofLitType
+  }
 
-ofType_ :: Monoid r => Type -> RType RTyCon RTyVar r
-ofType_ (TyVarTy α)
-  = rVar α
-ofType_ (FunTy τ τ')
-  = rFun dummySymbol (ofType_ τ) (ofType_ τ')
-ofType_ (ForAllTy α τ)
-  = RAllT (rTVar α) $ ofType_ τ
-ofType_ (TyConApp c τs)
-  | Just (αs, τ) <- TC.synTyConDefn_maybe c
-  = ofType_ $ substTyWith αs τs τ
-  | otherwise
-  = rApp c (ofType_ <$> τs) [] mempty
-ofType_ (AppTy t1 t2)
-  = RAppTy (ofType_ t1) (ofType t2) mempty
-ofType_ (LitTy x)
-  = fromTyLit x
+--------------------------------------------------------------------------------
+ofType_ :: Monoid r => TyConv c tv r -> Type -> RType c tv r
+--------------------------------------------------------------------------------
+ofType_ tx = go . expandTypeSynonyms
   where
-    fromTyLit (NumTyLit _) = rApp intTyCon [] [] mempty
-    fromTyLit (StrTyLit _) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
+    go (TyVarTy α)
+      = tcFVar tx α
+    go (FunTy τ τ')
+      = rFun dummySymbol (go τ) (go τ')
+    go (ForAllTy α τ)
+      = RAllT (tcFTVar tx α) $ go τ
+    go (TyConApp c τs)
+      | Just (αs, τ) <- TC.synTyConDefn_maybe c
+      = go (substTyWith αs τs τ)
+      | otherwise
+      = tcFApp tx c (go <$> τs) -- [] mempty
+    go (AppTy t1 t2)
+      = RAppTy (go t1) (ofType_ tx t2) mempty
+    go (LitTy x)
+      = tcFLit tx x
+
+{- REFLECT-IMPORTS
+ofType = go . expandTypeSynonyms
+  where
+    go :: Monoid r => Type -> RRType r
+    go (TyVarTy α)
+      = rVar α
+    go (FunTy τ τ')
+      = rFun dummySymbol (go τ) (go τ')
+    go (ForAllTy α τ)
+      = RAllT (rTVar α) $ go τ
+    go (TyConApp c τs)
+      | Just (αs, τ) <- TC.synTyConDefn_maybe c
+      = go $ substTyWith αs τs τ
+      | otherwise
+      = rApp c (go <$> τs) [] mempty
+    go (AppTy t1 t2)
+      = RAppTy (go t1) (ofType t2) mempty
+    go (LitTy x)
+      = ofLitType x
+-}
+
+ofLitType :: Monoid r => TyLit -> RRType r
+ofLitType (NumTyLit _) = rApp intTyCon [] [] mempty
+ofLitType (StrTyLit _) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
+
+
+data TyConv c tv r = TyConv
+  { tcFVar  :: TyVar -> RType c tv r
+  , tcFTVar :: TyVar -> RTVar tv (RType c tv ())
+  , tcFApp  :: TyCon -> [RType c tv r] -> RType c tv r
+  , tcFLit  :: TyLit -> RType c tv r
+  }
+
+
+{-
+fVar
+fTVar
+fApp
+fLit
+-}
+
 
 --------------------------------------------------------------------------------
 -- | Converting to Fixpoint ----------------------------------------------------

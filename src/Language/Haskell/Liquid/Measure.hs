@@ -51,7 +51,7 @@ import           Language.Haskell.Liquid.UX.Tidy
 type LocBareType   = Located BareType
 type BareSpec      = Spec    LocBareType LocSymbol
 type BareMeasure   = Measure LocBareType LocSymbol
-type SpecMeasure   = Measure SpecType    DataCon
+type SpecMeasure   = Measure LocSpecType DataCon
 
 instance B.Binary BareSpec
 

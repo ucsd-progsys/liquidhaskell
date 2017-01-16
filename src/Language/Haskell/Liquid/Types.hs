@@ -225,7 +225,6 @@ import           TysPrim                                (eqPrimTyCon)
 import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
 import           Var
 
-
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
 import           Control.DeepSeq
 import           Data.Bifunctor
