@@ -154,7 +154,7 @@ mkTest code dir file
           renameFile log $ log <.> (if code == c then "pass" else "fail")
           if c == ExitFailure 137
             then printf "WARNING: possible OOM while testing %s: IGNORING" test
-            else assertEqual ("Wrong exit code on" ++ cmd) code c
+            else assertEqual "Wrong exit code" code c
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
@@ -226,7 +226,8 @@ proverIgnored = [ "OverviewListInfix.hs"
                  
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
-                , "ApplicativeReader.hs"  -- NOPROP: "" 
+                , "ApplicativeReader.hs"  -- NOPROP: ""
+                , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
                 ]
 
 

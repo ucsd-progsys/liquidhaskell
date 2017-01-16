@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Constraint.Instantiate (
   ) where
 
 
-import           Language.Fixpoint.Misc            
+-- import           Language.Fixpoint.Misc            
 import           Language.Fixpoint.Types hiding (Eq)
 -- import qualified Language.Fixpoint.Types as F        
 import           Language.Fixpoint.Types.Visitor (eapps)            
@@ -34,7 +34,8 @@ instantiateAxioms bds aenv sub
 
 instances :: AxiomEnv -> Expr -> Expr 
 instances (AEnv as eqsAll fuel) e 
-  = traceShow ("FUEL = " ++ show fuel ++ "\t INSTANCES = " ++ show (length is)) $ pAnd $ ((eqBody <$> eqsZero) ++ is)
+  = -- traceShow ("FUEL = " ++ show fuel ++"\nExpr = " ++ showpp e ++  "\n INSTANCES = " ++ show (length is) ++ "\n\nINSTANCES = \n\n" ++ showpp is) $ 
+    pAnd $ ((eqBody <$> eqsZero) ++ is)
   where
     (eqsZero, eqs) = L.partition (null . eqArgs) eqsAll
     is             = instancesLoop ( (,fuel) <$> as) ( (,fuel) <$> eqs) [e]
