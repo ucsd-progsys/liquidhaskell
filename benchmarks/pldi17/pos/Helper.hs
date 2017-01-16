@@ -17,7 +17,7 @@ module Helper (
   , lambda_expand, beta_application
   ) where
 
-import Proves
+import Language.Haskell.Liquid.ProofCombinators
 
 
 
