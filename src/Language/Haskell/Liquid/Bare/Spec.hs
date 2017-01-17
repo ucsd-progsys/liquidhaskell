@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHints
   , makeLVar
   , makeLazy
+  , makeAutoInsts
   , makeDefs
   , makeHMeas, makeHInlines
   , makeTExpr
@@ -110,6 +111,12 @@ makeLazy :: [Var]
          -> Ms.Spec ty bndr
          -> BareM [Var]
 makeLazy    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- S.toList $ Ms.lazy spec]
+
+makeAutoInsts :: [Var]
+              -> Ms.Spec ty bndr
+              -> BareM [(Var, Maybe Int)]
+makeAutoInsts vs spec = varSymbols id vs (M.toList $ Ms.autois spec)
+
 
 makeDefs :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, F.Symbol)]
 makeDefs vs spec = varSymbols id vs (M.toList $ Ms.defs spec)

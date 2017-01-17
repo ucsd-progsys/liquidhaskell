@@ -2,7 +2,7 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--automatic-instances=liquidinstancesglobal" @-}
 
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE FlexibleContexts    #-}

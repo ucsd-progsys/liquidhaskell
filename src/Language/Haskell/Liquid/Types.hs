@@ -343,9 +343,10 @@ data GhcSpec = SP {
   , gsTexprs     :: ![(Var, [Located Expr])]     -- ^ Lexicographically ordered expressions for termination
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
-  , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
-  , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
-  , gsConfig     :: !Config                        -- ^ Configuration Options
+  , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
+  , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
+  , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
+  , gsConfig     :: !Config                      -- ^ Configuration Options
   , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
@@ -1619,6 +1620,7 @@ instance NFData a => NFData (TError a)
 
 data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
+                   , ci_var :: !(Maybe Var)
                    }
                 deriving (Eq, Ord, Generic)
 

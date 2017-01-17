@@ -30,7 +30,7 @@ import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
 
-import           Language.Haskell.Liquid.UX.Config (terminationCheck)
+import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -197,6 +197,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , aenv     = axiom_map $ gsLogicMap sp
   , cerr     = Nothing
   , cgInfo   = info
+  , cgVar    = Nothing
   }
   where
       tce         = gsTcEmbeds sp
@@ -294,8 +295,19 @@ makeAxiomEnvironment info xts
   = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
          ([ Eq x xs (F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e) | AxiomEq x xs e _ <- gsAxioms (spec info) ]
          ++ (specTypToEq  <$> xts) )
-         (fuel $ getConfig info)
+         (\sub -> fromMaybe (fuel cfg) (fuelNumber sub))
+         doExpand
+         (debugInstantionation cfg)
   where
+    doExpand sub = allowLiquidInstationationGlobal cfg
+                || (allowLiquidInstationationLocal cfg 
+                   && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))
+
+    cfg = getConfig info 
+
+    fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp} 
+
+
     specTypToEq (x, t) 
       = Eq (F.symbol x) (ty_binds trep) 
             (mkExpr $ F.toReft $ fromMaybe mempty (stripRTypeBase $ ty_res trep))

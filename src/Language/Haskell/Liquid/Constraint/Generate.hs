@@ -293,9 +293,13 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
        -- remove invariants that came from the cb definition
        let (γ', i) = removeInvariant γ cb                 --- DIFF
-       γ'' <- consCB (oldtcheck && isStr) isStr γ' cb
+       γ'' <- consCB (oldtcheck && isStr) isStr (γ'{cgVar = topBind cb}) cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
+    where
+      topBind (NonRec v _)  = Just v 
+      topBind (Rec [(v,_)]) = Just v 
+      topBind _             = Nothing 
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
