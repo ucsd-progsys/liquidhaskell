@@ -36,6 +36,11 @@ need to pull
 3. `makeHaskellBounds`
 
 HEREHEREHEREHEREHERE `CHOP2`
+--> 
+
+1. harden code so missing .bspec does not crash things.
+2. why is measure stuff not working... sigh. `stack exec -- liquid tests/todo/ReflectLib1.hs`
+
 
 1. rewrite `makeMeasureDefinition` (and makeHaskellMeasures) so it returns a
    `Measure (Located BareType) LocSymbol` (or whatever is in BareSpec in
