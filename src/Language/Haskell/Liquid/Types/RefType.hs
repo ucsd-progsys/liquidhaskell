@@ -113,7 +113,7 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg)
 
 import Data.List (sort, foldl')
@@ -432,6 +432,7 @@ rApp :: TyCon
      -> r
      -> RType RTyCon tv r
 rApp c = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing))
+
 
 --- NV TODO : remove this code!!!
 
@@ -1076,9 +1077,12 @@ bareOfType :: Monoid r => Type -> BRType r
 bareOfType  = ofType_ $ TyConv
   { tcFVar  = (`RVar` mempty) . BTV . symbol
   , tcFTVar = bTVar
-  , tcFApp  = error "TODO:HEREHEREHERE" -- undefined -- \c ts -> rApp c ts [] mempty
-  , tcFLit  = error "TODO:HEREHEREHERE" -- undefined -- ofLitType
+  , tcFApp  = \c ts -> RApp (tyConBTyCon c) ts [] mempty
+  , tcFLit  = undefined -- error "TODO:HEREHEREHERE" -- undefined -- ofLitType
   }
+
+tyConBTyCon :: TyCon -> BTyCon
+tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
 
 --------------------------------------------------------------------------------
 ofType_ :: Monoid r => TyConv c tv r -> Type -> RType c tv r
@@ -1325,12 +1329,12 @@ typeSortForAll tce τ
         sas                 = tyVarUniqueSymbol <$> as
         n                   = length as
 
+-- RJ: why not make this the Symbolic instance?
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = let x = symbol c -- . getOccString $ c
-                        in x
+  | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
 typeSortFun tce t -- τ1 τ2

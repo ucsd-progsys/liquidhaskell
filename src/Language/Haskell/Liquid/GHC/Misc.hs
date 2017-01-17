@@ -311,12 +311,20 @@ getSourcePos = srcSpanSourcePos  . getSrcSpan
 getSourcePosE :: NamedThing a => a -> SourcePos
 getSourcePosE = srcSpanSourcePosE . getSrcSpan
 
-varLocInfo :: (Type -> a) -> Var -> F.Located a
-varLocInfo f x = F.Loc l lE i
+locNamedThing :: NamedThing a => a -> F.Located a
+locNamedThing x = F.Loc l lE x
   where
     l          = getSourcePos  x
     lE         = getSourcePosE x
-    i          = f (varType x)
+
+varLocInfo :: (Type -> a) -> Var -> F.Located a
+varLocInfo f x = f . varType <$> locNamedThing x
+
+-- varLocInfo f x = F.Loc l lE i
+  -- where
+    -- l          = getSourcePos  x
+    -- lE         = getSourcePosE x
+    -- i          = f (varType x)
 
 
 --------------------------------------------------------------------------------
