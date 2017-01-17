@@ -105,16 +105,16 @@ instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
-data Instantiate = NoInstances | SMTInstances | LiquidInstancesGlobal | LiquidInstancesLocal
+data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
 allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool 
 allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
 
-allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstancesGlobal
+allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
                               || autoInstantiate cfg == LiquidInstancesLocal 
 
-allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstancesGlobal
+allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
 
@@ -126,7 +126,7 @@ instance Show Instantiate where
   show NoInstances           = "none"
   show SMTInstances          = "SMT"
   show LiquidInstancesLocal  = "liquid-local"  
-  show LiquidInstancesGlobal = "liquid-global"  
+  show LiquidInstances       = "liquid-global"  
 
 
 class HasConfig t where

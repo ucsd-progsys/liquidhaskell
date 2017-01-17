@@ -129,16 +129,18 @@ hasFuel :: FuelMap -> Symbol -> Bool
 hasFuel fm x = maybe True (\x -> 0 < x) (L.lookup x fm)
 
 
-makeFuelMap, makeFuelMap' :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
+makeFuelMap :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
 
-makeFuelMap f fm x = let fm' = makeFuelMap' f fm x in  
+{- 
+makeFuelMap' :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
+makeFuelMap' f fm x = let fm' = makeFuelMap f fm x in  
                       -- T.trace ("New fuel map for " ++ show x ++ "\n OLD = " ++ show (snd <$> fm) ++ "\n NEW = " ++ show (snd <$> fm')) 
                       fm'
-
-makeFuelMap' f ((x, fx):fs) y  
+-}
+makeFuelMap f ((x, fx):fs) y  
   | x == y    = (x, f fx) : fs
-  | otherwise = (x, fx)   : makeFuelMap' f fs y
-makeFuelMap' _ _ _ = error "makeFuelMap"
+  | otherwise = (x, fx)   : makeFuelMap f fs y
+makeFuelMap _ _ _ = error "makeFuelMap"
 
 data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr], ofuel :: FuelMap}
  deriving (Show)
