@@ -37,13 +37,7 @@ lemma_fib x
   | x == 2
   = trivial 
   | 2 < x 
-  = lemma_fib (x-1) &&& fibNat (x-2)
-
-{-@ fibNat :: i:Nat -> {0 <= fib i } @-} 
-fibNat :: Int -> Proof 
-fibNat 0 = trivial
-fibNat 1 = trivial
-fibNat i = fibNat (i-1) &&& fibNat (i-2)
+  = lemma_fib (x-1) 
 
 {-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> { fib x <= fib y } / [x, y] @-} 
 fib_increasing :: Int -> Int -> Proof 
@@ -55,6 +49,6 @@ fib_increasing x y
   | x == 1, y == 2
   = trivial                  
   | x == 1, 2 < y
-  = fib_increasing 1 (y-1) &&& fibNat (y-2)
+  = fib_increasing 1 (y-1)
   | otherwise
-  = fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1) &&& fibNat (x-2) &&& fibNat (y-2)
+  = fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1) 

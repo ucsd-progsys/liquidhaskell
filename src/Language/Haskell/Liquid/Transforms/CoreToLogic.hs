@@ -16,7 +16,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
   strengthenResult,
   strengthenResult',
 
-  normalize
+  normalize,
+
+  simplesymbol
 
   ) where
 

@@ -315,6 +315,3 @@ ufType τ = fromRTypeRep $ t{ty_args = args, ty_binds = xs, ty_refts = rs}
     t          = toRTypeRep $ ofType τ
     (args, xs, rs) = unzip3 $ dropWhile (isClassType . fst3) $ zip3 (ty_args t) (ty_binds t) (ty_refts t)
 
-
-simplesymbol :: CoreBndr -> Symbol
-simplesymbol = symbol . getName

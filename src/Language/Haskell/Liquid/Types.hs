@@ -1219,6 +1219,11 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
 
   ofReft r = MkUReft (ofReft r) mempty mempty
 
+instance Expression (UReft ()) where
+  expr = expr . toReft 
+
+
+
 isTauto_ureft :: Reftable r => UReft r -> Bool
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
 

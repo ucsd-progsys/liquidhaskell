@@ -126,7 +126,7 @@ append_apply :: Substitution -> Substitution -> Term -> Proof
 append_apply Emp θ2 t
   = trivial
 append_apply (C su θ) θ2 t
-  = append_apply θ θ2 t &&&  append_len θ θ2
+  = append_apply θ θ2 t --  &&&  append_len θ θ2
 
 {-@ automatic-instances append_len  @-}
 
@@ -212,7 +212,7 @@ mysnd (P _ x) = x
 
 -- | List Helpers
 {-@ axiomatize append @-}
-{-@ append :: L a -> L a -> L a @-}
+{-@ append :: xs:L a -> ys:L a -> {v:L a | llen v == llen xs + llen ys } @-}
 append :: L a -> L a -> L a
 append xs ys
   | llen xs == 0 = ys
