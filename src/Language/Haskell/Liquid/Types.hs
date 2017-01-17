@@ -85,7 +85,8 @@ module Language.Haskell.Liquid.Types (
   , TyConP (..)
 
   -- * Pre-instantiated RType
-  , RRType, BRType, RRProp
+  , RRType, RRProp
+  , BRType, BRProp
   , BSort, BPVar
 
   -- * Instantiated RType
@@ -844,6 +845,7 @@ type BareType    = BRType    RReft
 type SpecType    = RRType    RReft
 type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
+type BRProp r    = Ref       BSort (BRType r)
 
 type LocSpecType = Located SpecType
 

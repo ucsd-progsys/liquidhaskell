@@ -12,6 +12,7 @@
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE ConstraintKinds           #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -431,8 +432,17 @@ rApp :: TyCon
      -> [RTProp RTyCon tv r]
      -> r
      -> RType RTyCon tv r
-rApp c = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing))
+rApp c = RApp (tyConRTyCon c)
 
+tyConRTyCon :: TyCon -> RTyCon
+tyConRTyCon c = RTyCon c [] (mkTyConInfo c [] [] Nothing)
+
+-- bApp :: (Monoid r) => TyCon -> [BRType r] -> BRType r
+bApp :: TyCon -> [BRType r] -> [BRProp r] -> r -> BRType r
+bApp c = RApp (tyConBTyCon c)
+
+tyConBTyCon :: TyCon -> BTyCon
+tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
 
 --- NV TODO : remove this code!!!
 
@@ -1068,7 +1078,7 @@ ofType      = ofType_ $ TyConv
   { tcFVar  = rVar
   , tcFTVar = rTVar
   , tcFApp  = \c ts -> rApp c ts [] mempty
-  , tcFLit  = ofLitType
+  , tcFLit  = ofLitType rApp
   }
 
 --------------------------------------------------------------------------------
@@ -1077,12 +1087,9 @@ bareOfType :: Monoid r => Type -> BRType r
 bareOfType  = ofType_ $ TyConv
   { tcFVar  = (`RVar` mempty) . BTV . symbol
   , tcFTVar = bTVar
-  , tcFApp  = \c ts -> RApp (tyConBTyCon c) ts [] mempty
-  , tcFLit  = undefined -- error "TODO:HEREHEREHERE" -- undefined -- ofLitType
+  , tcFApp  = \c ts -> bApp c ts [] mempty
+  , tcFLit  = ofLitType bApp
   }
-
-tyConBTyCon :: TyCon -> BTyCon
-tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
 
 --------------------------------------------------------------------------------
 ofType_ :: Monoid r => TyConv c tv r -> Type -> RType c tv r
@@ -1124,12 +1131,16 @@ ofType = go . expandTypeSynonyms
       = RAppTy (go t1) (ofType t2) mempty
     go (LitTy x)
       = ofLitType x
--}
 
 ofLitType :: Monoid r => TyLit -> RRType r
 ofLitType (NumTyLit _) = rApp intTyCon [] [] mempty
 ofLitType (StrTyLit _) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
 
+-}
+
+ofLitType :: (Monoid r) => (TyCon -> [t] -> [p] -> r -> t) -> TyLit -> t
+ofLitType rF (NumTyLit _) = rF intTyCon [] [] mempty
+ofLitType rF (StrTyLit _) = rF listTyCon [rF charTyCon [] [] mempty] [] mempty
 
 data TyConv c tv r = TyConv
   { tcFVar  :: TyVar -> RType c tv r
@@ -1137,15 +1148,6 @@ data TyConv c tv r = TyConv
   , tcFApp  :: TyCon -> [RType c tv r] -> RType c tv r
   , tcFLit  :: TyLit -> RType c tv r
   }
-
-
-{-
-fVar
-fTVar
-fApp
-fLit
--}
-
 
 --------------------------------------------------------------------------------
 -- | Converting to Fixpoint ----------------------------------------------------
@@ -1201,8 +1203,11 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
+
+type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r)
+
 -- TODO: remove toType, generalize typeSort
-toType  :: (Reftable r, PPrint r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> Type
+toType  :: (ToTypeable r) => RRType r -> Type
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
 toType (RAllT a t) | RTV α <- ty_var_value a

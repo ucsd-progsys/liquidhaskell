@@ -16,17 +16,16 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Measure
+import           Language.Haskell.Liquid.Types.RefType
 
 
-dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = Loc l e x
-  where
-    l           = getSourcePos  d
-    e           = getSourcePosE d
-    x           = dropModuleUnique (F.symbol d)
-
+--------------------------------------------------------------------------------
 measureToBare :: SpecMeasure -> BareMeasure
+--------------------------------------------------------------------------------
 measureToBare = bimap (fmap specToBare) dataConToBare
 
-specToBare :: RRType r -> BRType r
-specToBare = error "TODO:specToBare"
+dataConToBare :: DataCon -> LocSymbol
+dataConToBare d = dropModuleUnique . F.symbol <$> locNamedThing d
+
+specToBare :: SpecType -> BareType
+specToBare = bareOfType . toType
