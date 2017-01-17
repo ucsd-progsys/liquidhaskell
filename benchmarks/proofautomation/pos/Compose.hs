@@ -4,7 +4,6 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-
 module Compose where
 
 import Prelude hiding (map)
