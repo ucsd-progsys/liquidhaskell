@@ -64,6 +64,7 @@ data Spec ty bndr  = Spec
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
   , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
+  , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms 
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
@@ -148,6 +149,7 @@ instance Monoid (Spec ty bndr) where
            , decr       =           decr s1       ++ decr s2
            , lvars      =           lvars s1      ++ lvars s2
            , lazy       = S.union   (lazy s1)        (lazy s2)
+           , autois     = M.union   (autois s1)      (autois s2)
            , axioms     = S.union   (axioms s1)      (axioms s2)
            , reflects   = S.union   (reflects s1)    (reflects s2)
            , hmeas      = S.union   (hmeas s1)       (hmeas s2)
@@ -183,6 +185,7 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = []
            , lazy       = S.empty
+           , autois     = M.empty
            , hmeas      = S.empty
            , axioms     = S.empty
            , reflects   = S.empty

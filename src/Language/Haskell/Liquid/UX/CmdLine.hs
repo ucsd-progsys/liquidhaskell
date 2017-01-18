@@ -320,6 +320,9 @@ config = cmdArgsMode $ Config {
     = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
         &= name "fuel"
 
+  , debugInstantionation 
+    = False &= help "Debug Progress in liquid instantiation"
+        &= name "debug-instantiation"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -497,6 +500,7 @@ defConfig = Config { files             = def
                    , nonLinCuts        = True
                    , autoInstantiate   = def 
                    , fuel              = defFuel
+                   , debugInstantionation = False 
                    }
 
 defFuel :: Int 

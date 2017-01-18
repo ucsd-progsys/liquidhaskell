@@ -71,8 +71,8 @@ errorToUserError = fmap ppSpecTypeErr
 
 -- TODO: move to Types.hs
 cinfoError :: Cinfo -> Error
-cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
+cinfoError (Ci _ (Just e) _) = e
+cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool

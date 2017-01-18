@@ -23,6 +23,10 @@ module Language.Haskell.Liquid.ProofCombinators (
 
   , byTheorem, castWithTheorem, cast 
 
+  -- Function Equality 
+  , Arg
+
+  , (=*=.)
   ) where
 
 
@@ -233,4 +237,22 @@ cast _ x = x
 byTheorem :: a -> Proof -> a
 byTheorem a _ = a
 
+-- | Function Equality 
 
+{- TO REFINE 
+class FunEq a b r where
+  (=*=.) :: (a -> b) -> (a -> b) -> r
+
+instance (c~(a -> b)) => FunEq a b ((a -> Proof) -> c) where
+  {-@ instance FunEq a b ((a -> Proof) -> a -> b) where
+   =*=. :: f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:_ | f == g && v ~~ f && v ~~ g}
+   @-} 
+   f =*=. g = undefined  
+-}
+
+class Arg a where 
+
+
+{-@ assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
+(=*=.) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
+(=*=.) f _ _ = f

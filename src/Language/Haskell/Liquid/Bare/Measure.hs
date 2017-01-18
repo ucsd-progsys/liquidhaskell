@@ -19,7 +19,6 @@ import CoreSyn
 import DataCon
 import TyCon
 import Id
-import Name
 import Type hiding (isFunTy)
 import qualified Type 
 import Var
@@ -128,9 +127,6 @@ makeMeasureDefinition tce lmap cbs x
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
-simplesymbol :: CoreBndr -> Symbol
-simplesymbol = symbol . getName
 
 strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult

@@ -11,7 +11,7 @@ fuel 3 for fib up to 8
 -}
 
 
-{-@ LIQUID "--fuel=3" @-}
+{-@ LIQUID "--fuel=4" @-}
 
 import Language.Haskell.Liquid.ProofCombinators 
 

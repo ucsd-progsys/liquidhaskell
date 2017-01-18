@@ -16,6 +16,8 @@ module Language.Haskell.Liquid.UX.Config (
    , Instantiate (..)
    , allowSMTInstationation
    , allowLiquidInstationation
+   , allowLiquidInstationationGlobal
+   , allowLiquidInstationationLocal
    ) where
 
 import Prelude hiding (error)
@@ -95,27 +97,36 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , fuel            :: Int 
+  , fuel            :: Int         -- ^ Fuel for axiom instantiation 
+  , debugInstantionation :: Bool   -- ^ Debug Instantiation  
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
-data Instantiate = NoInstances | SMTInstances | LiquidInstances
+data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-allowSMTInstationation, allowLiquidInstationation :: Config -> Bool 
+allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool 
 allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
-allowLiquidInstationation cfg = autoInstantiate cfg == LiquidInstances
+
+allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
+                              || autoInstantiate cfg == LiquidInstancesLocal 
+
+allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
+allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
+
+
 
 instance Default Instantiate where
   def = NoInstances
 
 instance Show Instantiate where
-  show NoInstances     = "none"
-  show SMTInstances    = "SMT"
-  show LiquidInstances = "liquid"  
+  show NoInstances           = "none"
+  show SMTInstances          = "SMT"
+  show LiquidInstancesLocal  = "liquid-local"  
+  show LiquidInstances       = "liquid-global"  
 
 
 class HasConfig t where
