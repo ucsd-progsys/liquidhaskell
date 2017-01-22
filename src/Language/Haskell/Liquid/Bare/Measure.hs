@@ -51,7 +51,7 @@ import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
 
-import           Language.Haskell.Liquid.Transforms.CoreToLogic
+import           Language.Haskell.Liquid.Transforms.CoreToLogic 
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.GHC.Misc (varLocInfo, dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
@@ -110,38 +110,14 @@ makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ findVarDef (val x) 
     mkErr str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     err       = throwError $ mkErr "Cannot extract measure from haskell function"
 
-
-findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
-findVarDef x cbs = case xCbs of
-                     (NonRec v def   : _ ) -> Just (v, def)
-                     (Rec [(v, def)] : _ ) -> Just (v, def)
-                     _                     -> Nothing
-  where
-    xCbs         = [ cb | cb <- cbs, x `elem` coreBindSymbols cb ]
-
-  -- case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    -- (NonRec v def:_)   -> (x, ) <$> coreToFun' tce lmap x v def ok
-    -- (Rec [(v, def)]:_) -> (x, ) <$> coreToFun' tce lmap x v def ok
-    -- _                  -> throwError $ errHMeas x "Cannot inline haskell function"
-  -- where
-
 varSymbol :: Var -> Symbol
 varSymbol v
   | Type.isFunTy (varType v) = simplesymbol v
   | otherwise                = symbol v
 
-binders :: CoreBind -> [Id]
-binders (NonRec z _) = [z]
-binders (Rec xes)    = fst <$> xes
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-
-coreBindSymbols :: CoreBind -> [Symbol]
-coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
-
-simplesymbol :: CoreBndr -> Symbol
-simplesymbol = symbol . getName
 
 strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult

@@ -54,7 +54,7 @@ makeAxiom tce lmap cbs spec _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
         (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
         (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
-        [Rec xes]          -> throwError $ mkError x 
+        [Rec xes]          -> throwError $ mkError x
                                 ("Cannot extract measure from mutually recursive haskell functions" ++ (show (fst <$> xes)))
         _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
@@ -130,7 +130,7 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
 
     xss = [(mkSymbol x t, rTypeSort tce t) | (x, t) <- zip xs (ty_args (toRTypeRep at)), not (isClassType t)]
 
-    mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x 
+    mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x
 
 
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
@@ -172,7 +172,7 @@ updateLMap _ x y vv
 
 makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
-  = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
+  = do foldM_ (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
     t   = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
@@ -189,7 +189,6 @@ makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
     -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
-
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
 

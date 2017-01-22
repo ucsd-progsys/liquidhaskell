@@ -164,6 +164,8 @@ makeLiftedSpec file name embs cbs mySpec = do
   ms    <- makeHaskellMeasures embs cbs mySpec
   let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                      , Ms.measures = ms
+                 --  , Ms.axioms   =
+                 --  , Ms.reflects =
                      }
   liftIO $ saveLiftedSpec file name lSpec
   return lSpec
@@ -268,10 +270,10 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
 makeGhcAxioms :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> GhcSpec -> BareM GhcSpec
 makeGhcAxioms tce cbs sp spec = do
   lmap             <- logicEnv <$> get
-  (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
+  (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom_NEEDS_TO_BE_LIFTED tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
   (msR, tysR, asR, _   ) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.reflects sp)
   lmap'            <- logicEnv <$> get
-  return $ spec { gsMeas     = tracepp "makeGhcAxioms" $ msA ++ msR ++ gsMeas     spec
+  return $ spec { gsMeas     =         msA ++ msR         ++ gsMeas     spec
                 , gsAsmSigs  = concat tysA ++ concat tysR ++ gsAsmSigs  spec
                 , gsReflects = concat asA  ++ concat asR  ++ gsReflects spec
                 , gsAxioms   = smtA ++ gsAxioms spec

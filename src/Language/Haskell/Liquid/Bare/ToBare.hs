@@ -18,14 +18,13 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Measure
 import           Language.Haskell.Liquid.Types.RefType
 
-
 --------------------------------------------------------------------------------
 measureToBare :: SpecMeasure -> BareMeasure
 --------------------------------------------------------------------------------
 measureToBare = bimap (fmap specToBare) dataConToBare
 
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = F.tracepp "dataConToBare" $ dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
+dataConToBare d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
 
 specToBare :: SpecType -> BareType
 specToBare = bareOfType . toType

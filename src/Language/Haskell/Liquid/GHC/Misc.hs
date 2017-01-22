@@ -644,3 +644,22 @@ showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
   | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
+
+
+findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+findVarDef x cbs = case xCbs of
+                     (NonRec v def   : _ ) -> Just (v, def)
+                     (Rec [(v, def)] : _ ) -> Just (v, def)
+                     _                     -> Nothing
+  where
+    xCbs         = [ cb | cb <- cbs, x `elem` coreBindSymbols cb ]
+
+coreBindSymbols :: CoreBind -> [Symbol]
+coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
+
+simplesymbol :: CoreBndr -> Symbol
+simplesymbol = symbol . getName
+
+binders :: CoreBind -> [Id]
+binders (NonRec z _) = [z]
+binders (Rec xes)    = fst <$> xes
