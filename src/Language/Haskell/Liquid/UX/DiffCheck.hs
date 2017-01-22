@@ -51,7 +51,7 @@ import           Language.Fixpoint.Types                (PPrint (..), FixResult 
 -- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
 import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
-import           Language.Haskell.Liquid.Misc           (mkGraph)
+import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.UX.Errors      ()
@@ -538,10 +538,3 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
-
---------------------------------------------------------------------------------
--- | Helper functions ----------------------------------------------------------
---------------------------------------------------------------------------------
-
-ifM :: (Monad m) => m Bool -> m b -> m b -> m b
-ifM b x y = b >>= \z -> if z then x else y

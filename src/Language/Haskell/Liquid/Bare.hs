@@ -48,13 +48,14 @@ import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
+import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
--- import           Language.Haskell.Liquid.Misc               (concatMapM)
+-- import           Language.Haskell.Liquid.Misc               (ifM)
 import           Language.Haskell.Liquid.GHC.Misc           (dropModuleUnique, dropModuleNames, showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
@@ -132,7 +133,7 @@ postProcess cbs specEnv sp@(SP {..})
     (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
     (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
     (insigs, ts)      = replaceLocBinds gsInSigs  ts''
-    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
+    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv (tracepp "SPECENV" specEnv) cbs
     txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
     addTCI            = (addTCI' <$>)
     addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
@@ -177,8 +178,9 @@ saveLiftedSpec srcF _ lspec = do
 
 loadLiftedSpec :: FilePath -> IO Ms.BareSpec
 loadLiftedSpec srcF = do
-  putStrLn $ "Loading Binary Lifted Spec: " ++ specF
-  B.decodeFile specF
+  ex <- doesFileExist specF
+  putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
+  if ex then B.decodeFile specF else return mempty
   where
     specF = extFileName BinSpec srcF
 
@@ -193,6 +195,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs = do
   let mySpec     = fromMaybe mempty (lookup name specs)
   embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
   lfSpec        <- makeLiftedSpec file name embs cbs mySpec
+  let fullSpec   = mySpec `mappend` lfSpec
   lmap          <- logic_map . logicEnv    <$> get
   makeRTEnv name lfSpec specs lmap
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
@@ -209,7 +212,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs = do
     >>= makeGhcSpec2 invs ntys ialias measures su
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
-    >>= makeGhcAxioms embs cbs mySpec -- name specs
+    >>= makeGhcAxioms embs cbs fullSpec -- name specs
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeGhcAxioms
     >>= makeGhcSpec4 quals defVars specs name su
@@ -260,7 +263,7 @@ makeGhcAxioms tce cbs sp spec = do
   (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
   (msR, tysR, asR, _   ) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.reflects sp)
   lmap'            <- logicEnv <$> get
-  return $ spec { gsMeas     = msA ++ msR ++ gsMeas     spec
+  return $ spec { gsMeas     = tracepp "makeGhcAxioms" $ msA ++ msR ++ gsMeas     spec
                 , gsAsmSigs  = concat tysA ++ concat tysR ++ gsAsmSigs  spec
                 , gsReflects = concat asA  ++ concat asR  ++ gsReflects spec
                 , gsAxioms   = smtA ++ gsAxioms spec
@@ -526,6 +529,7 @@ makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs
        tyi         <- gets tcEnv
        -- name        <- gets modName
        -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
+       FIXMEHEREHERE
        let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
        let (cs, ms) = makeMeasureSpec' measures
        let cms      = makeClassMeasureSpec measures
@@ -617,7 +621,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (text "JUSSIEU:pprint v") t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
