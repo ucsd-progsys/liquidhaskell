@@ -25,7 +25,7 @@ measureToBare :: SpecMeasure -> BareMeasure
 measureToBare = bimap (fmap specToBare) dataConToBare
 
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = dropModuleUnique . F.symbol <$> locNamedThing d
+dataConToBare d = F.tracepp "dataConToBare" $ dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
 
 specToBare :: SpecType -> BareType
 specToBare = bareOfType . toType

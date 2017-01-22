@@ -184,19 +184,27 @@ loadLiftedSpec srcF = do
   where
     specF = extFileName BinSpec srcF
 
+
+insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
+insert k v []              = [(k, v)]
+insert k v ((k', v') : kvs)
+  | k == k'                = (k, v)   : kvs
+  | otherwise              = (k', v') : insert k v kvs
+
 --------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
   -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' cfg file cbs instenv vars defVars exports specs = do
+makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   name          <- modName <$> get
-  let mySpec     = fromMaybe mempty (lookup name specs)
-  embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
+  let mySpec     = fromMaybe mempty (lookup name specs0)
+  embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
   lfSpec        <- makeLiftedSpec file name embs cbs mySpec
   let fullSpec   = mySpec `mappend` lfSpec
   lmap          <- logic_map . logicEnv    <$> get
+  let specs      = insert name fullSpec specs0
   makeRTEnv name lfSpec specs lmap
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
   makeBounds embs name defVars cbs specs
@@ -529,7 +537,6 @@ makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs
        tyi         <- gets tcEnv
        -- name        <- gets modName
        -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
-       FIXMEHEREHERE
        let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
        let (cs, ms) = makeMeasureSpec' measures
        let cms      = makeClassMeasureSpec measures
