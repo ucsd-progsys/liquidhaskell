@@ -202,7 +202,9 @@ module Language.Haskell.Liquid.Types (
   -- * String Literals
   , liquidBegin, liquidEnd
 
-  , Axiom(..), HAxiom, LAxiom, SMTAxiom
+  , Axiom(..), HAxiom
+  -- , LAxiom
+  -- , SMTAxiom
 
   , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
@@ -346,7 +348,7 @@ data GhcSpec = SP {
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [SMTAxiom]                     -- ^ Axioms from axiomatized functions
+  , gsAxioms    :: [Expr]                         -- ^ Axioms from axiomatized functions
   , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
@@ -996,7 +998,8 @@ data RISig t = RIAssumed t | RISig t
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
 
-newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty))) deriving (Monoid, Show)
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
+                    deriving (Monoid, Show)
 
 type RDEnv = DEnv Var SpecType
 
@@ -1005,17 +1008,18 @@ type RDEnv = DEnv Var SpecType
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
 
-data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
-                         , rname  :: Maybe b
-                         , abinds :: [b]
-                         , atypes :: [s]
-                         , alhs   :: e
-                         , arhs   :: e
-                         }
-type HAxiom = Axiom Var Type CoreExpr
-type LAxiom = Axiom Symbol Sort Expr
+data Axiom b s e = Axiom
+  { aname  :: (Var, Maybe DataCon)
+  , rname  :: Maybe b
+  , abinds :: [b]
+  , atypes :: [s]
+  , alhs   :: e
+  , arhs   :: e
+  }
 
-type SMTAxiom = Expr
+type HAxiom = Axiom Var    Type CoreExpr
+-- type LAxiom = Axiom Symbol Sort Expr
+-- type SMTAxiom = Expr
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++

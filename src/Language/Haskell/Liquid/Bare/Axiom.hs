@@ -193,14 +193,12 @@ makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
 
     -- v' = val x -- symbol $ showPpr $ getName vv
 
-
-
-
+-- ASKNIKI: what is this for? can we delete it?
 findAxiomNames :: Located Symbol -> [Bind CoreBndr] -> [CoreBndr]
 findAxiomNames x (NonRec v _ :cbs) | isAxiomName x v = v:findAxiomNames x cbs
 findAxiomNames x (Rec [(v,_)]:cbs) | isAxiomName x v = v:findAxiomNames x cbs
-findAxiomNames x (_:cbs) = findAxiomNames x cbs
-findAxiomNames _ [] = []
+findAxiomNames x (_:cbs)                             = findAxiomNames x cbs
+findAxiomNames _ []                                  = []
 
 isAxiomName :: Located Symbol -> CoreBndr -> Bool
 isAxiomName x v =
