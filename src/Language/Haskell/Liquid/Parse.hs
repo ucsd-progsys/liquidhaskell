@@ -38,7 +38,7 @@ import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types          hiding (Axiom)
+import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
@@ -687,7 +687,7 @@ data Pspec ty ctor
   | LVars   LocSymbol
   | Lazy    LocSymbol
   | HMeas   LocSymbol
-  | Axiom   LocSymbol
+  --   Axiom   LocSymbol
   | Reflect LocSymbol
   | Inline  LocSymbol
   | ASize   LocSymbol
@@ -723,7 +723,7 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"
   show (LVars  _) = "LVars"
   show (Lazy   _) = "Lazy"
-  show (Axiom  _) = "Axiom"
+  -- show (Axiom  _) = "Axiom"
   show (Reflect _) = "Reflect"
   show (HMeas  _) = "HMeas"
   show (HBound _) = "HBound"
@@ -759,7 +759,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
-  , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
+  -- REFLECT-IMPORTS , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
@@ -778,19 +778,19 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
 
 specP :: Parser BPspec
 specP
-  = try (reservedToken "assume"       >> liftM Assm   tyBindP   )
-    <|> (reservedToken "assert"       >> liftM Asrt   tyBindP   )
-    <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
-    <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
-    <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
-    <|> (reservedToken "reflect"      >> liftM Reflect  axiomP    )
-    <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
-    <|> (reservedToken "define"   >> liftM Define defineP   )
-    <|> try (reservedToken "infixl"   >> liftM BFix   infixlP   )
-    <|> try (reservedToken "infixr"   >> liftM BFix   infixrP   )
-    <|> try (reservedToken "infix"    >> liftM BFix   infixP    )
-    <|> try (reservedToken "defined"  >> liftM Meas   measureP  )
-    <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
+  = try (reservedToken "assume"       >> liftM Assm    tyBindP  )
+    <|> (reservedToken "assert"       >> liftM Asrt    tyBindP  )
+    <|> (reservedToken "autosize"     >> liftM ASize   asizeP   )
+    <|> (reservedToken "Local"        >> liftM LAsrt   tyBindP  )
+    <|> (reservedToken "axiomatize"   >> liftM Reflect axiomP   )
+    <|> (reservedToken "reflect"      >> liftM Reflect axiomP   )
+    <|> try (reservedToken "measure"  >> liftM Meas    measureP )
+    <|> (reservedToken "define"       >> liftM Define  defineP  )
+    <|> try (reservedToken "infixl"   >> liftM BFix    infixlP  )
+    <|> try (reservedToken "infixr"   >> liftM BFix    infixrP  )
+    <|> try (reservedToken "infix"    >> liftM BFix    infixP   )
+    <|> try (reservedToken "defined"  >> liftM Meas    measureP )
+    <|> (reservedToken "measure"      >> liftM HMeas   hmeasureP)
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
     <|> try (reservedToken "bound"    >> liftM PBound  boundP   )
     <|> (reservedToken "bound"        >> liftM HBound  hboundP  )

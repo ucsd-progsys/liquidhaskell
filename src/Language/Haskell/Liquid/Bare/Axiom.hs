@@ -13,7 +13,6 @@ import Id
 import Name
 import Type hiding (isFunTy)
 import Var
-
 import TypeRep
 
 import Prelude hiding (mapM)
@@ -23,11 +22,8 @@ import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
 
 import Text.PrettyPrint.HughesPJ (text)
-
-
 import qualified Data.List as L
 import           Data.Maybe (fromMaybe)
-
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 
@@ -35,11 +31,9 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
-import           Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
-
-
 
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
@@ -51,12 +45,16 @@ makeAxiom :: F.TCEmb TyCon
           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap cbs spec _ x
-  = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-        (NonRec v def:_)   -> makeAxiom' tce lmap cbs spec x v def
-        (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
-        [Rec xes]          -> throwError $ mkError x
-                                ("Cannot extract measure from mutually recursive haskell functions" ++ (show (fst <$> xes)))
-        _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
+  = case findVarDef (val x) cbs of
+      Just (v, def) -> makeAxiom' tce lmap cbs spec x v def
+      Nothing       -> throwError $ mkError x "Cannot lift haskell function"
+
+  -- REFLECT-IMPORTS = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
+        -- REFLECT-IMPORTS (NonRec v def:_)   ->
+        -- REFLECT-IMPORTS (Rec [(v, def)]:_) -> makeAxiom' tce lmap cbs spec x v def
+        -- REFLECT-IMPORTS [Rec xes]          -> throwError $ mkError x
+                                -- REFLECT-IMPORTS ("Cannot extract measure from mutually recursive haskell functions" ++ (show (fst <$> xes)))
+        -- REFLECT-IMPORTS _                  -> throwError $ mkError x "Cannot extract measure from haskell function"
 
 --------------------------------------------------------------------------------
 makeAxiom' :: F.TCEmb TyCon
@@ -75,10 +73,10 @@ makeAxiom' tce lmap cbs spec x v def = do
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
   let (t, e) = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
-  return ( (val x, mkType x v)
-         , (v, t) : vts
+  return ( F.tracepp "makeAxiom 1" $ (val x, mkType x v)
+         , F.tracepp "makeAxiom 2" $ (v, t) : vts     -- ASKNIKI: What is vts for?
          , defAxioms anames v def
-         , e )
+         , F.tracepp "makeAxiom 3" $ e )              -- ASKNIKI: What is this for?
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -144,10 +142,6 @@ strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofReft r }
   where
     trep = toRTypeRep t
-
-binders :: Bind t -> [t]
-binders (NonRec x _) = [x]
-binders (Rec xes)    = fst <$> xes
 
 updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap _ _ _ v | not (isFun $ varType v)
@@ -313,7 +307,3 @@ ufType τ = fromRTypeRep $ t{ty_args = args, ty_binds = xs, ty_refts = rs}
   where
     t          = toRTypeRep $ ofType τ
     (args, xs, rs) = unzip3 $ dropWhile (isClassType . fst3) $ zip3 (ty_args t) (ty_binds t) (ty_refts t)
-
-
-simplesymbol :: CoreBndr -> Symbol
-simplesymbol = symbol . getName

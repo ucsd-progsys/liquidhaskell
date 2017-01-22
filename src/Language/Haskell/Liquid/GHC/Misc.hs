@@ -657,9 +657,9 @@ findVarDef x cbs = case xCbs of
 coreBindSymbols :: CoreBind -> [Symbol]
 coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 
-simplesymbol :: CoreBndr -> Symbol
+simplesymbol :: (NamedThing t) => t -> Symbol
 simplesymbol = symbol . getName
 
-binders :: CoreBind -> [Id]
+binders :: Bind a -> [a]
 binders (NonRec z _) = [z]
 binders (Rec xes)    = fst <$> xes

@@ -125,9 +125,6 @@ strengthenResult' v
         mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
 
 
-simplesymbol :: Var -> Symbol
-simplesymbol = symbol . getName
-
 type LogicM = ExceptT Error (StateT LState Identity)
 
 data LState = LState

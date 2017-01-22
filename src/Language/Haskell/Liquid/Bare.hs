@@ -104,7 +104,7 @@ makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 initAxSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initAxSymbols name = locMap . Ms.axioms . fromMaybe mempty . lookup name
+initAxSymbols name = locMap . {- Ms.axioms -} Ms.reflects . fromMaybe mempty . lookup name
   where
     locMap xs      = M.fromList [ (val x, x) | x <- S.toList xs]
 
@@ -133,7 +133,7 @@ postProcess cbs specEnv sp@(SP {..})
     (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
     (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
     (insigs, ts)      = replaceLocBinds gsInSigs  ts''
-    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv (tracepp "SPECENV" specEnv) cbs
+    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
     txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
     addTCI            = (addTCI' <$>)
     addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
@@ -270,13 +270,13 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
 makeGhcAxioms :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> GhcSpec -> BareM GhcSpec
 makeGhcAxioms tce cbs sp spec = do
   lmap             <- logicEnv <$> get
-  (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom_NEEDS_TO_BE_LIFTED tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
+  -- REFLECT-IMPORTS (msA, tysA, asA, smtA) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.axioms   sp)
   (msR, tysR, asR, _   ) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs spec sp) (S.toList $ Ms.reflects sp)
   lmap'            <- logicEnv <$> get
-  return $ spec { gsMeas     =         msA ++ msR         ++ gsMeas     spec
-                , gsAsmSigs  = concat tysA ++ concat tysR ++ gsAsmSigs  spec
-                , gsReflects = concat asA  ++ concat asR  ++ gsReflects spec
-                , gsAxioms   = smtA ++ gsAxioms spec
+  return $ spec { gsMeas     =         {- REFLECT-IMPORTS msA ++ -} msR         ++ gsMeas     spec
+                , gsAsmSigs  = {- REFLECT-IMPORTS concat tysA ++ -} concat tysR ++ gsAsmSigs  spec
+                , gsReflects = {- REFLECT-IMPORTS concat asA  ++ -} concat asR  ++ gsReflects spec
+                , gsAxioms   = {- REFLECT-IMPORTS       smtA  ++ -} gsAxioms spec
                 , gsLogicMap = lmap'
                 }
 
