@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import           Language.Fixpoint.Misc (fst3)
-import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
+import           Language.Fixpoint.Types (Expr(..), Symbol, symbol, tracepp)
 import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import           Language.Haskell.Liquid.Types
@@ -40,15 +40,6 @@ makeRTEnv m lfSpec specs lm = do
     eAs   = [ (m, e) | (m, s)  <- specs,           e <- Ms.ealiases  s ]
     eAs'  = [ (m, e) | e       <- Ms.ealiases lfSpec                   ]
     eAs'' = [ (m, e) | (_, xl) <- M.toList lm, let e  = lmapEAlias  xl ]
-    -- let e  = lmapEAlias  xl ]
-
--- lmapEAlias   (x, LMap v ys e) = RTA x       [] ys e (loc v) (loc v)
---
--- lmapEAlias :: (Symbol, LMap) -> RTAlias Symbol Expr
--- lmapEAlias   (x, LMap v ys e) = RTA x       [] ys e (loc v) (loc v)
---
--- inlineEAlias :: (LocSymbol, LMap) -> RTAlias Symbol Expr
--- inlineEAlias (x, LMap _ ys e) = RTA (val x) [] ys e (loc x) (loc x)
 
 makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
 makeRTAliases = graphExpand buildTypeEdges expBody
@@ -71,7 +62,8 @@ makeREAliases
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 
-graphExpand :: (AliasTable t -> t -> [Symbol])
+graphExpand :: (PPrint t)
+            => (AliasTable t -> t -> [Symbol])
             -> ((ModName, RTAlias Symbol t) -> BareM b)
             -> [(ModName, RTAlias Symbol t)]
             -> BareM ()
@@ -87,7 +79,7 @@ type AliasTable t = M.HashMap Symbol (ModName, RTAlias Symbol t)
 
 buildAliasTable :: [(ModName, RTAlias Symbol t)] -> AliasTable t
 buildAliasTable
-  = M.fromList . map (\(mod, rta) -> (rtName rta, (mod, rta)))
+  = M.fromList . map (\(m, rta) -> (rtName rta, (m, rta)))
 
 fromAliasSymbol :: AliasTable t -> Symbol -> (ModName, RTAlias Symbol t)
 fromAliasSymbol table sym
@@ -99,40 +91,32 @@ fromAliasSymbol table sym
 type Graph t = [Node t]
 type Node  t = (t, t, [t])
 
-buildAliasGraph :: (t -> [Symbol]) -> [RTAlias Symbol t] -> Graph Symbol
+buildAliasGraph :: (PPrint t) => (t -> [Symbol]) -> [RTAlias Symbol t] -> Graph Symbol
 buildAliasGraph buildEdges
   = map (buildAliasNode buildEdges)
 
-buildAliasNode :: (t -> [Symbol]) -> RTAlias Symbol t -> Node Symbol
-buildAliasNode buildEdges alias
+buildAliasNode :: (PPrint t) => (t -> [Symbol]) -> RTAlias Symbol t -> Node Symbol
+buildAliasNode buildEdges alias'
   = (rtName alias, rtName alias, buildEdges $ rtBody alias)
-
+  where
+    alias = tracepp "buildAliasNode" alias'
 
 checkCyclicAliases :: AliasTable t -> Graph Symbol -> BareM ()
 checkCyclicAliases table graph
   = case mapMaybe go $ stronglyConnComp graph of
-      [] ->
-        return ()
-      sccs ->
-        Ex.throw $ map err sccs
+      []   -> return ()
+      sccs -> Ex.throw (cycleAliasErr table <$> sccs)
+    where
+      go (CyclicSCC vs) = Just vs
+      go (AcyclicSCC _) = Nothing
+
+cycleAliasErr :: AliasTable t -> [Symbol] -> Error
+cycleAliasErr _ []          = panic Nothing "checkCyclicAliases: No type aliases in reported cycle"
+cycleAliasErr t scc@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
+                                            , acycle = map locate scc }
   where
-    go (AcyclicSCC _)
-      = Nothing
-    go (CyclicSCC vs)
-      = Just vs
-
-    err :: [Symbol] -> Error
-    err scc@(rta:_)
-      = ErrAliasCycle { pos    = fst $ locate rta
-                      , acycle = map locate scc
-                      }
-    err []
-      = panic Nothing "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
-
-    locate sym
-      = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol table sym
-        , pprint sym
-        )
+    locate sym = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol t sym
+                 , pprint sym )
 
 
 genExpandOrder :: AliasTable t -> Graph Symbol -> [(ModName, RTAlias Symbol t)]

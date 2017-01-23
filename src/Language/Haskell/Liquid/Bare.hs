@@ -96,7 +96,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
-  let renv = ghcSpecEnv sp
+  let renv = tracepp "makeGhcSpec:specEnv" $ ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
@@ -147,7 +147,7 @@ ghcSpecEnv sp        = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v) <- gsFreeSyms sp, isConLikeId v]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -183,9 +183,11 @@ saveLiftedSpec srcF _ lspec = do
 
 loadLiftedSpec :: FilePath -> IO Ms.BareSpec
 loadLiftedSpec srcF = do
-  ex <- doesFileExist specF
+  ex  <- doesFileExist specF
   putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
-  if ex then B.decodeFile specF else return mempty
+  lSp <- if ex then B.decodeFile specF else return mempty
+  putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+  return lSp
   where
     specF = extFileName BinSpec srcF
 
@@ -277,7 +279,7 @@ makeGhcAxioms cbs sp spec = do
   let msR = mapMaybe (\(v, t) -> (, t) <$> M.lookup v vM) (gsAsmSigs spec)
   let vs  = M.keys vM
   lmap' <- logicEnv <$> get
-  return $ spec { gsMeas     = msR ++ gsMeas     spec
+  return $ spec { gsMeas     = (tracepp "makeGhcAxioms:msR" msR) ++ gsMeas     spec
                 , gsReflects = vs  ++ gsReflects spec
                 , gsLogicMap = lmap'
                 }

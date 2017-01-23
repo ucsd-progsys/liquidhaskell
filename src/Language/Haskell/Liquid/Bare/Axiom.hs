@@ -98,7 +98,6 @@ mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
 -- ASKNIKI: what is this function doing?!
-
 makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var ->  [a] -> CoreExpr
                -> (LocSpecType, F.Expr)
 makeAssumeType tce lmap x v ams def = assumedtype
@@ -118,25 +117,24 @@ makeAssumeType tce lmap x v ams def = assumedtype
     t    = ofType $ varType v
     at   = axiomType x t
 
-    le = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
-           Right e -> e
-           Left  e -> panic Nothing $ show e
+    le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
+             Right e -> e
+             Left  e -> panic Nothing $ show e
 
-    ble = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToPred def') of
-           Right e -> e
-           Left  e -> panic Nothing $ show e
+    ble  = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToPred def') of
+             Right e -> e
+             Left  e -> panic Nothing $ show e
+
     ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
-    bref = F.Reft (F.vv_, F.PIff (F.mkProp $ F.EVar F.vv_) ble)
+    bref = F.Reft (F.vv_, F.PIff       (F.EVar F.vv_) ble)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
     bbs     = filter isBoolBind xs
 
     (xs, def') = grapBody $ normalize def
-    su = F.mkSubst $
-                zip (F.symbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
-             ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
-
+    su = F.mkSubst $ zip (F.symbol     <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
+                  ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
 
     grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e')
     grapBody (Tick _ e) = grapBody e
@@ -145,8 +143,6 @@ makeAssumeType tce lmap x v ams def = assumedtype
     xss = [(mkSymbol x t, rTypeSort tce t) | (x, t) <- zip xs (ty_args (toRTypeRep at)), not (isClassType t)]
 
     mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x
-
-
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
 
 
@@ -160,19 +156,19 @@ strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofR
     trep = toRTypeRep t
 
 updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
-updateLMap _ _ _ v | not (isFun $ varType v)
-  = return ()
-  where
-    isFun (FunTy _ _)    = True
-    isFun (ForAllTy _ t) = isFun t
-    isFun  _             = False
-
 updateLMap _ x y vv
+  | val x /= val y && isFun (varType vv)
   = insertLogicEnv "UPDATELMAP" x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  | otherwise
+  = return ()
   where
     nargs = dropWhile isClassType $ ty_args trep
     trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
-    ys    = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    ys    = zipWith (\i _ -> symbol ("x" ++ show i)) [1..] nargs
+
+    isFun (FunTy _ _)    = True
+    isFun (ForAllTy _ t) = isFun t
+    isFun  _             = False
 
 makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
