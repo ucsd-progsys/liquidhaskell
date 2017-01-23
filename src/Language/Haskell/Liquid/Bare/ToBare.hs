@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Bare.ToBare
 
 import           DataCon
 import           Data.Bifunctor
-import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Measure
@@ -24,7 +23,7 @@ measureToBare :: SpecMeasure -> BareMeasure
 measureToBare = bimap (fmap specToBare) dataConToBare
 
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
+dataConToBare = namedLocSymbol
 
 specToBare :: SpecType -> BareType
 specToBare = bareOfType . toType

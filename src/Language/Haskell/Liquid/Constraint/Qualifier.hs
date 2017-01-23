@@ -129,10 +129,10 @@ specBinders info = mconcat
   , if info `hasOpt` scrapeInternals then gsInSigs sp else []
   ]
   where
-    sp  = spec info 
+    sp  = spec info
 
 specAxiomVars :: GhcInfo -> [Var]
-specAxiomVars =  map (fst . aname) . gsReflects . spec
+specAxiomVars =  gsReflects . spec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs

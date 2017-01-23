@@ -317,15 +317,11 @@ locNamedThing x = F.Loc l lE x
     l          = getSourcePos  x
     lE         = getSourcePosE x
 
+namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
+namedLocSymbol d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
+
 varLocInfo :: (Type -> a) -> Var -> F.Located a
 varLocInfo f x = f . varType <$> locNamedThing x
-
--- varLocInfo f x = F.Loc l lE i
-  -- where
-    -- l          = getSourcePos  x
-    -- lE         = getSourcePosE x
-    -- i          = f (varType x)
-
 
 --------------------------------------------------------------------------------
 -- | Manipulating CoreExpr -----------------------------------------------------
@@ -659,6 +655,10 @@ coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 
 simplesymbol :: (NamedThing t) => t -> Symbol
 simplesymbol = symbol . getName
+
+
+
+
 
 binders :: Bind a -> [a]
 binders (NonRec z _) = [z]

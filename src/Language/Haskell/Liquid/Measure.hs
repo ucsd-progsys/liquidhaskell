@@ -57,7 +57,7 @@ instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
-  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
+  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
   , invariants :: ![ty]                         -- ^ Data type invariants

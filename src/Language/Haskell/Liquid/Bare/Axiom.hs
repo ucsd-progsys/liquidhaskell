@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
+module Language.Haskell.Liquid.Bare.Axiom (makeHaskellAxioms) where
 
 import Prelude hiding (error)
 import CoreSyn
@@ -17,15 +17,15 @@ import TypeRep
 
 import Prelude hiding (mapM)
 
-import Control.Monad hiding (forM, mapM)
-import Control.Monad.Except hiding (forM, mapM)
-import Control.Monad.State hiding (forM, mapM)
+import           Control.Monad hiding (forM, mapM)
+import           Control.Monad.Except hiding (forM, mapM)
+import           Control.Monad.State hiding (forM, mapM)
 
-import Text.PrettyPrint.HughesPJ (text)
-import qualified Data.List as L
-import           Data.Maybe (fromMaybe)
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Types (Symbol, symbol, symbolString)
+import           Text.PrettyPrint.HughesPJ (text)
+import qualified Data.List    as L
+import qualified Data.HashSet as S
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types (Symbol, symbol, symbolString)
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
@@ -35,18 +35,31 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
+
+--------------------------------------------------------------------------------
+makeHaskellAxioms
+  :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM [ (LocSymbol, LocSpecType)]
+--------------------------------------------------------------------------------
+makeHaskellAxioms tce cbs sp = do
+  let xs       = S.toList $ Ms.reflects sp
+  lmap        <- logicEnv <$> get
+  (_,xts,_,_) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs) xs
+  return [ (namedLocSymbol x, t) | (x, t) <- concat xts ]
+
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
           -> LogicMap
           -> [CoreBind]
-          -> GhcSpec
-          -> Ms.BareSpec
           -> LocSymbol
-          -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
+          -> BareM ( (Symbol, LocSpecType) -- ^ reflected symbol, sort
+                   , [(Var, LocSpecType)]  -- ^ [ONLY OUTPUT THAT MATTERS] reflected vars and reflected-refinement types
+                   , [Var]                 -- ^ reflected vars
+                   , F.Expr                -- ^ quantified formula?
+                   )
 --------------------------------------------------------------------------------
-makeAxiom tce lmap cbs spec _ x
+makeAxiom tce lmap cbs x
   = case findVarDef (val x) cbs of
-      Just (v, def) -> makeAxiom' tce lmap cbs spec x v def
+      Just (v, def) -> makeAxiom' tce lmap cbs x v def
       Nothing       -> throwError $ mkError x "Cannot lift haskell function"
 
   -- REFLECT-IMPORTS = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
@@ -60,22 +73,22 @@ makeAxiom tce lmap cbs spec _ x
 makeAxiom' :: F.TCEmb TyCon
            -> LogicMap
            -> [CoreBind]
-           -> GhcSpec
            -> LocSymbol
            -> Var
            -> CoreExpr
-           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [HAxiom], F.Expr)
+           -> BareM ((Symbol, LocSpecType), [(Var, LocSpecType)], [Var], F.Expr)
 --------------------------------------------------------------------------------
-makeAxiom' tce lmap cbs spec x v def = do
+makeAxiom' tce lmap cbs x v def = do
   let anames = findAxiomNames x cbs
-  vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) (defAxioms anames v def)
+  let haxs   = defAxioms anames v def
+  vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) haxs
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap x v (gsTySigs spec) anames  def
+  let (t, e) = makeAssumeType tce lmap x v anames  def
   return ( F.tracepp "makeAxiom 1" $ (val x, mkType x v)
          , F.tracepp "makeAxiom 2" $ (v, t) : vts     -- ASKNIKI: What is vts for?
-         , defAxioms anames v def
+         , fst . aname <$> haxs                       -- ASKNIKI: dead?
          , F.tracepp "makeAxiom 3" $ e )              -- ASKNIKI: What is this for?
 
 mkError :: LocSymbol -> String -> Error
@@ -84,8 +97,11 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 mkType :: LocSymbol -> Var -> Located SpecType
 mkType x v = x {val = ufType $ varType v}
 
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> [(Var, Located SpecType)] -> [a] -> CoreExpr -> (Located SpecType, F.Expr)
-makeAssumeType tce lmap x v xts ams def = assumedtype
+-- ASKNIKI: what is this function doing?!
+
+makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var ->  [a] -> CoreExpr
+               -> (LocSpecType, F.Expr)
+makeAssumeType tce lmap x v ams def = assumedtype
   where
     assumedtype
       | not (null ams)
@@ -99,8 +115,8 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
     makeSMTAxiom     xss  le = F.PAll xss (F.PIff (F.mkProp (F.mkEApp x (F.EVar . fst <$> xss))) le)
 
     trep = toRTypeRep t
-    t  = fromMaybe (ofType $ varType v) (val <$> L.lookup v xts)
-    at = axiomType x t
+    t    = ofType $ varType v
+    at   = axiomType x t
 
     le = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
            Right e -> e
@@ -152,46 +168,34 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv
-  = insertLogicEnv "UPDATELMAP" x ys (makeProp $ F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv "UPDATELMAP" x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
-    makeProp e
-      | isBool (ty_res trep)
-      = F.mkProp e
-      | otherwise
-      = e
-
     nargs = dropWhile isClassType $ ty_args trep
     trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
     ys    = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 makeAxiomType :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType tce lmap x v (Axiom _ _ xs _ lhs rhs)
-  = do foldM_ (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
+  = do foldM_ (\lm x -> (updateLMap lm (dl x) (dl x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
-    t   = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
-    tt  = ofType $ varType v
-    tr  = toRTypeRep tt
-    res = ty_res tr `strengthen` MkUReft ref mempty mempty
+    dl   = dummyLoc . F.symbol
+    t    = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
+    tt   = ofType $ varType v
+    tr   = toRTypeRep tt
+    res  = ty_res tr `strengthen` MkUReft ref mempty mempty
+    llhs = toLogic tce lmap x lhs
+    lrhs = toLogic tce lmap x rhs
+    ref  = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
-    llhs = case runToLogic tce lmap' mkErr (coreToLogic lhs) of
-       Right e -> e
-       Left e -> panic Nothing $ show e
-    lrhs = case runToLogic tce lmap' mkErr (coreToLogic rhs) of
-       Right e -> e
-       Left e -> panic Nothing $ show e
-    ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
+toLogic :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> CoreExpr -> F.Expr
+toLogic tce lmap x thing
+  = case runToLogic tce lmap (mkErr x) (coreToLogic thing) of
+      Right e -> e
+      Left e  -> panic Nothing $ show e
 
-    -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
-
-    lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
-
-    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
-
-    --mkBinds (_:xs) (v:vs) = v:mkBinds xs vs
-    --mkBinds _ _ = []
-
-    -- v' = val x -- symbol $ showPpr $ getName vv
+mkErr :: LocSymbol -> String -> TError t
+mkErr x s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
 
 -- ASKNIKI: what is this for? can we delete it?
 findAxiomNames :: Located Symbol -> [Bind CoreBndr] -> [CoreBndr]

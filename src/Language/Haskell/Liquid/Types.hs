@@ -349,7 +349,7 @@ data GhcSpec = SP {
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
   , gsAxioms    :: [Expr]                         -- ^ Axioms from axiomatized functions
-  , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions
+  , gsReflects  :: [Var] -- [HAxiom]              -- ^ Binders for reflected functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
   , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
