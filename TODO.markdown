@@ -4,91 +4,15 @@ TODO
 Reflect-Imports
 ---------------
 
-The crux is the `[(ModName, BareSpec)]` that is passed into `makeRTEnv`
++ `makeHaskellInlines`
++ `makeHaskellMeasures`
+* `makeHaskellAxioms`
+- `makeHaskellBounds`
 
-* type BareSpec      = Spec (Located BareType) LocSymbol
+`stack exec -- liquid tests/todo/ReflectLib2.hs`
 
-* How is it CREATED?
-  - `Interface.processModule` calls `hsSpecificationP` to scrape BareSpec from file.
-
-```haskell
-processModule = do
-  ...
-  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
-```
-
-* How shall we SAVE it so the next MODULE can get it?
-
-* Does it include THIS module? (yes?)
-
-toGhcSpec --> makeGhcSpec
-
-Interface.hs
-
-* toGhcSpec ... tgtSpec ... impSpecs
-
-
-need to pull
-
-1. `makeHaskellInlines`
-2. `makeHaskellMeasures`
-3. `makeHaskellBounds`
-
-HEREHEREHEREHEREHERE `CHOP2`
-
-1. harden code so missing .bspec does not crash things.
-2. why is measure stuff not working... sigh. `stack exec -- liquid tests/todo/ReflectLib1.hs`
-
-
-1. rewrite `makeMeasureDefinition` (and makeHaskellMeasures) so it returns a
-   `Measure (Located BareType) LocSymbol` (or whatever is in BareSpec in
-   the `measures` field)
-
-2. tuck that result into the measures field of `mySpec` which is `mappend`-ed
-
-3. then the plan `makeMeasureSpec` should take care of the rest.
-
-   i.e. don't need the `hmeas` call below.
-
-    * rewrite `makeHaskellMeasures` and `makeMeasureDefinition` so it returns
-
-```haskell
-makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
-                      -> BareM (Measure SpecType DataCon)
-
-
-makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
-  = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
-       tyi         <- gets tcEnv
-       name        <- gets modName
-       hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
-```
-
-```haskell
-  processTargetModule =
-    let homeSpecs      = getCachedBareSpecs specEnv reachable
-
-type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
-```
-
-```haskell
-saveLiftedSpec :: ModName -> BareSpec -> IO ()
-loadLiftedSpec :: ModName -> IO BareSpec
-```
-
-btw, what are ty and bndr ?
-
-
-```haskell
-makeRTEnv :: ModName
-          -> [(LocSymbol, LMap)]
-          -> [(ModName, Ms.Spec ty bndr)]
-          -> M.HashMap Symbol LMap
-          -> BareM ()
-```  
-
-
+HEREHEREHEREHEREHERE: bunch of tweaks to shove "axioms" into plain 'assumes'.
+- rerun tests!
 
 
 Check Covariance
