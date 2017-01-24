@@ -52,12 +52,12 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
+import           Language.Fixpoint.Misc                     (fM, ensurePath, thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 -- import           Language.Haskell.Liquid.Misc               (ifM)
-import           Language.Haskell.Liquid.GHC.Misc           (findVarDef, dropModuleUnique, dropModuleNames, showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (getSourcePosE, getSourcePos, sourcePosSrcSpa)
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
@@ -117,7 +117,7 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
     xs    = symbol "xs"
     hNil  = mkEApp (dcSym nilDataCon ) []
     hCons = mkEApp (dcSym consDataCon)
-    dcSym = dummyLoc . dropModuleUnique . symbol
+    dcSym = dummyLoc . GM.dropModuleUnique . symbol
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
@@ -227,9 +227,10 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec2 invs ntys ialias measures su
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
-    >>= makeGhcAxioms cbs specs
+    >>= fM (makeGhcAxioms specs)
+    >>= makeLogicMap
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
-    -- This step needs the UPDATED logic map, ie should happen AFTER makeGhcAxioms
+    -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su
     >>= addProofType
     >>= addRTEnv
@@ -251,7 +252,7 @@ makeExactDataCons n flag vs spec
   | otherwise = return spec
   where
     xts       = makeExact <$> filter f vs
-    f v       = isDataConId v && varInModule n v
+    f v       = GM.isDataConId v && varInModule n v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
@@ -272,21 +273,26 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
          | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
-getReflects = tracepp "getReflects" . fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
+getReflects = fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
 
-makeGhcAxioms :: [CoreBind] -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
-makeGhcAxioms cbs specs sp = do
-  let vxs   = [ (v, x) | x     <- getReflects specs
-                       , (v,_) <- maybeToList (findVarDef x cbs) "OOPS WE ARE ONLY LOOKING AT LOCAL BINDERS HERE" ]
-  let vM    = M.fromList vxs
-  let msR   = mapMaybe (\(v, t) -> (, t) <$> M.lookup v vM) (tracepp "makeGhcAxioms:gsAsmSigs" $ gsAsmSigs sp)
-  let vs    = M.keys vM
-  lmap'    <- logicEnv <$> get
-  return    $ sp { gsMeas     = (tracepp "makeGhcAxioms:msR" msR) ++ gsMeas sp
-                 , gsReflects = vs  ++ gsReflects sp
-                 , gsLogicMap = lmap'
-                 }
+makeGhcAxioms :: [(ModName, Ms.BareSpec)] -> GhcSpec -> GhcSpec
+makeGhcAxioms specs sp = sp { gsMeas     = tracepp "makeGhcAxioms:msR" msR ++ gsMeas sp
+                            , gsReflects = vs  ++ gsReflects sp }
+  where
+    vts                = [ (v, vx, t) | (v, t) <- gsAsmSigs sp
+                                      , let vx  = varSymbol v
+                                      , S.member vx refls     ]
+    msR                = [ (vx, t)    | (_, vx, t) <- vts     ]
+    vs                 = [ v          | (v,  _, _) <- vts     ]
+    refls              = S.fromList (tracepp "getReflects" $ getReflects specs)
 
+varSymbol :: Var -> Symbol
+varSymbol = GM.dropModuleNames . GM.simplesymbol
+
+makeLogicMap :: GhcSpec -> BareM GhcSpec
+makeLogicMap sp = do
+  lmap  <- logicEnv <$> get
+  return $ sp { gsLogicMap = lmap }
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP
@@ -498,7 +504,7 @@ makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, Loc
 makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, val x == symbol' y]
   where
     symbol' :: Var -> Symbol
-    symbol' = dropModuleNames . symbol . getName
+    symbol' = GM.dropModuleNames . symbol . getName
 
 measureTypeToInv :: (LocSymbol, (Var, LocSpecType)) -> (Maybe Var, LocSpecType)
 measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
@@ -507,7 +513,7 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
     ts   = ty_args trep
     mtype
       | isBool $ ty_res trep
-      = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
+      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
                           (text "Specification of boolean measures is not allowed")
 {-
       | [tx] <- ts, not (isTauto tx)
@@ -517,7 +523,7 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
       | [tx] <- ts
       = mkInvariant (head $ ty_binds trep) tx $ ty_res trep
       | otherwise
-      = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
+      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
                           (text "Measures has more than one arguments")
 
 
@@ -556,10 +562,10 @@ makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs = do
   return (measures, cms', ms', cs', xs')
 
 txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType
-txRefSort' v tyi embs t = txRefSort tyi embs (atLoc' v t)
+txRefSort' v tyi embs t = txRefSort tyi embs (const t <$> GM.locNamedThing v) -- (atLoc' v t)
 
-atLoc' :: NamedThing a1 => a1 -> a -> Located a
-atLoc' v = Loc (getSourcePos v) (getSourcePosE v)
+-- atLoc' :: NamedThing t => t -> a -> Located a
+-- atLoc' v t = Loc (getSourcePos v) (getSourcePosE v)
 
 data ReplaceEnv = RE
   { _reEnv  :: M.HashMap Symbol Symbol
@@ -622,7 +628,7 @@ withExtendedEnv allowHO vs k = do
     k
 
 varShortSymbol :: Var -> Symbol
-varShortSymbol = symbol . takeWhile (/= '#') . showPpr . getName
+varShortSymbol = symbol . takeWhile (/= '#') . GM.showPpr . getName
 
 -- RJ: this function is incomprehensible, what does it do?!
 replaceLocalBindsOne :: Bool -> Var -> ReplaceM ()
@@ -637,7 +643,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (sourcePosSrcSpan l) (text "JUSSIEU:pprint v") t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "JUSSIEU:pprint v") t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
