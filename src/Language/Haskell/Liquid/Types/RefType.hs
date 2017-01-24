@@ -39,39 +39,44 @@ module Language.Haskell.Liquid.Types.RefType (
   , quantifyRTy
   , quantifyFreeRTy
 
-  -- TODO: categorize these!
+  -- * RType constructors
   , ofType, toType, bareOfType
   , bTyVar, rTyVar, rVar, rApp, rEx
   , symbolRTyVar, bareRTyVar
-  , addTyConInfo
-  , appRTyCon
-  , typeSort, typeUniqueSymbol
-  , strengthen
-  , generalize, normalizePds
+  , tyConBTyCon
+
+  -- * Substitutions
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVar_meet', subsTyVar_nomeet
   , subsTyVars_nomeet, subsTyVars_meet
-  , dataConMsReft, dataConReft
-  , classBinds
 
+  -- * Destructors
+  , addTyConInfo
+  , appRTyCon
+  , typeUniqueSymbol
+  , classBinds
   , isSizeable
 
+
   -- * Manipulating Refinements in RTypes
+  , strengthen
+  , generalize
+  , normalizePds
+  , dataConMsReft
+  , dataConReft
   , rTypeSortedReft
   , rTypeSort
+  , typeSort
   , shiftVV
 
+  -- * TODO: classify these
   , mkDataConIdsTy
   , mkTyConInfo
-
   , meetable
   , strengthenRefTypeGen
   , strengthenDataConType
-
   , isBaseTy
-
   , updateRTVar, isValKind, kindToRType
-
   , rTVarInfo
 
   ) where

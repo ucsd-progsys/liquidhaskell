@@ -68,7 +68,9 @@ module Language.Haskell.Liquid.Types (
   , SubsTy (..)
 
   -- * Type Variables
-  , RTVar (..), RTVInfo (..), makeRTVar, mapTyVarValue, dropTyVarInfo, rTVarToBind
+  , RTVar (..), RTVInfo (..)
+  , makeRTVar, mapTyVarValue
+  , dropTyVarInfo, rTVarToBind
 
   -- * Predicate Variables
   , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
@@ -88,6 +90,7 @@ module Language.Haskell.Liquid.Types (
   , RRType, RRProp
   , BRType, BRProp
   , BSort, BPVar
+  , RTVU, PVU
 
   -- * Instantiated RType
   , BareType, PrType
@@ -668,6 +671,8 @@ instance Show TyConInfo where
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
+type RTVU c tv = RTVar tv (RType c tv ())
+type PVU  c tv = PVar     (RType c tv ())
 
 data RType c tv r
   = RVar {
@@ -683,12 +688,12 @@ data RType c tv r
     }
 
   | RAllT {
-      rt_tvbind :: !(RTVar tv (RType c tv ()))
+      rt_tvbind :: !(RTVU c tv) -- RTVar tv (RType c tv ()))
     , rt_ty     :: !(RType c tv r)
     }
 
   | RAllP {
-      rt_pvbind :: !(PVar (RType c tv ()))
+      rt_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
     , rt_ty     :: !(RType c tv r)
     }
 
@@ -765,7 +770,7 @@ data RTVInfo s
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
             , rtv_is_val :: Bool
-            } deriving (Generic, Data, Typeable)
+            } deriving (Generic, Data, Typeable, Functor)
 
 
 rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
@@ -1322,7 +1327,6 @@ mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (\_ -> f) []
 
 emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r2
-
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
 emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
