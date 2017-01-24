@@ -77,7 +77,6 @@ import           Language.Haskell.Liquid.Bare.RTEnv
 import           Language.Haskell.Liquid.Bare.Spec
 import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
-import           Language.Haskell.Liquid.Bare.ToBare
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 
 --------------------------------------------------------------------------------
@@ -165,10 +164,10 @@ makeLiftedSpec
 makeLiftedSpec file name embs cbs mySpec = do
   xils  <- makeHaskellInlines  embs cbs mySpec
   ms    <- makeHaskellMeasures embs cbs mySpec
-  xts   <- makeHaskellAxioms   embs cbs mySpec
+  xts   <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms   embs cbs mySpec
   let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                      , Ms.measures = ms
-                     , Ms.asmSigs  = second (fmap specToBare) <$> xts
+                     , Ms.asmSigs  = xts
                      }
   liftIO $ saveLiftedSpec file name lSpec
   return lSpec

@@ -317,9 +317,9 @@ eqRSort _ _         (RHole _)
 eqRSort _ _ _
   = False
 
---------------------------------------------------------------------
--- | Wrappers for GHC Type Elements --------------------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Wrappers for GHC Type Elements --------------------------------------------
+--------------------------------------------------------------------------------
 
 instance Eq Predicate where
   (==) = eqpd
@@ -327,8 +327,9 @@ instance Eq Predicate where
 eqpd :: Predicate -> Predicate -> Bool
 eqpd (Pr vs) (Pr ws)
   = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-    where vs' = sort vs
-          ws' = sort ws
+    where
+      vs' = sort vs
+      ws' = sort ws
 
 
 instance Eq RTyVar where
@@ -350,9 +351,9 @@ instance Ord RTyCon where
 instance Hashable RTyCon where
   hashWithSalt i = hashWithSalt i . rtc_tc
 
---------------------------------------------------------------------
----------------------- Helper Functions ----------------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Helper Functions (RJ: Helping to do what?) --------------------------------
+--------------------------------------------------------------------------------
 
 rVar :: Monoid r => TyVar -> RType c RTyVar r
 rVar   = (`RVar` mempty) . RTV
@@ -374,13 +375,6 @@ bTVarInfo = mkTVarInfo kindToBRType
 
 rTVarInfo :: Monoid r => TyVar -> RTVInfo (RRType r)
 rTVarInfo = mkTVarInfo kindToRType
-
--- REFLECT-IMPORTS rTVarInfo :: Monoid r => TyVar -> RTVInfo (RRType r)
--- REFLECT-IMPORTS rTVarInfo a = RTVInfo
--- REFLECT-IMPORTS   { rtv_name   = symbol $ varName a
--- REFLECT-IMPORTS   , rtv_kind   = kindToRType $ tyVarKind a
--- REFLECT-IMPORTS   , rtv_is_val = isValKind $ tyVarKind a
--- REFLECT-IMPORTS   }
 
 mkTVarInfo :: (Kind -> s) -> TyVar -> RTVInfo s
 mkTVarInfo k2t a = RTVInfo
@@ -1009,9 +1003,8 @@ instance SubsTy Symbol RSort Sort where
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
     | rtyVarUniqueSymbol v == s
-    || symbol v == s
+      || symbol v == s
     = typeSort M.empty $ toType sv
-       -- FObj $ rTyVarSymbol α
     | otherwise
     = FObj s
   subt _ s
@@ -1200,9 +1193,9 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
     ts   = ty_args  trep
     su   = mkSubst $ [(x, EVar y) | ((x, _), y) <- zip (zip xs ts) ys]
 
----------------------------------------------------------------
----------------------- Embedding RefTypes ---------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Embedding RefTypes --------------------------------------------------------
+--------------------------------------------------------------------------------
 
 type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r)
 
@@ -1221,8 +1214,8 @@ toType (RVar (RTV α) _)
 toType (RApp (RTyCon {rtc_tc = c}) ts _ _)
   = TyConApp c (toType <$> filter notExprArg ts)
   where
-  notExprArg (RExprArg _) = False
-  notExprArg _            = True
+    notExprArg (RExprArg _) = False
+    notExprArg _            = True
 toType (RAllE _ _ t)
   = toType t
 toType (REx _ _ t)

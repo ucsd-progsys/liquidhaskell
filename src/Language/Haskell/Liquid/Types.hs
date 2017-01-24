@@ -92,7 +92,7 @@ module Language.Haskell.Liquid.Types (
   -- * Instantiated RType
   , BareType, PrType
   , SpecType, SpecProp
-  , LocSpecType
+  , LocBareType, LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
   , REnv (..)
@@ -849,6 +849,7 @@ type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
 
+type LocBareType = Located BareType
 type LocSpecType = Located SpecType
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
@@ -1093,19 +1094,19 @@ lmapEAlias :: LMap -> RTAlias Symbol Expr
 lmapEAlias (LMap v ys e) = RTA (val v) [] ys e (loc v) (loc v)
 
 
-------------------------------------------------------------------------
--- | Constructor and Destructors for RTypes ----------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Constructor and Destructors for RTypes ------------------------------------
+--------------------------------------------------------------------------------
 
-data RTypeRep c tv r
-  = RTypeRep { ty_vars   :: [RTVar tv (RType c tv ())]
-             , ty_preds  :: [PVar (RType c tv ())]
-             , ty_labels :: [Symbol]
-             , ty_binds  :: [Symbol]
-             , ty_refts  :: [r]
-             , ty_args   :: [RType c tv r]
-             , ty_res    :: (RType c tv r)
-             }
+data RTypeRep c tv r = RTypeRep
+  { ty_vars   :: [RTVar tv (RType c tv ())]
+  , ty_preds  :: [PVar (RType c tv ())]
+  , ty_labels :: [Symbol]
+  , ty_binds  :: [Symbol]
+  , ty_refts  :: [r]
+  , ty_args   :: [RType c tv r]
+  , ty_res    :: (RType c tv r)
+  }
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
 fromRTypeRep (RTypeRep {..})

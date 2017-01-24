@@ -26,4 +26,4 @@ dataConToBare :: DataCon -> LocSymbol
 dataConToBare = namedLocSymbol
 
 specToBare :: SpecType -> BareType
-specToBare = bareOfType . toType
+specToBare = "FIXME:specToBAre"-- bareOfType . toType

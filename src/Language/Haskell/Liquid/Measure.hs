@@ -48,7 +48,6 @@ import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type LocBareType   = Located BareType
 type BareSpec      = Spec    LocBareType LocSymbol
 type BareMeasure   = Measure LocBareType LocSymbol
 type SpecMeasure   = Measure LocSpecType DataCon
