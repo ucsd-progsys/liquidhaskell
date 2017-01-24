@@ -23,7 +23,12 @@ import           Language.Haskell.Liquid.Types.RefType
 --------------------------------------------------------------------------------
 specToBare :: SpecType -> BareType
 --------------------------------------------------------------------------------
-specToBare = txRType specToBareTC specToBareTV     -- bareOfType . toType
+specToBare = txRType specToBareTC specToBareTV
+-- specToBare t = F.tracepp ("specToBare t2 = " ++ F.showpp t2)  t1
+  -- where
+    -- t1       = bareOfType . toType $ t
+    -- t2       = _specToBare           t
+
 
 --------------------------------------------------------------------------------
 measureToBare :: SpecMeasure -> BareMeasure

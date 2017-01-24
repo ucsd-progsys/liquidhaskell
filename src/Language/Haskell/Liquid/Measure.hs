@@ -59,6 +59,7 @@ data Spec ty bndr  = Spec
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
+  , reflSigs   :: ![(LocSymbol, ty)]            -- ^ Reflected type signatures
   , invariants :: ![ty]                         -- ^ Data type invariants
   , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
@@ -136,38 +137,40 @@ checkDuplicateMeasure ms
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
   mappend s1 s2
-    = Spec { measures   =           measures s1   ++ measures s2
-           , asmSigs    =           asmSigs s1    ++ asmSigs s2
-           , sigs       =           sigs s1       ++ sigs s2
-           , localSigs  =           localSigs s1  ++ localSigs s2
+    = Spec { measures   =           measures   s1 ++ measures   s2
+           , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
+           , sigs       =           sigs       s1 ++ sigs       s2
+           , localSigs  =           localSigs  s1 ++ localSigs  s2
+           , reflSigs   =           reflSigs   s1 ++ reflSigs   s2
            , invariants =           invariants s1 ++ invariants s2
-           , ialiases   =           ialiases s1   ++ ialiases s2
-           , imports    = sortNub $ imports s1    ++ imports s2
-           , dataDecls  = dataDecls s1            ++ dataDecls s2
-           , newtyDecls = newtyDecls s1           ++ newtyDecls s2
-           , includes   = sortNub $ includes s1   ++ includes s2
-           , aliases    =           aliases s1    ++ aliases s2
-           , ealiases   =           ealiases s1   ++ ealiases s2
-           , embeds     = M.union   (embeds s1)      (embeds s2)
+           , ialiases   =           ialiases   s1 ++ ialiases   s2
+           , imports    = sortNub $ imports    s1 ++ imports    s2
+           , dataDecls  =           dataDecls  s1 ++ dataDecls  s2
+           , newtyDecls =           newtyDecls s1 ++ newtyDecls s2
+           , includes   = sortNub $ includes   s1 ++ includes   s2
+           , aliases    =           aliases    s1 ++ aliases    s2
+           , ealiases   =           ealiases   s1 ++ ealiases   s2
            , qualifiers =           qualifiers s1 ++ qualifiers s2
-           , decr       =           decr s1       ++ decr s2
-           , lvars      =           lvars s1      ++ lvars s2
-           , lazy       = S.union   (lazy s1)        (lazy s2)
-           -- , axioms     = S.union   (axioms s1)      (axioms s2)
-           , reflects   = S.union   (reflects s1)    (reflects s2)
-           , hmeas      = S.union   (hmeas s1)       (hmeas s2)
-           , hbounds    = S.union   (hbounds s1)     (hbounds s2)
-           , inlines    = S.union   (inlines s1)     (inlines s2)
-           , autosize   = S.union   (autosize s1)    (autosize s2)
-           , pragmas    =           pragmas s1    ++ pragmas s2
-           , cmeasures  =           cmeasures s1  ++ cmeasures s2
-           , imeasures  =           imeasures s1  ++ imeasures s2
-           , classes    =           classes s1    ++ classes s1
-           , termexprs  =           termexprs s1  ++ termexprs s2
-           , rinstance  =           rinstance s1  ++ rinstance s2
-           , dvariance  =           dvariance s1  ++ dvariance s2
-           , bounds     = M.union   (bounds s1)      (bounds s2)
-           , defs       = M.union   (defs s1)        (defs s2)
+           , decr       =           decr       s1 ++ decr       s2
+           , lvars      =           lvars      s1 ++ lvars      s2
+           , pragmas    =           pragmas    s1 ++ pragmas    s2
+           , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
+           , imeasures  =           imeasures  s1 ++ imeasures  s2
+           , classes    =           classes    s1 ++ classes    s2
+           , termexprs  =           termexprs  s1 ++ termexprs  s2
+           , rinstance  =           rinstance  s1 ++ rinstance  s2
+           , dvariance  =           dvariance  s1 ++ dvariance  s2
+
+           , embeds     = M.union   (embeds   s1)  (embeds   s2)
+           , lazy       = S.union   (lazy     s1)  (lazy     s2)
+        -- , axioms     = S.union   (axioms s1) (axioms s2)
+           , reflects   = S.union   (reflects s1)  (reflects s2)
+           , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
+           , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
+           , inlines    = S.union   (inlines  s1)  (inlines  s2)
+           , autosize   = S.union   (autosize s1)  (autosize s2)
+           , bounds     = M.union   (bounds   s1)  (bounds   s2)
+           , defs       = M.union   (defs     s1)  (defs     s2)
            }
 
   mempty
@@ -175,6 +178,7 @@ instance Monoid (Spec ty bndr) where
            , asmSigs    = []
            , sigs       = []
            , localSigs  = []
+           , reflSigs   = []
            , invariants = []
            , ialiases   = []
            , imports    = []

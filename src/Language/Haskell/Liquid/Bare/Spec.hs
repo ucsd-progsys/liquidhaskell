@@ -177,19 +177,20 @@ makeAssertSpec cmod cfg vs lvs (mod, spec)
   | otherwise
   = inModule mod $ makeSpec True vs $ Ms.sigs spec
 
-makeAssumeSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
-               -> BareM [(ModName, Var, LocSpecType)]
+makeAssumeSpec
+  :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
+  -> BareM [(ModName, Var, LocSpecType)]
 makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs (grepClassAssumes (Ms.rinstance spec))  $ Ms.asmSigs spec
+  = makeLocalSpec cfg cmod vs lvs (grepClassAssumes (Ms.rinstance spec)) $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec True vs  $ Ms.asmSigs spec
+  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
 
 grepClassAsserts :: [RInstance t] -> [(Located F.Symbol, t)]
-grepClassAsserts  = concatMap go
+grepClassAsserts           = concatMap go
    where
-    go    xts              = catMaybes $ map goOne $ risigs xts
-    goOne (x, RISig t)     = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
+    go    xts              = mapMaybe goOne (risigs xts)
+    goOne (x, RISig t)     = Just ((F.symbol . (".$c" ++ ) . F.symbolString) <$> x, t)
     goOne (_, RIAssumed _) = Nothing
 
 grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
@@ -233,16 +234,12 @@ makeLocalSpec cfg mod vs lvs cbs xbs
 
 makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
          -> BareM [(ModName, Var, LocSpecType)]
-makeSpec ignoreUnknown vs xbs
-  = do vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
-       (BE { modName = mod}) <- get
-       map (addFst3 mod) <$> mapM mkVarSpec vbs
+makeSpec ignoreUnknown vs xbs = do
+  vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
+  (BE { modName = mod}) <- get
+  map (addFst3 mod) <$> mapM mkVarSpec vbs
 
-
-lookupIds :: GhcLookup a
-          => Bool
-          -> [(a, t)]
-          -> BareM [(Var, a, t)]
+lookupIds :: GhcLookup a => Bool -> [(a, t)] -> BareM [(Var, a, t)]
 lookupIds ignoreUnknown
   = mapMaybeM lookup
   where
@@ -279,7 +276,7 @@ makeNewTypes' :: [DataDecl] -> BareM [(TyCon, Located SpecType)]
 makeNewTypes' = mapM mkNT
   where
     mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
-    mkNT d       = (,) <$> (lookupGhcTyCon $ tycName d)
+    mkNT d       = (,) <$> lookupGhcTyCon (tycName d)
                        <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
     getTy l [(_,[(_,t)])] = return $ withLoc l t
     getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"

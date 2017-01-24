@@ -263,24 +263,21 @@ instance Subable CoreAlt where
 
 -- | Specification for Haskell function
 axiomType :: (TyConable c) => LocSymbol -> RType c tv RReft -> RType c tv RReft
-axiomType s t' = fromRTypeRep $ t {ty_res = res, ty_binds = xs'}
+axiomType s t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
   where
-    t   = toRTypeRep t'
-    xs  = fst $ unzip (dropWhile (isClassType . snd) $ zip xs' (ty_args t))
-    xs' = if isUnique (ty_binds t)
-             then ty_binds t
-             else (\i -> symbol ("xa" ++ show i)) <$> [1..(length $ ty_binds t)]
-    res = ty_res t `strengthen` MkUReft ref mempty mempty
-    ref = F.exprReft (F.mkEApp s (F.eVar <$> xs))
-    isUnique xs = length xs == length (L.nub xs)
+    res       = strengthen (ty_res tr) (singletonApp s ys)
+    ys        = fst $ unzip $ dropWhile (isClassType . snd) xts
+    xts       = safeZip "axiomBinds" xs (ty_args tr)
+    xs        = symbol . ("xa" ++) . show  <$> [1 .. n]
+    n         = length (ty_binds tr)
+    tr        = toRTypeRep t
 
-    -- REFLECT-IMPORTS x   = F.vv_
-    -- REFLECT-IMPORTS ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
-    -- REFLECT-IMPORTS ref = if isBool (ty_res t) then bref else eref
-    -- REFLECT-IMPORTS eref  = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
-    -- REFLECT-IMPORTS bref  = F.Reft (x, F.PIff       (F.EVar x) (mkApp xs))
+singletonApp :: F.Symbolic a => LocSymbol -> [a] -> UReft F.Reft
+singletonApp s ys = MkUReft r mempty mempty
+  where
+    r             = F.exprReft (F.mkEApp s (F.eVar <$> ys))
 
-    -- | Type for uninterpreted function that approximated Haskell function into logic
+-- | Type for uninterpreted function that approximated Haskell function into logic
 ufType :: (F.Reftable r) => Type -> BRType r
 ufType τ           = fromRTypeRep $ t {ty_args = args, ty_binds = xs, ty_refts = rs}
   where

@@ -157,7 +157,6 @@ ghcSpecEnv sp        = fromListSEnv binds
 --      makeHaskell{Inlines, Measures, Axioms, Bounds}
 -- 2. SAVE the LiftedSpec, which will be reloaded
 
--- makeHaskellAxioms :: ... -> [(LocSymbol, LocSpecType)]
 makeLiftedSpec
   :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
   -> BareM Ms.BareSpec
@@ -168,6 +167,8 @@ makeLiftedSpec file name embs cbs mySpec = do
   let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                      , Ms.measures = ms
                      , Ms.asmSigs  = xts
+                     , Ms.reflSigs = xts
+                     , Ms.reflects = Ms.reflects mySpec
                      }
   liftIO $ saveLiftedSpec file name lSpec
   return lSpec
@@ -185,7 +186,7 @@ loadLiftedSpec srcF = do
   ex  <- doesFileExist specF
   putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
   lSp <- if ex then B.decodeFile specF else return mempty
-  putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+  putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflects lSp)
   return lSp
   where
     specF = extFileName BinSpec srcF
@@ -226,7 +227,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec2 invs ntys ialias measures su
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
-    >>= makeGhcAxioms cbs fullSpec
+    >>= makeGhcAxioms cbs specs
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeGhcAxioms
     >>= makeGhcSpec4 quals defVars specs name su
@@ -270,18 +271,21 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
     eq   | null (ty_vars trep) && null xs = EVar x'
          | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
 
-makeGhcAxioms :: [CoreBind] -> Ms.BareSpec -> GhcSpec -> BareM GhcSpec
-makeGhcAxioms cbs sp spec = do
-  let vxs = [ (v, x) | x     <- val <$> S.toList (Ms.reflects sp)
-                     , (v,_) <- maybeToList (findVarDef x cbs) ]
-  let vM  = M.fromList vxs
-  let msR = mapMaybe (\(v, t) -> (, t) <$> M.lookup v vM) (gsAsmSigs spec)
-  let vs  = M.keys vM
-  lmap' <- logicEnv <$> get
-  return $ spec { gsMeas     = (tracepp "makeGhcAxioms:msR" msR) ++ gsMeas     spec
-                , gsReflects = vs  ++ gsReflects spec
-                , gsLogicMap = lmap'
-                }
+getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
+getReflects = tracepp "getReflects" . fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
+
+makeGhcAxioms :: [CoreBind] -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
+makeGhcAxioms cbs specs sp = do
+  let vxs   = [ (v, x) | x     <- getReflects specs
+                       , (v,_) <- maybeToList (findVarDef x cbs) "OOPS WE ARE ONLY LOOKING AT LOCAL BINDERS HERE" ]
+  let vM    = M.fromList vxs
+  let msR   = mapMaybe (\(v, t) -> (, t) <$> M.lookup v vM) (tracepp "makeGhcAxioms:gsAsmSigs" $ gsAsmSigs sp)
+  let vs    = M.keys vM
+  lmap'    <- logicEnv <$> get
+  return    $ sp { gsMeas     = (tracepp "makeGhcAxioms:msR" msR) ++ gsMeas sp
+                 , gsReflects = vs  ++ gsReflects sp
+                 , gsLogicMap = lmap'
+                 }
 
 
 emptySpec     :: Config -> GhcSpec
@@ -476,20 +480,19 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                           , [(LocSpecType, LocSpecType)]
                           , [(Var, LocSpecType)]
                           , [(Var, LocSpecType)] )
-makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-  = do sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
-       asms'    <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
-       invs     <- mconcat <$> mapM makeInvariants specs
-       ialias   <- mconcat <$> mapM makeIAliases   specs
-       ntys     <- mconcat <$> mapM makeNewTypes   specs
-       let dms   = makeDefaultMethods vars mts
-       tyi      <- gets tcEnv
-       let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-       let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
-       let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
-       let minvs = makeMeasureInvariants sigs hms
-       return     (invs ++ minvs, ntys, ialias, sigs, asms)
-
+makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
+  sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
+  asms'    <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+  invs     <- mconcat <$> mapM makeInvariants specs
+  ialias   <- mconcat <$> mapM makeIAliases   specs
+  ntys     <- mconcat <$> mapM makeNewTypes   specs
+  let dms   = makeDefaultMethods vars mts
+  tyi      <- gets tcEnv
+  let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
+  let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- tracepp "CHOP3 ASSMS" asms' ]
+  let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
+  let minvs = makeMeasureInvariants sigs hms
+  return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
 makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, val x == symbol' y]
@@ -538,19 +541,19 @@ makeGhcSpecCHOP2 :: [CoreBind]
                           , [(Symbol, Located (RRType Reft))]
                           , [(Var,    LocSpecType)]
                           , [Symbol] )
-makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs
-  = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
-       tyi         <- gets tcEnv
-       -- name        <- gets modName
-       -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
-       let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
-       let (cs, ms) = makeMeasureSpec' measures
-       let cms      = makeClassMeasureSpec measures
-       let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
-       let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-       let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
-       let xs'      = val . fst <$> ms
-       return (measures, cms', ms', cs', xs')
+makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs = do
+  measures'   <- mconcat <$> mapM makeMeasureSpec specs
+  tyi         <- gets tcEnv
+  -- name        <- gets modName
+  -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
+  let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
+  let (cs, ms) = makeMeasureSpec' measures
+  let cms      = makeClassMeasureSpec measures
+  let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
+  let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
+  let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
+  let xs'      = val . fst <$> ms
+  return (measures, cms', ms', cs', xs')
 
 txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType
 txRefSort' v tyi embs t = txRefSort tyi embs (atLoc' v t)

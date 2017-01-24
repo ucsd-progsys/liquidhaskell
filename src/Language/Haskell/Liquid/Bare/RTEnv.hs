@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import           Language.Fixpoint.Misc (fst3)
-import           Language.Fixpoint.Types (Expr(..), Symbol, symbol, tracepp)
+import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
 import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import           Language.Haskell.Liquid.Types
@@ -96,10 +96,8 @@ buildAliasGraph buildEdges
   = map (buildAliasNode buildEdges)
 
 buildAliasNode :: (PPrint t) => (t -> [Symbol]) -> RTAlias Symbol t -> Node Symbol
-buildAliasNode buildEdges alias'
+buildAliasNode buildEdges alias
   = (rtName alias, rtName alias, buildEdges $ rtBody alias)
-  where
-    alias = tracepp "buildAliasNode" alias'
 
 checkCyclicAliases :: AliasTable t -> Graph Symbol -> BareM ()
 checkCyclicAliases table graph
