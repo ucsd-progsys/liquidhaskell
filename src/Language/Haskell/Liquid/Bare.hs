@@ -119,6 +119,7 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
     hCons = mkEApp (dcSym consDataCon)
     dcSym = dummyLoc . GM.dropModuleUnique . symbol
 
+-- ASKNIKI: WTF?
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
   = sp { gsTySigs     = mapSnd addTCI <$> sigs
@@ -580,7 +581,7 @@ type ReplaceState = ( M.HashMap Var LocSpecType
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
--- RJ: WHAT DOES THIS FUNCTION DO?!!!!
+-- ASKNIKI: WHAT DOES THIS FUNCTION DO?!!!!
 replaceLocalBinds :: Bool
                   -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
