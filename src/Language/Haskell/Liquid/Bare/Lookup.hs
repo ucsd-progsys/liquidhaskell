@@ -40,6 +40,7 @@ import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSp
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
+-- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Querying GHC for Id, Type, Class, Con etc. --------------------------------
@@ -69,7 +70,7 @@ lookupGhcThing' _err f x = do
   let env = hscEnv be
   -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x)
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -132,10 +133,11 @@ lookupGhcVar x
     fv _                          = Nothing
 
 
-lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s     = lookupGhcThing err ftc s `catchError` \_ ->
+lookupGhcTyCon   ::  GhcLookup a => a -> BareM TyCon
+lookupGhcTyCon s = lookupGhcThing err ftc s `catchError` \_ ->
                          lookupGhcThing err fdc s
   where
+    -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
       = Just x
     ftc _

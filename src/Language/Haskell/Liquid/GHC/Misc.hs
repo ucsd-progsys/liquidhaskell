@@ -213,7 +213,11 @@ showPpr       = showSDoc . ppr
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Out.SDoc -> String
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle myQualify {- Out.alwaysQualify -} Out.AllTheWay)
+
+myQualify :: Out.PrintUnqualified
+myQualify = Out.neverQualify { Out.queryQualifyName = Out.alwaysQualifyNames }
+-- { Out.queryQualifyName = \_ _ -> Out.NameNotInScope1 }
 
 showSDocDump :: Out.SDoc -> String
 showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
@@ -449,11 +453,13 @@ varSymbol v
     vs                    = symbol $ getName v
 
 qualifiedNameSymbol :: Name -> Symbol
-qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
+qualifiedNameSymbol n = symbol $ concatFS [modFS, trace ("occFS: " ++ msg) occFS, uniqFS]
   where
+  msg   = showSDoc (ppr n) -- getOccString n
   modFS = case nameModule_maybe n of
             Nothing -> fsLit ""
             Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
+
   occFS = occNameFS (getOccName n)
   uniqFS
     | isSystemName n
