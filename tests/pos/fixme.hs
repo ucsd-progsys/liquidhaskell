@@ -1,13 +1,24 @@
-module Goo where
+{-@ LIQUID "--higherorder"   @-}
+{-@ LIQUID "--totality"      @-}
+{-@ LIQUID "--exactdc"       @-}
 
-import qualified Data.Set as S
+module MapReduce where
 
-data T a = T a
+import Prelude hiding (map) -- , mconcat, split, take, drop, sum)
+-- import Language.Haskell.Liquid.ProofCombinators
 
-{-@ measure elems @-}
-elems       :: T a -> S.Set a
-elems (T a) = S.singleton a
+{-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
+data List a = N | C a (List a)
 
-{-@ member :: x:a -> t:T a -> {v:Bool | v <=> S.member x (elems t)} @-}
-member :: a -> T a -> Bool
-member = undefined
+{-@ measure llen @-}
+llen :: List a -> Int
+
+{-@ llen :: List a -> Nat @-}
+llen N        = 0
+llen (C _ xs) = 1 + llen xs
+
+{-@ reflect map @-}
+{-@ map :: (a -> b) -> xs:List a -> List b / [llen xs] @-}
+map :: (a -> b) -> List a -> List b
+map _  N       = N
+map f (C x xs) = f x `C` map f xs
