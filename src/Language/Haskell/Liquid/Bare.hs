@@ -95,7 +95,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
-  let renv = tracepp "makeGhcSpec:specEnv" $ ghcSpecEnv sp
+  let renv = {- tracepp "makeGhcSpec:specEnv" $ -} ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
@@ -163,7 +163,7 @@ makeLiftedSpec
 makeLiftedSpec file name embs cbs mySpec = do
   xils  <- makeHaskellInlines  embs cbs mySpec
   ms    <- makeHaskellMeasures embs cbs mySpec
-  xts   <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms   embs cbs mySpec
+  xts   <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms   embs cbs mySpec
   let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                      , Ms.measures = ms
                      , Ms.asmSigs  = xts

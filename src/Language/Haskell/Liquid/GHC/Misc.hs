@@ -453,9 +453,9 @@ varSymbol v
     vs                    = symbol $ getName v
 
 qualifiedNameSymbol :: Name -> Symbol
-qualifiedNameSymbol n = symbol $ concatFS [modFS, trace ("occFS: " ++ msg) occFS, uniqFS]
+qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
   where
-  msg   = showSDoc (ppr n) -- getOccString n
+  _msg   = showSDoc (ppr n) -- getOccString n
   modFS = case nameModule_maybe n of
             Nothing -> fsLit ""
             Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
@@ -541,6 +541,9 @@ instance NFData Var where
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
+
+splitModuleName :: Symbol -> (Symbol, Symbol)
+splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)
 
 dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames

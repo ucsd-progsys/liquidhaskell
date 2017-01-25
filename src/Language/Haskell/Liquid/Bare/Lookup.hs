@@ -25,6 +25,10 @@ import           SrcLoc                           (SrcSpan, GenLocated(L))
 import           TcEnv
 import           TyCon
 import           TysWiredIn
+import           Module
+import           Finder
+import           TcRnMonad
+import           IfaceEnv
 import           Var
 
 import           Control.Monad.Except             (catchError, throwError)
@@ -36,7 +40,8 @@ import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
-import           Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Fixpoint.Misc           as F
+import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -96,7 +101,14 @@ wiredIn      = M.fromList $ special ++ wiredIns
                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 symbolLookupEnv :: HscEnv -> ModName -> Symbol -> IO [Name]
-symbolLookupEnv env mod s
+symbolLookupEnv env mod k = do
+  ns <- symbolLookupEnvOrig env mod k
+  case ns of
+    [] -> symbolLookupEnvFull env mod k
+    _  -> return ns
+
+symbolLookupEnvOrig :: HscEnv -> ModName -> Symbol -> IO [Name]
+symbolLookupEnvOrig env mod s
   | isSrcImport mod
   = do let modName = getModName mod
        L _ rn <- hscParseIdentifier env $ ghcSymbolString s
@@ -111,6 +123,31 @@ symbolLookupEnv env mod s
        case lookupres of
          Just ns -> return ns
          _       -> return []
+
+symbolLookupEnvFull :: HscEnv -> ModName -> Symbol -> IO [Name]
+symbolLookupEnvFull hsc _m s = do
+  let (modName, occName) =  ghcSplitModuleName s
+  mbMod  <- lookupTheModule hsc modName
+  case mbMod of
+    Just mod -> liftIO $ F.singleton <$> lookupTheName hsc mod occName
+    Nothing  -> return []
+
+lookupTheModule :: HscEnv -> ModuleName -> IO (Maybe Module)
+lookupTheModule hsc modName = do
+  r <- findImportedModule hsc modName Nothing
+  return $ case r of
+    Found _ mod -> Just mod
+    NotFound {fr_mods_hidden=(unitId:_)} -> Just (mkModule unitId modName)
+    _ -> Nothing -- error "i don't know what to do here"
+
+lookupTheName :: HscEnv -> Module -> OccName -> IO Name
+lookupTheName hsc mod name = initTcForLookup hsc (lookupOrig mod name)
+
+
+ghcSplitModuleName :: Symbol -> (ModuleName, OccName)
+ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolString s)
+  where
+    (m, s)           = splitModuleName x
 
 ghcSymbolString :: Symbol -> String
 ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
