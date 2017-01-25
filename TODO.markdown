@@ -38,12 +38,6 @@ HEREHEREHEREHEREHERE: bunch of tweaks to shove "axioms" into plain 'assumes'.
 + nullterm.hs:                       FAIL (0.49s)
 + Mod2.hs:                           FAIL (0.41s)
 
-PprStyle
-https://github.com/ghc/ghc/blob/master/compiler/utils/Outputable.hs#L131-L207
-
-
-
-
 Check Covariance
 ----------------
 
