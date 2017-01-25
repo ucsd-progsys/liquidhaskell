@@ -743,8 +743,8 @@ mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSy
 mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
-  , Measure.sigs       = [a | Asrt   a <- xs]
-                      ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
+  , Measure.sigs       = tracepp "PARSED-SIGS" $ [a | Asrt   a <- xs]
+                                                ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
   , Measure.reflSigs   = []
   , Measure.invariants = [t | Invt   t <- xs]

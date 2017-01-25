@@ -78,6 +78,7 @@ import           Language.Haskell.Liquid.Bare.Spec
 import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
+import           Language.Haskell.Liquid.Bare.ToBare
 
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
@@ -160,19 +161,20 @@ ghcSpecEnv sp        = fromListSEnv binds
 
 makeLiftedSpec
   :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
-  -> BareM Ms.BareSpec
+  -> BareM (Ms.BareSpec, [(Var, LocSpecType)])
 makeLiftedSpec file name embs cbs mySpec = do
-  xils  <- makeHaskellInlines  embs cbs mySpec
-  ms    <- makeHaskellMeasures embs cbs mySpec
-  xts   <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms   embs cbs mySpec
+  xils   <- makeHaskellInlines  embs cbs mySpec
+  ms     <- makeHaskellMeasures embs cbs mySpec
+  xts    <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms embs cbs mySpec
+  let xbs = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
   let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                      , Ms.measures = ms
-                     , Ms.asmSigs  = xts
-                     , Ms.reflSigs = xts
+                     , Ms.asmSigs  = xbs
+                     , Ms.reflSigs = xbs
                      , Ms.reflects = Ms.reflects mySpec
                      }
   liftIO $ saveLiftedSpec file name lSpec
-  return lSpec
+  return (lSpec, xts)
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
@@ -199,6 +201,12 @@ insert k v ((k', v') : kvs)
   | k == k'                = (k, v)   : kvs
   | otherwise              = (k', v') : insert k v kvs
 
+
+dumpSigs :: [(ModName, Ms.BareSpec)] -> IO ()
+dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <- specs0 ]
+  where
+    dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
+
 --------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
@@ -206,20 +214,22 @@ makeGhcSpec'
   -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
-  name          <- modName <$> get
-  let mySpec     = fromMaybe mempty (lookup name specs0)
-  embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  lfSpec        <- makeLiftedSpec file name embs cbs mySpec
-  let fullSpec   = mySpec `mappend` lfSpec
-  lmap          <- logic_map . logicEnv    <$> get
-  let specs      = insert name fullSpec specs0
+  liftIO $ dumpSigs specs0
+  name           <- modName <$> get
+  let mySpec      = fromMaybe mempty (lookup name specs0)
+  embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+  (lfSpec,rasms) <- makeLiftedSpec file name embs cbs mySpec
+  let fullSpec    = mySpec `mappend` lfSpec
+  lmap           <- logic_map . logicEnv    <$> get
+  let specs       = insert name fullSpec specs0
   makeRTEnv name lfSpec specs lmap
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
-  (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
+  (invs, ntys, ialias, sigs, asms')       <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
+  let asms = rasms ++ asms'
   quals   <- mconcat <$> mapM makeQualifiers specs
   syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
   let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]

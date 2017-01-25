@@ -23,8 +23,7 @@ import           Language.Haskell.Liquid.Types.RefType
 --------------------------------------------------------------------------------
 specToBare :: SpecType -> BareType
 --------------------------------------------------------------------------------
-specToBare t = F.tracepp ("specToBare t = " ++ F.showpp t) $
-                txRType specToBareTC specToBareTV t
+specToBare = txRType specToBareTC specToBareTV
 
 -- specToBare t = F.tracepp ("specToBare t2 = " ++ F.showpp t2)  t1
   -- where
@@ -41,7 +40,7 @@ dataConToBare :: DataCon -> LocSymbol
 dataConToBare = namedLocSymbol
 
 specToBareTC :: RTyCon -> BTyCon
-specToBareTC = F.tracepp "specToBareTC" . tyConBTyCon . rtc_tc
+specToBareTC = tyConBTyCon . rtc_tc
 
 specToBareTV :: RTyVar -> BTyVar
 specToBareTV (RTV α) = BTV (F.symbol α)

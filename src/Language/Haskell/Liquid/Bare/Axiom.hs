@@ -34,33 +34,40 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.Bare.ToBare
+-- import           Language.Haskell.Liquid.Bare.ToBare
 
 
 --------------------------------------------------------------------------------
 makeHaskellAxioms
-  :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM [ (LocSymbol, LocBareType)]
+  :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM [ (Var, LocSpecType)]
 --------------------------------------------------------------------------------
 makeHaskellAxioms tce cbs sp = do
-  let xs       = S.toList $ Ms.reflects sp
-  lmap        <- logicEnv <$> get
-  (_,xts,_,_) <- L.unzip4 <$> mapM (makeAxiom tce lmap cbs) xs
-  return [ (namedLocSymbol x, t) | (x, t) <- concat xts ]
+  let xts       = getReflects sp
+  lmap         <- logicEnv <$> get
+  (_,xts',_,_) <- L.unzip4 <$> mapM (uncurry (makeAxiom tce lmap cbs)) xts
+  return xts' -- [ (namedLocSymbol x, t) | (x, t) <- xts' ]
 
+getReflects :: Ms.BareSpec -> [(LocSymbol, Maybe BareType)]
+getReflects sp = F.tracepp "REFLECT-ENV2" $ [ (x, getSig x) | x <- S.toList (Ms.reflects sp) ]
+  where
+    allSigs    = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
+    env        = F.tracepp "REFLECT-ENV1" $ F.fromListSEnv [ (dropModuleNames $ val x, val t) | (x, t) <- allSigs ]
+    getSig x   = F.lookupSEnv (val x) env
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
           -> LogicMap
           -> [CoreBind]
           -> LocSymbol
-          -> BareM ( (Symbol, LocBareType)   -- ^ reflected symbol, sort
-                   , [(Var  , LocBareType)]  -- ^ [ONLY OUTPUT THAT MATTERS] reflected vars and reflected-refinement types
-                   , [Var]                   -- ^ reflected vars
-                   , F.Expr                  -- ^ quantified formula?
+          -> Maybe BareType
+          -> BareM ( (Symbol, LocBareType)  -- ^ reflected symbol, sort
+                   , (Var   , LocSpecType)  -- ^ [ONLY OUTPUT THAT MATTERS] reflected vars and reflected-refinement types
+                   , [Var]                  -- ^ reflected vars
+                   , F.Expr                 -- ^ quantified formula?
                    )
 --------------------------------------------------------------------------------
-makeAxiom tce lmap cbs x
+makeAxiom tce lmap cbs x mbT
   = case findVarDef (val x) cbs of
-      Just (v, def) -> makeAxiom' tce lmap cbs x v def
+      Just (v, def) -> makeAxiom' tce lmap cbs x mbT v def
       Nothing       -> throwError $ mkError x "Cannot lift haskell function"
 
 --------------------------------------------------------------------------------
@@ -68,21 +75,22 @@ makeAxiom' :: F.TCEmb TyCon
            -> LogicMap
            -> [CoreBind]
            -> LocSymbol
+           -> Maybe BareType
            -> Var
            -> CoreExpr
-           -> BareM ((Symbol, LocBareType), [(Var, LocBareType)], [Var], F.Expr)
+           -> BareM ((Symbol, LocBareType), (Var, LocSpecType), [Var], F.Expr)
 --------------------------------------------------------------------------------
-makeAxiom' tce lmap _cbs x v def = do
+makeAxiom' tce lmap _cbs x mbT v def = do
   -- REFLECT-IMPORTS [] let anames = findAxiomNames x cbs
   let haxs   = defAxioms {- REFLECT-IMPORTS anames -} v def
   -- REFLECT-IMPORTS [] vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) haxs
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap x v {- REFLECT-IMPORTS anames -}  def
+  let (t, e) = makeAssumeType tce lmap x mbT v {- REFLECT-IMPORTS anames -}  def
   return ( (val x, mkType x v)
-         , [(v, specToBare <$> t)]  -- REFLECT-IMPORTS : vts
-         , fst . aname <$> haxs                -- ASKNIKI: dead?
+         , (v, t)
+         , fst . aname <$> haxs
          , e )       -- ASKNIKI: What is this for?
 
 mkError :: LocSymbol -> String -> Error
@@ -95,14 +103,16 @@ makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Expr
 makeSMTAxiom f xs e = F.PAll xs (F.PAtom F.Eq (F.mkEApp f (F.eVar . fst <$> xs)) e)
 
 -- ASKNIKI: what is this function doing?!
-makeAssumeType :: F.TCEmb TyCon -> LogicMap -> LocSymbol ->  Var -> CoreExpr
-               -> (LocSpecType, F.Expr)
-makeAssumeType tce lmap x v def
+makeAssumeType
+  :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Maybe BareType ->  Var -> CoreExpr
+  -> (LocSpecType, F.Expr)
+makeAssumeType tce lmap x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xss le )
   where
     -- trep = toRTypeRep t
     t    = ofType $ varType v
-    at   = axiomType x t
+    at   = F.tracepp ("axiomType: " ++ msg) $  axiomType x mbT t
+    msg  = unwords [showpp x, showpp mbT]
     le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
              Right e -> e
              Left  e -> panic Nothing $ show e
@@ -262,14 +272,17 @@ instance Subable CoreAlt where
   subst su (c, xs, e) = (c, xs, subst su e)
 
 -- | Specification for Haskell function
-axiomType :: (TyConable c) => LocSymbol -> RType c tv RReft -> RType c tv RReft
-axiomType s t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
+axiomType
+  :: (TyConable c) => LocSymbol -> Maybe BareType -> RType c tv RReft
+  -> RType c tv RReft
+axiomType s mbT t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
   where
-    res       = strengthen (ty_res tr) (singletonApp s ys)
-    ys        = fst $ unzip $ dropWhile (isClassType . snd) xts
-    xts       = safeZip "axiomBinds" xs (ty_args tr)
-    xs        = zipWith unDummy (ty_binds tr) [1..]
-    tr        = toRTypeRep t
+    res           = strengthen (ty_res tr) (singletonApp s ys)
+    ys            = fst $ unzip $ dropWhile (isClassType . snd) xts
+    xts           = safeZip "axiomBinds" xs (ty_args tr)
+    xs            = zipWith unDummy bs [1..]
+    tr            = toRTypeRep t
+    bs            = maybe (ty_binds tr) (ty_binds . toRTypeRep) mbT
 
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i

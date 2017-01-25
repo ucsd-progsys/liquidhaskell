@@ -2,7 +2,11 @@
 {-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--exactdc"       @-}
 
-module MapReduce where
+-- | This test checks that reflected sigs, whose binders
+--   can be different than those in the specified type,
+--   live in harmony with the user-specified binds.
+
+module ReflectSwizzlesBinders where
 
 import Prelude hiding (map) -- , mconcat, split, take, drop, sum)
 -- import Language.Haskell.Liquid.ProofCombinators
