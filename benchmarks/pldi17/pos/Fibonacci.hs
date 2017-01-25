@@ -15,7 +15,7 @@ import Proves
 -- | there is an unfold in the logic)
 
 {-@ fib :: n:Nat -> Nat @-}
-{-@ axiomatize fib @-}
+{-@ reflect fib @-}
 
 fib :: Int -> Int
 {-

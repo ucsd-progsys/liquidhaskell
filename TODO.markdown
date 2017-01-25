@@ -14,27 +14,35 @@ Reflect-Imports
 HEREHEREHEREHEREHERE: bunch of tweaks to shove "axioms" into plain 'assumes'.
 - rerun tests!
 
-* TemplateHaskellImp.hs:             FAIL (0.66s)
-* State1.hs:                         FAIL (0.44s)
-* nullterm.hs:                       FAIL (0.49s)
-* Mod2.hs:                           FAIL (0.41s)
-* MeasureSets.hs:                    FAIL (0.92s)
-* MeasureDups.hs:                    FAIL (0.95s)
+[llen]
 * MapReduceVerified.hs:              FAIL (1.38s)
-* Ackermann.hs:                      FAIL (2.14s)
-* Fibonacci.hs:                      FAIL (3.61s)
 * Solver.hs:                         FAIL (1.46s)
-* Unification.hs:                    FAIL (1.34s)
-* Automate.hs:                       FAIL (1.35s)
+
+? Fibonacci.hs:                      FAIL (3.61s)
+? Automate.hs:                       FAIL (1.35s)
 
 * fixme.hs:                          FAIL (0.99s)
-  * Keys.hs:                           FAIL (0.86s)
-  * eqelems.hs:                        FAIL (0.90s)
-  * elems.hs:                          FAIL (0.94s)
-  * coretologic.hs:                    FAIL (0.84s)
+  * Keys.hs:                         FAIL (0.86s)
+  * eqelems.hs:                      FAIL (0.90s)
+  * elems.hs:                        FAIL (0.94s)
+  * coretologic.hs:                  FAIL (0.84s)
+  * MeasureSets.hs:                  FAIL (0.92s)
+  * MeasureDups.hs:                  FAIL (0.95s)
+  * Unification.hs:                  FAIL (1.34s)
 
 
++ Ackermann.hs:                      FAIL (2.14s)
 + LocalSpecImp.hs:                   FAIL (0.45s)
++ TemplateHaskellImp.hs:             FAIL (0.66s)
++ State1.hs:                         FAIL (0.44s)
++ nullterm.hs:                       FAIL (0.49s)
++ Mod2.hs:                           FAIL (0.41s)
+
+PprStyle
+https://github.com/ghc/ghc/blob/master/compiler/utils/Outputable.hs#L131-L207
+
+
+
 
 Check Covariance
 ----------------
