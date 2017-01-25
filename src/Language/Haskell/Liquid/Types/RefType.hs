@@ -441,8 +441,8 @@ bApp :: TyCon -> [BRType r] -> [BRProp r] -> r -> BRType r
 bApp c = RApp (tyConBTyCon c)
 
 tyConBTyCon :: TyCon -> BTyCon
-tyConBTyCon = mkBTyCon . fmap symbol . locNamedThing
--- REFLECT-IMPORTS tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
+tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
+-- tyConBTyCon = mkBTyCon . fmap symbol . locNamedThing
 
 --- NV TODO : remove this code!!!
 
