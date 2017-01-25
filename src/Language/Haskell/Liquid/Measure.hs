@@ -67,6 +67,7 @@ data Spec ty bndr  = Spec
   , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms 
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  , mreflects  :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into reflected methods
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
@@ -152,6 +153,7 @@ instance Monoid (Spec ty bndr) where
            , autois     = M.union   (autois s1)      (autois s2)
            , axioms     = S.union   (axioms s1)      (axioms s2)
            , reflects   = S.union   (reflects s1)    (reflects s2)
+           , mreflects  = S.union   (mreflects s1)   (mreflects s2)
            , hmeas      = S.union   (hmeas s1)       (hmeas s2)
            , hbounds    = S.union   (hbounds s1)     (hbounds s2)
            , inlines    = S.union   (inlines s1)     (inlines s2)
@@ -189,6 +191,7 @@ instance Monoid (Spec ty bndr) where
            , hmeas      = S.empty
            , axioms     = S.empty
            , reflects   = S.empty
+           , mreflects  = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
            , autosize   = S.empty

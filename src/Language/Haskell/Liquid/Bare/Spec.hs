@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
+  , makeMReflects
   ) where
 
 import           CoreSyn                                    (CoreBind)
@@ -111,6 +112,13 @@ makeLazy :: [Var]
          -> Ms.Spec ty bndr
          -> BareM [Var]
 makeLazy    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- S.toList $ Ms.lazy spec]
+
+
+makeMReflects :: [Var]
+              -> Ms.Spec ty bndr
+              -> BareM [(Var, F.Symbol)]
+makeMReflects vs spec = varSymbols id vs [(v, val v) | v <- S.toList $ Ms.mreflects spec]
+
 
 makeAutoInsts :: [Var]
               -> Ms.Spec ty bndr
