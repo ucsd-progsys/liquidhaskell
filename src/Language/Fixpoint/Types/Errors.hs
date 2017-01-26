@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveFoldable            #-}
@@ -59,18 +60,23 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
-import qualified Text.PrettyPrint.Annotated.HughesPJ as Ann
 -- import           Text.Printf
 import           Data.Function (on)
 
 -- import           Debug.Trace
 
-instance Serialize Error1
--- FIXME: orphans are bad...
-instance Serialize TextDetails
+#if MIN_VERSION_pretty(1,1,3)
+import qualified Text.PrettyPrint.Annotated.HughesPJ as Ann
+
 deriving instance Generic (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.Doc a)
+#endif
+
+instance Serialize Error1
+-- FIXME: orphans are bad...
+instance Serialize TextDetails
+
 instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
