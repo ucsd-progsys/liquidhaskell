@@ -370,7 +370,7 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f' <- tosymbol' (C.Var x :: C.CoreExpr)
-  return $ eAppWithMap lmap f' [] (varExpr x)
+  return $ tracepp "EVARWITHMAP" $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x
@@ -457,7 +457,7 @@ mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
 
 mkS :: ByteString -> Maybe Expr
-mkS                    = Just . ESym . SL  . (decodeUtf8With lenientDecode)
+mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]

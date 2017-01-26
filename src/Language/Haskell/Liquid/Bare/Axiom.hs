@@ -87,7 +87,7 @@ makeAxiom' tce lmap _cbs x mbT v def = do
   insertAxiom v (val x)
   updateLMap lmap x x v
   updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap x mbT v {- REFLECT-IMPORTS anames -}  def
+  let (t, e) = makeAssumeType tce (F.tracepp "makeAX-LMAP" lmap) x mbT v {- REFLECT-IMPORTS anames -}  def
   return ( (val x, mkType x v)
          , (v, t)
          , fst . aname <$> haxs
@@ -149,7 +149,7 @@ strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofR
 updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap _ x y vv
   | val x /= val y && isFun (varType vv)
-  = insertLogicEnv "UPDATELMAP" x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv ("UPDATELMAP: vv =" ++ show vv) x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   | otherwise
   = return ()
   where
