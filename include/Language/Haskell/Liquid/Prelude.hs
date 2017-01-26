@@ -74,7 +74,7 @@ liquidAssert _ x = x
 {-@ assume liquidAssume :: b:Bool -> a -> {v: a | b}  @-}
 {-# NOINLINE liquidAssume #-}
 liquidAssume :: Bool -> a -> a
-liquidAssume _ x = x
+liquidAssume b x = if b then x else error "liquidAssume fails"
 
 {-@ assume liquidAssumeB :: forall <p :: a -> Bool>. (a<p> -> {v:Bool| v}) -> a -> a<p> @-}
 liquidAssumeB :: (a -> Bool) -> a -> a
