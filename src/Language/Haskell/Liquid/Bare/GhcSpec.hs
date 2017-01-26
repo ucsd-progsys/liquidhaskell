@@ -345,10 +345,12 @@ makeGhcSpec4 quals defVars specs name su sp
        autois  <- mkThing makeAutoInsts
        lvars'  <- mkThing makeLVar
        defs'   <- mkThing makeDefs
+       mrefs   <- mkThing makeMReflects 
        addDefs defs'
        asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHMeas
        hinls   <- mkThing makeHInlines
+       mapM_ (\(v, s) -> insertAxiom v s) mrefs 
        mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
        mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hinls
        mapM_ insertHMeasLogicEnv $ S.toList hmeas

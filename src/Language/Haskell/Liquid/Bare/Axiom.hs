@@ -128,7 +128,7 @@ makeAssumeType tce lmap x v xts ams def = assumedtype
     grapBody (Tick _ e) = grapBody e
     grapBody e          = ([], e)
 
-    xss = [(mkSymbol x t, rTypeSort tce t) | (x, t) <- zip xs (ty_args (toRTypeRep at)), not (isClassType t)]
+    xss = [(mkSymbol x t, rTypeSort tce t) | (x, t) <- zip xs (filter (not . isClassType) $ ty_args (toRTypeRep at))]
 
     mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x 
 
