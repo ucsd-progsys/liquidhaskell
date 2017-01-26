@@ -1,7 +1,8 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 
-module FunctionAbstraction where
+
+module Fibonacci where
 import Proves 
 
 

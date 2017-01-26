@@ -686,6 +686,7 @@ data Pspec ty ctor
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
   | Lazy    LocSymbol
+  | Insts   (LocSymbol, Maybe Int)
   | HMeas   LocSymbol
   | Axiom   LocSymbol
   | Reflect LocSymbol
@@ -723,6 +724,7 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"
   show (LVars  _) = "LVars"
   show (Lazy   _) = "Lazy"
+  show (Insts  _) = "Insts"
   show (Axiom  _) = "Axiom"
   show (Reflect _) = "Reflect"
   show (HMeas  _) = "HMeas"
@@ -759,6 +761,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.autois     = M.fromList [s | Insts s <- xs]
   , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
@@ -814,6 +817,7 @@ specP
     <|> (reservedToken "LAZYVAR"   >> liftM LVars  lazyVarP  )
     <|> (reservedToken "Strict"    >> liftM Lazy   lazyVarP  )
     <|> (reservedToken "Lazy"      >> liftM Lazy   lazyVarP  )
+    <|> (reservedToken "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reservedToken "LIQUID"    >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                 liftM Asrts  tyBindsP
 
@@ -826,6 +830,12 @@ spaces1 = satisfy isSpace >> spaces
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral
+
+autoinstP :: Parser (LocSymbol, Maybe Int)
+autoinstP = do x <- locParserP binderP
+               spaces 
+               i <- maybeP (reservedToken "with" >> integer)
+               return (x, fromIntegral <$> i)
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP

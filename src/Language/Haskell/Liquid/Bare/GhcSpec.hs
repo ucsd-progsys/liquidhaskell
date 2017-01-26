@@ -243,6 +243,7 @@ emptySpec cfg = SP
   , gsNewTypes   = mempty
   , gsLvars      = mempty
   , gsLazy       = mempty
+  , gsAutoInst   = mempty
   , gsAutosize   = mempty
   , gsConfig     = cfg
   , gsExports    = mempty
@@ -341,6 +342,7 @@ makeGhcSpec4 quals defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
        gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
+       autois  <- mkThing makeAutoInsts
        lvars'  <- mkThing makeLVar
        defs'   <- mkThing makeDefs
        addDefs defs'
@@ -364,6 +366,7 @@ makeGhcSpec4 quals defVars specs name su sp
        return   $ sp { gsQualifiers = subst su quals
                      , gsDecr       = decr'
                      , gsLvars      = lvars'
+                     , gsAutoInst   = M.fromList $ S.toList autois
                      , gsAutosize   = asize'
                      , gsLazy       = S.insert dictionaryVar lazies
                      , gsLogicMap   = lmap'

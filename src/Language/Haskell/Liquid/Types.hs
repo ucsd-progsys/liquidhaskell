@@ -199,7 +199,7 @@ module Language.Haskell.Liquid.Types (
   -- * String Literals
   , liquidBegin, liquidEnd
 
-  , Axiom(..), HAxiom, LAxiom, SMTAxiom
+  , Axiom(..), HAxiom, LAxiom, AxiomEq(..)
 
   , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
   )
@@ -343,14 +343,15 @@ data GhcSpec = SP {
   , gsTexprs     :: ![(Var, [Located Expr])]     -- ^ Lexicographically ordered expressions for termination
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
-  , gsLazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
-  , gsAutosize   :: !(S.HashSet TyCon)             -- ^ Binders to IGNORE during termination checking
-  , gsConfig     :: !Config                        -- ^ Configuration Options
+  , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
+  , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
+  , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
+  , gsConfig     :: !Config                      -- ^ Configuration Options
   , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [SMTAxiom]                     -- ^ Axioms from axiomatized functions
+  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from axiomatized functions
   , gsReflects  :: [HAxiom]                       -- ^ Axioms from reflected functions 
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
@@ -1002,7 +1003,11 @@ data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
 type HAxiom = Axiom Var Type CoreExpr
 type LAxiom = Axiom Symbol Sort Expr
 
-type SMTAxiom = Expr 
+data AxiomEq = AxiomEq { axiomName :: Symbol
+                       , axiomArgs :: [Symbol]
+                       , axiomBody :: Expr
+                       , axiomEq   :: Expr
+                       } 
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
@@ -1213,6 +1218,11 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   top (MkUReft r p s)      = MkUReft (top r) (top p) s
 
   ofReft r = MkUReft (ofReft r) mempty mempty
+
+instance Expression (UReft ()) where
+  expr = expr . toReft 
+
+
 
 isTauto_ureft :: Reftable r => UReft r -> Bool
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
@@ -1615,6 +1625,7 @@ instance NFData a => NFData (TError a)
 
 data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
+                   , ci_var :: !(Maybe Var)
                    }
                 deriving (Eq, Ord, Generic)
 
@@ -1981,3 +1992,7 @@ ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [vv Nothing]) <+> "->"
 ppRefSym :: (Eq a, IsString a, PPrint a) => Tidy -> a -> Doc
 ppRefSym _ "" = text "_"
 ppRefSym k s  = pprintTidy k s
+
+
+
+
