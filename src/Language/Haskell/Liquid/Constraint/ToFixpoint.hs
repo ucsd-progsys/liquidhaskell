@@ -15,6 +15,8 @@ import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 -- import           Language.Fixpoint.Misc (traceShow)
 
+import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
+
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
   let tgtFI  = targetFInfo info cgi
@@ -44,7 +46,14 @@ targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es
     consts           = cgConsts cgi
     ks               = kuts     cgi
     qs               = qualifiers info (fEnv cgi)
-    bi               = (`Ci` Nothing) <$> bindSpans cgi
+    bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
-    es               = gsAxioms (spec info)
+    es               = makeAxioms info 
+
+makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
+makeAxioms info 
+  | allowSMTInstationation (getConfig info)
+  = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
+  | otherwise
+  = [] 

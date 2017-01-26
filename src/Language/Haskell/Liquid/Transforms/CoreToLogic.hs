@@ -4,20 +4,17 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
 
-module Language.Haskell.Liquid.Transforms.CoreToLogic (
-
-    coreToDef
+module Language.Haskell.Liquid.Transforms.CoreToLogic
+  ( coreToDef
   , coreToFun
   , coreToLogic
   , mkLit, mkI, mkS
   , runToLogic
   , runToLogicWithBoolBinds
   , logicType
-
-  , strengthenResult, strengthenResult'
-
+  , strengthenResult
+  , strengthenResult'
   , normalize
-
   ) where
 
 import           Data.ByteString                       (ByteString)
@@ -42,7 +39,7 @@ import           Control.Monad.Identity
 import           Language.Fixpoint.Misc                (snd3, mapSnd, mapFst)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
-import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Misc hiding (varSymbol)
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
@@ -350,7 +347,7 @@ varExpr x
   | otherwise   = EVar s
   where
     t           = varType x
-    s           = symbol x
+    s           = varSymbol x
 
 isPolyCst :: Type -> Bool
 isPolyCst (ForAllTy _ t) = isCst t
@@ -436,6 +433,10 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = symbol . showPpr . getName
+
+varSymbol :: Var -> Symbol
+varSymbol v | Type.isFunTy (varType v) = simplesymbol v
+varSymbol v                            = symbol v
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)

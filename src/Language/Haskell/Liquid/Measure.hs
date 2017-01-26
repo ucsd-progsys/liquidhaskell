@@ -75,6 +75,7 @@ data Spec ty bndr  = Spec
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
   -- , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to reflect
+  , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
@@ -160,7 +161,6 @@ instance Monoid (Spec ty bndr) where
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , dvariance  =           dvariance  s1 ++ dvariance  s2
-
            , embeds     = M.union   (embeds   s1)  (embeds   s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
         -- , axioms     = S.union   (axioms s1) (axioms s2)
@@ -171,6 +171,7 @@ instance Monoid (Spec ty bndr) where
            , autosize   = S.union   (autosize s1)  (autosize s2)
            , bounds     = M.union   (bounds   s1)  (bounds   s2)
            , defs       = M.union   (defs     s1)  (defs     s2)
+           , autois     = M.union   (autois s1)      (autois s2)
            }
 
   mempty
@@ -192,6 +193,7 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = []
            , lazy       = S.empty
+           , autois     = M.empty
            , hmeas      = S.empty
            -- , axioms     = S.empty
            , reflects   = S.empty

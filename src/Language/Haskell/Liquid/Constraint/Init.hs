@@ -10,7 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI ) where
+module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI, makeAxiomEnvironment ) where
 
 import           Prelude                                       hiding (error, undefined)
 import           Coercion
@@ -30,7 +30,7 @@ import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
 
-import           Language.Haskell.Liquid.UX.Config (terminationCheck)
+import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -38,6 +38,7 @@ import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Transforms.CoreToLogic (simplesymbol)
 import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
@@ -47,6 +48,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.GHC.Misc              (dropModuleNames)
 
 -- import Debug.Trace (trace)
 
@@ -77,6 +79,7 @@ initEnv info
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
+       modify $ \s -> s{dataConTys = f4}
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -196,6 +199,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , aenv     = axiom_map $ gsLogicMap sp
   , cerr     = Nothing
   , cgInfo   = info
+  , cgVar    = Nothing
   }
   where
       tce         = gsTcEmbeds sp
@@ -242,6 +246,7 @@ initCGI cfg info = CGInfo {
   , isBind     = []
   , fixWfs     = []
   , freshIndex = 0
+  , dataConTys = [] 
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes spc)
@@ -283,3 +288,80 @@ coreBindLits tce info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
+
+
+
+
+makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)]  -> AxiomEnv 
+makeAxiomEnvironment info xts
+  = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
+         (makeEquations info ++ (specTypToEq  <$> xts) )
+         (\sub -> fromMaybe (fuel cfg) (fuelNumber sub))
+         doExpand
+         (debugInstantionation cfg)
+  where
+    doExpand sub = allowLiquidInstationationGlobal cfg
+                || (allowLiquidInstationationLocal cfg 
+                   && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))
+
+    cfg = getConfig info 
+
+    fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp} 
+
+
+    specTypToEq (x, t) 
+      = Eq (F.symbol x) (ty_binds $ toRTypeRep t) 
+           (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
+
+makeEquations :: GhcInfo -> [Equation]
+makeEquations info 
+  = [ Eq x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
+  where
+    makeEqBody x xs e = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
+    lookupSpecType x xts = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
+    makeRefBody _ _  Nothing  = F.PTrue 
+    makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t) 
+
+
+
+
+-- NV Move this to types?
+-- sound but imprecise approximation of a tyep in the logic 
+specTypeToLogic :: [F.Expr] -> F.Expr -> SpecType -> F.Expr 
+specTypeToLogic es e t 
+  | ok        = F.subst su (F.PImp (F.pAnd args) res) 
+  | otherwise = F.PTrue 
+  where
+    res     = specTypeToResultRef e t 
+
+    args    = zipWith mkExpr (mkReft <$> ts) es
+
+    mkReft t =  F.toReft $ fromMaybe mempty (stripRTypeBase t)
+    mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
+
+
+    ok      = okLen && okClass && okArgs 
+    okLen   = length xs == length xs
+    okClass = all (F.isTauto . snd) cls
+    okArgs  = all okArg ts 
+
+    okArg (RVar _ _)       = True 
+    okArg t@(RApp _ _ _ _) = F.isTauto (t{rt_reft = mempty})
+    okArg _                = False 
+
+
+    su           = F.mkSubst $ zip xs es 
+    (cls, nocls) = L.partition (isClassType.snd) $ zip (ty_binds trep) (ty_args trep)
+                 :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
+    (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
+
+    trep = toRTypeRep t 
+
+
+specTypeToResultRef :: F.Expr -> SpecType -> F.Expr 
+specTypeToResultRef e t            
+  = mkExpr $ F.toReft $ fromMaybe mempty (stripRTypeBase $ ty_res trep)
+  where
+    mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
+    trep                   = toRTypeRep t 
+

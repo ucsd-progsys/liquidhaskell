@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE EmptyDataDecls    #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -30,6 +31,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , SubC (..)
   , FixSubC
 
+  , subVar
+
    -- * Well-formedness Constraints
   , WfC (..)
   , FixWfC
@@ -47,6 +50,9 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
+
+  -- * Axiom Instantiation
+  , AxiomEnv(..), Equation(..)
   ) where
 
 import Prelude hiding (error)
@@ -104,6 +110,7 @@ data CGEnv = CGE
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
   -- , cgCfg  :: !Config                                -- ^ top-level config options
   , cgInfo :: !GhcInfo                               -- ^ top-level GhcInfo
+  , cgVar  :: !(Maybe Var)                           -- ^ top level function being checked
   } -- deriving (Data, Typeable)
 
 instance HasConfig CGEnv where
@@ -122,6 +129,17 @@ instance Show CGEnv where
   show = showpp
 
 
+data AxiomEnv = AEnv { aenvSyms    :: [F.Symbol]
+                     , aenvEqs     :: [Equation]
+                     , aenvFuel    :: (FixSubC -> Int) 
+                     , aenvExpand  :: (FixSubC -> Bool)
+                     , aenvVerbose :: Bool 
+                     }
+
+data Equation = Eq   { eqName :: F.Symbol
+                     , eqArgs :: [F.Symbol]
+                     , eqBody :: F.Expr
+                     } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -143,6 +161,10 @@ data WfC      = WfC  !CGEnv !SpecType
 
 type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
+
+
+subVar :: FixSubC -> Maybe Var 
+subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
   pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
@@ -198,6 +220,7 @@ data CGInfo = CGInfo {
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
+  , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   }
 
 instance PPrint CGInfo where
@@ -402,7 +425,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3
          `seq` rnf x5
          `seq` rnf x55

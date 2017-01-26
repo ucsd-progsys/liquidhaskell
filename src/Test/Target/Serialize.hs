@@ -114,6 +114,7 @@ instance SMTLIB2 Command where
   smt2 (Define t)          = build "(declare-sort {})"            (Only $ smt2 t)
   smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
   smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
+  smt2 (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2 t)
   smt2 (Distinct az)       = build "(assert (distinct {}))"       (Only $ smt2s az)
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
@@ -122,6 +123,8 @@ instance SMTLIB2 Command where
                            $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
   smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
 
+instance SMTLIB2 (Triggered Expr) where
+  smt2 (TR _ e) = smt2 e  
 
 smt2s    :: SMTLIB2 a => [a] -> Builder
 smt2s as = smt2many (smt2 <$> as)

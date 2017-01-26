@@ -8,25 +8,20 @@ module Language.Haskell.Liquid.Bare.Axiom (makeHaskellAxioms) where
 import Prelude hiding (error)
 import CoreSyn
 import TyCon
--- import DataCon
 import Id
 import Name
--- import Type hiding (isFunTy)
 import Var
 import TypeRep
 
 import Prelude hiding (mapM)
 
--- import           Control.Monad hiding (forM, mapM)
 import           Control.Monad.Except hiding (forM, mapM)
 import           Control.Monad.State hiding (forM, mapM)
 import           Text.PrettyPrint.HughesPJ (text)
--- import qualified Data.List    as L
 import qualified Data.HashSet as S
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types (Symbol, symbol)
-
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.RefType
@@ -84,11 +79,14 @@ mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Expr
-makeSMTAxiom f xs e = F.PAll xs (F.PAtom F.Eq (F.mkEApp f (F.eVar . fst <$> xs)) e)
+makeSMTAxiom f xts e = AxiomEq (val f) xs e (F.PAll xts (F.EEq f_xs e))
+  where
+    xs               = fst <$> xts
+    f_xs             = F.mkEApp f (F.EVar <$> xs)
 
 makeAssumeType
   :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
-  -> (LocSpecType, F.Expr)
+  -> (LocSpecType, AxiomEq)
 makeAssumeType tce lmap x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xss le )
   where
@@ -188,7 +186,6 @@ axiomType s _mbT t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
     xs            = zipWith unDummy bs [1..]
     tr            = toRTypeRep t
     bs            = ty_binds tr
-    -- bs            = maybe (ty_binds tr) (ty_binds . toRTypeRep) mbT
 
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i

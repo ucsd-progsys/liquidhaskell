@@ -1,12 +1,10 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 
-module FunctionAbstraction where
+module Fibonacci where
 import Proves
 
-
 -- | Proves that the fibonacci function is increasing
-
 
 -- | Definition of the function in Haskell
 -- | the annotation axiomatize means that
