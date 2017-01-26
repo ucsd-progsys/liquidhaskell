@@ -42,12 +42,11 @@ import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.GHC.Misc          ( simplesymbol, hasBaseTypeVar, isDataConId )
+import           Language.Haskell.Liquid.GHC.Misc             ( dropModuleNames, simplesymbol, hasBaseTypeVar, isDataConId )
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.GHC.Misc              (dropModuleNames)
 
 -- import Debug.Trace (trace)
 
