@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.Bare.Env
 --------------------------------------------------------------------------------
 makeHaskellAxioms
   :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec
-  -> BareM [ (Var, LocSpecType, F.Expr)]
+  -> BareM [ (Var, LocSpecType, AxiomEq)]
 --------------------------------------------------------------------------------
 makeHaskellAxioms tce cbs spec sp = do
   xtvds <- getReflectDefs spec sp cbs
@@ -66,7 +66,7 @@ makeAxiom :: F.TCEmb TyCon
           -> LogicMap
           -> [CoreBind]
           -> (LocSymbol, Maybe SpecType, Var, CoreExpr)
-          -> BareM (Var, LocSpecType, F.Expr)
+          -> BareM (Var, LocSpecType, AxiomEq)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap _cbs (x, mbT, v, def) = do
   insertAxiom v (val x)
@@ -78,7 +78,7 @@ makeAxiom tce lmap _cbs (x, mbT, v, def) = do
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
-makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Expr
+makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> AxiomEq
 makeSMTAxiom f xts e = AxiomEq (val f) xs e (F.PAll xts (F.EEq f_xs e))
   where
     xs               = fst <$> xts
