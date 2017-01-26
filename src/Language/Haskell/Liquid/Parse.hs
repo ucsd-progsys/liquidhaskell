@@ -759,7 +759,6 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
-  -- REFLECT-IMPORTS , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
@@ -1165,13 +1164,10 @@ dataConNameP
      bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = symbol $ "(" <> s <> ")"
 
-dataSizeP :: Parser (Maybe SizeFun) -- (Symbol -> Expr))
+dataSizeP :: Parser (Maybe SizeFun)
 dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
-  -- REFLECT-IMPORTS brackets (Just . mkFun <$> locLowerIdP)
   <|> return Nothing
-  -- REFLECT-IMPORTS where
-  -- REFLECT-IMPORTS  mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
 dataDeclP

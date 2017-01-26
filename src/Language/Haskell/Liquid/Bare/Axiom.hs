@@ -11,7 +11,7 @@ import TyCon
 -- import DataCon
 import Id
 import Name
-import Type hiding (isFunTy)
+-- import Type hiding (isFunTy)
 import Var
 import TypeRep
 
@@ -77,7 +77,7 @@ makeAxiom tce lmap _cbs (x, mbT, v, def) = do
   insertAxiom v (val x)
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap x mbT v {- REFLECT-IMPORTS anames -}  def
+  let (t, e) = makeAssumeType tce lmap x mbT v def
   return (v, t, e)
 
 mkError :: LocSymbol -> String -> Error
@@ -140,23 +140,6 @@ updateLMap x y vv
     isFun (FunTy _ _)    = True
     isFun (ForAllTy _ t) = isFun t
     isFun  _             = False
-
-_defAxioms :: Var -> CoreExpr -> [Axiom Var Kind (Expr Var)]
-_defAxioms v e = go [] $ normalize e
-  where
-     go bs (Tick _ e) = go bs e
-     go bs (Lam x e) | isTyVar x               = go bs e
-     go bs (Lam x e) | isClassPred (varType x) = go bs e
-     go bs (Lam x e) = go (bs++[x]) e
-     go bs (Case  (Var x) _ _ alts)  = goalt x bs  <$> alts
-     go bs e         = [Axiom (v, Nothing) (Nothing {- REFLECT-IMPORTS getSimpleName v -}) bs (varType <$> bs) (foldl App (Var v) (Var <$> bs)) e]
-
-     goalt x bs (DataAlt c, ys, e) = let vs = [b | b<- bs , b /= x] ++ ys in
-        Axiom (v, Just c) (Nothing {- REFLECT-IMPORTS getConName v c -}) vs (varType <$> vs) (mkApp bs x c ys) $ normalize e
-     goalt _ _  (LitAlt _,  _,  _) = todo Nothing "defAxioms: goalt Lit"
-     goalt _ _  (DEFAULT,   _,  _) = todo Nothing "defAxioms: goalt Def"
-
-     mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then mkConApp c (Var <$> ys) else Var y) <$> bs)
 
 class Subable a where
   subst :: (Var, CoreExpr) -> a -> a

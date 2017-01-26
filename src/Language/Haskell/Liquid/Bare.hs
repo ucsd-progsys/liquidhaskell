@@ -96,7 +96,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
-  let renv = {- tracepp "makeGhcSpec:specEnv" $ -} ghcSpecEnv sp
+  let renv = ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
@@ -120,7 +120,6 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
     hCons = mkEApp (dcSym consDataCon)
     dcSym = dummyLoc . GM.dropModuleUnique . symbol
 
--- ASKNIKI: WTF?
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
   = sp { gsTySigs     = mapSnd addTCI <$> sigs
@@ -181,24 +180,10 @@ makeLiftedSpec1 file name lSpec0 xts
     xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
     lSpec1 = lSpec0 { Ms.asmSigs  = xbs
                     , Ms.reflSigs = xbs }
-  -- return lSpec1
-
--- makeLiftedSpec1
--- :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind]
--- -> Ms.BareSpec -> Ms.BareSpec
--- -> BareM Ms.BareSpec
--- makeLiftedSpec1 file name embs cbs mySpec lSpec0 xts = do
-  -- xts       <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms embs cbs mySpec
-  -- let xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
-  -- let lSpec1 = lSpec0 { Ms.asmSigs  = xbs
-                      -- , Ms.reflSigs = xbs }
-  -- liftIO $ saveLiftedSpec file name lSpec1
-  -- return lSpec1
-
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
-  putStrLn $ "Saving Binary Lifted Spec: " ++ specF
+  -- putStrLn $ "Saving Binary Lifted Spec: " ++ specF
   ensurePath specF
   B.encodeFile specF lspec
   where
@@ -206,21 +191,18 @@ saveLiftedSpec srcF _ lspec = do
 
 loadLiftedSpec :: FilePath -> IO Ms.BareSpec
 loadLiftedSpec srcF = do
+  let specF = extFileName BinSpec srcF
   ex  <- doesFileExist specF
-  putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
+  -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
   lSp <- if ex then B.decodeFile specF else return mempty
-  putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
+  -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
   return lSp
-  where
-    specF = extFileName BinSpec srcF
-
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
 insert k v []              = [(k, v)]
 insert k v ((k', v') : kvs)
   | k == k'                = (k, v)   : kvs
   | otherwise              = (k', v') : insert k v kvs
-
 
 _dumpSigs :: [(ModName, Ms.BareSpec)] -> IO ()
 _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <- specs0 ]
@@ -312,8 +294,8 @@ makeGhcAxioms
   -> GhcSpec -> BareM GhcSpec
 makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
-  let rfls = S.fromList (tracepp "getReflects" $ getReflects specs)
-  xtes    <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms embs cbs sp mSpc
+  let rfls = S.fromList (getReflects specs)
+  xtes    <- makeHaskellAxioms embs cbs sp mSpc
   let xts  = [(x, t) | (x, t, _) <- xtes ]
   let axs  = [ e     | (_, _, e) <- xtes ]
   _       <- makeLiftedSpec1 file name lSpec0 xts
@@ -591,9 +573,7 @@ makeGhcSpecCHOP2 :: [CoreBind]
 makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs = do
   measures'   <- mconcat <$> mapM makeMeasureSpec specs
   tyi         <- gets tcEnv
-  -- name        <- gets modName
-  -- REFLECT-IMPORTS hmeas       <- maybe (return mempty) (makeHaskellMeasures embs cbs) (lookup name specs)
-  let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors] -- REFLECT-IMPORTS , hmeas ]
+  let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors]
   let (cs, ms) = makeMeasureSpec' measures
   let cms      = makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]

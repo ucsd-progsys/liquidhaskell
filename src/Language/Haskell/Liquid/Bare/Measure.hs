@@ -69,10 +69,8 @@ import           Language.Haskell.Liquid.Bare.ToBare
 
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
                     -> BareM [Measure (Located BareType) LocSymbol]
-                    -- REFLECT-IMPORTS -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures tce cbs spec = do
     lmap <- gets logicEnv
-    -- REFLECT-IMPORTS {- Ms.mkMSpec' <$> -}
     ms   <- mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
     return (measureToBare <$> ms)
   where
@@ -187,8 +185,7 @@ makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
-    tx (M n s _) = (n, CM n (mapReft ur_reft s) -- [(t,m) | (IM n' t m) <- imeas, n == n']
-                   )
+    tx (M n s _) = (n, CM n (mapReft ur_reft s))
 
 
 mkMeasureDCon :: Ms.MSpec t LocSymbol -> BareM (Ms.MSpec t DataCon)

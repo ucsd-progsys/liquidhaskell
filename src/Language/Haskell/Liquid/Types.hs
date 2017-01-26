@@ -413,7 +413,7 @@ data TyConP = TyConP
   , freeLabelTy  :: ![Symbol]
   , varianceTs   :: !VarianceInfo
   , variancePs   :: !VarianceInfo
-  , sizeFun      :: !(Maybe SizeFun) -- REFLECT-IMPORTS (Symbol -> Expr))
+  , sizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
 data DataConP = DataConP
@@ -1061,7 +1061,6 @@ data DataDecl   = D
   , tycDCons  :: [(LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
   , tycSrcPos :: !SourcePos                          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun                       -- ^ Measure that should decrease in recursive calls
-  -- REFLECT-IMPORTS , tycSFun   :: (Maybe (Symbol -> Expr))            -- ^ Measure that should decrease in recursive calls
   } deriving (Data, Typeable, Generic)
 
 instance B.Binary DataDecl

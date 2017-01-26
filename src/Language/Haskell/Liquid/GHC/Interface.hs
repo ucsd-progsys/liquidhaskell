@@ -286,7 +286,7 @@ processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
                -> ModuleGraph
                -> Ghc [GhcInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
-  liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
+  -- liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
   where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
@@ -296,7 +296,7 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  _                   <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
+  -- _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod

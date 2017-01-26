@@ -9,7 +9,6 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
     coreToDef
   , coreToFun
   , coreToLogic
-  -- , coreToPred
   , mkLit, mkI, mkS
   , runToLogic
   , runToLogicWithBoolBinds
@@ -198,39 +197,12 @@ coreToFun _ _v e = go [] $ normalize e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
     go acc e            = (reverse acc,) . Right <$> coreToLg e
-                        -- REFLECT-IMPORTS | eqType rty boolTy
-                        -- REFLECT-IMPORTS = (reverse acc,) . Left  <$> coreToPd e
-                        -- REFLECT-IMPORTS | otherwise
-    -- REFLECT-IMPORTS rty = snd $ splitFunTys $ snd $ splitForAllTys $ varType v
 
 instance Show C.CoreExpr where
   show = showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
-coreToLogic = coreToLg . normalize -- REFLECT-IMPORTS simplify
-
-{-
-coreToPred :: C.CoreExpr -> LogicM Expr
-coreToPred = coreToPd . normalize
-
-coreToPd :: C.CoreExpr -> LogicM Expr
-coreToPd (C.Let b p)
-  = subst1 <$> coreToPd p <*>  makesub b
-coreToPd (C.Tick _ p)
-  = coreToPd p
-coreToPd (C.App (C.Var v) e)
-  | ignoreVar v
-  = coreToPd e
-coreToPd (C.Var x)
-  | x == falseDataConId
-  = return PFalse
-  | x == trueDataConId
-  = return PTrue
-coreToPd p@(C.App _ _)
-  = toPredApp p
-coreToPd e
-  = coreToLg e
--}
+coreToLogic = coreToLg . normalize
 
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)
@@ -370,7 +342,7 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f' <- tosymbol' (C.Var x :: C.CoreExpr)
-  return $ tracepp "EVARWITHMAP" $ eAppWithMap lmap f' [] (varExpr x)
+  return $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x

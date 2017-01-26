@@ -934,9 +934,9 @@ subsFreeRef m s (α', τ', t')  (RProp ss t)
   = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 
 
--------------------------------------------------------------------
-------------------- Type Substitutions ----------------------------
--------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Type Substitutions --------------------------------------------------------
+--------------------------------------------------------------------------------
 
 subts :: (Foldable t, SubsTy tv ty c) => t (tv, ty) -> c -> c
 subts = flip (foldr subt)
@@ -1111,32 +1111,6 @@ ofType_ tx = go . expandTypeSynonyms
     go (LitTy x)
       = tcFLit tx x
 
-{- REFLECT-IMPORTS
-ofType = go . expandTypeSynonyms
-  where
-    go :: Monoid r => Type -> RRType r
-    go (TyVarTy α)
-      = rVar α
-    go (FunTy τ τ')
-      = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy α τ)
-      = RAllT (rTVar α) $ go τ
-    go (TyConApp c τs)
-      | Just (αs, τ) <- TC.synTyConDefn_maybe c
-      = go $ substTyWith αs τs τ
-      | otherwise
-      = rApp c (go <$> τs) [] mempty
-    go (AppTy t1 t2)
-      = RAppTy (go t1) (ofType t2) mempty
-    go (LitTy x)
-      = ofLitType x
-
-ofLitType :: Monoid r => TyLit -> RRType r
-ofLitType (NumTyLit _) = rApp intTyCon [] [] mempty
-ofLitType (StrTyLit _) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
-
--}
-
 ofLitType :: (Monoid r) => (TyCon -> [t] -> [p] -> r -> t) -> TyLit -> t
 ofLitType rF (NumTyLit _) = rF intTyCon [] [] mempty
 ofLitType rF (StrTyLit _) = rF listTyCon [rF charTyCon [] [] mempty] [] mempty
@@ -1254,8 +1228,6 @@ applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
 applySolution = fmap . fmap . mapReft . appSolRefa
   where
     mapReft f (MkUReft (Reft (x, z)) p s) = MkUReft (Reft (x, f z)) p s
--- OLD    appSolRefa _ ra@(RConc _)        = ra
--- OLD    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s
 
 appSolRefa :: Visitable t
            => M.HashMap KVar Expr -> t -> t
@@ -1284,9 +1256,9 @@ shiftVV t _
   = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
 
-------------------------------------------------------------------------
----------------- Auxiliary Stuff Used Elsewhere ------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- |Auxiliary Stuff Used Elsewhere ---------------------------------------------
+--------------------------------------------------------------------------------
 
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
@@ -1296,9 +1268,9 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
       (unwords (show <$> xs))
       (show t) (show p)
 
-----------------------------------------------------------------
------------- From Old Fixpoint ---------------------------------
-----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | From Old Fixpoint ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
@@ -1396,9 +1368,9 @@ classBinds _
 rTyVarSymbol :: RTyVar -> Symbol
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
------------------------------------------------------------------------------------------
---------------------------- Termination Predicates --------------------------------------
------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Termination Predicates ----------------------------------------------------
+--------------------------------------------------------------------------------
 
 makeNumEnv :: (Foldable t, TyConable c) => t (RType c b t1) -> [b]
 makeNumEnv = concatMap go
@@ -1450,7 +1422,7 @@ mkDType _ _ _ _
   = panic Nothing "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
-isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
+isSizeable autoenv tc = S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
 
 mkDecrFun :: S.HashSet TyCon -> RType RTyCon t t1 -> Symbol -> Expr
 mkDecrFun autoenv (RApp c _ _ _)

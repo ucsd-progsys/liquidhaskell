@@ -39,7 +39,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (tracepp, Expr(..), Symbol, symbol, TCEmb)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -58,11 +58,6 @@ type Warn  = String
 type TCEnv = M.HashMap TyCon RTyCon
 
 type InlnEnv = M.HashMap Symbol LMap
-
--- REFLECT-IMPORTS data TInline = TI
-  -- REFLECT-IMPORTS { tiArgs :: [Symbol]
-  -- REFLECT-IMPORTS , tiBody :: Expr
-  -- REFLECT-IMPORTS } deriving (Show)
 
 data BareEnv = BE
   { modName  :: !ModName
@@ -85,10 +80,8 @@ addDefs ds
   = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
 
 insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e'
+insertLogicEnv _msg x ys e
   = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
-  where
-    e = tracepp ("INSERTLOGICENV @" ++ _msg ++ showpp (x, ys, e')) e'
 
 insertAxiom :: Var -> Symbol -> BareM ()
 insertAxiom x s
