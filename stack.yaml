@@ -4,7 +4,6 @@ flags:
   liquidhaskell:
     devel: true
 
-
 packages:
 - ./liquid-fixpoint
 - ./liquiddesugar
