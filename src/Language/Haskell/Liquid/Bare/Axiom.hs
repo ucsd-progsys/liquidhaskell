@@ -37,7 +37,8 @@ import           Language.Haskell.Liquid.Bare.Env
 
 --------------------------------------------------------------------------------
 makeHaskellAxioms
-  :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM [ (Var, LocSpecType)]
+  :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec
+  -> BareM [ (Var, LocSpecType, F.Expr)]
 --------------------------------------------------------------------------------
 makeHaskellAxioms tce cbs spec sp = do
   xtvds <- getReflectDefs spec sp cbs
@@ -57,9 +58,6 @@ getReflectDefs spec sp cbs  = mapM (findVarDefType cbs sigs) xs
   where
     sigs                    = gsTySigs spec
     xs                      = S.toList (Ms.reflects sp)
-    -- addDef (x, Just (v, e)) = return (x, v, e)
-    -- addDef (x, Nothing    ) = throwError $ mkError x "Cannot lift haskell function"
-    -- addSig (x, v, e)        = (x, lookup v sigs, v, e)
 
 findVarDefType
   :: [CoreBind] -> [(Var, LocSpecType)] -> LocSymbol
@@ -68,31 +66,19 @@ findVarDefType cbs sigs x = case findVarDef (val x) cbs of
   Just (v, e) -> return (x, val <$> lookup v sigs, v, e)
   Nothing     -> throwError $ mkError x "Cannot lift haskell function"
 
-
--- getReflects :: GhcSpec -> Ms.BareSpec -> [(LocSymbol, Maybe SpecType)]
--- getReflects sp = F.tracepp "REFLECT-ENV2" [ (x, getSig x) | x <- S.toList (Ms.reflects sp) ]
-  -- where
-    -- allSigs    = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
-    -- env        = F.tracepp "REFLECT-ENV1" $ F.fromListSEnv [ (dropModuleNames $ val x, val t) | (x, t) <- allSigs ]
-    -- getSig x   = F.lookupSEnv (val x) env
-
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
           -> LogicMap
           -> [CoreBind]
           -> (LocSymbol, Maybe SpecType, Var, CoreExpr)
-          -> BareM (Var, LocSpecType)
+          -> BareM (Var, LocSpecType, F.Expr)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap _cbs (x, mbT, v, def) = do
-  -- REFLECT-IMPORTS [] let anames = findAxiomNames x cbs
-  -- let haxs   = defAxioms {- REFLECT-IMPORTS anames -} v def
-  -- REFLECT-IMPORTS [] vts <- zipWithM (makeAxiomType tce lmap x) (reverse anames) haxs
   insertAxiom v (val x)
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, _e) = makeAssumeType tce (F.tracepp "makeAX-LMAP" lmap) x mbT v {- REFLECT-IMPORTS anames -}  def
-  return (v, t)
-
+  let (t, e) = makeAssumeType tce lmap x mbT v {- REFLECT-IMPORTS anames -}  def
+  return (v, t, e)
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -100,18 +86,15 @@ mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Expr
 makeSMTAxiom f xs e = F.PAll xs (F.PAtom F.Eq (F.mkEApp f (F.eVar . fst <$> xs)) e)
 
--- ASKNIKI: what is this function doing?!
 makeAssumeType
   :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
   -> (LocSpecType, F.Expr)
 makeAssumeType tce lmap x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xss le )
   where
-    -- trep = toRTypeRep t
-    -- t    = ofType $ varType v
     t    = fromMaybe (ofType $ varType v) mbT
-    at   = F.tracepp ("axiomType: " ++ msg) $ axiomType x mbT t
-    msg  = unwords [showpp x, showpp mbT]
+    at   = {- F.tracepp ("axiomType: " ++ msg) $ -} axiomType x mbT t
+    _msg  = unwords [showpp x, showpp mbT]
     le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
              Right e -> e
              Left  e -> panic Nothing $ show e

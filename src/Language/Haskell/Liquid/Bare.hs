@@ -313,7 +313,9 @@ makeGhcAxioms
 makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (tracepp "getReflects" $ getReflects specs)
-  xts     <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms embs cbs sp mSpc
+  xtes    <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms embs cbs sp mSpc
+  let xts  = [(x, t) | (x, t, _) <- xtes ]
+  let axs  = [ e     | (_, _, e) <- xtes ]
   _       <- makeLiftedSpec1 file name lSpec0 xts
   let xts' = xts ++ gsAsmSigs sp
   let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = varSymbol v, S.member vx rfls ]
@@ -322,6 +324,7 @@ makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
                 , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
+                , gsAxioms   = axs ++ gsAxioms   sp
                 }
 
 varSymbol :: Var -> Symbol
@@ -681,7 +684,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "replaceLocalBindsOne" <+> pprint v) t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ({- text "replaceLocalBindsOne" <+> -} pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
