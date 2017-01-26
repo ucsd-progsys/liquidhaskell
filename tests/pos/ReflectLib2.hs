@@ -18,5 +18,11 @@ plus x = apply incr x
 apply :: (a -> b) -> a -> b
 apply f x = f x
 
+{-@ reflect toNat @-}
+toNat :: Int -> Int
+{-@ toNat :: Nat -> Nat @-}
+toNat n = if n == 0 then 0 else (1 + toNat (n - 1))
+
+
 {-@ myproof :: a -> { v: Int | incr 5 == 6 } @-}
 myproof _ = incr 5
