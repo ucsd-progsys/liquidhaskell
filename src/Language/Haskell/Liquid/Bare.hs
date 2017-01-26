@@ -52,7 +52,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (fM, ensurePath, thd3, mapSnd)
+import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -154,27 +154,47 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
 
--- REFLECT-IMPORTS: TODO: we will
+-- | [NOTE]: REFLECT-IMPORTS
+--
 -- 1. MAKE the full LiftedSpec, which will eventually, contain:
 --      makeHaskell{Inlines, Measures, Axioms, Bounds}
 -- 2. SAVE the LiftedSpec, which will be reloaded
 
-makeLiftedSpec
-  :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
-  -> BareM (Ms.BareSpec, [(Var, LocSpecType)])
-makeLiftedSpec file name embs cbs mySpec = do
+-- | This step creates the aliases and inlines etc. It must be done BEFORE
+--   we compute the `SpecType` for (all, including the reflected binders),
+--   as we need the inlines and aliases to properly `expand` the SpecTypes.
+makeLiftedSpec0
+  :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
+  -> BareM Ms.BareSpec
+makeLiftedSpec0 embs cbs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
-  xts    <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms embs cbs mySpec
-  let xbs = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
-  let lSpec = mempty { Ms.ealiases = lmapEAlias . snd <$> xils
-                     , Ms.measures = ms
-                     , Ms.asmSigs  = xbs
-                     , Ms.reflSigs = xbs
-                     , Ms.reflects = Ms.reflects mySpec
-                     }
-  liftIO $ saveLiftedSpec file name lSpec
-  return (lSpec, xts)
+  return  $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils
+                   , Ms.measures = ms
+                   , Ms.reflects = Ms.reflects mySpec      }
+
+makeLiftedSpec1
+  :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> BareM ()
+makeLiftedSpec1 file name lSpec0 xts
+  = liftIO $ saveLiftedSpec file name lSpec1
+  where
+    xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
+    lSpec1 = lSpec0 { Ms.asmSigs  = xbs
+                    , Ms.reflSigs = xbs }
+  -- return lSpec1
+
+-- makeLiftedSpec1
+-- :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind]
+-- -> Ms.BareSpec -> Ms.BareSpec
+-- -> BareM Ms.BareSpec
+-- makeLiftedSpec1 file name embs cbs mySpec lSpec0 xts = do
+  -- xts       <- {- tracepp "MAKEAXIOMS" <$> -} makeHaskellAxioms embs cbs mySpec
+  -- let xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
+  -- let lSpec1 = lSpec0 { Ms.asmSigs  = xbs
+                      -- , Ms.reflSigs = xbs }
+  -- liftIO $ saveLiftedSpec file name lSpec1
+  -- return lSpec1
+
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
@@ -218,18 +238,17 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  (lfSpec,rasms) <- makeLiftedSpec file name embs cbs mySpec
-  let fullSpec    = mySpec `mappend` lfSpec
+  lSpec0         <- makeLiftedSpec0 embs cbs mySpec
+  let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- logic_map . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
-  makeRTEnv name lfSpec specs lmap
+  makeRTEnv name lSpec0 specs lmap
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
-  (invs, ntys, ialias, sigs, asms')       <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-  let asms = rasms ++ asms'
+  (invs, ntys, ialias, sigs, asms)       <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals   <- mconcat <$> mapM makeQualifiers specs
   syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
   let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
@@ -238,7 +257,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec2 invs ntys ialias measures su
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
-    >>= fM (makeGhcAxioms specs)
+    >>= makeGhcAxioms file name embs cbs specs lSpec0
     >>= makeLogicMap
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
@@ -286,16 +305,22 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects = fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
 
-makeGhcAxioms :: [(ModName, Ms.BareSpec)] -> GhcSpec -> GhcSpec
-makeGhcAxioms specs sp = sp { gsMeas     = tracepp "makeGhcAxioms:msR" msR ++ gsMeas sp
-                            , gsReflects = vs  ++ gsReflects sp }
-  where
-    vts                = [ (v, vx, t) | (v, t) <- gsAsmSigs sp
-                                      , let vx  = varSymbol v
-                                      , S.member vx refls     ]
-    msR                = [ (vx, t)    | (_, vx, t) <- vts     ]
-    vs                 = [ v          | (v,  _, _) <- vts     ]
-    refls              = S.fromList (tracepp "getReflects" $ getReflects specs)
+-- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
+makeGhcAxioms
+  :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind]
+  -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
+  -> GhcSpec -> BareM GhcSpec
+makeGhcAxioms file name embs cbs specs lSpec0 sp = do
+  let mSpc = fromMaybe mempty (lookup name specs)
+  let rfls = S.fromList (tracepp "getReflects" $ getReflects specs)
+  xts     <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms embs cbs sp mSpc
+  _       <- makeLiftedSpec1 file name lSpec0 xts
+  let vts  = [ (v, vx, t) | (v, t) <- xts, let vx = varSymbol v, S.member vx rfls ]
+  let msR  = [ (vx, t)    | (_, vx, t) <- vts ]
+  let vs   = [ v          | (v,  _, _) <- vts ]
+  return   $ sp { gsMeas     = msR ++ gsMeas     sp
+                , gsAsmSigs  = xts ++ gsAsmSigs  sp
+                , gsReflects = vs  ++ gsReflects sp }
 
 varSymbol :: Var -> Symbol
 varSymbol = GM.dropModuleNames . GM.simplesymbol
