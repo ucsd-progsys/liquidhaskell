@@ -209,7 +209,7 @@ loadLiftedSpec srcF = do
   ex  <- doesFileExist specF
   putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
   lSp <- if ex then B.decodeFile specF else return mempty
-  putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflects lSp)
+  putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
   return lSp
   where
     specF = extFileName BinSpec srcF
@@ -222,8 +222,8 @@ insert k v ((k', v') : kvs)
   | otherwise              = (k', v') : insert k v kvs
 
 
-dumpSigs :: [(ModName, Ms.BareSpec)] -> IO ()
-dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <- specs0 ]
+_dumpSigs :: [(ModName, Ms.BareSpec)] -> IO ()
+_dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <- specs0 ]
   where
     dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
 
@@ -234,7 +234,7 @@ makeGhcSpec'
   -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
-  liftIO $ dumpSigs specs0
+  -- liftIO $ dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
@@ -315,12 +315,14 @@ makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   let rfls = S.fromList (tracepp "getReflects" $ getReflects specs)
   xts     <- tracepp "MAKEAXIOMS" <$> makeHaskellAxioms embs cbs sp mSpc
   _       <- makeLiftedSpec1 file name lSpec0 xts
-  let vts  = [ (v, vx, t) | (v, t) <- xts, let vx = varSymbol v, S.member vx rfls ]
+  let xts' = xts ++ gsAsmSigs sp
+  let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = varSymbol v, S.member vx rfls ]
   let msR  = [ (vx, t)    | (_, vx, t) <- vts ]
   let vs   = [ v          | (v,  _, _) <- vts ]
-  return   $ sp { gsMeas     = msR ++ gsMeas     sp
-                , gsAsmSigs  = xts ++ gsAsmSigs  sp
-                , gsReflects = vs  ++ gsReflects sp }
+  return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
+                , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
+                , gsReflects = vs  ++ gsReflects sp
+                }
 
 varSymbol :: Var -> Symbol
 varSymbol = GM.dropModuleNames . GM.simplesymbol
@@ -531,7 +533,7 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let dms   = makeDefaultMethods vars mts
   tyi      <- gets tcEnv
   let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-  let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- tracepp "CHOP3 ASSMS" asms' ]
+  let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
@@ -679,7 +681,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "JUSSIEU:pprint v") t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "replaceLocalBindsOne" <+> pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
