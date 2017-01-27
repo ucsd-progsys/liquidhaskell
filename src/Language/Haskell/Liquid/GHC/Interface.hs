@@ -9,7 +9,7 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
-    getGhcInfo
+    getGhcInfos
   , runLiquidGhc
 
   -- * printer
@@ -93,23 +93,23 @@ import Language.Fixpoint.Utils.Files
 -- | GHC Interface Pipeline ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-getGhcInfo :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
-getGhcInfo hscEnv cfg tgtFiles' = do
+getGhcInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
+getGhcInfos hscEnv cfg tgtFiles' = do
   tgtFiles <- mapM canonicalizePath tgtFiles'
   _        <- mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
-  runLiquidGhc hscEnv cfg (getGhcInfo' cfg logicMap tgtFiles)
+  runLiquidGhc hscEnv cfg (getGhcInfos' cfg logicMap tgtFiles)
 
-getGhcInfo' :: Config -> Either Error LogicMap
+getGhcInfos' :: Config -> Either Error LogicMap
             -> [FilePath]
             -> Ghc ([GhcInfo], HscEnv)
-getGhcInfo' cfg logicMap tgtFiles = do
+getGhcInfos' cfg logicMap tgtFiles = do
   _           <- compileCFiles cfg
   homeModules <- configureGhcTargets tgtFiles
   depGraph    <- buildDepGraph homeModules
-  ghcInfo     <- processModules cfg logicMap tgtFiles depGraph homeModules
+  ghcInfos    <- processModules cfg logicMap tgtFiles depGraph homeModules
   hscEnv      <- getSession
-  return (ghcInfo, hscEnv)
+  return (ghcInfos, hscEnv)
 
 createTempDirectoryIfMissing :: FilePath -> IO ()
 createTempDirectoryIfMissing tgtFile = tryIgnore "create temp directory" $
@@ -285,7 +285,8 @@ type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
                -> ModuleGraph
                -> Ghc [GhcInfo]
-processModules cfg logicMap tgtFiles depGraph homeModules =
+processModules cfg logicMap tgtFiles depGraph homeModules = do
+  -- liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
   where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
@@ -295,20 +296,23 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  _                   <- liftIO $ whenLoud $ putStrLn $ "Module: " ++ showPpr (moduleName mod)
+  -- _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
+  let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
-  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+  (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec file -- modName
+  let bareSpec         = commSpec `mappend` liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
-  (specEnv', ) <$> if not (file `S.member` tgtFiles)
-    then return Nothing
-    else Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+  (specEnv', ) <$> if isTarget
+                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+                     else return Nothing
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
@@ -355,9 +359,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   _                 <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable      = reachableModules depGraph mod
   specSpecs         <- findAndParseSpecFiles cfg paths modSummary reachable
-  let homeSpecs      = getCachedBareSpecs specEnv reachable
+  let homeSpecs      = cachedBareSpecs specEnv reachable
   let impSpecs       = specSpecs ++ homeSpecs
-  (spc, imps, incs) <- toGhcSpec cfg coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
+  (spc, imps, incs) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualsFiles       <- moduleHquals modGuts paths file imps incs
   return GI { target    = file
@@ -375,16 +379,17 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
 toGhcSpec :: GhcMonad m
           => Config
+          -> FilePath
           -> [CoreBind]
           -> [Var]
           -> [Var]
           -> ModName
           -> MGIModGuts
-          -> Ms.Spec (Located BareType) LocSymbol
+          -> Ms.BareSpec
           -> Either Error LogicMap
           -> [(ModName, Ms.BareSpec)]
           -> m (GhcSpec, [String], [FilePath])
-toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
+toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
@@ -393,7 +398,7 @@ toGhcSpec cfg cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath
@@ -404,14 +409,11 @@ modSummaryHsFile modSummary =
       showPpr (ms_mod modSummary))
     (ml_hs_file $ ms_location modSummary)
 
-getCachedBareSpecs :: SpecEnv -> [Module] -> [(ModName, Ms.BareSpec)]
-getCachedBareSpecs specEnv mods = lookupBareSpec <$> mods
+cachedBareSpecs :: SpecEnv -> [Module] -> [(ModName, Ms.BareSpec)]
+cachedBareSpecs specEnv mods = lookupBareSpec <$> mods
   where
-    lookupBareSpec mod =
-      fromMaybe
-        (impossible Nothing $
-           "lookupBareSpec: missing module " ++ showPpr mod)
-        (lookupModuleEnv specEnv mod)
+    lookupBareSpec m         = fromMaybe (err m) (lookupModuleEnv specEnv m)
+    err m                    = impossible Nothing ("lookupBareSpec: missing module " ++ showPpr m)
 
 checkFilePragmas :: [Located String] -> Ghc ()
 checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
@@ -471,7 +473,7 @@ refreshSymbol = symbol . symbolText
 -- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
 
--- Handle Spec Files -----------------------------------------------------------
+-- | Handle Spec Files ---------------------------------------------------------
 
 findAndParseSpecFiles :: Config
                       -> [FilePath]
@@ -500,7 +502,7 @@ getPatSpec paths totalitycheck
  | totalitycheck = moduleFiles Spec paths [patErrorName]
  | otherwise     = return []
  where
-  patErrorName = "PatErr"
+  patErrorName   = "PatErr"
 
 getRealSpec :: [FilePath] -> Bool -> Ghc [FilePath]
 getRealSpec paths freal

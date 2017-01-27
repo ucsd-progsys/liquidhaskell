@@ -111,8 +111,9 @@ mapReduceTheorem n f op left_id distributionTheorem is
 {-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
 data List a = N | C a (List a)
 
-llen :: List a -> Int 
 {-@ measure llen @-}
+llen :: List a -> Int 
+
 {-@ llen :: List a -> Nat @-}
 llen N        = 0 
 llen (C _ xs) = 1 + llen xs

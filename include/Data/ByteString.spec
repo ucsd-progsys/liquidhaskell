@@ -301,10 +301,7 @@ partition
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
        )
 
-index
-    :: bs : Data.ByteString.ByteString
-    -> { n : Int | 0 <= n && n < bslen bs }
-    -> Data.Word.Word8
+index :: bs : Data.ByteString.ByteString -> { n : Int | 0 <= n && n < bslen bs } -> Data.Word.Word8
 
 elemIndex
     :: Data.Word.Word8

@@ -61,7 +61,7 @@ liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 ------------------------------------------------------------------------------
 runLiquid mE cfg = do
-  z <- actOrDie $ second Just <$> getGhcInfo mE cfg (files cfg)
+  z <- actOrDie $ second Just <$> getGhcInfos mE cfg (files cfg)
   case z of
     Left e -> do
       exitWithResult cfg (files cfg) $ mempty { o_result = e }

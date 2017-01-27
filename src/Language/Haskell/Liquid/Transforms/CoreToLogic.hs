@@ -4,22 +4,17 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
 
-module Language.Haskell.Liquid.Transforms.CoreToLogic (
-
-  coreToDef , coreToFun,
-  coreToLogic, coreToPred,
-  mkLit, mkI, mkS,
-
-  runToLogic, runToLogicWithBoolBinds,
-  logicType,
-
-  strengthenResult,
-  strengthenResult',
-
-  normalize,
-
-  simplesymbol
-
+module Language.Haskell.Liquid.Transforms.CoreToLogic
+  ( coreToDef
+  , coreToFun
+  , coreToLogic
+  , mkLit, mkI, mkS
+  , runToLogic
+  , runToLogicWithBoolBinds
+  , logicType
+  , strengthenResult
+  , strengthenResult'
+  , normalize
   ) where
 
 import           Data.ByteString                       (ByteString)
@@ -41,7 +36,7 @@ import           TysWiredIn
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import           Language.Fixpoint.Misc                (snd3, mapSnd)
+import           Language.Fixpoint.Misc                (snd3, mapSnd, mapFst)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc hiding (varSymbol)
@@ -57,10 +52,10 @@ import qualified Data.HashMap.Strict                   as M
 
 
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t { ty_binds = binds, ty_args = args, ty_refts = refts}
+logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
   where
-    t       = toRTypeRep $ ofType τ
-    (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
+    t            = toRTypeRep $ ofType τ
+    (bs, as, rs) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
 
 {- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
@@ -127,37 +122,42 @@ strengthenResult' v
         mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
 
 
-simplesymbol :: Var -> Symbol
-simplesymbol = symbol . getName
-
-
 type LogicM = ExceptT Error (StateT LState Identity)
 
-data LState = LState { symbolMap :: LogicMap
-                     , mkError   :: String -> Error
-                     , ltce      :: TCEmb TyCon
-                     , boolbinds :: [Var]
-                     }
+data LState = LState
+  { symbolMap :: LogicMap
+  , mkError   :: String -> Error
+  , ltce      :: TCEmb TyCon
+  , boolbinds :: [Var]
+  }
 
 throw :: String -> LogicM a
-throw str = do fmkError  <- mkError <$> get
-               throwError $ fmkError str
+throw str = do
+  fmkError  <- mkError <$> get
+  throwError $ fmkError str
 
 getState :: LogicM LState
 getState = get
 
-runToLogic :: TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogic
+  :: TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
+  -> Either Error t
 runToLogic = runToLogicWithBoolBinds []
 
-runToLogicWithBoolBinds :: [Var] -> TCEmb TyCon
-           -> LogicMap -> (String -> Error) -> LogicM t -> Either Error t
+runToLogicWithBoolBinds
+  :: [Var] -> TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
+  -> Either Error t
 runToLogicWithBoolBinds xs tce lmap ferror m
-  = evalState (runExceptT m) LState {symbolMap = lmap, mkError = ferror, ltce = tce, boolbinds = xs}
+       = evalState (runExceptT m) s0
+  where
+    s0 = LState { symbolMap = lmap
+                , mkError   = ferror
+                , ltce      = tce
+                , boolbinds = xs
+                }
 
-
-
-coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
+coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
+          -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
   where
     go args (C.Lam  x e) = go (x:args) e
@@ -168,93 +168,73 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
     go _ _               = throw "Measure Functions should have a case at top level"
 
     goalt args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . E
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . E
         <$> coreToLg e
     goalt _ _ alt
        = throw $ "Bad alternative" ++ showPpr alt
 
     goalt_prop args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs) . P
-        <$> coreToPd  e
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . P
+        <$> coreToLg  e
     goalt_prop _ _ alt
       = throw $ "Bad alternative" ++ showPpr alt
 
-    toArgs f args = [(symbol x, f $ ofType $ varType x) | x <- args]
+    toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
     inline_preds = inline (eqType boolTy . varType)
 
+varRType :: (Reftable r) => Var -> Located (RRType r)
+varRType = varLocInfo ofType
+
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
-coreToFun _ v e = go [] $ normalize e
+coreToFun _ _v e = go [] $ normalize e
   where
     go acc (C.Lam x e)  | isTyVar    x = go acc e
     go acc (C.Lam x e)  | isErasable x = go acc e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
-    go acc e            | eqType rty boolTy
-                        = (reverse acc,) . Left  <$> coreToPd e
-                        | otherwise
-                        = (reverse acc,) . Right <$> coreToLg e
-
-
-    rty = snd $ splitFunTys $ snd $ splitForAllTys $ varType v
-
-coreToPred :: C.CoreExpr -> LogicM Expr
-coreToPred e = coreToPd $ normalize e
-
-
-coreToPd :: C.CoreExpr -> LogicM Expr
-coreToPd (C.Let b p)
-  = subst1 <$> coreToPd p <*>  makesub b
-coreToPd (C.Tick _ p)
-  = coreToPd p
-coreToPd (C.App (C.Var v) e)
-  | ignoreVar v
-  = coreToPd e
-coreToPd (C.Var x)
-  | x == falseDataConId
-  = return PFalse
-  | x == trueDataConId
-  = return PTrue
-coreToPd p@(C.App _ _)
-  = toPredApp p
-coreToPd e
-  = coreToLg e
+    go acc e            = (reverse acc,) . Right <$> coreToLg e
 
 instance Show C.CoreExpr where
   show = showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
-coreToLogic = coreToLg . simplify
-
+coreToLogic = coreToLg . normalize
 
 coreToLg :: C.CoreExpr -> LogicM Expr
-coreToLg (C.Let b e)  = subst1 <$> coreToLg e <*>  makesub b
-coreToLg (C.Tick _ e) = coreToLg e
-coreToLg (C.App (C.Var v) e) | ignoreVar v = coreToLg e
-coreToLg (C.Lit l)
-  = case mkLit l of
-     Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
-     Just i -> return i
+coreToLg (C.Let b e)
+  = subst1 <$> coreToLg e <*>  makesub b
+coreToLg (C.Tick _ e)
+  = coreToLg e
+coreToLg (C.App (C.Var v) e)
+  | ignoreVar v
+  = coreToLg e
 coreToLg (C.Var x)
   | x == falseDataConId
   = return PFalse
   | x == trueDataConId
   = return PTrue
---  | eqType boolTy (varType x)
---  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
-coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
-coreToLg e@(C.App _ _)       = toLogicApp e
+  | otherwise
+  = (symbolMap <$> getState) >>= eVarWithMap x
+coreToLg e@(C.App _ _)
+  = toPredApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
   = do p   <- coreToLg e
        tce <- ltce <$> getState
        return $ ELam (symbol x, typeSort tce $ varType x) p
--- coreToLg p@(C.App _ _) = toPredApp p
 coreToLg (C.Case e b _ alts)
   = do p <- coreToLg e
        casesToLg b p alts
-coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+
+coreToLg (C.Lit l)
+  = case mkLit l of
+     Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+     Just i -> return i
+
+coreToLg e
+  = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
@@ -298,36 +278,34 @@ altToLg _ (C.DEFAULT, _, _)
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
-  = do p  <- coreToPd e
+  = do p  <- coreToLg e
        e1 <- coreToLg efalse
        e2 <- coreToLg etrue
        return $ EIte p e2 e1
 
 toPredApp :: C.CoreExpr -> LogicM Expr
-toPredApp p
-  = do let (f, es) = splitArgs p
-       let f'      = tomaybesymbol f
-       go f' es
+toPredApp p = go . mapFst tomaybesymbol . splitArgs $ p
   where
-    go (Just f) [e1, e2]
+    go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg e1 <*> coreToLg e2
-    go (Just f) [e]
+    go (Just f, [e])
       | f == symbol ("not" :: String)
-      = PNot <$>  coreToPd e
-    go (Just f) [e1, e2]
+      = PNot <$>  coreToLg e
+    go (Just f, [e1, e2])
       | f == symbol ("||" :: String)
-      = POr <$> mapM coreToPd [e1, e2]
+      = POr <$> mapM coreToLg [e1, e2]
       | f == symbol ("&&" :: String)
-      = PAnd <$> mapM coreToPd [e1, e2]
+      = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("==>" :: String)
-      = PImp <$> coreToPd e1 <*> coreToPd e2
-    go (Just f) es
+      = PImp <$> coreToLg e1 <*> coreToLg e2
+    go (Just f, es)
       | f == symbol ("or" :: String)
-      = POr <$> mapM coreToPd es
+      = POr  <$> mapM coreToLg es
       | f == symbol ("and" :: String)
-      = PAnd <$> mapM coreToPd es
-    go _ _ = toLogicApp p
+      = PAnd <$> mapM coreToLg es
+    go (_, _)
+      = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e = do
@@ -448,7 +426,7 @@ mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
 
 mkS :: ByteString -> Maybe Expr
-mkS                    = Just . ESym . SL  . (decodeUtf8With lenientDecode)
+mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
@@ -458,7 +436,7 @@ simpleSymbolVar' = symbol . showPpr . getName
 
 varSymbol :: Var -> Symbol
 varSymbol v | Type.isFunTy (varType v) = simplesymbol v
-varSymbol v                            = symbol v 
+varSymbol v                            = symbol v
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
@@ -472,7 +450,6 @@ isDead     = isDeadOcc . occInfo . idInfo
 class Simplify a where
   simplify :: a -> a
   inline   :: (Id -> Bool) -> a -> a
-
 
   normalize :: a -> a
   normalize = inline_preds . inline_anf . simplify

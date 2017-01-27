@@ -1,15 +1,18 @@
 TODO
 ====
 
-## no-prop / inline
+Reflect-Imports
+---------------
 
-1. Failing Tests `pldi17/*` 
-    * pldi17/pos/NormalForm.hs
-    * Vikraman/Nat
- 
-```
-$ stack test liquidhaskell --fast --test-arguments "-p pos"
-```
++ `makeHaskellInlines`
++ `makeHaskellMeasures`
+* `makeHaskellAxioms`
+- `makeHaskellBounds`
+
+`stack exec -- liquid tests/todo/ReflectLib2.hs`
+
+? Fibonacci.hs:                      FAIL (3.61s)
+? Automate.hs:                       FAIL (1.35s)
 
 Check Covariance
 ----------------
@@ -19,6 +22,7 @@ It is safe is 100 is changed to 0. WHY?
 
 LAZYVAR
 -------
+
 Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
 
 

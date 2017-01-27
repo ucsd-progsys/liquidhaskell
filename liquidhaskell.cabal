@@ -14,6 +14,7 @@ Build-Type:          Simple
 Cabal-version:       >=1.18
 
 
+
 data-files: include/*.hquals
           , include/*.hs
           , include/*.spec
@@ -145,6 +146,7 @@ Library
                 , Cabal >= 1.18
                 , bifunctors >= 5.1
                 , cereal
+                , binary
                 , temporary >= 1.2
                 , transformers >= 0.3
                 , text-format
@@ -223,13 +225,13 @@ Library
                     Language.Haskell.Liquid.Bare.Env,
                     Language.Haskell.Liquid.Bare.Expand,
                     Language.Haskell.Liquid.Bare.Existential,
-                    Language.Haskell.Liquid.Bare.GhcSpec,
                     Language.Haskell.Liquid.Bare.Lookup,
                     Language.Haskell.Liquid.Bare.Axiom,
                     Language.Haskell.Liquid.Bare.Measure,
                     Language.Haskell.Liquid.Bare.Misc,
                     Language.Haskell.Liquid.Bare.OfType,
                     Language.Haskell.Liquid.Bare.Plugged,
+                    Language.Haskell.Liquid.Bare.ToBare, 
                     Language.Haskell.Liquid.Bare.Resolve,
                     Language.Haskell.Liquid.Bare.RTEnv,
                     Language.Haskell.Liquid.Bare.SymSort,

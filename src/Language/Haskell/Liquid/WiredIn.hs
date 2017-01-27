@@ -92,9 +92,9 @@ proofTyConName = "Proof"
 -- propType :: Reftable r => RRType r
 -- propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
---------------------------------------------------------------------
------- Predicate Types for WiredIns --------------------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Predicate Types for WiredIns ----------------------------------------------
+--------------------------------------------------------------------------------
 
 maxArity :: Arity
 maxArity = 7
@@ -128,7 +128,7 @@ listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Ju
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
-      fsize z    = mkEApp (dummyLoc "len") [EVar z]
+      fsize      = SymSizeFun (dummyLoc "len")
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]

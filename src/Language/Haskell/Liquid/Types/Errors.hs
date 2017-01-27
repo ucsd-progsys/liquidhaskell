@@ -50,6 +50,7 @@ import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
+import qualified Data.Binary as B
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
@@ -144,6 +145,7 @@ data Oblig
   | OCons -- ^ Obligation that proves subtyping constraints
   deriving (Generic, Data, Typeable)
 
+instance B.Binary Oblig
 instance Show Oblig where
   show OTerm = "termination-condition"
   show OInv  = "invariant-obligation"
@@ -329,7 +331,7 @@ data TError t =
 
   | ErrTyCon    { pos    :: !SrcSpan
                 , msg    :: !Doc
-                , tcname :: !Doc 
+                , tcname :: !Doc
                 }
 
   | ErrOther    { pos   :: SrcSpan
@@ -752,7 +754,7 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       $+$ text "Defined at:" <+> pprint p
 
 ppError' _ dSp _ (ErrTyCon _ msg ty)
-  = dSp <+> text "Bad Data Refinement for " <+> ty 
+  = dSp <+> text "Bad Data Refinement for " <+> ty
     $+$ (nest 4 msg)
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "'"

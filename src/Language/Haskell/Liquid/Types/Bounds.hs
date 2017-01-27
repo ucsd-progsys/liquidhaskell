@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 
@@ -17,31 +18,30 @@ module Language.Haskell.Liquid.Types.Bounds (
 
 import Prelude hiding (error)
 import Text.PrettyPrint.HughesPJ
-
+import GHC.Generics
 import Data.List (partition)
 import Data.Maybe
 import Data.Hashable
--- import Data.Monoid
 import Data.Bifunctor
 import Data.Data
-
+import qualified Data.Binary         as B
 import qualified Data.HashMap.Strict as M
--- import Control.Applicative           ((<$>))
 
 import Language.Fixpoint.Types
-
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Misc  (mapFst, mapSnd)
 import Language.Haskell.Liquid.Types.RefType
 
 
-data Bound t e
-  = Bound { bname   :: LocSymbol         -- ^ The name of the bound
-          , tyvars  :: [t]               -- ^ Type variables that appear in the bounds
-          , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
-          , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
-          , bbody   :: e                 -- ^ The body of the bound
-          } deriving (Data, Typeable)
+data Bound t e = Bound
+  { bname   :: LocSymbol         -- ^ The name of the bound
+  , tyvars  :: [t]               -- ^ Type variables that appear in the bounds
+  , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
+  , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
+  , bbody   :: e                 -- ^ The body of the bound
+  } deriving (Data, Typeable, Generic)
+
+instance (B.Binary t, B.Binary e) => B.Binary (Bound t e)
 
 type RBound        = RRBound RSort
 type RRBound tv    = Bound tv Expr

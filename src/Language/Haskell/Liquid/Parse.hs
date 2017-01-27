@@ -38,7 +38,7 @@ import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types          hiding (Axiom)
+import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
@@ -688,7 +688,6 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | Insts   (LocSymbol, Maybe Int)
   | HMeas   LocSymbol
-  | Axiom   LocSymbol
   | Reflect LocSymbol
   | Inline  LocSymbol
   | ASize   LocSymbol
@@ -724,8 +723,8 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"
   show (LVars  _) = "LVars"
   show (Lazy   _) = "Lazy"
+  -- show (Axiom  _) = "Axiom"
   show (Insts  _) = "Insts"
-  show (Axiom  _) = "Axiom"
   show (Reflect _) = "Reflect"
   show (HMeas  _) = "HMeas"
   show (HBound _) = "HBound"
@@ -748,6 +747,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.sigs       = [a | Asrt   a <- xs]
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
+  , Measure.reflSigs   = []
   , Measure.invariants = [t | Invt   t <- xs]
   , Measure.ialiases   = [t | IAlias t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
@@ -760,40 +760,39 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
-  , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
   , Measure.autois     = M.fromList [s | Insts s <- xs]
-  , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
-  , Measure.reflects   = S.fromList [s | Reflect s <- xs]
-  , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
-  , Measure.inlines    = S.fromList [s | Inline s <- xs]
-  , Measure.autosize   = S.fromList [s | ASize  s <- xs]
-  , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
-  , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
+  , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
+  , Measure.reflects   = S.fromList [s | Reflect s <- xs]
+  , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
+  , Measure.inlines    = S.fromList [s | Inline s <- xs]
+  , Measure.autosize   = S.fromList [s | ASize  s <- xs]
+  , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.defs       = M.fromList [d | Define d <- xs]
   }
 
 specP :: Parser BPspec
 specP
-  = try (reservedToken "assume"       >> liftM Assm   tyBindP   )
-    <|> (reservedToken "assert"       >> liftM Asrt   tyBindP   )
-    <|> (reservedToken "autosize"     >> liftM ASize  asizeP    )
-    <|> (reservedToken "Local"        >> liftM LAsrt  tyBindP   )
-    <|> (reservedToken "axiomatize"   >> liftM Axiom  axiomP    )
-    <|> (reservedToken "reflect"      >> liftM Reflect  axiomP    )
-    <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
-    <|> (reservedToken "define"   >> liftM Define defineP   )
-    <|> try (reservedToken "infixl"   >> liftM BFix   infixlP   )
-    <|> try (reservedToken "infixr"   >> liftM BFix   infixrP   )
-    <|> try (reservedToken "infix"    >> liftM BFix   infixP    )
-    <|> try (reservedToken "defined"  >> liftM Meas   measureP  )
-    <|> (reservedToken "measure"      >> liftM HMeas  hmeasureP )
+  = try (reservedToken "assume"       >> liftM Assm    tyBindP  )
+    <|> (reservedToken "assert"       >> liftM Asrt    tyBindP  )
+    <|> (reservedToken "autosize"     >> liftM ASize   asizeP   )
+    <|> (reservedToken "Local"        >> liftM LAsrt   tyBindP  )
+    <|> (reservedToken "axiomatize"   >> liftM Reflect axiomP   )
+    <|> (reservedToken "reflect"      >> liftM Reflect axiomP   )
+    <|> try (reservedToken "measure"  >> liftM Meas    measureP )
+    <|> (reservedToken "define"       >> liftM Define  defineP  )
+    <|> try (reservedToken "infixl"   >> liftM BFix    infixlP  )
+    <|> try (reservedToken "infixr"   >> liftM BFix    infixrP  )
+    <|> try (reservedToken "infix"    >> liftM BFix    infixP   )
+    <|> try (reservedToken "defined"  >> liftM Meas    measureP )
+    <|> (reservedToken "measure"      >> liftM HMeas   hmeasureP)
     <|> (reservedToken "inline"       >> liftM Inline  inlineP  )
     <|> try (reservedToken "bound"    >> liftM PBound  boundP   )
     <|> (reservedToken "bound"        >> liftM HBound  hboundP  )
@@ -833,7 +832,7 @@ pragmaP = locParserP stringLiteral
 
 autoinstP :: Parser (LocSymbol, Maybe Int)
 autoinstP = do x <- locParserP binderP
-               spaces 
+               spaces
                i <- maybeP (reservedToken "with" >> integer)
                return (x, fromIntegral <$> i)
 
@@ -992,12 +991,12 @@ instanceP
 
 
 riMethodSigP :: Parser (LocSymbol, RISig (Located BareType))
-riMethodSigP 
+riMethodSigP
   = try (do reserved "assume"
             (x, t) <- tyBindP
             return (x, RIAssumed t) )
  <|> do (x, t) <- tyBindP
-        return (x, RISig t) 
+        return (x, RISig t)
 
 
 
@@ -1174,12 +1173,10 @@ dataConNameP
      bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = symbol $ "(" <> s <> ")"
 
-dataSizeP :: Parser (Maybe (Symbol -> Expr))
+dataSizeP :: Parser (Maybe SizeFun)
 dataSizeP
-  = brackets (Just . mkFun <$> locLowerIdP)
+  = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
-  where
-    mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
 dataDeclP
@@ -1191,40 +1188,40 @@ newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
 
 dataDeclSizeP :: Parser DataDecl
-dataDeclSizeP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       return $ D x [] [] [] [] pos fsize
+dataDeclSizeP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  return $ D x [] [] [] [] pos fsize
 
 dataDeclFullP :: Parser DataDecl
-dataDeclFullP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       spaces
-       ts  <- sepBy tyVarIdP blanks
-       ps  <- predVarDefsP
-       whiteSpace >> reservedOp "=" >> whiteSpace
-       dcs <- sepBy dataConP (reserved "|")
-       whiteSpace
-       return $ D x ts ps [] dcs pos fsize
+dataDeclFullP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  spaces
+  ts  <- sepBy tyVarIdP blanks
+  ps  <- predVarDefsP
+  whiteSpace >> reservedOp "=" >> whiteSpace
+  dcs <- sepBy dataConP (reserved "|")
+  whiteSpace
+  return $ D x ts ps [] dcs pos fsize
 
 
 adtDataDeclFullP :: Parser DataDecl
-adtDataDeclFullP
-  = do pos <- getPosition
-       x   <- locUpperIdP'
-       spaces
-       fsize <- dataSizeP
-       spaces
-       (ts, ps) <- tsps
-       spaces
-       dcs <- sepBy adtDataConP (reserved "|")
-       whiteSpace
-       return $ D x ts ps [] dcs pos fsize
+adtDataDeclFullP = do
+  pos <- getPosition
+  x   <- locUpperIdP'
+  spaces
+  fsize <- dataSizeP
+  spaces
+  (ts, ps) <- tsps
+  spaces
+  dcs <- sepBy adtDataConP (reserved "|")
+  whiteSpace
+  return $ D x ts ps [] dcs pos fsize
   where
     tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
         <|> do ts <- sepBy tyVarIdP blanks

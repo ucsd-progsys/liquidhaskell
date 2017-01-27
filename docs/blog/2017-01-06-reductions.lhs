@@ -1,25 +1,25 @@
 ---
 layout: post
-title: "Proof Reductions on Homomorphisms"
+title: Proof Reductions on Homomorphisms
 date: 2017-01-02
 comments: true
 external-url:
 author: Niki Vazou and Vikraman Choudhury
 published: true
-categories: reflection proof-reductions homomorphism abstract-refinements
+categories: reflection, abstract-refinements
 demo: Reductions.hs
 ---
 
 [Previously][refinement-reflection] we saw how Refinement Reflection
-can be used to write and prove **in Haskell** theorems **about Haskell**
-functions on data types and have such proofs machine checked by Liquid Haskell.
+can be used to specify and prove theorems about Haskell code.
 
-Today we will see how proof generation can be simplified by proof reduction on homomorphic data types. 
+Today we will see how proof generation can be simplified by 
+proof reduction on homomorphic data types. 
 
 As an example, we define a user-defined `Peano` data type
-and prove that it enjoys various 
-arithmetic properties (like totality of comparison)
-by 
+and prove that it enjoys various arithmetic properties 
+(like totality of comparison) by 
+
 1. creating a proof that an arithmetic property holds on Natural numbers, and then 
 2. reduce the proof from Natural numbers to Peano numbers. 
 This proof reduction is possible since Peano numbers are homomorphic to Natural numbers. 

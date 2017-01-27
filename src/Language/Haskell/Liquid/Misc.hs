@@ -238,3 +238,6 @@ intToString n = show n ++ "th"
 mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
 mapAccumM f acc0 xs =
   swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
+
+ifM :: (Monad m) => m Bool -> m b -> m b -> m b
+ifM b x y = b >>= \z -> if z then x else y

@@ -7,7 +7,8 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , BareEnv(..)
 
-  , TInline(..), InlnEnv
+  -- , TInline(..)
+  , InlnEnv
 
   , inModule
   , withVArgs
@@ -38,7 +39,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (tracepp, Expr(..), Symbol, symbol, TCEmb)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -56,25 +57,19 @@ type Warn  = String
 
 type TCEnv = M.HashMap TyCon RTyCon
 
-type InlnEnv = M.HashMap Symbol TInline
+type InlnEnv = M.HashMap Symbol LMap
 
--- HEREHEREHEREHEREHEREHERE DELETE this TInline nonsense; fold it into RTEnv/rtEnv
--- see what tests fail
-
-data TInline = TI { tiArgs :: [Symbol]
-                  , tiBody :: Expr
-                  } deriving (Show)
-
-data BareEnv = BE { modName  :: !ModName
-                  , tcEnv    :: !TCEnv
-                  , rtEnv    :: !RTEnv
-                  , varEnv   :: ![(Symbol, Var)]
-                  , hscEnv   :: HscEnv
-                  , logicEnv :: LogicMap
-                  , bounds   :: RBEnv
-                  , embeds   :: TCEmb TyCon
-                  , axSyms   :: M.HashMap Symbol LocSymbol
-                  }
+data BareEnv = BE
+  { modName  :: !ModName
+  , tcEnv    :: !TCEnv
+  , rtEnv    :: !RTEnv
+  , varEnv   :: ![(Symbol, Var)]
+  , hscEnv   :: HscEnv
+  , logicEnv :: LogicMap
+  , bounds   :: RBEnv
+  , embeds   :: TCEmb TyCon
+  , axSyms   :: M.HashMap Symbol LocSymbol
+  }
 
 setEmbeds :: TCEmb TyCon -> BareM ()
 setEmbeds emb
@@ -85,10 +80,8 @@ addDefs ds
   = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
 
 insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e'
+insertLogicEnv _msg x ys e
   = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
-  where
-    e = tracepp ("INSERTLOGICENV @" ++ _msg ++ showpp (x, ys, e')) e'
 
 insertAxiom :: Var -> Symbol -> BareM ()
 insertAxiom x s

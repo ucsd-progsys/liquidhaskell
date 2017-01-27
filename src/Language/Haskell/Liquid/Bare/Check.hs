@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
@@ -81,7 +82,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
-                     -- but make sure that all the specs are checked. 
+                     -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                        (gsTconsP sp)
     _rClasses         = concatMap (Ms.classes   . snd) specs
@@ -110,20 +111,18 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
 
 
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
-checkSizeFun emb env tys = mkError <$> (mapMaybe go tys)
+checkSizeFun emb env tys = mkError <$> mapMaybe go tys
   where
-    mkError ((f, tc, tcp), msg)  = ErrTyCon (sourcePosSrcSpan $ ty_loc tcp) 
+    mkError ((f, tc, tcp), msg)  = ErrTyCon (sourcePosSrcSpan $ ty_loc tcp)
                                    (text "Size function" <+> pprint (f x) <+> text "should have type int." $+$   msg)
                                    (pprint tc)
-    go (tc, tcp)      = case sizeFun tcp of 
-                        Nothing  -> Nothing 
-                        Just f -> checkWFSize f tc tcp 
+    go (tc, tcp)      = case sizeFun tcp of
+                          Nothing  -> Nothing
+                          Just f   -> checkWFSize (szFun f) tc tcp
 
     checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc) env) intSort (f x)
-
-    x                    = symbol ("x" :: String)
-
-    mkTySort tc         = rTypeSortedReft emb $ (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
+    x                    = "x" :: Symbol
+    mkTySort tc          = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
 _checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
 _checkRefinedClasses definitions instances

@@ -213,7 +213,11 @@ showPpr       = showSDoc . ppr
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Out.SDoc -> String
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle myQualify {- Out.alwaysQualify -} Out.AllTheWay)
+
+myQualify :: Out.PrintUnqualified
+myQualify = Out.neverQualify { Out.queryQualifyName = Out.alwaysQualifyNames }
+-- { Out.queryQualifyName = \_ _ -> Out.NameNotInScope1 }
 
 showSDocDump :: Out.SDoc -> String
 showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
@@ -305,13 +309,23 @@ realSrcSpanSourcePosE s = newPos file line col
     line                = srcSpanEndLine       s
     col                 = srcSpanEndCol        s
 
-
 getSourcePos :: NamedThing a => a -> SourcePos
-getSourcePos           = srcSpanSourcePos  . getSrcSpan
+getSourcePos = srcSpanSourcePos  . getSrcSpan
 
 getSourcePosE :: NamedThing a => a -> SourcePos
-getSourcePosE          = srcSpanSourcePosE . getSrcSpan
+getSourcePosE = srcSpanSourcePosE . getSrcSpan
 
+locNamedThing :: NamedThing a => a -> F.Located a
+locNamedThing x = F.Loc l lE x
+  where
+    l          = getSourcePos  x
+    lE         = getSourcePosE x
+
+namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
+namedLocSymbol d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
+
+varLocInfo :: (Type -> a) -> Var -> F.Located a
+varLocInfo f x = f . varType <$> locNamedThing x
 
 --------------------------------------------------------------------------------
 -- | Manipulating CoreExpr -----------------------------------------------------
@@ -441,9 +455,11 @@ varSymbol v
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
   where
+  _msg   = showSDoc (ppr n) -- getOccString n
   modFS = case nameModule_maybe n of
             Nothing -> fsLit ""
             Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
+
   occFS = occNameFS (getOccName n)
   uniqFS
     | isSystemName n
@@ -525,6 +541,9 @@ instance NFData Var where
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
+
+splitModuleName :: Symbol -> (Symbol, Symbol)
+splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)
 
 dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
@@ -630,3 +649,26 @@ showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
   | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
+
+
+findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+findVarDef x cbs = case xCbs of
+                     (NonRec v def   : _ ) -> Just (v, def)
+                     (Rec [(v, def)] : _ ) -> Just (v, def)
+                     _                     -> Nothing
+  where
+    xCbs         = [ cb | cb <- cbs, x `elem` coreBindSymbols cb ]
+
+coreBindSymbols :: CoreBind -> [Symbol]
+coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
+
+simplesymbol :: (NamedThing t) => t -> Symbol
+simplesymbol = symbol . getName
+
+
+
+
+
+binders :: Bind a -> [a]
+binders (NonRec z _) = [z]
+binders (Rec xes)    = fst <$> xes

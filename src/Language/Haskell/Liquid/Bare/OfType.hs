@@ -149,13 +149,10 @@ ofBRType appRTAlias resolveReft
       = RHole <$> resolveReft r
     go (RExprArg (Loc l l' e))
       = RExprArg . Loc l l' <$> resolve l e
-
     go_ref (RProp ss (RHole r))
       = rPropP <$> mapM go_syms ss <*> resolveReft r
     go_ref (RProp ss t)
       = RProp <$> mapM go_syms ss <*> go t
-
-
     go_syms
       = secondM ofBSort
 
