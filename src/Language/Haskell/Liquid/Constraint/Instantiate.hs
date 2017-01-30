@@ -104,48 +104,43 @@ evaluate facts fm aenv einit
                          ((e,) <$> (L.nub $ (fst <$> e')))
     showpp' efs = L.intercalate "\n" [ showpp e ++ "\n" ++ show fm | (e, (fm, _)) <- efs]
 
-    go :: [(Expr, Expr)] -> (FuelMap, [(Expr, [Expr])]) -> Expr -> [(Expr, (FuelMap, [(Expr, [Expr])]))]
+    go :: [(Expr, Expr)] -> FuelMap -> Expr -> (Bool, Expr, FuelMap)
 
     go tr fm e | Just e' <- L.lookup e sels 
-      = [(traceEval tr fm "SELECTORYEAH" e e', fm)] 
+      = (True, traceEval tr fm "SELECTORYEAH" e e', fm) 
 
     go tr fm e@(EApp _ _) -- (EApp e1 e2)
       = evalApp' tr fm [] e -- e1 e2
     go tr fm e@(EIte b e1 e2)
-      = do (b', fm1)  <- go tr fm b 
-           (e1', fm2) <- go tr fm1 e1
-           (e2', fm3) <- go tr fm2 e2 
-           return (evalIte tr fm e b' e1' e2', fm3)
+      = let (b', fm1)  =  go tr fm b 
+            (e1', fm2) =  go tr fm1 e1
+            (e2', fm3) =  go tr fm2 e2 
+            (evaleated, e') = evalIte tr fm e b' e1' e2'
+            in (evaleated, e', fm3)
     go _ fm e
-      = [(e, fm)] 
+      = (False, e, fm) 
 
     evalIte tr fm e b e1 e2 
       | isTautoPred b 
-      = normalizeIF $ traceEval tr fm "ifTrue" e e1 
+      = (True,) $ normalizeIF $ traceEval tr fm "ifTrue" e e1 
       | isFalse b 
-      = normalizeIF $ traceEval tr fm "IfFalse" e e2 
+      = (True,) $ normalizeIF $ traceEval tr fm "IfFalse" e e2 
       |  b `elem` trueExprs
-      = normalizeIF $ traceEval tr fm "ifTrueYEAH" e e1 
+      = (True,) $ normalizeIF $ traceEval tr fm "ifTrueYEAH" e e1 
       |  b `elem` falseExpr
-      = normalizeIF $ traceEval tr fm "IfFalseYEAH" e e2 
+      = (True,) $ normalizeIF $ traceEval tr fm "IfFalseYEAH" e e2 
       | otherwise 
-      = EIte b e1 e2 
+      = (False,) $ EIte b e1 e2 
 
     evalApp' tr fm acc (EApp f e) 
-      = do (e', fm1)  <- go tr fm  e 
-           (f', fm2)  <- go tr fm1 f 
-           (f'', fm3) <- go tr fm  f
-           L.nub 
-            ( evalApp' tr fm (e:acc) f ++ 
-             if e == e' then [] else evalApp' ((e,e'):tr) fm1 (e':acc) f ++ 
-             if f == f'' then [] else evalApp' ((f,f''):tr) fm3 (e:acc) f'' ++ 
-             if e /= e' && e /= f' then evalApp' ((e,e'):(f,f'):tr) fm2 (e':acc) f' else [] 
-             )
+      = let (fe, e', fm1)  =  go tr fm  e 
+            (ff, f', fm2)  =  go tr fm1 f 
+            (fm3, e'') = if fe then (fm2, e') else (fm, e)
+            f'' = if ff then f' else f  
+        in evalApp' tr fm3 (e'':acc) f''
     evalApp' tr fm acc e 
-      = do (e', fm') <- go tr fm e  
-           if e == e' 
-             then evalApp ((e,e'):tr) fm' (e', acc) 
-             else L.nub (evalApp ((e,e'):tr) fm' (e', acc) ++ evalApp tr fm (e, acc))
+      = let (fe, e', fm') =  go tr fm e
+        in if fe then evalApp tr fm' (e', acc) else evalApp tr fm (e, acc)  
 
     evalApp tr fm (EVar f, [e])
       | (EVar dc, es) <- splitEApp e
@@ -153,17 +148,20 @@ evaluate facts fm aenv einit
       , length (smArgs simp) == length es 
       = let e'  = substIfHack (zip (smArgs simp) (id <$> es)) (smBody simp) 
             e'' = traceEval tr fm "Simpl" (eApps (EVar f) [e]) e'
-        in map (mapFst normalizeIF) $ go (((eApps (EVar f) [e]), e'):tr) fm e'' 
+        in (True, e'', fm) -- (True,,) $ map normalizeIF $ go (((eApps (EVar f) [e]), e'):tr) fm e'' 
     evalApp tr fm (EVar f, es)
       | Just eq <- L.find ((==f) . eqName) (aenvEqs aenv)
       , Just bd <- getEqBody eq 
       , length (eqArgs eq) == length es
-      , hasFuel (fst fm) f 
+      , hasFuel fm f 
       = let e'  = substIfHack (zip (eqArgs eq) (id <$> es)) bd
-            e'' = traceEval tr fm ("App-" ++ showpp f) (eApps (EVar f) es) e'
-        in map (mapFst normalizeIF) $ go ((eApps (EVar f) es, e'):tr) (mapFst (\fm -> makeFuelMap (\x -> x-1) fm f) fm) e'' 
+            e'' = normalizeIF $ traceEval tr fm ("App-" ++ showpp f) (eApps (EVar f) es) e'
+            fm' = makeFuelMap (\x -> x-1) fm f
+            (fapp, e''', fm'') = go tr fm' e''
+         in if fapp then (False, eApps (EVar f) es, fm) else (True, e''', fm'')
+--         in map (mapFst normalizeIF) $ go ((eApps (EVar f) es, e'):tr) (mapFst (\fm -> ) fm) e'' 
     evalApp _ fm (e, es) 
-      = [(eApps (id e) (id <$> es), fm)]
+      = (False, eApps (id e) (id <$> es), fm)
 
     mapFst f (x, y) = (f x, y)
 
