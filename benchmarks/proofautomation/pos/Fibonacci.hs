@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
-{-@ LIQUID "--prove-method=arithmetic" @-}
+{-@ LIQUID "--proof-method=arithmetic" @-}
 
 
 module Fibonacci where

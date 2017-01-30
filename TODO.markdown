@@ -1,9 +1,4 @@
-- Numerics 
-  - Overview.hs
-  - Ack
-  - Fib
-
-
+- CHECK IF DEFAULT OPTION STAYS (ie on nunberic should not do rewrite)
 
 TODO
 ====

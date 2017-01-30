@@ -30,7 +30,8 @@ import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
 
-import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal)
+import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal,
+                                                    allowRewrite, allowArithmetic)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -297,6 +298,8 @@ makeAxiomEnvironment info xts
          (concatMap makeSimplify xts)
          (\sub -> fromMaybe (fuel cfg) (fuelNumber sub))
          doExpand
+         (\_ -> allowRewrite    cfg)
+         (\_ -> allowArithmetic cfg)
          (debugInstantionation cfg)
   where
     doExpand sub = allowLiquidInstationationGlobal cfg

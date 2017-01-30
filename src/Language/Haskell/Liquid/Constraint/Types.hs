@@ -134,6 +134,8 @@ data AxiomEnv = AEnv { aenvSyms    :: ![F.Symbol]
                      , aenvSimpl   :: ![Simplify] 
                      , aenvFuel    :: (FixSubC -> Int) 
                      , aenvExpand  :: (FixSubC -> Bool)
+                     , aenvDoRW    :: (FixSubC -> Bool)
+                     , aenvDoEqs   :: (FixSubC -> Bool)
                      , aenvVerbose :: !Bool 
                      }
 

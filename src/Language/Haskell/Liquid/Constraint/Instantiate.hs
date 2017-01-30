@@ -43,9 +43,10 @@ instantiateAxioms _  aenv sub
   | not (aenvExpand aenv sub)
   = sub  
 instantiateAxioms bds aenv sub 
-  = strengthenLhs (pAnd ( {- _is ++ -}  trace aenv evalMsg evalEqs)) sub
+  = strengthenLhs (pAnd (is ++ evalEqs)) sub
   where
-    _is               = instances maxNumber aenv (trace aenv initMsg $ initOccurences)
+    is               = if aenvDoEqs aenv sub then instances maxNumber aenv (trace aenv initMsg $ initOccurences) else []
+    evalEqs          = if aenvDoRW  aenv sub then trace aenv evalMsg evalEqs' else [] 
     initExpressions  = (expr $ slhs sub):(expr $ srhs sub):(expr <$> binds)
     binds            = envCs bds (senv sub)
     initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
@@ -53,7 +54,7 @@ instantiateAxioms bds aenv sub
     as  = (,fuelNumber) . eqName <$> (filter (not . null . eqArgs) $ aenvEqs aenv)
     eqs = aenvEqs  aenv
 
-    evalEqs = [ PAtom F.Eq  e e'| es <- initExpressions, (e, e') <- evaluate ((dummySymbol, slhs sub):binds) as aenv es, e /= e']
+    evalEqs' = [ PAtom F.Eq  e e'| es <- initExpressions, (e, e') <- evaluate ((dummySymbol, slhs sub):binds) as aenv es, e /= e']
 
 
     showMaybeVar sub   = case subVar sub of 
