@@ -4,7 +4,6 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--eliminate=all"   @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 module FoldrUniversal where
@@ -15,11 +14,9 @@ import Prelude hiding (foldr)
 -- | foldrUniversal
 {-@ axiomatize foldr @-}
 foldr :: (a -> b -> b) -> b -> L a -> b
-foldr f b xs
-  | llen xs > 0
-  = f (hd xs) (foldr f b (tl xs))
-  | otherwise
-  = b
+foldr f b (C x xs) = f x (foldr f b xs)
+foldr f b Emp      = b
+
 
 {-@ axiomatize compose @-}
 compose :: (b -> c) -> (a -> b) ->  a -> c
@@ -85,7 +82,7 @@ fuse_base h f e
 
 
 data L a = Emp | C a (L a)
-{-@ data L [llen] @-}
+{-@ data L [llen] a = Emp | C {hs :: a, tl :: L a} @-}
 
 
 {-@ measure llen @-}
@@ -93,13 +90,3 @@ llen :: L a -> Int
 {-@ llen :: L a -> Nat @-}
 llen Emp        = 0
 llen (C _ xs) = 1 + llen xs
-
-{-@ measure hd @-}
-{-@ hd :: {v:L a | llen v > 0 } -> a @-}
-hd :: L a -> a
-hd (C x _) = x
-
-{-@ measure tl @-}
-{-@ tl :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
-tl :: L a -> L a
-tl (C _ xs) = xs

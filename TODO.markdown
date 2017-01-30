@@ -1,3 +1,12 @@
+- Numerics 
+  - Overview.hs
+  - Ack
+  - Fib
+
+- Unification -- HERE 
+
+
+
 TODO
 ====
 

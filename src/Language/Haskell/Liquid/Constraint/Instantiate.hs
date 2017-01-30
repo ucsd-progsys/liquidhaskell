@@ -43,7 +43,7 @@ instantiateAxioms _  aenv sub
   | not (aenvExpand aenv sub)
   = sub  
 instantiateAxioms bds aenv sub 
-  = strengthenLhs (pAnd ({- is ++ -} trace aenv evalMsg evalEqs)) sub
+  = strengthenLhs (pAnd ( {- _is ++ -}  trace aenv evalMsg evalEqs)) sub
   where
     _is               = instances maxNumber aenv (trace aenv initMsg $ initOccurences)
     initExpressions  = (expr $ slhs sub):(expr $ srhs sub):(expr <$> binds)
@@ -53,7 +53,7 @@ instantiateAxioms bds aenv sub
     as  = (,fuelNumber) . eqName <$> (filter (not . null . eqArgs) $ aenvEqs aenv)
     eqs = aenvEqs  aenv
 
-    evalEqs = [ PAtom F.Eq  e e'| es <- initExpressions, (e, e') <- evaluate (expr <$> binds) as aenv es, e /= e']
+    evalEqs = [ PAtom F.Eq  e e'| es <- initExpressions, (e, e') <- evaluate ((dummySymbol, slhs sub):binds) as aenv es, e /= e']
 
 
     showMaybeVar sub   = case subVar sub of 
@@ -70,17 +70,21 @@ instantiateAxioms bds aenv sub
               "\n\nShow simplifies "  ++ show (aenvSimpl aenv) ++ evalMsg
     evalMsg = "\n\nInit Expr " ++ L.intercalate "\n" (showpp <$> initExpressions) ++
               "\n\nBinds = " ++ showpp binds ++ 
-              "\n\nExpressions = " ++ showpp (expr <$> binds) ++ 
-              "\n\nShow evalutations " ++ L.intercalate "\n\n" 
-                [showpp e ++ "\n -> \n" ++ showpp e' |  es <- initExpressions, (e, e') <- evaluate (expr <$> binds) as aenv es, e /= e']
+              "\n\nExpressions = " ++ showpp (expr <$> binds) 
 
 
 
-
-makeKnowledge :: [Expr] -> ([Expr], [Expr], [(Expr, Expr)])
-makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ showpp es ++  "\n\nTRUES = \n\n" ++ showpp tes ++ "\n\nFALSE\n\n" ++ showpp fes ++ "\n\nSELECTORS\n\n" ++ showpp sels) (tes, fes, sels)
+makeKnowledge :: [(Symbol, SortedReft)] -> ([Expr], [Expr], [(Expr, Expr)], [(Expr, Expr)])
+makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++  
+                            "\n\nTRUES = \n\n" ++ showpp tes ++ 
+                            "\n\nFALSE\n\n" ++ showpp fes ++ 
+                            "\n\nSELECTORS\n\n" ++ showpp sels ++ 
+                            if null eqs then "" else "\n\nProofs\n\n" ++ showpp eqs) 
+                           (tes, fes, sels, eqs)
   where
-    (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (go <$> es)
+    proofs = filter isProof es
+    eqs = L.nub $  L.concat [[(e1, e2), (e2,e1)] | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs), not (dummySymbol `elem` (syms e1 ++ syms e2))] 
+    (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (map go $ map expr es)
     go e = let es  = splitPAnd e
                su  = mkSubst [(x, EVar y) | PAtom F.Eq (EVar x) (EVar y) <- es ]
                tes = [e | PIff e t <- es, isTautoPred t] 
@@ -95,26 +99,39 @@ makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ showpp es ++  "\n\nTRUES
     mapSnd3 f (x, y, z) = (x, f y, z)
     mapThd3 f (x, y, z) = (x, y, f z)
 
-evaluate :: [Expr] -> FuelMap -> AxiomEnv -> Expr -> [(Expr, Expr)] 
-evaluate facts fm aenv einit 
-  = concat [evalOne e | e <- L.nub $ grepTopApps einit] 
-  where
-    (trueExprs, falseExpr, sels) = makeKnowledge facts  
-    evalOne e = let e' = go [] (fm, []) (T.trace ("\nSTART EVAL OF\n" ++ showpp e) e) in T.trace ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp' e') 
-                         ((e,) <$> (L.nub $ (fst <$> e')))
-    showpp' efs = L.intercalate "\n" [ showpp e ++ "\n" ++ show fm | (e, (fm, _)) <- efs]
+    isProof (_, RR s _) =  (showpp s == "Tuple")
 
-    go :: [(Expr, Expr)] -> FuelMap -> Expr -> (Bool, Expr, FuelMap)
+evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> Expr -> [(Expr, Expr)] 
+evaluate facts fm aenv einit 
+  = catMaybes [evalOne e | e <- L.nub $ grepTopApps einit] 
+  where
+    (trueExprs, falseExpr, sels, eqs) = makeKnowledge facts  
+    evalOne e = let e' = snd3 $ go [] (fm, []) (T.trace ("\nSTART EVAL OF\n" ++ showpp e) e) 
+                in if e == e' then Nothing 
+                     else T.trace ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
+                           Just (e, e')
+    snd3 (_, x, _) = x 
+
+    go :: [(Expr, Expr)] -> (FuelMap,[(Expr, Expr)]) -> Expr -> (Bool, Expr, (FuelMap,[(Expr, Expr)]))
 
     go tr fm e | Just e' <- L.lookup e sels 
       = (True, traceEval tr fm "SELECTORYEAH" e e', fm) 
 
+    -- This eval step is required by Unification.split_fun
+    -- to make the step 
+    --    applyOne su (apply x (TFun t1 t2))
+    -- -> applyOne su (TFun (apply x t1) (apply x t2))
+    -- and then expand the applyOne 
+
+    go tr fm e | Just e' <- L.lookup e eqs 
+      = (True, traceEval tr fm "KNOWLEDGEYEAH" e e', fm) 
+ 
     go tr fm e@(EApp _ _) -- (EApp e1 e2)
-      = evalApp' tr fm [] e -- e1 e2
+      = evalApp' False tr fm [] e -- e1 e2
     go tr fm e@(EIte b e1 e2)
-      = let (b', fm1)  =  go tr fm b 
-            (e1', fm2) =  go tr fm1 e1
-            (e2', fm3) =  go tr fm2 e2 
+      = let (_, b', fm1)  =  go tr fm b 
+            (_, e1', fm2) =  go tr fm1 e1
+            (_, e2', fm3) =  go tr fm2 e2 
             (evaleated, e') = evalIte tr fm e b' e1' e2'
             in (evaleated, e', fm3)
     go _ fm e
@@ -132,52 +149,62 @@ evaluate facts fm aenv einit
       | otherwise 
       = (False,) $ EIte b e1 e2 
 
-    evalApp' tr fm acc (EApp f e) 
+    evalApp' evacc tr fm acc (EApp f e) 
       = let (fe, e', fm1)  =  go tr fm  e 
             (ff, f', fm2)  =  go tr fm1 f 
             (fm3, e'') = if fe then (fm2, e') else (fm, e)
             f'' = if ff then f' else f  
-        in evalApp' tr fm3 (e'':acc) f''
-    evalApp' tr fm acc e 
+        in evalApp' (evacc || fe || ff) tr fm3 (e'':acc) f''
+    evalApp' evacc tr fm acc e 
       = let (fe, e', fm') =  go tr fm e
-        in if fe then evalApp tr fm' (e', acc) else evalApp tr fm (e, acc)  
+        in if fe then evalApp True tr fm' (e', acc) else evalApp evacc tr fm (e, acc)  
 
-    evalApp tr fm (EVar f, [e])
+    evalApp _ tr fm (EVar f, [e])
       | (EVar dc, es) <- splitEApp e
       , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (aenvSimpl aenv)
       , length (smArgs simp) == length es 
       = let e'  = substIfHack (zip (smArgs simp) (id <$> es)) (smBody simp) 
-            e'' = traceEval tr fm "Simpl" (eApps (EVar f) [e]) e'
-        in (True, e'', fm) -- (True,,) $ map normalizeIF $ go (((eApps (EVar f) [e]), e'):tr) fm e'' 
-    evalApp tr fm (EVar f, es)
+            e'' = normalizeIF $ traceEval tr fm "Simpl" (eApps (EVar f) [e]) e'
+            (_, e''', fm') = go tr fm e''
+        in (True, e''', fm') -- (True,,) $ map normalizeIF $ go (((eApps (EVar f) [e]), e'):tr) fm e'' 
+    evalApp ev tr (fm, missed) (EVar f, es)
       | Just eq <- L.find ((==f) . eqName) (aenvEqs aenv)
       , Just bd <- getEqBody eq 
       , length (eqArgs eq) == length es
       , hasFuel fm f 
       = let e'  = substIfHack (zip (eqArgs eq) (id <$> es)) bd
             e'' = normalizeIF $ traceEval tr fm ("App-" ++ showpp f) (eApps (EVar f) es) e'
-            fm' = makeFuelMap (\x -> x-1) fm f
-            (fapp, e''', fm'') = go tr fm' e''
-         in if fapp then (False, eApps (EVar f) es, fm) else (True, e''', fm'')
+            fm' =  makeFuelMap (\x -> x-1) fm f
+            (fapp, e''', fm'') = go tr (fm', []) e''
+         in if fapp then (True, e''', fm'') 
+            else if (f `elem` syms bd) 
+              then (ev, eApps (EVar f) es, (fm, (eApps (EVar f) es, e'''):missed))  
+              else (True, e''', fm'')  
 --         in map (mapFst normalizeIF) $ go ((eApps (EVar f) es, e'):tr) (mapFst (\fm -> ) fm) e'' 
-    evalApp _ fm (e, es) 
-      = (False, eApps (id e) (id <$> es), fm)
 
-    mapFst f (x, y) = (f x, y)
+{- 
+    evalApp _ tr fm (e, es) 
+      | Just e' <- L.lookup (eApps e es) eqs
+      = (True, traceEval tr fm "KNOWLEDGEYEAH" (eApps e es) e', fm) 
+-}
+    evalApp ev _ fm (e, es) 
+      = (ev, eApps (id e) (id <$> es), fm)
+
+    -- mapFst f (x, y) = (f x, y)
 
 
-    traceEval tr  fm str e1 e2 
-      = T.trace ("\nEVAL STEP " ++ str ++ "\nWith fmap" ++ show fm ++ "\n" 
-        ++ "\n\nWITH TRACE\n\n" ++ showpp tr  ++ "\n\n"
-        ++ showpp e1 ++ "\n -> \n" ++ showpp e2) e2 
+    traceEval _tr _fm str e1 e2 
+      = T.trace ("\nEVAL STEP " ++ str ++ "\n" ++ 
+               --   "\nWith fmap" ++ show fm ++ "\n" ++
+               --   "\nWITH TRACE\n" ++ showpp tr  ++ "\n\n" ++ 
+                 showpp e1 ++ "\n -> \n" ++ showpp e2) e2 
 
 
 
 substIfHack :: [(Symbol, Expr)] -> Expr -> Expr 
 substIfHack xes e = normalizeIF $ foldl go e xes -- subst (mkSubst xes) e  
   where
-    go e (x, ex@(EIte b e1 e2)) = let ee = EIte b (subst1 e (x, e1)) (subst1 e (x, e2)) 
-                                  in T.trace ("\nSMART SUBST \n" ++ showpp (x, ex) ++ "\nIN\n" ++ showpp e) ee
+    go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2)) 
     go e (x, ex)           = subst1 e (x, ex) 
 
 
