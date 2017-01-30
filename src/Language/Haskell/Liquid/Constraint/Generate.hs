@@ -1096,7 +1096,7 @@ caseEnv γ x _   (DataAlt c) ys pIs
        yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys''
        let r2            = dataConMsReft rtd ys''
-       let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
+       let xt            = traceShow ("\nSTRENGTHENING FOR\n" ++ showPpr x) ((xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2)))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
        cγ'              <- addBinders γ   x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]

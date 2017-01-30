@@ -10,7 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI, makeAxiomEnvironment ) where
+module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI, makeAxiomEnvironment, getEqBody ) where
 
 import           Prelude                                       hiding (error, undefined)
 import           Coercion
@@ -293,7 +293,8 @@ coreBindLits tce info
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)]  -> AxiomEnv
 makeAxiomEnvironment info xts
   = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
-         (makeEquations info ++ (specTypToEq  <$> xts) )
+         (makeEquations info ++ (specTypToEq  <$> xts))
+         (concatMap makeSimplify xts)
          (\sub -> fromMaybe (fuel cfg) (fuelNumber sub))
          doExpand
          (debugInstantionation cfg)
@@ -311,6 +312,33 @@ makeAxiomEnvironment info xts
       = Eq (F.symbol x) (ty_binds $ toRTypeRep t)
            (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
 
+makeSimplify :: (Var, SpecType) -> [Simplify]
+makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
+  where
+    go (F.PAnd es) = concatMap go es 
+
+    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd) 
+      | eq `elem` [F.Eq, F.Ueq]
+      , (F.EVar dc, xs) <- F.splitEApp dc 
+      , all isEVar xs 
+      = [SMeasure f dc (fromEVar <$> xs) bd]
+
+    go (F.PIff (F.EApp (F.EVar f) dc) bd) 
+      | (F.EVar dc, xs) <- F.splitEApp dc 
+      , all isEVar xs 
+      = [SMeasure f dc (fromEVar <$> xs) bd]
+
+    go _ = [] 
+{- 
+    go e = traceShow ("\nmakeSimplify on " ++ showpp e) [] 
+-}
+    isEVar (F.EVar _) = True 
+    isEVar _ = False 
+
+    fromEVar (F.EVar x) = x 
+    fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
+
+
 makeEquations :: GhcInfo -> [Equation]
 makeEquations info
   = [ Eq x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
@@ -321,7 +349,14 @@ makeEquations info
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
 
 
-
+getEqBody :: Equation -> Maybe F.Expr 
+getEqBody (Eq x xs (F.PAnd ((F.PAtom F.Eq fxs e):_)))
+  | (F.EVar f, es) <- F.splitEApp fxs
+  , f == x 
+  , es == (F.EVar <$> xs) 
+  = Just e
+getEqBody _ 
+  = Nothing  
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a tyep in the logic

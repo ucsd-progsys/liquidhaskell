@@ -20,6 +20,7 @@ append :: L a -> L a -> L a
 append Emp      ys = ys
 append (x:::xs) ys = x ::: append xs ys
 
+
 {-@ axiomatize map @-}
 map :: (a -> b) -> L a -> L b
 map f Emp        = Emp
@@ -35,11 +36,13 @@ concatt :: L (L a) -> L a
 concatt Emp      = Emp
 concatt (x:::xs) = append x (concatt xs)
 
+{- 
 
 prop_append_neutral :: L a -> Proof
 {-@ prop_append_neutral :: xs:L a -> {append xs Emp == xs}  @-}
 prop_append_neutral Emp        = trivial 
 prop_append_neutral (_ ::: xs) = prop_append_neutral xs 
+
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {append (append xs ys) zs == append xs (append ys zs) } @-}
@@ -56,6 +59,7 @@ prop_map_append :: (a -> a) -> L a -> L a -> Proof
 prop_map_append f Emp        ys = trivial
 prop_map_append f (_ ::: xs) ys = prop_map_append f xs ys 
 
+-}
 
 {-@ prop_concatMap :: f:(a -> L (L a)) -> xs:L a
                    -> { concatt (map f xs) == concatMap f xs }
@@ -64,7 +68,6 @@ prop_map_append f (_ ::: xs) ys = prop_map_append f xs ys
 prop_concatMap :: (a -> L (L a)) -> L a -> Proof
 prop_concatMap _ Emp        = trivial
 prop_concatMap f (x ::: xs) = prop_concatMap f xs
-
 
 
 data L a = Emp | a ::: L a
