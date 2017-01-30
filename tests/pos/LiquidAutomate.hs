@@ -1,6 +1,7 @@
 module Automate where
 
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--proof-method=arithmetic" @-}
 
 {-
 fuel 0 for fib up to 1 
