@@ -120,7 +120,7 @@ evaluate facts fm aenv einit
     (trueExprs, falseExpr, sels, eqs') = makeKnowledge aenv facts  
 
     eqs = [(EVar x, ex) | Eq a _ bd <- filter ((null . eqArgs)) $ aenvEqs aenv, PAtom F.Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ] ++  eqs'
-    evalOne e = let e' = snd3 $ go [] (fm, []) (T.trace ("\nSTART EVAL OF\n" ++ showpp e) e) 
+    evalOne e = let e' = snd3 $ go [] (fm, []) e
                 in if e == e' then Nothing 
                      else trace aenv ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
                            Just (e, e')
