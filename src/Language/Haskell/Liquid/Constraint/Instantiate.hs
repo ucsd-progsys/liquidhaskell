@@ -70,7 +70,8 @@ instantiateAxioms bds aenv sub
               "\n\nShow simplifies "  ++ show (aenvSimpl aenv) ++ evalMsg
     evalMsg = "\n\nInit Expr " ++ L.intercalate "\n" (showpp <$> initExpressions) ++
               "\n\nBinds = " ++ showpp binds ++ 
-              "\n\nExpressions = " ++ showpp (expr <$> binds) 
+              "\n\nExpressions = " ++ showpp (expr <$> binds)  ++
+              "\n\n Simplifies = " ++ show (aenvSimpl aenv)
 
 
 
@@ -79,7 +80,8 @@ makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) 
                             "\n\nTRUES = \n\n" ++ showpp tes ++ 
                             "\n\nFALSE\n\n" ++ showpp fes ++ 
                             "\n\nSELECTORS\n\n" ++ showpp sels ++ 
-                            if null eqs then "" else "\n\nProofs\n\n" ++ showpp eqs) 
+                            if null eqs then "" else "\n\nProofs\n\n" ++ showpp eqs 
+                            )  
                            (tes, fes, sels, eqs)
   where
     proofs = filter isProof es
@@ -134,6 +136,11 @@ evaluate facts fm aenv einit
             (_, e2', fm3) =  go tr fm2 e2 
             (evaleated, e') = evalIte tr fm e b' e1' e2'
             in (evaleated, e', fm3)
+
+    go tr fm (PAtom b e1 e2)
+      = let (ev1, e1', fm1) = go tr fm e1 
+            (ev2, e2', fm2) = go tr fm1 e2 
+        in (ev1 || ev2, PAtom b e1' e2', fm2)
     go _ fm e
       = (False, e, fm) 
 

@@ -149,10 +149,6 @@ theoremVar t i
   =   theoremVarOne t i t 
 
 
-  &&& ( 
-    ( applyOne (P i t) (apply Emp (TVar i)) -- THIS 
-    )*** QED )
-
 {-@ automatic-instances theoremVarOne  @-}
 
 {-@ theoremVarOne :: t:Term
@@ -163,7 +159,7 @@ theoremVarOne :: Term -> Int -> Term -> Proof
 theoremVarOne (TFun t1 t2) i ti
   = theoremVarOne t1 i ti &&& theoremVarOne t2 i ti 
 theoremVarOne t i ti
-  =  applyOne (P i ti) t *** QED -- THIS 
+  = trivial 
 
 
 

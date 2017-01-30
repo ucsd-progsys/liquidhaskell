@@ -3,8 +3,6 @@
   - Ack
   - Fib
 
-- Unification -- HERE 
-
 
 
 TODO
