@@ -1,6 +1,8 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--prove-method=arithmetic" @-}
+
 
 module Fibonacci where
 import Language.Haskell.Liquid.ProofCombinators

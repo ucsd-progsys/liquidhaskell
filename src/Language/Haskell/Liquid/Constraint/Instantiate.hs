@@ -85,7 +85,11 @@ makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) 
                            (tes, fes, sels, eqs)
   where
     proofs = filter isProof es
-    eqs = L.nub $  L.concat [[(e1, e2), (e2,e1)] | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs), not (dummySymbol `elem` (syms e1 ++ syms e2))] 
+    -- This creates the rewrite rule e1 -> e2 
+    -- when should I apply it?
+    -- 1. when e2 is a data con and can lead to further reductions 
+    -- 2. when size e2 < size e1 
+    eqs = L.nub $ [(e1, e2) | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs), not (dummySymbol `elem` (syms e1 ++ syms e2))] 
     (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (map go $ map expr es)
     go e = let es  = splitPAnd e
                su  = mkSubst [(x, EVar y) | PAtom F.Eq (EVar x) (EVar y) <- es ]
@@ -93,8 +97,7 @@ makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) 
                fes = [e | PIff e f <- es, isFalse f ]  
                sels = [(EApp (EVar s) x, e) | PAtom F.Eq (EApp (EVar s) x) e <- es, isSelector s ]
            in (L.nub (tes ++ subst su tes), L.nub (fes ++ subst su fes), L.nub (sels ++ subst su sels))
-    splitPAnd (PAnd es) = concatMap splitPAnd es 
-    splitPAnd e         = [e]
+
     isSelector :: Symbol -> Bool 
     isSelector  = L.isPrefixOf "select" . symbolString 
     mapFst3 f (x, y, z) = (f x, y, z)
@@ -103,11 +106,18 @@ makeKnowledge es = T.trace ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) 
 
     isProof (_, RR s _) =  (showpp s == "Tuple")
 
+
+splitPAnd :: Expr -> [Expr]
+splitPAnd (PAnd es) = concatMap splitPAnd es 
+splitPAnd e         = [e]
+
 evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> Expr -> [(Expr, Expr)] 
 evaluate facts fm aenv einit 
   = catMaybes [evalOne e | e <- L.nub $ grepTopApps einit] 
   where
-    (trueExprs, falseExpr, sels, eqs) = makeKnowledge facts  
+    (trueExprs, falseExpr, sels, eqs') = makeKnowledge facts  
+
+    eqs = [(EVar x, ex) | Eq a _ bd <- filter ((null . eqArgs)) $ aenvEqs aenv, PAtom F.Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ] ++  eqs'
     evalOne e = let e' = snd3 $ go [] (fm, []) (T.trace ("\nSTART EVAL OF\n" ++ showpp e) e) 
                 in if e == e' then Nothing 
                      else T.trace ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
@@ -141,6 +151,10 @@ evaluate facts fm aenv einit
       = let (ev1, e1', fm1) = go tr fm e1 
             (ev2, e2', fm2) = go tr fm1 e2 
         in (ev1 || ev2, PAtom b e1' e2', fm2)
+
+    go tr fm (ELam bs e)
+      = let (ev, e', fm1) = go tr fm e 
+        in (ev, ELam bs e', fm1)
     go _ fm e
       = (False, e, fm) 
 

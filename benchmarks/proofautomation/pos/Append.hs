@@ -36,7 +36,6 @@ concatt :: L (L a) -> L a
 concatt Emp      = Emp
 concatt (x:::xs) = append x (concatt xs)
 
-{- 
 
 prop_append_neutral :: L a -> Proof
 {-@ prop_append_neutral :: xs:L a -> {append xs Emp == xs}  @-}
@@ -59,7 +58,6 @@ prop_map_append :: (a -> a) -> L a -> L a -> Proof
 prop_map_append f Emp        ys = trivial
 prop_map_append f (_ ::: xs) ys = prop_map_append f xs ys 
 
--}
 
 {-@ prop_concatMap :: f:(a -> L (L a)) -> xs:L a
                    -> { concatt (map f xs) == concatMap f xs }

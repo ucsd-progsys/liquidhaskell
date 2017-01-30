@@ -11,7 +11,6 @@
 {-@ LIQUID "--eliminate=all"   @-}
 
 {-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
-{-@ LIQUID "--debug-instantiation" @-}
 
 module Unify where
 
@@ -109,6 +108,15 @@ theoremFun t11 t12 t21 t22 θ1 θ2
 split_fun :: Term -> Term -> Substitution -> Proof
 {-@ split_fun :: t1:Term -> t2:Term -> θ:Substitution
    -> {apply θ (TFun t1 t2) == TFun (apply θ t1) (apply θ t2)} / [llen θ] @-}
+
+{-
+HACK: the above spe creates the rewrite rule 
+  apply θ (TFun t1 t2) -> TFun (apply θ t1) (apply θ t2)
+If I change the order of the equality to 
+  TFun (apply θ t1) (apply θ t2) == apply θ (TFun t1 t2)
+then Liquid Haskell will not auto prove it  
+-}
+
 split_fun t1 t2 Emp
   = trivial
 split_fun t1 t2 (C su θ)
@@ -154,7 +162,7 @@ theoremVar t i
 {-@ theoremVarOne :: t:Term
              -> i:{Int | not (Set_mem i (freeVars t)) }
              -> ti:Term
-             -> { t == applyOne (P i ti) t } @-}
+             -> { applyOne (P i ti) t == t } @-}
 theoremVarOne :: Term -> Int -> Term -> Proof
 theoremVarOne (TFun t1 t2) i ti
   = theoremVarOne t1 i ti &&& theoremVarOne t2 i ti 
