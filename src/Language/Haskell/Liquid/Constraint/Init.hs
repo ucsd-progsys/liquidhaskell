@@ -10,7 +10,15 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Init ( initEnv , initCGI, makeAxiomEnvironment, getEqBody ) where
+module Language.Haskell.Liquid.Constraint.Init ( 
+    initEnv , 
+    initCGI, 
+    makeAxiomEnvironment, 
+
+    -- NV TODO move getEqBody in a new file 
+    getEqBody 
+
+    ) where
 
 import           Prelude                                       hiding (error, undefined)
 import           Coercion
@@ -332,9 +340,7 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
       = [SMeasure f dc (fromEVar <$> xs) bd]
 
     go _ = [] 
-{- 
-    go e = traceShow ("\nmakeSimplify on " ++ showpp e) [] 
--}
+
     isEVar (F.EVar _) = True 
     isEVar _ = False 
 
