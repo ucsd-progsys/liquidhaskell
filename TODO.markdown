@@ -1,3 +1,14 @@
+- Lists 
+  - Applicative diverges 
+  - Monad fails 
+
+
+- Reader 
+  - Applicative crashing 
+  - Functor crashing 
+  - Functor.NoEx 
+  - Monad (...)
+
 TODO
 ====
 

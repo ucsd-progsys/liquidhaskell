@@ -43,8 +43,9 @@ instantiateAxioms _  aenv sub
   | not (aenvExpand aenv sub)
   = sub  
 instantiateAxioms bds aenv sub 
-  = strengthenLhs (pAnd $ trace aenv msg (is ++ evalEqs)) sub
+  = strengthenLhs (pAnd $ trace aenv msg (is0 ++ is ++ evalEqs)) sub
   where
+    is0 = eqBody <$> L.filter (null . eqArgs) (aenvEqs  aenv)
     msg = "\n\nLiquid Instantiation with " ++ show (L.intercalate "and" methods) ++ "\n\n"
     methods = catMaybes [if aenvDoEqs aenv sub then Just "arithmetic" else Nothing , 
                          if aenvDoRW  aenv sub then Just "rewrite"    else Nothing
@@ -245,10 +246,9 @@ grepTopApps _ = []
 
 instances :: Int -> AxiomEnv -> [Occurence] -> [Expr] 
 instances maxIs aenv !occs 
-  = (eqBody <$> eqsZero) ++ is
+  = instancesLoop aenv maxIs eqs occs -- (eqBody <$> eqsZero) ++ is
   where
-    (eqsZero, eqs) = L.partition (null . eqArgs) (aenvEqs  aenv)
-    is             = instancesLoop aenv maxIs eqs occs
+    eqs = filter (not . null . eqArgs) (aenvEqs  aenv)
 
 -- Currently: Instantiation happens arbitrary times (in recursive functions it diverges)
 -- Step 1: Hack it so that instantiation of axiom A happens from an occurences and its 
