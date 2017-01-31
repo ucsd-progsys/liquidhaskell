@@ -11,7 +11,6 @@
 {-@ LIQUID "--eliminate=all"   @-}
 
 {-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
-{-@ LIQUID "--debug-instantiation" @-}
 
 module Unify where
 
@@ -21,10 +20,11 @@ import qualified  Data.Set as S
 -- | Data Types
 data Term = TBot | TVar Int | TFun Term Term
   deriving (Eq)
-{-@ data Term [tsize] @-}
+{-@ data Term [tsize] = TBot | TVar {tvar :: Int} | TFun {tfun1 :: Term, tfun2 ::  Term} @-}
 
 type Substitution = L (P Int Term)
 data P a b = P a b
+{-@ data P a b = P {pfst :: a, psnd :: b} @-}
 
 -- | Unification
 -- | If unification succeds then the returned substitution makes input terms equal
@@ -63,20 +63,19 @@ freeVars (TVar i)     = S.singleton i
 
 {-@ axiomatize apply @-}
 apply :: Substitution -> Term -> Term
-apply s t
-  | llen s == 0
+apply Emp t
   = t
-  | otherwise
-  = applyOne (hd s) (apply (tl s) t)
+apply (C s ss) t
+  = applyOne s (apply ss t)
+
 
 {-@ axiomatize applyOne @-}
 applyOne :: (P Int Term) -> Term -> Term
-applyOne su t
-  | isTVar t, fromTVar t == myfst su
-  = mysnd su
-  | isTFun t
-  = TFun (applyOne su (tfunArg t)) (applyOne su (tfunRes t))
-  | otherwise
+applyOne su (TFun tx t)
+  = TFun (applyOne su tx) (applyOne su t)
+applyOne (P x t) (TVar v) | x == v
+  = t
+applyOne _ t 
   = t
 
 
@@ -104,15 +103,24 @@ theoremFun t11 t12 t21 t22 θ1 θ2
   &&& split_fun t21 t22 (append θ2 θ1)
 
 
-{-@ automatic-instances split_fun with 1 @-}
+{-@ automatic-instances split_fun  @-}
 
 split_fun :: Term -> Term -> Substitution -> Proof
 {-@ split_fun :: t1:Term -> t2:Term -> θ:Substitution
    -> {apply θ (TFun t1 t2) == TFun (apply θ t1) (apply θ t2)} / [llen θ] @-}
+
+{-
+HACK: the above spe creates the rewrite rule 
+  apply θ (TFun t1 t2) -> TFun (apply θ t1) (apply θ t2)
+If I change the order of the equality to 
+  TFun (apply θ t1) (apply θ t2) == apply θ (TFun t1 t2)
+then Liquid Haskell will not auto prove it  
+-}
+
 split_fun t1 t2 Emp
   = trivial
 split_fun t1 t2 (C su θ)
-   = split_fun t1 t2 θ 
+   = split_fun t1 t2 θ --  &&& (applyOne su (TFun (apply θ t1) (apply θ t2)) *** QED) -- THIS 
 
 {-@ automatic-instances append_apply  @-}
 
@@ -146,19 +154,20 @@ append_len (C _ s1) s2 = append_len s1 s2
              -> {apply (C (P i t) Emp) (TVar i) == apply (C (P i t) Emp) t } @-}
 theoremVar :: Term -> Int ->Proof
 theoremVar t i
-  =   theoremVarOne t i t
+  =   theoremVarOne t i t 
+
 
 {-@ automatic-instances theoremVarOne  @-}
 
 {-@ theoremVarOne :: t:Term
              -> i:{Int | not (Set_mem i (freeVars t)) }
              -> ti:Term
-             -> { t == applyOne (P i ti) t } @-}
+             -> { applyOne (P i ti) t == t } @-}
 theoremVarOne :: Term -> Int -> Term -> Proof
 theoremVarOne (TFun t1 t2) i ti
-  = theoremVarOne t1 i ti &&& theoremVarOne t2 i ti
+  = theoremVarOne t1 i ti &&& theoremVarOne t2 i ti 
 theoremVarOne t i ti
-  = trivial
+  = trivial 
 
 
 
@@ -175,51 +184,18 @@ tsize TBot     = 0
 tsize (TVar _) = 0
 tsize (TFun t1 t2) = 1 + (tsize t1) + (tsize t2)
 
-{-@ measure isTBot @-}
-{-@ measure isTVar @-}
-{-@ measure isTFun @-}
 
-isTBot, isTVar, isTFun :: Term -> Bool
-isTBot TBot = True
-isTBot _    = False
-
-isTVar (TVar _) = True
-isTVar _        = False
-
-isTFun (TFun _ _) = True
-isTFun _          = False
-
-{-@ measure tfunArg @-}
-{-@ measure tfunRes @-}
-tfunArg, tfunRes :: Term -> Term
-{-@ tfunArg, tfunRes :: t:{Term | isTFun t} -> {v:Term | tsize v < tsize t} @-}
-tfunArg (TFun t _) = t
-tfunRes (TFun _ t) = t
-
-{-@ measure fromTVar @-}
-{-@ fromTVar :: {t:Term | isTVar t} -> Int @-}
-fromTVar :: Term -> Int
-fromTVar (TVar i) = i
-
-
-{-@ measure myfst @-}
-{-@ measure mysnd @-}
-myfst :: (P a b) -> a
-myfst (P x _) = x
-mysnd :: (P a b) -> b
-mysnd (P _ x) = x
 
 
 -- | List Helpers
 {-@ axiomatize append @-}
 {-@ append :: xs:L a -> ys:L a -> {v:L a | llen v == llen xs + llen ys } @-}
 append :: L a -> L a -> L a
-append xs ys
-  | llen xs == 0 = ys
-  | otherwise    = C (hd xs) (append (tl xs) ys)
+append Emp ys = ys 
+append (C x xs) ys = C x (append xs ys)
 
 data L a = Emp | C a (L a)
-{-@ data L [llen] @-}
+{-@ data L [llen] a = Emp | C {lhd :: a, ltl :: L a} @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int
@@ -227,12 +203,3 @@ llen :: L a -> Int
 llen Emp      = 0
 llen (C _ xs) = 1 + llen xs
 
-{-@ measure hd @-}
-{-@ hd :: {v:L a | llen v > 0 } -> a @-}
-hd :: L a -> a
-hd (C x _) = x
-
-{-@ measure tl @-}
-{-@ tl :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
-tl :: L a -> L a
-tl (C _ xs) = xs

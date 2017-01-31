@@ -5,6 +5,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--proof-method=arithmetic" @-}
 
 
 module Ackermann where

@@ -312,10 +312,16 @@ config = cmdArgsMode $ Config {
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
+
   , autoInstantiate
     = def
           &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
           &= name "automatic-instances"
+
+  , proofMethod
+    = def
+          &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
+          &= name "proof-method"
   , fuel 
     = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
         &= name "fuel"
@@ -499,6 +505,7 @@ defConfig = Config { files             = def
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
                    , autoInstantiate   = def 
+                   , proofMethod       = def 
                    , fuel              = defFuel
                    , debugInstantionation = False 
                    }

@@ -18,6 +18,10 @@ module Language.Haskell.Liquid.UX.Config (
    , allowLiquidInstationation
    , allowLiquidInstationationGlobal
    , allowLiquidInstationationLocal
+
+   , ProofMethod (..)
+   , allowRewrite
+   , allowArithmetic 
    ) where
 
 import Prelude hiding (error)
@@ -97,16 +101,22 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
+  , proofMethod     :: ProofMethod -- ^ How to create automatic instances 
   , fuel            :: Int         -- ^ Fuel for axiom instantiation 
   , debugInstantionation :: Bool   -- ^ Debug Instantiation  
   } deriving (Generic, Data, Typeable, Show, Eq)
 
+instance Serialize ProofMethod
 instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
 data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
+
+data ProofMethod = Arithmetic | Rewrite | AllMethods 
+  deriving (Eq, Data, Typeable, Generic)
+
 
 allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool 
 allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
@@ -117,6 +127,19 @@ allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
+allowRewrite, allowArithmetic :: Config -> Bool 
+allowRewrite    cfg = proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods
+allowArithmetic cfg = proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods
+
+
+
+instance Default ProofMethod where
+  def = Rewrite
+
+instance Show ProofMethod where
+  show Arithmetic = "arithmetic"
+  show Rewrite    = "rewrite"
+  show AllMethods = "all"  
 
 
 instance Default Instantiate where

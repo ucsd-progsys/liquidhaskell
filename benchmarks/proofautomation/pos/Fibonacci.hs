@@ -1,6 +1,8 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--proof-method=arithmetic" @-}
+
 
 module Fibonacci where
 import Language.Haskell.Liquid.ProofCombinators
@@ -35,9 +37,10 @@ lemma_fib :: Int -> Proof
 {-@ lemma_fib :: x:{Nat | 1 < x } -> { 0 < fib x } @-}
 lemma_fib x 
   | x == 2
-  = trivial 
+  = ((fib 1)*** QED) 
   | 2 < x 
-  = lemma_fib (x-1) 
+  = lemma_fib (x-1) &&& ((fib x, fib (x-1), fib (x-2)) *** QED)
+
 
 {-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> { fib x <= fib y } / [x, y] @-} 
 fib_increasing :: Int -> Int -> Proof 
@@ -52,3 +55,5 @@ fib_increasing x y
   = fib_increasing 1 (y-1)
   | otherwise
   = fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1) 
+
+
