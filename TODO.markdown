@@ -1,5 +1,6 @@
 - Lists 
   - Applicative diverges 
+      - note on interchange : seq xs (C y N) -> seq xs (pure y) cannot happen automatically
   - Monad fails 
 
 

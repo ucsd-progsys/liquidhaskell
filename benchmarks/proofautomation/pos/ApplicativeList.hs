@@ -54,25 +54,20 @@ compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
 
+{-@ automatic-instances identity @-}
+
 -- | Identity
-{-@ identity :: x:L a -> {v:Proof | seq (pure id) x == x } @-}
+{-@ identity :: x:L a -> { seq (pure id) x == x } @-}
 identity :: L a -> Proof
 identity xs
-  = toProof $
-       seq (pure id) xs
-         ==. seq (C id N) xs
-         ==. append (fmap id xs) (seq N xs)
-         ==. append (id xs) (seq N xs)      ? fmap_id xs
-         ==. append xs (seq N xs)
-         ==. append xs N
-         ==. xs                             ? prop_append_neutral xs
+  = fmap_id xs &&& prop_append_neutral xs
 
 -- | Composition
 
 {-@ composition :: x:L (a -> a)
                 -> y:L (a -> a)
                 -> z:L a
-                -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
+                -> {  (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
@@ -143,49 +138,37 @@ composition xss yss N
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
+{-@ automatic-instances homomorphism @-}
+
 {-@ homomorphism :: f:(a -> a) -> x:a
-                 -> {v:Proof | seq (pure f) (pure x) == pure (f x) } @-}
+                 -> {  seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
-  = toProof $
-      seq (pure f) (pure x)
-        ==. seq (C f N) (C x N)
-        ==. append (fmap f (C x N)) (seq N (C x N))
-        ==. append (C (f x) (fmap f N)) N
-        ==. append (C (f x) N) N
-        ==. C (f x) N  ? prop_append_neutral (C (f x) N)
-        ==. pure (f x)
+  = prop_append_neutral (C (f x) N)
 
 -- | interchange
 
+{-@ automatic-instances interchange @-}
+
 interchange :: L (a -> a) -> a -> Proof
 {-@ interchange :: u:(L (a -> a)) -> y:a
-     -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
+     -> { seq u (pure y) == seq (pure (idollar y)) u }
   @-}
 interchange N y
-  = toProof $
-      seq N (pure y)
-        ==. N
-        ==. seq (pure (idollar y)) N ? seq_nill (pure (idollar y))
+  = seq_nill (pure (idollar y))
 
 interchange (C x xs) y
-  = toProof $
-      seq (C x xs) (pure y)
-        ==. seq (C x xs) (C y N)
-        ==. append (fmap x (C y N)) (seq xs (C y N))
-        ==. append (C (x y) (fmap x N)) (seq xs (C y N))
-        ==. append (C (x y) N) (seq xs (C y N))
-        ==. C (x y) (append N (seq xs (C y N)))
-        ==. C (x y) (seq xs (C y N))
-        ==. C (x y) (seq xs (pure y))
-        ==. C (x y) (seq (pure (idollar y)) xs) ? interchange xs y
-        ==. C (x y) (fmap (idollar y) xs)       ? seq_one' (idollar y) xs
-        ==. C (idollar y x) (fmap (idollar y) xs)
-        ==. fmap (idollar y) (C x xs)
-        ==. append (fmap (idollar y) (C x xs)) N  ? prop_append_neutral (fmap (idollar y) (C x xs))
-        ==. append (fmap (idollar y) (C x xs)) (seq N (C x xs))
-        ==. seq (C (idollar y) N) (C x xs)
-        ==. seq (pure (idollar y)) (C x xs)
+   = prop_append_neutral (fmap (idollar y) (C x xs)) 
+            &&& seq_one' (idollar y) xs 
+            &&& interchange xs y
+            &&& seq_prop xs y 
+
+
+{-@ automatic-instances seq_prop @-}
+{-@ seq_prop :: xs:L (a -> a) -> y:a -> {seq xs (C y N) == seq xs (pure y)} @-}
+seq_prop :: L (a -> a) -> a -> Proof 
+seq_prop _ _ = trivial 
+
 
 
 data L a = N | C a (L a)
@@ -198,22 +181,6 @@ llen :: L a -> Int
 llen N        = 0
 llen (C _ xs) = 1 + llen xs
 
-
-
-
-
-
-
-
-{-@ measure hd @-}
-{-@ hd :: {v:L a | llen v > 0 } -> a @-}
-hd :: L a -> a
-hd (C x _) = x
-
-{-@ measure tl @-}
-{-@ tl :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
-tl :: L a -> L a
-tl (C _ xs) = xs
 
 -- | TODO: Cuurently I cannot improve proofs
 -- | HERE I duplicate the code...
