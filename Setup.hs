@@ -1,9 +1,11 @@
 import Distribution.Simple
 
 
+
 main = defaultMain
 
--- main = defaultMainWithHooks fixpointHooks 
+-- 
+-- --- main = defaultMainWithHooks fixpointHooks 
 --  
 -- fixpointHooks   = defaultUserHooks { postInst = cpFix }
 --    where 
