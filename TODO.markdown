@@ -1,4 +1,8 @@
-- CHECK IF DEFAULT OPTION STAYS (ie on nunberic should not do rewrite)
+- Reader 
+  - Applicative crashing 
+  - Functor crashing 
+  - Functor.NoEx 
+  - Monad (...)
 
 TODO
 ====
