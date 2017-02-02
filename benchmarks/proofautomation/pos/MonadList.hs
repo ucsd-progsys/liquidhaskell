@@ -59,11 +59,14 @@ right_identity (C x xs)
   -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity Emp f g
+  = trivial 
+{- 
   =   bind (bind Emp f) g
   ==. bind Emp g
   ==. Emp
   ==. bind Emp (\x -> (bind (f x) g))
   *** QED
+  -}
 associativity (C x xs) f g
   =   bind (bind (C x  xs) f) g
   ==. bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
