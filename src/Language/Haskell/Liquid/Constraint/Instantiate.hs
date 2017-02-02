@@ -17,13 +17,14 @@ module Language.Haskell.Liquid.Constraint.Instantiate (
   ) where
 
 
--- import           Language.Fixpoint.Misc            
+import           Language.Fixpoint.Misc           (mapSnd, mapFst)
 import           Language.Fixpoint.Types hiding (Eq)
 import qualified Language.Fixpoint.Types as F        
 import           Language.Fixpoint.Types.Visitor (eapps)            
 
 import           Language.Haskell.Liquid.Constraint.Types hiding (senv)
 import           Language.Haskell.Liquid.Constraint.Init  (getEqBody)
+import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 
 import Control.Monad.State 
 
@@ -31,6 +32,7 @@ import qualified Data.List as L
 -- import Data.Maybe (catMaybes)
 
 import Data.Maybe 
+import Data.Char (isUpper)
 
 import qualified Debug.Trace as T 
 
@@ -55,7 +57,7 @@ instantiateAxioms bds aenv sub
                         ] :: [String]
     is               = if aenvDoEqs aenv sub then instances maxNumber aenv (trace aenv initMsg $ initOccurences) else []
     evalEqs          = if aenvDoRW  aenv sub 
-                         then trace aenv evalMsg [ PAtom F.Eq  e e'| es <- initExpressions, (e, e') <- evaluate ((dummySymbol, slhs sub):binds) as aenv es, e /= e'] 
+                         then trace aenv evalMsg [ PAtom F.Eq  e e'|(e, e') <- evaluate ((dummySymbol, slhs sub):binds) as aenv initExpressions, e /= e'] 
                          else [] 
     initExpressions  = (expr $ slhs sub):(expr $ srhs sub):(expr <$> binds)
     binds            = envCs bds (senv sub)
@@ -79,22 +81,28 @@ instantiateAxioms bds aenv sub
     evalMsg = "\n\nStart Rewriting" 
 
 
-makeKnowledge :: AxiomEnv -> [(Symbol, SortedReft)] -> Knowledge 
+makeKnowledge :: AxiomEnv -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge) 
 makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++  
-                              "\n\nTRUES = \n\n" ++ showpp tes ++ 
-                              "\n\nFALSE\n\n" ++ showpp fes ++ 
-                              "\n\nSELECTORS\n\n" ++ showpp sels ++ 
-                              if null eqs then "" else "\n\nProofs\n\n" ++ showpp eqs 
-                              )  
-                             emptyKnowledge {knTrues = tes, knFalses = fes, knSels =  sels, knEqs = eqs, knSims = aenvSimpl aenv, knAms = aenvEqs aenv}
+                              -- if null tes then "" else "\n\nTRUES = \n\n" ++ showpp tes ++ 
+                              -- if null fes then "" else "\n\nFALSE\n\n" ++ showpp fes ++ 
+                              -- if null sels then "" else "\n\nSELECTORS\n\n" ++ showpp sels ++ 
+                              -- if null eqs then "" else "\n\nAxioms\n\n" ++ showpp eqs ++
+                              -- "\n\nEnvironment \n\n" ++ showpp es ++
+                              -- if null proofs then "" else "\n\nProofs\n\n" ++ showpp proofs ++
+                              -- if null eqs' then "" else "\n\nCheckers\n\n" ++ showpp eqs' ++
+                              "\n" )  
+                             (simpleEqs,) $ emptyKnowledge {knTrues = tes, knFalses = fes, knSels =  sels, knEqs = eqs, knSims = aenvSimpl aenv, knChecks = eqs', knAms = aenvEqs aenv}
   where
     proofs = filter isProof es
-    eqs = [(EVar x, ex) | Eq a _ bd <- filter ((null . eqArgs)) $ aenvEqs aenv, PAtom F.Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ] ++  eqs'
+    eqs = [(EVar x, ex) | Eq a _ bd <- filter ((null . eqArgs)) $ aenvEqs aenv, PAtom F.Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ] 
     -- This creates the rewrite rule e1 -> e2 
     -- when should I apply it?
     -- 1. when e2 is a data con and can lead to further reductions 
     -- 2. when size e2 < size e1 
-    eqs' = L.nub $ [(e1, e2) | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs), not (dummySymbol `elem` (syms e1 ++ syms e2))] 
+    simpleEqs = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs 
+    eqs'      = [(e, dc) | (dc, _, e) <- dcEqs]
+    dcEqs = L.nub $ catMaybes $ [getDCEquality e1 e2 | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs)
+                                 , not (dummySymbol `elem` (syms e1 ++ syms e2))]
     (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (map go $ map expr es)
     go e = let es  = splitPAnd e
                su  = mkSubst [(x, EVar y) | PAtom F.Eq (EVar x) (EVar y) <- es ]
@@ -109,7 +117,40 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
     mapSnd3 f (x, y, z) = (x, f y, z)
     mapThd3 f (x, y, z) = (x, y, f z)
 
-    isProof (_, RR s _) =  (showpp s == "Tuple")
+    isProof (_, RR s _) =  showpp s == "Tuple"
+
+
+makeSimplifications :: [Simplify] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+makeSimplifications sis (dc, es, e)
+ = catMaybes $ map go sis 
+ where
+   go (SMeasure f dc' xs bd) 
+     | dc == dc', length xs == length es 
+     = Just (EApp (EVar f) e, subst (mkSubst $ zip xs es) bd)
+   go _ 
+     = Nothing 
+
+
+getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
+getDCEquality e1 e2 
+    | Just dc1 <- f1
+    , Just dc2 <- f2
+    = if dc1 == dc2 then Nothing else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2) 
+    | Just dc1 <- f1
+    = Just (dc1, es1, e2) 
+    | Just dc2 <- f2
+    = Just (dc2, es2, e1)
+    | otherwise  
+    = Nothing 
+  where
+    (f1, es1) = mapFst getDC $ splitEApp e1 
+    (f2, es2) = mapFst getDC $ splitEApp e2 
+
+    getDC (EVar x) 
+        = if isUpper $ head $ symbolString $  dropModuleNames x then Just x else Nothing  
+    getDC _ 
+        = Nothing
+
 
 
 splitPAnd :: Expr -> [Expr]
@@ -117,119 +158,128 @@ splitPAnd (PAnd es) = concatMap splitPAnd es
 splitPAnd e         = [e]
 
 
-evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> Expr -> [(Expr, Expr)] 
+evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> [Expr] -> [(Expr, Expr)] 
 evaluate facts fm' aenv einit 
-  = catMaybes [evalOne e | e <- L.nub $ grepTopApps einit] 
+  = eqs ++ catMaybes [evalOne e | e <- L.nub $ concatMap grepTopApps einit] 
   where
     fm = [(x, 10 * i) | (x, i)<- fm']
-    evalOne e = let γ = makeKnowledge aenv facts
-                    initEvalSt = EvalEnv 0 fm [] aenv
-                    e' = evalState (eval γ e) initEvalSt
-                in case e' of 
-                    (False, _) -> Nothing
-                    (True, e') -> trace aenv ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
+    (eqs, γ) = makeKnowledge aenv facts
+    initEvalSt = EvalEnv 0 fm [] aenv
+    evalOne e = let e' = evalState (eval γ e) initEvalSt
+                in case e' == e of 
+                    True -> Nothing
+                    False -> trace aenv ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
                                 Just (e, e')
 
 
 data EvalEnv = EvalEnv { evId        :: Int
-                       , evFuelMap   :: FuelMap
+                       , _evFuelMap   :: FuelMap
                        , evSequence  :: [Expr]
                        , evAEnv      :: AxiomEnv
                        }
 
-returnTrace :: String -> Expr -> Expr -> EvalST (Bool, Expr) 
+returnTrace :: String -> Expr -> Expr -> EvalST Expr 
 returnTrace str e e'
   = do env <- get 
-       return $ (True,) $ 
+       return $ 
            trace (evAEnv env) 
              ("\nEval " ++ show (evId env) ++ " by " ++ str ++ " :\n" ++ 
              showpp e ++ " ~> " ++ showpp e' ++ "\n")
              e'
 
-(~>) :: (Expr, String) -> Expr -> EvalST (Bool, Expr)
+(~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e,str) ~> e' = do 
     modify $ (\st -> st{evId = evId st + 1, evSequence = e:evSequence st})
     returnTrace str e (normalizeEval e')
 
 
-eval :: Knowledge -> Expr -> EvalST (Bool, Expr) 
+eval :: Knowledge -> Expr -> EvalST Expr 
 
 eval γ e | Just e' <- lookupKnowledge γ e
-  = (e, "Knowledge") ~> e' 
+   = (e, "Knowledge") ~> e' 
 
 eval γ (ELam xs e)
-  = do (b, e') <-  eval γ e 
-       return (b, ELam xs e')
+  = ELam xs <$> eval γ e 
 
 eval γ (PAtom r e1 e2)
-  = do (b1, e1') <- eval γ e1 
-       (b2, e2') <- eval γ e2 
-       return (b1 || b2, PAtom r e1' e2')
+  = PAtom r <$> eval γ e1 <*> eval γ e2 
 
 eval γ e@(EIte b e1 e2)
-  = do (bb, b') <- eval γ b
-       evalIte γ e bb b' e1 e2  
+  = do b' <- eval γ b 
+       evalIte γ e b' e1 e2 
 
 eval γ e@(EApp _ _)
-  = do es' <- evalArgs γ e
-       fm  <- evFuelMap <$> get 
-       evalApp γ fm e es'
+  = evalArgs γ e >>= evalApp γ e 
 
 eval _ e 
-  = return (False, e)
+  = do _env <- evAEnv <$> get 
+       return $ e -- trace env ("\n\nEvaluation stops at " ++ showpp e) e
 
 
-evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr], Bool)
-evalArgs γ e = go [] False e
+evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
+evalArgs γ e = go [] e
   where
-    go acc ev (EApp f e)
+    go acc (EApp f e)
       = do f' <- eval γ f 
            e' <- eval γ e 
-           go (snd e':acc) (fst f' || fst e' || ev) (snd f') 
-    go acc ev e 
+           go (e':acc) f' 
+    go acc e 
       = do e' <- eval γ e 
-           return (snd e', acc, fst e' || ev)
+           return (e', acc)
 
-evalApp :: Knowledge -> FuelMap -> Expr -> (Expr, [Expr],Bool) -> EvalST (Bool, Expr)
-evalApp γ _ e (EVar f, [ex], _)
+evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es 
-  = do let e1 = normalizeEval $ substPopIf (zip (smArgs simp) (id <$> es)) (smBody simp) 
-       e2    <- eval γ e1
-       (e, "Simplify-" ++ showpp f) ~> snd e2
+  = do e'    <- eval γ $ normalizeEval $ substPopIf (zip (smArgs simp) (id <$> es)) (smBody simp) 
+       (e, "Simplify-" ++ showpp f) ~> e'
 
-evalApp γ fm e (EVar f, es, evs)
+evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq 
   , length (eqArgs eq) == length es
-  , hasFuel fm f 
-  = do let e1   = normalizeEval $  substPopIf (zip (eqArgs eq) es) bd
-       putFuelMap $ makeFuelMap (\x -> x-1) fm f
-       e2     <- eval γ e1 
-       if fst e2 || not (f `elem` syms bd) 
-        then (e, "App-" ++ showpp f ++ "\n\n") ~> snd e2
-        else return (evs, T.trace ("EVAL STOPPED AS " ++ showpp e2) $ eApps (EVar f) es)
+  , not (f `elem` syms bd) -- not recursive 
+  = eval γ $ normalizeEval $ substPopIf (zip (eqArgs eq) es) bd
 
 
-evalApp _ _ _ (f, es, evs)
-  = return (evs, eApps f es )
+evalApp γ _e (EVar f, es)
+  | Just eq <- L.find ((==f) . eqName) (knAms γ)
+  , Just bd <- getEqBody eq 
+  , length (eqArgs eq) == length es  --  recursive 
+  = evalRecApplication γ (eApps (EVar f) es) $ normalizeEval $ substPopIf (zip (eqArgs eq) es) bd
+
+evalApp _ _ (f, es)
+  = return $ eApps f es
 
 
-evalIte :: Knowledge -> Expr -> Bool -> Expr -> Expr -> Expr -> EvalST (Bool, Expr)
-evalIte γ e _ b e1 _ 
+evalRecApplication :: Knowledge ->  Expr -> Expr -> EvalST Expr 
+evalRecApplication γ e (EIte b e1 e2)
+  = do b' <- eval γ b 
+       if isTautoPred b'
+          then eval γ e1 >>= ((e, "App") ~>)
+          else if isFalse b'
+          then eval γ e2 >>= ((e, "App") ~>)
+          else return e 
+evalRecApplication _ _ e 
+  = return e 
+
+
+
+
+evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ e b e1 _ 
   | isTautoPred b 
   = do e' <- eval γ e1
-       (e, "If-True")  ~> (snd e')
-evalIte γ e _ b _ e2 
+       (e, "If-True")  ~> e'
+evalIte γ e b _ e2 
   | isFalse b 
   = do e' <- eval γ e2
-       (e, "If-False") ~> (snd e')
-evalIte γ _ _ b e1 e2 
+       (e, "If-False") ~> e'
+evalIte γ _ b e1 e2 
   = do e1' <- eval γ e1 
        e2' <- eval γ e2 
-       return (False, EIte b (snd e1') (snd e2'))
-
+       return $ EIte b e1' e2' 
 
 
 
@@ -360,35 +410,46 @@ normalizeEval = snd . go
 
 
 data Knowledge 
-  = KN { knTrues :: [Expr]
-       , knFalses ::  [Expr]
-       , knSels :: [(Expr, Expr)]
-       , knEqs :: [(Expr, Expr)]
-       , knSims :: [Simplify]
-       , knAms  :: [Equation]
+  = KN { knTrues  :: ![Expr]
+       , knFalses :: ![Expr]
+       , knSels   :: ![(Expr, Expr)]
+       , knEqs    :: ![(Expr, Expr)]
+       , knChecks :: ![(Expr, Symbol)]
+       , knSims   :: ![Simplify]
+       , knAms    :: ![Equation]
        }
 
 emptyKnowledge :: Knowledge
-emptyKnowledge = KN [] [] [] [] [] [] 
+emptyKnowledge = KN [] [] [] [] [] [] []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr 
 lookupKnowledge γ e 
+  -- Zero argument axioms like `mempty = N`
+  | Just e' <- L.lookup e (knEqs γ)  
+  = Just e'
   | e `elem` (knTrues γ)
   = Just PTrue 
   | e `elem` (knFalses γ)
   = Just PFalse 
   | Just e' <- L.lookup e (knSels γ) 
   = Just e'
-  | Just e' <- L.lookup e (knEqs γ)  
-  = Just e'
   | otherwise 
-  = Nothing 
+  = checkChecker (knChecks γ) e 
+
+
+checkChecker :: [(Expr,Symbol)] -> Expr -> Maybe Expr 
+checkChecker !dcEqs !(EApp (EVar isDC) e)
+  | Just dc <- L.lookup e dcEqs
+  , is_ == "is_"
+  = if dcName == dc then Just PTrue else Just PFalse
+  where 
+    (is_, dcName) = mapSnd symbol $ splitAt 3 $ symbolString isDC  
+
+checkChecker _ _ 
+  = Nothing  
 
 
 type EvalST = State EvalEnv
-
-putFuelMap :: FuelMap -> EvalST ()
-putFuelMap fm = modify $ \s -> s{evFuelMap = fm}
 
 
 
@@ -464,12 +525,6 @@ hasFuel fm x = maybe True (\x -> 0 < x) (L.lookup x fm)
 
 makeFuelMap :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
 
-{- 
-makeFuelMap' :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
-makeFuelMap' f fm x = let fm' = makeFuelMap f fm x in  
-                      -- T.trace ("New fuel map for " ++ show x ++ "\n OLD = " ++ show (snd <$> fm) ++ "\n NEW = " ++ show (snd <$> fm')) 
-                      fm'
--}
 makeFuelMap f ((x, fx):fs) y  
   | x == y    = (x, f fx) : fs
   | otherwise = (x, fx)   : makeFuelMap f fs y

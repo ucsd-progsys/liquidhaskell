@@ -115,7 +115,7 @@ benchTests
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-     , -} testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       (proverIgnored ++ autoIgnored)                        ExitSuccess
+     , -} testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"    proverIgnored                       ExitSuccess
      ]
 
 selfTests :: IO TestTree
@@ -223,7 +223,6 @@ proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-                , "ApplicativeList.hs"
                  
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
@@ -231,8 +230,6 @@ proverIgnored = [ "OverviewListInfix.hs"
                 , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
                 ]
 
-autoIgnored  :: [FilePath]
-autoIgnored = ["ApplicativeList0.hs", "ApplicativeList.hs", "MonadList.hs"]
 
 hscIgnored :: [FilePath]
 hscIgnored = [ "HsColour.hs"

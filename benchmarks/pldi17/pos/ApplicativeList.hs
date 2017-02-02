@@ -119,12 +119,15 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
          ==. seq xss (seq yss zss)
 
 composition N yss zss
-   = toProof $
-      seq (seq (seq (pure compose) N) yss) zss
-        ==. seq (seq N yss) zss                  ? seq_nill (pure compose)
-        ==. seq N zss
-        ==. N
-        ==. seq N (seq yss zss)
+   =   seq (seq (seq (pure compose) N) yss) zss  
+   ==. seq (seq (seq (C compose N) N) yss) zss
+   ==. seq (seq (append (fmap compose N) (seq N N)) yss) zss
+   ==. seq (seq (append N (seq N N)) yss) zss
+   ==. seq (seq (seq N N) yss) zss
+   ==. seq (seq N yss) zss
+   ==. seq yss zss
+   ==. seq N (seq yss zss)
+   *** QED 
 
 composition xss N zss
    = toProof $
