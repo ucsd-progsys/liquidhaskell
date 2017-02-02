@@ -2,6 +2,7 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--betaequivalence"  @-}
+
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 
@@ -60,28 +61,11 @@ right_identity (C x xs)
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity Emp f g
   = trivial 
-{- 
-  =   bind (bind Emp f) g
-  ==. bind Emp g
-  ==. Emp
-  ==. bind Emp (\x -> (bind (f x) g))
-  *** QED
-  -}
+
 associativity (C x xs) f g
-  =   bind (bind (C x  xs) f) g
-  ==. bind (append (f x) (bind xs f)) g                    ? bind_append (f x) (bind xs f) g
-  ==. append (bind (f x) g) (bind (bind xs f) g)
-  ==. append (bind (f x) g) (bind xs (\y -> bind (f y) g)) ? associativity xs f g
-  ==. append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) ? βequivalence f g x 
-  ==. bind (C x xs) (\y -> bind (f y) g)
-  *** QED
+  =   bind_append (f x) (bind xs f) g
+  &&& associativity xs f g
 
-
-
-{-@ βequivalence :: f:(a -> L b) -> g:(b -> L c) -> x:a -> 
-     {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
-βequivalence :: (a -> L b) -> (b -> L c) -> a -> Proof
-βequivalence f g x = simpleProof 
 
 bind_append :: L a -> L a -> (a -> L b) -> Proof
 {-@ bind_append :: xs:L a -> ys:L a -> f:(a -> L b)
@@ -89,16 +73,10 @@ bind_append :: L a -> L a -> (a -> L b) -> Proof
   @-}
 
 bind_append Emp ys f
-  =   bind (append Emp ys) f
-  ==. bind ys f
-  ==. append Emp (bind ys f)
-  ==. append (bind Emp f) (bind ys f)
-  *** QED
+  =  trivial 
 bind_append (C x  xs) ys f
-  =   append (f x) (bind (append xs ys) f)
-  ==. append (f x) (append (bind xs f) (bind ys f)) ? bind_append xs ys f
-  ==. append (append (f x) (bind xs f)) (bind ys f) ? prop_assoc (f x) (bind xs f) (bind ys f)
-  *** QED
+  =   bind_append xs ys f
+  &&& prop_assoc (f x) (bind xs f) (bind ys f)
 
 
 
