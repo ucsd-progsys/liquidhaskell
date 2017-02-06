@@ -308,7 +308,7 @@ evalRecApplication γ e (EIte b e1 e2)
           then addApplicationEq γ e e1 >> eval γ e1 >>= ((e, "App") ~>)
           else if isValid γ (PNot b')
           then addApplicationEq γ e e2 >> eval γ e2 >>= ((e, "App") ~>)
-          else return e -- $ T.trace ("FAIL TO EVALUATE\n" ++ showpp b' ++ "\nOR\n" ++ showpp b )  e 
+          else return e --  T.trace ("FAIL TO EVALUATE\n" ++ showpp b' ++ "\nOR\n" ++ showpp b )  e 
 evalRecApplication _ _ e 
   = return e 
 
