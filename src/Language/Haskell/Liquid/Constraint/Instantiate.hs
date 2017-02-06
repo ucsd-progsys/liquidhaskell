@@ -101,9 +101,7 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
                               -- if null eqs' then "" else "\n\nCheckers\n\n" ++ showpp eqs' ++
                               "\n" )  
                              (simpleEqs,) $ (emptyKnowledge context) 
-                                 { knTrues  = tes
-                                 , knFalses = fes
-                                 , knSels   = sels
+                                 { knSels   = sels
                                  , knEqs    = eqs
                                  , knSims   = aenvSimpl aenv
                                  , knAms = aenvEqs aenv
@@ -141,19 +139,14 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
     -- 2. when size e2 < size e1 
     simpleEqs = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs 
     dcEqs = L.nub $ catMaybes $ [getDCEquality e1 e2 | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs)]
-    (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (map go $ map expr es)
+    sels  = concatMap go $ map expr es
     go e = let es  = splitPAnd e
                su  = mkSubst [(x, EVar y) | PAtom F.Eq (EVar x) (EVar y) <- es ]
-               tes = [e | PIff e t <- es, isTautoPred t] 
-               fes = [e | PIff e f <- es, isFalse f ]  
                sels = [(EApp (EVar s) x, e) | PAtom F.Eq (EApp (EVar s) x) e <- es, isSelector s ]
-           in (L.nub (tes ++ subst su tes), L.nub (fes ++ subst su fes), L.nub (sels ++ subst su sels))
+           in L.nub (sels ++ subst su sels)
 
     isSelector :: Symbol -> Bool 
     isSelector  = L.isPrefixOf "select" . symbolString 
-    mapFst3 f (x, y, z) = (f x, y, z)
-    mapSnd3 f (x, y, z) = (x, f y, z)
-    mapThd3 f (x, y, z) = (x, y, f z)
 
     isProof (_, RR s _) =  showpp s == "Tuple"
 
@@ -345,7 +338,7 @@ substPopIf xes e = normalizeEval $ foldl go e xes
     go e (x, ex)           = subst1 e (x, ex) 
 
 -- normalization required by ApplicativeMaybe.composition
- 
+
 normalizeEval :: Expr -> Expr  
 normalizeEval = snd . go 
   where
@@ -363,9 +356,7 @@ normalizeEval = snd . go
 
 
 data Knowledge 
-  = KN { knTrues  :: ![Expr]
-       , knFalses :: ![Expr]
-       , knSels   :: ![(Expr, Expr)]
+  = KN { knSels   :: ![(Expr, Expr)]
        , knEqs    :: ![(Expr, Expr)]
        , knSims   :: ![Simplify]
        , knAms    :: ![Equation]
@@ -375,7 +366,7 @@ data Knowledge
        }
 
 emptyKnowledge :: Context -> Knowledge
-emptyKnowledge cxt = KN [] [] [] [] [] [] cxt (\_ _ _ -> False) []
+emptyKnowledge cxt = KN [] [] [] [] cxt (\_ _ _ -> False) []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr 
 lookupKnowledge γ e 
