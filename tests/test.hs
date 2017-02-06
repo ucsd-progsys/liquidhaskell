@@ -59,8 +59,8 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    -- tests = group "Tests" [ unitTests, benchTests ]
-    tests = group "Tests" [ benchTests ]
+    tests = group "Tests" [ unitTests, benchTests ]
+    -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
@@ -106,7 +106,7 @@ unitTests
 
 benchTests :: IO TestTree
 benchTests
-  = group "Benchmarks" [ {-
+  = group "Benchmarks" [
        testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
      , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
      , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
@@ -115,7 +115,7 @@ benchTests
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-     , -} testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       proverIgnored             ExitSuccess
+     , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       proverIgnored             ExitSuccess
      ]
 
 selfTests :: IO TestTree
