@@ -70,38 +70,16 @@ identity xs
                 -> { seq (seq (seq (pure compose) x) y) z == seq x (seq y z) } @-}
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 
-composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
-   =   map_fusion0 x y zs
-   &&& seq_append (fmap (compose x) ys) (seq (fmap compose xs) yss) zss
-   &&& seq_one xs
-   &&& composition xs yss zss
-   &&& append_distr (fmap x (fmap y zs)) (seq (fmap (compose x) ys) zss) (seq xs (seq yss zss))
-   &&& seq_fmap x ys zss
-   &&& append_fmap x (fmap y zs) (seq ys zss)
+composition N ys zs 
+  =  seq_nill (pure compose)
 
-composition N yss zss
-   = seq_nill (pure compose)
-
--- This definitely needs proper implementation of congruence 
-composition xss N zss
-   =   seq (seq (seq (pure compose) xss) N) zss
-   ==. seq (seq (seq (C compose N) xss) N) zss
-   ==. seq (seq (append (fmap compose xss) (seq N xss)) N) zss
-   ==. seq (seq (append (fmap compose xss) N) N) zss 
-   ==. seq (seq (fmap compose xss) N) zss 
-       ? prop_append_neutral (fmap compose xss) 
-   ==. seq N zss 
-       ?  seq_nill (fmap compose xss)
-   ==. zss
-   ==. seq xss (seq N zss)
-       ? seq_nill xss
-   *** QED 
-
-composition xss yss N
-  = seq_nill (seq (seq (pure compose) xss) yss)
-  &&& seq_nill xss
-  &&&  seq_nill yss
-
+composition (C x xs) ys zs 
+  =   prop_append_neutral (fmap compose (C x xs))
+  &&& prop_append_neutral (fmap compose (C x xs))
+  &&& seq_append (fmap (compose x) ys) (seq (fmap compose xs) ys) zs
+  &&& seq_fmap x ys zs
+  &&& prop_append_neutral (fmap compose xs)
+  &&& composition xs ys zs
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 

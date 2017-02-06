@@ -76,7 +76,8 @@ import           Language.Haskell.Liquid.Misc           (fourth4)
 import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
-
+import qualified Language.Fixpoint.Types.Config as FC
+import qualified Language.Fixpoint.Smt.Interface as FI 
 import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
@@ -137,6 +138,9 @@ data AxiomEnv = AEnv { aenvSyms    :: ![F.Symbol]
                      , aenvDoRW    :: (FixSubC -> Bool)
                      , aenvDoEqs   :: (FixSubC -> Bool)
                      , aenvVerbose :: !Bool 
+                     , aenvConfig  :: FC.Config 
+                     , aenvFixEnv  :: F.SEnv F.Sort 
+                     , aenvContext :: FI.Context 
                      }
 
 data Equation = Eq   { eqName :: F.Symbol

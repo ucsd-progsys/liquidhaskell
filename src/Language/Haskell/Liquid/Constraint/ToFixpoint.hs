@@ -1,13 +1,16 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint (
 
-  cgInfoFInfo
+    cgInfoFInfo
+
+  , fixConfig
 
   ) where
 
 import           Prelude hiding (error)
 import           Data.Monoid
 
--- import qualified Language.Fixpoint.Types.Config as FC
+import qualified Language.Fixpoint.Types.Config as FC
+import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types hiding     ( binds )
@@ -16,6 +19,30 @@ import           Language.Haskell.Liquid.Constraint.Qualifier
 -- import           Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
+import Data.Maybe (fromJust)
+
+fixConfig :: FilePath -> Config -> FC.Config
+fixConfig tgt cfg = def
+  { FC.solver           = fromJust (smtsolver cfg)
+  , FC.linear           = linear            cfg
+  , FC.eliminate        = eliminate         cfg
+  , FC.nonLinCuts       = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
+  , FC.save             = saveQuery         cfg
+  , FC.srcFile          = tgt
+  , FC.cores            = cores             cfg
+  , FC.minPartSize      = minPartSize       cfg
+  , FC.maxPartSize      = maxPartSize       cfg
+  , FC.elimStats        = elimStats         cfg
+  , FC.elimBound        = elimBound         cfg
+  , FC.allowHO          = higherOrderFlag   cfg
+  , FC.allowHOqs        = higherorderqs     cfg
+  , FC.extensionality   = extensionality   cfg
+  , FC.alphaEquivalence = alphaEquivalence cfg
+  , FC.betaEquivalence  = betaEquivalence  cfg
+  , FC.normalForm       = normalForm       cfg
+  , FC.stringTheory     = stringTheory     cfg
+  }
+
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
