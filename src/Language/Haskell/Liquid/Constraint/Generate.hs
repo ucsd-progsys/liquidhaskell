@@ -109,7 +109,7 @@ consAct cfg info = do
   fws <- concat <$> mapM splitW hws
   bds <- binds <$> get
   dcs <- dataConTys <$> get 
-  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms bds (makeAxiomEnvironment bds (feEnv $ fenv γ) info dcs) <$> fcs else  fcs 
+  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs) <$> fcs else  fcs 
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ

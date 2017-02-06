@@ -27,11 +27,13 @@ import           Language.Haskell.Liquid.Constraint.Init  (getEqBody)
 import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 -- import           Language.Fixpoint.Types.Config (Config)
 
-import Language.Fixpoint.Smt.Interface (checkValid', Context, smtPop, smtPush, smtDecl, smtAssert)
+import Language.Fixpoint.Smt.Interface (checkValid', Context, smtPop, smtPush, smtDecls, smtAssert)
 import Language.Fixpoint.Defunctionalize (defuncAny, Defunc, makeLamArg)
 import Language.Fixpoint.SortCheck (elaborate, Elaborate)
+import qualified Language.Fixpoint.Smt.Theories as FT
 import Control.Monad.State 
 
+import qualified Data.HashMap.Strict                           as M
 import qualified Data.List as L 
 -- import Data.Maybe (catMaybes)
 
@@ -49,11 +51,11 @@ trace aenv str x
   | otherwise
   = x 
 
-instantiateAxioms :: BindEnv  -> AxiomEnv -> FixSubC -> FixSubC
-instantiateAxioms _  aenv sub
+instantiateAxioms :: BindEnv -> SEnv Sort -> AxiomEnv -> FixSubC -> FixSubC
+instantiateAxioms _ _ aenv sub
   | not (aenvExpand aenv sub)
   = sub  
-instantiateAxioms bds aenv sub 
+instantiateAxioms bds fenv aenv sub 
   = strengthenLhs (pAnd $ trace aenv msg (is0 ++ is ++ evalEqs)) sub
   where
     is0 = eqBody <$> L.filter (null . eqArgs) (aenvEqs  aenv)
@@ -63,7 +65,7 @@ instantiateAxioms bds aenv sub
                         ] :: [String]
     is               = if aenvDoEqs aenv sub then instances maxNumber aenv (trace aenv initMsg $ initOccurences) else []
     evalEqs          = if aenvDoRW  aenv sub 
-                         then trace aenv evalMsg [ PAtom F.Eq  e e'|(e, e') <- evaluate ((vv Nothing, slhs sub):binds) as aenv initExpressions, e /= e'] 
+                         then trace aenv evalMsg [ PAtom F.Eq  e e'|(e, e') <- evaluate ((vv Nothing, slhs sub):binds) fenv as aenv initExpressions, e /= e'] 
                          else [] 
     initExpressions  = (expr $ slhs sub):(expr $ srhs sub):(expr <$> binds)
     binds            = envCs bds (senv sub)
@@ -87,8 +89,8 @@ instantiateAxioms bds aenv sub
     evalMsg = "\n\nStart Rewriting" 
 
 
-makeKnowledge :: AxiomEnv -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge) 
-makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++ 
+makeKnowledge :: AxiomEnv -> SEnv Sort -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge) 
+makeKnowledge aenv fenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++ 
                               -- "INIT KNOWLEDGE\n" ++  
                               -- L.intercalate "\n" (showpp <$> es) ++ 
                               -- L.intercalate "\n" (showpp <$> filter noPKVar (expr <$> es)) ++ 
@@ -113,9 +115,14 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
     context = unsafePerformIO $ do 
       smtPop (aenvContext aenv)
       smtPush (aenvContext aenv)
-      smtDecl (aenvContext aenv) xv sv 
-      smtAssert (aenvContext aenv) (pAnd ([toSMT xv sv [] aenv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv . expr) <$> es)))
+      smtDecls (aenvContext aenv) $ L.nub [(x, toSMT xv sv [] aenv senv s) | (x, s) <- fbinds, not (M.member x FT.theorySymbols)] 
+      -- smtDecl (aenvContext aenv) xv sv 
+      smtAssert (aenvContext aenv) (pAnd ([toSMT xv sv [] aenv senv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv senv . expr) <$> es)))
       return (aenvContext aenv)
+
+    fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
+
+    senv = fromListSEnv fbinds
 
     noPKVar = null . kvars
 
@@ -126,7 +133,7 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
         smtPush cxt
         b <- checkValid' cxt [] 
                              PTrue -- (pAnd ([toSMT xv sv [] aenv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv . expr) <$> es))) 
-                             (toSMT xv sv xss aenv e) 
+                             (toSMT xv sv xss aenv senv e) 
         smtPop cxt
         return b   
     askSMT _ _ _ = False
@@ -151,10 +158,10 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
     isProof (_, RR s _) =  showpp s == "Tuple"
 
 
-toSMT :: (Elaborate a, Defunc a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> a -> a 
-toSMT xv sv xs aenv 
-  = defuncAny (aenvConfig aenv) (insertSEnv xv sv $ aenvFixEnv aenv) . 
-    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv $ aenvFixEnv aenv) xs) 
+toSMT :: (Elaborate a, Defunc a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> SEnv Sort -> a -> a 
+toSMT xv sv xs aenv senv  
+  = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) . 
+    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs) 
 
 
 makeSimplifications :: [Simplify] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
@@ -192,12 +199,12 @@ splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es 
 splitPAnd e         = [e]
 
-evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> [Expr] -> [(Expr, Expr)] 
-evaluate facts fm' aenv einit 
+evaluate :: [(Symbol, SortedReft)] -> SEnv Sort -> FuelMap -> AxiomEnv -> [Expr] -> [(Expr, Expr)] 
+evaluate facts fenv fm' aenv einit 
   = eqs ++ (concat $ catMaybes [evalOne e | e <- L.nub $ concatMap grepTopApps einit]) 
   where
     fm = [(x, 10 * i) | (x, i)<- fm']
-    (eqs, γ) = makeKnowledge aenv facts
+    (eqs, γ) = makeKnowledge aenv fenv facts
     initEvalSt = EvalEnv 0 fm [] aenv
     evalOne :: Expr -> Maybe [(Expr, Expr)]
     evalOne e = let (e', _) = runState (eval γ e) initEvalSt
@@ -373,12 +380,6 @@ lookupKnowledge γ e
   -- Zero argument axioms like `mempty = N`
   | Just e' <- L.lookup e (knEqs γ)  
   = Just e'
-{-   
-  | e `elem` (knTrues γ)
-  = Just PTrue 
-  | e `elem` (knFalses γ)
-  = Just PFalse 
--}
   | Just e' <- L.lookup e (knSels γ) 
   = Just e'
   | otherwise 

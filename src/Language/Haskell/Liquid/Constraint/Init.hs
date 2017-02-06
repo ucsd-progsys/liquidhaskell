@@ -57,15 +57,9 @@ import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.ToFixpoint (fixConfig)
-import Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
+import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
 
-import qualified Language.Fixpoint.Smt.Theories as FT
 import System.IO.Unsafe
-
-import qualified Language.Fixpoint.Types.Config as FC
-
-import Language.Fixpoint.Defunctionalize (defuncAny, Defunc)
-import Language.Fixpoint.SortCheck (elaborate, Elaborate)
 
 -- import Debug.Trace (trace)
 
@@ -309,8 +303,8 @@ coreBindLits tce info
 
 
 
-makeAxiomEnvironment :: F.BindEnv ->  F.SEnv F.Sort -> GhcInfo -> [(Var, SpecType)]  -> AxiomEnv
-makeAxiomEnvironment bds fenv info xts
+makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)]  -> AxiomEnv
+makeAxiomEnvironment info xts
   = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
          (makeEquations info ++ (specTypToEq  <$> xts))
          (concatMap makeSimplify xts)
@@ -320,19 +314,18 @@ makeAxiomEnvironment bds fenv info xts
          (\_ -> allowArithmetic cfg)
          (debugInstantionation cfg)
          fixCfg
-         (F.fromListSEnv binds')
          (makeContext cfg)
   where
     fixCfg = fixConfig fileName cfg
 
     makeContext cfg = unsafePerformIO $  do 
-                       ctx <- makeSmtContext (fixConfig fileName cfg) fileName 
-                                $ L.nubBy (\(x,_) (y,_) -> x == y) 
-                                    [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ]
+                       ctx <- makeSmtContext (fixConfig fileName cfg) fileName []
+                           {-     $ L.nubBy (\(x,_) (y,_) -> x == y) 
+                                    [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ] -}
                        smtPush ctx 
                        return ctx 
     fileName = head (files cfg)  ++ ".evals"
-    binds'   = [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ F.toListSEnv fenv 
+    -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv 
 
     doExpand sub = allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
@@ -346,10 +339,6 @@ makeAxiomEnvironment bds fenv info xts
     specTypToEq (x, t)
       = Eq (F.symbol x) (ty_binds $ toRTypeRep t)
            (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
-
-
-toSMT :: (Elaborate a, Defunc a) => FC.Config -> F.SEnv F.Sort -> a -> a 
-toSMT cfg senv = defuncAny cfg senv . elaborate "symbolic evaluation init" senv
 
 makeSimplify :: (Var, SpecType) -> [Simplify]
 makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t

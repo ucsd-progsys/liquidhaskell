@@ -139,7 +139,6 @@ data AxiomEnv = AEnv { aenvSyms    :: ![F.Symbol]
                      , aenvDoEqs   :: (FixSubC -> Bool)
                      , aenvVerbose :: !Bool 
                      , aenvConfig  :: FC.Config 
-                     , aenvFixEnv  :: F.SEnv F.Sort 
                      , aenvContext :: FI.Context 
                      }
 
