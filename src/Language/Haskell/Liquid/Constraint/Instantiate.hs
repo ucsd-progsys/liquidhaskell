@@ -344,7 +344,8 @@ substPopIf xes e = normalizeEval $ foldl go e xes
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2)) 
     go e (x, ex)           = subst1 e (x, ex) 
 
-
+-- normalization required by ApplicativeMaybe.composition
+ 
 normalizeEval :: Expr -> Expr  
 normalizeEval = snd . go 
   where
@@ -359,7 +360,6 @@ normalizeEval = snd . go
                                      (f2, e2') = go e2 
                                  in if f1 || f2 then go $ EApp e1' e2' else (False, EApp e1' e2')
     go e = (False, e)
-
 
 
 data Knowledge 
@@ -382,10 +382,12 @@ lookupKnowledge γ e
   -- Zero argument axioms like `mempty = N`
   | Just e' <- L.lookup e (knEqs γ)  
   = Just e'
+{-   
   | e `elem` (knTrues γ)
   = Just PTrue 
   | e `elem` (knFalses γ)
   = Just PFalse 
+-}
   | Just e' <- L.lookup e (knSels γ) 
   = Just e'
   | otherwise 
