@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Constraint.Instantiate (
 import           Language.Fixpoint.Misc           (mapFst)
 import           Language.Fixpoint.Types hiding (Eq)
 import qualified Language.Fixpoint.Types as F        
-import           Language.Fixpoint.Types.Visitor (eapps, kvars)            
+import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)            
 
 import           Language.Haskell.Liquid.Constraint.Types hiding (senv)
 import           Language.Haskell.Liquid.Constraint.Init  (getEqBody)
@@ -40,6 +40,7 @@ import qualified Data.List as L
 import Data.Maybe 
 import Data.Char (isUpper)
 
+import Data.Foldable (foldlM)
 import System.IO.Unsafe
 
 import qualified Debug.Trace as T 
@@ -98,7 +99,7 @@ makeKnowledge aenv fenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (
                               -- if null fes then "" else "\n\nFALSE\n\n" ++ showpp fes ++ 
                               -- if null sels then "" else "\n\nSELECTORS\n\n" ++ showpp sels ++ 
                               -- if null eqs then "" else "\n\nAxioms\n\n" ++ showpp eqs ++
-                              -- "\n\nEnvironment \n\n" ++ showpp es ++
+                              -- "\n\nAxioms \n\n" ++ show (aenvEqs aenv) ++
                               -- if null proofs then "" else "\n\nProofs\n\n" ++ showpp proofs ++
                               -- if null eqs' then "" else "\n\nCheckers\n\n" ++ showpp eqs' ++
                               "\n" )  
@@ -158,10 +159,10 @@ makeKnowledge aenv fenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (
     isProof (_, RR s _) =  showpp s == "Tuple"
 
 
-toSMT :: (Elaborate a, Defunc a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> SEnv Sort -> a -> a 
-toSMT xv sv xs aenv senv  
+toSMT :: (Elaborate a, Defunc a, PPrint a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> SEnv Sort -> a -> a 
+toSMT xv sv xs aenv senv
   = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) . 
-    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs) 
+    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs)  
 
 
 makeSimplifications :: [Simplify] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
@@ -173,6 +174,27 @@ makeSimplifications sis (dc, es, e)
      = Just (EApp (EVar f) e, subst (mkSubst $ zip xs es) bd)
    go _ 
      = Nothing 
+
+
+-- Insert measure info for every constructor 
+-- that appears in the expression e 
+-- required by PMEquivalence.mconcatChunk
+assertSelectors :: Knowledge -> Expr -> EvalST ()
+assertSelectors γ e = do 
+   sims <-  (aenvSimpl . evAEnv) <$> get
+   _ <- foldlM (\_ s -> mapMExpr (go s) e) e sims
+   return ()
+  where
+    go :: Simplify -> Expr -> EvalST Expr
+    go (SMeasure f dc xs bd) e@(EApp _ _) 
+      | (EVar dc', es) <- splitEApp e 
+      , dc == dc', length xs == length es 
+      = addSMTEquality γ (EApp (EVar f) e) (subst (mkSubst $ zip xs es) bd)
+      >> return e 
+    go _ e
+      = return e 
+
+
 
 
 getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
@@ -207,15 +229,15 @@ evaluate facts fenv fm' aenv einit
     (eqs, γ) = makeKnowledge aenv fenv facts
     initEvalSt = EvalEnv 0 fm [] aenv
     evalOne :: Expr -> Maybe [(Expr, Expr)]
-    evalOne e = let (e', _) = runState (eval γ e) initEvalSt
+    evalOne e = let (e', st) = runState (eval γ $ trace aenv ("\n\nSTART EVALUATION OF\n" ++ showpp e) e) initEvalSt
                 in case e' == e of 
                     True -> Nothing
                     False -> trace aenv ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e') 
-                                Just [(e,e')] 
+                                Just -- [(e,e')] 
                                    -- This adds all intermediate unfoldings into the assumptions
                                    -- no test needs it
                                    -- TODO: add a flag to enable it
-                                   -- ((e, e'):evSequence st)
+                                   ((e, e'):evSequence st)
 
 
 data EvalEnv = EvalEnv { evId        :: Int
@@ -235,10 +257,17 @@ returnTrace str e e'
 
 addApplicationEq :: Knowledge -> Expr -> Expr -> EvalST ()
 addApplicationEq γ e1 e2 = 
-  modify $ (\st -> st{evSequence = (makeLam e1, makeLam e2):evSequence st})
-  where
-    makeLam e = foldl (\e xs -> ELam xs e) e (knLams γ)
+  modify $ (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
+    
 
+makeLam :: Knowledge -> Expr -> Expr 
+makeLam γ e = foldl (\e xs -> ELam xs e) e (knLams γ)
+
+
+addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST ()
+addSMTEquality γ e1 e2 = 
+  return $ unsafePerformIO $ 
+    smtAssert (knContext γ) (PAtom F.Eq (makeLam γ e1) (makeLam γ e2))
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e,str) ~> e' = do 
@@ -312,9 +341,9 @@ evalRecApplication :: Knowledge ->  Expr -> Expr -> EvalST Expr
 evalRecApplication γ e (EIte b e1 e2)
   = do b' <- eval γ b 
        if isValid γ b'
-          then addApplicationEq γ e e1 >> eval γ e1 >>= ((e, "App") ~>)
+          then addApplicationEq γ e e1 >> assertSelectors γ e1 >> eval γ e1 >>= ((e, "App") ~>)
           else if isValid γ (PNot b')
-          then addApplicationEq γ e e2 >> eval γ e2 >>= ((e, "App") ~>)
+          then addApplicationEq γ e e2 >> assertSelectors γ e2 >> eval γ e2 >>= ((e, "App") ~>)
           else return e --  T.trace ("FAIL TO EVALUATE\n" ++ showpp b' ++ "\nOR\n" ++ showpp b )  e 
 evalRecApplication _ _ e 
   = return e 

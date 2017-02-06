@@ -111,7 +111,7 @@ makeAssumeType tce lmap x mbT v def
     grapBody (Tick _ e) = grapBody e
     grapBody e          = ([], e)
 
-    xss = [(mkSymbol x t, rTypeSort tce t) | (x, t) <- zip xs (ty_args (toRTypeRep at)), not (isClassType t)]
+    xss = zipWith (\x t -> (mkSymbol x t, rTypeSort tce t)) xs (filter (not . isClassType) (ty_args (toRTypeRep at))) 
 
     mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
