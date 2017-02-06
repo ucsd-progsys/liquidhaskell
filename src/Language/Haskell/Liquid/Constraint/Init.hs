@@ -324,16 +324,16 @@ makeAxiomEnvironment bds fenv info xts
          (makeContext cfg)
   where
     fixCfg = fixConfig fileName cfg
+
     makeContext cfg = unsafePerformIO $  do 
                        ctx <- makeSmtContext (fixConfig fileName cfg) fileName 
                                 $ L.nubBy (\(x,_) (y,_) -> x == y) 
                                     [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ]
                        smtPush ctx 
                        return ctx 
-    fileName = traceShow "FILE NAME = " $  head (files cfg)  ++ ".evals"
-    binds' = -- traceShow "TO DECLARE = " $ L.nub (
-               [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ 
-                F.toListSEnv fenv 
+    fileName = head (files cfg)  ++ ".evals"
+    binds'   = [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ F.toListSEnv fenv 
+
     doExpand sub = allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
                    && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))
@@ -349,7 +349,7 @@ makeAxiomEnvironment bds fenv info xts
 
 
 toSMT :: (Elaborate a, Defunc a) => FC.Config -> F.SEnv F.Sort -> a -> a 
-toSMT cfg senv = defuncAny cfg senv . elaborate "FOO" senv
+toSMT cfg senv = defuncAny cfg senv . elaborate "symbolic evaluation init" senv
 
 makeSimplify :: (Var, SpecType) -> [Simplify]
 makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t

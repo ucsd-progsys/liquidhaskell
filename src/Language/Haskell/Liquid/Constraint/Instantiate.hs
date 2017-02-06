@@ -27,7 +27,7 @@ import           Language.Haskell.Liquid.Constraint.Init  (getEqBody)
 import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 -- import           Language.Fixpoint.Types.Config (Config)
 
-import Language.Fixpoint.Smt.Interface (checkValid', Context, smtPop, smtPush, smtDecl)
+import Language.Fixpoint.Smt.Interface (checkValid', Context, smtPop, smtPush, smtDecl, smtAssert)
 import Language.Fixpoint.Defunctionalize (defuncAny, Defunc, makeLamArg)
 import Language.Fixpoint.SortCheck (elaborate, Elaborate)
 import Control.Monad.State 
@@ -89,19 +89,26 @@ instantiateAxioms bds aenv sub
 
 makeKnowledge :: AxiomEnv -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge) 
 makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++ 
-                              "INIT KNOWLEDGE\n" ++  
-                              L.intercalate "\n" (showpp <$> es) ++ 
-                              L.intercalate "\n" (showpp <$> filter noPKVar (expr <$> es)) ++ 
+                              -- "INIT KNOWLEDGE\n" ++  
+                              -- L.intercalate "\n" (showpp <$> es) ++ 
+                              -- L.intercalate "\n" (showpp <$> filter noPKVar (expr <$> es)) ++ 
                               -- if null tes then "" else "\n\nTRUES = \n\n" ++ showpp tes ++ 
                               -- if null fes then "" else "\n\nFALSE\n\n" ++ showpp fes ++ 
                               -- if null sels then "" else "\n\nSELECTORS\n\n" ++ showpp sels ++ 
                               -- if null eqs then "" else "\n\nAxioms\n\n" ++ showpp eqs ++
                               -- "\n\nEnvironment \n\n" ++ showpp es ++
-                              if null proofs then "" else "\n\nProofs\n\n" ++ showpp proofs ++
+                              -- if null proofs then "" else "\n\nProofs\n\n" ++ showpp proofs ++
                               -- if null eqs' then "" else "\n\nCheckers\n\n" ++ showpp eqs' ++
                               "\n" )  
-                             (simpleEqs,) $ (emptyKnowledge context) {knTrues = tes, knFalses = fes, knSels =  sels, knEqs = eqs, knSims = aenvSimpl aenv, knChecks = eqs', 
-                             knAms = aenvEqs aenv, knPreds = askSMT }
+                             (simpleEqs,) $ (emptyKnowledge context) 
+                                 { knTrues  = tes
+                                 , knFalses = fes
+                                 , knSels   = sels
+                                 , knEqs    = eqs
+                                 , knSims   = aenvSimpl aenv
+                                 , knAms = aenvEqs aenv
+                                 , knPreds = askSMT 
+                                 }
   where
     (xv, sv) = (vv Nothing,  sr_sort $ snd $ head es)
     context :: Context
@@ -109,26 +116,22 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
       smtPop (aenvContext aenv)
       smtPush (aenvContext aenv)
       smtDecl (aenvContext aenv) xv sv 
---       smtDecls (aenvContext aenv) [(x, toSMT xv sv [] aenv s) | (x, RR s _) <- es]
---       smtAssert (aenvContext aenv) $ 
---       smtPop (aenvContext aenv)
+      smtAssert (aenvContext aenv) (pAnd ([toSMT xv sv [] aenv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv . expr) <$> es)))
       return (aenvContext aenv)
 
     noPKVar = null . kvars
 
-
     askSMT :: Context -> [(Symbol, Sort)] -> Expr -> Bool 
-    askSMT _ _ e | isTautoPred e = True 
-    askSMT _ _ e | isFalse e     = False 
+    askSMT _ _ e     | isTautoPred e = True 
+    askSMT _ _ e     | isFalse e     = False 
     askSMT cxt xss e | noPKVar e = unsafePerformIO $ do
         smtPush cxt
-        b <- checkValid' cxt [] (pAnd ([toSMT xv sv [] aenv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv . expr) <$> es))) (toSMT xv sv xss aenv e) 
+        b <- checkValid' cxt [] 
+                             PTrue -- (pAnd ([toSMT xv sv [] aenv $ PAtom F.Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv . expr) <$> es))) 
+                             (toSMT xv sv xss aenv e) 
         smtPop cxt
-        return b -- (if b then b else (T.trace ("\nFALSE Is\n" ++ showpp e  ++ "\nIMPLIED BY\n" ++ (L.intercalate "\n" (map (showpp . expr) es) )) b))  
-    askSMT _ _ _ = {- T.trace ("HAS KVARS\n" ++ showpp e) -} False
-    -- senv    = fromListSEnv (L.nub [(x, s) | (x, RR s _) <- es])
-
-
+        return b   
+    askSMT _ _ _ = False
 
     proofs = filter isProof es
     eqs = [(EVar x, ex) | Eq a _ bd <- filter ((null . eqArgs)) $ aenvEqs aenv, PAtom F.Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ] 
@@ -137,9 +140,7 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
     -- 1. when e2 is a data con and can lead to further reductions 
     -- 2. when size e2 < size e1 
     simpleEqs = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs 
-    eqs'      = [(e, dc) | (dc, _, e) <- dcEqs]
-    dcEqs = L.nub $ catMaybes $ [getDCEquality e1 e2 | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs)
-                                 , not (dummySymbol `elem` (syms e1 ++ syms e2))]
+    dcEqs = L.nub $ catMaybes $ [getDCEquality e1 e2 | PAtom F.Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs)]
     (tes, fes, sels) = mapThd3 concat $ mapSnd3 concat $ mapFst3 concat $ unzip3 (map go $ map expr es)
     go e = let es  = splitPAnd e
                su  = mkSubst [(x, EVar y) | PAtom F.Eq (EVar x) (EVar y) <- es ]
@@ -160,7 +161,7 @@ makeKnowledge aenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr 
 toSMT :: (Elaborate a, Defunc a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> a -> a 
 toSMT xv sv xs aenv 
   = defuncAny (aenvConfig aenv) (insertSEnv xv sv $ aenvFixEnv aenv) . 
-    elaborate "FOO" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv $ aenvFixEnv aenv) xs) 
+    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv $ aenvFixEnv aenv) xs) 
 
 
 makeSimplifications :: [Simplify] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
@@ -194,12 +195,9 @@ getDCEquality e1 e2
     getDC _ 
         = Nothing
 
-
-
 splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es 
 splitPAnd e         = [e]
-
 
 evaluate :: [(Symbol, SortedReft)] -> FuelMap -> AxiomEnv -> [Expr] -> [(Expr, Expr)] 
 evaluate facts fm' aenv einit 
@@ -253,10 +251,9 @@ eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
    = (e, "Knowledge") ~> e' 
 
-
 eval γ (ELam (x,s) e)
   = do let x' = makeLamArg s (1+(length $ knLams γ))  
-       e' <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
+       e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
        return $ ELam (x,s) $ subst1 e' (x', EVar x)
 
 eval γ (PAtom r e1 e2)
@@ -290,7 +287,7 @@ evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es 
-  = do e'    <- eval γ $ normalizeEval $ substPopIf (zip (smArgs simp) (id <$> es)) (smBody simp) 
+  = do e'    <- eval γ $ normalizeEval $ substPopIf (zip (smArgs simp) es) (smBody simp) 
        (e, "Simplify-" ++ showpp f) ~> e'
 
 evalApp γ _ (EVar f, es)
@@ -341,22 +338,6 @@ evalIte γ _ b e1 e2
        return $ EIte b e1' e2' 
 
 
-{-
-evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 _ 
-  | isTautoPred b 
-  = do e' <- eval γ e1
-       (e, "If-True")  ~> e'
-evalIte γ e b _ e2 
-  | isFalse b 
-  = do e' <- eval γ e2
-       (e, "If-False") ~> e'
-evalIte γ _ b e1 e2 
-  = do e1' <- eval γ e1 
-       e2' <- eval γ e2 
-       return $ EIte b e1' e2' 
--}
-
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr 
 substPopIf xes e = normalizeEval $ foldl go e xes  
   where
@@ -386,7 +367,6 @@ data Knowledge
        , knFalses :: ![Expr]
        , knSels   :: ![(Expr, Expr)]
        , knEqs    :: ![(Expr, Expr)]
-       , knChecks :: ![(Expr, Symbol)]
        , knSims   :: ![Simplify]
        , knAms    :: ![Equation]
        , knContext :: !Context
@@ -395,7 +375,7 @@ data Knowledge
        }
 
 emptyKnowledge :: Context -> Knowledge
-emptyKnowledge cxt = KN [] [] [] [] [] [] [] cxt (\_ _ _ -> False) []
+emptyKnowledge cxt = KN [] [] [] [] [] [] cxt (\_ _ _ -> False) []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr 
 lookupKnowledge γ e 
@@ -409,24 +389,9 @@ lookupKnowledge γ e
   | Just e' <- L.lookup e (knSels γ) 
   = Just e'
   | otherwise 
-  = Nothing -- checkChecker (knChecks γ) e 
-
-{- 
-checkChecker :: [(Expr,Symbol)] -> Expr -> Maybe Expr 
-checkChecker !dcEqs !(EApp (EVar isDC) e)
-  | Just dc <- L.lookup e dcEqs
-  , is_ == "is_"
-  = if dcName == dc then Just PTrue else Just PFalse
-  where 
-    (is_, dcName) = mapSnd symbol $ splitAt 3 $ symbolString isDC  
-
-checkChecker _ _ 
-  = Nothing  
--}
+  = Nothing 
 
 type EvalST = State EvalEnv
-
-
 
 grepTopApps :: Expr -> [Expr] 
 grepTopApps (PAnd es) = concatMap grepTopApps es 
