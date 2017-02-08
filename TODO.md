@@ -8,7 +8,7 @@
 ```haskell
 minmizeSol :: Solution -> SolveM Solution
 minimizeSol = undefined
- 
+
 minimizeConjuncts :: [(Pred, a)] -> [(Pred, a)]
 minimizeConjuncts ps = go ps []
   where

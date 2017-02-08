@@ -158,17 +158,20 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.Result (Integer, a))
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+       -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result _ wkl s = do
+result _cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  -- s' <- minimizeSolution s
-  return   $  F.Result (ci <$> stat) (Sol.result s)
+  F.Result (ci <$> stat) <$> solResult _cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
+
+solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult cfg = minimizeResult cfg . Sol.result
 
 result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
@@ -177,9 +180,25 @@ result_  w s = res <$> filterM (isUnsat s) cs
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+minimizeResult :: Config -> M.HashMap F.KVar F.Expr
+               -> SolveM (M.HashMap F.KVar F.Expr)
+--------------------------------------------------------------------------------
+minimizeResult cfg s
+  | minimalSol cfg = mapM minimizeConjuncts s
+  | otherwise      = return s
+
+minimizeConjuncts :: F.Expr -> SolveM F.Expr
+minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
+  where
+    go []     acc   = return acc
+    go (p:ps) acc   = do b <- isValid (F.pAnd (acc ++ ps)) p
+                         if b then go ps acc
+                              else go ps (p:acc)
+
+--------------------------------------------------------------------------------
 isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
