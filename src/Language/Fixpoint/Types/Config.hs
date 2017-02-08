@@ -55,6 +55,7 @@ defaultMinPartSize = 500
 defaultMaxPartSize :: Int
 defaultMaxPartSize = 700
 
+
 data Config
   = Config {
       srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c, or even *.fq or *.bfq)
@@ -78,6 +79,7 @@ data Config
     , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
     , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
     , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
+    , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
     , gradual     :: Bool                -- ^ solve "gradual" constraints
     , extensionality   :: Bool           -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
@@ -154,6 +156,7 @@ defConfig = Config {
   , minimize         = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
   , minimizeQs       = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , minimizeKs       = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
+  , minimalSol       = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual          = False &= help "Solve gradual-refinement typing constraints"
   , extensionality   = False &= help "Allow function extensionality axioms"
   , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"

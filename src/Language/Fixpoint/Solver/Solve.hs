@@ -98,7 +98,6 @@ solve_ cfg fi s0 ks wkl = do
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
-
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
 
@@ -159,16 +158,20 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.Result (Integer, a))
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+       -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result _ wkl s = do
+result _cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  return   $  F.Result (ci <$> stat) (Sol.result s)
+  F.Result (ci <$> stat) <$> solResult _cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
+
+solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult cfg = minimizeResult cfg . Sol.result
 
 result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
@@ -177,9 +180,35 @@ result_  w s = res <$> filterM (isUnsat s) cs
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
----------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | `minimizeResult` transforms each KVar's result to minimize it by removing
+--   predicates that are implied by others. That is,
+--
+--      minimizeConjuncts :: ps:[Pred] -> {qs:[Pred] | subset qs ps}
+--
+--   such that `minimizeConjuncts ps` is a minimal subset of ps where no
+--   is implied by /\_{q' in qs \ qs}
+--
+--------------------------------------------------------------------------------
+minimizeResult :: Config -> M.HashMap F.KVar F.Expr
+               -> SolveM (M.HashMap F.KVar F.Expr)
+--------------------------------------------------------------------------------
+minimizeResult cfg s
+  | minimalSol cfg = mapM minimizeConjuncts s
+  | otherwise      = return s
+
+minimizeConjuncts :: F.Expr -> SolveM F.Expr
+minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
+  where
+    go []     acc   = return acc
+    go (p:ps) acc   = do b <- isValid (F.pAnd (acc ++ ps)) p
+                         if b then go ps acc
+                              else go ps (p:acc)
+
+--------------------------------------------------------------------------------
 isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
