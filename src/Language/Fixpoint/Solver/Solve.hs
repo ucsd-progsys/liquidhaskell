@@ -98,7 +98,6 @@ solve_ cfg fi s0 ks wkl = do
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
-
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
 
@@ -166,6 +165,7 @@ result _ wkl s = do
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
+  -- s' <- minimizeSolution s
   return   $  F.Result (ci <$> stat) (Sol.result s)
   where
     ci c = (F.subcId c, F.sinfo c)
