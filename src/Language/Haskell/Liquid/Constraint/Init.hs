@@ -56,6 +56,10 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.ToFixpoint (fixConfig)
+import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
+
+import System.IO.Unsafe
 
 -- import Debug.Trace (trace)
 
@@ -309,7 +313,20 @@ makeAxiomEnvironment info xts
          (\_ -> allowRewrite    cfg)
          (\_ -> allowArithmetic cfg)
          (debugInstantionation cfg)
+         fixCfg
+         (makeContext cfg)
   where
+    fixCfg = fixConfig fileName cfg
+
+    makeContext cfg = unsafePerformIO $  do 
+                       ctx <- makeSmtContext (fixConfig fileName cfg) fileName []
+                           {-     $ L.nubBy (\(x,_) (y,_) -> x == y) 
+                                    [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ] -}
+                       smtPush ctx 
+                       return ctx 
+    fileName = head (files cfg)  ++ ".evals"
+    -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv 
+
     doExpand sub = allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
                    && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))

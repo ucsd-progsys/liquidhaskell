@@ -17,7 +17,6 @@ module Language.Haskell.Liquid.Liquid (
 
 import           Prelude hiding (error)
 import           Data.Bifunctor
-import           Data.Maybe
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
 -- import           Var                              (Var)
@@ -25,10 +24,9 @@ import           CoreSyn
 import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
-import           System.Console.CmdArgs.Default
 import           Control.Monad (when)
 import qualified Control.Exception as Ex
-import qualified Language.Fixpoint.Types.Config as FC
+-- import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
@@ -186,28 +184,6 @@ solveCs cfg tgt cgi info names = do
   let out0        = mkOutput cfg resModel sol (annotMap cgi)
   return          $ out0 { o_vars    = names    }
                          { o_result  = resModel }
-
-fixConfig :: FilePath -> Config -> FC.Config
-fixConfig tgt cfg = def
-  { FC.solver           = fromJust (smtsolver cfg)
-  , FC.linear           = linear            cfg
-  , FC.eliminate        = eliminate         cfg
-  , FC.nonLinCuts       = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
-  , FC.save             = saveQuery         cfg
-  , FC.srcFile          = tgt
-  , FC.cores            = cores             cfg
-  , FC.minPartSize      = minPartSize       cfg
-  , FC.maxPartSize      = maxPartSize       cfg
-  , FC.elimStats        = elimStats         cfg
-  , FC.elimBound        = elimBound         cfg
-  , FC.allowHO          = higherOrderFlag   cfg
-  , FC.allowHOqs        = higherorderqs     cfg
-  , FC.extensionality   = extensionality   cfg
-  , FC.alphaEquivalence = alphaEquivalence cfg
-  , FC.betaEquivalence  = betaEquivalence  cfg
-  , FC.normalForm       = normalForm       cfg
-  , FC.stringTheory     = stringTheory     cfg
-  }
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s
