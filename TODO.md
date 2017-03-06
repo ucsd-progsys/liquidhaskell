@@ -1,10 +1,15 @@
+
+
 # TODO
+
+## Beta-Equivalence
 
 * tests/pos/NormalForm.hs.fq
 
 ```haskell
 (\x y -> meraki x) == \x -> ((\z -> (\y -> meraki x)) (meraki x))
 ```
+
 
 BETA 1:
 

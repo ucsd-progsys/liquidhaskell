@@ -1,0 +1,22 @@
+
+qualif Zog(v:a) : (10 <= v)
+qualif Zog(v:a) : (9 <= v)
+qualif Zog(v:a) : (8 <= v)
+qualif Zog(v:a) : (99 <= v)
+
+constraint:
+  env []
+  lhs {v : int | (v = 100)}
+  rhs {v : int | $k0}
+  id 1 tag []
+
+constraint:
+  env []
+  lhs {v : int | $k0}
+  rhs {v : int | (15 <= v) }
+  id 1 tag []
+
+
+wf:
+  env [ ]
+  reft {v: int | $k0}
