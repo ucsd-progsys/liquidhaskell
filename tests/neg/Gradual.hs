@@ -1,5 +1,6 @@
 module Gradual where
 
+{-@ LIQUID "--gradual" @-}
 
 {-@ unsafe :: {v:Int | ?? } -> Int  -> (Int, Int) @-}
 unsafe :: Int -> Int -> (Int, Int)

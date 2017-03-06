@@ -1,5 +1,7 @@
 module Gradual where
 
+{-@ LIQUID "--gradual" @-}
+
 {-@ safe :: {v:Int | ?? } -> (Int, Int) @-}
 safe :: Int -> (Int, Int)
 safe x = (bar1 x, bar2 x)

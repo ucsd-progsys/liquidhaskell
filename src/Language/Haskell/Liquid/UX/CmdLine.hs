@@ -156,6 +156,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , gradual 
+    = def &= help "Enable gradual refinementtype checking"
+          &= name "gradual"
+
  , totalHaskell
     = def &= help "Check for termination and totality, Overrides no-termination flags"
           &= name "total-Haskell"
@@ -467,6 +471,7 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , gradual           = False 
                    , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
