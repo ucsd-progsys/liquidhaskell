@@ -40,7 +40,6 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtDecls
     , smtAssert
-    , smtPush 
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
