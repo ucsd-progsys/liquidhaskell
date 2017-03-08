@@ -182,14 +182,14 @@ result_  w s = res <$> filterM (isUnsat s) cs
 
 
 --------------------------------------------------------------------------------
--- | `minimizeResult` transforms each KVar's result to minimize it by removing
---   predicates that are implied by others. That is,
+-- | `minimizeResult` transforms each KVar's result by removing
+--   conjuncts that are implied by others. That is,
 --
 --      minimizeConjuncts :: ps:[Pred] -> {qs:[Pred] | subset qs ps}
 --
 --   such that `minimizeConjuncts ps` is a minimal subset of ps where no
 --   is implied by /\_{q' in qs \ qs}
---
+--   see: tests/pos/min00.fq for an example. 
 --------------------------------------------------------------------------------
 minimizeResult :: Config -> M.HashMap F.KVar F.Expr
                -> SolveM (M.HashMap F.KVar F.Expr)

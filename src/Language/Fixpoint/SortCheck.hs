@@ -111,14 +111,7 @@ instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x,) (elaborate msg env s)
 
 instance Elaborate a => Elaborate [a]  where
-  elaborate msg env xs = elaborate msg env <$> xs 
-
-  -- elaborate msg env e = {- tracepp _msg' -} e3
-    -- where
-      -- e1              = elabExpr msg env e
-      -- e2              = elabApply       e1
-      -- e3              = elabNumeric     e2
-      -- -- _msg' = msg ++ " ELABORATE e := " ++ showpp e
+  elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
 elabNumeric = mapExpr go
@@ -144,7 +137,6 @@ instance Elaborate BindEnv where
   elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
     where
       msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
-  --  (mapSnd (elaborate x env))
 
 instance Elaborate (SimpC a) where
   elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
@@ -159,16 +151,16 @@ elabExpr msg γ e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
       Right s  -> fst s
-  where
-    f   = (`lookupSEnvWithDistance` γ')
-    γ'  = γ `mappend` Thy.theorySEnv
-    d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
-               , nest 4 (pprint e)
-               , "with error"
-               , nest 4 (text m)
-               , "in environment"
-               , nest 4 (pprint $ subEnv γ' e)
-               ]
+    where
+      f   = (`lookupSEnvWithDistance` γ')
+      γ'  = γ `mappend` Thy.theorySEnv
+      d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
+                 , nest 4 (pprint e)
+                 , "with error"
+                 , nest 4 (text m)
+                 , "in environment"
+                 , nest 4 (pprint $ subEnv γ' e)
+                 ]
 
 elabApply :: Expr -> Expr
 elabApply = go
@@ -489,17 +481,17 @@ elab f (PAtom r e1 e2) = do
 
 elab f (PExist bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  let bs' = elaborate "PExist Args" mempty bs 
+  let bs' = elaborate "PExist Args" mempty bs
   return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  let bs' = elaborate "PAll Args" mempty bs 
+  let bs' = elaborate "PAll Args" mempty bs
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (addEnv f [(x,t)]) e
-  let t' = elaborate "ELam Arg" mempty t 
+  let t' = elaborate "ELam Arg" mempty t
   return (ELam (x,t') (ECst e' s), FFunc t s)
 
 elab _ (ETApp _ _) =
@@ -520,9 +512,9 @@ elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
   gT       <- generalize =<< checkExpr f g
   eT       <- checkExpr f e
-  (iT, oT) <- checkFunSort gT
+  (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
-  su       <- unifys f ge [oT, iT] [t, eT]
+  su       <- unifyMany f ge isu [oT, iT] [t, eT]
   let tg    = apply su gT
   g'       <- elabAs f tg g
   let te    = apply su eT
@@ -638,7 +630,10 @@ elabAppSort f e1 e2 s1 s2 = do
   let e = Just (EApp e1 e2)
   case s1' of
     FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    _          -> errorstar "elabAppSort"
+    FVar i     -> do j <- refresh 0 
+                     k <- refresh 0 
+                     (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
+    _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -661,9 +656,9 @@ checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
   gt       <- checkExpr f g >>= generalize
   et       <- checkExpr f e
-  (it, ot) <- checkFunSort gt
+  (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  θ        <- unifys f ge [it] [et]
+  θ        <- unifyMany f ge isu [it] [et]
   let t     = apply θ ot
   case to of
     Nothing    -> return (θ, t)
@@ -927,9 +922,12 @@ sortMap f t             = f t
 -- | Deconstruct a function-sort -----------------------------------------------
 --------------------------------------------------------------------------------
 
-checkFunSort :: Sort -> CheckM (Sort, Sort)
+checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
 checkFunSort (FAbs _ t)    = checkFunSort t
-checkFunSort (FFunc t1 t2) = return (t1, t2)
+checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
+checkFunSort (FVar i)      = do j <- refresh 0 
+                                k <- refresh 0 
+                                return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
 checkFunSort t             = throwError $ errNonFunction 1 t
 
 {-
@@ -1002,7 +1000,7 @@ errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
 
 errNonFunction :: Int -> Sort -> String
-errNonFunction i t   = printf "The sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
+errNonFunction i t   = printf "The sort %s is not a function with at least %s arguments\n" (showpp t) (showpp i)
 
 errNonNumeric :: Sort -> String
 errNonNumeric  l     = printf "The sort %s is not numeric" (showpp l)
