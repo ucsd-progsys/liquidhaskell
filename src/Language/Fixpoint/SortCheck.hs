@@ -192,7 +192,7 @@ elabApply = go
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
     step (ELam b e)       = ELam b (go e)
-    step e@PGrad          = e
+    step (PGrad k su e)   = PGrad k su (go e)
     step e@(PKVar {})     = e
     step e@(ESym {})      = e
     step e@(ECon {})      = e
@@ -377,7 +377,7 @@ checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
-checkExpr _ PGrad          = return boolSort
+checkExpr f (PGrad _ _ e)  = checkPred f e >> return boolSort
 
 checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
@@ -425,8 +425,8 @@ elab _ e@(ECon (L _ s)) =
 elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab _ e@PGrad =
-  return (e, boolSort)
+elab f (PGrad k su e) = 
+  ((, boolSort) . PGrad k su . fst) <$> elab f e 
 
 elab f e@(EVar x) =
   (e,) <$> checkSym f x

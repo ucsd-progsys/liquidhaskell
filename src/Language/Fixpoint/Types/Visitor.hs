@@ -157,7 +157,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
-    step _ PGrad           = return PGrad
+    step c (PGrad k su e)  = PGrad k su <$> vE c e 
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -183,7 +183,7 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go e@PGrad         = f e
+    go (PGrad k su e)  = f =<< (PGrad k su  <$>  go e                     )
     go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
     go (PNot p)        = f =<< (PNot        <$>  go p                     )
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )

@@ -26,8 +26,6 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
 import           Control.DeepSeq
-import           Data.List  (sort)
-import           Data.Maybe (catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -238,18 +236,24 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 
 --------------------------------------------------------------------------------
--- | RJ: @nikivazou please add some description here of what this does.
+-- | Solve with Gradual Types: 
+-- | replace the unsat VC
+-- | x1:r1, ... xi:??, ..., xn:rn |- p => q
+-- | with 
+-- | x1:r1, ... xi:forall x1..xi-1. (r1 ... /\ ri-1 => q), ... xn:rn |- p => q
 --------------------------------------------------------------------------------
+
 gradualSolve :: (Fixpoint a)
              => Config
              -> F.FixResult (F.SimpC a)
              -> SolveM (F.FixResult (F.SimpC a))
+gradualSolve _  r = return r
+{-
 gradualSolve cfg (F.Unsafe cs)
   | gradual cfg   = go cs
   where
     go cs         = smtEnablembqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
     makeResult    = applyNonNull F.Safe F.Unsafe
-gradualSolve _  r = return r
 
 gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
 gradualSolveOne c =
@@ -264,7 +268,7 @@ gradualSolveOne c =
 
 makeGradualExpression :: [(F.Symbol, F.SortedReft)] -> [(F.Symbol, F.SortedReft)] -> F.Expr -> F.Expr
 makeGradualExpression γ γ' p
-  = F.PAnd [F.PAll bs (F.PImp gs p), gs]
+  = F.PAll bs (F.PImp gs p)
   where
     bs = [ (x, s) | (x, F.RR s _) <- γ']
     gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
@@ -301,6 +305,7 @@ removePGrads F.PGrad
   = Just []
 removePGrads _
   = Nothing
+-}
 
 {-
 ---------------------------------------------------------------------------

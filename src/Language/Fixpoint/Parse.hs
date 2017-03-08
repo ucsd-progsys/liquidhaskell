@@ -78,6 +78,7 @@ module Language.Fixpoint.Parse (
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
+import qualified Data.List                   as L
 import           Data.Maybe                  (fromJust, fromMaybe)
 import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
@@ -466,7 +467,7 @@ bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
-      <|> try (reserved "??" >> return PGrad)
+      <|> try (reserved "??" >> makeUniquePGrad)
       <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP
@@ -474,8 +475,20 @@ pred0P =  trueP
       <|> try (reserved "?" *> exprP)
       <|> try funAppP
       <|> try (eVar <$> symbolP)
-      <|> try (reservedOp "&&" >> PAnd <$> predsP)
+      <|> try (reservedOp "&&" >> gradualPAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
+
+makeUniquePGrad :: Parser Expr 
+makeUniquePGrad
+  = do uniquePos <- getPosition
+       return $ PGrad (KV $ symbol $ show uniquePos) mempty mempty
+
+gradualPAnd :: [Expr] -> Expr
+gradualPAnd es 
+  = case L.partition isGradual es of 
+     ([PGrad k su _], es) -> PGrad k su (pAnd es)
+     _ -> pAnd es   
+
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
