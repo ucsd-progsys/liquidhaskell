@@ -18,7 +18,7 @@
 --   `EApp` and `ELam` to determine the lambdas and redexes.
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Defunctionalize (defunctionalize) where
+module Language.Fixpoint.Defunctionalize (defunctionalize, Defunc(..), defuncAny, makeLamArg) where
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
@@ -36,6 +36,10 @@ import           Language.Fixpoint.Types.Visitor   (mapMExpr, stripCasts)
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
+
+defuncAny :: Defunc a => Config -> SEnv Sort -> a -> a 
+defuncAny cfg env e = evalState (defunc e) (makeDFState cfg env emptyIBindEnv)
+
 
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------
@@ -60,7 +64,7 @@ maxLamArg = 7
 
 -- NIKI TODO: allow non integer lambda arguments
 -- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
-makeLamArg :: Sort -> Int  -> Symbol
+makeLamArg :: Sort -> Int -> Symbol
 makeLamArg _ = intArgName
 
 --------------------------------------------------------------------------------
@@ -282,13 +286,14 @@ data DFST = DFST
   , dfBinds :: !(SEnv Sort) -- ^ sorts of new lambda-binders
   }
 
-makeInitDFState :: Config -> SInfo a -> DFST
-makeInitDFState cfg si = DFST
+
+makeDFState :: Config -> SEnv Sort -> IBindEnv -> DFST
+makeDFState cfg senv ibind = DFST
   { dfFresh = 0
-  , dfEnv   = symbolEnv cfg si -- NOPROP fromListSEnv xs
-  , dfBEnv  = mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si)))
+  , dfEnv   = senv 
+  , dfBEnv  = ibind
   , dfLam   = True
-  , dfExt   = False -- extensionality   cfg
+  , dfExt   = False 
   , dfAEq   = alphaEquivalence cfg
   , dfBEq   = betaEquivalence  cfg
   , dfNorm  = normalForm       cfg
@@ -299,6 +304,13 @@ makeInitDFState cfg si = DFST
   , dfRedex = []
   , dfBinds = mempty
   }
+
+
+makeInitDFState :: Config -> SInfo a -> DFST
+makeInitDFState cfg si 
+  = makeDFState cfg 
+         (symbolEnv cfg si) 
+         (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
 
 --------------------------------------------------------------------------------
 -- | Low level monad manipulation ----------------------------------------------
