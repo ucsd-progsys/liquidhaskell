@@ -39,6 +39,7 @@ module Language.Fixpoint.Smt.Interface (
     -- * Query API
     , smtDecl
     , smtAssert
+    , smtPush 
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
@@ -47,6 +48,7 @@ module Language.Fixpoint.Smt.Interface (
 
     -- * Check Validity
     , checkValid
+    , checkValid'
     , checkValidWithContext
     , checkValids
     , makeSmtContext
