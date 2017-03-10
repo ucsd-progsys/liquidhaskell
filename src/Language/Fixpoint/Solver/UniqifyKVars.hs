@@ -39,7 +39,7 @@ import qualified Data.HashMap.Strict as M
 import           Data.Foldable       (foldl')
 
 --------------------------------------------------------------------------------
-wfcUniqify    :: SInfo a -> SInfo a
+wfcUniqify    :: Fixpoint a => SInfo a -> SInfo a
 wfcUniqify fi = updateWfcs $ remakeSubsts fi
 
 
@@ -48,7 +48,10 @@ wfcUniqify fi = updateWfcs $ remakeSubsts fi
 --------------------------------------------------------------------------------
 remakeSubsts :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
-remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
+remakeSubsts fi = mapKVarSubsts (remakeSubst fi) (makeSubst fi) fi
+
+makeSubst :: SInfo a -> KVar -> Subst 
+makeSubst fi k = mkSubst [(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k]
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
 remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
@@ -66,14 +69,14 @@ updateSubst k (Su su) sym
 -- /  | otherwise         = Su $                M.insert ksym (eVar sym)   su
 
 --------------------------------------------------------------------------------
-updateWfcs :: SInfo a -> SInfo a
+updateWfcs :: Fixpoint a => SInfo a -> SInfo a
 --------------------------------------------------------------------------------
 updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 
-updateWfc :: SInfo a -> WfC a -> SInfo a
+updateWfc :: Fixpoint a => SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
-    w'            = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
+    w'            = updateWfCExpr (subst (makeSubst fi k) .  (`subst1` (v, EVar v'))) (w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) })
     (_, fi'')     = newBind v' (trueSortedReft t) fi'
     (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w

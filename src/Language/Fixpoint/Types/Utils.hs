@@ -16,12 +16,12 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 -- import           Data.Either (mapEither)
 
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
-import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Misc (mapEither, fst3)
+-- import           Language.Fixpoint.Types.Sorts
 
 --------------------------------------------------------------------------------
 -- | Compute the domain of a kvar
@@ -46,13 +46,21 @@ reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 --------------------------------------------------------------------------------
 -- | Split a SortedReft into its concrete and KVar components
 --------------------------------------------------------------------------------
-sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub])
-sortedReftConcKVars x sr = mapEither (exprKind t) ves
+sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub], [KVSub])
+sortedReftConcKVars x sr = go [] [] [] ves -- mapEither (exprKind t) ves
   where
     ves                  = [(v, p `subst1` (v, eVar x)) | Reft (v, p) <- rs ]
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
+    go ps ks gs ((v, PKVar k su  ):xs) = go ps (KVS v t k su:ks) gs xs 
+    go ps ks gs ((v, PGrad k su _):xs) = go ps ks (KVS v t k su:gs) xs 
+    go ps ks gs ((_, p):xs)            = go (p:ps) ks gs xs 
+    go ps ks gs []                     = (ps, ks, gs)
+
+{- 
 exprKind :: Sort -> (Symbol, Expr) -> Either Expr KVSub
-exprKind t (v, PKVar k su) = Right (KVS v t k su)
-exprKind _ (_, p         ) = Left p
+exprKind t (v, PKVar k su)   = Right (KVS v t k su)
+exprKind t (v, PGrad k su _) = Right (KVS v t k su)
+exprKind _ (_, p         )   = Left p
+-}

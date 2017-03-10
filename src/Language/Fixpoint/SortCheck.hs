@@ -791,7 +791,7 @@ checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractiona
 checkRelTy f e Eq t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy f e Ne t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 
-checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
+checkRelTy _ e _  t1 t2            = unless (t1 == t2 && t1 /= boolSort) (throwError $ errRel e t1 t2)
 
 --------------------------------------------------------------------------------
 -- | Sort Unification

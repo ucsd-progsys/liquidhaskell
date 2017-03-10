@@ -489,6 +489,10 @@ gradualPAnd es
      ([PGrad k su _], es) -> PGrad k su (pAnd es)
      _ -> pAnd es   
 
+pGAnd :: Expr -> Expr -> Expr 
+pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q]) 
+pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q]) 
+pGAnd p q = pAnd [p,q]
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
@@ -515,7 +519,7 @@ predP  = buildExpressionParser lops pred0P
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reservedOp "not " >> return PNot)]
-           , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+           , [Infix  (reservedOp "&&"   >> return (\x y -> pGAnd x y)) AssocRight]
            , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
            , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
            , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]

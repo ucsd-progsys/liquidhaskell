@@ -45,7 +45,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import           Language.Fixpoint.Types hiding (mapSort)
-import           Language.Fixpoint.Misc (count, sortNub)
+import           Language.Fixpoint.Misc (count, sortNub, traceShow)
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -170,6 +170,8 @@ mapKVars' f            = trans kvVis () []
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
+    txK _ (PGrad k su _)
+      | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
@@ -201,13 +203,14 @@ mapMExpr f = go
     go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
     go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
-mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
-mapKVarSubsts f        = trans kvVis () []
+mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> (KVar -> Subst)  -> t -> t
+mapKVarSubsts f g        = trans kvVis () []
   where
-    kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su) = PKVar k (f k su)
-    txK _ p            = p
-
+    kvVis                = defaultVisitor { txExpr = txK }
+    txK _ (PKVar k su)   = PKVar k (f k su)
+    txK _ (PGrad k su e) = PGrad k (f k su) (traceShow ("SUBSTITUTED") $ subst (g k) e)
+    txK _ p              = p
+  
 newtype MInt = MInt Integer
 
 instance Monoid MInt where
@@ -240,8 +243,9 @@ kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []
   where
     kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
-    kv' _ (PKVar k _) = [k]
-    kv' _ _           = []
+    kv' _ (PKVar k _)   = [k]
+    kv' _ (PGrad k _ _) = [k]
+    kv' _ _             = []
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
@@ -266,6 +270,7 @@ isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
 isKvar (PKVar {}) = True
+isKvar (PGrad {}) = True 
 isKvar _          = False
 
 isConc :: Expr -> Bool

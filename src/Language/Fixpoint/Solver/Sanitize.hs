@@ -116,7 +116,7 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
 -- | `dropDeadSubsts` removes dead `K[x := e]` where `x` NOT in the domain of K.
 --------------------------------------------------------------------------------
 dropDeadSubsts :: F.SInfo a -> F.SInfo a
-dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
+dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) (\_ -> mempty) si
   where
     kvsM          = M.mapWithKey (\k _ -> kvDom k) (F.ws si)
     kvDom         = S.fromList . F.kvarDomain si

@@ -74,18 +74,19 @@ ignoreQualifiers cfg fi
 --------------------------------------------------------------------------------
 solve :: (NFData a, Fixpoint a) => Solver a
 --------------------------------------------------------------------------------
-solve cfg q
+solve cfg q0
   | parts cfg      = partition  cfg        $!! q
   | stats cfg      = statistics cfg        $!! q
   | minimize cfg   = minQuery   cfg solve' $!! q
   | minimizeQs cfg = minQuals cfg solve'   $!! q
   | minimizeKs cfg = minKvars cfg solve'   $!! q
   | otherwise      = solve'     cfg        $!! q
+  where q = traceWfc (-3) q0 
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
-  when (save cfg) $ saveQuery   cfg q
-  configSW  cfg     solveNative cfg q
+  when (save cfg) $ saveQuery   cfg q 
+  configSW  cfg     solveNative cfg q 
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
@@ -171,7 +172,7 @@ solveNative' !cfg !fi0 = do
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
   -- whenLoud $ print qs
-  let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
+  let fi1  = fi0 { quals = remakeQual <$> quals (traceWfc 0 fi0) }
   -- whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
@@ -180,11 +181,11 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
-  let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll"  #-} renameAll  $!! si2
+  let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! (straceWfc 1 si1)
+  let si3  = {-# SCC "renameAll"  #-} renameAll  $!! (straceWfc 2 si2)
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
-  let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
+  let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! (straceWfc 3 si3)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
   let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
@@ -197,6 +198,13 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
+
+traceWfc :: Fixpoint a => Int -> FInfo a -> FInfo a
+traceWfc i !fi = fi {ws = traceShow ("\nWFC AT " ++ show i) (ws fi)}
+
+straceWfc :: Fixpoint a => Int -> SInfo a -> SInfo a
+straceWfc i !fi = fi {ws = traceShow ("\nWFC AT " ++ show i) (ws fi)}
+
 
 --------------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ---------------------------------------

@@ -140,7 +140,7 @@ reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else ((pAnd ps) : ks)
-    (ks, ps)                 = partition isKvar $ refaConjuncts ra
+    (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -381,7 +381,7 @@ instance Fixpoint Expr where
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix (PGrad _ _ e)    = toFix e <+> text "&&" <+> text "??"
+  toFix (PGrad k su e)    = toFix e <+> text "&&" <+> text "??" <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue

@@ -1,7 +1,8 @@
-{-# LANGUAGE PatternGuards    #-}
-{-# LANGUAGE TupleSections    #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards     #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns      #-}
 
 --------------------------------------------------------------------------------
 -- | Solve a system of horn-clause constraints ---------------------------------
@@ -9,11 +10,12 @@
 
 module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
 
-import           Control.Monad (when, filterM)
+import           Control.Monad (when, filterM, foldM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types           as F
-import qualified Language.Fixpoint.Types.Solutions as Sol --F
+import qualified Language.Fixpoint.Types.Solutions as Sol
+import qualified Language.Fixpoint.SortCheck       as So
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -85,9 +87,10 @@ solve_ :: (NFData a, F.Fixpoint a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
-  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s       <- {-# SCC "sol-refine" #-} refine s0' wkl
-  res     <- {-# SCC "sol-result" #-} result cfg wkl s
+  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
+  s2      <- {-# SCC "sol-grad-local" #-} filterLocal (traceShow "INIT SOL" s1) 
+  s       <- {-# SCC "sol-refine" #-} refine  (traceShow "EDITED SOL" s2) wkl
+  res     <- {-# SCC "sol-result" #-} result cfg wkl (traceShow "FINAL SOL" s)
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
@@ -105,10 +108,48 @@ tidySolution = fmap tidyPred
 tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
+
+filterLocal :: Sol.Solution -> SolveM Sol.Solution 
+filterLocal !sol = do 
+  gs' <- mapM (initGBind sol) gs 
+  return $ Sol.updateGMap sol $ M.fromList gs'
+  where 
+    gs = M.toList $ Sol.gMap sol 
+
+initGBind :: Sol.Solution -> (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind)) -> SolveM (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind))
+initGBind sol (k, (e, gb)) = ((k,) . (e,) . Sol.equalsGb) <$> ( 
+   filterM (isLocal e) ([Sol.trueEqual]:Sol.gbEquals gb)
+   >>= \elems -> makeLattice 1 [] (traceShow "\nSTEP 0 :: \n" elems) (head <$> elems))  -- go [] (Sol.gbEquals gb) -- Sol.gbFilterM (isLocal e) gb 
+  where
+    makeLattice i acc new elems
+      | null new
+      = return acc 
+      | otherwise
+      = do let cands = [e:es |e<-elems, es <- new]
+           localCans <- filterM (isLocal e) cands
+           newElems  <- filterM (notTrivial (new ++ acc)) localCans 
+           makeLattice (i+1) (acc ++ new) (traceShow ("\nSTEP " ++ show i ++ ":: \n") newElems) elems
+
+    notTrivial [] _     = return True 
+    notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
+                             if v then return $ traceShow ("\nREJECT P " ++ showpp (mkPred p) ++ " FROM " ++  showpp (mkPred x)) False 
+                                  else notTrivial xs p 
+
+    mkPred eq = So.elaborate "initBGind.mkPred" (Sol.sEnv sol) (F.pAnd (Sol.eqPred <$> eq))
+
+    -- local e eqs <=> \exists v . 
+    isLocal (v, e) eqs = do 
+      let pp = So.elaborate "filterLocal" (Sol.sEnv sol) $ F.PExist [v] $ F.pAnd (e:(Sol.eqPred <$> eqs)) 
+      v <- isValid mempty pp --  errorstar ("\nSOL = \n" ++ "\nIs local " ++ (showpp $ pp))
+      return $ traceShowp (show v ++ "isLocal CHECKED FOR " ++ showpp eqs ++ "\nPRED = \n" ++ showpp pp) v
+
+traceShowp :: Show a => String -> a -> a 
+traceShowp !str e = traceShow str e 
+
 --------------------------------------------------------------------------------
 refine :: Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
 --------------------------------------------------------------------------------
-refine s w
+refine !s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
      (b, s') <- refineC i s c
@@ -129,9 +170,9 @@ refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = {- F.tracepp ("LHS at " ++ show _i) $ -} S.lhsPred be s c
+                   let lhs = F.notracepp ("LHS at " ++ show _i) $ S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
+                   return  $ S.update s ks $ traceShow ("VALID KS = ") kqs
   where
     _ci       = F.subcId c
     (ks, rhs) = rhsCands s c
@@ -159,18 +200,18 @@ predKs _              = []
 result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result cfg wkl s = do
+result cfg wkl !s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s >>= gradualSolve cfg
+  stat    <- result_ wkl s -- >>= gradualSolve cfg
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult cfg s
+  F.Result (ci <$> stat) <$> solResult wkl cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
 
-solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
-solResult cfg = minimizeResult cfg . Sol.result
+solResult :: Fixpoint a => W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult w cfg sol = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
 
-result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ ::Fixpoint a =>  W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
@@ -203,17 +244,38 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
                          if b then go ps acc
                               else go ps (p:acc)
 
+
 --------------------------------------------------------------------------------
-isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
+updateGradualSolution :: Fixpoint a => [F.SimpC a] -> Sol.Solution -> SolveM (Sol.Solution)
+--------------------------------------------------------------------------------
+updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs 
+  where
+   f s c = do
+    be <- getBinds
+    let lpi = S.lhsPredGradual be sol c 
+    let rp  = rhsPred c 
+    gbs    <- firstValid rp lpi 
+    return $ traceShow ("UPDATE SOLUTION FOR " ++ show (F._cid c) ++ "\n LEN GBS" ++ show (length gbs) ++ "\n\n" ++ show lpi ++ "\n\n" ++ showpp gbs  ++ "\nCONSTRAIN: \n" ++ show c) $ Sol.updateGMapWithKey gbs s 
+
+
+firstValid :: Monoid a =>  F.Expr -> [(a, F.Expr)] -> SolveM a 
+firstValid _   [] = return mempty 
+firstValid rhs ((y,lhs):xs) = do
+  v <- isValid lhs rhs
+  if v then return y else firstValid rhs xs 
+
+
+--------------------------------------------------------------------------------
+isUnsat :: Fixpoint a => Sol.Solution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
-  let lp = S.lhsPred be s c
+  let lpi = S.lhsPredGradual be s c
   let rp = rhsPred        c
-  res   <- not <$> isValid lp rp
-  lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
+  res   <- (not . or) <$> mapM (`isValid` rp) (snd <$> lpi)
+  lift   $ whenLoud $ showUnsat res (F.subcId c) (F.pOr (snd <$> lpi)) rp
   return res
 
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
@@ -232,7 +294,7 @@ rhsPred c
   | otherwise  = errorstar $ "rhsPred on non-target: " ++ show (F.sid c)
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
-isValid p q = (not . null) <$> filterValid p [(q, ())]
+isValid !p !q = (not . null) <$> filterValid [p] [(q, ())]
 
 
 --------------------------------------------------------------------------------

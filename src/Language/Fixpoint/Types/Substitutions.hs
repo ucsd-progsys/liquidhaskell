@@ -38,7 +38,10 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
     s1'                     = subst θ2 <$> s1
 
 mkSubst :: [(Symbol, Expr)] -> Subst
-mkSubst = Su . M.fromList . reverse
+mkSubst = Su . M.fromList . reverse . filter (not. trivialEq)
+  where
+    trivialEq (x, EVar y) = x == y
+    trivialEq _           = False 
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = M.null xes
@@ -117,6 +120,7 @@ instance Subable Expr where
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
   substf _ p@(PKVar _ _)   = p
   substf _  (PAll _ _)     = errorstar "substf: FORALL"
+  substf f (PGrad k su e)  = PGrad k su (substf f e)
   substf _  p              = p
 
 
@@ -134,6 +138,7 @@ instance Subable Expr where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
+  subst su (PGrad k su' e) = PGrad k (su' `catSubst` su)  (subst su e)
   subst su (PAll bs p)
           | disjoint su bs = PAll bs $ subst su p --(substExcept su (fst <$> bs)) p
           | otherwise      = errorstar "subst: PAll (without disjoint binds)"

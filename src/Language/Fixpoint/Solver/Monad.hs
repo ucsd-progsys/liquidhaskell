@@ -46,7 +46,8 @@ import           Language.Fixpoint.Solver.Sanitize
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
-import           Data.Maybe           (catMaybes)
+-- import           Data.Maybe           (catMaybes)
+import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
@@ -174,7 +175,7 @@ filterRequired = error "TBD:filterRequired"
 --------------------------------------------------------------------------------
 -- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
-filterValid :: F.Expr -> F.Cand a -> SolveM [a]
+filterValid :: [F.Expr] -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
@@ -186,14 +187,24 @@ filterValid p qs = do
   incVald (length qs')
   return qs'
 
-filterValid_ :: F.Expr -> F.Cand a -> Context -> IO [a]
-filterValid_ p qs me = catMaybes <$> do
+
+filterValid_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
+filterValid_ ps qs me 
+  = snd <$> foldM f (qs, []) ps
+  where
+    f :: (F.Cand a, [a]) -> F.Expr -> IO (F.Cand a, [a])
+    f (qs, ok) p = do 
+      (valids, invalids) <- partition snd <$> filterValidOne_ p qs me 
+      return (fst <$> invalids, ok ++ ((snd . fst) <$> valids))
+
+filterValidOne_ :: F.Expr -> F.Cand a -> Context -> IO [((F.Expr, a), Bool)]
+filterValidOne_ p qs me = do
   smtAssert me p
   forM qs $ \(q, x) ->
     smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
-      return $ if valid then Just x else Nothing
+      return $ ((q, x), valid)
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi

@@ -30,7 +30,7 @@ module Language.Fixpoint.Types.Constraints (
   , fi
 
   -- * Constraints
-  , WfC (..)
+  , WfC (..), isGWfc, updateWfCExpr
   , SubC, SubcId
   , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
@@ -45,6 +45,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
+  , trueQual
   , qualifier
   , mkQual, remakeQual
 
@@ -96,11 +97,25 @@ import qualified Data.HashSet              as S
 
 type Tag           = [Int]
 
-data WfC a  = WfC  { wenv  :: !IBindEnv
-                   , wrft  :: (Symbol, Sort, KVar)
-                   , winfo :: !a
-                   }
+data WfC a  =  WfC  { wenv  :: !IBindEnv
+                    , wrft  :: (Symbol, Sort, KVar)
+                    , winfo :: !a
+                    }
+             | GWfC { wenv  :: !IBindEnv
+                    , wrft  :: !(Symbol, Sort, KVar)
+                    , winfo :: !a
+                    , wexpr :: !Expr
+                    }
               deriving (Eq, Generic, Functor)
+
+
+updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a 
+updateWfCExpr _ w@(WfC {})  = w 
+updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
+
+isGWfc :: WfC a -> Bool 
+isGWfc (GWfC _ _ _ _) = True 
+isGWfc (WfC _ _ _)    = False 
 
 type SubcId = Integer
 
@@ -223,6 +238,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
               $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
+              $+$ if (isGWfc w) then (toFixMeta (text "expr") (toFix (wexpr w))) else mempty
           (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
@@ -256,17 +272,22 @@ instance (NFData a) => NFData (Result a)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst sus
-                then [WfC be (v, sr_sort sr, k) x | k <- ks]
+wfC be sr x = if all isEmptySubst (sus ++ gsus)
+                then [WfC be (v, sr_sort sr, k) x | k <- ks] ++ [GWfC be (v, sr_sort sr, k) x e | (k, e) <- gs ]
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
+    (gs, gsus)      = unzip $ go' ras
 
     go (PKVar k su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
+
+    go' (PGrad k su e) = [((k, e), su)]
+    go' (PAnd es)      = concatMap go' es 
+    go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC
@@ -307,6 +328,9 @@ data Qualifier = Q { qName   :: !Symbol          -- ^ Name
                    , qPos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
+
+trueQual :: Qualifier
+trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
 
 instance Loc Qualifier where
   srcSpan q = SS l l
@@ -543,7 +567,7 @@ writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 ---------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 ---------------------------------------------------------------------------
-convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
+convertFormat fi = fi' { cm = subcToSimpc <$> cm fi', ws = traceShow ("INIT WFC ") (ws fi)  }
   where
     fi'          = M.foldlWithKey' blowOutVV fi $ cm fi
 

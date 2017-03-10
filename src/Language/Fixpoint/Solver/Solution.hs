@@ -10,6 +10,7 @@ module Language.Fixpoint.Solver.Solution
 
   -- * Lookup Solution
   , lhsPred
+  , lhsPredGradual
   ) where
 
 import           Control.Parallel.Strategies
@@ -40,19 +41,29 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
 --------------------------------------------------------------------------------
-init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
+init :: F.Fixpoint a => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv keqs [] mempty
+init cfg si ks = Sol.fromList senv geqs keqs [] mempty
   where
-    keqs       = map (refine si qs genv) ws `using` parList rdeepseq
+    keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
+    geqs       = map (refineG si qs genv) gs `using` parList rdeepseq
     qs         = F.quals si
-    ws         = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks]
+    ws         = [ w | (k, w) <- ws0, k `S.member` ks]
+    gs         = snd <$> gs0
     genv       = instConstants si
     senv       = symbolEnv cfg si
 
+    (gs0,ws0)  = L.partition (isGWfc . snd) $ M.toList (F.ws si)
+
 --------------------------------------------------------------------------------
+refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (((F.Symbol,F.Sort), F.Expr), Sol.GBind))
+refineG fi qs genv w = (k, (((fst3 $ wrft w, snd3 $ wrft w), wexpr w), Sol.qbToGb qb))
+  where 
+    (k, qb) = refine fi qs genv w 
+
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
+refine fi qs genv w 
+  = refineK (allowHOquals fi) env qs $ F.wrft w
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
@@ -136,8 +147,17 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
+lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> [F.Expr]
+lhsPred be s c = (F.notracepp _msg . fst) <$> apply g s bs
+  where
+    g          = (ci, be, bs)
+    bs         = F.senv c
+    ci         = sid c
+    _msg       = "LhsPred for id = " ++ show (sid c)
+
+
+lhsPredGradual :: F.SolEnv -> Sol.Solution -> F.SimpC a -> [([(F.KVar, Sol.QBind)],F.Expr)]
+lhsPredGradual be s c = applyGradual g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -148,29 +168,66 @@ type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
-apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> ExprInfo
-apply g s bs     = (F.pAnd (pks : ps), kI)
+applyGradual        :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [([(F.KVar, Sol.QBind)],F.Expr)]
+applyGradual g s bs = [(fst (unzip l) , F.pAnd (pks:ps++snd (unzip l))) | l <- pgs ]
   where
-    (pks, kI)    = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
-    (ps,  ks)    = envConcKVars g bs
+    pgs           = allCombinations $ applyGVars g s gs
+    pks           = fst $ applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (ps,  ks, gs) = envConcKVars g bs
 
-envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub])
-envConcKVars g bs = (concat pss, concat kss)
+
+-- pgs :: [((F.KVar, Sol.QBind), F.Expr)]
+{- 
+ [(k1:1, e12), (k1:2, e12)], [(k2:1, e21), (k2:2, e22)]
+-> [(k1:1, e12), (k2:1, e21)] , ...
+-}
+
+apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [ExprInfo]
+apply g s bs     
+  = if null pgs 
+        then errorstar ("NOT SAME LEN " ++ show (length gs, lengths (applyGVars g s gs), lengths pgs)) -- [(F.pAnd (pks:ps), kI)] 
+        else [(F.pAnd (pks:ps++qs), kI) | qs <- pgs ]
   where
-    (pss, kss)    = unzip [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs           = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
-    is            = F.elemsIBindEnv bs
-    be            = F.soeBinds (snd3 g)
+    pgs           = allCombinations $ map (map snd) (applyGVars g s gs)
+    (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (ps,  ks, gs) = envConcKVars g bs
+
+
+
+lengths :: [[a]] -> (Int, [Int])
+lengths xs = (length xs, map length xs)
+
+envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
+envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
+  where
+    (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+    xrs             = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
+    is              = F.elemsIBindEnv bs
+    be              = F.soeBinds (snd3 g)
+
+applyGVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> [[((F.KVar, Sol.QBind), F.Expr)]]
+applyGVars g s = map (applyGVar g s)
+
+applyGVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> [((F.KVar, Sol.QBind), F.Expr)]
+applyGVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+  Right (Right (e,eqss)) -> [((F.ksuKVar ksu, eqs), F.pAnd ((F.subst su (snd e)):(fst <$> Sol.qbPreds msg s su eqs))) | eqs <- Sol.gbToQbs eqss]
+  _                      -> []
+  where
+    msg     = "applyGVar: " ++ show (fst3 g)
+    su      = F.ksuSubst ksu
+
+
 
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat 
 
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
-  Left cs   -> hypPred g s ksu cs
-  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right (Right _) -> (mempty,mempty) -- NV: TODO turn this into an error
+  Left cs          -> hypPred g s ksu cs
+  Right (Left eqs) -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
-    msg     = "applyKVar: " ++ show (fst3 g) ++ show ksu
+    msg     = "applyKVar: " ++ show (fst3 g) 
 
 hypPred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
@@ -219,7 +276,7 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     cubeP           = ( xts, psu, elabExist s yts' (p' &.& psu') )
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
-    (p', kI)        = apply g' s bs'
+    (p', kI)        = safeHead "cubePredExc" $ apply g' s bs'
     (_  , psu')     = substElim sEnv g' k su'
     (xts, psu)      = substElim sEnv g  k su
     su'             = Sol.cuSubst c
