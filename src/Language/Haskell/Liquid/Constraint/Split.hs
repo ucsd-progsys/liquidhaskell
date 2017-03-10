@@ -80,6 +80,9 @@ splitW (WfC γ (RAllT a r))
 splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
+splitW (WfC γ (RAllS _ r))
+  = splitW (WfC γ r)
+
 splitW (WfC γ t@(RVar _ _))
   = bsplitW γ t
 
@@ -101,6 +104,9 @@ splitW (WfC γ (REx x tx t))
         γ'  <- γ += ("splitW2", x, tx)
         ws' <- splitW (WfC γ' t)
         return $ ws ++ ws'
+
+splitW (WfC γ (RRTy _ _ _ t))
+  = splitW (WfC γ t) 
 
 splitW (WfC _ t)
   = panic Nothing $ "splitW cannot handle: " ++ showpp t
