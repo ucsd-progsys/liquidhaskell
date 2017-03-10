@@ -85,6 +85,10 @@ module Language.Fixpoint.Types.Refinements (
   , pprintReft
 
   , debruijnIndex
+
+  -- * Gradual Type Manipulation
+  , pGAnds, pGAnd
+
   ) where
 
 import qualified Data.Binary as B
@@ -706,6 +710,17 @@ reftPred (Reft (_, p)) = p
 
 reftBind :: Reft -> Symbol
 reftBind (Reft (x, _)) = x
+
+------------------------------------------------------------
+-- | Gradual Type Manipulation  ----------------------------
+------------------------------------------------------------
+pGAnds :: [Expr] -> Expr
+pGAnds = foldl pGAnd PTrue
+
+pGAnd :: Expr -> Expr -> Expr 
+pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q]) 
+pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q]) 
+pGAnd p q              = pAnd [p,q]
 
 ------------------------------------------------------------
 -- | Generally Useful Refinements --------------------------

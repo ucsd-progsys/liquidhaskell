@@ -475,24 +475,13 @@ pred0P =  trueP
       <|> try (reserved "?" *> exprP)
       <|> try funAppP
       <|> try (eVar <$> symbolP)
-      <|> try (reservedOp "&&" >> gradualPAnd <$> predsP)
+      <|> try (reservedOp "&&" >> pGAnds <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
 
 makeUniquePGrad :: Parser Expr 
 makeUniquePGrad
   = do uniquePos <- getPosition
        return $ PGrad (KV $ symbol $ show uniquePos) mempty mempty
-
-gradualPAnd :: [Expr] -> Expr
-gradualPAnd es 
-  = case L.partition isGradual es of 
-     ([PGrad k su _], es) -> PGrad k su (pAnd es)
-     _ -> pAnd es   
-
-pGAnd :: Expr -> Expr -> Expr 
-pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q]) 
-pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q]) 
-pGAnd p q = pAnd [p,q]
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
