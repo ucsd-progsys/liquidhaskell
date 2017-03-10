@@ -1,28 +1,16 @@
-{-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--totality"      @-}
-{-@ LIQUID "--exactdc"       @-}
+-- allCombinations [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+-- = [[1, 4, 7], [1, 4, 8], [1, 4, 9], 
+--    [1, 5, 7], [1, 5, 8], [1, 5, 9],       
+--    [1, 6, 7], [1, 6, 8], [1, 6, 9],       
+--    [2, 4, 7], [2, 4, 8], [2, 4, 9], 
+--    [2, 5, 7], [2, 5, 8], [2, 5, 9],       
+--    [2, 6, 7], [2, 6, 8], [2, 6, 9],       
+--    [3, 4, 7], [3, 4, 8], [3, 4, 9], 
+--    [3, 5, 7], [3, 5, 8], [3, 5, 9],       
+--    [3, 6, 7], [3, 6, 8], [3, 6, 9]]       
 
--- | This test checks that reflected sigs, whose binders
---   can be different than those in the specified type,
---   live in harmony with the user-specified binds.
+allCombinations :: [[a]] -> [[a]]
+allCombinations []          = [[]]
+allCombinations ([]:ys)     = [] -- allCombinations ys 
+allCombinations ((x:xs):ys) = ((x:) <$> allCombinations ys) ++ allCombinations (xs:ys)
 
-module ReflectSwizzlesBinders where
-
-import Prelude hiding (map) -- , mconcat, split, take, drop, sum)
--- import Language.Haskell.Liquid.ProofCombinators
-
-{-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
-data List a = N | C a (List a)
-
-{-@ measure llen @-}
-llen :: List a -> Int
-
-{-@ llen :: List a -> Nat @-}
-llen N        = 0
-llen (C _ xs) = 1 + llen xs
-
-{-@ reflect map @-}
-{-@ map :: (a -> b) -> xs:List a -> List b / [llen xs] @-}
-map :: (a -> b) -> List a -> List b
-map _  N       = N
-map f (C x xs) = f x `C` map f xs

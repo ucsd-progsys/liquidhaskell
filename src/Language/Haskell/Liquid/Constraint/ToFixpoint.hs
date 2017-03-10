@@ -16,7 +16,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
--- import           Language.Fixpoint.Misc (traceShow)
+import           Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
 import Data.Maybe (fromJust)
@@ -36,7 +36,7 @@ fixConfig tgt cfg = def
   , FC.elimBound        = elimBound         cfg
   , FC.allowHO          = higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
-  , FC.extensionality   = extensionality    cfg
+  , FC.extensionality   = extensionality    cfg || gradual cfg
   , FC.alphaEquivalence = alphaEquivalence  cfg
   , FC.betaEquivalence  = betaEquivalence   cfg
   , FC.normalForm       = normalForm        cfg
@@ -68,7 +68,7 @@ targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es 
   where
     cs               = fixCs    cgi
-    ws               = fixWfs   cgi
+    ws               = traceShow ("REALLY INIT WFC") $ fixWfs   cgi
     bs               = binds    cgi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
