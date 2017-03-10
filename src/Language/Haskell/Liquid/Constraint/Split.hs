@@ -64,7 +64,7 @@ splitW (WfC γ t@(RFun x t1 t2 _))
         γ'   <- γ += ("splitW", x, t1)
         ws   <- bsplitW γ t
         ws'' <- splitW (WfC γ' t2)
-        return $ (traceShow ("SPLIT WFC for " ++ show t) ws) ++ ws' ++ ws''
+        return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ t@(RAppTy t1 t2 _))
   =  do ws   <- bsplitW γ t
@@ -132,9 +132,9 @@ bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
          => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t pflag isHO
   | isHO || F.isNonTrivial r'
-  = traceShow ("1. bsplitW for " ++ showpp t ++ " with " ++ showpp r') (F.wfC (feBinds $ fenv γ) r' ci)
+  = F.wfC (feBinds $ fenv γ) r' ci
   | otherwise
-  = traceShow ("2. bsplitW for " ++ showpp t) []
+  = []
   where
     r'                = rTypeSortedReft' pflag γ t
     ci                = Ci (getLocation γ) Nothing (cgVar γ)

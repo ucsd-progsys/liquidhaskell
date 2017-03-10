@@ -48,13 +48,3 @@ calculateDiscount userId bookCount
 
 customerType :: Int -> Customer
 customerType = undefined
-
-
-
-{-@ inline customerGetsDiscount2 @-}
-customerGetsDiscount2 :: (Customer, Int) -> Bool
-customerGetsDiscount2 x = (fst x) == Vip && (snd x) >= BOOK_THRESHOLD
-
-
-{-@ assume fst :: x:(a, b) -> {v:a | v == fst x }@-}
-{-@ assume snd :: x:(a, b) -> {v:b | v == snd x }@-}
