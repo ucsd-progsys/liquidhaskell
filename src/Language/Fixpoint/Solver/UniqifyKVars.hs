@@ -77,7 +77,7 @@ updateWfc :: Fixpoint a => SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
     w'            = updateWfCExpr (subst (makeSubst fi k) .  (`subst1` (v, EVar v'))) (w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) })
-    (_, fi'')     = newBind v' (trueSortedReft t) fi'
+    (_, fi'')     = newTopBind v' (trueSortedReft t) fi'
     (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w
     v'            = kArgSymbol v (kv k)
@@ -91,16 +91,16 @@ accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i els
 accumBinds :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBinds k (fi, ids) i = (fi', i' : ids)
   where
-    --TODO: could we ignore the old SortedReft? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
     newSym       = {- tracepp "kArgSymbol" $ -}  kArgSymbol oldSym (kv k)
-    --  (i', be')    = insertBindEnv newSym sr (bs fi)
-    (i', fi')    = newBind newSym sr fi
+    (i', fi')    = newTopBind newSym sr fi
 
-newBind :: Symbol -> SortedReft -> SInfo a -> (BindId, SInfo a)
-newBind x sr fi = (i', fi {bs = be'})
+-- | `newTopBind` ignores the actual refinements as they are not relevant
+--   in the kvar parameters (as suggested by BLC.)
+newTopBind :: Symbol -> SortedReft -> SInfo a -> (BindId, SInfo a)
+newTopBind x sr fi = (i', fi {bs = be'})
   where
-    (i', be')   = insertBindEnv x sr (bs fi)
+    (i', be')   = insertBindEnv x (top sr) (bs fi)
 
 --------------------------------------------------------------
 

@@ -111,14 +111,7 @@ instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x,) (elaborate msg env s)
 
 instance Elaborate a => Elaborate [a]  where
-  elaborate msg env xs = elaborate msg env <$> xs 
-
-  -- elaborate msg env e = {- tracepp _msg' -} e3
-    -- where
-      -- e1              = elabExpr msg env e
-      -- e2              = elabApply       e1
-      -- e3              = elabNumeric     e2
-      -- -- _msg' = msg ++ " ELABORATE e := " ++ showpp e
+  elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
 elabNumeric = mapExpr go
@@ -144,7 +137,6 @@ instance Elaborate BindEnv where
   elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
     where
       msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
-  --  (mapSnd (elaborate x env))
 
 instance Elaborate (SimpC a) where
   elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
@@ -159,16 +151,16 @@ elabExpr msg γ e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
       Right s  -> fst s
-  where
-    f   = (`lookupSEnvWithDistance` γ')
-    γ'  = γ `mappend` Thy.theorySEnv
-    d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
-               , nest 4 (pprint e)
-               , "with error"
-               , nest 4 (text m)
-               , "in environment"
-               , nest 4 (pprint $ subEnv γ' e)
-               ]
+    where
+      f   = (`lookupSEnvWithDistance` γ')
+      γ'  = γ `mappend` Thy.theorySEnv
+      d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
+                 , nest 4 (pprint e)
+                 , "with error"
+                 , nest 4 (text m)
+                 , "in environment"
+                 , nest 4 (pprint $ subEnv γ' e)
+                 ]
 
 elabApply :: Expr -> Expr
 elabApply = go
@@ -489,17 +481,17 @@ elab f (PAtom r e1 e2) = do
 
 elab f (PExist bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  let bs' = elaborate "PExist Args" mempty bs 
+  let bs' = elaborate "PExist Args" mempty bs
   return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
   (e', s) <- elab (addEnv f bs) e
-  let bs' = elaborate "PAll Args" mempty bs 
+  let bs' = elaborate "PAll Args" mempty bs
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (addEnv f [(x,t)]) e
-  let t' = elaborate "ELam Arg" mempty t 
+  let t' = elaborate "ELam Arg" mempty t
   return (ELam (x,t') (ECst e' s), FFunc t s)
 
 elab _ (ETApp _ _) =
