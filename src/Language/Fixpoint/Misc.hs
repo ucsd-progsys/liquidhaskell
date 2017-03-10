@@ -351,7 +351,3 @@ allCombinations []          = [[]]
 allCombinations [[]]        = [[]]
 allCombinations ([]:_)     = []
 allCombinations ((x:xs):ys) = ((x:) <$> allCombinations ys) ++ allCombinations (xs:ys)
-
-
-
-
