@@ -78,7 +78,6 @@ module Language.Fixpoint.Parse (
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
-import qualified Data.List                   as L
 import           Data.Maybe                  (fromJust, fromMaybe)
 import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
