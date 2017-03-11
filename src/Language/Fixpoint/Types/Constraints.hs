@@ -567,7 +567,7 @@ writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 ---------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 ---------------------------------------------------------------------------
-convertFormat fi = fi' { cm = subcToSimpc <$> cm fi', ws = traceShow ("INIT WFC ") (ws fi)  }
+convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
   where
     fi'          = M.foldlWithKey' blowOutVV fi $ cm fi
 

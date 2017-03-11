@@ -88,9 +88,9 @@ solve_ :: (NFData a, F.Fixpoint a)
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
   let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s2      <- {-# SCC "sol-grad-local" #-} filterLocal (traceShow "INIT SOL" s1) 
-  s       <- {-# SCC "sol-refine" #-} refine  (traceShow "EDITED SOL" s2) wkl
-  res     <- {-# SCC "sol-result" #-} result cfg wkl (traceShow "FINAL SOL" s)
+  s2      <- {-# SCC "sol-grad-local" #-} filterLocal s1 
+  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
+  res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
@@ -109,6 +109,7 @@ tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 
+-- BEGIN GRADUAL NEW 
 filterLocal :: Sol.Solution -> SolveM Sol.Solution 
 filterLocal !sol = do 
   gs' <- mapM (initGBind sol) gs 
@@ -119,32 +120,28 @@ filterLocal !sol = do
 initGBind :: Sol.Solution -> (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind)) -> SolveM (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind))
 initGBind sol (k, (e, gb)) = ((k,) . (e,) . Sol.equalsGb) <$> ( 
    filterM (isLocal e) ([Sol.trueEqual]:Sol.gbEquals gb)
-   >>= \elems -> makeLattice 1 [] (traceShow "\nSTEP 0 :: \n" elems) (head <$> elems))  -- go [] (Sol.gbEquals gb) -- Sol.gbFilterM (isLocal e) gb 
+   >>= \elems -> makeLattice [] elems (head <$> elems)) 
   where
-    makeLattice i acc new elems
+    makeLattice acc new elems
       | null new
       = return acc 
       | otherwise
       = do let cands = [e:es |e<-elems, es <- new]
            localCans <- filterM (isLocal e) cands
            newElems  <- filterM (notTrivial (new ++ acc)) localCans 
-           makeLattice (i+1) (acc ++ new) (traceShow ("\nSTEP " ++ show i ++ ":: \n") newElems) elems
+           makeLattice (acc ++ new) newElems elems
 
     notTrivial [] _     = return True 
     notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
-                             if v then return $ traceShow ("\nREJECT P " ++ showpp (mkPred p) ++ " FROM " ++  showpp (mkPred x)) False 
+                             if v then return False 
                                   else notTrivial xs p 
 
     mkPred eq = So.elaborate "initBGind.mkPred" (Sol.sEnv sol) (F.pAnd (Sol.eqPred <$> eq))
-
-    -- local e eqs <=> \exists v . 
     isLocal (v, e) eqs = do 
       let pp = So.elaborate "filterLocal" (Sol.sEnv sol) $ F.PExist [v] $ F.pAnd (e:(Sol.eqPred <$> eqs)) 
-      v <- isValid mempty pp --  errorstar ("\nSOL = \n" ++ "\nIs local " ++ (showpp $ pp))
-      return $ traceShowp (show v ++ "isLocal CHECKED FOR " ++ showpp eqs ++ "\nPRED = \n" ++ showpp pp) v
+      isValid mempty pp
 
-traceShowp :: Show a => String -> a -> a 
-traceShowp !str e = traceShow str e 
+-- END GRADUAL NEW 
 
 --------------------------------------------------------------------------------
 refine :: Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
@@ -255,7 +252,7 @@ updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs
     let lpi = S.lhsPredGradual be sol c 
     let rp  = rhsPred c 
     gbs    <- firstValid rp lpi 
-    return $ traceShow ("UPDATE SOLUTION FOR " ++ show (F._cid c) ++ "\n LEN GBS" ++ show (length gbs) ++ "\n\n" ++ show lpi ++ "\n\n" ++ showpp gbs  ++ "\nCONSTRAIN: \n" ++ show c) $ Sol.updateGMapWithKey gbs s 
+    return $ Sol.updateGMapWithKey gbs s 
 
 
 firstValid :: Monoid a =>  F.Expr -> [(a, F.Expr)] -> SolveM a 

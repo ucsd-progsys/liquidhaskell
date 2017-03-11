@@ -45,7 +45,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import           Language.Fixpoint.Types hiding (mapSort)
-import           Language.Fixpoint.Misc (count, sortNub, traceShow)
+import           Language.Fixpoint.Misc (count, sortNub)
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -203,12 +203,12 @@ mapMExpr f = go
     go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
     go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
-mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> (KVar -> Subst)  -> t -> t
-mapKVarSubsts f g        = trans kvVis () []
+mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts f          = trans kvVis () []
   where
     kvVis                = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)   = PKVar k (f k su)
-    txK _ (PGrad k su e) = PGrad k (f k su) (traceShow ("SUBSTITUTED") $ subst (g k) e)
+    txK _ (PGrad k su e) = PGrad k (f k su) e
     txK _ p              = p
   
 newtype MInt = MInt Integer

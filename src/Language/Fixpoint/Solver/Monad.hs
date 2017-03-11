@@ -173,7 +173,8 @@ filterRequired = error "TBD:filterRequired"
 -}
 
 --------------------------------------------------------------------------------
--- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
+-- | `filterValid ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
+-- | for some p in the list ps 
 --------------------------------------------------------------------------------
 filterValid :: [F.Expr] -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
@@ -187,15 +188,15 @@ filterValid p qs = do
   incVald (length qs')
   return qs'
 
-
 filterValid_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
 filterValid_ ps qs me 
-  = snd <$> foldM f (qs, []) ps
+  = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
   where
-    f :: (F.Cand a, [a]) -> F.Expr -> IO (F.Cand a, [a])
-    f (qs, ok) p = do 
-      (valids, invalids) <- partition snd <$> filterValidOne_ p qs me 
-      return (fst <$> invalids, ok ++ ((snd . fst) <$> valids))
+    partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
+    partitionCandidates (ok, candidates) p = do 
+      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me 
+      let (valids, invalids) = (fst <$> valids', fst <$> invalids')
+      return (ok ++ valids, invalids)
 
 filterValidOne_ :: F.Expr -> F.Cand a -> Context -> IO [((F.Expr, a), Bool)]
 filterValidOne_ p qs me = do

@@ -39,7 +39,7 @@ import qualified Data.HashMap.Strict as M
 import           Data.Foldable       (foldl')
 
 --------------------------------------------------------------------------------
-wfcUniqify    :: Fixpoint a => SInfo a -> SInfo a
+wfcUniqify    :: SInfo a -> SInfo a
 wfcUniqify fi = updateWfcs $ remakeSubsts fi
 
 
@@ -48,10 +48,7 @@ wfcUniqify fi = updateWfcs $ remakeSubsts fi
 --------------------------------------------------------------------------------
 remakeSubsts :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
-remakeSubsts fi = mapKVarSubsts (remakeSubst fi) (makeSubst fi) fi
-
-makeSubst :: SInfo a -> KVar -> Subst 
-makeSubst fi k = mkSubst [(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k]
+remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
 remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
@@ -69,18 +66,19 @@ updateSubst k (Su su) sym
 -- /  | otherwise         = Su $                M.insert ksym (eVar sym)   su
 
 --------------------------------------------------------------------------------
-updateWfcs :: Fixpoint a => SInfo a -> SInfo a
+updateWfcs :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
 updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 
-updateWfc :: Fixpoint a => SInfo a -> WfC a -> SInfo a
+updateWfc :: SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
-    w'            = updateWfCExpr (subst (makeSubst fi k) .  (`subst1` (v, EVar v'))) (w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) })
+    w'            = updateWfCExpr (subst su) (w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) })
     (_, fi'')     = newTopBind v' (trueSortedReft t) fi'
     (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w
     v'            = kArgSymbol v (kv k)
+    su            = mkSubst ((v, EVar v'):[(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k])
 
 accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)

@@ -123,19 +123,6 @@ emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
 updateGMapWithKey :: [(KVar, QBind)] -> Solution -> Solution
 updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs } 
 
-instance Show Solution where
-  show s =  "\nGMAP = " ++ (showgMap $ M.toList $ gMap s) 
-         ++ "\nSMAP = " ++ (show $ sMap s) 
---          ++ "\nENV  = " ++ (show $ sEnv s)
-
-
-showgMap :: [(KVar, (a, GBind))] -> String 
-showgMap xs = L.intercalate "\n" [showpp k ++ " |-> " ++ showpp (gbPred es) | (k, (_, es)) <- xs]
-
-gbPred :: GBind -> [Expr] 
-gbPred (GB ess) = [PAnd (eqPred <$> es) | es <- ess]
-
-
 qb :: [EQual] -> QBind
 qb = QB
 

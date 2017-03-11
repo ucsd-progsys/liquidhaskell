@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
 --------------------------------------------------------------------------------
-init :: F.Fixpoint a => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
+init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
 init cfg si ks = Sol.fromList senv geqs keqs [] mempty
   where
@@ -62,8 +62,7 @@ refineG fi qs genv w = (k, (((fst3 $ wrft w, snd3 $ wrft w), wexpr w), Sol.qbToG
     (k, qb) = refine fi qs genv w 
 
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w 
-  = refineK (allowHOquals fi) env qs $ F.wrft w
+refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))

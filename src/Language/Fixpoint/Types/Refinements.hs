@@ -70,7 +70,6 @@ module Language.Fixpoint.Types.Refinements (
   , isTautoPred
   , isSingletonReft
   , isFalse
-  , isGradual
 
   -- * Destructing
   , flattenRefas
@@ -87,7 +86,8 @@ module Language.Fixpoint.Types.Refinements (
   , debruijnIndex
 
   -- * Gradual Type Manipulation
-  , pGAnds, pGAnd
+  , pGAnds, pGAnd  
+  , isGradual
 
   ) where
 
@@ -385,7 +385,7 @@ instance Fixpoint Expr where
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix (PGrad k su e)    = toFix e <+> text "&&" <+> text "??" <+> toFix k <+> toFix su
+  toFix (PGrad _ _ e)    = toFix e <+> text "&&" <+> text "??" -- <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
