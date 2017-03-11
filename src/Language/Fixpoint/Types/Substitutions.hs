@@ -38,10 +38,7 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
     s1'                     = subst θ2 <$> s1
 
 mkSubst :: [(Symbol, Expr)] -> Subst
-mkSubst = Su . M.fromList . reverse . filter (not. trivialEq)
-  where
-    trivialEq (x, EVar y) = x == y
-    trivialEq _           = False 
+mkSubst = Su . M.fromList . reverse
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = M.null xes

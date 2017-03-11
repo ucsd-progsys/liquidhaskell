@@ -169,7 +169,7 @@ refineC _i s c
   | otherwise = do be     <- getBinds
                    let lhs = F.notracepp ("LHS at " ++ show _i) $ S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks $ traceShow ("VALID KS = ") kqs
+                   return  $ S.update s ks kqs
   where
     _ci       = F.subcId c
     (ks, rhs) = rhsCands s c

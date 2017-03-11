@@ -174,27 +174,13 @@ applyGradual g s bs = [(fst (unzip l) , F.pAnd (pks:ps++snd (unzip l))) | l <- p
     pks           = fst $ applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ps,  ks, gs) = envConcKVars g bs
 
-
--- pgs :: [((F.KVar, Sol.QBind), F.Expr)]
-{- 
- [(k1:1, e12), (k1:2, e12)], [(k2:1, e21), (k2:2, e22)]
--> [(k1:1, e12), (k2:1, e21)] , ...
--}
-
 apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [ExprInfo]
 apply g s bs     
-  = if null pgs 
-        then errorstar ("NOT SAME LEN " ++ show (length gs, lengths (applyGVars g s gs), lengths pgs)) -- [(F.pAnd (pks:ps), kI)] 
-        else [(F.pAnd (pks:ps++qs), kI) | qs <- pgs ]
+  = [(F.pAnd (pks:ps++qs), kI) | qs <- pgs]
   where
     pgs           = allCombinations $ map (map snd) (applyGVars g s gs)
     (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
     (ps,  ks, gs) = envConcKVars g bs
-
-
-
-lengths :: [[a]] -> (Int, [Int])
-lengths xs = (length xs, map length xs)
 
 envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
@@ -214,8 +200,6 @@ applyGVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   where
     msg     = "applyGVar: " ++ show (fst3 g)
     su      = F.ksuSubst ksu
-
-
 
 applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat 
