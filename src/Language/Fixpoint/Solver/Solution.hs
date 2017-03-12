@@ -46,7 +46,7 @@ init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 init cfg si ks = Sol.fromList senv geqs keqs [] mempty
   where
     keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
-    geqs       = map (refineG si qs genv) gs `using` parList rdeepseq
+    geqs       = if gradual cfg then map (refineG si qs genv) gs `using` parList rdeepseq else mempty 
     qs         = F.quals si
     ws         = [ w | (k, w) <- ws0, k `S.member` ks]
     gs         = snd <$> gs0
@@ -146,8 +146,12 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> [F.Expr]
-lhsPred be s c = (F.notracepp _msg . fst) <$> apply g s bs
+lhsPred :: Config -> F.SolEnv -> Sol.Solution -> F.SimpC a -> [F.Expr]
+lhsPred cfg be s c 
+  | gradual cfg 
+  = (F.notracepp _msg . fst . snd) <$> applyGradual g s bs
+  | otherwise
+  = (F.notracepp _msg . fst) <$> [apply g s bs]
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -156,31 +160,31 @@ lhsPred be s c = (F.notracepp _msg . fst) <$> apply g s bs
 
 
 lhsPredGradual :: F.SolEnv -> Sol.Solution -> F.SimpC a -> [([(F.KVar, Sol.QBind)],F.Expr)]
-lhsPredGradual be s c = applyGradual g s bs
+lhsPredGradual be s c = cleanInfo <$> applyGradual g s bs
   where
-    g          = (ci, be, bs)
-    bs         = F.senv c
-    ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c)
+    g                 = (ci, be, bs)
+    bs                = F.senv c
+    ci                = sid c
+    _msg              = "LhsPred for id = " ++ show (sid c)
+
+    cleanInfo (x,y)   = (x,fst y)
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
-applyGradual        :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [([(F.KVar, Sol.QBind)],F.Expr)]
-applyGradual g s bs = [(fst (unzip l) , F.pAnd (pks:ps++snd (unzip l))) | l <- pgs ]
+applyGradual        :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [([(F.KVar, Sol.QBind)], ExprInfo)]
+applyGradual g s bs = [(fst (unzip l) , (F.pAnd (pks:ps++snd (unzip l)), kI)) | l <- pgs ]
   where
     pgs           = allCombinations $ applyGVars g s gs
-    pks           = fst $ applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (pks, kI)     = applyKVars g s ks  
     (ps,  ks, gs) = envConcKVars g bs
 
-apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [ExprInfo]
-apply g s bs     
-  = [(F.pAnd (pks:ps++qs), kI) | qs <- pgs]
+apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> ExprInfo
+apply g s bs      = (F.pAnd (pks:ps), kI)
   where
-    pgs           = allCombinations $ map (map snd) (applyGVars g s gs)
     (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
-    (ps,  ks, gs) = envConcKVars g bs
+    (ps,  ks, _)  = envConcKVars g bs
 
 envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
@@ -206,9 +210,9 @@ applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
-  Right (Right _) -> (mempty,mempty) -- NV: TODO turn this into an error
   Left cs          -> hypPred g s ksu cs
   Right (Left eqs) -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right (Right _)  -> (mempty,mempty) -- This is impossible 
   where
     msg     = "applyKVar: " ++ show (fst3 g) 
 
@@ -259,7 +263,7 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     cubeP           = ( xts, psu, elabExist s yts' (p' &.& psu') )
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
-    (p', kI)        = safeHead "cubePredExc" $ apply g' s bs'
+    (p', kI)        = apply g' s bs'
     (_  , psu')     = substElim sEnv g' k su'
     (xts, psu)      = substElim sEnv g  k su
     su'             = Sol.cuSubst c

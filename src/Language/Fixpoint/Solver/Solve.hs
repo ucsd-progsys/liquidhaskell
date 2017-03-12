@@ -8,7 +8,7 @@
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
+module Language.Fixpoint.Solver.Solve (solve) where
 
 import           Control.Monad (when, filterM, foldM)
 import           Control.Monad.State.Strict (lift)
@@ -88,8 +88,8 @@ solve_ :: (NFData a, F.Fixpoint a)
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
   let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s2      <- {-# SCC "sol-grad-local" #-} filterLocal s1 
-  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
+  s2      <- {-# SCC "sol-grad-local" #-} if gradual cfg then filterLocal s1 else return s1 
+  s       <- {-# SCC "sol-refine" #-} refine cfg s2 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
@@ -144,15 +144,15 @@ initGBind sol (k, (e, gb)) = ((k,) . (e,) . Sol.equalsGb) <$> (
 -- END GRADUAL NEW 
 
 --------------------------------------------------------------------------------
-refine :: Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
+refine :: Config -> Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
 --------------------------------------------------------------------------------
-refine !s w
+refine cfg s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
-     (b, s') <- refineC i s c
+     (b, s') <- refineC cfg i s c
      lift $ writeLoud $ refineMsg i c b rnk
      let w'' = if b then W.push c w' else w'
-     refine s' w''
+     refine cfg s' w''
   | otherwise = return s
   where
     -- DEBUG
@@ -162,12 +162,12 @@ refine !s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
+refineC :: Config -> Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
-refineC _i s c
+refineC cfg _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = F.notracepp ("LHS at " ++ show _i) $ S.lhsPred be s c
+                   let lhs = S.lhsPred cfg be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks kqs
   where
@@ -199,16 +199,20 @@ result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
 --------------------------------------------------------------------------------
 result cfg wkl !s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s -- >>= gradualSolve cfg
+  stat    <- result_ wkl s 
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   F.Result (ci <$> stat) <$> solResult wkl cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
 
-solResult :: Fixpoint a => W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
-solResult w cfg sol = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
+solResult :: W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult w cfg sol 
+  | gradual cfg 
+  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
+  | otherwise
+  = minimizeResult cfg $ Sol.result sol 
 
-result_ ::Fixpoint a =>  W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
@@ -243,7 +247,7 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
 
 
 --------------------------------------------------------------------------------
-updateGradualSolution :: Fixpoint a => [F.SimpC a] -> Sol.Solution -> SolveM (Sol.Solution)
+updateGradualSolution :: [F.SimpC a] -> Sol.Solution -> SolveM (Sol.Solution)
 --------------------------------------------------------------------------------
 updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs 
   where
@@ -263,7 +267,7 @@ firstValid rhs ((y,lhs):xs) = do
 
 
 --------------------------------------------------------------------------------
-isUnsat :: Fixpoint a => Sol.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
@@ -293,78 +297,6 @@ rhsPred c
 isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid !p !q = (not . null) <$> filterValid [p] [(q, ())]
 
-
---------------------------------------------------------------------------------
--- | Solve with Gradual Types: 
--- | replace the unsat VC
--- | x1:r1, ... xi:??, ..., xn:rn |- p => q
--- | with 
--- | x1:r1, ... xi:forall x1..xi-1. (r1 ... /\ ri-1 => q), ... xn:rn |- p => q
---------------------------------------------------------------------------------
-
-gradualSolve :: (Fixpoint a)
-             => Config
-             -> F.FixResult (F.SimpC a)
-             -> SolveM (F.FixResult (F.SimpC a))
-gradualSolve _  r = return r
-{-
-gradualSolve cfg (F.Unsafe cs)
-  | gradual cfg   = go cs
-  where
-    go cs         = smtEnablembqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
-    makeResult    = applyNonNull F.Safe F.Unsafe
-
-gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
-gradualSolveOne c =
-  do γ0 <- makeEnvironment c
-     let (γ, γ', hasGradual) = splitLastGradual γ0
-     if hasGradual
-      then do let vc = makeGradualExpression γ γ' (F.crhs c)
-              s <- checkSat vc
-              return {- traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
-                 $ if s then Nothing else Just c
-      else return $ Just c
-
-makeGradualExpression :: [(F.Symbol, F.SortedReft)] -> [(F.Symbol, F.SortedReft)] -> F.Expr -> F.Expr
-makeGradualExpression γ γ' p
-  = F.PAll bs (F.PImp gs p)
-  where
-    bs = [ (x, s) | (x, F.RR s _) <- γ']
-    gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
-    bindToLogic (x, F.RR _ (F.Reft (v, e))) = e `F.subst1` (v, F.EVar x)
-
-
--- makeEnvironment :: F.TaggedC c a => c a -> SolveM [(F.Symbol, F.SortedReft)]
-makeEnvironment :: F.SimpC a -> SolveM [(F.Symbol, F.SortedReft)]
-makeEnvironment c = cstrBinders c . F.soeBinds <$> getBinds
-
-cstrBinders :: F.SimpC a -> F.BindEnv -> [(F.Symbol, F.SortedReft)]
-cstrBinders c be = [ F.lookupBindEnv i be | i <- is  ]
-  where
-    is           = sort $ F.elemsIBindEnv $ F.senv c
-
-splitLastGradual :: [(a, F.SortedReft)] -> ([(a, F.SortedReft)], [(a, F.SortedReft)], Bool)
-splitLastGradual = go [] . reverse
-  where
-    go acc (xe@(x, F.RR s (F.Reft (v, e))) : xss)
-      | Just es <- removePGrads e
-      = (reverse ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
-      | otherwise
-      = go (xe:acc) xss
-    go acc []
-      = ([], reverse acc, False)
-
-removePGrads :: F.Expr -> Maybe [F.Expr]
-removePGrads (F.PAnd es)
-  | F.PGrad `elem` es
-  = Just $ filter (/= F.PGrad) es
-  | otherwise
-  = Nothing
-removePGrads F.PGrad
-  = Just []
-removePGrads _
-  = Nothing
--}
 
 {-
 ---------------------------------------------------------------------------
