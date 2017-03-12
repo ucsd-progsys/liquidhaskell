@@ -441,7 +441,7 @@ bsplitC γ t1 t2 = do
   checkStratum γ t1 t2
   pflag  <- pruneRefs <$> get
   isHO   <- allowHO   <$> get
-  let t1' = addLhsInv γ t1
+  t1'    <- addLhsInv γ <$> refreshVV t1
   return  $ bsplitC' γ t1' t2 pflag isHO
 
 addLhsInv :: CGEnv -> SpecType -> SpecType
