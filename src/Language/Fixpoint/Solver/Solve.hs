@@ -85,11 +85,18 @@ solve_ :: (NFData a, F.Fixpoint a)
        -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 ks wkl = do
-  -- lift $ dumpSolution "solve_.s0" s0
+solve_ cfg fi s0 ks wkl 
+  | gradual cfg = do
   let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s2      <- {-# SCC "sol-grad-local" #-} if gradual cfg then filterLocal s1 else return s1 
-  s       <- {-# SCC "sol-refine" #-} refine cfg s2 wkl
+  s2      <- {-# SCC "sol-local"  #-} filterLocal s1
+  s       <- {-# SCC "sol-refine" #-} refineGradual cfg s2 wkl
+  res     <- {-# SCC "sol-result" #-} resultGradual cfg wkl s
+  st      <- stats
+  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
+  return $!! (res', st)
+  | otherwise = do 
+  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
+  s       <- {-# SCC "sol-refine" #-} refine cfg s1 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
@@ -164,10 +171,10 @@ refine cfg s w
 ---------------------------------------------------------------------------
 refineC :: Config -> Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
-refineC cfg _i s c
+refineC _cfg _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPred cfg be s c
+                   let lhs = S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks kqs
   where
@@ -191,6 +198,43 @@ predKs (F.PAnd ps)    = concatMap predKs ps
 predKs (F.PKVar k su) = [(k, su)]
 predKs _              = []
 
+
+--------------------------------------------------------------------------------
+refineGradual :: Config -> Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
+--------------------------------------------------------------------------------
+refineGradual cfg s w
+  | Just (c, w', newScc, rnk) <- W.pop w = do
+     i       <- tickIter newScc
+     (b, s') <- refineCGradual cfg i s c
+     lift $ writeLoud $ refineMsg i c b rnk
+     let w'' = if b then W.push c w' else w'
+     refine cfg s' w''
+  | otherwise = return s
+  where
+    -- DEBUG
+    refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
+                            i (F.subcId c) (show b) rnk
+
+---------------------------------------------------------------------------
+-- | Single Step Refinement -----------------------------------------------
+---------------------------------------------------------------------------
+refineCGradual :: Config -> Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
+---------------------------------------------------------------------------
+refineCGradual _cfg _i s c
+  | null rhs  = return (False, s)
+  | otherwise = do be     <- getBinds
+                   let lhs = snd <$> S.lhsPredGradual be s c
+                   kqs    <- filterValidGradual lhs rhs
+                   return  $ S.update s ks kqs
+  where
+    _ci       = F.subcId c
+    (ks, rhs) = rhsCands s c
+    -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
+    --               _i (show (F.sid c)) (showpp s)
+    _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
+                     _i (show _ci) (showpp ks) (length xs) (length ys)
+
+
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
@@ -201,15 +245,12 @@ result cfg wkl !s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s 
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult wkl cfg s
+  F.Result (ci <$> stat) <$> solResult cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
 
-solResult :: W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
-solResult w cfg sol 
-  | gradual cfg 
-  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
-  | otherwise
+solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult cfg sol 
   = minimizeResult cfg $ Sol.result sol 
 
 result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
@@ -219,6 +260,32 @@ result_  w s = res <$> filterM (isUnsat s) cs
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
+
+--------------------------------------------------------------------------------
+-- | Gradual Convert Solution into Result ----------------------------------------------
+--------------------------------------------------------------------------------
+resultGradual :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+       -> SolveM (F.Result (Integer, a))
+--------------------------------------------------------------------------------
+resultGradual cfg wkl !s = do
+  lift $ writeLoud "Computing Result"
+  stat    <- resultGradual_ wkl s 
+  lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
+  F.Result (ci <$> stat) <$> solResultGradual wkl cfg s
+  where
+    ci c = (F.subcId c, F.sinfo c)
+
+resultGradual_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+resultGradual_  w s = res <$> filterM (isUnsatGradual s) cs
+  where
+    cs       = W.unsatCandidates w
+    res []   = F.Safe
+    res cs'  = F.Unsafe cs'
+
+
+solResultGradual :: W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResultGradual w cfg sol 
+  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing
@@ -273,6 +340,20 @@ isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
+  let lp = S.lhsPred be s c
+  let rp = rhsPred        c
+  res   <- not <$> isValid lp rp
+  lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
+  return res
+
+
+--------------------------------------------------------------------------------
+isUnsatGradual :: Sol.Solution -> F.SimpC a -> SolveM Bool
+--------------------------------------------------------------------------------
+isUnsatGradual s c = do
+  -- lift   $ printf "isUnsat %s" (show (F.subcId c))
+  _     <- tickIter True -- newScc
+  be    <- getBinds
   let lpi = S.lhsPredGradual be s c
   let rp = rhsPred        c
   res   <- (not . or) <$> mapM (`isValid` rp) (snd <$> lpi)
@@ -295,7 +376,7 @@ rhsPred c
   | otherwise  = errorstar $ "rhsPred on non-target: " ++ show (F.sid c)
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
-isValid !p !q = (not . null) <$> filterValid [p] [(q, ())]
+isValid !p !q = (not . null) <$> filterValid p [(q, ())]
 
 
 {-
