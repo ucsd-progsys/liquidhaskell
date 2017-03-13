@@ -3,7 +3,7 @@
 
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
-    init
+    init, initGradual
 
     -- * Update Solution
   , Sol.update
@@ -54,6 +54,26 @@ init cfg si ks = Sol.fromList senv geqs keqs [] mempty
     senv       = symbolEnv cfg si
 
     (gs0,ws0)  = L.partition (isGWfc . snd) $ M.toList (F.ws si)
+
+
+--------------------------------------------------------------------------------
+-- | Initial Solution (from Qualifiers and WF constraints) ---------------------
+--------------------------------------------------------------------------------
+initGradual :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.GSolution
+--------------------------------------------------------------------------------
+initGradual cfg si ks = Sol.fromList senv geqs keqs [] mempty
+  where
+    keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
+    geqs       = if gradual cfg then map (refineG si qs genv) gs `using` parList rdeepseq else mempty 
+    qs         = F.quals si
+    ws         = [ w | (k, w) <- ws0, k `S.member` ks]
+    gs         = snd <$> gs0
+    genv       = instConstants si
+    senv       = symbolEnv cfg si
+
+    (gs0,ws0)  = L.partition (isGWfc . snd) $ M.toList (F.ws si)
+
+
 
 --------------------------------------------------------------------------------
 refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (((F.Symbol,F.Sort), F.Expr), Sol.GBind))
@@ -147,8 +167,7 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c 
-  = (F.notracepp _msg . fst) $ apply g s bs
+lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
@@ -170,14 +189,14 @@ type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
-applyGradual        :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> [([(F.KVar, Sol.QBind)], ExprInfo)]
+applyGradual        :: CombinedEnv -> Sol.GSolution -> F.IBindEnv -> [([(F.KVar, Sol.QBind)], ExprInfo)]
 applyGradual g s bs = [(fst (unzip l) , (F.pAnd (pks:ps++snd (unzip l)), kI)) | l <- pgs ]
   where
     pgs           = allCombinations $ applyGVars g s gs
-    (pks, kI)     = applyKVars g s ks  
+    (pks, kI)     = applyKVarsGrad g s ks  
     (ps,  ks, gs) = envConcKVars g bs
 
-apply :: CombinedEnv -> Sol.Solution -> F.IBindEnv -> ExprInfo
+apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.pAnd (pks:ps), kI)
   where
     (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
@@ -191,29 +210,41 @@ envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.k
     is              = F.elemsIBindEnv bs
     be              = F.soeBinds (snd3 g)
 
-applyGVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> [[((F.KVar, Sol.QBind), F.Expr)]]
+applyGVars :: CombinedEnv -> Sol.GSolution -> [F.KVSub] -> [[((F.KVar, Sol.QBind), F.Expr)]]
 applyGVars g s = map (applyGVar g s)
 
-applyGVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> [((F.KVar, Sol.QBind), F.Expr)]
-applyGVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+applyGVar :: CombinedEnv -> Sol.GSolution -> F.KVSub -> [((F.KVar, Sol.QBind), F.Expr)]
+applyGVar g s ksu = case Sol.glookup s (F.ksuKVar ksu) of
   Right (Right (e,eqss)) -> [((F.ksuKVar ksu, eqs), F.pAnd ((F.subst su (snd e)):(fst <$> Sol.qbPreds msg s su eqs))) | eqs <- Sol.gbToQbs eqss]
   _                      -> []
   where
     msg     = "applyGVar: " ++ show (fst3 g)
     su      = F.ksuSubst ksu
 
-applyKVars :: CombinedEnv -> Sol.Solution -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat 
+applyKVarsGrad :: CombinedEnv -> Sol.GSolution -> [F.KVSub] -> ExprInfo
+applyKVarsGrad g s = mrExprInfos (applyKVarGrad g s) F.pAnd mconcat 
 
-applyKVar :: CombinedEnv -> Sol.Solution -> F.KVSub -> ExprInfo
-applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+applyKVarGrad :: CombinedEnv -> Sol.GSolution -> F.KVSub -> ExprInfo
+applyKVarGrad g s ksu = case Sol.glookup s (F.ksuKVar ksu) of
   Left cs          -> hypPred g s ksu cs
   Right (Left eqs) -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
-  Right (Right _)  -> (mempty,mempty) -- This is impossible 
+  Right (Left _)   -> (mempty,mempty)
   where
     msg     = "applyKVar: " ++ show (fst3 g) 
 
-hypPred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Hyp  -> ExprInfo
+
+
+applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
+applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat 
+
+applyKVar :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> ExprInfo
+applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+  Left cs          -> hypPred g s ksu cs
+  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  where
+    msg     = "applyKVar: " ++ show (fst3 g) 
+
+hypPred :: CombinedEnv -> Sol.Sol a b -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
 
 {- | `cubePred g s k su c` returns the predicate for
@@ -238,7 +269,7 @@ elabExist s xts = F.pExist xts'
     elab        = So.elaborate "elabExist" env
     env         = Sol.sEnv s
 
-cubePred :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Cube -> ExprInfo
+cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
 cubePred g s ksu c    = ( elabExist s xts (psu &.& p) , kI )
   where
     ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
@@ -252,7 +283,7 @@ type Binders = [(F.Symbol, F.Sort)]
 --   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
 --   we want is `Exists xts. (psu /\ p)`.
 
-cubePredExc :: CombinedEnv -> Sol.Solution -> F.KVSub -> Sol.Cube -> F.IBindEnv
+cubePredExc :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> ((Binders, F.Pred, F.Pred), KInfo)
 
 cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
@@ -350,7 +381,7 @@ addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 -- delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
 -- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
-delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> F.IBindEnv
+delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
 delCEnv s k bs  = F.diffIBindEnv bs _kbs
                                                 -- ORIG: bs'
   where

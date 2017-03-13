@@ -17,7 +17,7 @@
 module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
-    Solution
+    Solution, GSolution
   , Sol (gMap, sEnv), updateGMap, updateGMapWithKey
   , sScp
   , CMap
@@ -38,7 +38,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Lookup
   , lookupQBind
-  , lookup
+  , lookup, glookup
 
   -- * Manipulating QBind
   , qb
@@ -48,7 +48,7 @@ module Language.Fixpoint.Types.Solutions (
   , gbFilterM
 
   -- * Conversion for client
-  , result
+  , result, resultGradual
 
   -- * "Fast" Solver (DEPRECATED as unsound)
   , Index  (..)
@@ -111,16 +111,17 @@ update1 s (k, qs) = (change, updateK k qs s)
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
-type Solution = Sol (((Symbol, Sort), Expr), GBind) QBind
+type Solution  = Sol () QBind
+type GSolution = Sol (((Symbol, Sort), Expr), GBind) QBind
 newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic)
 newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
 
-emptyGMap :: Solution -> Solution 
+emptyGMap :: GSolution -> GSolution 
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
 
 
 
-updateGMapWithKey :: [(KVar, QBind)] -> Solution -> Solution
+updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
 updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs } 
 
 qb :: [EQual] -> QBind
@@ -213,7 +214,15 @@ instance PPrint Cube where
 --------------------------------------------------------------------------------
 result :: Solution -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = fmap go (sMap s) `mappend` fmap go' (gMap s) 
+result s = fmap go (sMap s)
+  where 
+    go  (QB eqs)     = pAnd $ fmap eqPred eqs
+
+
+--------------------------------------------------------------------------------
+resultGradual :: GSolution -> M.HashMap KVar Expr
+--------------------------------------------------------------------------------
+resultGradual s = fmap go (sMap s) `mappend` fmap go' (gMap s) 
   where 
     go  (QB eqs)     = pAnd $ fmap eqPred eqs
     go' ((_,e), GB eqss) 
@@ -221,6 +230,7 @@ result s = fmap go (sMap s) `mappend` fmap go' (gMap s)
      = POr [PAnd $ fmap eqPred eqs | eqs <- eqss]
      | otherwise
      = PAnd [e, POr [PAnd $ fmap eqPred eqs | eqs <- eqss]]
+
 
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
@@ -234,7 +244,7 @@ fromList env kGs kXs kYs = Sol env kXm kGm kYm -- kBm
  -- kBm              = const () <$> kXm
 
 --------------------------------------------------------------------------------
-qbPreds :: String -> Solution -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
 qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
@@ -251,9 +261,9 @@ lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
     _msg        = "lookupQB: k = " ++ show k
 
 --------------------------------------------------------------------------------
-lookup :: Solution -> KVar -> Either Hyp (Either QBind (((Symbol, Sort), Expr), GBind))
+glookup :: GSolution -> KVar -> Either Hyp (Either QBind (((Symbol, Sort), Expr), GBind))
 --------------------------------------------------------------------------------
-lookup s k
+glookup s k
   | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
   = Left cs
   | Just eqs <- lookupElab s k
@@ -263,7 +273,20 @@ lookup s k
   | otherwise
   = errorstar $ "solLookup: Unknown kvar " ++ show k
 
-lookupElab :: Solution -> KVar -> Maybe QBind
+
+
+--------------------------------------------------------------------------------
+lookup :: Sol a QBind -> KVar -> Either Hyp QBind
+--------------------------------------------------------------------------------
+lookup s k
+  | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
+  = Left cs
+  | Just eqs <- lookupElab s k
+  = Right eqs                 -- TODO: don't initialize kvars that have a hyp solution
+  | otherwise
+  = errorstar $ "solLookup: Unknown kvar " ++ show k
+
+lookupElab :: Sol b QBind -> KVar -> Maybe QBind
 lookupElab s k = M.lookup k (sMap s)
 
 --------------------------------------------------------------------------------
