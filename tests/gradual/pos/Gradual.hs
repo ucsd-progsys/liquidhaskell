@@ -3,11 +3,15 @@ module Gradual where
 {-@ LIQUID "--gradual"        @-}
 {-@ LIQUID "--savequery"      @-}
 
-{-@ safe :: {v:Int | ??  } -> (Int, Int) @-}
-safe :: Int -> (Int, Int)
-safe x = (bar1 x, bar2 x)
+{-@ safe :: {v:Int | ??  } -> Int @-}
+safe :: Int ->  Int
+safe x = if foo () then bar1 x else bar2 x
 
-{-@ bar1 :: {v:Int | v < 0} -> Int @-}
+{-@ foo :: () -> {v:Bool | true } @-} 
+foo :: () -> Bool 
+foo = undefined 
+
+{-@ bar1 :: {v:Int | v < 0 } -> Int @-}
 bar1 :: Int -> Int 
 bar1 x = x 
 
