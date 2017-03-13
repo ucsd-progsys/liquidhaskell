@@ -37,6 +37,22 @@ import qualified Data.HashSet        as S
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
+solve cfg fi 
+  | gradual cfg = do
+    -- donePhase Loud "Worklist Initialize"
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
+    when (solverStats cfg) $ printStats fi wkl stat
+    -- print (numIter stat)
+    return res
+  where
+    act  = solveGradual_ cfg fi s0 ks  wkl
+    sI   = solverInfo cfg fi
+    wkl  = W.init sI
+    n    = fromIntegral $ W.wRanks wkl
+    s0   = siSol  sI
+    ks   = siVars sI
+
+
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
@@ -51,10 +67,11 @@ solve cfg fi = do
     s0   = siSol  sI
     ks   = siVars sI
 
+
 --------------------------------------------------------------------------------
 -- | Progress Bar
 --------------------------------------------------------------------------------
-withProgressFI :: SolverInfo a -> IO b -> IO b
+withProgressFI :: SolverInfo a b -> IO b -> IO b
 withProgressFI = withProgress . fromIntegral . cNumScc . siDeps
 --------------------------------------------------------------------------------
 
@@ -64,7 +81,7 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
     ppTs          = putStrLn . showpp . mconcat
 
 --------------------------------------------------------------------------------
-solverInfo :: Config -> F.SInfo a -> SolverInfo a
+solverInfo :: Config -> F.SInfo a -> SolverInfo a b
 --------------------------------------------------------------------------------
 solverInfo cfg fI
   | useElim cfg = E.solverInfo cfg fI
@@ -85,19 +102,30 @@ solve_ :: (NFData a, F.Fixpoint a)
        -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 ks wkl 
-  | gradual cfg = do
-  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.initGradual cfg fi ks
-  s2      <- {-# SCC "sol-local"  #-} filterLocal s1
-  s       <- {-# SCC "sol-refine" #-} refineGradual cfg s2 wkl
-  res     <- {-# SCC "sol-result" #-} resultGradual cfg wkl s
-  st      <- stats
-  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
-  return $!! (res', st)
-  | otherwise = do 
+solve_ cfg fi s0 ks wkl = do 
   let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
   s       <- {-# SCC "sol-refine" #-} refine s1 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
+  st      <- stats
+  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
+  return $!! (res', st)
+
+
+
+--------------------------------------------------------------------------------
+solveGradual_ :: (NFData a, F.Fixpoint a)
+       => Config
+       -> F.SInfo a
+       -> Sol.GSolution 
+       -> S.HashSet F.KVar
+       -> W.Worklist a
+       -> SolveM (F.Result (Integer, a), Stats)
+--------------------------------------------------------------------------------
+solveGradual_ cfg fi s0 ks wkl = do
+  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.initGradual cfg fi ks
+  s2      <- {-# SCC "sol-local"  #-} filterLocal s1
+  s       <- {-# SCC "sol-refine" #-} refineGradual s2 wkl
+  res     <- {-# SCC "sol-result" #-} resultGradual cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
@@ -117,14 +145,14 @@ tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 
 -- BEGIN GRADUAL NEW 
-filterLocal :: Sol.Solution -> SolveM Sol.Solution 
+filterLocal :: Sol.GSolution -> SolveM Sol.GSolution 
 filterLocal !sol = do 
   gs' <- mapM (initGBind sol) gs 
   return $ Sol.updateGMap sol $ M.fromList gs'
   where 
     gs = M.toList $ Sol.gMap sol 
 
-initGBind :: Sol.Solution -> (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind)) -> SolveM (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind))
+initGBind :: Sol.GSolution -> (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind)) -> SolveM (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind))
 initGBind sol (k, (e, gb)) = ((k,) . (e,) . Sol.equalsGb) <$> ( 
    filterM (isLocal e) ([Sol.trueEqual]:Sol.gbEquals gb)
    >>= \elems -> makeLattice [] elems (head <$> elems)) 
@@ -200,15 +228,15 @@ predKs _              = []
 
 
 --------------------------------------------------------------------------------
-refineGradual :: Config -> Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
+refineGradual :: Sol.GSolution -> W.Worklist a -> SolveM Sol.GSolution
 --------------------------------------------------------------------------------
-refineGradual cfg s w
+refineGradual s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
-     (b, s') <- refineCGradual cfg i s c
+     (b, s') <- refineCGradual i s c
      lift $ writeLoud $ refineMsg i c b rnk
      let w'' = if b then W.push c w' else w'
-     refine s' w''
+     refineGradual s' w''
   | otherwise = return s
   where
     -- DEBUG
@@ -218,9 +246,9 @@ refineGradual cfg s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineCGradual :: Config -> Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
+refineCGradual :: Int -> Sol.GSolution -> F.SimpC a -> SolveM (Bool, Sol.GSolution)
 ---------------------------------------------------------------------------
-refineCGradual _cfg _i s c
+refineCGradual _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
                    let lhs = snd <$> S.lhsPredGradual be s c
@@ -228,11 +256,20 @@ refineCGradual _cfg _i s c
                    return  $ S.update s ks kqs
   where
     _ci       = F.subcId c
-    (ks, rhs) = rhsCands s c
+    (ks, rhs) = rhsCandsGradual s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
+
+
+rhsCandsGradual :: Sol.GSolution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCandsGradual s c    = (fst <$> ks, kqs)
+  where
+    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
+    ks          = predKs . F.crhs $ c
+    cnd k su    = Sol.qbPreds msg s su (Sol.lookupQBind s k)
+    msg         = "rhsCands: " ++ show (F.sid c)
 
 
 --------------------------------------------------------------------------------
@@ -263,7 +300,7 @@ result_  w s = res <$> filterM (isUnsat s) cs
 --------------------------------------------------------------------------------
 -- | Gradual Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-resultGradual :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+resultGradual :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.GSolution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 resultGradual cfg wkl !s = do
@@ -274,7 +311,7 @@ resultGradual cfg wkl !s = do
   where
     ci c = (F.subcId c, F.sinfo c)
 
-resultGradual_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+resultGradual_ :: W.Worklist a -> Sol.GSolution -> SolveM (F.FixResult (F.SimpC a))
 resultGradual_  w s = res <$> filterM (isUnsatGradual s) cs
   where
     cs       = W.unsatCandidates w
@@ -282,9 +319,9 @@ resultGradual_  w s = res <$> filterM (isUnsatGradual s) cs
     res cs'  = F.Unsafe cs'
 
 
-solResultGradual :: W.Worklist a -> Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM (M.HashMap F.KVar F.Expr)
 solResultGradual w cfg sol 
-  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.result
+  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.resultGradual
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing
@@ -313,7 +350,7 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
 
 
 --------------------------------------------------------------------------------
-updateGradualSolution :: [F.SimpC a] -> Sol.Solution -> SolveM (Sol.Solution)
+updateGradualSolution :: [F.SimpC a] -> Sol.GSolution -> SolveM (Sol.GSolution)
 --------------------------------------------------------------------------------
 updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs 
   where
@@ -347,7 +384,7 @@ isUnsat s c = do
 
 
 --------------------------------------------------------------------------------
-isUnsatGradual :: Sol.Solution -> F.SimpC a -> SolveM Bool
+isUnsatGradual :: Sol.GSolution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsatGradual s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))

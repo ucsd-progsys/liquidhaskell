@@ -91,7 +91,7 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b c -> Int -> SolveM a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do

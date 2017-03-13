@@ -43,18 +43,13 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv geqs keqs [] mempty
+init cfg si ks = Sol.fromList senv mempty keqs [] mempty
   where
     keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
-    geqs       = if gradual cfg then map (refineG si qs genv) gs `using` parList rdeepseq else mempty 
     qs         = F.quals si
-    ws         = [ w | (k, w) <- ws0, k `S.member` ks]
-    gs         = snd <$> gs0
+    ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
-
-    (gs0,ws0)  = L.partition (isGWfc . snd) $ M.toList (F.ws si)
-
 
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
@@ -175,7 +170,7 @@ lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
     _msg       = "LhsPred for id = " ++ show (sid c)
 
 
-lhsPredGradual :: F.SolEnv -> Sol.Solution -> F.SimpC a -> [([(F.KVar, Sol.QBind)],F.Expr)]
+lhsPredGradual :: F.SolEnv -> Sol.GSolution -> F.SimpC a -> [([(F.KVar, Sol.QBind)],F.Expr)]
 lhsPredGradual be s c = cleanInfo <$> applyGradual g s bs
   where
     g                 = (ci, be, bs)
@@ -228,7 +223,7 @@ applyKVarGrad :: CombinedEnv -> Sol.GSolution -> F.KVSub -> ExprInfo
 applyKVarGrad g s ksu = case Sol.glookup s (F.ksuKVar ksu) of
   Left cs          -> hypPred g s ksu cs
   Right (Left eqs) -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
-  Right (Left _)   -> (mempty,mempty)
+  Right (Right _)   -> (mempty,mempty)
   where
     msg     = "applyKVar: " ++ show (fst3 g) 
 
@@ -244,7 +239,7 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   where
     msg     = "applyKVar: " ++ show (fst3 g) 
 
-hypPred :: CombinedEnv -> Sol.Sol a b -> F.KVSub -> Sol.Hyp  -> ExprInfo
+hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
 
 {- | `cubePred g s k su c` returns the predicate for
@@ -262,7 +257,7 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
 
  -}
 
-elabExist :: Sol.Solution -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
+elabExist :: Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
 elabExist s xts = F.pExist xts'
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
@@ -288,7 +283,7 @@ cubePredExc :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IB
 
 cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
   where
-    cubeP           = ( xts, psu, elabExist s yts' (p' &.& psu') )
+    cubeP           = (xts, psu, elabExist s yts' (p' &.& psu') )
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'

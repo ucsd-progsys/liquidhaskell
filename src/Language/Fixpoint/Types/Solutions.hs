@@ -82,7 +82,7 @@ import           Text.PrettyPrint.HughesPJ
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
 --------------------------------------------------------------------------------
-update :: Solution -> [KVar] -> [(KVar, EQual)] -> (Bool, Solution)
+update :: Sol a QBind -> [KVar] -> [(KVar, EQual)] -> (Bool, Sol a QBind)
 --------------------------------------------------------------------------------
 update s ks kqs = {- tracepp msg -} (or bs, s')
   where
@@ -102,7 +102,7 @@ groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
   where
     m0         = M.fromList $ (,[]) <$> ks
 
-update1 :: Solution -> (KVar, QBind) -> (Bool, Solution)
+update1 :: Sol a QBind -> (KVar, QBind) -> (Bool, Sol a QBind)
 update1 s (k, qs) = (change, updateK k qs s)
   where
     oldQs         = lookupQBind s k
@@ -254,7 +254,7 @@ qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
-lookupQBind :: Solution -> KVar -> QBind
+lookupQBind :: Sol a QBind -> KVar -> QBind
 --------------------------------------------------------------------------------
 lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
   where

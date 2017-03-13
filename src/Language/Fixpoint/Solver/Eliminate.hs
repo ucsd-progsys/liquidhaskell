@@ -22,7 +22,7 @@ import           Language.Fixpoint.Solver.Sanitize
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
 --   indices needed by the worklist-based refinement loop
 --------------------------------------------------------------------------------
-solverInfo :: Config -> SInfo a -> SolverInfo a
+solverInfo :: Config -> SInfo a -> SolverInfo a b
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
