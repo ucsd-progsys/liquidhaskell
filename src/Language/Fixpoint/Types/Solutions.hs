@@ -214,9 +214,7 @@ instance PPrint Cube where
 --------------------------------------------------------------------------------
 result :: Solution -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = fmap go (sMap s)
-  where 
-    go  (QB eqs)     = pAnd $ fmap eqPred eqs
+result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
 
 
 --------------------------------------------------------------------------------

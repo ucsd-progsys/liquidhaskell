@@ -45,21 +45,21 @@ init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
 init cfg si ks = Sol.fromList senv mempty keqs [] mempty
   where
-    keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
+    keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
 
 --------------------------------------------------------------------------------
--- | Initial Solution (from Qualifiers and WF constraints) ---------------------
+-- | Initial Gradual Solution (from Qualifiers and WF constraints) -------------
 --------------------------------------------------------------------------------
 initGradual :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.GSolution
 --------------------------------------------------------------------------------
 initGradual cfg si ks = Sol.fromList senv geqs keqs [] mempty
   where
     keqs       = map (refine si qs genv)  ws `using` parList rdeepseq
-    geqs       = if gradual cfg then map (refineG si qs genv) gs `using` parList rdeepseq else mempty 
+    geqs       = map (refineG si qs genv) gs `using` parList rdeepseq 
     qs         = F.quals si
     ws         = [ w | (k, w) <- ws0, k `S.member` ks]
     gs         = snd <$> gs0
@@ -67,7 +67,6 @@ initGradual cfg si ks = Sol.fromList senv geqs keqs [] mempty
     senv       = symbolEnv cfg si
 
     (gs0,ws0)  = L.partition (isGWfc . snd) $ M.toList (F.ws si)
-
 
 
 --------------------------------------------------------------------------------
@@ -223,7 +222,7 @@ applyKVarGrad :: CombinedEnv -> Sol.GSolution -> F.KVSub -> ExprInfo
 applyKVarGrad g s ksu = case Sol.glookup s (F.ksuKVar ksu) of
   Left cs          -> hypPred g s ksu cs
   Right (Left eqs) -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
-  Right (Right _)   -> (mempty,mempty)
+  Right (Right _)  -> (mempty,mempty)
   where
     msg     = "applyKVar: " ++ show (fst3 g) 
 

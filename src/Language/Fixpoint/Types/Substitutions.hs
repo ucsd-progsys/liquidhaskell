@@ -38,8 +38,6 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
     s1'                     = subst θ2 <$> s1
 
 mkSubst :: [(Symbol, Expr)] -> Subst
--- mkSubst = Su . M.fromList . reverse 
-
 mkSubst = Su . M.fromList . reverse . filter notTrivial 
   where
     notTrivial (x, EVar y) = x /= y
