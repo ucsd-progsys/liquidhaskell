@@ -212,22 +212,18 @@ instance PPrint Cube where
   pprintTidy _ c = "Cube" <+> pprint (cuId c)
 
 --------------------------------------------------------------------------------
-result :: Solution -> M.HashMap KVar Expr
+result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
 result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
 
 
 --------------------------------------------------------------------------------
-resultGradual :: GSolution -> M.HashMap KVar Expr
+resultGradual :: GSolution -> M.HashMap KVar (Expr, [Expr])
 --------------------------------------------------------------------------------
-resultGradual s = fmap go (sMap s) `mappend` fmap go' (gMap s) 
+resultGradual s = fmap go' (gMap s)
   where 
-    go  (QB eqs)     = pAnd $ fmap eqPred eqs
     go' ((_,e), GB eqss) 
-     | isTautoPred e 
-     = POr [PAnd $ fmap eqPred eqs | eqs <- eqss]
-     | otherwise
-     = PAnd [e, POr [PAnd $ fmap eqPred eqs | eqs <- eqss]]
+     = (e, [PAnd $ fmap eqPred eqs | eqs <- eqss])
 
 
 --------------------------------------------------------------------------------

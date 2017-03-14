@@ -60,10 +60,15 @@ siKvars = S.fromList . M.keys . F.ws
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
 tidyResult :: F.Result a -> F.Result a
-tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
+tidyResult r = r { F.resSolution  =  tidySolution  (F.resSolution r)
+                 , F.gresSolution =  gtidySolution (F.gresSolution r) 
+                 }
 
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
+
+gtidySolution :: F.GFixSolution -> F.GFixSolution
+gtidySolution = fmap (\(e, es) -> (tidyPred e, tidyPred <$> es))
 
 tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
@@ -234,7 +239,7 @@ resultGradual cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- resultGradual_ wkl s 
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResultGradual wkl cfg s
+  F.Result (ci <$> stat) <$> solResult cfg s <*> solResultGradual wkl cfg s 
   where
     ci c = (F.subcId c, F.sinfo c)
 
@@ -245,15 +250,19 @@ resultGradual_  w s = res <$> filterM (isUnsatGradual s) cs
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
+solResult :: Config -> Sol.GSolution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult cfg
+  = minimizeResult cfg . Sol.result
 
-solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM (M.HashMap F.KVar F.Expr)
-solResultGradual w cfg sol 
-  = (updateGradualSolution (W.unsatCandidates w) sol) >>= minimizeResult cfg . Sol.resultGradual
+
+solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM (M.HashMap F.KVar (F.Expr, [F.Expr]))
+solResultGradual w _cfg sol 
+  = Sol.resultGradual <$> updateGradualSolution (W.unsatCandidates w) sol
 
 --------------------------------------------------------------------------------
 updateGradualSolution :: [F.SimpC a] -> Sol.GSolution -> SolveM (Sol.GSolution)
 --------------------------------------------------------------------------------
-updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs 
+updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs
   where
    f s c = do
     be <- getBinds

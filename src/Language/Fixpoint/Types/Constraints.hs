@@ -51,6 +51,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Results
   , FixSolution
+  , GFixSolution
   , Result (..)
 
   -- * Cut KVars
@@ -177,18 +178,21 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type FixSolution = M.HashMap KVar Expr
+type FixSolution  = M.HashMap KVar Expr
+type GFixSolution = M.HashMap KVar (Expr, [Expr])
 
-data Result a = Result { resStatus   :: !(FixResult a)
-                       , resSolution :: !FixSolution }
+data Result a = Result { resStatus    :: !(FixResult a)
+                       , resSolution  :: !FixSolution
+                       , gresSolution :: !GFixSolution }
                 deriving (Generic, Show)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty
-  mappend r1 r2 = Result stat soln
+  mempty        = Result mempty mempty mempty
+  mappend r1 r2 = Result stat soln gsoln
     where
-      stat      = mappend (resStatus r1)   (resStatus r2)
-      soln      = mappend (resSolution r1) (resSolution r2)
+      stat      = mappend (resStatus r1)    (resStatus r2)
+      soln      = mappend (resSolution r1)  (resSolution r2)
+      gsoln     = mappend (gresSolution r1) (gresSolution r2)
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"

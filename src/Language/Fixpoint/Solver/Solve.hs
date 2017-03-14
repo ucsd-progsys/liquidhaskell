@@ -165,12 +165,12 @@ result cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s 
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult cfg s
+  F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
   where
     ci c = (F.subcId c, F.sinfo c)
 
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
-solResult cfg sol = minimizeResult cfg $ Sol.result sol 
+solResult cfg = minimizeResult cfg . Sol.result 
 
 result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs

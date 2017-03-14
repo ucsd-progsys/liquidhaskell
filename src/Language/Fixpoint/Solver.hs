@@ -41,6 +41,8 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
+import qualified Data.HashMap.Strict       as M
+import qualified Data.List                 as L 
 -- import Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
@@ -157,7 +159,7 @@ solveNative !cfg !fi0 = (solveNative' cfg fi0)
                              (return . result)
 
 result :: Error -> Result a
-result e = Result (Crash [] msg) mempty
+result e = Result (Crash [] msg) mempty mempty
   where
     msg  = showpp e
 
@@ -227,4 +229,15 @@ saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
-  writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res)
+  writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res) ++ "\n\n" ++ L.intercalate "\n\n" (ident " := " $ (showGradual <$> (M.toList $ gresSolution res)))
+
+  where
+    ident sep xys = let n = maximum (map length $ fst $ unzip xys) 
+                    in [xs ++ replicate (n - length xs) ' ' ++ sep ++ ys | (xs, ys) <- xys]
+    showGradual (s, (e, es)) 
+      = (dropWhile (/='(') $ symbolString $ kv s, showppFixed e ++ showpp es)
+    showppFixed e 
+      | isTautoPred e 
+      = mempty
+      | otherwise
+      = showpp e ++ " && "
