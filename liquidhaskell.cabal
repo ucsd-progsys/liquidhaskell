@@ -281,3 +281,19 @@ test-suite test
                ,     tasty-hunit >= 0.9
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
+
+test-suite liquidhaskell-parser
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests
+  ghc-options: -W
+  main-is: Parser.hs
+  build-depends:
+    base  >= 4 && < 5,
+    liquidhaskell,
+    HUnit,
+    hspec,
+    parsec,
+    bifunctors,
+    text,
+    mtl
