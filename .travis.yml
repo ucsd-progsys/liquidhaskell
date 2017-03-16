@@ -6,12 +6,22 @@ branches:
   only:
   - master
   - develop
+  - parser-az
+  - travis
+
+# addons:
+#   apt:
+#     packages:
+#     - libgmp-dev
 
 addons:
   apt:
     packages:
-    - libgmp-dev
-    - z3
+      - libgmp-dev
+      - libz3-dev
+    sources:
+      - sourceline: ppa:hvr/z3
+
 
 # Caching so the next build will be fast too.
 cache:
@@ -20,10 +30,12 @@ cache:
     - .stack-work
 
 before_install:
+
 # Download and unpack the stack executable
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+- travis_retry stack setup # bring in ghc
 - travis_retry stack install cabal-install
 # - scripts/travis install_smt "$SMT"
 
@@ -51,8 +63,8 @@ env:
 
 install:
  # - scripts/travis install_stack "$STACK"
- - scripts/travis configure_stack "$GHC"
- - scripts/travis setup_ghc
+ # - scripts/travis configure_stack "$GHC"
+ # - scripts/travis setup_ghc
  - scripts/travis install_dependencies
 
 script:
