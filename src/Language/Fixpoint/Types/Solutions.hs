@@ -113,7 +113,7 @@ update1 s (k, qs) = (change, updateK k qs s)
 --------------------------------------------------------------------------------
 type Solution  = Sol () QBind
 type GSolution = Sol (((Symbol, Sort), Expr), GBind) QBind
-newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic)
+newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic, Eq)
 newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
 
 emptyGMap :: GSolution -> GSolution 
@@ -211,6 +211,8 @@ data Cube = Cube
 instance PPrint Cube where
   pprintTidy _ c = "Cube" <+> pprint (cuId c)
 
+instance Show Cube where
+  show = showpp
 --------------------------------------------------------------------------------
 result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
@@ -258,12 +260,12 @@ lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
 glookup :: GSolution -> KVar -> Either Hyp (Either QBind (((Symbol, Sort), Expr), GBind))
 --------------------------------------------------------------------------------
 glookup s k
+  | Just gbs <- M.lookup k (gMap s)
+  = Right (Right gbs)
   | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
   = Left cs
   | Just eqs <- lookupElab s k
   = Right (Left eqs)                 -- TODO: don't initialize kvars that have a hyp solution
-  | Just gbs <- M.lookup k (gMap s)
-  = Right (Right gbs)
   | otherwise
   = errorstar $ "solLookup: Unknown kvar " ++ show k
 

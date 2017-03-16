@@ -43,7 +43,6 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L 
--- import Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
