@@ -10,7 +10,6 @@ module Language.Fixpoint.Solver.GradualSolution
 
   -- * Lookup Solution
   , lhsPred
-  , lhsPredConstant
   ) where
 
 import           Control.Parallel.Strategies
@@ -140,14 +139,6 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPredConstant :: F.SolEnv -> Sol.GSolution -> F.SimpC a -> F.Expr
-lhsPredConstant be s c = applyGConstant g s bs
-  where
-    g                 = (ci, be, bs)
-    bs                = F.senv c
-    ci                = sid c
-
-
 lhsPred :: F.SolEnv -> Sol.GSolution -> F.SimpC a ->  [([(F.KVar, Sol.QBind)], F.Expr)]
 lhsPred be s c = gSelectToList (fst <$> applyGradual g s bs)
   where
@@ -159,18 +150,6 @@ lhsPred be s c = gSelectToList (fst <$> applyGradual g s bs)
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
-
-
-applyGConstant        :: CombinedEnv -> Sol.GSolution -> F.IBindEnv -> F.Expr
-applyGConstant g s bs = F.pAnd (pks:ps++pgs)
-  where
-    pgs           = applyGConstants s gs
-    (pks, _)      = deSelect mempty $ applyKVarsGrad g s ks  
-    (ps,  ks, gs) = envConcKVars g bs
-
-deSelect :: a -> GSelect a -> a 
-deSelect _   (GNone e) = e 
-deSelect def _         = def 
 
 applyGradual        :: CombinedEnv -> Sol.GSolution -> F.IBindEnv -> GSelect ExprInfo
 applyGradual g s bs = mappendGSelect mappendExprInfo pks (applyKVarsGrad g s ks)
@@ -192,19 +171,9 @@ envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.k
     is              = F.elemsIBindEnv bs
     be              = F.soeBinds (snd3 g)
 
-applyGConstants   :: Sol.GSolution -> [F.KVSub] -> [F.Expr]
-applyGConstants s = map (applyGConst s)
-
-
 applyGVars :: CombinedEnv -> Sol.GSolution -> [F.KVSub] -> [[((F.KVar, Sol.QBind), F.Expr)]]
 applyGVars g s = map (applyGVar g s)
 
-applyGConst :: Sol.GSolution -> F.KVSub -> F.Expr
-applyGConst s ksu = case Sol.glookup s (F.ksuKVar ksu) of
-  Right (Right (e,_)) -> F.subst su (snd e)
-  _                   -> mempty
-  where
-    su      = F.ksuSubst ksu
 
 applyGVar :: CombinedEnv -> Sol.GSolution -> F.KVSub -> [((F.KVar, Sol.QBind), F.Expr)]
 applyGVar g s ksu = case Sol.glookup s (F.ksuKVar ksu) of
@@ -236,22 +205,6 @@ hypPredGrad g s ksu xs = f <$> (collapseGSelect $ map (cubePredGrad g s ksu) xs)
   where
     f xs = let (es, is) = unzip xs  in (F.pOr es, mconcatPlus is)
 
-mappendGSelect :: (a -> a -> b) -> GSelect a -> GSelect a -> GSelect b 
-mappendGSelect f (GNone x) (GNone y) = GNone (f x y)
-mappendGSelect f (GNone x) (GOpt ys) = GOpt [(i, f x y) | (i, y) <- ys] 
-mappendGSelect f (GOpt xs) (GNone y) = GOpt [(i, f x y) | (i, x) <- xs]
-mappendGSelect f (GOpt xs) (GOpt ys) = GOpt $ concatMap (\y -> (catMaybes $ map (\x -> g x y) xs)) ys 
-  where
-    g (xs, x) (ys, y)
-      | null [ () | (k1, _) <- xs, (k2, _) <- ys, k1 == k2 ]  
-      =  Just (xs ++ ys, f x y)
-      | and [v1 == v2 | (k1, v1) <- xs, (k2, v2) <- ys, k1 == k2 ] 
-      = Just (xs ++ [(k, v) | (k, v) <- ys, not (k `elem` (fst <$> xs))], f x y)
-      | otherwise
-      = Nothing 
-
-collapseGSelect :: [GSelect a] -> GSelect [a]
-collapseGSelect = foldl (mappendGSelect (\x y -> (x ++ y))) (GNone []) . fmap (fmap (:[]))
 
 {- | `cubePred g s k su c` returns the predicate for
 
@@ -290,18 +243,6 @@ type Binders = [(F.Symbol, F.Sort)]
 --   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
 --   we want is `Exists xts. (psu /\ p)`.
 
-
-data GSelect a = GNone a | GOpt [([(F.KVar, Sol.QBind)], a)] deriving (Show)
-
-
-gSelectToList :: GSelect a -> [([(F.KVar, Sol.QBind)], a)]
-gSelectToList (GNone a) = [([], a)]
-gSelectToList (GOpt xs) = xs 
-
-
-instance Functor GSelect where
-  fmap f (GNone a) = GNone  (f a)
-  fmap f (GOpt xs) = GOpt [(p, f a) | (p, a) <- xs]
 
 cubePredExcGrad :: CombinedEnv -> Sol.GSolution -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> GSelect ((Binders, F.Pred, F.Pred), KInfo)
@@ -444,3 +385,37 @@ appendTags ts ts' = sortNub (ts ++ ts')
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
+
+
+--------------------------------------------------------------------------------
+-- | Gradual Selection Interface -----------------------------------------------
+--------------------------------------------------------------------------------
+data GSelect a = GNone a | GOpt [([(F.KVar, Sol.QBind)], a)] deriving (Show)
+
+
+gSelectToList :: GSelect a -> [([(F.KVar, Sol.QBind)], a)]
+gSelectToList (GNone a) = [([], a)]
+gSelectToList (GOpt xs) = xs 
+
+
+instance Functor GSelect where
+  fmap f (GNone a) = GNone  (f a)
+  fmap f (GOpt xs) = GOpt [(p, f a) | (p, a) <- xs]
+
+mappendGSelect :: (a -> a -> b) -> GSelect a -> GSelect a -> GSelect b 
+mappendGSelect f (GNone x) (GNone y) = GNone (f x y)
+mappendGSelect f (GNone x) (GOpt ys) = GOpt [(i, f x y) | (i, y) <- ys] 
+mappendGSelect f (GOpt xs) (GNone y) = GOpt [(i, f x y) | (i, x) <- xs]
+mappendGSelect f (GOpt xs) (GOpt ys) = GOpt $ concatMap (\y -> (catMaybes $ map (\x -> g x y) xs)) ys 
+  where
+    g (xs, x) (ys, y)
+      | null [ () | (k1, _) <- xs, (k2, _) <- ys, k1 == k2 ]  
+      =  Just (xs ++ ys, f x y)
+      | and [v1 == v2 | (k1, v1) <- xs, (k2, v2) <- ys, k1 == k2 ] 
+      = Just (xs ++ [(k, v) | (k, v) <- ys, not (k `elem` (fst <$> xs))], f x y)
+      | otherwise
+      = Nothing 
+
+collapseGSelect :: [GSelect a] -> GSelect [a]
+collapseGSelect = foldl (mappendGSelect (\x y -> (x ++ y))) (GNone []) . fmap (fmap (:[]))
+

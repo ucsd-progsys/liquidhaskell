@@ -208,10 +208,10 @@ refineC :: Int -> Sol.GSolution -> F.SimpC a -> SolveM (Bool, Sol.GSolution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
-  | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPredConstant be s c
-                   kqs    <- filterValid lhs rhs
-                   return  $ S.update s ks kqs
+  | otherwise = do be      <- getBinds
+                   let lhss = snd <$> S.lhsPred be s c
+                   kqs     <- filterValidGradual lhss rhs
+                   return   $ S.update s ks kqs
   where
     _ci       = F.subcId c
     (ks, rhs) = rhsCands s c
