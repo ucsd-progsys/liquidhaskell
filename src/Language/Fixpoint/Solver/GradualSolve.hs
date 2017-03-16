@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.SortCheck       as So
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
-import qualified Language.Fixpoint.Solver.Solution  as S
+import qualified Language.Fixpoint.Solver.GradualSolution  as S
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
@@ -146,10 +146,10 @@ solveGradual_ :: (NFData a, F.Fixpoint a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solveGradual_ cfg fi s0 ks wkl = do
-  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.initGradual cfg fi ks
+  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
   s2      <- {-# SCC "sol-local"  #-} filterLocal s1
-  s       <- {-# SCC "sol-refine" #-} refineGradual s2 wkl
-  res     <- {-# SCC "sol-result" #-} resultGradual cfg wkl s
+  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
+  res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
@@ -186,15 +186,15 @@ initGBind sol (k, (e, gb)) = ((k,) . (e,) . Sol.equalsGb) <$> (
       isValid mempty pp
 
 --------------------------------------------------------------------------------
-refineGradual :: Sol.GSolution -> W.Worklist a -> SolveM Sol.GSolution
+refine :: Sol.GSolution -> W.Worklist a -> SolveM Sol.GSolution
 --------------------------------------------------------------------------------
-refineGradual s w
+refine s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
-     (b, s') <- refineCGradual i s c
+     (b, s') <- refineC i s c
      lift $ writeLoud $ refineMsg i c b rnk
      let w'' = if b then W.push c w' else w'
-     refineGradual s' w''
+     refine s' w''
   | otherwise = return s
   where
     -- DEBUG
@@ -204,25 +204,25 @@ refineGradual s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineCGradual :: Int -> Sol.GSolution -> F.SimpC a -> SolveM (Bool, Sol.GSolution)
+refineC :: Int -> Sol.GSolution -> F.SimpC a -> SolveM (Bool, Sol.GSolution)
 ---------------------------------------------------------------------------
-refineCGradual _i s c
+refineC _i s c
   | null rhs  = return (False, s)
-  | otherwise = do be     <- getBinds
-                   let lhs = snd <$> S.lhsPredGradual be s c
-                   kqs    <- filterValidGradual lhs rhs
-                   return  $ S.update s ks kqs
+  | otherwise = do be      <- getBinds
+                   let lhss = snd <$> S.lhsPred be s c
+                   kqs     <- filterValidGradual lhss rhs
+                   return   $ S.update s ks kqs
   where
     _ci       = F.subcId c
-    (ks, rhs) = rhsCandsGradual s c
+    (ks, rhs) = rhsCands s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
 
-rhsCandsGradual :: Sol.GSolution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-rhsCandsGradual s c    = (fst <$> ks, kqs)
+rhsCands :: Sol.GSolution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    = (fst <$> ks, kqs)
   where
     kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
     ks          = predKs . F.crhs $ c
@@ -232,19 +232,19 @@ rhsCandsGradual s c    = (fst <$> ks, kqs)
 --------------------------------------------------------------------------------
 -- | Gradual Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-resultGradual :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.GSolution
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.GSolution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-resultGradual cfg wkl s = do
+result cfg wkl s = do
   lift $ writeLoud "Computing Result"
-  stat    <- resultGradual_ wkl s 
+  stat    <- result_ wkl s 
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   F.Result (ci <$> stat) <$> solResult cfg s <*> solResultGradual wkl cfg s 
   where
     ci c = (F.subcId c, F.sinfo c)
 
-resultGradual_ :: W.Worklist a -> Sol.GSolution -> SolveM (F.FixResult (F.SimpC a))
-resultGradual_  w s = res <$> filterM (isUnsatGradual s) cs
+result_ :: Fixpoint a =>  W.Worklist a -> Sol.GSolution -> SolveM (F.FixResult (F.SimpC a))
+result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
     res []   = F.Safe
@@ -266,7 +266,7 @@ updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs
   where
    f s c = do
     be <- getBinds
-    let lpi = S.lhsPredGradual be sol c 
+    let lpi = S.lhsPred be sol c 
     let rp  = rhsPred c 
     gbs    <- firstValid rp lpi 
     return $ Sol.updateGMapWithKey gbs s 
@@ -280,13 +280,13 @@ firstValid rhs ((y,lhs):xs) = do
 
 
 --------------------------------------------------------------------------------
-isUnsatGradual :: Sol.GSolution -> F.SimpC a -> SolveM Bool
+isUnsat :: Fixpoint a => Sol.GSolution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
-isUnsatGradual s c = do
+isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
-  let lpi = S.lhsPredGradual be s c
+  let lpi = S.lhsPred be s c
   let rp = rhsPred        c
   res   <- (not . or) <$> mapM (`isValid` rp) (snd <$> lpi)
   lift   $ whenLoud $ showUnsat res (F.subcId c) (F.pOr (snd <$> lpi)) rp
