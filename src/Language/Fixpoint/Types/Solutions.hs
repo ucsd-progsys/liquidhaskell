@@ -23,9 +23,15 @@ module Language.Fixpoint.Types.Solutions (
   , CMap
 
   -- * Solution elements
-  , Hyp, Cube (..), QBind, GBind, qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap
-  , EQual (..), trueEqual
+  , Hyp, Cube (..), QBind, GBind
+  , EQual (..)
+
+  -- * Equal elements
   , eQual
+  , trueEqual
+
+  -- * Gradual Solution elements   
+  , qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap   
 
   -- * Solution Candidates (move to SolverMonad?)
   , Cand
