@@ -16,14 +16,4 @@ h x y z = div (x + y) z
 
 {-@ f :: {v:Int | ?? } -> Int -> Int @-} 
 f :: Int -> Int -> Int 
--- f = flip div
-f x y = div y x 
-
-{-
-WITHOUT ELIMINATION ka solves to contradiction 
-(?? => ka) so ka = v < 0 && v > 0  
-ka => v / 0 
-so ?? is not required
-f = flip {v:Int | ka} {v:Int | kb} {v:Int | true } div 
-flip :: (a -> b -> c) -> (b -> a -> c)
--}
+f = flip div
