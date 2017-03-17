@@ -95,6 +95,7 @@ Library
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
+                   Language.Fixpoint.Solver.GradualSolution,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
@@ -104,6 +105,7 @@ Library
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
+                   Language.Fixpoint.Solver.GradualSolve,
                    Language.Fixpoint.Solver.Solve
 
   Build-Depends: base >= 4.8 && < 5

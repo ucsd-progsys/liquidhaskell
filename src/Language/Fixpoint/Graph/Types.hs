@@ -176,8 +176,8 @@ instance PPrint Rank where
 -- | `SolverInfo` contains all the stuff needed to produce a result, and is the
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
-data SolverInfo a = SI
-  { siSol     :: !F.Solution                    -- ^ the initial solution
+data SolverInfo a b = SI
+  { siSol     :: !(F.Sol b F.QBind)             -- ^ the initial solution
   , siQuery   :: !(F.SInfo a)                   -- ^ the whole input query
   , siDeps    :: !CDeps                         -- ^ dependencies between constraints/ranks etc.
   , siVars    :: !(S.HashSet F.KVar)            -- ^ set of KVars to actually solve for

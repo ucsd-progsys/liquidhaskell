@@ -17,15 +17,21 @@
 module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
-    Solution
-  , Sol, sEnv
+    Solution, GSolution
+  , Sol (gMap, sEnv), updateGMap, updateGMapWithKey
   , sScp
   , CMap
 
   -- * Solution elements
-  , Hyp, Cube (..), QBind
+  , Hyp, Cube (..), QBind, GBind
   , EQual (..)
+
+  -- * Equal elements
   , eQual
+  , trueEqual
+
+  -- * Gradual Solution elements   
+  , qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap   
 
   -- * Solution Candidates (move to SolverMonad?)
   , Cand
@@ -38,15 +44,17 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Lookup
   , lookupQBind
-  , lookup
+  , lookup, glookup
 
   -- * Manipulating QBind
   , qb
   , qbPreds
   , qbFilter
 
+  , gbFilterM
+
   -- * Conversion for client
-  , result
+  , result, resultGradual
 
   -- * "Fast" Solver (DEPRECATED as unsound)
   , Index  (..)
@@ -64,6 +72,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.List as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
+import           Control.Monad (filterM)
 -- import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
@@ -79,7 +88,7 @@ import           Text.PrettyPrint.HughesPJ
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
 --------------------------------------------------------------------------------
-update :: Solution -> [KVar] -> [(KVar, EQual)] -> (Bool, Solution)
+update :: Sol a QBind -> [KVar] -> [(KVar, EQual)] -> (Bool, Sol a QBind)
 --------------------------------------------------------------------------------
 update s ks kqs = {- tracepp msg -} (or bs, s')
   where
@@ -99,7 +108,7 @@ groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
   where
     m0         = M.fromList $ (,[]) <$> ks
 
-update1 :: Solution -> (KVar, QBind) -> (Bool, Solution)
+update1 :: Sol a QBind -> (KVar, QBind) -> (Bool, Sol a QBind)
 update1 s (k, qs) = (change, updateK k qs s)
   where
     oldQs         = lookupQBind s k
@@ -108,14 +117,38 @@ update1 s (k, qs) = (change, updateK k qs s)
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
 --------------------------------------------------------------------------------
-type Solution = Sol QBind
-newtype QBind = QB [EQual] deriving (Show, Data, Typeable, Generic)
+type Solution  = Sol () QBind
+type GSolution = Sol (((Symbol, Sort), Expr), GBind) QBind
+newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic, Eq)
+newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
+
+emptyGMap :: GSolution -> GSolution 
+emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
+
+updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
+updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs } 
 
 qb :: [EQual] -> QBind
 qb = QB
 
 qbEQuals :: QBind -> [EQual]
 qbEQuals (QB xs) = xs
+
+qbToGb :: QBind -> GBind
+qbToGb (QB xs) = GB $ map (:[]) xs
+
+gbToQbs :: GBind -> [QBind]
+gbToQbs (GB [])  = [QB [trueEqual]] 
+gbToQbs (GB ess) = QB <$> ess
+
+gbEquals :: GBind -> [[EQual]]
+gbEquals (GB eqs) = eqs 
+
+equalsGb :: [[EQual]] -> GBind
+equalsGb = GB 
+
+gbFilterM :: Monad m => ([EQual] -> m Bool) -> GBind -> m GBind
+gbFilterM f (GB eqs) = GB <$> filterM f eqs 
 
 qbSize :: QBind -> Int
 qbSize = length . qbEQuals
@@ -124,6 +157,7 @@ qbFilter :: (EQual -> Bool) -> QBind -> QBind
 qbFilter f (QB eqs) = QB (filter f eqs)
 
 instance NFData QBind
+instance NFData GBind
 
 instance PPrint QBind where
   pprintTidy k = pprintTidy k . qbEQuals
@@ -132,27 +166,37 @@ instance PPrint QBind where
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
-data Sol a = Sol
+data Sol b a = Sol
   { sEnv  :: !(SEnv Sort)                -- ^ Environment used to elaborate solutions
   , sMap  :: !(M.HashMap KVar a)         -- ^ Actual solution (for cut kvar)
+  , gMap  :: !(M.HashMap KVar b)         -- ^ Solution for gradual variables 
   , sHyp  :: !(M.HashMap KVar Hyp)       -- ^ Defining cubes  (for non-cut kvar)
   -- , sBot  :: !(M.HashMap KVar ())        -- ^ set of BOT (cut kvars)
   , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
   }
 
-instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty mempty mempty
+updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a 
+updateGMap sol gmap = sol {gMap = gmap}
+
+
+mapGMap :: Sol b a -> (b -> b) -> Sol b a 
+mapGMap sol f = sol {gMap = M.map f (gMap sol)}
+
+
+instance Monoid (Sol a b) where
+  mempty        = Sol mempty mempty mempty mempty mempty
   mappend s1 s2 = Sol { sEnv  = mappend (sEnv s1) (sEnv s2)
                       , sMap  = mappend (sMap s1) (sMap s2)
+                      , gMap  = mappend (gMap s1) (gMap s2)
                       , sHyp  = mappend (sHyp s1) (sHyp s2)
     --                , sBot  = mappend (sBot s1) (sBot s2)
                       , sScp  = mappend (sScp s1) (sScp s2)
                       }
 
-instance Functor Sol where
-  fmap f (Sol e s m1 m2) = Sol e (f <$> s) m1 m2
+instance Functor (Sol a) where
+  fmap f (Sol e s m1 m2 m3) = Sol e (f <$> s) m1 m2 m3 
 
-instance PPrint a => PPrint (Sol a) where
+instance (PPrint a, PPrint b) => PPrint (Sol a b) where
   pprintTidy k = pprintTidy k . sMap
 
 
@@ -171,23 +215,36 @@ data Cube = Cube
 instance PPrint Cube where
   pprintTidy _ c = "Cube" <+> pprint (cuId c)
 
+instance Show Cube where
+  show = showpp
 --------------------------------------------------------------------------------
-result :: Solution -> M.HashMap KVar Expr
+result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
 result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
+
+
+--------------------------------------------------------------------------------
+resultGradual :: GSolution -> M.HashMap KVar (Expr, [Expr])
+--------------------------------------------------------------------------------
+resultGradual s = fmap go' (gMap s)
+  where 
+    go' ((_,e), GB eqss) 
+     = (e, [PAnd $ fmap eqPred eqs | eqs <- eqss])
+
 
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SEnv Sort -> [(KVar, a)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a
-fromList env kXs kYs = Sol env kXm kYm -- kBm
+fromList :: SEnv Sort -> [(KVar, a)] -> [(KVar, b)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a b
+fromList env kGs kXs kYs = Sol env kXm kGm kYm -- kBm
   where
     kXm              = M.fromList   kXs
     kYm              = M.fromList   kYs
+    kGm              = M.fromList   kGs
  -- kBm              = const () <$> kXm
 
 --------------------------------------------------------------------------------
-qbPreds :: String -> Solution -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
 qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
@@ -197,28 +254,43 @@ qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
 --------------------------------------------------------------------------------
-lookupQBind :: Solution -> KVar -> QBind
+lookupQBind :: Sol a QBind -> KVar -> QBind
 --------------------------------------------------------------------------------
 lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
   where
     _msg        = "lookupQB: k = " ++ show k
 
 --------------------------------------------------------------------------------
-lookup :: Solution -> KVar -> Either Hyp QBind
+glookup :: GSolution -> KVar -> Either Hyp (Either QBind (((Symbol, Sort), Expr), GBind))
+--------------------------------------------------------------------------------
+glookup s k
+  | Just gbs <- M.lookup k (gMap s)
+  = Right (Right gbs)
+  | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
+  = Left cs
+  | Just eqs <- lookupElab s k
+  = Right (Left eqs)                 -- TODO: don't initialize kvars that have a hyp solution
+  | otherwise
+  = errorstar $ "solLookup: Unknown kvar " ++ show k
+
+
+
+--------------------------------------------------------------------------------
+lookup :: Sol a QBind -> KVar -> Either Hyp QBind
 --------------------------------------------------------------------------------
 lookup s k
   | Just cs  <- M.lookup k (sHyp s) -- non-cut variable, return its cubes
   = Left cs
   | Just eqs <- lookupElab s k
-  = Right eqs                       -- TODO: don't initialize kvars that have a hyp solution
+  = Right eqs                 -- TODO: don't initialize kvars that have a hyp solution
   | otherwise
   = errorstar $ "solLookup: Unknown kvar " ++ show k
 
-lookupElab :: Solution -> KVar -> Maybe QBind
+lookupElab :: Sol b QBind -> KVar -> Maybe QBind
 lookupElab s k = M.lookup k (sMap s)
 
 --------------------------------------------------------------------------------
-updateK :: KVar -> a -> Sol a -> Sol a
+updateK :: KVar -> a -> Sol b a -> Sol b a
 --------------------------------------------------------------------------------
 updateK k qs s = s { sMap = M.insert k qs (sMap s)
 --                 , sBot = M.delete k    (sBot s)
@@ -239,6 +311,9 @@ data EQual = EQL
   , eqPred  :: !Expr
   , _eqArgs :: ![Expr]
   } deriving (Eq, Show, Data, Typeable, Generic)
+
+trueEqual :: EQual
+trueEqual = EQL trueQual mempty [] 
 
 instance PPrint EQual where
   pprintTidy k = pprintTidy k . eqPred

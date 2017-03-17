@@ -157,7 +157,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
-    step _ PGrad           = return PGrad
+    step c (PGrad k su e)  = PGrad k su <$> vE c e 
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -169,6 +169,8 @@ mapKVars' f            = trans kvVis () []
   where
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
+      | Just p' <- f (k, su) = subst su p'
+    txK _ (PGrad k su _)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
@@ -183,7 +185,7 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go e@PGrad         = f e
+    go (PGrad k su e)  = f =<< (PGrad k su  <$>  go e                     )
     go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
     go (PNot p)        = f =<< (PNot        <$>  go p                     )
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
@@ -202,12 +204,13 @@ mapMExpr f = go
     go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
-mapKVarSubsts f        = trans kvVis () []
+mapKVarSubsts f          = trans kvVis () []
   where
-    kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su) = PKVar k (f k su)
-    txK _ p            = p
-
+    kvVis                = defaultVisitor { txExpr = txK }
+    txK _ (PKVar k su)   = PKVar k (f k su)
+    txK _ (PGrad k su e) = PGrad k (f k su) e
+    txK _ p              = p
+  
 newtype MInt = MInt Integer
 
 instance Monoid MInt where
@@ -240,8 +243,9 @@ kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []
   where
     kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
-    kv' _ (PKVar k _) = [k]
-    kv' _ _           = []
+    kv' _ (PKVar k _)   = [k]
+    kv' _ (PGrad k _ _) = [k]
+    kv' _ _             = []
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
@@ -266,6 +270,7 @@ isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
 isKvar (PKVar {}) = True
+isKvar (PGrad {}) = True 
 isKvar _          = False
 
 isConc :: Expr -> Bool

@@ -117,8 +117,8 @@ removeOtherKs fi0 ks = fi1 { ws = ws', cm = cm' }
 -- Helper functions
 ---------------------------------------------------------------------------
 isSafe :: Result a -> Bool
-isSafe (Result Safe _) = True
-isSafe _               = False
+isSafe (Result Safe _ _) = True
+isSafe _                 = False
 
 addExt :: Ext -> Config -> Config
 addExt ext cfg = cfg { srcFile = queryFile ext cfg }

@@ -466,7 +466,7 @@ bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
-      <|> try (reserved "??" >> return PGrad)
+      <|> try (reserved "??" >> makeUniquePGrad)
       <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP
@@ -474,8 +474,13 @@ pred0P =  trueP
       <|> try (reserved "?" *> exprP)
       <|> try funAppP
       <|> try (eVar <$> symbolP)
-      <|> try (reservedOp "&&" >> PAnd <$> predsP)
+      <|> try (reservedOp "&&" >> pGAnds <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
+
+makeUniquePGrad :: Parser Expr 
+makeUniquePGrad
+  = do uniquePos <- getPosition
+       return $ PGrad (KV $ symbol $ show uniquePos) mempty mempty
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
@@ -502,7 +507,7 @@ predP  = buildExpressionParser lops pred0P
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reservedOp "not " >> return PNot)]
-           , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+           , [Infix  (reservedOp "&&"   >> return (\x y -> pGAnd x y)) AssocRight]
            , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
            , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
            , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]

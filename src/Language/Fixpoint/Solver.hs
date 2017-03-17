@@ -41,7 +41,6 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
--- import Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -157,7 +156,7 @@ solveNative !cfg !fi0 = (solveNative' cfg fi0)
                              (return . result)
 
 result :: Error -> Result a
-result e = Result (Crash [] msg) mempty
+result e = Result (Crash [] msg) mempty mempty
   where
     msg  = showpp e
 
@@ -227,4 +226,5 @@ saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
-  writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res)
+  writeFile f $ "\nSolution:\n" ++ showpp (resSolution  res)
+                ++ (if (gradual cfg) then ("\n\n" ++ showpp (gresSolution res)) else mempty)

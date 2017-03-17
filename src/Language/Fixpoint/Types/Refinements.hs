@@ -84,6 +84,11 @@ module Language.Fixpoint.Types.Refinements (
   , pprintReft
 
   , debruijnIndex
+
+  -- * Gradual Type Manipulation
+  , pGAnds, pGAnd  
+  , isGradual
+
   ) where
 
 import qualified Data.Binary as B
@@ -139,11 +144,15 @@ reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else ((pAnd ps) : ks)
-    (ks, ps)                 = partition isKvar $ refaConjuncts ra
+    (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
+
+isGradual :: Expr -> Bool 
+isGradual (PGrad _ _ _) = True
+isGradual _             = False 
 
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
@@ -236,7 +245,7 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
-          | PGrad
+          | PGrad  !KVar !Subst !Expr 
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr
@@ -292,7 +301,7 @@ debruijnIndex = go
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
-    go PGrad           = 1
+    go (PGrad _ _ e)   = go e 
 
 
 newtype Reft = Reft (Symbol, Expr)
@@ -376,13 +385,17 @@ instance Fixpoint Expr where
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix PGrad            = text "??"
+  toFix (PGrad _ _ e)    = toFix e <+> text "&&" <+> text "??" -- <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+
+  simplify (PGrad k su e)
+    | isContraPred e      = PFalse
+    | otherwise           = PGrad k su (simplify e)
 
   simplify (PAnd ps)
     | any isContraPred ps = PFalse
@@ -543,7 +556,7 @@ instance PPrint Expr where
   pprintPrec _ _ p@(PKVar {})    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
-  pprintPrec _ _ PGrad           = "?"
+  pprintPrec z k (PGrad _ _ e)   = pprintPrec z k e <+> "&&" <+> "??"
 
 pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
@@ -697,6 +710,17 @@ reftPred (Reft (_, p)) = p
 
 reftBind :: Reft -> Symbol
 reftBind (Reft (x, _)) = x
+
+------------------------------------------------------------
+-- | Gradual Type Manipulation  ----------------------------
+------------------------------------------------------------
+pGAnds :: [Expr] -> Expr
+pGAnds = foldl pGAnd PTrue
+
+pGAnd :: Expr -> Expr -> Expr 
+pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q]) 
+pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q]) 
+pGAnd p q              = pAnd [p,q]
 
 ------------------------------------------------------------
 -- | Generally Useful Refinements --------------------------

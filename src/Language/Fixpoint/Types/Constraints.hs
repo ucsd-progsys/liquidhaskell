@@ -30,7 +30,7 @@ module Language.Fixpoint.Types.Constraints (
   , fi
 
   -- * Constraints
-  , WfC (..)
+  , WfC (..), isGWfc, updateWfCExpr
   , SubC, SubcId
   , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
@@ -45,11 +45,13 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
+  , trueQual
   , qualifier
   , mkQual, remakeQual
 
   -- * Results
   , FixSolution
+  , GFixSolution, toGFixSol
   , Result (..)
 
   -- * Cut KVars
@@ -96,11 +98,25 @@ import qualified Data.HashSet              as S
 
 type Tag           = [Int]
 
-data WfC a  = WfC  { wenv  :: !IBindEnv
-                   , wrft  :: (Symbol, Sort, KVar)
-                   , winfo :: !a
-                   }
+data WfC a  =  WfC  { wenv  :: !IBindEnv
+                    , wrft  :: (Symbol, Sort, KVar)
+                    , winfo :: !a
+                    }
+             | GWfC { wenv  :: !IBindEnv
+                    , wrft  :: !(Symbol, Sort, KVar)
+                    , winfo :: !a
+                    , wexpr :: !Expr
+                    }
               deriving (Eq, Generic, Functor)
+
+
+updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a 
+updateWfCExpr _ w@(WfC {})  = w 
+updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
+
+isGWfc :: WfC a -> Bool 
+isGWfc (GWfC _ _ _ _) = True 
+isGWfc (WfC _ _ _)    = False 
 
 type SubcId = Integer
 
@@ -162,18 +178,28 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type FixSolution = M.HashMap KVar Expr
+type GFixSolution = GFixSol Expr 
 
-data Result a = Result { resStatus   :: !(FixResult a)
-                       , resSolution :: !FixSolution }
+type FixSolution  = M.HashMap KVar Expr
+newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
+  deriving (Generic, Monoid, Functor)
+
+toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e 
+toGFixSol = GSol
+
+
+data Result a = Result { resStatus    :: !(FixResult a)
+                       , resSolution  :: !FixSolution
+                       , gresSolution :: !GFixSolution }
                 deriving (Generic, Show)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty
-  mappend r1 r2 = Result stat soln
+  mempty        = Result mempty mempty mempty
+  mappend r1 r2 = Result stat soln gsoln
     where
-      stat      = mappend (resStatus r1)   (resStatus r2)
-      soln      = mappend (resSolution r1) (resSolution r2)
+      stat      = mappend (resStatus r1)    (resStatus r2)
+      soln      = mappend (resSolution r1)  (resSolution r2)
+      gsoln     = mappend (gresSolution r1) (gresSolution r2)
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"
@@ -223,6 +249,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
               $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
+              $+$ if (isGWfc w) then (toFixMeta (text "expr") (toFix (wexpr w))) else mempty
           (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
@@ -232,10 +259,28 @@ pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> tshow i
 pprId _         = ""
 
+instance PPrint GFixSolution where
+  pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
+
+pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
+pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
+
+ppLocOfKVar :: KVar -> Doc 
+ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv 
+
+ppNonTauto :: Doc -> Expr -> Doc 
+ppNonTauto d e
+  | isTautoPred e = mempty
+  | otherwise     = pprint e <> d
+
+instance Show   GFixSolution where
+  show = showpp
+
 ----------------------------------------------------------------
 instance B.Binary Qualifier
 instance B.Binary Kuts
 instance B.Binary HOInfo
+instance B.Binary GFixSolution
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
@@ -244,6 +289,7 @@ instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
+instance NFData GFixSolution
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -256,17 +302,22 @@ instance (NFData a) => NFData (Result a)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst sus
-                then [WfC be (v, sr_sort sr, k) x | k <- ks]
+wfC be sr x = if all isEmptySubst (sus ++ gsus)
+                then [WfC be (v, sr_sort sr, k) x | k <- ks] ++ [GWfC be (v, sr_sort sr, k) x e | (k, e) <- gs ]
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
+    (gs, gsus)      = unzip $ go' ras
 
     go (PKVar k su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
+
+    go' (PGrad k su e) = [((k, e), su)]
+    go' (PAnd es)      = concatMap go' es 
+    go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC
@@ -307,6 +358,9 @@ data Qualifier = Q { qName   :: !Symbol          -- ^ Name
                    , qPos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
+
+trueQual :: Qualifier
+trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
 
 instance Loc Qualifier where
   srcSpan q = SS l l

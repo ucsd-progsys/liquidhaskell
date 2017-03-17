@@ -16,6 +16,7 @@ module Language.Fixpoint.Solver.Monad
          -- * SMT Query
        , filterRequired
        , filterValid
+       , filterValidGradual
        , checkSat
        , smtEnablembqi
 
@@ -46,11 +47,13 @@ import           Language.Fixpoint.Solver.Sanitize
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
-import           Data.Maybe           (catMaybes)
+-- import           Data.Maybe           (catMaybes)
+import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
+import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
 
 --------------------------------------------------------------------------------
@@ -88,7 +91,7 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b c -> Int -> SolveM a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do
@@ -194,6 +197,43 @@ filterValid_ p qs me = catMaybes <$> do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
+
+
+
+--------------------------------------------------------------------------------
+-- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
+-- | for some p in the list ps 
+--------------------------------------------------------------------------------
+filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM [a]
+--------------------------------------------------------------------------------
+filterValidGradual p qs = do
+  qs' <- withContext $ \me ->
+           smtBracket me "filterValidGradualLHS" $
+             filterValidGradual_ p qs me
+  -- stats
+  incBrkt
+  incChck (length qs)
+  incVald (length qs')
+  return qs'
+
+filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
+filterValidGradual_ ps qs me 
+  = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
+  where
+    partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
+    partitionCandidates (ok, candidates) p = do 
+      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me 
+      let (valids, invalids) = (fst <$> valids', fst <$> invalids')
+      return (ok ++ valids, invalids)
+
+filterValidOne_ :: F.Expr -> F.Cand a -> Context -> IO [((F.Expr, a), Bool)]
+filterValidOne_ p qs me = do
+  smtAssert me p
+  forM qs $ \(q, x) ->
+    smtBracket me "filterValidRHS" $ do
+      smtAssert me (F.PNot q)
+      valid <- smtCheckUnsat me
+      return $ ((q, x), valid)
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi

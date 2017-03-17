@@ -73,11 +73,13 @@ updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 updateWfc :: SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
-    w'            = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
+    w'            = updateWfCExpr (subst su) w'' 
+    w''           = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
     (_, fi'')     = newTopBind v' (trueSortedReft t) fi'
     (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w
     v'            = kArgSymbol v (kv k)
+    su            = mkSubst ((v, EVar v'):[(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k])
 
 accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)

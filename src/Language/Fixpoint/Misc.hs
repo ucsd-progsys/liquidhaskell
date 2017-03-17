@@ -343,3 +343,11 @@ mapFst f (x, y) = (f x, y)
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (x, y) = (x, f y)
+
+
+{-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
+allCombinations :: [[a]] -> [[a]]
+allCombinations []          = [[]]
+allCombinations [[]]        = [[]]
+allCombinations ([]:_)     = []
+allCombinations ((x:xs):ys) = ((x:) <$> allCombinations ys) ++ allCombinations (xs:ys)

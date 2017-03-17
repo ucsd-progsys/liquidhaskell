@@ -88,7 +88,7 @@ instance Ord WorkItem where
 --------------------------------------------------------------------------------
 -- | Initialize worklist and slice out irrelevant constraints ------------------
 --------------------------------------------------------------------------------
-init :: SolverInfo a -> Worklist a
+init :: SolverInfo a b -> Worklist a
 --------------------------------------------------------------------------------
 init sI    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
