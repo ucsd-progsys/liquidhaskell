@@ -51,7 +51,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Results
   , FixSolution
-  , GFixSolution
+  , GFixSolution, toGFixSol
   , Result (..)
 
   -- * Cut KVars
@@ -178,8 +178,15 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
+type GFixSolution = GFixSol Expr 
+
 type FixSolution  = M.HashMap KVar Expr
-type GFixSolution = M.HashMap KVar (Expr, [Expr])
+newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
+  deriving (Generic, Monoid, Functor)
+
+toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e 
+toGFixSol = GSol
+
 
 data Result a = Result { resStatus    :: !(FixResult a)
                        , resSolution  :: !FixSolution
@@ -252,10 +259,28 @@ pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> tshow i
 pprId _         = ""
 
+instance PPrint GFixSolution where
+  pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
+
+pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
+pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
+
+ppLocOfKVar :: KVar -> Doc 
+ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv 
+
+ppNonTauto :: Doc -> Expr -> Doc 
+ppNonTauto d e
+  | isTautoPred e = mempty
+  | otherwise     = pprint e <> d
+
+instance Show   GFixSolution where
+  show = showpp
+
 ----------------------------------------------------------------
 instance B.Binary Qualifier
 instance B.Binary Kuts
 instance B.Binary HOInfo
+instance B.Binary GFixSolution
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
@@ -264,6 +289,7 @@ instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
+instance NFData GFixSolution
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)

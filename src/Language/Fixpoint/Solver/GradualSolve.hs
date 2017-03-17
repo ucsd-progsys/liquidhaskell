@@ -68,7 +68,7 @@ tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
 
 gtidySolution :: F.GFixSolution -> F.GFixSolution
-gtidySolution = fmap (\(e, es) -> (tidyPred e, tidyPred <$> es))
+gtidySolution = fmap tidyPred --  (\(e, es) -> (tidyPred e, tidyPred <$> es))
 
 tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
@@ -279,9 +279,9 @@ solResult cfg
   = minimizeResult cfg . Sol.result
 
 
-solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM (M.HashMap F.KVar (F.Expr, [F.Expr]))
+solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM F.GFixSolution
 solResultGradual w _cfg sol 
-  = Sol.resultGradual <$> updateGradualSolution (W.unsatCandidates w) sol
+  = F.toGFixSol . Sol.resultGradual <$> updateGradualSolution (W.unsatCandidates w) sol
 
 --------------------------------------------------------------------------------
 updateGradualSolution :: [F.SimpC a] -> Sol.GSolution -> SolveM (Sol.GSolution)

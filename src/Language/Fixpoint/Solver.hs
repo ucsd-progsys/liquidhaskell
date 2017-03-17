@@ -41,8 +41,6 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
-import qualified Data.HashMap.Strict       as M
-import qualified Data.List                 as L 
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -228,15 +226,5 @@ saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
-  writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res) ++ "\n\n" ++ L.intercalate "\n\n" (ident " := " $ (showGradual <$> (M.toList $ gresSolution res)))
-
-  where
-    ident sep xys = let n = maximum (map length $ fst $ unzip xys) 
-                    in [xs ++ replicate (n - length xs) ' ' ++ sep ++ ys | (xs, ys) <- xys]
-    showGradual (s, (e, es)) 
-      = (dropWhile (/='(') $ symbolString $ kv s, showppFixed e ++ showpp es)
-    showppFixed e 
-      | isTautoPred e 
-      = mempty
-      | otherwise
-      = showpp e ++ " && "
+  writeFile f $ "\nSolution:\n" ++ showpp (resSolution  res)
+                ++ (if (gradual cfg) then ("\n\n" ++ showpp (gresSolution res)) else mempty)
