@@ -30,6 +30,7 @@ module Language.Fixpoint.Types.Visitor (
   , rhsKVars
   , mapKVars, mapKVars', mapKVarSubsts
   , mapExpr, mapMExpr
+  , exprPrecision
 
   -- * Predicates on Constraints
   , isConcC , isKvarC
@@ -211,11 +212,17 @@ mapKVarSubsts f          = trans kvVis () []
     txK _ (PGrad k su e) = PGrad k (f k su) e
     txK _ p              = p
   
-newtype MInt = MInt Integer
+newtype MInt = MInt {mInt :: Integer}
 
 instance Monoid MInt where
   mempty                    = MInt 0
   mappend (MInt m) (MInt n) = MInt (m + n)
+
+instance Eq MInt where
+  (MInt x) == (MInt y) = x == y  
+
+instance Ord MInt where
+  compare (MInt x) (MInt y) = compare x y  
 
 size :: Visitable t => t -> Integer
 size t    = n
@@ -347,3 +354,43 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
+
+exprPrecision :: Expr -> MInt 
+exprPrecision = go
+  where
+    minP               = MInt 0 
+    midP               = MInt 5 
+    maxP               = MInt 10  
+    go (ESym _)        = minP 
+    go (ECon _)        = minP
+    go (EVar _)        = maxP 
+    go (PKVar _ _)     = MInt (mInt maxP - 1) 
+    go (PGrad _ _ e)   = go e 
+    go (PNot e)        = MInt $ (- (mInt (go e)))
+    go (ENeg p)        = go p 
+    go (ECst e _)      = go e 
+    go (PAll _ p)      = go p 
+    go (ELam _ e)      = go e
+    go (PExist _ p)    = go p 
+    go (ETApp e _)     = go e 
+    go (ETAbs e _)     = go e 
+    go (EApp g e)      = go g  `mappend` go e 
+    go (EBin _ e1 e2)  = go e1 `mappend` go e2
+    go (PImp p1 p2)    = go p1 `mappend` go p2 
+    go (PIff p1 p2)    = go p1 `mappend` go p2 
+    go (PAtom r e1 e2) = goPAtom r e1 e2
+    go (EIte p e1 e2)  = go p `mappend` go e1 `mappend` go e2
+    go (PAnd  ps)      = mconcat (go <$> ps) 
+    go (POr  ps)       = mconcat (go <$> ps)
+
+    goPAtom Eq  e1 e2 = maxP `mappend` go e1 `mappend` go e2 
+    goPAtom Ueq e1 e2 = maxP `mappend` go e1 `mappend` go e2 
+    goPAtom Ne  e1 e2 = go (ENeg $ PAtom Eq e1 e2)
+    goPAtom Une e1 e2 = go (ENeg $ PAtom Eq e1 e2)
+    goPAtom Gt  e1 e2 = midP                  `mappend` go e1 `mappend` go e2 
+    goPAtom Ge  e1 e2 = midP `mappend` MInt 1 `mappend` go e1 `mappend` go e2 
+    goPAtom Lt  e1 e2 = go (PAtom Gt e1 e2)
+    goPAtom Le  e1 e2 = go (PAtom Ge e1 e2)
+
+
+
