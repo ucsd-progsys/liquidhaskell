@@ -3,52 +3,136 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
-module Language.Haskell.Liquid.Constraint.Qualifier (
-  specificationQualifiers
-  ) where
 
-import TyCon
+module Language.Haskell.Liquid.Constraint.Qualifier
+  ( qualifiers
+  , useSpcQuals
+  )
+  where
 
-import Prelude hiding (error)
+import           Prelude hiding (error)
+import           Data.List                (delete, nub)
+import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothing)
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
+import           Debug.Trace (trace)
+import           TyCon
+import           Var (Var)
+import           Language.Fixpoint.Types                  hiding (mkQual)
+import qualified Language.Fixpoint.Types.Config as FC
+import           Language.Fixpoint.SortCheck
+import           Language.Haskell.Liquid.Bare
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
+import           Language.Haskell.Liquid.Misc             (condNull)
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types
 
-import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
-import Language.Haskell.Liquid.Types.PredType
-import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Types hiding (mkQual)
+
+--------------------------------------------------------------------------------
+qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+qualifiers info lEnv
+  =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
+  ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
+  ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
+
+-- --------------------------------------------------------------------------------
+-- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+-- --------------------------------------------------------------------------------
+-- qualifiers info env = spcQs ++ genQs
+  -- where
+    -- spcQs           = gsQualifiers spc
+    -- genQs           = specificationQualifiers info env
+    -- n               = maxParams (getConfig spc)
+    -- spc             = spec info
+
+maxQualParams :: (HasConfig t) => t -> Int
+maxQualParams = maxParams . getConfig
+
+-- | Use explicitly given qualifiers .spec or source (.hs, .lhs) files
+useSpcQuals :: (HasConfig t) => t -> Bool
+useSpcQuals i = useQuals i && not (useAlsQuals i)
+
+-- | Scrape qualifiers from function signatures (incr :: x:Int -> {v:Int | v > x})
+useSigQuals :: (HasConfig t) => t -> Bool
+useSigQuals i = useQuals i && not (useAlsQuals i)
+
+-- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
+useAlsQuals :: (HasConfig t) => t -> Bool
+useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag
+
+useQuals :: (HasConfig t) => t -> Bool
+useQuals = not . (FC.All == ) . eliminate . getConfig
 
 
--- import Control.Applicative      ((<$>))
-import Data.List                (delete, nub)
-import Data.Maybe               (catMaybes, fromMaybe)
-import qualified Data.HashSet as S
--- import Data.Bifunctor           (second)
-import Debug.Trace
+--------------------------------------------------------------------------------
+alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+alsQualifiers info lEnv
+  = [ q | a <- specAliases info
+        , q <- refTypeQuals lEnv (rtPos a) tce (rtBody a)
+        , length (qParams q) <= k + 1
+        , validQual lEnv q
+    ]
+    where
+      k   = maxQualParams info
+      tce = gsTcEmbeds (spec info)
 
------------------------------------------------------------------------------------
-specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
------------------------------------------------------------------------------------
-specificationQualifiers k info lEnv
-  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
-                  ++ if info `hasOpt` scrapeInternals 
-                       then inSigs $ spec info else []
-                  ++ (ctors $ spec info)
-        , x `S.member` (S.fromList $ defVars info ++
-                                     -- NOTE: this mines extra, useful qualifiers but causes
-                                     -- a significant increase in running time, so we hide it
-                                     -- behind `--scrape-imports` and `--scrape-used-imports`
-                                     if info `hasOpt` scrapeUsedImports
-                                     then useVars info
-                                     else if info `hasOpt` scrapeImports
-                                     then impVars info
-                                     else [])
-        , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
+    -- Symbol (RTAlias RTyVar SpecType)
+
+specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
+specAliases = M.elems . typeAliases . gsRTAliases . spec
+
+validQual :: SEnv Sort -> Qualifier -> Bool
+validQual lEnv q = isJust $ checkSortExpr env (qBody q)
+  where
+    env          = unionSEnv lEnv qEnv
+    qEnv         = M.fromList (qParams q)
+
+--------------------------------------------------------------------------------
+sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+--------------------------------------------------------------------------------
+sigQualifiers info lEnv
+  = [ q | (x, t) <- specBinders info
+        , x `S.member` qbs
+        , q <- refTypeQuals lEnv (getSourcePos x) tce (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
-    -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
+    where
+      k   = maxQualParams info
+      tce = gsTcEmbeds (spec info)
+      qbs = qualifyingBinders info
+
+qualifyingBinders :: GhcInfo -> S.HashSet Var
+qualifyingBinders info = S.difference sTake sDrop
+  where
+    sTake              = S.fromList $ defVars       info ++ scrapeVars info
+    sDrop              = S.fromList $ specAxiomVars info
+
+-- NOTE: this mines extra, useful qualifiers but causes
+-- a significant increase in running time, so we hide it
+-- behind `--scrape-imports` and `--scrape-used-imports`
+scrapeVars :: GhcInfo -> [Var]
+scrapeVars info
+  | info `hasOpt` scrapeUsedImports = useVars info
+  | info `hasOpt` scrapeImports     = impVars info
+  | otherwise                       = []
+
+specBinders :: GhcInfo -> [(Var, LocSpecType)]
+specBinders info = mconcat
+  [ gsTySigs  sp
+  , gsAsmSigs sp
+  , gsCtors   sp
+  , if info `hasOpt` scrapeInternals then gsInSigs sp else []
+  ]
+  where
+    sp  = spec info
+
+specAxiomVars :: GhcInfo -> [Var]
+specAxiomVars =  gsReflects . spec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
@@ -68,7 +152,9 @@ specificationQualifiers k info lEnv
 
 
 -- TODO: rewrite using foldReft'
+--------------------------------------------------------------------------------
 refTypeQuals :: SEnv Sort -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
+--------------------------------------------------------------------------------
 refTypeQuals lEnv l tce t0    = go emptySEnv t0
   where
     scrape                    = refTopQuals lEnv l tce t0
@@ -102,6 +188,7 @@ refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
                    , not $ isHole pa
+                   , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
@@ -112,7 +199,7 @@ refTopQuals lEnv l tce t0 γ t
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
-
+      γ'    = unionSEnv' γ lEnv
 
 mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
         => SEnv Sort

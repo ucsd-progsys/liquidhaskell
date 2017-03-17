@@ -134,7 +134,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Binary Search Ordering
 
-{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
+{-@ data RBTree a <l :: a -> a -> Bool, r :: a -> a -> Bool>
             = Leaf
             | Node (c     :: Color)
                    (key   :: a)

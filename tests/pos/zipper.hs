@@ -17,7 +17,7 @@ data Stack a = Stack { focus  :: !a        -- focused thing in this set
 -- measures
 
 {-@
-  measure listDup :: [a] -> (Set a)
+  measure listDup :: forall a. [a] -> (Set a)
   listDup([]) = {v | Set_emp v }
   listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}

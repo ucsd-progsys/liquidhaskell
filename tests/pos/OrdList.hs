@@ -15,9 +15,9 @@ infixr 5  `consOL`
 {-@
 data OrdList [olen] a = None
                       | One  (x  :: a)
-                      | Many (xs :: ListNE a)
-                      | Cons (x  :: a)           (xs :: OrdList a)
-                      | Snoc (xs :: OrdList a)   (x  :: a)
+                      | Many (xs1 :: ListNE a)
+                      | Cons (x  :: a)           (xs3 :: OrdList a)
+                      | Snoc (xs2 :: OrdList a)   (x  :: a)
                       | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
 @-}
 
@@ -56,7 +56,7 @@ data OrdList a
 
 
 {-@ nilOL    :: OrdListN a {0} @-}
-{-@ isNilOL  :: xs:OrdList a -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
+{-@ isNilOL  :: xs:OrdList a -> {v:Bool | v <=> (olen xs == 0)} @-}
 
 {-@ unitOL   :: a              -> OrdListN a {1} @-}
 {-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1+(olen xs)} @-}

@@ -3,17 +3,23 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
+{-# LANGUAGE DeriveGeneric          #-}
 
 module Language.Haskell.Liquid.Measure (
+  -- * Specifications
     Spec (..)
-  , BareSpec
   , MSpec (..)
+
+  -- * Type Aliases
+  , BareSpec
+  , BareMeasure
+  , SpecMeasure
+
+  -- * Constructors
   , mkM, mkMSpec, mkMSpec'
   , qualifySpec
   , dataConTypes
   , defRefType
-  , strLen
-  , wiredInMeasures
   ) where
 
 import           DataCon
@@ -23,42 +29,42 @@ import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding (first)
 import           Text.Printf                            (printf)
 import           Type
-import           TysPrim
-import           TysWiredIn
 import           Var
-
+-- import           Data.Serialize                         (Serialize)
+import           Data.Binary                            as B
+import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.List                              (foldl', partition)
-
-
-
-
-
 import           Data.Maybe                             (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (R, SrcSpan)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
--- import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
-type BareSpec      = Spec (Located BareType) LocSymbol
+type BareSpec      = Spec    LocBareType LocSymbol
+type BareMeasure   = Measure LocBareType LocSymbol
+type SpecMeasure   = Measure LocSpecType DataCon
+
+instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
-  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
+  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
+  , reflSigs   :: ![(LocSymbol, ty)]            -- ^ Reflected type signatures
   , invariants :: ![ty]                         -- ^ Data type invariants
   , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
+  , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
@@ -67,7 +73,9 @@ data Spec ty bndr  = Spec
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
   , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into axiomatized functions
+  -- , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms
+  , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to reflect
+  , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
@@ -80,7 +88,8 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
-  }
+  , defs       :: !(M.HashMap LocSymbol Symbol)
+  } deriving (Generic)
 
 
 qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
@@ -96,9 +105,6 @@ mkM name typ eqns
   = M name typ eqns
   | otherwise
   = panic Nothing $ "invalid measure definition for " ++ show name
-
--- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
---         -> MSpec ty LocSymbol
 
 mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
 mkMSpec' ms = MSpec cm mm M.empty []
@@ -132,35 +138,40 @@ checkDuplicateMeasure ms
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
   mappend s1 s2
-    = Spec { measures   =           measures s1   ++ measures s2
-           , asmSigs    =           asmSigs s1    ++ asmSigs s2
-           , sigs       =           sigs s1       ++ sigs s2
-           , localSigs  =           localSigs s1  ++ localSigs s2
+    = Spec { measures   =           measures   s1 ++ measures   s2
+           , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
+           , sigs       =           sigs       s1 ++ sigs       s2
+           , localSigs  =           localSigs  s1 ++ localSigs  s2
+           , reflSigs   =           reflSigs   s1 ++ reflSigs   s2
            , invariants =           invariants s1 ++ invariants s2
-           , ialiases   =           ialiases s1   ++ ialiases s2
-           , imports    = sortNub $ imports s1    ++ imports s2
-           , dataDecls  = dataDecls s1            ++ dataDecls s2
-           , includes   = sortNub $ includes s1   ++ includes s2
-           , aliases    =           aliases s1    ++ aliases s2
-           , ealiases   =           ealiases s1   ++ ealiases s2
-           , embeds     = M.union   (embeds s1)      (embeds s2)
+           , ialiases   =           ialiases   s1 ++ ialiases   s2
+           , imports    = sortNub $ imports    s1 ++ imports    s2
+           , dataDecls  =           dataDecls  s1 ++ dataDecls  s2
+           , newtyDecls =           newtyDecls s1 ++ newtyDecls s2
+           , includes   = sortNub $ includes   s1 ++ includes   s2
+           , aliases    =           aliases    s1 ++ aliases    s2
+           , ealiases   =           ealiases   s1 ++ ealiases   s2
            , qualifiers =           qualifiers s1 ++ qualifiers s2
-           , decr       =           decr s1       ++ decr s2
-           , lvars      =           lvars s1      ++ lvars s2
-           , lazy       = S.union   (lazy s1)        (lazy s2)
-           , axioms     = S.union   (axioms s1)      (axioms s2)
-           , hmeas      = S.union   (hmeas s1)       (hmeas s2)
-           , hbounds    = S.union   (hbounds s1)     (hbounds s2)
-           , inlines    = S.union   (inlines s1)     (inlines s2)
-           , autosize   = S.union   (autosize s1)    (autosize s2)
-           , pragmas    =           pragmas s1    ++ pragmas s2
-           , cmeasures  =           cmeasures s1  ++ cmeasures s2
-           , imeasures  =           imeasures s1  ++ imeasures s2
-           , classes    =           classes s1    ++ classes s1
-           , termexprs  =           termexprs s1  ++ termexprs s2
-           , rinstance  =           rinstance s1  ++ rinstance s2
-           , dvariance  =           dvariance s1  ++ dvariance s2
-           , bounds     = M.union   (bounds s1)      (bounds s2)
+           , decr       =           decr       s1 ++ decr       s2
+           , lvars      =           lvars      s1 ++ lvars      s2
+           , pragmas    =           pragmas    s1 ++ pragmas    s2
+           , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
+           , imeasures  =           imeasures  s1 ++ imeasures  s2
+           , classes    =           classes    s1 ++ classes    s2
+           , termexprs  =           termexprs  s1 ++ termexprs  s2
+           , rinstance  =           rinstance  s1 ++ rinstance  s2
+           , dvariance  =           dvariance  s1 ++ dvariance  s2
+           , embeds     = M.union   (embeds   s1)  (embeds   s2)
+           , lazy       = S.union   (lazy     s1)  (lazy     s2)
+        -- , axioms     = S.union   (axioms s1) (axioms s2)
+           , reflects   = S.union   (reflects s1)  (reflects s2)
+           , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
+           , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
+           , inlines    = S.union   (inlines  s1)  (inlines  s2)
+           , autosize   = S.union   (autosize s1)  (autosize s2)
+           , bounds     = M.union   (bounds   s1)  (bounds   s2)
+           , defs       = M.union   (defs     s1)  (defs     s2)
+           , autois     = M.union   (autois s1)      (autois s2)
            }
 
   mempty
@@ -168,10 +179,12 @@ instance Monoid (Spec ty bndr) where
            , asmSigs    = []
            , sigs       = []
            , localSigs  = []
+           , reflSigs   = []
            , invariants = []
            , ialiases   = []
            , imports    = []
            , dataDecls  = []
+           , newtyDecls = []
            , includes   = []
            , aliases    = []
            , ealiases   = []
@@ -180,8 +193,10 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = []
            , lazy       = S.empty
+           , autois     = M.empty
            , hmeas      = S.empty
-           , axioms     = S.empty
+           -- , axioms     = S.empty
+           , reflects   = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
            , autosize   = S.empty
@@ -193,6 +208,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  = []
            , dvariance  = []
            , bounds     = M.empty
+           , defs       = M.empty
            }
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
@@ -257,9 +273,9 @@ resultTy :: RType c tv r -> RType c tv r
 resultTy = ty_res . toRTypeRep
 
 strengthenResult :: Reftable r => RType c tv r -> r -> RType c tv r
-strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
+strengthenResult t r = fromRTypeRep $ rep {ty_res = ty_res rep `strengthen` r}
   where
-    rep = toRTypeRep t
+    rep              = toRTypeRep t
 
 
 noDummySyms :: (OkRT c tv r) => RType c tv r -> RType c tv r
@@ -372,15 +388,3 @@ bodyPred ::  Expr -> Body -> Expr
 bodyPred fv (E e)    = PAtom Eq fv e
 bodyPred fv (P p)    = PIff  fv p
 bodyPred fv (R v' p) = subst1 p (v', fv)
-
-
--- | A wired-in measure @strLen@ that describes the length of a string
--- literal, with type @Addr#@.
-strLen :: Measure SpecType ctor
-strLen = M { name = dummyLoc "strLen"
-           , sort = ofType (mkFunTy addrPrimTy intTy)
-           , eqns = []
-           }
-
-wiredInMeasures :: MSpec SpecType DataCon
-wiredInMeasures = mkMSpec' [strLen]

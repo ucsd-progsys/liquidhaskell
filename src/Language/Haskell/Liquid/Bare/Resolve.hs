@@ -19,6 +19,7 @@ import qualified Data.List                           as L
 
 import qualified Data.HashMap.Strict                 as M
 
+-- import           Language.Fixpoint.Misc              (traceShow)
 import           Language.Fixpoint.Types.Names       (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Qualifier(..),
@@ -34,6 +35,8 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
+
+import           Data.Maybe                          (fromMaybe)
 
 class Resolvable a where
   resolve :: SourcePos -> a -> BareM a
@@ -60,13 +63,13 @@ instance Resolvable Expr where
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
   resolve l (ELam (x,t) e)  = ELam    <$> ((,) <$> resolve l x <*> resolve l t) <*> resolve l e
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
-  resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
-  resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 
-  resolve _ (PKVar k s)     = return $ PKVar k s 
+  resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s
+  resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s
+  resolve _ (PKVar k s)     = return $ PKVar k s
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
-  resolve _ (ESym s)        = return $ ESym s 
-  resolve _ (ECon c)        = return $ ECon c 
-  resolve _ PGrad           = return PGrad 
+  resolve _ (ESym s)        = return $ ESym s
+  resolve _ (ECon c)        = return $ ECon c
+  resolve _ PGrad           = return PGrad
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)
@@ -103,7 +106,10 @@ instance Resolvable Sort where
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
     | tcs' `elem` prims   = FTC <$> return c
-    | otherwise           = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
+    | otherwise           = do ty     <- lookupGhcTyCon tcs
+                               emb    <- embeds <$> get
+                               let ftc = symbolFTycon $ Loc l l' $ symbol ty
+                               return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2

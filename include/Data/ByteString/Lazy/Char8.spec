@@ -70,7 +70,7 @@ init
 
 assume null
     :: bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | Prop b <=> bllen bs == 0 }
+    -> { b : Bool | b <=> bllen bs == 0 }
 
 assume length
     :: bs : Data.ByteString.Lazy.ByteString -> { n : Data.Int.Int64 | bllen bs == n }
@@ -129,11 +129,11 @@ assume concatMap
 
 assume any :: (Char -> Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen bs == 0 ==> not (Prop b) }
+    -> { b : Bool | bllen bs == 0 ==> not b }
 
 assume all :: (Char -> Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen bs == 0 ==> Prop b }
+    -> { b : Bool | bllen bs == 0 ==> b }
 
 maximum :: { bs : Data.ByteString.Lazy.ByteString | 1 <= bllen bs } -> Char
 
@@ -292,17 +292,17 @@ assume unwords
 assume isPrefixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not (Prop b) }
+    -> { b : Bool | bllen l >= bllen r ==> not b }
 
 assume isSuffixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not (Prop b) }
+    -> { b : Bool | bllen l >= bllen r ==> not b }
 
 assume isInfixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not (Prop b) }
+    -> { b : Bool | bllen l >= bllen r ==> not b }
 
 assume breakSubstring
     :: il : Data.ByteString.Lazy.ByteString
@@ -314,12 +314,12 @@ assume breakSubstring
 assume elem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen b == 0 ==> not (Prop b) }
+    -> { b : Bool | bllen b == 0 ==> not b }
 
 assume notElem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen b == 0 ==> Prop b }
+    -> { b : Bool | bllen b == 0 ==> b }
 
 assume find
     :: (Char -> Bool)

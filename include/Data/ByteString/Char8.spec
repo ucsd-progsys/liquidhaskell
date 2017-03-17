@@ -46,7 +46,7 @@ init :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
 
 assume null
     :: bs : Data.ByteString.ByteString
-    -> { b : Bool | Prop b <=> bslen bs == 0 }
+    -> { b : Bool | b <=> bslen bs == 0 }
 
 assume length :: bs : Data.ByteString.ByteString -> { n : Int | bslen bs == n }
 
@@ -104,11 +104,11 @@ assume concatMap
 
 assume any :: (Char -> Bool)
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> not (Prop b) }
+    -> { b : Bool | bslen bs == 0 ==> not b }
 
 assume all :: (Char -> Bool)
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> Prop b }
+    -> { b : Bool | bslen bs == 0 ==> b }
 
 maximum
     :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
@@ -270,17 +270,17 @@ assume unwords
 assume isPrefixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l >= bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l >= bslen r ==> not b }
 
 assume isSuffixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l > bslen r ==> not b }
 
 assume isInfixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l > bslen r ==> not b }
 
 assume breakSubstring
     :: il : Data.ByteString.ByteString
@@ -292,12 +292,12 @@ assume breakSubstring
 assume elem
     :: Char
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> not (Prop b) }
+    -> { b : Bool | bslen b == 0 ==> not b }
 
 assume notElem
     :: Char
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> Prop b }
+    -> { b : Bool | bslen b == 0 ==> b }
 
 assume find
     :: (Char -> Bool)

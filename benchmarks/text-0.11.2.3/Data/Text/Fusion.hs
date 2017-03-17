@@ -77,18 +77,26 @@ q_ltplus = undefined
 q_lteplus :: Int -> Int -> Int
 q_lteplus = undefined
 
-{-@ qualif Ord(v:int, x:Char)
-        : ((((ord x) <  65536) => (v = 0))
-        && (((ord x) >= 65536) => (v = 1)))
+{-@ qualOrd1 :: x:Char -> {v:Int | 
+         ((((ord x) <  65536) => (v = 0))
+        && (((ord x) >= 65536) => (v = 1))) } -> ()
   @-}
-{-@ qualif Ord(v:int, i:int, x:Char)
-        : ((((ord x) <  65536) => (v = i))
-        && (((ord x) >= 65536) => (v = (i + 1))))
+qualOrd1 :: Char -> Int -> ()
+qualOrd1 _ _ = ()
+
+{-@ qualOrd2 :: x:Char -> i:Int -> {v:Int | 
+          ((((ord x) <  65536) => (v = i))
+        && (((ord x) >= 65536) => (v = (i + 1))))} -> ()
   @-}
-{-@ qualif Ord(v:int, x:Char)
-        : ((((ord x) <  65536) => (v >= 0))
-        && (((ord x) >= 65536) => (v >= 1)))
+qualOrd2 :: Char -> Int -> Int -> ()
+qualOrd2 _ _ _ = ()
+
+{-@ qualOrd3 :: x:Char -> {v:Int | 
+          ((((ord x) <  65536) => (v >= 0))
+        && (((ord x) >= 65536) => (v >= 1))) } -> ()
   @-}
+qualOrd3 :: Char -> Int -> ()
+qualOrd3 _ _ = ()
 
 {-@ qualif MALenLE(v:int, a:A.MArray s): v <= (malen a) @-}
 {-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}

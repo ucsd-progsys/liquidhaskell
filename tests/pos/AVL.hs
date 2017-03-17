@@ -84,7 +84,7 @@ main = do
 {-@ predicate LeftHeavy T = bFac T == 1 @-}
 {-@ predicate RightHeavy T = bFac T == -1 @-}
 
-{-@ measure balanced :: Tree a -> Prop
+{-@ measure balanced :: Tree a -> Bool
 balanced (Nil) = true
 balanced (Tree v l r) = ((ht l) <= (ht r) + 1)
                         && (ht r <= ht l + 1)

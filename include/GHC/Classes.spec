@@ -2,23 +2,23 @@ module spec GHC.Classes where
 
 import GHC.Types
 
-not     :: x:GHC.Types.Bool -> {v:GHC.Types.Bool | (Prop(v) <=> ~Prop(x))}
+not     :: x:GHC.Types.Bool -> {v:GHC.Types.Bool | ((v) <=> ~(x))}
 (&&)    :: x:GHC.Types.Bool -> y:GHC.Types.Bool
-        -> {v:GHC.Types.Bool | (Prop(v) <=> (Prop(x) && Prop(y)))}
+        -> {v:GHC.Types.Bool | ((v) <=> ((x) && (y)))}
 (||)    :: x:GHC.Types.Bool -> y:GHC.Types.Bool
-        -> {v:GHC.Types.Bool | (Prop(v) <=> (Prop(x) || Prop(y)))}
+        -> {v:GHC.Types.Bool | ((v) <=> ((x) || (y)))}
 (==)    :: (GHC.Classes.Eq  a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x = y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x = y)}
 (/=)    :: (GHC.Classes.Eq  a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x != y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x != y)}
 (>)     :: (GHC.Classes.Ord a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x > y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x > y)}
 (>=)    :: (GHC.Classes.Ord a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x >= y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x >= y)}
 (<)     :: (GHC.Classes.Ord a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x < y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x < y)}
 (<=)    :: (GHC.Classes.Ord a) => x:a -> y:a
-        -> {v:GHC.Types.Bool | (Prop(v) <=> x <= y)}
+        -> {v:GHC.Types.Bool | ((v) <=> x <= y)}
 
 compare :: (GHC.Classes.Ord a) => x:a -> y:a
         -> {v:GHC.Types.Ordering | (((v = GHC.Types.EQ) <=> (x = y)) &&

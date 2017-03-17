@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
    -- * Exit Function
    , exitWithResult
+   , addErrors
 
    -- * Diff check mode
    , diffcheck
@@ -52,19 +53,25 @@ import Data.List                           (nub)
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimBound, elimStats,
-                                                   nonLinCuts, getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate, defConfig, extensionality)
+import qualified Language.Fixpoint.Types.Config as FC
+-- a   hiding (Config, linear, elimBound, elimStats,
+-- nonLinCuts, getOpts, cores, minPartSize,
+-- maxPartSize, eliminate, defConfig,
+-- stringTheory,
+-- withPragmas,
+-- extensionality,
+-- alphaEquivalence, betaEquivalence, normalForm)
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
+import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
-import Language.Haskell.Liquid.Types       hiding (config, name, typ)
+import Language.Haskell.Liquid.Types       hiding (name, typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
@@ -110,6 +117,18 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow function extentionality axioms"
 
+ , alphaEquivalence
+    = def
+          &= help "Allow lambda alpha-equivalence axioms"
+
+ , betaEquivalence
+    = def
+          &= help "Allow lambda beta-equivalence axioms"
+
+ , normalForm
+    = def
+          &= help "Allow lambda normalization-equivalence axioms"
+
  , higherorderqs
     = def
           &= help "Allow higher order qualifiers to get automatically instantiated"
@@ -117,6 +136,10 @@ config = cmdArgsMode $ Config {
  , linear
     = def
           &= help "Use uninterpreted integer multiplication and division"
+
+ , stringTheory
+    = def
+          &= help "Interpretation of Strings by z3"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -133,6 +156,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , totalHaskell
+    = def &= help "Check for termination and totality, Overrides no-termination flags"
+          &= name "total-Haskell"
+
  , autoproofs
     = def &= help "Automatically construct proofs from axioms"
           &= name "auto-proofs"
@@ -141,9 +168,13 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
- , trustinternals
-    = def &= help "Trust all ghc auto generated code"
-          &= name "trust-internals"
+ , noannotations
+    = def &= help "Don't create intermediate annotation files"
+          &= name "no-annotations"
+
+ , trustInternals
+    = False &= help "Trust GHC generated code"
+            &= name "trust-internals"
 
  , nocaseexpand
     = def &= help "Don't expand the default case in a case-expression"
@@ -162,18 +193,17 @@ config = cmdArgsMode $ Config {
     = def &= help "Use m cores to solve logical constraints"
 
  , minPartSize
-    = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
+    = FC.defaultMinPartSize
+    &= help "If solving on multiple cores, ensure that partitions are of at least m size"
 
  , maxPartSize
-    = defaultMaxPartSize &= help ("If solving on multiple cores, once there are as many partitions " ++
-                                  "as there are cores, don't merge partitions if they will exceed this " ++
-                                  "size. Overrides the minpartsize option.")
+    = FC.defaultMaxPartSize
+    &= help ("If solving on multiple cores, once there are as many partitions " ++
+             "as there are cores, don't merge partitions if they will exceed this " ++
+             "size. Overrides the minpartsize option.")
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
-
- , newcheck
-    = True &= help "New fixpoint check"
 
  , noCheckUnknown
     = def &= explicit
@@ -213,6 +243,10 @@ config = cmdArgsMode $ Config {
  , exactDC
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
+
+ , noMeasureFields
+    = def &= help "Do not automatically lift data constructor fields into measures"
+          &= name "no-measure-fields"
 
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
@@ -254,13 +288,18 @@ config = cmdArgsMode $ Config {
     = False &= name "untidy-core"
             &= help "Print fully qualified identifier names in verbose mode"
 
-  , noEliminate
-    = False &= name "no-eliminate"
-            &= help "Don't use KVar elimination during solving"
+  , eliminate
+    = FC.Some
+            &= name "eliminate"
+            &= help "Use elimination for 'all' (use TRUE for cut-kvars), 'some' (use quals for cut-kvars) or 'none' (use quals for all kvars)."
 
-  , oldEliminate
-    = False &= name "old-eliminate"
-            &= help "Use old eliminate algorithm (temp. for benchmarking)"
+  -- , noEliminate
+  --  = False &= name "no-eliminate"
+  --          &= help "Don't use KVar elimination during solving"
+
+  --, oldEliminate
+  --  = False &= name "old-eliminate"
+  --          &= help "Use old eliminate algorithm (temp. for benchmarking)"
 
   , noPatternInline
     = False &= name "no-pattern-inline"
@@ -270,14 +309,26 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , packKVars
-    = False &= name "pack-kvars"
-            &= help "Use kvar packing during elimination"
-
   , nonLinCuts
     = True  &= name "non-linear-cuts"
             &= help "(TRUE) Treat non-linear kvars as cuts"
 
+  , autoInstantiate
+    = def
+          &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
+          &= name "automatic-instances"
+
+  , proofMethod
+    = def
+          &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
+          &= name "proof-method"
+  , fuel 
+    = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
+        &= name "fuel"
+
+  , debugInstantionation 
+    = False &= help "Debug Progress in liquid instantiation"
+        &= name "debug-instantiation"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -318,21 +369,21 @@ withSmtSolver :: Config -> IO Config
 withSmtSolver cfg =
   case smtsolver cfg of
     Just _  -> return cfg
-    Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
+    Nothing -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
                   case catMaybes smts of
                     (s:_) -> return (cfg {smtsolver = Just s})
                     _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
-findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
+findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
   cfg <- canonicalizePaths pwd cfg
-  return $ fixDiffCheck cfg
+  return $ canonConfig cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
@@ -350,76 +401,87 @@ canonicalize tgt isdir f
   | isdir        = canonicalizePath (tgt </> f)
   | otherwise    = canonicalizePath (takeDirectory tgt </> f)
 
-fixDiffCheck :: Config -> Config
-fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
-
 envCfg :: IO Config
-envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
-            case so of
-              Nothing -> return defConfig
-              Just s  -> parsePragma $ envLoc s
-         where
-            envLoc  = Loc l l
-            l       = newPos "ENVIRONMENT" 0 0
+envCfg = do
+  so <- lookupEnv "LIQUIDHASKELL_OPTS"
+  case so of
+    Nothing -> return defConfig
+    Just s  -> parsePragma $ envLoc s
+  where
+    envLoc  = Loc l l
+    l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
 copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
 
+-- [NOTE:searchpath]
+-- 1. not convinced we should add the file's directory to the search path
+-- 2. tests fail if you flip order of idirs'
+
 mkOpts :: Config -> IO Config
-mkOpts cfg
-  = do let files' = sortNub $ files cfg
-       id0 <- getIncludeDir
-       return  $ cfg { files = files' }
-                     { idirs = -- NOTE: not convinced we should add the file's directory
-                               -- to the search path
-                               (dropFileName <$> files') ++
-                               [id0 </> gHC_VERSION, id0] ++ idirs cfg }
-                              -- tests fail if you flip order of idirs'
+mkOpts cfg = do
+  let files' = sortNub $ files cfg
+  id0       <- getIncludeDir
+  return     $ cfg { files       = files'
+                   , idirs       = (dropFileName <$> files')    -- [NOTE:searchpath]
+                                ++ [id0 </> gHC_VERSION, id0]
+                                ++ idirs cfg
+                   }
 
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Updating options
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+canonConfig :: Config -> Config
+canonConfig cfg = cfg
+  { diffcheck   = diffcheck cfg && not (fullcheck cfg)
+  -- , eliminate   = if higherOrderFlag cfg then FC.All else eliminate cfg
+  }
 
----------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
----------------------------------------------------------------------------------------
-withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
+--------------------------------------------------------------------------------
+withPragmas cfg fp ps
+  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
           config { modeValue = (modeValue config) { cmdArgsValue = c } }
-   --(c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
 parsePragma = withPragma defConfig
-   --withArgs [val s] $ cmdArgsRun config
 
 defConfig :: Config
 defConfig = Config { files             = def
                    , idirs             = def
-                   , newcheck          = True
                    , fullcheck         = def
                    , linear            = def
+                   , stringTheory      = def
                    , higherorder       = def
                    , extensionality    = def
+                   , alphaEquivalence  = def
+                   , betaEquivalence   = def
+                   , normalForm        = def
                    , higherorderqs     = def
                    , diffcheck         = def
                    , saveQuery         = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
-                   , trustinternals    = def
+                   , noannotations     = def
+                   , trustInternals    = False
                    , nocaseexpand      = def
                    , strata            = def
                    , notruetypes       = def
                    , totality          = def
                    , pruneUnsorted     = def
                    , exactDC           = def
+                   , noMeasureFields   = def
                    , cores             = def
-                   , minPartSize       = defaultMinPartSize
-                   , maxPartSize       = defaultMaxPartSize
+                   , minPartSize       = FC.defaultMinPartSize
+                   , maxPartSize       = FC.defaultMaxPartSize
                    , maxParams         = defaultMaxParams
                    , smtsolver         = def
                    , shortNames        = def
@@ -437,13 +499,19 @@ defConfig = Config { files             = def
                    , counterExamples   = False
                    , timeBinds         = False
                    , untidyCore        = False
-                   , noEliminate       = False
-                   , oldEliminate      = False
+                   -- , noEliminate       = False
+                   , eliminate         = FC.Some
                    , noPatternInline   = False
                    , noSimplifyCore    = False
-                   , packKVars         = False
                    , nonLinCuts        = True
+                   , autoInstantiate   = def 
+                   , proofMethod       = def 
+                   , fuel              = defFuel
+                   , debugInstantionation = False 
                    }
+
+defFuel :: Int 
+defFuel = 2
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
@@ -455,30 +523,32 @@ exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 exitWithResult cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
-  let r = o_result out `addErrors` o_errors out
-  consoleResult cfg out r annm
-  return $ out { o_result = r }
+  -- let r = o_result out -- `addErrors` o_errors out
+  consoleResult cfg out annm
+  return out -- { o_result = r }
 
-consoleResult :: Config -> Output a -> ErrorResult -> ACSS.AnnMap -> IO ()
+consoleResult :: Config -> Output a -> ACSS.AnnMap -> IO ()
 consoleResult cfg
   | json cfg  = consoleResultJson cfg
   | otherwise = consoleResultFull cfg
 
-consoleResultFull :: Config -> Output a -> ErrorResult -> t -> IO ()
-consoleResultFull cfg out r _ = do
+consoleResultFull :: Config -> Output a -> t -> IO ()
+consoleResultFull cfg out _ = do
+   let r = o_result out
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
    writeResult cfg (colorResult r) cr
-   -- writeFile   (extFileName Result target) (showFix cr)
 
-consoleResultJson :: t -> t1 -> t2 -> ACSS.AnnMap -> IO ()
-consoleResultJson _ _ _ annm = do
+consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
+consoleResultJson _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . ACSS.errors $ annm
 
 resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
+instance Show (CtxError Doc) where
+  show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
@@ -512,8 +582,7 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
    TODO: Never used, do I need to exist?
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
-
-addErrors :: FixResult t -> [t] -> FixResult t
+addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)

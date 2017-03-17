@@ -7,18 +7,21 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , BareEnv(..)
 
-  , TInline(..), InlnEnv
+  -- , TInline(..)
+  , InlnEnv
 
   , inModule
   , withVArgs
 
   , setRTAlias
   , setREAlias
+  , setEmbeds
 
   , execBare
 
   , insertLogicEnv
   , insertAxiom
+  , addDefs
   ) where
 
 import           HscTypes
@@ -33,19 +36,19 @@ import           Control.Monad.Writer
 
 import qualified Control.Exception                    as Ex
 import qualified Data.HashMap.Strict                  as M
+import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol)
--- import           Language.Fixpoint.Misc (traceShow)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
 
------------------------------------------------------------------------------------
--- | Error-Reader-IO For Bare Transformation --------------------------------------
------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Error-Reader-IO For Bare Transformation -----------------------------------
+--------------------------------------------------------------------------------
 
 -- FIXME: don't use WriterT [], very slow
 type BareM = WriterT [Warn] (ExceptT Error (StateT BareEnv IO))
@@ -54,38 +57,40 @@ type Warn  = String
 
 type TCEnv = M.HashMap TyCon RTyCon
 
-type InlnEnv = M.HashMap Symbol TInline
+type InlnEnv = M.HashMap Symbol LMap
 
-data TInline = TI { tiargs :: [Symbol]
-                  , tibody :: Expr
-                  } deriving (Show)
+data BareEnv = BE
+  { modName  :: !ModName
+  , tcEnv    :: !TCEnv
+  , rtEnv    :: !RTEnv
+  , varEnv   :: ![(Symbol, Var)]
+  , hscEnv   :: HscEnv
+  , logicEnv :: LogicMap
+  , bounds   :: RBEnv
+  , embeds   :: TCEmb TyCon
+  , axSyms   :: M.HashMap Symbol LocSymbol
+  }
 
+setEmbeds :: TCEmb TyCon -> BareM ()
+setEmbeds emb
+  = modify $ \be -> be {embeds = emb}
 
+addDefs :: S.HashSet (Var, Symbol) -> BareM ()
+addDefs ds
+  = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
 
-data BareEnv = BE { modName  :: !ModName
-                  , tcEnv    :: !TCEnv
-                  , rtEnv    :: !RTEnv
-                  , varEnv   :: ![(Symbol,Var)]
-                  , hscEnv   :: HscEnv
-                  , logicEnv :: LogicMap
-                  , inlines  :: InlnEnv
-                  , bounds   :: RBEnv
-                  }
+insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
+insertLogicEnv _msg x ys e
+  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
 
-
-insertLogicEnv
-  :: MonadState BareEnv m => Symbol -> [Symbol] -> Expr -> m ()
-insertLogicEnv x ys e
-  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ logicEnv be}}
-
-insertAxiom :: MonadState BareEnv m => Var -> Symbol -> m ()
+insertAxiom :: Var -> Symbol -> BareM ()
 insertAxiom x s
   = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }
 
-inModule :: MonadState BareEnv m => ModName -> m b -> m b
+inModule :: ModName -> BareM b -> BareM b
 inModule m act = do
   old <- gets modName
   modify $ setModule m
@@ -93,12 +98,12 @@ inModule m act = do
   modify $ setModule old
   return res
 
-withVArgs :: (Foldable t,PPrint a,MonadState BareEnv m)
+withVArgs :: (Foldable t, PPrint a)
           => SourcePos
           -> SourcePos
           -> t a
-          -> m b
-          -> m b
+          -> BareM b
+          -> BareM b
 withVArgs l l' vs act = do
   old <- gets rtEnv
   mapM_ (mkExprAlias l l' . symbol . showpp) vs
@@ -106,24 +111,14 @@ withVArgs l l' vs act = do
   modify $ \be -> be { rtEnv = old }
   return res
 
-mkExprAlias
-  :: MonadState BareEnv m
-  => SourcePos -> SourcePos -> Symbol -> m ()
-mkExprAlias l l' v
-  = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ symbol v)) l l')
+mkExprAlias :: SourcePos -> SourcePos -> Symbol -> BareM ()
+mkExprAlias l l' v = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ symbol v)) l l')
 
-setRTAlias
-  :: MonadState BareEnv m
-  => Symbol -> RTAlias RTyVar SpecType -> m ()
-setRTAlias s a =
-  modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
+setRTAlias :: Symbol -> RTAlias RTyVar SpecType -> BareM ()
+setRTAlias s a = modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
 
-
-setREAlias
-  :: MonadState BareEnv m
-  => Symbol -> RTAlias Symbol Expr -> m ()
-setREAlias s a =
-  modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }
+setREAlias :: Symbol -> RTAlias Symbol Expr -> BareM ()
+setREAlias s a = modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }
 
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)

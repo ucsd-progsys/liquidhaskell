@@ -10,7 +10,7 @@ To run `liquid` you need to install:
 
 Download and install *at least one* of
 
-+ [Z3](https://github.com/Z3Prover/z3)
++ [Z3](https://github.com/Z3Prover/z3/releases)
 + [CVC4](http://cvc4.cs.nyu.edu/)
 + [MathSat](http://mathsat.fbk.eu/download.html)
 
@@ -22,6 +22,13 @@ Simply do:
     cabal install liquidhaskell
 
 We are working to put `liquid` on `stackage`.
+
+Note: Currently, LiquidHaskell on hackage does not compile against GHC 8.
+Please make sure you are installing with GHC version less than 8. You can
+designate a specific version of LiquidHaskell to ensure that the correct
+GHC version is in the environment. As an example,
+
+    cabal install liquidhaskell-0.6.0.0
 
 ## Step 2: Install `liquid` from Source
 
@@ -44,7 +51,7 @@ This requires that you have installed [stack][stack] (which we strongly recommen
 
     cabal sandbox init
     cabal sandbox add-source ./liquid-fixpoint
-    cabal sandbox add-source ./prover
+    cabal sandbox add-source ./liquiddesugar
     cabal install
 
 ## Troubleshooting

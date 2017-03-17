@@ -1,6 +1,6 @@
 {-# Language EmptyDataDecls #-}
 
-{-@ LIQUID "--no-eliminate" @-}
+{-@ LIQUID "--eliminate=none" @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-pattern-inline" @-}
 
@@ -16,12 +16,12 @@ import Privileges
 {- ** API ** -}
 {-@ measure caps :: World -> Map FHandle Privilege @-}
 {-@ measure active :: World -> Set FHandle @-}
-{-@ measure derive :: Path -> Prop @-}
+{-@ measure derive :: Path -> Bool @-}
 
 data Path = P String deriving Eq
 data FHandle = FH Int deriving Eq
 
--- ELIMINATED 
+-- ELIMINATED
 {- Deriv(v:World, x:FHandle): (pwrite (pcreateFilePrivs (Map_select (caps v) x))) @-}
 {- Write(v:World, x:FHandle): (pwrite (Map_select (caps v) x)) @-}
 {- List(v:World, x:FHandle): (pcontents (Map_select (caps v) x)) @-}
@@ -94,7 +94,7 @@ isDir :: FHandle -> Bool
 isDir = undefined
 
 {-@
-forM_ :: forall <i :: World -> Prop>.
+forM_ :: forall <i :: World -> Bool>.
          [a] ->
          (a -> RIO <i,\w1 x -> {v:World<i> | true}> b) ->
          RIO <i,\w1 x -> {v:World<i> | true}> ()
@@ -104,7 +104,7 @@ forM_ []     _ = return ()
 forM_ (x:xs) m = m x >> forM_ xs m
 
 {-@
-when :: forall <p    :: World -> Prop>.
+when :: forall <p    :: World -> Bool>.
         z:Bool ->
         RIO <p, \w1 x -> {v:World<p> | true}> () ->
         RIO <p, \w1 x -> {v:World<p> | true}> ()
@@ -122,7 +122,7 @@ when False  _ = return ()
 
 {-@
 findExec ::
-  forall <i :: World -> Prop, p :: FHandle -> World -> Prop, q :: FHandle -> Prop>.
+  forall <i :: World -> Bool, p :: FHandle -> World -> Bool, q :: FHandle -> Bool>.
   { x :: FHandle, b :: FHandle, w :: World<i> |- {v:World | StableInv w v x b } <: World<i> }
   { f :: FHandle<q> |- World<i> <: World<p f> }
   { f :: FHandle<q>, z::FHandle |- {v:World<p f> | (Active v z) && (Map_select (caps v) f) == (Map_select (caps v) z)} <: World<p z> }

@@ -10,7 +10,7 @@
 -- Module      :  GHC.IO.Encoding.Iconv
 -- Copyright   :  (c) The University of Glasgow, 2008-2009
 -- License     :  see libraries/base/LICENSE
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  internal
 -- Portability :  non-portable
@@ -100,7 +100,7 @@ iconvEncoding = mkIconvEncoding ErrorOnCodingFailure
 
 mkIconvEncoding :: CodingFailureMode -> String -> IO TextEncoding
 mkIconvEncoding cfm charset = do
-  return (TextEncoding { 
+  return (TextEncoding {
                 textEncodingName = charset,
 		mkTextDecoder = newIConv raw_charset (haskellChar ++ suffix) (recoverDecode cfm) iconvDecode,
 		mkTextEncoder = newIConv haskellChar charset                 (recoverEncode cfm) iconvEncode})
@@ -134,13 +134,13 @@ iconvDecode iconv_t ibuf obuf = iconvRecode iconv_t ibuf 0 obuf char_shift
 iconvEncode :: IConv -> EncodeBuffer
 iconvEncode iconv_t ibuf obuf = iconvRecode iconv_t ibuf char_shift obuf 0
 
-iconvRecode :: IConv -> Buffer a -> Int -> Buffer b -> Int 
+iconvRecode :: IConv -> Buffer a -> Int -> Buffer b -> Int
             -> IO (CodingProgress, Buffer a, Buffer b)
 iconvRecode iconv_t
   input@Buffer{  bufRaw=iraw, bufL=ir, bufR=iw, bufSize=_  }  iscale
   output@Buffer{ bufRaw=oraw, bufL=_,  bufR=ow, bufSize=os }  oscale
   = do
-    iconv_trace ("haskelChar=" ++ show haskellChar)
+    iconv_trace ("haskellChar=" ++ show haskellChar)
     iconv_trace ("iconvRecode before, input=" ++ show (summaryBuffer input))
     iconv_trace ("iconvRecode before, output=" ++ show (summaryBuffer output))
     withRawBuffer iraw $ \ piraw -> do
@@ -152,10 +152,10 @@ iconvRecode iconv_t
       res <- hs_iconv iconv_t p_inbuf p_inleft p_outbuf p_outleft
       new_inleft  <- peek p_inleft
       new_outleft <- peek p_outleft
-      let 
+      let
 	  new_inleft'  = fromIntegral new_inleft `shiftR` iscale
 	  new_outleft' = fromIntegral new_outleft `shiftR` oscale
-	  new_input  
+	  new_input
             | new_inleft == 0  = input { bufL = 0, bufR = 0 }
 	    | otherwise        = input { bufL = iw - new_inleft' }
 	  new_output = output{ bufR = os - new_outleft' }

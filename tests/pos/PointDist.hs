@@ -48,7 +48,7 @@ root x  = assume (rx > 0) rx
 
 -- | Run-time Checks
 
-{-@ assume     :: b:_ -> a -> {v:a | Prop b} @-}
+{-@ assume     :: b:_ -> a -> {v:a | b} @-}
 assume True  x = x
 assume False _ = error "Failed Dynamic Check!"
 

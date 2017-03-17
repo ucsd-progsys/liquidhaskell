@@ -3,7 +3,7 @@
 , cereal, cmdargs, containers, cpphs, daemons, data-default
 , deepseq, Diff, directory, filepath, fingertree, ghc, ghc-paths
 , hashable, hpc, hscolour, liquid-fixpoint, located-base, mtl
-, network, optparse-applicative, parsec, pretty, process, prover
+, network, optparse-applicative, parsec, pretty, process
 , stdenv, stm, syb, tagged, tasty, tasty-hunit, tasty-rerun
 , template-haskell, text, time, transformers, unix
 , unordered-containers, vector, z3
@@ -19,13 +19,13 @@ mkDerivation {
     aeson array base bifunctors bytestring Cabal cereal cmdargs
     containers cpphs data-default deepseq Diff directory filepath
     fingertree ghc ghc-paths hashable hpc hscolour liquid-fixpoint
-    located-base mtl parsec pretty process prover syb template-haskell
+    located-base mtl parsec pretty process syb template-haskell
     text time unordered-containers vector hscolour
   ];
   executableHaskellDepends = [
     base bytestring cereal cmdargs daemons data-default deepseq
     directory ghc liquid-fixpoint located-base network pretty process
-    prover unix unordered-containers
+    unix unordered-containers
   ];
   testHaskellDepends = [
     base containers directory filepath mtl optparse-applicative process

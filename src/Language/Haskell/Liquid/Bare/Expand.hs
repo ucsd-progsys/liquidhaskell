@@ -1,118 +1,133 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Expand (
-    expandReft
-  , expandExpr
-  ) where
+module Language.Haskell.Liquid.Bare.Expand ( ExpandAliases (..) ) where
 
 import           Prelude                          hiding (error)
-
 import           Control.Monad.State              hiding (forM)
-
 import qualified Data.HashMap.Strict              as M
-
 import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
-
-import           Language.Haskell.Liquid.Misc     (safeZipWithError)
+import           Language.Haskell.Liquid.Misc     (firstMaybes, safeZipWithError)
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
-
-
 import           Language.Haskell.Liquid.Bare.Env
+
+class ExpandAliases a where
+  expand :: a -> BareM a
+
+instance ExpandAliases Expr where
+  expand = expandExpr
+
+instance ExpandAliases Reft where
+  expand = txPredReft' expandExpr
+
+instance ExpandAliases SpecType where
+  expand = mapReftM expand
+
+instance ExpandAliases Body where
+  expand (E e)   = E   <$> expand e
+  expand (P e)   = P   <$> expand e
+  expand (R x e) = R x <$> expand e
+
+instance ExpandAliases ty => ExpandAliases (Def ty ctor) where
+  expand (Def f xts c t bxts b) =
+    Def f <$> expand xts
+          <*> pure c
+          <*> expand t
+          <*> expand bxts
+          <*> expand b
+
+instance ExpandAliases ty => ExpandAliases (Measure ty ctor) where
+  expand (M n t ds) =
+    M n <$> expand t <*> expand ds
+
+instance ExpandAliases DataConP where
+  expand d = do
+    tyRes'    <- expand $ tyRes    d
+    tyConsts' <- expand $ tyConsts d
+    tyArgs'   <- expand $ tyArgs   d
+    return d { tyRes = tyRes', tyConsts = tyConsts', tyArgs = tyArgs' }
+
+instance ExpandAliases RReft where
+  expand = mapM expand
+
+instance (ExpandAliases a) => ExpandAliases (Located a) where
+  expand = mapM expand
+
+instance (ExpandAliases a) => ExpandAliases (Maybe a) where
+  expand = mapM expand
+
+instance (ExpandAliases a) => ExpandAliases [a] where
+  expand = mapM expand
+
+instance (ExpandAliases b) => ExpandAliases (a, b) where
+  expand = mapM expand
 
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------
 --------------------------------------------------------------------------------
-
-expandReft :: RReft -> BareM RReft
-expandReft = txPredReft expandExpr
-
-txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
-txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
-  where
-    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> f ra 
+txPredReft' :: (Expr -> BareM Expr) -> Reft -> BareM Reft
+txPredReft' f (Reft (v, ra)) = Reft . (v,) <$> f ra
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-
-
 expandExpr :: Expr -> BareM Expr
+expandExpr = go
+  where
+    go e@(EApp _ _)    = {- tracepp ("EXPANDEAPP e = " ++ showpp e ) <$> -} expandEApp (splitEApp e)
+    go (EVar x)        = expandSym x
+    go (ENeg e)        = ENeg        <$> go e
+    go (ECst e s)      = (`ECst` s)  <$> go e
+    go (PAnd ps)       = PAnd        <$> mapM go ps
+    go (POr ps)        = POr         <$> mapM go ps
+    go (PNot p)        = PNot        <$> go p
+    go (PAll xs p)     = PAll xs     <$> go p
+    go (PExist s e)    = PExist s    <$> go e
+    go (ELam xt e)     = ELam xt     <$> go e
+    go (ETApp e s)     = (`ETApp` s) <$> go e
+    go (ETAbs e s)     = (`ETAbs` s) <$> go e
+    go (EBin op e1 e2) = EBin op     <$> go e1  <*> go e2
+    go (PImp p q)      = PImp        <$> go p   <*> go q
+    go (PIff p q)      = PIff        <$> go p   <*> go q
+    go (PAtom b e e')  = PAtom b     <$> go e   <*> go e'
+    go (EIte p e1 e2)  = EIte        <$> go p   <*> go e1 <*> go e2
+    -- go e@(EVar _)      = return e
+    go e@(PKVar _ _)   = return e
+    go e@PGrad         = return e
+    go e@(ESym _)      = return e
+    go e@(ECon _)      = return e
 
-expandExpr e@(EApp _ _)
-  = expandEApp $ splitEApp e 
+expandSym :: Symbol -> BareM Expr
+expandSym s = do
+  s' <- expandSym' s
+  expandEApp (EVar s', [])
 
-expandExpr (ENeg e)
-  = ENeg <$> expandExpr e
-expandExpr (EBin op e1 e2)
-  = EBin op <$> expandExpr e1 <*> expandExpr e2
-expandExpr (EIte p e1 e2)
-  = EIte <$> expandExpr p <*> expandExpr e1 <*> expandExpr e2
-expandExpr (ECst e s)
-  = (`ECst` s) <$> expandExpr e
+expandSym' :: Symbol -> BareM Symbol
+expandSym' s = do
+  axs <- gets axSyms
+  let s' = dropModuleNamesAndUnique s
+  return $ if M.member s' axs then s' else s
 
-expandExpr e@(EVar _)
-  = return e
-expandExpr e@(ESym _)
-  = return e
-expandExpr e@(ECon _)
-  = return e
-
-expandExpr (PAnd ps)
-  = PAnd <$> mapM expandExpr ps
-expandExpr (POr ps)
-  = POr <$> mapM expandExpr ps
-expandExpr (PNot p)
-  = PNot <$> expandExpr p
-expandExpr (PImp p q)
-  = PImp <$> expandExpr p <*> expandExpr q
-expandExpr (PIff p q)
-  = PIff <$> expandExpr p <*> expandExpr q
-expandExpr (PAll xs p)
-  = PAll xs <$> expandExpr p
-expandExpr (ELam xt e)
-  = ELam xt <$> expandExpr e
-
-expandExpr (ETApp e s)
-  = (`ETApp` s) <$> expandExpr e 
-expandExpr (ETAbs e s)
-  = (`ETAbs` s) <$> expandExpr e 
-
-expandExpr (PAtom b e1 e2)
-  = PAtom b <$> expandExpr e1 <*> expandExpr e2 
-
-expandExpr (PKVar k s)
-  = return $ PKVar k s 
-
-expandExpr PGrad
-  = return PGrad
-
-expandExpr (PExist s e)
-  = PExist s <$> expandExpr e 
-
-
-expandEApp :: (Expr,[Expr]) -> BareM Expr
-expandEApp (EVar f, es)
-  = do env <- gets (exprAliases.rtEnv)
-       case M.lookup f env of
-         Just re ->
-           expandApp re <$> mapM expandExpr es 
-         Nothing ->
-           eApps (EVar f) <$> mapM expandExpr es 
-expandEApp (f, es)
-  = return $ eApps f es 
+expandEApp :: (Expr, [Expr]) -> BareM Expr
+expandEApp (EVar f, es) = do
+  eAs   <- gets (exprAliases . rtEnv)
+  let mBody = firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
+  case mBody of
+    Just re -> expandApp re   <$> mapM expandExpr es
+    Nothing -> eApps (EVar f) <$> mapM expandExpr es
+expandEApp (f, es) =
+  return $ eApps f es
 
 --------------------------------------------------------------------------------
--- Expand Alias Application ----------------------------------------------------
+-- | Expand Alias Application --------------------------------------------------
 --------------------------------------------------------------------------------
-
-expandApp
-  :: Subable ty =>
-     RTAlias Symbol ty -> [Expr] -> ty
-expandApp re es
-  = subst su $ rtBody re
-  where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
-        msg = "Malformed alias application" ++ "\n\t"
+expandApp :: Subable ty => RTAlias Symbol ty -> [Expr] -> ty
+expandApp re es = subst su $ rtBody re
+  where
+    su          = mkSubst $ safeZipWithError msg (rtVArgs re) es
+    msg         = "Malformed alias application" ++ "\n\t"
                ++ show (rtName re)
                ++ " defined at " ++ show (rtPos re)
                ++ "\n\texpects " ++ show (length $ rtVArgs re)

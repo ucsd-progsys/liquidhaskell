@@ -2,6 +2,24 @@
 
 ## NEXT
 
+- **breaking change** Remove the `Bool` vs. `Prop` distinction. This means that: 
+
+    * signatures that use(d) `Prop` as a type, e.g. 
+      `foo :: Int -> Prop` should just be `foo :: Int -> Bool`.
+
+    * refinements that use(d) `Prop v` e.g. 
+      `isNull :: xs:[a] -> {v:Bool | Prop v <=> len xs > 0}`
+      should just be `isNull :: xs:[a] -> {v:Bool | v <=> len xs > 0}`.
+
+- Add `--eliminate={none, some, all}`. Here
+  * `none` means don't use eliminate at all, use qualifiers everywhere (old-style)
+  * `some` which is the **DEFAULT**  -- means eliminate all the **non-cut** variables
+  * `all`  means eliminate where you can, and solve *cut* variables to `True`.
+
+- Change `--higherorder` so that it uses *only* the qualifiers obtained from
+  type aliases (e.g. `type Nat = {v:Int | ... }`) and nothing else. This
+  requires `eliminate=some`.
+
 - Add a `--json` flag that runs in quiet mode where all output is
   suppressed and only the list of errors is returned as a JSON object to be
   consumed by an editor.

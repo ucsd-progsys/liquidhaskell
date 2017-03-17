@@ -111,7 +111,6 @@ resolver: ${ghc_version}
 
 packages:
 - ./liquid-fixpoint
-- ./prover
 - .
 EOF
 

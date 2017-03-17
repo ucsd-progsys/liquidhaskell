@@ -11,10 +11,10 @@ import Data.Set
 
 data Privilege
 
-{-@ measure pread :: Privilege -> Prop @-}
-{-@ measure pwrite :: Privilege -> Prop @-}
-{-@ measure plookup :: Privilege -> Prop @-}
-{-@ measure pcontents :: Privilege -> Prop @-}
-{-@ measure pcreateFile :: Privilege -> Prop @-}
-{-@ measure pcreateDir :: Privilege -> Prop @-}
+{-@ measure pread :: Privilege -> Bool @-}
+{-@ measure pwrite :: Privilege -> Bool @-}
+{-@ measure plookup :: Privilege -> Bool @-}
+{-@ measure pcontents :: Privilege -> Bool @-}
+{-@ measure pcreateFile :: Privilege -> Bool @-}
+{-@ measure pcreateDir :: Privilege -> Bool @-}
 {-@ measure pcreateFilePrivs :: Privilege -> Privilege @-}

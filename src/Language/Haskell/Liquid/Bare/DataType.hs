@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
     makeConTypes
@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Bare.DataType (
   , makeRecordSelectorSigs
   , dataConSpec
   , meetDataConSpec
+  , makeNumericInfo
   ) where
 
 import           DataCon
@@ -15,22 +16,23 @@ import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
 import           SrcLoc                                 (SrcSpan)
 import           Text.Parsec
-import           TyCon
+import           TyCon                                  hiding (tyConName)
 import           Var
-
+import           InstEnv
+import           Class
 import           Data.Maybe
-
+import           TypeRep
 
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst)
+import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft)
+import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.Misc           (mapSnd)
+import           Language.Fixpoint.Misc                 (mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
@@ -40,7 +42,28 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 
--- import Debug.Trace
+
+
+makeNumericInfo :: Maybe [ClsInst] -> TCEmb TyCon -> TCEmb TyCon
+makeNumericInfo Nothing x   = x
+makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
+
+makeNumericInfoOne :: TCEmb TyCon -> ClsInst -> TCEmb TyCon
+makeNumericInfoOne m is
+  | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m
+  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  = M.insertWith (flip mappendFTC) tc (ftc tc True False) m
+  | otherwise
+  = m
+  where
+    ftc c = symbolNumInfoFTyCon (dummyLoc $ tyConName c)
+
+instanceTyCon :: ClsInst -> Maybe TyCon
+instanceTyCon = go . is_tys
+  where
+    go [TyConApp c _] = Just c
+    go _              = Nothing
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -95,7 +118,7 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
        let varInfo = L.nub $  concatMap (getPsSig initmap True) tys
        let defaultPs = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvarinfo, pvarinfo) = f defaultPs
-       return ((tc', TyConP αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc lc') <$> cts'))
+       return ((tc', TyConP lc αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc lc') <$> cts'))
     where
        αs          = RTV . symbolTyVar <$> as
        n           = length αs
@@ -113,9 +136,10 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
 
 ofBDataDecl Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon tc
-       return ((tc', TyConP [] [] [] tcov tcontr Nothing), [])
+       return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing), [])
   where
     (tcov, tcontr) = (is, [])
+    srcpos = dummyPos "LH.DataType.Variance"
 
 ofBDataDecl Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
@@ -154,7 +178,7 @@ ofBDataCon :: SourcePos
            -> [Symbol]
            -> [PVar RSort]
            -> (Located Symbol,[(Symbol,BareType)])
-           -> BareM (DataCon,DataConP)
+           -> BareM (DataCon, DataConP)
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
@@ -180,16 +204,17 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)
+    -- do not make record selectors for data cons with functional arguments
+    || any (isFunTy . snd) (args)
     = return []
     | otherwise = do
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
-        return (fs `zip` ts)
+        return $ zip fs ts
     where
-    ts   = [ Loc l l' (mkArrow (freeTyVars dcp) [] (freeLabels dcp)
+    ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
                                (dropPreds (subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
-           , not (isFunTy t) -- NOTE: we only have measures for non-function fields
            , let vv = rTypeValueVar t
              -- the measure singleton refinement, eg `v = getBar foo`
            , let mt = uReft (vv, PAtom Eq (EVar vv) (EApp (EVar x) (EVar z)))

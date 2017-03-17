@@ -26,12 +26,6 @@ import qualified Data.List                        as L                          
 import           Data.String
 import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
--- import           Var              (Var)
--- import           TyCon            (TyCon)
--- -- import           Data.Maybe
--- import qualified Data.List    as L -- (sort)
--- import qualified Data.HashMap.Strict as M
--- import           Text.PrettyPrint.HughesPJ
 import           HscTypes                         (SourceError)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types          hiding (Error, SrcSpan, Predicate)
@@ -124,15 +118,36 @@ pprXOT k (x, v) = (xd, pprintTidy k v)
   where
     xd          = maybe "unknown" (pprintTidy k) x
 
+instance PPrint LMap where
+  pprintTidy _ (LMap x xs e) = hcat [pprint x, pprint xs, text "|->", pprint e ]
+
+instance PPrint LogicMap where
+  pprintTidy _ (LM lm am) = vcat [ text "Logic Map"
+                                 , nest 2 $ text "logic-map"
+                                 , nest 4 $ pprint lm
+                                 , nest 2 $ text "axiom-map"
+                                 , nest 4 $ pprint am
+                                 ]
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
-
-
 instance (OkRT c tv r) => PPrint (RType c tv r) where
   -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
   pprintTidy _ = rtypeDoc Lossy
   -- pprintTidy _ = ppRType TopPrec
+
+instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
+  pprintTidy = ppAlias
+
+ppAlias :: (PPrint tv, PPrint ty) => Tidy -> RTAlias tv ty -> Doc
+ppAlias k a = text "type" <+> pprint (rtName a)
+                          <+> pprints k space (rtTArgs a)
+                          <+> pprints k space (rtVArgs a)
+                          <+> text " = "
+                          <+> pprint (rtBody a)
+
+pprints :: (PPrint a) => Tidy -> Doc -> [a] -> Doc
+pprints k c = sep . punctuate c . map (pprintTidy k)
 
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc
@@ -157,8 +172,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p t@(RFun _ _ _ r)
-  = ppTy r $ maybeParen p FunPrec $ ppr_rty_fun bb empty t
+ppr_rtype bb p t@(RFun _ _ _ _)
+  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
@@ -215,22 +230,6 @@ ppr_rsubtype bb p e
     pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
-{- NUKE?
-ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
-ppSpine (RAllP _ t)      = text "RAllP" <+> parens (ppSpine t)
-ppSpine (RAllS _ t)      = text "RAllS" <+> parens (ppSpine t)
-ppSpine (RAllE _ _ t)    = text "RAllE" <+> parens (ppSpine t)
-ppSpine (REx _ _ t)      = text "REx" <+> parens (ppSpine t)
-ppSpine (RFun _ i o _)   = ppSpine i <+> text "->" <+> ppSpine o
-ppSpine (RAppTy t t' _)  = text "RAppTy" <+> parens (ppSpine t) <+> parens (ppSpine t')
-ppSpine (RHole _)        = text "RHole"
-ppSpine (RApp c _ _ _)   = text "RApp" <+> parens (pprint c)
-ppSpine (RVar _ _)       = text "RVar"
-ppSpine (RExprArg _)     = text "RExprArg"
-ppSpine (RRTy _ _ _ _)   = text "RRTy"
-
--}
-
 -- | From GHC: TypeRep
 maybeParen :: Prec -> Prec -> Doc -> Doc
 maybeParen ctxt_prec inner_prec pretty
@@ -285,8 +284,8 @@ ppr_rty_fun bb prefix t
 ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
-ppr_rty_fun' bb (RFun b t t' _)
-  = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+ppr_rty_fun' bb (RFun b t t' r)
+  = ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
@@ -307,12 +306,15 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
-    dαs αs                    = sep $ pprint <$> αs
+    dαs αs                    = ppr_rtvar_def αs
 
     -- dπs :: Bool -> [PVar a] -> Doc
     dπs _ []                  = empty
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ ppr_pvar_def bb p <$> πs
+
+ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
+ppr_rtvar_def = sep . map (pprint . ty_var_value)
 
 ppr_symbols :: [Symbol] -> Doc
 ppr_symbols [] = empty
@@ -337,8 +339,8 @@ ppr_pvar_def bb p (PV s t _ xts)
 
 
 ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
-ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name propConName
-ppr_pvar_kind _ _ (PVHProp)   = ppr_name hpropConName
+ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name boolConName -- propConName
+ppr_pvar_kind _ _ (PVHProp)   = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
 
 ppr_name :: Symbol -> Doc
 ppr_name                      = text . symbolString

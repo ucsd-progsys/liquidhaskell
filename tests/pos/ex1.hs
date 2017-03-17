@@ -14,10 +14,10 @@ data Vec a = Nil | Cons a (Vec a)
 
 -- | We can encode the notion of length as an inductive measure @llen@
 
-{-@ measure llen     :: forall a. Vec a -> Int
-    llen (Nil)       = 0
-    llen (Cons x xs) = 1 + llen(xs)
-  @-}
+{-@ measure llen @-}
+llen :: Vec a -> Int
+llen (Nil)       = 0
+llen (Cons x xs) = 1 + llen(xs)
 
 {-@ invariant {v:Vec a | (llen v) >= 0} @-}
 
@@ -37,7 +37,7 @@ sizeOf (Cons _ xs) = 1 + sizeOf xs
 -- for our `Vec` type. Note that the `op` argument takes an extra /ghost/
 -- parameter that will let us properly describe the type of `efoldr`
 
-{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>.
+{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>.
                 (xs:Vec a -> x:a -> b <p xs> -> b <p (Ex.Cons x xs)>)
               -> b <p Ex.Nil>
               -> ys: Vec a
@@ -58,11 +58,6 @@ efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 {-@ size :: xs:Vec a -> {v: Int | v = llen xs} @-}
 size :: Vec a -> Int
 size = efoldr (\_ _ n -> n + 1) 0
-
--- | The above uses a helper that counts up the size. (Pesky hack to avoid writing qualifier v = ~A + 1)
-{-@ suc :: x:Int -> {v: Int | v = x + 1} @-}
-suc :: Int -> Int
-suc x = x + 1
 
 -- | Second: Appending two lists using `efoldr`
 {-@ app  :: xs: Vec Int -> ys: Vec Int -> {v: Vec Int | llen v = llen xs + llen ys } @-}

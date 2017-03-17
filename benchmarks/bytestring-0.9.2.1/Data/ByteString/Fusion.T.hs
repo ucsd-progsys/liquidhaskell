@@ -63,7 +63,7 @@ import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
 {-@ qualif BlenEq(v: int, x:ByteString): v = (bLength x) @-}
 {-@ qualif PSnd(v: a, x:b): v = (psnd x)                 @-}
 
-{-@ data PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)  @-}
+{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)  @-}
 
 {-@ measure pfst :: (PairS a b) -> a 
     pfst ((:*:) x y) = x 
@@ -73,7 +73,7 @@ import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
     psnd ((:*:) x y) = y 
   @-} 
 
-{-@ measure isJustS    :: (MaybeS a) -> Prop
+{-@ measure isJustS    :: (MaybeS a) -> Bool
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}

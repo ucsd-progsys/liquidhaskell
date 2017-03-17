@@ -40,8 +40,12 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate One C = ((ord C) <  65536) @-}
 {-@ predicate Two C = ((ord C) >= 65536) @-}
 
-{-@ qualif OneC(v:Char) : ((ord v) <  65536) @-}
-{-@ qualif TwoC(v:Char) : ((ord v) >= 65536) @-}
+{-@ qualOneC :: {v:Char | (ord v) <  65536} -> () @-}
+qualOneC :: Char -> ()
+qualOneC _ = ()
+{-@ qualTwoC :: {v:Char | (ord v) >= 65536} -> () @-}
+qualTwoC :: Char -> ()
+qualTwoC _ = ()
 
 {-@ predicate Room MA I C = (((One C) => (MAValidIN MA I 1))
                           && ((Two C) => (MAValidIN MA I 2))) @-}
@@ -53,7 +57,7 @@ import Language.Haskell.Liquid.Prelude
 ord :: Char -> Int
 ord c@(C# c#) = let i = I# (ord# c#)
                 in liquidAssume (axiom_ord c i) i
-{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | ((Prop v) <=> (i = (ord c)))} @-}
+{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | (v <=> (i = (ord c)))} @-}
 axiom_ord :: Char -> Int -> Bool
 axiom_ord = undefined
 {-# INLINE ord #-}

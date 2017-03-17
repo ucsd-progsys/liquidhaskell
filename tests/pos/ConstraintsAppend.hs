@@ -7,12 +7,12 @@ import Language.Haskell.Liquid.Prelude
 {-@ type OList a = [a]<{\x v -> v >= x}> @-}
 
 
-{-@ assume (++) :: forall <p :: a -> Prop, q :: a -> Prop, r :: a -> Prop>.
+{-@ assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool>.
         {x::a<p> |- a<q> <: {v:a| x <= v}} 
         {a<p> <: a<r>} 
         {a<q> <: a<r>} 
         Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> @-}
-{-@ app :: forall <p :: a -> Prop, q :: a -> Prop, r :: a -> Prop>.
+{-@ app :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool>.
         {x::a<p> |- a<q> <: {v:a| x <= v}} 
         {a<p> <: a<r>} 
         {a<q> <: a<r>} 

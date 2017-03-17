@@ -8,9 +8,9 @@ data Vec a = Nil | Cons a (Vec a)
 
 
 {-@
-efoldl :: forall <inv :: (Vec a) -> b -> Prop, step :: a -> b -> b -> Prop>.
-          {y::a, ys :: Vec a, z :: {v:Vec a | v = Cons y ys && llen v = llen ys + 1}, acc:: b<inv z> |- b<step y acc> <: b<inv ys>}
-         (x:a -> acc:b -> b<step x acc>)
+efoldl :: forall <inv :: (Vec a) -> b -> Bool, step :: a -> b -> b -> Bool>.
+          {y::a, ys :: Vec a, z :: {v:Vec a | v = Cons y ys && llen v = llen ys + 1}, jacc:: b<inv z> |- b<step y jacc> <: b<inv ys>}
+         (x:a -> pacc:b -> b<step x pacc>)
       -> xs:(Vec a)
       -> b<inv xs>
       -> b<inv Nil>

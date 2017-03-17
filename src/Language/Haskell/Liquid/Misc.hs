@@ -148,12 +148,6 @@ zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
 single :: t -> [t]
 single x = [x]
 
-mapFst :: (t -> t1) -> (t, t2) -> (t1, t2)
-mapFst f (x, y)  = (f x, y)
-
-mapSnd :: (t -> t2) -> (t1, t) -> (t1, t2)
-mapSnd f (x, y)  = (x, f y)
-
 mapFst3 :: (t -> t1) -> (t, t2, t3) -> (t1, t2, t3)
 mapFst3 f (x, y, z) = (f x, y, z)
 
@@ -163,6 +157,8 @@ mapSnd3 f (x, y, z) = (x, f y, z)
 mapThd3 :: (t -> t3) -> (t1, t2, t) -> (t1, t2, t3)
 mapThd3 f (x, y, z) = (x, y, f z)
 
+firstMaybes :: [Maybe a] -> Maybe a
+firstMaybes = listToMaybe . catMaybes
 
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))
@@ -227,7 +223,8 @@ tryIgnore s a = catch a $ \e ->
 (<<=) :: Monad m => (b -> m a) -> m b -> m b
 (<<=) = flip (=>>)
 
-
+condNull :: Bool -> [a] -> [a]
+condNull c xs = if c then xs else []
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
 firstJust f xs = listToMaybe $ mapMaybe f xs
@@ -241,3 +238,6 @@ intToString n = show n ++ "th"
 mapAccumM :: (Monad m, Traversable t) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c)
 mapAccumM f acc0 xs =
   swap <$> runStateT (traverse (StateT . (\x acc -> swap <$> f acc x)) xs) acc0
+
+ifM :: (Monad m) => m Bool -> m b -> m b -> m b
+ifM b x y = b >>= \z -> if z then x else y

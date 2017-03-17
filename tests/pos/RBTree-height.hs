@@ -144,14 +144,14 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Color of a tree
 
-{-@ measure isB        :: RBTree a -> Prop
+{-@ measure isB        :: RBTree a -> Bool
     isB (Leaf)         = false
     isB (Node c x l r) = c == B 
   @-}
 
 -- | Black Height
 
-{-@ measure isBH        :: RBTree a -> Prop
+{-@ measure isBH        :: RBTree a -> Bool
     isBH (Leaf)         = true
     isBH (Node c x l r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
   @-}

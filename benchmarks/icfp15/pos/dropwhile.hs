@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.Prelude
 import Prelude hiding (dropWhile, (.), filter)
 
 -------------------------------------------------------------------------------
--- | A List 
+-- | A List
 -------------------------------------------------------------------------------
 
 data List a = Emp | (:::) { hd :: a
@@ -17,7 +17,7 @@ infixr 5 :::
 -- | A list whose head satisfies `p`
 -------------------------------------------------------------------------------
 
-{-@ data List a <p :: a -> Prop> = Emp
+{-@ data List a <p :: a -> Bool> = Emp
                                  | (:::) { hd :: a<p>
                                          , tl :: List a }
 @-}
@@ -34,8 +34,8 @@ one = 1 ::: 2 ::: 3 ::: Emp
 -- | dropWhile some predicate `f` is not satisfied
 -------------------------------------------------------------------------------
 
-{-@ dropWhile :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>.
-                   (Witness a p w) => 
+{-@ dropWhile :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
+                   (Witness a p w) =>
                    (x:a -> Bool<w x>) -> List a -> List <p> a
   @-}
 dropWhile :: (a -> Bool) -> List a -> List a
@@ -60,6 +60,6 @@ dropUntilOne' = dropWhile (/= 1)
 
 -- | Currently needed for the qual; should be made redundant by `--eliminate`
 
-{-@ eqOne :: x:Int -> {v:Bool | Prop v <=> x /= 1} @-}
+{-@ eqOne :: x:Int -> {v:Bool | v <=> x /= 1} @-}
 eqOne :: Int -> Bool
 eqOne x = x /= 1

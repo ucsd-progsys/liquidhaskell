@@ -51,7 +51,7 @@ import           Language.Fixpoint.Types                (PPrint (..), FixResult 
 -- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
 import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
-import           Language.Haskell.Liquid.Misc           (mkGraph)
+import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.UX.Errors      ()
@@ -140,9 +140,9 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
 --   whose bodies have been pruned from [CoreBind] into the "assumes"
 
 assumeSpec :: M.HashMap Var LocSpecType -> GhcSpec -> GhcSpec
-assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
+assumeSpec sigm sp = sp { gsAsmSigs = M.toList $ M.union sigm assm }
   where
-    assm           = M.fromList $ asmSigs sp
+    assm           = M.fromList $ gsAsmSigs sp
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
@@ -164,9 +164,9 @@ sigVars srcF ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
 globalDiff :: FilePath -> [Int] -> GhcSpec -> Bool
 globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
   where
-    measDiff  = any (isDiff srcF ls) (snd <$> meas spec)
-    invsDiff  = any (isDiff srcF ls) (snd <$> invariants spec)
-    dconsDiff = any (isDiff srcF ls) (dloc . snd <$> dconsP spec)
+    measDiff  = any (isDiff srcF ls) (snd <$> gsMeas spec)
+    invsDiff  = any (isDiff srcF ls) (snd <$> gsInvariants spec)
+    dconsDiff = any (isDiff srcF ls) (dloc . snd <$> gsDconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
 isDiff :: FilePath -> [Int] -> Located a -> Bool
@@ -256,7 +256,7 @@ specDefs srcF  = map def . filter sameFile . specSigs
     sameFile   = (srcF ==) . file . snd
 
 specSigs :: GhcSpec -> [(Var, LocSpecType)]
-specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
+specSigs sp = gsTySigs sp ++ gsAsmSigs sp ++ gsCtors sp
 
 --------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
@@ -538,10 +538,3 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
-
---------------------------------------------------------------------------------
--- | Helper functions ----------------------------------------------------------
---------------------------------------------------------------------------------
-
-ifM :: (Monad m) => m Bool -> m b -> m b -> m b
-ifM b x y = b >>= \z -> if z then x else y

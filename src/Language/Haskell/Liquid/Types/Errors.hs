@@ -27,7 +27,6 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Panic (unexpected failures)
   , UserError
-  --, HiddenType (..)
   , panic
   , panicDoc
   , todo
@@ -51,6 +50,7 @@ import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
+import qualified Data.Binary as B
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
@@ -92,9 +92,6 @@ instance Ord (CtxError t) where
 errorWithContext :: TError Doc -> IO (CtxError Doc)
 --------------------------------------------------------------------------------
 errorWithContext e = CtxError e <$> srcSpanContext (pos e)
-  -- where
-    -- e               = tracepp "EWC 1:" e'
-    -- l               = tracepp "EWC 2:" (pos e)
 
 srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext sp
@@ -148,6 +145,7 @@ data Oblig
   | OCons -- ^ Obligation that proves subtyping constraints
   deriving (Generic, Data, Typeable)
 
+instance B.Binary Oblig
 instance Show Oblig where
   show OTerm = "termination-condition"
   show OInv  = "invariant-obligation"
@@ -303,10 +301,9 @@ data TError t =
                        } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
   | ErrAliasApp { pos   :: !SrcSpan
-                , nargs :: !Int
                 , dname :: !Doc
                 , dpos  :: !SrcSpan
-                , dargs :: !Int
+                , msg   :: !Doc
                 }
 
   | ErrTermin   { pos  :: !SrcSpan
@@ -331,6 +328,11 @@ data TError t =
 
   | ErrFilePragma { pos :: !SrcSpan
                   }
+
+  | ErrTyCon    { pos    :: !SrcSpan
+                , msg    :: !Doc
+                , tcname :: !Doc
+                }
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -714,12 +716,12 @@ ppError' _ dSp dCtx (ErrIllegalAliasApp _ dn dl)
         $+$ text "Type alias:" <+> pprint dn
         $+$ text "Defined at:" <+> pprint dl
 
-ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
+ppError' _ dSp dCtx (ErrAliasApp _ name dl s)
   = dSp <+> text "Malformed Type Alias Application"
         $+$ dCtx
         $+$ text "Type alias:" <+> pprint name
         $+$ text "Defined at:" <+> pprint dl
-        $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
+        $+$ s
 
 ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"
@@ -735,8 +737,9 @@ ppError' _ dSp dCtx (ErrOther _ s)
         $+$ dCtx
         $+$ nest 4 s
 
-ppError' _ dSp _ (ErrTermin _ xs s)
+ppError' _ dSp dCtx (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"
+        $+$ dCtx
         <+> (hsep $ intersperse comma xs) $+$ s
 
 ppError' _ dSp _ (ErrRClass p0 c is)
@@ -750,5 +753,8 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       =   text "Refined instance for:" <+> t
       $+$ text "Defined at:" <+> pprint p
 
+ppError' _ dSp _ (ErrTyCon _ msg ty)
+  = dSp <+> text "Bad Data Refinement for " <+> ty
+    $+$ (nest 4 msg)
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "'"

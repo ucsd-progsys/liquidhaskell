@@ -1,5 +1,5 @@
 \begin{code}
-module OverView where 
+module OverView where
 
 import Prelude hiding ((.), filter)
 import Language.Haskell.Liquid.Prelude
@@ -9,11 +9,11 @@ import Language.Haskell.Liquid.Prelude
 
 \begin{code}
 witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v 
+witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
 
 {-@ bound witness @-}
-{-@ filter :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>.
-                  (Witness a p w) => 
+{-@ filter :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
+                  (Witness a p w) =>
                   (x:a -> Bool<w x>) -> [a] -> [a<p>]
   @-}
 
@@ -24,16 +24,16 @@ filter f (x:xs)
 filter _ []   = []
 
 
-{-@ measure isPrime :: Int -> Prop @-}
-isPrime :: Int -> Bool 
-{-@ isPrime :: n:Int -> {v:Bool | Prop v <=> isPrime n} @-}
+{-@ measure isPrime :: Int -> Bool @-}
+isPrime :: Int -> Bool
+{-@ isPrime :: n:Int -> {v:Bool | v <=> isPrime n} @-}
 isPrime = undefined
 
 -- | `positives` works by instantiating:
 -- p := \v   -> isPrime v
--- q := \n v -> Prop v <=> isPrime n
+-- q := \n v -> Bool v <=> isPrime n
 
-	
+
 {-@ primes :: [Int] -> [{v:Int | isPrime v}] @-}
 primes     = filter isPrime
 \end{code}

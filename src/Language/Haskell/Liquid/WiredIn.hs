@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.WiredIn
-       ( propType
-       , propTyCon
-       , hpropTyCon
-       , pdVarReft
-       , wiredTyCons, wiredDataCons
+       (
+       -- propType
+       -- , propTyCon
+       -- , hpropTyCon,
+         pdVarReft
+       , wiredTyCons
+       , wiredDataCons
        , wiredSortedSyms
 
        -- | Constants for automatic proofs
@@ -17,7 +19,7 @@ import Prelude                                hiding (error)
 import Var
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc           (mapSnd)
+import Language.Fixpoint.Misc           (mapSnd)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
@@ -70,7 +72,6 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
-propTyCon, hpropTyCon :: TyCon
 
 
 {- ATTENTION: Uniques should be different when defining TyCons
@@ -78,19 +79,22 @@ propTyCon, hpropTyCon :: TyCon
    bool in fixpoint, as propTyCon is a bool
  -}
 
-propTyCon  = symbolTyCon 'w' 25 propConName
-hpropTyCon = symbolTyCon 'w' 26 hpropConName
+-- propTyCon :: TyCon
+-- propTyCon  = symbolTyCon 'w' 25 propConName
+
+-- hpropTyCon :: TyCon
+-- hpropTyCon = symbolTyCon 'w' 26 hpropConName
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
 -----------------------------------------------------------------------
 
-propType :: Reftable r => RRType r
-propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
+-- propType :: Reftable r => RRType r
+-- propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
---------------------------------------------------------------------
------- Predicate Types for WiredIns --------------------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Predicate Types for WiredIns ----------------------------------------------
+--------------------------------------------------------------------------------
 
 maxArity :: Arity
 maxArity = 7
@@ -107,7 +111,7 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
+listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
                    , [(nilDataCon, DataConP l0 [RTV tyv] [p] [] [] [] lt l0)
                    , (consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt l0)])
     where
@@ -124,10 +128,10 @@ listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just 
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
-      fsize z    = mkEApp (dummyLoc "len") [EVar z]
+      fsize      = SymSizeFun (dummyLoc "len")
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
+tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
                     , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt l0)])
   where
     tyvarinfo     = replicate n     Covariant

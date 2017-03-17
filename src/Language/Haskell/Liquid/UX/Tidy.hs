@@ -33,26 +33,16 @@ module Language.Haskell.Liquid.UX.Tidy (
 
 import           Data.Hashable
 import           Prelude                                   hiding (error)
-
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
-
-
 import qualified Control.Exception                         as Ex
-
 import           Language.Haskell.Liquid.GHC.Misc          (showPpr, stringTyVar)
-
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
-
-
-
-
-
 import           Data.Generics                             (everywhere, mkT)
 import           Text.PrettyPrint.HughesPJ
 
@@ -81,8 +71,8 @@ errorToUserError = fmap ppSpecTypeErr
 
 -- TODO: move to Types.hs
 cinfoError :: Cinfo -> Error
-cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
+cinfoError (Ci _ (Just e) _) = e
+cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
@@ -160,7 +150,7 @@ bindersTx ds   = \y -> M.lookupDefault y y m
 tyVars :: RType t a t1 -> [a]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllS _ t)     = tyVars t
-tyVars (RAllT α t)     = α : tyVars t
+tyVars (RAllT α t)     = ty_var_value α : tyVars t
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
@@ -174,13 +164,16 @@ tyVars (RHole _)       = []
 subsTyVarsAll
   :: (Eq k, Hashable k,
       Reftable r, TyConable c, SubsTy k (RType c k ()) c,
-      SubsTy k (RType c k ()) r, SubsTy k (RType c k ()) (RType c k ()),
+      SubsTy k (RType c k ()) r,
+      SubsTy k (RType c k ()) k,
+      SubsTy k (RType c k ()) (RType c k ()),
+      SubsTy k (RType c k ()) (RTVar k (RType c k ())),
       FreeVar c k)
    => [(k, RType c k (), RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
-    go (RAllT a t) = RAllT (M.lookupDefault a a abm) (go t)
+    go (RAllT a t) = RAllT (makeRTVar $ M.lookupDefault (ty_var_value a) (ty_var_value a) abm) (go t)
     go t           = subsTyVars_meet ats t
 
 
@@ -206,10 +199,8 @@ panicError :: {-(?callStack :: CallStack) =>-} Error -> a
 --------------------------------------------------------------------------------
 panicError = Ex.throw
 
--- ^ This function is put in this module as
---   it depends on the Exception instance,
---   which depends on the PPrint instance,
---   which depends on tidySpecType.
+-- ^ This function is put in this module as it depends on the Exception instance,
+--   which depends on the PPrint instance, which depends on tidySpecType.
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------
@@ -217,6 +208,7 @@ panicError = Ex.throw
 
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
+
 
 instance PPrint (CtxError Doc) where
   pprintTidy k ce = ppError k (ctCtx ce) $ ctErr ce
@@ -226,11 +218,14 @@ instance PPrint (CtxError SpecType) where
 
 instance PPrint Error where
   pprintTidy k = ppError k empty . fmap ppSpecTypeErr
-
+ 
 ppSpecTypeErr :: SpecType -> Doc
-ppSpecTypeErr = rtypeDoc     Lossy
-              . tidySpecType Lossy
-              . fmap (everywhere (mkT noCasts))
+ppSpecTypeErr = ppSpecType Lossy
+
+ppSpecType :: Tidy -> SpecType -> Doc
+ppSpecType k = rtypeDoc     k
+             . tidySpecType k
+             . fmap (everywhere (mkT noCasts))
   where
     noCasts (ECst x _) = x
     noCasts e          = e

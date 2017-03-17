@@ -7,10 +7,10 @@
 module ListFunctors where
 
 bar :: Maybe (a -> a) ->  a ->  a
-{-@ bar :: x:Maybe (a -> a) -> z: a
-        -> {v: a | v == from_Just x z}
+{-@ bar :: xy:Maybe (a -> a) -> z: a
+        -> {v: a | v == from_Just xy z}
   @-}
-bar x z = from_Just x z
+bar xink z = from_Just xink z
 
 
 {-@ measure from_Just @-}

@@ -42,7 +42,7 @@ zeroEveryOther i n a = if i >= n then a
       j: {v: Int | (v mod 2 = 0 && 0 <= v && v < 10)} -> {v: Int | v = 0} @-}
 stridedZeroes = zeroEveryOther 0 10 empty
 
-{-@ initArray :: forall a <p :: x0: Int -> x1: a -> Prop>.
+{-@ initArray :: forall a <p :: x0: Int -> x1: a -> Bool>.
       f: (z: Int -> a<p z>) ->
       i: {v: Int | v >= 0} ->
       n: Int ->

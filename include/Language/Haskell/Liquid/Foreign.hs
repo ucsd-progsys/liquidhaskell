@@ -36,7 +36,7 @@ mkPtr   :: Addr# -> Ptr b
 mkPtr = undefined -- Ptr x
 
 
-{-@ isNullPtr :: p:(Ptr a) -> {v:Bool | ((Prop v) <=> (isNullPtr p)) } @-}
+{-@ isNullPtr :: p:(Ptr a) -> {v:Bool | (v <=> (isNullPtr p)) } @-}
 isNullPtr :: Ptr a -> Bool
 isNullPtr p = (p == nullPtr)
 {-# INLINE isNullPtr #-}
@@ -55,7 +55,7 @@ deref = undefined
 
 {-@ eqPtr :: p:PtrV a
           -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
-          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
+          -> {v:Bool | (v <=> ((plen p) = (plen q)))}
   @-}
 eqPtr :: Ptr a -> Ptr a -> Bool
 eqPtr = undefined

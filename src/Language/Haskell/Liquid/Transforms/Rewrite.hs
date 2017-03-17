@@ -30,16 +30,15 @@ import           TyCon
 import qualified CoreSubst
 import qualified Outputable
 import qualified CoreUtils
--- import qualified PrelNames
 import qualified Var
 import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
--- import qualified Data.List as L
--- import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (safeZipWithError, mapFst, mapSnd, mapThd3, Nat)
+import           Language.Fixpoint.Misc       (mapFst, mapSnd)
+
+import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId)
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
 
@@ -136,10 +135,10 @@ rewriteWith tx           = go
 
   is rewritten to:
 
-              h1::t1     -> case t1 of
+              h1::t1    -> case t1 of
                             (h2::t2) ->  h1 + h2
                             DEFAULT  ->  error @ (Int, Int)
-               DEFAULT   -> error @ (Int, Int)
+              DEFAULT   -> error @ (Int, Int)
 
      case e of
        h1 :: h2 :: _ -> h1 + h2
@@ -148,6 +147,25 @@ rewriteWith tx           = go
   which, alas, is ill formed.
 
 -}
+
+--------------------------------------------------------------------------------
+
+-- simplifyPatTuple :: RewriteRule
+-- simplifyPatTuple e =
+--  case simplifyPatTuple' e of
+--    Just e' -> if CoreUtils.exprType e == CoreUtils.exprType e'
+--                 then Just e'
+--                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
+--    Nothing -> Nothing
+
+
+_safeSimplifyPatTuple :: RewriteRule
+_safeSimplifyPatTuple e
+  | Just e' <- simplifyPatTuple e
+  , CoreUtils.exprType e' == CoreUtils.exprType e
+  = Just e'
+  | otherwise
+  = Nothing
 
 --------------------------------------------------------------------------------
 simplifyPatTuple :: RewriteRule
@@ -217,8 +235,9 @@ hasTuple ys = stepE
 --------------------------------------------------------------------------------
 -- | `replaceTuple ys e e'` REPLACES tuples that "looks like" (y1...yn) with e'
 --------------------------------------------------------------------------------
+
 replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
-replaceTuple ys e e'            = stepE e
+replaceTuple ys e e'           = stepE e
   where
     t'                          = CoreUtils.exprType e'
     stepE e
@@ -227,18 +246,53 @@ replaceTuple ys e e'            = stepE e
     stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
     stepA (c, xs, e)            = (c, xs,)   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
-    go (Case e x t cs)          = Case e x t <$> mapM stepA cs
+    go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
+
+_errorSkip :: String -> a -> b
+_errorSkip x _ = error x
+
+-- replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
+-- replaceTuple ys e e' = tracePpr msg (_replaceTuple ys e e')
+--  where
+--    msg = "replaceTuple: ys = " ++ showPpr ys ++
+--                        " e = " ++ showPpr e  ++
+--                        " e' =" ++ showPpr e'
+
+-- | The substitution (`substTuple`) can change the type of the overall
+--   case-expression, so we must update the type of each `Case` with its
+--   new, possibly updated type. See:
+--   https://github.com/ucsd-progsys/liquidhaskell/pull/752#issuecomment-228946210
+
+fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
+fixCase e x _t cs' = Case e x t' cs'
+  where
+    t'            = CoreUtils.exprType body
+    (_,_,body)    = c
+    c:_           = cs'
+
+{-@  type ListNE a = {v:[a] | len v > 0} @-}
+type ListNE a = [a]
 
 replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
 replaceIrrefutPat t (App (Lam z e) eVoid)
-  | (Var x, _:args) <- collectArgs e
-  , isIrrefutErrorVar x
-  , let e' = MkCore.mkCoreApps (Var x) (Type t : args)
+  | Just e' <- replaceIrrefutPat' t e
   = App (Lam z e') eVoid
+
+replaceIrrefutPat t e
+  | Just e' <- replaceIrrefutPat' t e
+  = e'
 
 replaceIrrefutPat _ e
   = e
+
+replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr 
+replaceIrrefutPat' t e
+  | (Var x, _:args) <- collectArgs e
+  , isIrrefutErrorVar x
+  = Just (MkCore.mkCoreApps (Var x) (Type t : args))
+  | otherwise
+  = Nothing
 
 isIrrefutErrorVar :: Var -> Bool
 isIrrefutErrorVar x = MkCore.iRREFUT_PAT_ERROR_ID == x

@@ -109,7 +109,7 @@ liquidCanary x   = x - 1
 --
 
 -- LIQUID RENAME: rename `invariant` to `invt` to avoid name clash!
-{-@ invt :: ByteString -> {v: Bool | (Prop v)}  @-}
+{-@ invt :: ByteString -> {v: Bool | v}  @-}
 invt :: ByteString -> Bool
 invt Empty                     = True 
 invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
@@ -137,7 +137,7 @@ chunk c@(S.PS _ _ len) cs | len == 0  = cs
 {-# INLINE chunk #-}
 
 -- | Consume the chunks of a lazy ByteString with a natural right fold.
-{-@ foldrChunks :: forall <p :: ByteString -> a -> Prop>.
+{-@ foldrChunks :: forall <p :: ByteString -> a -> Bool>.
                    (bs:ByteString
                     -> b:ByteStringNE
                     -> a<p bs>

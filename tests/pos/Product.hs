@@ -1,4 +1,4 @@
-{-@ LIQUID "--total" @-}
+{-@ LIQUID "--totality" @-}
 
 
 module Vectors where

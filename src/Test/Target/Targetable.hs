@@ -432,7 +432,7 @@ instance (GToExprCtor f, GToExprCtor g) => GToExprCtor (f :+: g) where
   gtoExprCtor (R1 x) = gtoExprCtor x
 
 instance (GQueryCtors f, GQueryCtors g) => GQueryCtors (f :+: g) where
-  gqueryCtors p d t = do 
+  gqueryCtors p d t = do
     xs <- gqueryCtors (reproxyLeft p) d t
     ys <- gqueryCtors (reproxyRight p) d t
     return $! xs++ys
@@ -518,7 +518,7 @@ instance (GRecursive f, GRecursive g) => GRecursive (f :*: g) where
   gconArgTys p = gconArgTys (reproxyLeft p) ++ gconArgTys (reproxyRight p)
 
 instance (GQueryFields f, GQueryFields g) => GQueryFields (f :*: g) where
-  gqueryFields p d ts = do 
+  gqueryFields p d ts = do
     xs <- gqueryFields (reproxyLeft p) d ts
     let su = mkSubst $ zipWith (\x t -> (fst t, x)) xs ts
     let ts' = drop (length xs) ts

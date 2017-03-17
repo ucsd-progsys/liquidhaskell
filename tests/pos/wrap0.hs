@@ -16,5 +16,5 @@ prop1 x (F y) = liquidAssertB (x < y)
 
 {-@ assert flibXs :: a -> Bool @-}
 flibXs x     = prop2 (F [x, x, x])
-prop2 (F []) = liquidError "no!"
+prop2 (F []) = liquidError "not-the-hippopotamus"
 prop2 (F _ ) = True

@@ -223,8 +223,12 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
 
 
-{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
-{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
+-- These qualifs were unsorted
+{-@ qualif EqFPLen(v: int, x: ForeignPtr b): v = (fplen x)           @-}
+{-@ qualif EqPLen(v: int, x: Ptr b): v = (plen x)                    @-}
+
+
+
 {-@ qualif EqPLen(v:Ptr a, l:int): (plen v) = l                    @-}
 {-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
 {-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b): (plen v) = (fplen x) @-}
@@ -436,7 +440,7 @@ createAndTrimMEQ l f = do
 -- LIQUID CONSTRUCTIVE VERSION (Till we support pred-applications properly,
 -- cf. tests/pos/cont2.hs
 
-{-@ createAndTrim'' :: forall <p :: Int -> Prop>.
+{-@ createAndTrim'' :: forall <p :: Int -> Bool>.
                       l:Nat<p>
                    -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
                    -> IO ({v:Nat<p> | v <= l}, ByteString, a)<{\sz v -> (bLength v) = sz},{\o l v -> true}>

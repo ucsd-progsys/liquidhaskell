@@ -2,20 +2,20 @@ module Compose where
 
 import Prelude hiding (Monad(..))
 
--- | TODO 
--- | 
+-- | TODO
+-- |
 -- | 1. default methods are currently not supported
 -- | ie. if we remove the definition of fail method it fails
 -- | as I assume that dictionaries are Non Recursive
 -- |
--- | 2. check what happens if we import the instance (it should work)  
+-- | 2. check what happens if we import the instance (it should work)
 
 data ST s a = ST {runState :: s -> (a,s)}
 
-{-@ data ST s a <p :: s -> Prop, q :: s -> s -> Prop, r :: s -> a -> Prop> 
+{-@ data ST s a <p :: s -> Bool, q :: s -> s -> Bool, r :: s -> a -> Bool>
   = ST (runState :: x:s<p> -> (a<r x>, s<q x>)) @-}
 
-{-@ runState :: forall <p :: s -> Prop, q :: s -> s -> Prop, r :: s -> a -> Prop>. ST <p, q, r> s a -> x:s<p> -> (a<r x>, s<q x>) @-}
+{-@ runState :: forall <p :: s -> Bool, q :: s -> s -> Bool, r :: s -> a -> Bool>. ST <p, q, r> s a -> x:s<p> -> (a<r x>, s<q x>) @-}
 
 
 class Monad m where
@@ -25,29 +25,29 @@ class Monad m where
 
 instance Monad (ST s) where
   {-@ instance Monad ST s where
-    return :: forall s a <p :: s -> Prop >. x:a -> ST <p, {\s v -> v == s}, {\s v -> x == v}> s a;
-    >>= :: forall s a b  < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              , pref0 :: a -> Prop 
-              >. 
-       {x::s<pre> |- a<rg x> <: a<pref0>}      
+    return :: forall s a <p :: s -> Bool >. x:a -> ST <p, {\s v -> v == s}, {\s v -> x == v}> s a;
+    >>= :: forall s a b  < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
+              , pref0 :: a -> Bool
+              >.
+       {x::s<pre> |- a<rg x> <: a<pref0>}
        {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
        {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
        {ww::s<pre> |- s<postg ww> <: s<pref>}
        (ST <pre, postg, rg> s a)
     -> (a<pref0> -> ST <pref, postf, rf> s b)
     -> (ST <pre, post, r> s b) ;
-    >>  :: forall s a b  < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              >. 
+    >>  :: forall s a b  < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
+              >.
        {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
        {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
        {ww::s<pre> |- s<postg ww> <: s<pref>}
@@ -57,9 +57,9 @@ instance Monad (ST s) where
 
     @-}
   return x     = ST $ \s -> (x, s)
-  (ST g) >>= f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})    
-  (ST g) >>  f = ST (\x -> case g x of {(y, s) -> (runState f) s})    
- 
+  (ST g) >>= f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})
+  (ST g) >>  f = ST (\x -> case g x of {(y, s) -> (runState f) s})
+
 
 
 
@@ -85,13 +85,13 @@ run = (runState incr2) 0
 
 
 {-@
-cmp :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              >. 
+cmp :: forall < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
+              >.
        {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
        {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
        {ww::s<pre> |- s<postg ww> <: s<pref>}
@@ -107,15 +107,15 @@ cmp :: (ST s a)
 m `cmp` f = m `bind` (\_ -> f)
 
 {-@
-bind :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              , pref0 :: a -> Prop 
-              >. 
-       {x::s<pre> |- a<rg x> <: a<pref0>}      
+bind :: forall < pref :: s -> Bool, postf :: s -> s -> Bool
+              , pre  :: s -> Bool, postg :: s -> s -> Bool
+              , post :: s -> s -> Bool
+              , rg   :: s -> a -> Bool
+              , rf   :: s -> b -> Bool
+              , r    :: s -> b -> Bool
+              , pref0 :: a -> Bool
+              >.
+       {x::s<pre> |- a<rg x> <: a<pref0>}
        {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
        {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
        {ww::s<pre> |- s<postg ww> <: s<pref>}
@@ -128,35 +128,4 @@ bind :: (ST s a)
     -> (a -> ST s b)
     -> (ST s b)
 
-bind (ST g) f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+bind (ST g) f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})

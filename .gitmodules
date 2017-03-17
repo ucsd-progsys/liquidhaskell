@@ -1,12 +1,9 @@
-[submodule "benchmarks/xmonad"]
-	path = benchmarks/xmonad
-	url = https://github.com/nikivazou/xmonad.git
 [submodule "liquid-fixpoint"]
 	path = liquid-fixpoint
 	url = https://github.com/ucsd-progsys/liquid-fixpoint.git
-[submodule "prover"]
-	path = prover
-	url = https://github.com/ucsd-progsys/prover.git
 [submodule "ghc-options"]
 	path = ghc-options
 	url = https://github.com/ranjitjhala/ghc-options.git
+[submodule "liquiddesugar"]
+	path = liquiddesugar
+	url = https://github.com/christetreault/liquiddesugar.git

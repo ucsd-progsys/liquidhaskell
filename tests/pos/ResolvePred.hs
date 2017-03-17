@@ -7,7 +7,7 @@ module ResolvePred (myFold) where
 
 data L = C Int L | N
 
-{-@ myFold :: forall <q :: L -> b -> Prop>.
+{-@ myFold :: forall <q :: L -> b -> Bool>.
               (as:L -> a:Int -> b<q as> -> b<q (C a as)>)
            -> b<q N>
            -> l:L

@@ -3,7 +3,7 @@ module Compose where
 
 data ST s a = ST {runState :: s -> (a,s)}
 
-{-@ data ST s b <r :: s -> b -> Prop> 
+{-@ data ST s b <r :: s -> b -> Bool> 
   = ST (runState :: x:s -> (b<r x>, s)) @-}
 
 

@@ -117,7 +117,7 @@ applyPreds sp' dc = -- trace ("sp : " ++ showpp sp') $ trace ("dc : " ++ showpp 
     (as, ps, _, t) = bkUniv dc
     (xs, ts, _, _) = bkArrow . snd $ bkClass t
     -- args  = reverse tyArgs
-    su    = [(tv, toRSort t, t) | tv <- as | t <- rt_args sp]
+    su    = [(ty_var_value tv, toRSort t, t) | tv <- as | t <- rt_args sp]
     sup   = [(p, r) | p <- ps | r <- rt_pargs sp]
     tx    = (\t -> replacePreds "applyPreds" t sup)
           . everywhere (mkT $ propPsToProp sup)
@@ -149,7 +149,7 @@ fourth4 (_,_,_,d) = d
 getSpec :: [String] -> FilePath -> IO GhcSpec
 getSpec opts target
   = do cfg  <- getOpts ["--quiet"]
-       spec.head.fst <$> getGhcInfo Nothing (cfg {ghcOptions = opts}) [target]
+       spec . head . fst <$> getGhcInfos Nothing (cfg {ghcOptions = opts}) [target]
        -- case info of
        --   Left err -> error $ show err
        --   Right i  -> return $ spec i

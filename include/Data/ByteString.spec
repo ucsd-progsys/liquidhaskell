@@ -42,11 +42,12 @@ last :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
 
 tail :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
 
-init :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
+init :: {i:Data.ByteString.ByteString | 1 <= bslen i } 
+     -> {o:Data.ByteString.ByteString | bslen o == bslen i - 1 }
 
 null
     :: bs : Data.ByteString.ByteString
-    -> { b : Bool | Prop b <=> bslen bs == 0 }
+    -> { b : Bool | b <=> bslen bs == 0 }
 
 length :: bs : Data.ByteString.ByteString -> { n : Int | bslen bs == n }
 
@@ -104,11 +105,11 @@ concatMap
 
 any :: (Data.Word.Word8 -> Bool)
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> not (Prop b) }
+    -> { b : Bool | bslen bs == 0 ==> not b }
 
 all :: (Data.Word.Word8 -> Bool)
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> Prop b }
+    -> { b : Bool | bslen bs == 0 ==> b }
 
 maximum
     :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
@@ -254,17 +255,17 @@ splitWith
 isPrefixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l >= bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l >= bslen r ==> not b }
 
 isSuffixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l > bslen r ==> not b }
 
 isInfixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not (Prop b) }
+    -> { b : Bool | bslen l > bslen r ==> not b }
 
 breakSubstring
     :: il : Data.ByteString.ByteString
@@ -276,12 +277,12 @@ breakSubstring
 elem
     :: Data.Word.Word8
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> not (Prop b) }
+    -> { b : Bool | bslen b == 0 ==> not b }
 
 notElem
     :: Data.Word.Word8
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> Prop b }
+    -> { b : Bool | bslen b == 0 ==> b }
 
 find
     :: (Data.Word.Word8 -> Bool)
@@ -300,10 +301,7 @@ partition
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
        )
 
-index
-    :: bs : Data.ByteString.ByteString
-    -> { n : Int | 0 <= n && n < bslen bs }
-    -> Data.Word.Word8
+index :: bs : Data.ByteString.ByteString -> { n : Int | 0 <= n && n < bslen bs } -> Data.Word.Word8
 
 elemIndex
     :: Data.Word.Word8
