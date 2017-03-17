@@ -9,7 +9,7 @@ module Language.Fixpoint.Solver.GradualSolution
   , Sol.update
 
   -- * Lookup Solution
-  , lhsPred, sortSolution
+  , lhsPred
   ) where
 
 import           Control.Parallel.Strategies
@@ -145,9 +145,6 @@ lhsPred be s c = gSelectToList (fst <$> applyGradual g s bs)
     g                 = (ci, be, bs)
     bs                = F.senv c
     ci                = sid c
-
-sortSolution :: [([(F.KVar, Sol.QBind)], a)] -> [([(F.KVar, Sol.QBind)], a)]
-sortSolution = L.sortOn (\xs -> (mconcat $ (Sol.visitQBind V.exprPrecision <$> (map snd $ fst xs))))
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)

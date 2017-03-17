@@ -23,7 +23,7 @@ module Language.Fixpoint.Types.Solutions (
   , CMap
 
   -- * Solution elements
-  , Hyp, Cube (..), QBind, GBind, qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap, visitQBind
+  , Hyp, Cube (..), QBind, GBind, qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap
   , EQual (..), trueEqual
   , eQual
 
@@ -118,9 +118,6 @@ newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
 
 emptyGMap :: GSolution -> GSolution 
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
-
-visitQBind :: Monoid a => (Expr -> a) -> QBind -> a 
-visitQBind f (QB es) = mconcat $ [f $ eqPred e | e <- es]
 
 updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
 updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs } 

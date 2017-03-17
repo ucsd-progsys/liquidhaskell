@@ -30,8 +30,6 @@ import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import qualified Debug.Trace as T 
-
 --------------------------------------------------------------------------------
 -- | Progress Bar
 --------------------------------------------------------------------------------
@@ -190,35 +188,25 @@ initGBind sol (k, (e, gb)) = do
       isValid mempty pp
 
     root      = Sol.trueEqual
-    sortEquals xs = (showElems . bfs [0]) <$> makeEdges vs [] vs 
+    sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs 
       where 
        vs        = zip [0..] (root:(head <$> xs))
 
        bfs []     _  = [] 
        bfs (i:is) es = (snd $ (vs!!i)) : bfs (is++map snd (filter (\(j,k) ->  (j==i && notElem k is)) es)) es
 
-       makeEdges _   acc []    = return $ traceShow ("VERTICES\n" ++ showElems' (snd <$> vs) ++  "\nEDGES") acc
+       makeEdges _   acc []    = return acc
        makeEdges vs acc (x:xs) = do ves  <- concat <$> mapM (makeEdgesOne x) vs
                                     if any (\(i,j) -> elem (j,i) acc) ves 
                                       then makeEdges (filter ((/= fst x) . fst) vs) (filter (\(i,j) -> ((i /= fst x) && (j /= fst x))) acc) xs 
-                                      else makeEdges vs (traceShow ("MERGE " ++ show ves ++ " AND "  ++ show acc) $ mergeEdges (ves ++ acc)) xs 
+                                      else makeEdges vs (mergeEdges (ves ++ acc)) xs 
 
-    -- makeEdgesOne :: (Integer, Sol.EQual) -> (Integer, Sol.EQual) -> SolveM [(Integer, Integer)]
     makeEdgesOne (i,_) (j,_) | i == j = return [] 
     makeEdgesOne (i,x) (j,y) = do 
       ij <- isValid (mkPred [x]) (mkPred [y])
       return (if ij then [(j,i)] else [])
 
     mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
-
-
-
-showElems :: [Sol.EQual] -> [Sol.EQual]
-showElems x = T.trace ("\n" ++ showpp (F.pAnd (Sol.eqPred <$> x))) x 
-
-showElems' :: [Sol.EQual] -> String
-showElems' x = ("\n" ++ showpp (F.pAnd (Sol.eqPred <$> x))) 
-
 
 
 --------------------------------------------------------------------------------
