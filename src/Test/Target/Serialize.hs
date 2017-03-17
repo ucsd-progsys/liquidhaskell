@@ -87,7 +87,6 @@ instance SMTLIB2 Expr where
   smt2 (PAll   bs p)    = build "(forall ({}) {})"  (smt2s bs, smt2 p)
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 PGrad            = "true"
   -- FIXME
   smt2  _e               = "true" -- errorstar ("smtlib2 Pred  " ++ show e)
 

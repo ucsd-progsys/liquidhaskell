@@ -187,7 +187,8 @@ refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
 refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
-                   , not $ isHole pa
+                   , not $ isHole    pa
+                   , not $ isGradual pa 
                    , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++

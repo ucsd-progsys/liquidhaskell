@@ -216,7 +216,7 @@ refreshVV (RApp c ts rs r)
        shiftVV (RApp c ts' rs' r) <$> fresh
 
 refreshVV t
-  = return t
+  = shiftVV t <$> fresh
 
 refreshVVRef :: Freshable m Integer
              => Ref b (RType RTyCon RTyVar RReft)

@@ -80,6 +80,9 @@ splitW (WfC γ (RAllT a r))
 splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
+splitW (WfC γ (RAllS _ r))
+  = splitW (WfC γ r)
+
 splitW (WfC γ t@(RVar _ _))
   = bsplitW γ t
 
@@ -101,6 +104,9 @@ splitW (WfC γ (REx x tx t))
         γ'  <- γ += ("splitW2", x, tx)
         ws' <- splitW (WfC γ' t)
         return $ ws ++ ws'
+
+splitW (WfC γ (RRTy _ _ _ t))
+  = splitW (WfC γ t) 
 
 splitW (WfC _ t)
   = panic Nothing $ "splitW cannot handle: " ++ showpp t
@@ -126,7 +132,7 @@ bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
          => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t pflag isHO
   | isHO || F.isNonTrivial r'
-  = F.wfC (feBinds $ fenv γ) r' ci 
+  = F.wfC (feBinds $ fenv γ) r' ci
   | otherwise
   = []
   where
@@ -435,7 +441,7 @@ bsplitC γ t1 t2 = do
   checkStratum γ t1 t2
   pflag  <- pruneRefs <$> get
   isHO   <- allowHO   <$> get
-  let t1' = addLhsInv γ t1
+  t1'    <- addLhsInv γ <$> refreshVV t1
   return  $ bsplitC' γ t1' t2 pflag isHO
 
 addLhsInv :: CGEnv -> SpecType -> SpecType
