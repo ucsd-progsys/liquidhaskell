@@ -13,6 +13,7 @@ checkout:
     - git submodule update --init
     - pwd
     - (cd .. && git clone https://github.com/alanz/liquid-fixpoint.git)
+    - (cd ../liquid-fixpoint && git checkout parser-az)
     - pwd
 
 dependencies:
