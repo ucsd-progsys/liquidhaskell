@@ -30,29 +30,29 @@ module Language.Fixpoint.Parse (
   -- * Parsing basic entities
 
   --   fTyConP  -- Type constructors
-  , lowerIdP    -- Lower-case identifiers
-  , upperIdP    -- Upper-case identifiers
-  , infixIdP    -- String Haskell infix Id
-  , symbolP     -- Arbitrary Symbols
-  , constantP   -- (Integer) Constants
-  , integer     -- Integer
-  , bindP       -- Binder (lowerIdP <* colon)
-  , sortP       -- Sort
-  , mkQual      -- constructing qualifiers
+  , lowerIdP    -- ^ Lower-case identifiers
+  , upperIdP    -- ^ Upper-case identifiers
+  , infixIdP    -- ^ String Haskell infix Id
+  , symbolP     -- ^ Arbitrary Symbols
+  , constantP   -- ^ (Integer) Constants
+  , integer     -- ^ Integer
+  , bindP       -- ^ Binder (lowerIdP <* colon)
+  , sortP       -- ^ Sort
+  , mkQual      -- ^ constructing qualifiers
 
   -- * Parsing recursive entities
-  , exprP       -- Expressions
-  , predP       -- Refinement Predicates
-  , funAppP     -- Function Applications
-  , qualifierP  -- Qualifiers
-  , refaP       -- Refa
-  , refP        -- (Sorted) Refinements
-  , refDefP     -- (Sorted) Refinements with default binder
-  , refBindP    -- (Sorted) Refinements with configurable sub-parsers
-  , bvSortP     -- Bit-Vector Sort
+  , exprP       -- ^ Expressions
+  , predP       -- ^ Refinement Predicates
+  , funAppP     -- ^ Function Applications
+  , qualifierP  -- ^ Qualifiers
+  , refaP       -- ^ Refa
+  , refP        -- ^ (Sorted) Refinements
+  , refDefP     -- ^ (Sorted) Refinements with default binder
+  , refBindP    -- ^ (Sorted) Refinements with configurable sub-parsers
+  , bvSortP     -- ^ Bit-Vector Sort
 
   -- * Some Combinators
-  , condIdP     -- condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
+  , condIdP     -- ^ condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
 
   -- * Add a Location to a parsed value
   , locParserP
@@ -193,6 +193,7 @@ double        = Token.float         lexer
 
 -- identifier = Token.identifier lexer
 
+-- TODO:AZ: pretty sure there is already a whitespace eater in parsec,
 blanks :: Parser String
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
@@ -444,7 +445,7 @@ fTyConP
   =   (reserved "int"     >> return intFTyCon)
   <|> (reserved "Integer" >> return intFTyCon)
   <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon) -- TODO:AZ duplicate?
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)

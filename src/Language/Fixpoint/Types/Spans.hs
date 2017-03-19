@@ -116,7 +116,9 @@ instance Traversable Located where
   traverse f (Loc l l' x) = Loc l l' <$> f x
 
 instance Show a => Show (Located a) where
-  show (Loc l l' x) = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
+  show (Loc l l' x)
+    | l == l' && l == dummyPos "Fixpoint.Types.dummyLoc" = "dummyLoc"
+    | otherwise  = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
 
 instance PPrint a => PPrint (Located a) where
   pprintTidy k (Loc _ _ x) = pprintTidy k x
