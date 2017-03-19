@@ -148,6 +148,7 @@ languageDef =
                                      , "_|_"
                                      , "|"
                                      , "if", "then", "else"
+                                     , "func"
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
@@ -230,25 +231,33 @@ condIdP chars f
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
--- | String Haskell infix Id
-infixIdP :: Parser String
-infixIdP = many (satisfy (`notElem` [' ', '.']))
-
 -- | Lower-case identifiers
 upperIdP :: Parser Symbol
-upperIdP = condIdP symChars (not . isSmall . head)
+upperIdP = do
+  c <- upper
+  cs <- many (satisfy (`S.member` symChars))
+  blanks
+  return (symbol $ c:cs)
 
 -- | Lower-case identifiers
 lowerIdP :: Parser Symbol
-lowerIdP = condIdP symChars (isSmall . head)
-
-isSmall :: Char -> Bool
-isSmall c = isLower c || c == '_'
+lowerIdP = do
+  c <- lower
+  cs <- many (satisfy (`S.member` symChars))
+  blanks
+  return (symbol $ c:cs)
 
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)
   where
     keyWordSyms = ["if", "then", "else", "mod"]
+
+-- | String Haskell infix Id
+infixIdP :: Parser String
+infixIdP = many (satisfy (`notElem` [' ', '.']))
+
+isSmall :: Char -> Bool
+isSmall c = isLower c || c == '_'
 
 locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
@@ -434,12 +443,12 @@ sortFunP
 
 sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP
-   =  try (parens sortP)
-  <|> try (string "func" >> funcSortP)
-  <|> try (fAppTC listFTyCon . single <$> brackets sortP)
-  <|> try bvSortP
-  <|> try (fAppTC <$> fTyConP <*> appArgsP)
-  <|> try (fApp   <$> tvarP   <*> appArgsP)
+   =  parens sortP
+  <|> (reserved "func" >> funcSortP)
+  <|> (fAppTC listFTyCon . single <$> brackets sortP)
+  <|> bvSortP
+  <|> (fAppTC <$> fTyConP <*> appArgsP)
+  <|> (fApp   <$> tvarP   <*> appArgsP)
 
 single :: a -> [a]
 single x = [x]
