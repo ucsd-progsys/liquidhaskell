@@ -375,11 +375,14 @@ bops = foldl (flip addOperator) initOpTable buildinOps
 
 -- | Function Applications
 funAppP :: Parser Expr
-funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
+funAppP            =  litP <|> exprFunP <|> simpleAppP
   where
-    exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
-    exprFunCommasP = mkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
-    exprFunSemisP  = mkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
+    exprFunP = mkEApp <$> funSymbolP <*> funRhsP
+    funRhsP  =  sepBy1 expr0P blanks
+            <|> parens innerP
+    innerP =   brackets (sepBy exprP semi)
+           <|> sepBy exprP comma
+
     simpleAppP     = EApp <$> parens exprP <*> parens exprP
     funSymbolP     = locParserP symbolP
 
