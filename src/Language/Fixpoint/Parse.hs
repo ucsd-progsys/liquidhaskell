@@ -384,6 +384,7 @@ funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP
     funSymbolP     = locParserP symbolP
 
 
+-- TODO:AZ: The comment says BitVector literal, but it accepts any @Sort@
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
 litP :: Parser Expr
 litP = do reserved "lit"

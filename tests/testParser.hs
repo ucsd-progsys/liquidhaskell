@@ -21,6 +21,7 @@ parserTests =
   testGroup "Tests"
     [
       testSortP
+    , testFunAppP
       -- testExprP
     ]
 
@@ -111,4 +112,42 @@ testSortP =
 
     , testCase "FObj " $
         show (doParse' sortP "test" "foo") @?= "FObj \"foo\""
+    ]
+
+-- ---------------------------------------------------------------------
+{-
+
+funApp = lit
+       | exprFunSpaces
+       | expFunSemis
+       | expFunCommas
+       | simpleApp
+
+lit = 'lit' stringLiteral sort
+
+exprFunSpaces =
+
+exprFunSemis =
+
+exprFunCommas =
+
+simpleApp = 
+-}
+testFunAppP =
+  testGroup "FunAppP"
+    [ testCase "ECon (litP)" $
+        show (doParse' funAppP "test" "lit \"#x00000008\" (BitVec  Size32)") @?=
+          "ECon (L \"#x00000008\" (FApp (FTC (TC \"BitVec\" defined from: \"test\" (line 1, column 19) to: \"test\" (line 1, column 27) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined from: \"test\" (line 1, column 27) to: \"test\" (line 1, column 33) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))))"
+
+    , testCase "ECon (exprFunSpacesP)" $
+        show (doParse' funAppP "test" "fooBar baz qux") @?= "EApp (EApp (EVar \"fooBar\") (EVar \"baz\")) (EVar \"qux\")"
+
+    , testCase "ECon (exprFunCommasP)" $
+        show (doParse' funAppP "test" "fooBar (baz, qux)") @?= "EApp (EApp (EVar \"fooBar\") (EVar \"baz\")) (EVar \"qux\")"
+
+    , testCase "ECon (exprFunSemisP)" $
+        show (doParse' funAppP "test" "fooBar ([baz; qux])") @?= "EApp (EApp (EVar \"fooBar\") (EVar \"baz\")) (EVar \"qux\")"
+
+    , testCase "ECon (simpleAppP)" $
+        show (doParse' funAppP "test" "fooBar (baz + 1)") @?= "EApp (EVar \"fooBar\") (EBin Plus (EVar \"baz\") (ECon (I 1)))"
     ]
