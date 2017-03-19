@@ -30,29 +30,29 @@ module Language.Fixpoint.Parse (
   -- * Parsing basic entities
 
   --   fTyConP  -- Type constructors
-  , lowerIdP    -- ^ Lower-case identifiers
-  , upperIdP    -- ^ Upper-case identifiers
-  , infixIdP    -- ^ String Haskell infix Id
-  , symbolP     -- ^ Arbitrary Symbols
-  , constantP   -- ^ (Integer) Constants
-  , integer     -- ^ Integer
-  , bindP       -- ^ Binder (lowerIdP <* colon)
-  , sortP       -- ^ Sort
-  , mkQual      -- ^ constructing qualifiers
+  , lowerIdP    -- Lower-case identifiers
+  , upperIdP    -- Upper-case identifiers
+  , infixIdP    -- String Haskell infix Id
+  , symbolP     -- Arbitrary Symbols
+  , constantP   -- (Integer) Constants
+  , integer     -- Integer
+  , bindP       -- Binder (lowerIdP <* colon)
+  , sortP       -- Sort
+  , mkQual      -- constructing qualifiers
 
   -- * Parsing recursive entities
-  , exprP       -- ^ Expressions
-  , predP       -- ^ Refinement Predicates
-  , funAppP     -- ^ Function Applications
-  , qualifierP  -- ^ Qualifiers
-  , refaP       -- ^ Refa
-  , refP        -- ^ (Sorted) Refinements
-  , refDefP     -- ^ (Sorted) Refinements with default binder
-  , refBindP    -- ^ (Sorted) Refinements with configurable sub-parsers
-  , bvSortP     -- ^ Bit-Vector Sort
+  , exprP       -- Expressions
+  , predP       -- Refinement Predicates
+  , funAppP     -- Function Applications
+  , qualifierP  -- Qualifiers
+  , refaP       -- Refa
+  , refP        -- (Sorted) Refinements
+  , refDefP     -- (Sorted) Refinements with default binder
+  , refBindP    -- (Sorted) Refinements with configurable sub-parsers
+  , bvSortP     -- Bit-Vector Sort
 
   -- * Some Combinators
-  , condIdP     -- ^ condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
+  , condIdP     --  condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
 
   -- * Add a Location to a parsed value
   , locParserP
@@ -197,6 +197,7 @@ double        = Token.float         lexer
 blanks :: Parser String
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+-- | Integer
 integer :: Parser Integer
 integer = posInteger
 
@@ -221,6 +222,7 @@ locParserP p = do l1 <- getPosition
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
+
 condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP chars f
   = do c  <- letter <|> char '_'
@@ -228,12 +230,15 @@ condIdP chars f
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
+-- | String Haskell infix Id
 infixIdP :: Parser String
 infixIdP = many (satisfy (`notElem` [' ', '.']))
 
+-- | Lower-case identifiers
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isSmall . head)
 
+-- | Lower-case identifiers
 lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isSmall . head)
 
@@ -249,9 +254,11 @@ locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
+-- | Arbitrary Symbols
 symbolP :: Parser Symbol
 symbolP = symbol <$> symCharsP
 
+-- | (Integer) Constants
 constantP :: Parser Constant
 constantP =  try (R <$> double)
          <|> I <$> integer
@@ -301,6 +308,7 @@ expr1P
   =  try funAppP
  <|> expr0P
 
+-- | Expressions
 exprP :: Parser Expr
 exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
 
@@ -356,6 +364,7 @@ bops = foldl (flip addOperator) initOpTable buildinOps
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  ]
 
+-- | Function Applications
 funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
   where
@@ -409,6 +418,7 @@ funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 sortsP :: Parser [Sort]
 sortsP = brackets $ sepBy sortP semi
 
+-- | Sort
 sortP    :: Parser Sort
 sortP    = sortP' (sepBy sortArgP blanks)
 
@@ -452,6 +462,7 @@ fTyConP
   <|> (reserved "Str"     >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
+-- | Bit-Vector Sort
 bvSortP :: Parser Sort
 bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
   where
@@ -536,12 +547,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
 -- | BareTypes -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+-- | Refa
 refaP :: Parser Expr
 refaP =  try (pAnd <$> brackets (sepBy predP semi))
      <|> predP
 
 
-
+-- | (Sorted) Refinements with configurable sub-parsers
 refBindP :: Parser Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
@@ -551,22 +563,28 @@ refBindP bp rp kindP
       ra <- rp <* spaces
       return $ t (Reft (x, ra))
 
+
 -- bindP      = symbol    <$> (lowerIdP <* colon)
+-- | Binder (lowerIdP <* colon)
 bindP :: Parser Symbol
 bindP = symbolP <* colon
 
 optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
 
+-- | (Sorted) Refinements
 refP :: Parser (Reft -> a) -> Parser a
 refP       = refBindP bindP refaP
 
+-- | (Sorted) Refinements with default binder
 refDefP :: Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refDefP x  = refBindP (optBindP x)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
+
+-- | Qualifiers
 qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
