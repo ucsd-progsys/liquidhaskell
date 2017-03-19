@@ -112,6 +112,9 @@ testSortP =
 
     , testCase "FObj " $
         show (doParse' sortP "test" "foo") @?= "FObj \"foo\""
+
+    , testCase "FObj " $
+        show (doParse' sortP "test" "_foo") @?= "FObj \"_foo\""
     ]
 
 -- ---------------------------------------------------------------------

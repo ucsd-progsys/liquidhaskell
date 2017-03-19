@@ -242,7 +242,7 @@ upperIdP = do
 -- | Lower-case identifiers
 lowerIdP :: Parser Symbol
 lowerIdP = do
-  c <- lower
+  c <- satisfy (\c -> isLower c || c == '_' )
   cs <- many (satisfy (`S.member` symChars))
   blanks
   return (symbol $ c:cs)
