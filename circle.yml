@@ -39,7 +39,7 @@ test:
     - touch $CIRCLE_TEST_REPORTS/tasty/junit.xml
     - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
         timeout: 1800
-    - cabal exec -- sh -c "./dist/build/liquidhaskell-parser/liquidhaskell-parser -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
+    - cabal exec -- sh -c "./dist/build/liquidhaskell-parser/liquidhaskell-parser -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml":
         timeout: 1800
   post:
     - cabal haddock --haddock-options="--no-print-missing-docs"
