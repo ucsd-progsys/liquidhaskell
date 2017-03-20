@@ -2,17 +2,9 @@
 
 module Main where
 
--- import Control.Applicative
 import Language.Fixpoint.Parse
--- import System.Directory
--- import System.Environment
--- import System.Exit
--- import System.FilePath
--- import System.IO
--- import System.IO.Error
 import Test.Tasty
 import Test.Tasty.HUnit
--- import Text.Printf
 
 main :: IO ()
 main = defaultMain $ parserTests
@@ -24,15 +16,7 @@ parserTests =
       testSortP
     , testFunAppP
     , testExpr0P
-      -- testExprP
     , testPredP
-    ]
-
-testExprP :: TestTree
-testExprP =
-  testGroup "exprP"
-    [ testCase "aa" $
-        (show $ doParse' exprP "test" "x >= -1") @=? ""
     ]
 
 -- ---------------------------------------------------------------------
