@@ -10,13 +10,13 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Init ( 
-    initEnv , 
-    initCGI, 
-    makeAxiomEnvironment, 
+module Language.Haskell.Liquid.Constraint.Init (
+    initEnv ,
+    initCGI,
+    makeAxiomEnvironment,
 
-    -- NV TODO move getEqBody in a new file 
-    getEqBody 
+    -- NV TODO move getEqBody in a new file
+    getEqBody
 
     ) where
 
@@ -106,7 +106,7 @@ initEnv info
     is autoinv   = mkRTyConInv    (gsInvariants sp ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
-makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+makeDataConTypes x = (x,) <$> trueTy (varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
@@ -121,7 +121,7 @@ makeAutoDecrDataCons dcts specenv dcs
       = []
     idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
-    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
+    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (const mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf :: F.Symbol -> F.Expr
@@ -318,14 +318,14 @@ makeAxiomEnvironment info xts
   where
     fixCfg = fixConfig fileName cfg
 
-    makeContext cfg = unsafePerformIO $  do 
+    makeContext cfg = unsafePerformIO $  do
                        ctx <- makeSmtContext (fixConfig fileName cfg) fileName []
-                           {-     $ L.nubBy (\(x,_) (y,_) -> x == y) 
+                           {-     $ L.nubBy (\(x,_) (y,_) -> x == y)
                                     [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ] -}
-                       smtPush ctx 
-                       return ctx 
+                       smtPush ctx
+                       return ctx
     fileName = head (files cfg)  ++ ".evals"
-    -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv 
+    -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv
 
     doExpand sub = allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
@@ -343,25 +343,25 @@ makeAxiomEnvironment info xts
 makeSimplify :: (Var, SpecType) -> [Simplify]
 makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
-    go (F.PAnd es) = concatMap go es 
+    go (F.PAnd es) = concatMap go es
 
-    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd) 
+    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
       | eq `elem` [F.Eq, F.Ueq]
-      , (F.EVar dc, xs) <- F.splitEApp dc 
-      , all isEVar xs 
+      , (F.EVar dc, xs) <- F.splitEApp dc
+      , all isEVar xs
       = [SMeasure f dc (fromEVar <$> xs) bd]
 
-    go (F.PIff (F.EApp (F.EVar f) dc) bd) 
-      | (F.EVar dc, xs) <- F.splitEApp dc 
-      , all isEVar xs 
+    go (F.PIff (F.EApp (F.EVar f) dc) bd)
+      | (F.EVar dc, xs) <- F.splitEApp dc
+      , all isEVar xs
       = [SMeasure f dc (fromEVar <$> xs) bd]
 
-    go _ = [] 
+    go _ = []
 
-    isEVar (F.EVar _) = True 
-    isEVar _ = False 
+    isEVar (F.EVar _) = True
+    isEVar _ = False
 
-    fromEVar (F.EVar x) = x 
+    fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 
@@ -375,14 +375,14 @@ makeEquations info
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
 
 
-getEqBody :: Equation -> Maybe F.Expr 
+getEqBody :: Equation -> Maybe F.Expr
 getEqBody (Eq x xs (F.PAnd ((F.PAtom F.Eq fxs e):_)))
   | (F.EVar f, es) <- F.splitEApp fxs
-  , f == x 
-  , es == (F.EVar <$> xs) 
+  , f == x
+  , es == (F.EVar <$> xs)
   = Just e
-getEqBody _ 
-  = Nothing  
+getEqBody _
+  = Nothing
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a tyep in the logic

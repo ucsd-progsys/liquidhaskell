@@ -972,28 +972,16 @@ that must be satisfied by the concrete refinements used at any call-site.
 Invariants
 ==========
 
-**WARNING:** Do not use this mechanism -- it is *unsound* and about to be
-replaced with something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
+LH lets you locally associate invariants with specific data types.
 
-There are two ways of specifying invariants in LiquidHaskell.
-First, there are *global* invariants that always hold for a data-type. For
-example,  the length of a list cannot be negative
-
-    {-@ invariant {v:[a] | (len v >= 0)} @-}
-
-LiquidHaskell can prove that this invariant holds, by proving that all List's
-constructors (ie., `:` and `[]`) satisfy it.(TODO!)
-Then, LiquidHaskell assumes that each list element that is created satisfies
-this invariant.
-
-Second, there are *local* invariants that one may use. For
-example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+For example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
 list is treated as a Stream. To establish this local invariant one can use the
 `using` declaration
 
     {-@ using ([a]) as  {v:[a] | (len v > 0)} @-}
 
 denoting that each list is not empty.
+
 Then, LiquidHaskell will prove that this invariant holds, by proving that *all
 calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
@@ -1003,6 +991,21 @@ With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
 But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
+
+
+**WARNING:** There is an older _global_ invariant mechanism that 
+attaches a refinement to a datatype globally.
+Do not use this mechanism -- it is *unsound* and about to 
+deprecated in favor of something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
+
+Forexample,  the length of a list cannot be negative
+
+    {-@ invariant {v:[a] | (len v >= 0)} @-}
+
+LiquidHaskell can prove that this invariant holds, by proving that all List's
+constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell 
+assumes that each list element that is created satisfies
+this invariant.
 
 Formal Grammar of Refinement Predicates
 =======================================

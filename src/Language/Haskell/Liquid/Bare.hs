@@ -153,6 +153,7 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
 
+--------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
 --
 -- 1. MAKE the full LiftedSpec, which will eventually, contain:
@@ -162,9 +163,9 @@ ghcSpecEnv sp        = fromListSEnv binds
 -- | This step creates the aliases and inlines etc. It must be done BEFORE
 --   we compute the `SpecType` for (all, including the reflected binders),
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
-makeLiftedSpec0
-  :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
-  -> BareM Ms.BareSpec
+--------------------------------------------------------------------------------
+
+makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
 makeLiftedSpec0 embs cbs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
@@ -172,8 +173,7 @@ makeLiftedSpec0 embs cbs mySpec = do
                    , Ms.measures = ms
                    , Ms.reflects = Ms.reflects mySpec      }
 
-makeLiftedSpec1
-  :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> BareM ()
+makeLiftedSpec1 :: FilePath -> ModName -> Ms.BareSpec -> [(Var,LocSpecType)] -> BareM ()
 makeLiftedSpec1 file name lSpec0 xts
   = liftIO $ saveLiftedSpec file name lSpec1
   where
@@ -230,7 +230,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
-  (invs, ntys, ialias, sigs, asms)       <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
+  (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals   <- mconcat <$> mapM makeQualifiers specs
   syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
   let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]

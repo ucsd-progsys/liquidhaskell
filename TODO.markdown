@@ -1,24 +1,73 @@
-- Reader 
-  - Applicative crashing 
-  - Functor crashing 
-  - Functor.NoEx 
+- Reader
+  - Applicative crashing
+  - Functor crashing
+  - Functor.NoEx
   - Monad (...)
 
 TODO
 ====
 
-Reflect-Imports
----------------
+Prune Unsorted Refs
+-------------------
 
-+ `makeHaskellInlines`
-+ `makeHaskellMeasures`
-* `makeHaskellAxioms`
-- `makeHaskellBounds`
+* mergeDataConTypes
+* makeMeasureSpec'
+* meetDataConSpec
 
-`stack exec -- liquid tests/todo/ReflectLib2.hs`
+The below gives a nice SORT error
 
-? Fibonacci.hs:                      FAIL (3.61s)
-? Automate.hs:                       FAIL (1.35s)
+```haskell
+import Data.Set
+
+data RBTree a = Leaf | Node
+
+{-@ measure isB :: RBTree a -> (Set a)
+    isB (Leaf) = 1
+    isB (Node) = (Set_empty 0)
+  @-}
+```
+
+rjhala@borscht ~/r/s/liquidhaskell (prune-unsorted-error)> stack exec -- liquid tests/todo/prune.hs
+
+ /Users/rjhala/research/stack/liquidhaskell/tests/todo/prune.hs:7:13-15: Error: Bad Type Specification
+ measure isB :: (RBTree a b) -> (Set a)
+     Type constructor Prune.RBTree expects a maximum 1 arguments but was given 2 arguments
+
+ /Users/rjhala/research/stack/liquidhaskell/tests/todo/prune.hs:14:13: Error: Bad Measure Specification
+ measure  isB
+     The sort (Set_Set  @(42)) is not numeric
+     because
+        Cannot unify (Set_Set  @(42)) with int in expression: 1
+     because
+        Cannot cast 1 of sort int to incompatible sort func(1, [(Set_Set  @(0))])
+
+now put another SORT CHECK for measures:
+
+  * Input type should be "isGeneric"
+
+    isGeneric T if
+
+    * T is a TyConApp `c [t1...tn]`
+
+    where t1 .. tn are DISTINCT type variables.
+
+If the above SORT CHECK fails for any measure print an ERROR message saying:
+
+   please rerun with --prune-unsorted
+
+```haskell
+
+(:) :: Int -> [Int] -> [Int]
+
+sum :: [Int] -> Int
+sum []     = 0
+sum (x:xs) = x + sum xs
+
+
+sum :: Tree Int a -> Int
+sum Leaf         = 0
+sum Node k _ l r = k + sum l + sum r
+```
 
 Check Covariance
 ----------------
