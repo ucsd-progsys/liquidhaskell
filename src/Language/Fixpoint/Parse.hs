@@ -498,16 +498,16 @@ bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
-      <|> try (reserved "??" >> makeUniquePGrad)
-      <|> try kvarPredP
-      <|> try (fastIfP pIte predP)
+      <|> (reserved "??" >> makeUniquePGrad)
+      <|> kvarPredP
+      <|> (fastIfP pIte predP)
       <|> try predrP
-      <|> try (parens predP)
-      <|> try (reserved "?" *> exprP)
+      <|> (parens predP)
+      <|> (reserved "?" *> exprP)
       <|> try funAppP
-      <|> try (eVar <$> symbolP)
-      <|> try (reservedOp "&&" >> pGAnds <$> predsP)
-      <|> try (reservedOp "||" >> POr  <$> predsP)
+      <|> (eVar <$> symbolP)
+      <|> (reservedOp "&&" >> pGAnds <$> predsP)
+      <|> (reservedOp "||" >> POr  <$> predsP)
 
 makeUniquePGrad :: Parser Expr 
 makeUniquePGrad
