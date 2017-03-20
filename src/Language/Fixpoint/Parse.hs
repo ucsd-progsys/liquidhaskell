@@ -73,6 +73,9 @@ module Language.Fixpoint.Parse (
   , initPState, PState
 
   , Fixity(..), Assoc(..), addOperatorP
+
+  -- * For testing
+  , expr0P
   ) where
 
 import qualified Data.HashMap.Strict         as M
@@ -312,6 +315,7 @@ qmIfP f bodyP
       return $ f p b1 b2
 -}
 
+-- | Used as input to @Text.Parsec.Expr.buildExpressionParser@ to create @exprP@
 expr1P :: Parser Expr
 expr1P
   =  try funAppP

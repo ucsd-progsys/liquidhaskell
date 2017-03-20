@@ -2,29 +2,32 @@
 
 module Main where
 
-import Control.Applicative
+-- import Control.Applicative
 import Language.Fixpoint.Parse
-import System.Directory
-import System.Environment
-import System.Exit
-import System.FilePath
-import System.IO
-import System.IO.Error
+-- import System.Directory
+-- import System.Environment
+-- import System.Exit
+-- import System.FilePath
+-- import System.IO
+-- import System.IO.Error
 import Test.Tasty
 import Test.Tasty.HUnit
-import Text.Printf
+-- import Text.Printf
 
 main :: IO ()
 main = defaultMain $ parserTests
 
+parserTests :: TestTree
 parserTests =
   testGroup "Tests"
     [
       testSortP
     , testFunAppP
+    , testExpr0P
       -- testExprP
     ]
 
+testExprP :: TestTree
 testExprP =
   testGroup "exprP"
     [ testCase "aa" $
@@ -64,6 +67,7 @@ tVar = '@' varSort
 varSort = '(' INT ')'
 -}
 
+testSortP :: TestTree
 testSortP =
   testGroup "SortP"
     [ testCase "FAbs" $
@@ -136,6 +140,7 @@ exprFunCommas =
 
 simpleApp = 
 -}
+testFunAppP :: TestTree
 testFunAppP =
   testGroup "FunAppP"
     [ testCase "ECon (litP)" $
@@ -153,4 +158,56 @@ testFunAppP =
 
     , testCase "ECon (simpleAppP)" $
         show (doParse' funAppP "test" "fooBar (baz + 1)") @?= "EApp (EVar \"fooBar\") (EBin Plus (EVar \"baz\") (ECon (I 1)))"
+    ]
+
+-- ---------------------------------------------------------------------
+{-
+expr0 = fastIf
+      | symconst
+      | constant
+      | '_|_'
+      | lam
+      | '(' expr ')'
+      | '(' exprCast ')'
+      | symChars
+
+-}
+testExpr0P :: TestTree
+testExpr0P =
+  testGroup "expr0P"
+    [ testCase "EIte" $
+        show (doParse' expr0P "test" "if true then x else y") @?= "EIte (PAnd []) (EVar \"x\") (EVar \"y\")"
+
+    , testCase "ESym SL" $
+        show (doParse' expr0P "test" "\"foo\" ") @?= "ESym (SL \"foo\")"
+
+    , testCase "ECon R" $
+        show (doParse' expr0P "test" "0.0") @?= "ECon (R 0.0)"
+
+    , testCase "ECon I" $
+        show (doParse' expr0P "test" "0") @?= "ECon (I 0)"
+
+    , testCase "ECon I" $
+        show (doParse' expr0P "test" "0") @?= "ECon (I 0)"
+
+    , testCase "EBot / POr []" $
+        show (doParse' expr0P "test" "_|_") @?= "POr []" -- pattern for "EBot"
+
+    , testCase "ELam" $
+        show (doParse' expr0P "test" "\\ foo : Int -> true") @?= "ELam (\"foo\",FInt) (EVar \"true\")"
+
+    , testCase "Expr" $
+        show (doParse' expr0P "test" "(1)") @?= "ECon (I 1)"
+
+    , testCase "ECst colon" $
+        show (doParse' expr0P "test" "(1 :: Int)") @?= "ECst (ECon (I 1)) FInt"
+
+    , testCase "ECst dcolon" $
+        show (doParse' expr0P "test" "(1 : Int)") @?= "ECst (ECon (I 1)) FInt"
+
+    , testCase "charsExpr EVar" $
+        show (doParse' expr0P "test" "foo") @?= "EVar \"foo\""
+
+    , testCase "charsExpr ECon" $
+        show (doParse' expr0P "test" "1") @?= "ECon (I 1)"
     ]
