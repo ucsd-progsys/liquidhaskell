@@ -396,6 +396,7 @@ envSort l lEnv tEnv x i
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (qName q) (qParams q) (qBody q) (qPos q)
 
+-- | constructing qualifiers
 mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
 mkQual n xts p = Q n ((v, t) : yts) (subst su p)
   where

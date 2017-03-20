@@ -6,6 +6,7 @@ branches:
   only:
   - master
   - develop
+  - parser-az
 
 matrix:
   include:
