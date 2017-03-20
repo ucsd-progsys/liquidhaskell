@@ -13,6 +13,8 @@ matrix:
       addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,],sources: [hvr-ghc]}}
     - env: SMT="z3" CABAL=1.24 GHC=8.0.1
       addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,],sources: [hvr-ghc]}}
+    - env: SMT="z3" CABAL=1.24 GHC=8.0.2
+      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.2,],sources: [hvr-ghc]}}
     - env: CABALVER=head GHCVER=head
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
