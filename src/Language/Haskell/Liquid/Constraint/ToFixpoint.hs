@@ -36,11 +36,12 @@ fixConfig tgt cfg = def
   , FC.elimBound        = elimBound         cfg
   , FC.allowHO          = higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
-  , FC.extensionality   = extensionality   cfg
-  , FC.alphaEquivalence = alphaEquivalence cfg
-  , FC.betaEquivalence  = betaEquivalence  cfg
-  , FC.normalForm       = normalForm       cfg
-  , FC.stringTheory     = stringTheory     cfg
+  , FC.extensionality   = extensionality    cfg || gradual cfg
+  , FC.alphaEquivalence = alphaEquivalence  cfg
+  , FC.betaEquivalence  = betaEquivalence   cfg
+  , FC.normalForm       = normalForm        cfg
+  , FC.stringTheory     = stringTheory      cfg
+  , FC.gradual          = gradual           cfg 
   }
 
 

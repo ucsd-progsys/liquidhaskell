@@ -701,10 +701,10 @@ data Pspec ty ctor
   | Varia   (LocSymbol, [Variance])
   | BFix    ()
   | Define  (LocSymbol, Symbol)
-  deriving (Data, Typeable)
+  deriving (Data, Typeable, Show)
 
 -- | For debugging
-instance Show (Pspec a b) where
+{-instance Show (Pspec a b) where
   show (Meas   _) = "Meas"
   show (Assm   _) = "Assm"
   show (Asrt   _) = "Asrt"
@@ -738,7 +738,7 @@ instance Show (Pspec a b) where
   show (RInst  _) = "RInst"
   show (ASize  _) = "ASize"
   show (BFix   _) = "BFix"
-  show (Define _) = "Define"
+  show (Define _) = "Define"-}
 
 mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
 mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spec

@@ -995,7 +995,7 @@ data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
   , risigs  :: [(LocSymbol, RISig t)]
-  } deriving (Generic, Functor, Data, Typeable)
+  } deriving (Generic, Functor, Data, Typeable, Show)
 
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)

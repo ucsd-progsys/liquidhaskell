@@ -3,8 +3,9 @@ machine:
     version: 7.10.2
   pre:
     - sudo add-apt-repository -y ppa:hvr/z3
+    - sudo add-apt-repository -y ppa:hvr/ghc
     - sudo apt-get -y update
-    - sudo apt-get -y install z3
+    - sudo apt-get -y install z3 ghc-7.10.3
 
 checkout:
   post:
@@ -17,10 +18,10 @@ dependencies:
     - cabal sandbox init
     - cabal sandbox add-source ./liquid-fixpoint
     - cabal sandbox add-source ./liquiddesugar
-    - cabal install --upgrade-dependencies --reorder-goals --constraint="template-haskell installed" --dependencies-only --enable-tests
+    - cabal install --upgrade-dependencies --reorder-goals --constraint="template-haskell installed" --dependencies-only --enable-tests --with-compiler=/opt/ghc/7.10.3/bin/ghc
     # - cabal install hpc-coveralls
     # - cabal configure --enable-tests --enable-library-coverage -finclude -fdevel
-    - cabal configure --enable-tests -finclude -fdevel
+    - cabal configure --enable-tests -finclude -fdevel --with-compiler=/opt/ghc/7.10.3/bin/ghc
 
 test:
   pre:
@@ -28,6 +29,9 @@ test:
   override:
     - cabal build
     - cabal copy && cabal register
+    - mkdir -p $CIRCLE_TEST_REPORTS/tasty/
+    # We get a "test: ./tasty/junit.xml: canonicalizePath: does not exist (No such file or directory)" fail if it does not exist
+    - touch $CIRCLE_TEST_REPORTS/tasty/junit.xml
     - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
         timeout: 1800
   post:
