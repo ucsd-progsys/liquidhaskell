@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE OverloadedStrings  #-}
@@ -131,8 +132,10 @@ instance PPrint Float where
 instance PPrint () where
   pprintTidy _ = text . show
 
+#if !(defined(MIN_VERSION_GLASGOW_HASKELL) && (MIN_VERSION_GLASGOW_HASKELL(8,0,1,1)))
 instance PPrint String where
   pprintTidy _ = text
+#endif
 
 instance PPrint Int where
   pprintTidy _ = tshow
