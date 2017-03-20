@@ -25,6 +25,7 @@ parserTests =
     , testFunAppP
     , testExpr0P
       -- testExprP
+    , testPredP
     ]
 
 testExprP :: TestTree
@@ -199,10 +200,10 @@ testExpr0P =
     , testCase "Expr" $
         show (doParse' expr0P "test" "(1)") @?= "ECon (I 1)"
 
-    , testCase "ECst colon" $
+    , testCase "ECst dcolon" $
         show (doParse' expr0P "test" "(1 :: Int)") @?= "ECst (ECon (I 1)) FInt"
 
-    , testCase "ECst dcolon" $
+    , testCase "ECst colon" $
         show (doParse' expr0P "test" "(1 : Int)") @?= "ECst (ECon (I 1)) FInt"
 
     , testCase "charsExpr EVar" $
@@ -210,4 +211,114 @@ testExpr0P =
 
     , testCase "charsExpr ECon" $
         show (doParse' expr0P "test" "1") @?= "ECon (I 1)"
+    ]
+
+-- ---------------------------------------------------------------------
+{-
+
+pred = expressionParse (prefixOp++infixOp) pred0
+
+prefixOp = '~' | 'not'
+
+infixOp  = '&&' | '||' | '=>' | '==>' | '<=>'
+
+-- terms are pred0
+pred0 = 'true' | 'false'
+      | '??'
+      | kvarPred
+      | fastIfP
+      | predr
+      | '(' pred ')'
+      | '?' expr
+      | funApp
+      | symbol
+      | '&&' preds
+      | '||' preds
+
+kvarPred = kvar substs
+
+kvar = '$' symbol
+
+substs = {- empty -}
+       | subst substs
+
+subst = '[' symbol ':=' expr ']'
+
+preds = '[' predslist ']'
+
+predslist = pred
+          | pred `;` predslist
+
+fastIf = 'if' pred 'then' pred 'else' pred
+
+predr = expr brel expr
+
+brelP = '==' | '=' | '~~' | '!=' | '/=' | '!~' | '<' | '<=' | '>' | '>='
+
+-}
+
+testPredP :: TestTree
+testPredP =
+  testGroup "predP"
+    [ testCase "PTrue" $
+        show (doParse' predP "test" "true") @?= "PAnd []" -- pattern for PTrue
+
+    , testCase "PFalse" $
+        show (doParse' predP "test" "false") @?= "POr []" -- pattern for PFalse
+
+    , testCase "PGrad / ??" $
+        show (doParse' predP "test" "??") @?= "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (PAnd [])"
+
+    , testCase "kvarPred empty" $
+        show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\" "
+
+    , testCase "kvarPred one" $
+        show (doParse' predP "test" "$foo  [x := 1]") @?= "PKVar $\"foo\" [x:=1]"
+
+    , testCase "kvarPred two" $
+        show (doParse' predP "test" "$foo  [x := 1] [ y := true ]") @?= "PKVar $\"foo\" [x:=1][y:=true]"
+
+    , testCase "fastIf" $
+        show (doParse' predP "test" "if true then true else false" ) @?=
+          -- note conversion
+          "PAnd [PImp (PAnd []) (PAnd []),PImp (PNot (PAnd [])) (POr [])]"
+
+    , testCase "brel" $
+        show (doParse' predP "test" "1 == 2") @?= "PAtom Eq (ECon (I 1)) (ECon (I 2))"
+
+    , testCase "parens pred" $
+        show (doParse' predP "test" "((1 == 2))") @?= "PAtom Eq (ECon (I 1)) (ECon (I 2))"
+
+    , testCase "? expr" $
+        show (doParse' predP "test" "? (1+2)") @?= "EBin Plus (ECon (I 1)) (ECon (I 2))"
+
+    , testCase "funApp 1" $
+        show (doParse' predP "test" "f a b") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
+
+    , testCase "funApp 2" $
+        show (doParse' predP "test" "f (a, b)") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
+
+    , testCase "funApp 3" $
+        show (doParse' predP "test" "f ([a; b])") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
+
+    , testCase "symbol" $
+        show (doParse' predP "test" "f") @?= "EVar \"f\""
+
+    , testCase "&& 0" $
+        show (doParse' predP "test" "&& []") @?= "PAnd []"
+
+    , testCase "&& 1" $
+        show (doParse' predP "test" "&& [x]") @?= "PAnd [EVar \"x\"]"
+
+    , testCase "&& 2" $
+        show (doParse' predP "test" "&& [x;y]") @?= "PAnd [EVar \"x\",EVar \"y\"]"
+
+    , testCase "|| 0" $
+        show (doParse' predP "test" "|| []") @?= "POr []"
+
+    , testCase "|| 1" $
+        show (doParse' predP "test" "|| [x]") @?= "POr [EVar \"x\"]"
+
+    , testCase "|| 2" $
+        show (doParse' predP "test" "|| [x;y]") @?= "POr [EVar \"x\",EVar \"y\"]"
     ]

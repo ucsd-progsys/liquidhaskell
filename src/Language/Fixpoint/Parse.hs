@@ -285,9 +285,18 @@ expr0P
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
  <|> lamP
- <|> try (parens  exprP)
- <|> try (parens  exprCastP)
+  -- TODO:AZ get rid of these try, after the rest
+ <|> try (parens exprP)
+ <|> try (parens exprCastP)
  <|> (charsExpr <$> symCharsP)
+  where
+
+exprCastP :: Parser Expr
+exprCastP
+  = do e  <- exprP
+       (try dcolon) <|> colon
+       so <- sortP
+       return $ ECst e so
 
 charsExpr :: Symbol -> Expr
 charsExpr cs
@@ -387,6 +396,7 @@ funAppP            =  litP <|> exprFunP <|> simpleAppP
     innerP =   brackets (sepBy exprP semi)
            <|> sepBy exprP comma
 
+    -- TODO:AZ the parens here should be superfluous, but it hits an infinite loop if removed
     simpleAppP     = EApp <$> parens exprP <*> parens exprP
     funSymbolP     = locParserP symbolP
 
@@ -405,13 +415,6 @@ parenBrackets  = parens . brackets
 -- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
 -- eNil       = EVar nilName
-
-exprCastP :: Parser Expr
-exprCastP
-  = do e  <- exprP
-       (try dcolon) <|> colon
-       so <- sortP
-       return $ ECst e so
 
 lamP :: Parser Expr
 lamP
@@ -463,7 +466,7 @@ single x = [x]
 
 tvarP :: Parser Sort
 tvarP
-   =  try (string "@" >> varSortP)
+   =  (string "@" >> varSortP)
   <|> (FObj . symbol <$> lowerIdP)
 
 
