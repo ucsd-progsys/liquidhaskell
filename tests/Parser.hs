@@ -198,6 +198,10 @@ testSpecP =
     , testCase "LIQUID" $
        parseSingleSpec "LIQUID \"--automatic-instances=liquidinstances\" " @?=
           "Pragma \"--automatic-instances=liquidinstances\" (dummyLoc)"
+
+    , testCase "default parser (Asrts)" $
+       parseSingleSpec " assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s]" @?=
+          "Asrts ([\"assumeIndices\" (dummyLoc)],(t:ByteStringNE -> s:ByteString -> [(OkPos t s)] (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------

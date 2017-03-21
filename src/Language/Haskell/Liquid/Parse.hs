@@ -801,7 +801,7 @@ specP
     <|> (reserved "instance"  >> liftM RInst  instanceP )
     <|> (reserved "class"     >> liftM Class  classP    )
     <|> (reserved "import"    >> liftM Impt   symbolP   )
-    <|> try (reserved "data" >> reserved "variance " >> liftM Varia datavarianceP)
+    <|> try (reserved "data" >> reserved "variance" >> liftM Varia datavarianceP)
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "newtype"   >> liftM NTDecl newtypeP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
