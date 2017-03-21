@@ -129,8 +129,8 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
-           , Token.identStart      = satisfy (const False)
-           , Token.identLetter     = satisfy (const False)
+           -- , Token.identStart      = satisfy (const False)
+           -- , Token.identLetter     = satisfy (const False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
                                      , "true"
