@@ -117,7 +117,7 @@ instance Traversable Located where
 
 instance Show a => Show (Located a) where
   show (Loc l l' x)
-    | l == l' && l == dummyPos "Fixpoint.Types.dummyLoc" = "dummyLoc"
+    | l == l' && l == dummyPos "Fixpoint.Types.dummyLoc" = show x ++ " (dummyLoc)"
     | otherwise  = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
 
 instance PPrint a => PPrint (Located a) where
