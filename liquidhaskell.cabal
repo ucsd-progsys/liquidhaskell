@@ -290,7 +290,6 @@ test-suite liquidhaskell-parser
   main-is: Parser.hs
   build-depends:
                      base  >= 4 && < 5
-               ,     bifunctors
                ,     containers >= 0.5
                ,     parsec
                ,     tasty >= 0.10
