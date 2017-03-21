@@ -141,8 +141,6 @@ languageDef =
                                      , "True"
                                      , "Int"
                                      , "import"
-                                     , "_|_"
-                                     , "|"
                                      , "if", "then", "else"
                                      , "func"
 
@@ -200,6 +198,8 @@ languageDef =
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
                                      , "?", "Bexp" -- , "'"
+                                     , "_|_"
+                                     , "|"
                                      ]
            }
 
@@ -320,7 +320,7 @@ expr0P
   =  (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
- <|> (reserved "_|_" >> return EBot)
+ <|> (reservedOp "_|_" >> return EBot)
  <|> lamP
   -- TODO:AZ get rid of these try, after the rest
  <|> try (parens exprP)
@@ -455,11 +455,11 @@ litP = do reserved "lit"
 
 lamP :: Parser Expr
 lamP
-  = do reserved "\\"
+  = do reservedOp "\\"
        x <- symbolP
        colon
        t <- sortP
-       reserved "->"
+       reservedOp "->"
        e  <- exprP
        return $ ELam (x, t) e
 
@@ -535,12 +535,12 @@ bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
-      <|> (reserved "??" >> makeUniquePGrad)
+      <|> (reservedOp "??" >> makeUniquePGrad)
       <|> kvarPredP
       <|> (fastIfP pIte predP)
       <|> try predrP
       <|> (parens predP)
-      <|> (reserved "?" *> exprP)
+      <|> (reservedOp "?" *> exprP)
       <|> try funAppP
       <|> (eVar <$> symbolP)
       <|> (reservedOp "&&" >> pGAnds <$> predsP)
@@ -566,7 +566,7 @@ kvarP = KV <$> (char '$' *> symbolP <* spaces)
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
-    aP = reserved ":="
+    aP = reservedOp ":="
 
 predsP :: Parser [Expr]
 predsP = brackets $ sepBy predP semi
@@ -616,7 +616,7 @@ refBindP bp rp kindP
   = braces $ do
       x  <- bp
       t  <- kindP
-      reserved "|"
+      reservedOp "|"
       ra <- rp <* spaces
       return $ t (Reft (x, ra))
 
@@ -795,7 +795,7 @@ solution1P :: Parser (KVar, Expr)
 solution1P = do
   reserved "solution:"
   k  <- kvP
-  reserved ":="
+  reservedOp ":="
   ps <- brackets $ sepBy predSolP semi
   return (k, simplify $ PAnd ps)
   where
