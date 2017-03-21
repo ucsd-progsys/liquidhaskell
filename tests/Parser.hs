@@ -14,6 +14,10 @@
 module Main where
 
 import           Data.Bifunctor
+import           Data.Data
+import           Data.Generics.Aliases
+import           Data.Generics.Schemes
+import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Haskell.Liquid.Types as LH
 import           Text.Parsec.Pos
@@ -24,6 +28,7 @@ import           Test.Tasty.Runners.AntXML
 -- ---------------------------------------------------------------------
 
 -- | Test suite entry point, returns exit failure if any test fails.
+main :: IO ()
 main =  defaultMainWithIngredients (
                 antXMLRunner:defaultIngredients
               ) tests
@@ -34,38 +39,62 @@ tests =
     [
       testSucceeds
     , testFails
+    , testSpecP
     ]
+
+-- ---------------------------------------------------------------------
+
+-- Test that the top level production works, each of the sub-elements will be tested separately
+testSpecP :: TestTree
+testSpecP =
+  testGroup "specP"
+    [ testCase "assume" $
+       parseSingleSpec "assume foo :: a -> a " @?=
+          "Assm (\"foo\" (dummyLoc),lq_tmp$db##0:a -> a (dummyLoc))"
+
+    , testCase "assert" $
+       parseSingleSpec "assert myabs :: Int -> PosInt" @?=
+          "Asrt (\"myabs\" (dummyLoc),lq_tmp$db##0:Int -> PosInt (dummyLoc))"
+    ]
+
+-- ---------------------------------------------------------------------
 
 testSucceeds :: TestTree
 testSucceeds =
   testGroup "Should succeed"
     [ testCase "Int" $
        (parseSingleSpec "x :: Int") @?=
-       (Right
-          "Asrts ([\"x\" defined from: \"<test input>\" (line 1, column 1) to: \"<test input>\" (line 1, column 2)],(Int defined from: \"<test input>\" (line 1, column 6) to: \"<test input>\" (line 1, column 9),Nothing))")
+          "Asrts ([\"x\" (dummyLoc)],(Int (dummyLoc),Nothing))"
+
     , testCase "k:Int -> Int" $
        (parseSingleSpec "x :: k:Int -> Int") @?=
-       (Right
-          "Asrts ([\"x\" defined from: \"<test input>\" (line 1, column 1) to: \"<test input>\" (line 1, column 2)],(k:Int -> Int defined from: \"<test input>\" (line 1, column 6) to: \"<test input>\" (line 1, column 18),Nothing))")
+          "Asrts ([\"x\" (dummyLoc)],(k:Int -> Int (dummyLoc),Nothing))"
     ]
+
+-- ---------------------------------------------------------------------
 
 testFails :: TestTree
 testFails =
   testGroup "Should fail"
     [ testCase "Maybe k:Int -> Int" $
-       (bimap
-          (unwords . words . show)
-          show
-          (parseSingleSpec "x :: Maybe k:Int -> Int")) @?=
-       (Left
-          "<test input>:1:13: Error: Cannot parse specification: Leftover while parsing")
+          parseSingleSpec "x :: Maybe k:Int -> Int" @?=
+            "<test>:1:13: Error: Cannot parse specification:\n    Leftover while parsing"
     ]
 
 -- ---------------------------------------------------------------------
 
 -- | Parse a single type signature containing LH refinements. To be
 -- used in the REPL.
-parseSingleSpec
-  :: String
-  -> Either LH.Error String
-parseSingleSpec = fmap show . (LH.singleSpecP (initialPos "<test input>"))
+parseSingleSpec :: String -> String
+parseSingleSpec src =
+  case LH.singleSpecP (initialPos "<test>") src of
+    Left err  -> show err
+    Right res -> show $ dummyLocs res
+
+-- ---------------------------------------------------------------------
+
+dummyLocs :: (Data a) => a -> a
+dummyLocs = everywhere (mkT posToDummy)
+  where
+    posToDummy :: SourcePos -> SourcePos
+    posToDummy _ = dummyPos "Fixpoint.Types.dummyLoc"
