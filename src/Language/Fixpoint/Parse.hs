@@ -186,6 +186,7 @@ languageDef =
                                      , "reflect"
                                      , "type"
                                      , "using"
+                                     , "with"
 
 
                                      ]
