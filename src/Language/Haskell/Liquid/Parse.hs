@@ -160,7 +160,7 @@ toLogicOneP :: Parser  (LocSymbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
        (x:xs) <- many1 (locParserP symbolP)
-       reserved "="
+       reservedOp "="
        e      <- exprP
        return (x, val <$> xs, e)
 
@@ -168,7 +168,7 @@ toLogicOneP
 defineP :: Parser (LocSymbol, Symbol)
 defineP = do v <- locParserP binderP
              spaces
-             reserved "="
+             reservedOp "="
              spaces
              x <- binderP
              return (v, x)
@@ -329,7 +329,7 @@ constraintP :: Parser (RType BTyCon BTyVar RReft)
 constraintP
   = do xts <- constraintEnvP
        t1  <- bareTypeP
-       reserved "<:"
+       reservedOp "<:"
        t2  <- bareTypeP
        return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol])
                                                  (replicate (length xts + 1) mempty)
@@ -338,7 +338,7 @@ constraintP
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
    =  try (do xts <- sepBy tyBindNoLocP comma
-              reserved "|-"
+              reservedOp "|-"
               return xts)
   <|> return []
 
@@ -378,7 +378,7 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP
-   =  try ( do s <- tyVarIdP; reserved "::"; _ <- kindP; return s)
+   =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
   <|> tyVarIdP
 
 kindP :: Parser (RType BTyCon BTyVar RReft)
@@ -427,8 +427,8 @@ data ArrowSym = ArrowFun | ArrowPred
 
 arrowP :: Parser ArrowSym
 arrowP
-  =   (reserved "->" >> return ArrowFun)
-  <|> (reserved "=>" >> return ArrowPred)
+  =   (reservedOp "->" >> return ArrowFun)
+  <|> (reservedOp "=>" >> return ArrowPred)
 
 bareFunP :: Parser (RType BTyCon BTyVar (UReft Reft))
 bareFunP = do
@@ -493,7 +493,7 @@ symsP :: (IsString tv, Monoid r)
 symsP
   = do reservedOp "\\"
        ss <- sepBy symbolP spaces
-       reserved "->"
+       reservedOp "->"
        return $ (, dummyRSort) <$> ss
  <|> return []
 
@@ -566,7 +566,7 @@ boundP = do
            <|> return []
     bvsP   = try ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
-                      reserved  "."
+                      reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
                  )
            <|> return []
@@ -888,7 +888,7 @@ termBareTypeP
 termTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termTypeP
   = do t <- locParserP genBareTypeP
-       reserved "/"
+       reservedOp "/"
        es <- brackets $ sepBy (locParserP exprP) comma
        return (t, Just es)
 
@@ -972,7 +972,7 @@ instanceP
   where
     superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
-                       <* reserved "=>")
+                       <* reservedOp "=>")
                <|> return []
     toRCls x = x
 
@@ -1005,7 +1005,7 @@ classP
   where
     superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
-                       <* reserved "=>")
+                       <* reservedOp "=>")
                <|> return []
     toRCls x = x
 
@@ -1220,7 +1220,7 @@ adtDataDeclFullP = do
     tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
         <|> do ts <- sepBy tyVarIdP blanks
                ps  <- predVarDefsP
-               whiteSpace >> reservedOp "where" >> whiteSpace
+               whiteSpace >> reserved "where" >> whiteSpace
                return (ts, ps)
 
 ---------------------------------------------------------------------
