@@ -409,8 +409,8 @@ litP = do reserved "lit"
           t <- sortP
           return $ ECon $ L (T.pack l) t
 
-parenBrackets :: Parser a -> Parser a
-parenBrackets  = parens . brackets
+-- parenBrackets :: Parser a -> Parser a
+-- parenBrackets  = parens . brackets
 
 -- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
