@@ -278,7 +278,7 @@ testSucceeds =
 
     , testCase "type spec 11" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?=
-          ""
+          "Asrts ([\"assume\" (dummyLoc)],(b:{VV : _ | $HOLE} -> lq_tmp$db##0:a -> {v##1 : a | b} (dummyLoc),Nothing))"
 
     , testCase "type spec 12" $
        parseSingleSpec (unlines $
