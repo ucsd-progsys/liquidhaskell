@@ -271,7 +271,7 @@ bbaseP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
- <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
+ <|> (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
@@ -306,10 +306,10 @@ maybeP p = liftM Just p <|> return Nothing
 bareTyArgP :: Parser (RType BTyCon BTyVar RReft)
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
-     try (RExprArg . fmap expr <$> locParserP integer)
- <|> try (braces $ RExprArg <$> locParserP exprP)
- <|> try bareAtomNoAppP
- <|> try (parens bareTypeP)
+     (RExprArg . fmap expr <$> locParserP integer)
+ <|> (braces $ RExprArg <$> locParserP exprP)
+ <|> bareAtomNoAppP
+ <|> (parens bareTypeP)
 
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
