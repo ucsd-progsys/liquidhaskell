@@ -236,6 +236,25 @@ testSucceeds =
     , testCase "type spec 5" $
        parseSingleSpec "mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a" @?=
           "Asrts ([\"mapKeysWith\" (dummyLoc)],((Ord k2) -> lq_tmp$db##1:(lq_tmp$db##2:a -> lq_tmp$db##3:a -> a) -> lq_tmp$db##4:(lq_tmp$db##5:k1 -> k2) -> lq_tmp$db##6:(OMap k1 a) -> (OMap k2 a) (dummyLoc),Nothing))"
+
+    , testCase "type spec 6" $
+       parseSingleSpec (unlines $
+         [ "data Tree [ht] a = Nil"
+         , "            | Tree { key :: a"
+         , "                   , l   :: Tree {v:a | v < key }"
+         , "                   , r   :: Tree {v:a | key < v }"
+         , "                   }" ])
+        @?=
+          "DDecl DataDecl: data = \"Tree\" (dummyLoc), tyvars = [\"a\"]"
+
+    , testCase "type spec 7" $
+       -- parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
+       parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
+          "Alias type AVLL \"a\" \"X\" = (AVLTree {v##0 : a | v##0 < X}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+
+    , testCase "type spec 8" $
+       parseSingleSpec "type AVLR a X    = AVLTree {v:a |X< v} " @?=
+          "Alias type AVLR \"a\" \"X\" = (AVLTree {v##0 : a | X < v##0}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
     ]
 
 -- ---------------------------------------------------------------------

@@ -271,7 +271,7 @@ bbaseP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
- <|> (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
+ <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 bTyConP :: Parser BTyCon
@@ -307,7 +307,7 @@ bareTyArgP :: Parser (RType BTyCon BTyVar RReft)
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
      (RExprArg . fmap expr <$> locParserP integer)
- <|> (braces $ RExprArg <$> locParserP exprP)
+ <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> bareAtomNoAppP
  <|> (parens bareTypeP)
 
@@ -554,13 +554,13 @@ boundP = do
   body   <- predP
   return $ Bound name vs params args body
  where
-    bargsP = try ( do reservedOp "\\"
+    bargsP =     ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs
                  )
            <|> return []
-    bvsP   = try ( do reserved "forall"
+    bvsP   =     ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
                       reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
@@ -589,7 +589,7 @@ infixrP = infixGenP AssocRight
 
 maybeDigit :: Parser (Maybe Int)
 maybeDigit
-  = try (satisfy isDigit >>= return . Just . read . (:[]))
+  = (satisfy isDigit >>= return . Just . read . (:[]))
   <|> return Nothing
 
 ------------------------------------------------------------------------
@@ -777,7 +777,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  = try (reserved "assume"       >> liftM Assm    tyBindP  )
+  =     (reserved "assume"       >> liftM Assm    tyBindP  )
     <|> (reserved "assert"       >> liftM Asrt    tyBindP  )
     <|> (reserved "autosize"     >> liftM ASize   asizeP   )
     <|> (reserved "Local"        >> liftM LAsrt   tyBindP  )
@@ -927,6 +927,8 @@ ealiasP = try (rtAliasP symbol predP)
 
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
+  -- TODO:AZ pretty sure that all the 'spaces' can be removed below, given
+  --         proper use of reserved and reservedOp now
   = do pos  <- getPosition
        name <- upperIdP
        spaces
