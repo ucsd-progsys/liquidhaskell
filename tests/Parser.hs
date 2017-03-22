@@ -255,6 +255,48 @@ testSucceeds =
     , testCase "type spec 8" $
        parseSingleSpec "type AVLR a X    = AVLTree {v:a |X< v} " @?=
           "Alias type AVLR \"a\" \"X\" = (AVLTree {v##0 : a | X < v##0}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+
+    , testCase "type spec 9" $
+       parseSingleSpec (unlines $
+      [ "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool>."
+      , "  {x::a<p> |- a<q> <: {v:a| x <= v}} "
+      , "  {a<p> <: a<r>} "
+      , "  {a<q> <: a<r>} "
+      , "  Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> "])
+        @?=
+          "Assm (\"(++)\" (dummyLoc),(Ord a) =>\n{x :: {VV : a | true} |- {VV : a | true} <: {v##3 : a | x <= v##3}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\nlq_tmp$db##5:(OList {VV : a | true}) -> lq_tmp$db##6:(OList {VV : a | true}) -> (OList {VV : a | true}) (dummyLoc))"
+
+    , testCase "type spec 10" $
+       parseSingleSpec (unlines $
+          [ "data AstF f <ix :: AstIndex -> Bool>"
+          , "  = Lit Int    (i :: AstIndex<ix>)"
+          , "  | Var String (i :: AstIndex<ix>)"
+          , "  | App (fn :: f) (arg :: f)"
+          , "  | Paren (ast :: f)" ])
+          @?=
+          "DDecl DataDecl: data = \"AstF\" (dummyLoc), tyvars = [\"f\"]"
+
+    , testCase "type spec 11" $
+       parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?=
+          ""
+
+    , testCase "type spec 12" $
+       parseSingleSpec (unlines $
+          [ "app :: forall <p :: Int -> Bool, q :: Int -> Bool>. "
+          , "       {Int<q> <: Int<p>}"
+          , "       {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}"
+          , "       (Int<p> -> ()) -> x:Int<q> -> ()" ])
+          @?=
+          "Asrts ([\"app\" (dummyLoc)],({|- Int <: Int} =>\n{x :: Int |- {v##2 : Int | v##2 == x + 1} <: Int} =>\nlq_tmp$db##3:(lq_tmp$db##4:Int -> ()) -> x:Int -> () (dummyLoc),Nothing))"
+
+    , testCase "type spec 13" $
+       parseSingleSpec (unlines $
+          [ " ssum :: forall<p :: a -> Bool, q :: a -> Bool>. "
+          , "         {{v:a | v == 0} <: a<q>}"
+          , "         {x::a<p> |- {v:a | x <= v} <: a<q>}"
+          , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
+          @?=
+          "Asrts ([\"ssum\" (dummyLoc)],({|- {v##2 : a | v##2 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##3 : a | x <= v##3} <: {VV : a | true}} =>\nxs:[{v##4 : a | 0 <= v##4}] -> {v##5 : a | len xs >= 0\n                                           && 0 <= v##5} (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------

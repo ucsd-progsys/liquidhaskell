@@ -306,15 +306,15 @@ maybeP p = liftM Just p <|> return Nothing
 bareTyArgP :: Parser (RType BTyCon BTyVar RReft)
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
-     (RExprArg . fmap expr <$> locParserP integer)
+     try (RExprArg . fmap expr <$> locParserP integer)
  <|> try (braces $ RExprArg <$> locParserP exprP)
- <|> bareAtomNoAppP
- <|> (parens bareTypeP)
+ <|> try bareAtomNoAppP
+ <|> try (parens bareTypeP)
 
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> (dummyP (bbaseNoAppP <* spaces))
+ <|> try (dummyP (bbaseNoAppP <* spaces))
 
 bareConstraintP :: Parser (RType BTyCon BTyVar RReft)
 bareConstraintP
@@ -334,9 +334,9 @@ constraintP
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
-   = (do xts <- sepBy tyBindNoLocP comma
-         reservedOp "|-"
-         return xts)
+   =  try (do xts <- sepBy tyBindNoLocP comma
+              reservedOp "|-"
+              return xts)
   <|> return []
 
 rrTy :: Monoid r => RType c tv r -> RType c tv r -> RType c tv r
@@ -363,7 +363,7 @@ bareAllP
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = (parens $ many (bTyVar <$> tyKindVarIdP))
+  = try (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
 
 tyVarIdP :: Parser Symbol
@@ -374,7 +374,7 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP
    -- TODO:AZ why are we discarding the kind info?
-   =  ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
+   =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
   <|> tyVarIdP
 
 kindP :: Parser (RType BTyCon BTyVar RReft)
@@ -527,8 +527,8 @@ monoPredicateP
 
 monoPredicate1P :: Parser Predicate
 monoPredicate1P
-   =  (reserved "True" >> return mempty)
-  <|> (pdVar <$> parens predVarUseP)
+   =  try (reserved "True" >> return mempty)
+  <|> try (pdVar <$> parens predVarUseP)
   <|> (pdVar <$>        predVarUseP)
 
 predVarUseP :: IsString t
@@ -554,13 +554,13 @@ boundP = do
   body   <- predP
   return $ Bound name vs params args body
  where
-    bargsP =     ( do reservedOp "\\"
+    bargsP = try ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs
                  )
            <|> return []
-    bvsP   =     ( do reserved "forall"
+    bvsP   = try ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
                       reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
@@ -589,7 +589,7 @@ infixrP = infixGenP AssocRight
 
 maybeDigit :: Parser (Maybe Int)
 maybeDigit
-  = (satisfy isDigit >>= return . Just . read . (:[]))
+  = try (satisfy isDigit >>= return . Just . read . (:[]))
   <|> return Nothing
 
 ------------------------------------------------------------------------
@@ -777,7 +777,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     (reserved "assume"       >> liftM Assm    tyBindP  )
+  = try (reserved "assume"       >> liftM Assm    tyBindP  )
     <|> (reserved "assert"       >> liftM Asrt    tyBindP  )
     <|> (reserved "autosize"     >> liftM ASize   asizeP   )
     <|> (reserved "Local"        >> liftM LAsrt   tyBindP  )
