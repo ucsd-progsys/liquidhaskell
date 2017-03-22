@@ -63,7 +63,7 @@ testSortP =
 
     , testCase "FApp FInt" $
         show (doParse' sortP "test" "[int]") @?=
-              "FApp (FTC (TC dummyLoc (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt"
+              "FApp (FTC (TC \"[]\" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt"
 
     , testCase "bv32" $
         show (doParse' sortP "test" "BitVec Size32") @?=
@@ -90,7 +90,7 @@ testSortP =
 
     , testCase "FStr" $
         show (doParse' sortP "test" "Str") @?=
-             "FTC (TC dummyLoc (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = True}))"
+             "FTC (TC \"Str\" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = True}))"
 
     , testCase "SYMBOL" $
         show (doParse' sortP "test" "F#y") @?=
