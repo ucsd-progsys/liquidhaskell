@@ -930,8 +930,9 @@ rtAliasP f bodyP
   --         proper use of reserved and reservedOp now
   = do pos  <- getPosition
        name <- upperIdP
+       spaces
        args <- sepBy aliasIdP blanks
-       reservedOp "="
+       whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP
        posE <- getPosition
        let (tArgs, vArgs) = partition (isSmall . headSym) args

@@ -297,6 +297,16 @@ testSucceeds =
           , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
           @?=
           "Asrts ([\"ssum\" (dummyLoc)],({|- {v##2 : a | v##2 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##3 : a | x <= v##3} <: {VV : a | true}} =>\nxs:[{v##4 : a | 0 <= v##4}] -> {v##5 : a | len xs >= 0\n                                           && 0 <= v##5} (dummyLoc),Nothing))"
+
+    , testCase "type spec 13" $
+       parseSingleSpec (unlines $
+          [ " predicate ValidChunk V XS N "
+          , " = if len XS == 0 "
+          , "     then (len V == 0) "
+          , "     else (((1 < len XS && 1 < N) => (len V  < len XS)) "
+          , "       && ((len XS <= N ) => len V == 1)) "])
+          @?=
+          ""
     ]
 
 -- ---------------------------------------------------------------------
