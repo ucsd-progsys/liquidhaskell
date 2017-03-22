@@ -373,7 +373,6 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP
-   -- TODO:AZ why are we discarding the kind info?
    =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
   <|> tyVarIdP
 
@@ -931,9 +930,8 @@ rtAliasP f bodyP
   --         proper use of reserved and reservedOp now
   = do pos  <- getPosition
        name <- upperIdP
-       spaces
        args <- sepBy aliasIdP blanks
-       whiteSpace >> reservedOp "=" >> whiteSpace
+       reservedOp "="
        body <- bodyP
        posE <- getPosition
        let (tArgs, vArgs) = partition (isSmall . headSym) args
