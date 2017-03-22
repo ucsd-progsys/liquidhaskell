@@ -116,9 +116,9 @@ emptyDef    = Token.LanguageDef
                , Token.commentLine    = ""
                , Token.nestedComments = True
                , Token.identStart     = letter <|> char '_'
-               , Token.identLetter    = alphaNum <|> oneOf "_'"
+               , Token.identLetter    = alphaNum <|> oneOf "_"
                , Token.opStart        = Token.opLetter emptyDef
-               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~'"
                , Token.reservedOpNames= []
                , Token.reservedNames  = []
                , Token.caseSensitive  = True
@@ -197,7 +197,8 @@ languageDef =
                                      , "->"
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
-                                     , "?", "Bexp" -- , "'"
+                                     , "?", "Bexp"
+                                     , "'"
                                      , "_|_"
                                      , "|"
                                      ]
