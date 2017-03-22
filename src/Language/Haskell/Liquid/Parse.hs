@@ -195,10 +195,7 @@ stringLiteral = Token.stringLiteral lexer
 
 bareTypeP :: Parser BareType
 bareTypeP
-  =  try bareAllP
- <|> bareAllS
---  <|> bareAllExprP
---  <|> bareExistsP
+  =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
@@ -351,16 +348,14 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
 
 bareAllS :: Parser (RType BTyCon BTyVar RReft)
 bareAllS
-  = do reserved "forall"
-       ss <- angles $ sepBy1 symbolP comma
+  = do ss <- angles $ sepBy1 symbolP comma
        dot
        t  <- bareTypeP
        return $ foldr RAllS t ss
 
 bareAllP :: Parser (RType BTyCon BTyVar RReft)
 bareAllP
-  = do reserved "forall"
-       as <- tyVarDefsP
+  = do as <- tyVarDefsP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
@@ -1252,8 +1247,8 @@ fTyConP
 -- | Bundling Parsers into a Typeclass ------------------------
 ---------------------------------------------------------------
 
-instance Inputable BareType where
-  rr' = doParse' bareTypeP
+-- instance Inputable BareType where
+--   rr' = doParse' bareTypeP
 
 -- instance Inputable (Measure BareType LocSymbol) where
 --   rr' = doParse' measureP
