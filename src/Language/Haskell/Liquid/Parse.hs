@@ -778,6 +778,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.defs       = M.fromList [d | Define d <- xs]
   }
 
+-- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
   = try (reserved "assume"       >> liftM Assm    tyBindP  )
@@ -786,39 +787,49 @@ specP
     <|> (reserved "Local"        >> liftM LAsrt   tyBindP  )
     <|> (reserved "axiomatize"   >> liftM Reflect axiomP   )
     <|> (reserved "reflect"      >> liftM Reflect axiomP   )
-    <|> try (reserved "measure"  >> liftM Meas    measureP )
+
+    <|> (reserved "measure" >> ((try (liftM Meas    measureP ))
+                                <|> liftM HMeas   hmeasureP))
+
     <|> (reserved "define"       >> liftM Define  defineP  )
-    <|> try (reserved "infixl"   >> liftM BFix    infixlP  )
-    <|> try (reserved "infixr"   >> liftM BFix    infixrP  )
-    <|> try (reserved "infix"    >> liftM BFix    infixP   )
-    <|> try (reserved "defined"  >> liftM Meas    measureP )
-    <|> (reserved "measure"      >> liftM HMeas   hmeasureP)
+    <|> (reserved "infixl"       >> liftM BFix    infixlP  )
+    <|> (reserved "infixr"       >> liftM BFix    infixrP  )
+    <|> (reserved "infix"        >> liftM BFix    infixP   )
+    <|> (reserved "defined"      >> liftM Meas    measureP )
     <|> (reserved "inline"       >> liftM Inline  inlineP  )
-    <|> try (reserved "bound"    >> liftM PBound  boundP   )
-    <|> (reserved "bound"        >> liftM HBound  hboundP  )
-    <|> try (reserved "class"    >> reserved "measure" >> liftM CMeas cMeasureP)
-    <|> try (reserved "instance" >> reserved "measure" >> liftM IMeas iMeasureP)
-    <|> (reserved "instance"  >> liftM RInst  instanceP )
-    <|> (reserved "class"     >> liftM Class  classP    )
-    <|> (reserved "import"    >> liftM Impt   symbolP   )
-    <|> try (reserved "data" >> reserved "variance" >> liftM Varia datavarianceP)
-    <|> (reserved "data"      >> liftM DDecl  dataDeclP )
-    <|> (reserved "newtype"   >> liftM NTDecl newtypeP )
-    <|> (reserved "include"   >> liftM Incl   filePathP )
-    <|> (reserved "invariant" >> liftM Invt   invariantP)
-    <|> (reserved "using"     >> liftM IAlias invaliasP )
-    <|> (reserved "type"      >> liftM Alias  aliasP    )
-    <|> (reserved "predicate" >> liftM EAlias ealiasP   )
-    <|> (reserved "expression">> liftM EAlias ealiasP   )
-    <|> (reserved "embed"     >> liftM Embed  embedP    )
-    <|> (reserved "qualif"    >> liftM Qualif (qualifierP sortP))
-    <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
-    <|> (reserved "LAZYVAR"   >> liftM LVars  lazyVarP  )
-    <|> (reserved "Strict"    >> liftM Lazy   lazyVarP  )
-    <|> (reserved "Lazy"      >> liftM Lazy   lazyVarP  )
+
+    <|> (reserved "bound"    >> ((liftM PBound  boundP   )
+                             <|> (liftM HBound  hboundP  )))
+    <|> (reserved "class"
+         >> ((reserved "measure" >> liftM CMeas  cMeasureP )
+                                <|> liftM Class  classP    ))
+    <|> (reserved "instance"
+         >> ((reserved "measure" >> liftM IMeas  iMeasureP )
+                                <|> liftM RInst  instanceP ))
+
+    <|> (reserved "import"       >> liftM Impt   symbolP   )
+
+    <|> (reserved "data"
+        >> ((reserved "variance" >> liftM Varia datavarianceP)
+                                <|> liftM DDecl  dataDeclP ))
+
+    <|> (reserved "newtype"      >> liftM NTDecl newtypeP )
+    <|> (reserved "include"      >> liftM Incl   filePathP )
+    <|> (reserved "invariant"    >> liftM Invt   invariantP)
+    <|> (reserved "using"        >> liftM IAlias invaliasP )
+    <|> (reserved "type"         >> liftM Alias  aliasP    )
+    <|> (reserved "predicate"    >> liftM EAlias ealiasP   )
+    <|> (reserved "expression"   >> liftM EAlias ealiasP   )
+    <|> (reserved "embed"        >> liftM Embed  embedP    )
+    <|> (reserved "qualif"       >> liftM Qualif (qualifierP sortP))
+    <|> (reserved "Decrease"     >> liftM Decr   decreaseP )
+    <|> (reserved "LAZYVAR"      >> liftM LVars  lazyVarP  )
+    <|> (reserved "Strict"       >> liftM Lazy   lazyVarP  )
+    <|> (reserved "Lazy"         >> liftM Lazy   lazyVarP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
-    <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}            liftM Asrts  tyBindsP
+    <|> (reserved "LIQUID"       >> liftM Pragma pragmaP   )
+    <|> {- DEFAULT -}               liftM Asrts  tyBindsP
+
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral
