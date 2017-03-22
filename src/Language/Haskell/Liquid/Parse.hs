@@ -199,9 +199,9 @@ bareTypeP
  <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
- <|> try (angles (do t <- parens bareTypeP
-                     p <- monoPredicateP
-                     return $ t `strengthen` MkUReft mempty p mempty))
+ <|> (angles (do t <- parens bareTypeP
+                 p <- monoPredicateP
+                 return $ t `strengthen` MkUReft mempty p mempty))
 
 bareArgP :: Symbol
          -> Parser (RType BTyCon BTyVar (UReft Reft))
@@ -214,7 +214,7 @@ bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser (RType BTyCon B
 bareAtomP ref
   =  ref refasHoleP bbaseP
  <|> holeP
- <|> try (dummyP (bbaseP <* spaces))
+ <|> (dummyP (bbaseP <* spaces))
 
 
 refBindP :: Parser Symbol
