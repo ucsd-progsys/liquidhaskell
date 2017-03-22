@@ -216,13 +216,18 @@ testSucceeds =
     , testCase "k:Int -> Int" $
        (parseSingleSpec "x :: k:Int -> Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(k:Int -> Int (dummyLoc),Nothing))"
+
+    , testCase "type spec" $
+       parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?=
+          "Alias type IncrListD \"a\" \"D\" = [a] -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+
     ]
 
 -- ---------------------------------------------------------------------
 
 testFails :: TestTree
 testFails =
-  testGroup "Should fail"
+  testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?=
             "<test>:1:13: Error: Cannot parse specification:\n    Leftover while parsing"

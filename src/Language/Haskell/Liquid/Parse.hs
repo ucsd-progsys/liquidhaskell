@@ -491,7 +491,7 @@ dummyP fm
 symsP :: (IsString tv, Monoid r)
       => Parser [(Symbol, RType c tv r)]
 symsP
-  = do reserved "\\"
+  = do reservedOp "\\"
        ss <- sepBy symbolP spaces
        reserved "->"
        return $ (, dummyRSort) <$> ss
@@ -787,12 +787,12 @@ specP
     <|> (reserved "axiomatize"   >> liftM Reflect axiomP   )
     <|> (reserved "reflect"      >> liftM Reflect axiomP   )
     <|> try (reserved "measure"  >> liftM Meas    measureP )
-    <|> (reservedToken "define"       >> liftM Define  defineP  )
+    <|> (reserved "define"       >> liftM Define  defineP  )
     <|> try (reserved "infixl"   >> liftM BFix    infixlP  )
     <|> try (reserved "infixr"   >> liftM BFix    infixrP  )
     <|> try (reserved "infix"    >> liftM BFix    infixP   )
     <|> try (reserved "defined"  >> liftM Meas    measureP )
-    <|> (reservedToken "measure"      >> liftM HMeas   hmeasureP)
+    <|> (reserved "measure"      >> liftM HMeas   hmeasureP)
     <|> (reserved "inline"       >> liftM Inline  inlineP  )
     <|> try (reserved "bound"    >> liftM PBound  boundP   )
     <|> (reserved "bound"        >> liftM HBound  hboundP  )
@@ -818,14 +818,7 @@ specP
     <|> (reserved "Lazy"      >> liftM Lazy   lazyVarP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}                 liftM Asrts  tyBindsP
-
-reservedToken :: Stream s m Char => String -> ParsecT s u m ()
-reservedToken str = try(string str >> spaces1)
-
-spaces1 :: Stream s m Char => ParsecT s u m ()
-spaces1 = satisfy isSpace >> spaces
-
+    <|> {- DEFAULT -}            liftM Asrts  tyBindsP
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral
@@ -833,7 +826,7 @@ pragmaP = locParserP stringLiteral
 autoinstP :: Parser (LocSymbol, Maybe Int)
 autoinstP = do x <- locParserP binderP
                spaces
-               i <- maybeP (reservedToken "with" >> integer)
+               i <- maybeP (reserved "with" >> integer)
                return (x, fromIntegral <$> i)
 
 lazyVarP :: Parser LocSymbol
