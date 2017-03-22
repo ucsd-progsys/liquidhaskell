@@ -229,7 +229,7 @@ refBindP bp rp kindP
    try (do x  <- bp
            i  <- freshIntP
            t  <- kindP
-           reserved "|"
+           reservedOp "|"
            ra <- rp <* spaces
            let xi = intSymbol x i
            let su v = if v == x then xi else v
@@ -1013,7 +1013,7 @@ rawBodyP :: Parser Body
 rawBodyP
   = braces $ do
       v <- symbolP
-      reserved "|"
+      reservedOp "|"
       p <- predP <* spaces
       return $ R v p
 
@@ -1198,7 +1198,7 @@ dataDeclFullP = do
   ts  <- sepBy tyVarIdP blanks
   ps  <- predVarDefsP
   whiteSpace >> reservedOp "=" >> whiteSpace
-  dcs <- sepBy dataConP (reserved "|")
+  dcs <- sepBy dataConP (reservedOp "|")
   whiteSpace
   return $ D x ts ps [] dcs pos fsize
 
@@ -1212,7 +1212,7 @@ adtDataDeclFullP = do
   spaces
   (ts, ps) <- tsps
   spaces
-  dcs <- sepBy adtDataConP (reserved "|")
+  dcs <- sepBy adtDataConP (reservedOp "|")
   whiteSpace
   return $ D x ts ps [] dcs pos fsize
   where

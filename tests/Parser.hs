@@ -217,9 +217,13 @@ testSucceeds =
        (parseSingleSpec "x :: k:Int -> Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(k:Int -> Int (dummyLoc),Nothing))"
 
-    , testCase "type spec" $
+    , testCase "type spec 1" $
        parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?=
           "Alias type IncrListD \"a\" \"D\" = [a] -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+
+    , testCase "type spec 2" $
+       parseSingleSpec "takeL :: Ord a => x:a -> [a] -> [{v:a|v<=x}]" @?=
+          "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v##2 : a | v##2 <= x}] (dummyLoc),Nothing))"
 
     ]
 
