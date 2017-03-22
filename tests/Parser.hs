@@ -225,6 +225,14 @@ testSucceeds =
        parseSingleSpec "takeL :: Ord a => x:a -> [a] -> [{v:a|v<=x}]" @?=
           "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v##2 : a | v##2 <= x}] (dummyLoc),Nothing))"
 
+    , testCase "type spec 3" $
+       parseSingleSpec "bar :: t 'Nothing" @?=
+          "Asrts ([\"bar\" (dummyLoc)],(t Nothing (dummyLoc),Nothing))"
+
+    , testCase "type spec 4" $
+       parseSingleSpec "Cons :: forall <l>.a -> L^l a -> L^l a" @?=
+          "Asrts ([\"Cons\" (dummyLoc)],(lq_tmp$db##0:a -> lq_tmp$db##1:(L a) -> (L a) (dummyLoc),Nothing))"
+
     ]
 
 -- ---------------------------------------------------------------------

@@ -279,7 +279,7 @@ bbaseP
 
 bTyConP :: Parser BTyCon
 bTyConP
-  =  (reserved "\'" >> (mkPromotedBTyCon <$> locUpperIdP))
+  =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
 
 classBTyConP :: Parser BTyCon
@@ -287,7 +287,7 @@ classBTyConP = mkClassBTyCon <$> locUpperIdP
 
 stratumP :: Parser Strata
 stratumP
-  = do reserved "^"
+  = do reservedOp "^"
        bstratumP
  <|> return mempty
 
@@ -1035,6 +1035,7 @@ upperIdP' :: Parser Symbol
 upperIdP' = try (symbol <$> condIdP' (isUpper . head))
         <|> (symbol <$> infixCondIdP')
 
+-- TODO:AZ this looks dodgy, rather use reserved, reservedOp
 condIdP'  :: (String -> Bool) -> Parser Symbol
 condIdP' f
   = do c  <- letter
