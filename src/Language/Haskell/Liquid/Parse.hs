@@ -314,7 +314,7 @@ bareTyArgP
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> try (dummyP (bbaseNoAppP <* spaces))
+ <|> (dummyP (bbaseNoAppP <* spaces))
 
 bareConstraintP :: Parser (RType BTyCon BTyVar RReft)
 bareConstraintP
@@ -334,9 +334,9 @@ constraintP
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
-   =  try (do xts <- sepBy tyBindNoLocP comma
-              reservedOp "|-"
-              return xts)
+   = (do xts <- sepBy tyBindNoLocP comma
+         reservedOp "|-"
+         return xts)
   <|> return []
 
 rrTy :: Monoid r => RType c tv r -> RType c tv r -> RType c tv r
@@ -363,7 +363,7 @@ bareAllP
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = try (parens $ many (bTyVar <$> tyKindVarIdP))
+  = (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
 
 tyVarIdP :: Parser Symbol
@@ -373,7 +373,8 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP
-   =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
+   -- TODO:AZ why are we discarding the kind info?
+   =  ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
   <|> tyVarIdP
 
 kindP :: Parser (RType BTyCon BTyVar RReft)
@@ -526,9 +527,9 @@ monoPredicateP
 
 monoPredicate1P :: Parser Predicate
 monoPredicate1P
-   =  try (reserved "True" >> return mempty)
-  <|> try (pdVar <$> parens predVarUseP)
-  <|> (pdVar <$> predVarUseP)
+   =  (reserved "True" >> return mempty)
+  <|> (pdVar <$> parens predVarUseP)
+  <|> (pdVar <$>        predVarUseP)
 
 predVarUseP :: IsString t
             => Parser (PVar t)
