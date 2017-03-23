@@ -776,55 +776,69 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  = try (reserved "assume"       >> liftM Assm    tyBindP  )
-    <|> (reserved "assert"       >> liftM Asrt    tyBindP  )
-    <|> (reserved "autosize"     >> liftM ASize   asizeP   )
-    <|> (reserved "Local"        >> liftM LAsrt   tyBindP  )
-    <|> (reserved "axiomatize"   >> liftM Reflect axiomP   )
-    <|> (reserved "reflect"      >> liftM Reflect axiomP   )
+  =     (fallbackSpecP "assume"     (liftM Assm    tyBindP  ))
+    <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
+    <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
+    <|> (reserved "Local"         >> liftM LAsrt   tyBindP  )
+    <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
+    <|> (fallbackSpecP "reflect"    (liftM Reflect axiomP   ))
 
-    <|> (reserved "measure" >> ((try (liftM Meas    measureP ))
-                                <|> liftM HMeas   hmeasureP))
+    <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
+                                     <|> liftM HMeas   hmeasureP)))
 
-    <|> (reserved "define"       >> liftM Define  defineP  )
-    <|> (reserved "infixl"       >> liftM BFix    infixlP  )
-    <|> (reserved "infixr"       >> liftM BFix    infixrP  )
-    <|> (reserved "infix"        >> liftM BFix    infixP   )
-    <|> (reserved "defined"      >> liftM Meas    measureP )
-    <|> (reserved "inline"       >> liftM Inline  inlineP  )
+    <|> (fallbackSpecP "define"     (liftM Define  defineP  ))
+    <|> (reserved "infixl"        >> liftM BFix    infixlP  )
+    <|> (reserved "infixr"        >> liftM BFix    infixrP  )
+    <|> (reserved "infix"         >> liftM BFix    infixP   )
+    <|> (fallbackSpecP "defined"    (liftM Meas    measureP ))
+    <|> (fallbackSpecP "inline"     (liftM Inline  inlineP  ))
 
-    <|> (reserved "bound"    >> ((liftM PBound  boundP   )
-                             <|> (liftM HBound  hboundP  )))
+    <|> (fallbackSpecP "bound"    (((liftM PBound  boundP   )
+                                <|> (liftM HBound  hboundP  ))))
     <|> (reserved "class"
-         >> ((reserved "measure" >> liftM CMeas  cMeasureP )
-                                <|> liftM Class  classP    ))
+         >> ((reserved "measure"  >> liftM CMeas  cMeasureP )
+                                 <|> liftM Class  classP    ))
     <|> (reserved "instance"
-         >> ((reserved "measure" >> liftM IMeas  iMeasureP )
-                                <|> liftM RInst  instanceP ))
+         >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
+                                 <|> liftM RInst  instanceP ))
 
-    <|> (reserved "import"       >> liftM Impt   symbolP   )
+    <|> (reserved "import"        >> liftM Impt   symbolP   )
 
     <|> (reserved "data"
-        >> ((reserved "variance" >> liftM Varia datavarianceP)
-                                <|> liftM DDecl  dataDeclP ))
+        >> ((reserved "variance"  >> liftM Varia datavarianceP)
+                                 <|> liftM DDecl  dataDeclP ))
 
-    <|> (reserved "newtype"      >> liftM NTDecl newtypeP )
-    <|> (reserved "include"      >> liftM Incl   filePathP )
-    <|> (reserved "invariant"    >> liftM Invt   invariantP)
-    <|> (reserved "using"        >> liftM IAlias invaliasP )
-    <|> (reserved "type"         >> liftM Alias  aliasP    )
-    <|> (reserved "predicate"    >> liftM EAlias ealiasP   )
-    <|> (reserved "expression"   >> liftM EAlias ealiasP   )
-    <|> (reserved "embed"        >> liftM Embed  embedP    )
-    <|> (reserved "qualif"       >> liftM Qualif (qualifierP sortP))
-    <|> (reserved "Decrease"     >> liftM Decr   decreaseP )
-    <|> (reserved "LAZYVAR"      >> liftM LVars  lazyVarP  )
-    <|> (reserved "Strict"       >> liftM Lazy   lazyVarP  )
-    <|> (reserved "Lazy"         >> liftM Lazy   lazyVarP  )
+    <|> (reserved "newtype"       >> liftM NTDecl newtypeP )
+    <|> (reserved "include"       >> liftM Incl   filePathP )
+    <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
+    <|> (reserved "using"         >> liftM IAlias invaliasP )
+    <|> (reserved "type"          >> liftM Alias  aliasP    )
+    <|> (fallbackSpecP "predicate"  (liftM EAlias ealiasP   ))
+    <|> (fallbackSpecP "expression" (liftM EAlias ealiasP   ))
+    <|> (fallbackSpecP "embed"      (liftM Embed  embedP    ))
+    <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
+    <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
+    <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
+    <|> (reserved "Strict"        >> liftM Lazy   lazyVarP  )
+    <|> (reserved "Lazy"          >> liftM Lazy   lazyVarP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
-    <|> (reserved "LIQUID"       >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}               liftM Asrts  tyBindsP
+    <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
+    <|> {- DEFAULT -}                liftM Asrts  tyBindsP
 
+-- | Try the given parser on the tail after matching the reserved word, and if
+-- it fails fall back to parsing it as a haskell signature for a function with
+-- the same name.
+fallbackSpecP :: String -> Parser BPspec -> Parser BPspec
+fallbackSpecP kw p = do
+  kwVal@(Loc l1 l2 v) <- locParserP (reserved kw)
+  (p <|> liftM Asrts (tyBindsRemP (Loc l1 l2 (symbol kw)) ))
+
+-- | Same as tyBindsP, except the single initial symbol has already been matched
+tyBindsRemP :: LocSymbol -> Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
+tyBindsRemP sym = do
+  dcolon
+  tb <- termBareTypeP
+  return ([sym],tb)
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral

@@ -39,6 +39,7 @@ tests =
       testSucceeds
     , testFails
     , testSpecP
+    , testReservedAliases
     ]
 
 -- ---------------------------------------------------------------------
@@ -206,6 +207,73 @@ testSpecP =
 
 -- ---------------------------------------------------------------------
 
+-- Test that haskell functions having the same name as liquidhaskell keywords are parsed correctly
+testReservedAliases :: TestTree
+testReservedAliases =
+  testGroup "reserved aliases"
+    [ testCase "assume" $
+       parseSingleSpec "assume :: Int -> Bool " @?=
+          "Asrts ([\"assume\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "assert" $
+       parseSingleSpec "assert :: Int -> Bool " @?=
+          "Asrts ([\"assert\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "autosize" $
+       parseSingleSpec "autosize :: Int -> Bool " @?=
+          "Asrts ([\"autosize\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "axiomatize" $
+       parseSingleSpec "axiomatize :: Int -> Bool " @?=
+          "Asrts ([\"axiomatize\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "reflect" $
+       parseSingleSpec "reflect :: Int -> Bool " @?=
+          "Asrts ([\"reflect\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "measure" $
+       parseSingleSpec "measure :: Int -> Bool " @?=
+          "Asrts ([\"measure\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "define" $
+       parseSingleSpec "define :: Int -> Bool " @?=
+          "Asrts ([\"define\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "defined" $
+       parseSingleSpec "defined :: Int -> Bool " @?=
+          "Asrts ([\"defined\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "inline" $
+       parseSingleSpec "inline :: Int -> Bool " @?=
+          "Asrts ([\"inline\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "bound" $
+       parseSingleSpec "bound :: Int -> Bool " @?=
+          "Asrts ([\"bound\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "invariant" $
+       parseSingleSpec "invariant :: Int -> Bool " @?=
+          "Asrts ([\"invariant\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "predicate" $
+       parseSingleSpec "predicate :: Int -> Bool " @?=
+          "Asrts ([\"predicate\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "expression" $
+       parseSingleSpec "expression :: Int -> Bool " @?=
+          "Asrts ([\"expression\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "embed" $
+       parseSingleSpec "embed :: Int -> Bool " @?=
+          "Asrts ([\"embed\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "qualif" $
+       parseSingleSpec "qualif :: Int -> Bool " @?=
+          "Asrts ([\"qualif\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+    ]
+
+-- ---------------------------------------------------------------------
+
 testSucceeds :: TestTree
 testSucceeds =
   testGroup "Should succeed"
@@ -298,7 +366,7 @@ testSucceeds =
           @?=
           "Asrts ([\"ssum\" (dummyLoc)],({|- {v##2 : a | v##2 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##3 : a | x <= v##3} <: {VV : a | true}} =>\nxs:[{v##4 : a | 0 <= v##4}] -> {v##5 : a | len xs >= 0\n                                           && 0 <= v##5} (dummyLoc),Nothing))"
 
-    , testCase "type spec 13" $
+    , testCase "type spec 14" $
        parseSingleSpec (unlines $
           [ " predicate ValidChunk V XS N "
           , " = if len XS == 0 "
@@ -306,7 +374,7 @@ testSucceeds =
           , "     else (((1 < len XS && 1 < N) => (len V  < len XS)) "
           , "       && ((len XS <= N ) => len V == 1)) "])
           @?=
-          ""
+          "EAlias type ValidChunk  \"V\" \"XS\" \"N\" = PAnd [PImp (PAtom Eq (EApp (EVar \"len\") (EVar \"XS\")) (ECon (I 0))) (PAtom Eq (EApp (EVar \"len\") (EVar \"V\")) (ECon (I 0))),PImp (PNot (PAtom Eq (EApp (EVar \"len\") (EVar \"XS\")) (ECon (I 0)))) (PAnd [PImp (PAnd [PAtom Lt (ECon (I 1)) (EApp (EVar \"len\") (EVar \"XS\")),PAtom Lt (ECon (I 1)) (EVar \"N\")]) (PAtom Lt (EApp (EVar \"len\") (EVar \"V\")) (EApp (EVar \"len\") (EVar \"XS\"))),PImp (PAtom Le (EApp (EVar \"len\") (EVar \"XS\")) (EVar \"N\")) (PAtom Eq (EApp (EVar \"len\") (EVar \"V\")) (ECon (I 1)))])] -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
     ]
 
 -- ---------------------------------------------------------------------
