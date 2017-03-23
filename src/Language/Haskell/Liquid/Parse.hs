@@ -349,6 +349,7 @@ constraintEnvP
               reservedOp "|-"
               return xts)
   <|> return []
+  <?> "constraintEnvP"
 
 rrTy :: Monoid r => RType c tv r -> RType c tv r -> RType c tv r
 rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
@@ -557,7 +558,7 @@ predVarUseP
        return   $ PV p (PVProp dummyTyId) dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 funArgsP :: Parser (Symbol, [Expr])
-funArgsP  = try realP <|> empP
+funArgsP  = try realP <|> empP <?> "funArgsP"
   where
     empP  = (,[]) <$> predVarIdP
     realP = do (EVar lp, xs) <- splitEApp <$> funAppP
@@ -579,6 +580,7 @@ boundP = do
                       return xs
                  )
            <|> return []
+           <?> "bargsP"
     bvsP   = try ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
                       reservedOp  "."
@@ -844,6 +846,7 @@ specP
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                liftM Asrts  tyBindsP
+    <?> "specP"
 
 -- | Try the given parser on the tail after matching the reserved word, and if
 -- it fails fall back to parsing it as a haskell signature for a function with
@@ -906,7 +909,7 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <|> (reserved "invariant"     >> return Invariant)
         <|> (reserved "covariant"     >> return Covariant)
         <|> (reserved "contravariant" >> return Contravariant)
-        <?> "Invalib variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
+        <?> "Invalid variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
 tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
@@ -924,6 +927,7 @@ termBareTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termBareTypeP
    = try termTypeP
   <|> (, Nothing) <$> locParserP genBareTypeP
+  <?> "termBareTypeP"
 
 termTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termTypeP
@@ -957,6 +961,7 @@ aliasP  = rtAliasP id     bareTypeP
 ealiasP :: Parser (RTAlias Symbol Expr)
 ealiasP = try (rtAliasP symbol predP)
       <|> rtAliasP symbol exprP
+      <?> "ealiasP"
 
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
@@ -1032,6 +1037,7 @@ riMethodSigP
             return (x, RIAssumed t) )
  <|> do (x, t) <- tyBindP
         return (x, RISig t)
+ <?> "riMethodSigP"
 
 
 
@@ -1126,6 +1132,7 @@ measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP
   =  parens (try conPatP <|> try consPatP <|> nilPatP <|> tupPatP)
  <|> nullaryConPatP
+ <?> "measurePatP"
 
 tupPatP :: Parser (Located Symbol, [Located Symbol])
 tupPatP  = mkTupPat  <$> sepBy1 locLowerIdP comma
@@ -1143,6 +1150,7 @@ nilPatP  = mkNilPat  <$> brackets whiteSpace
 
 nullaryConPatP :: Parser (Located Symbol, [t])
 nullaryConPatP = nilPatP <|> ((,[]) <$> locParserP dataConNameP)
+                 <?> "nullaryConPatP"
 
 mkTupPat :: Foldable t => t a -> (Located Symbol, t a)
 mkTupPat zs     = (tupDataCon (length zs), zs)
@@ -1165,11 +1173,13 @@ dataConFieldsP :: Parser [(Symbol, BareType)]
 dataConFieldsP
    =  braces (sepBy predTypeDDP comma)
   <|> sepBy dataConFieldP spaces
+  <?> "dataConFieldP"
 
 dataConFieldP :: Parser (Symbol, BareType)
 dataConFieldP
    =  parens (try predTypeDDP <|> dbTypeP)
   <|> dbTypeP
+  <?> "dataConFieldP"
   where
     dbTypeP = (,) <$> dummyBindP <*> bareTypeP
 
@@ -1204,6 +1214,7 @@ dataConNameP :: Parser Symbol
 dataConNameP
   =  try upperIdP
  <|> pwr <$> parens (idP bad)
+ <?> "dataConNameP"
   where
      idP p  = many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` ("(,)" :: String)
@@ -1219,6 +1230,7 @@ dataDeclP
    =  try dataDeclFullP
   <|> try adtDataDeclFullP
   <|> dataDeclSizeP
+  <?> "dataDeclP"
 
 newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
@@ -1274,10 +1286,10 @@ fTyConP
   =   (reserved "int"     >> return intFTyCon)
   <|> (reserved "Integer" >> return intFTyCon)
   <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
+  <?> "fTyConP"
 
 ---------------------------------------------------------------
 -- | Bundling Parsers into a Typeclass ------------------------
