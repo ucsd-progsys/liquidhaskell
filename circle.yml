@@ -11,12 +11,17 @@ checkout:
   post:
     - git submodule sync
     - git submodule update --init
+    - pwd
+    - (cd .. && git clone https://github.com/alanz/liquid-fixpoint.git)
+    - (cd ../liquid-fixpoint && git checkout parser-az)
+    - pwd
 
 dependencies:
   override:
     - cabal update
     - cabal sandbox init
-    - cabal sandbox add-source ./liquid-fixpoint
+    #- cabal sandbox add-source ./liquid-fixpoint
+    - cabal sandbox add-source ../liquid-fixpoint
     - cabal sandbox add-source ./liquiddesugar
     - cabal install --upgrade-dependencies --reorder-goals --constraint="template-haskell installed" --dependencies-only --enable-tests --with-compiler=/opt/ghc/7.10.3/bin/ghc
     # - cabal install hpc-coveralls
@@ -29,10 +34,13 @@ test:
   override:
     - cabal build
     - cabal copy && cabal register
-    - mkdir -p $CIRCLE_TEST_REPORTS/tasty/
-    # We get a "test: ./tasty/junit.xml: canonicalizePath: does not exist (No such file or directory)" fail if it does not exist
-    - touch $CIRCLE_TEST_REPORTS/tasty/junit.xml
-    - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml --liquid-opts='--cores 1'":
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+    # We get a "test: ./junit/junit.xml: canonicalizePath: does not exist (No such file or directory)" fail if it does not exist
+    - touch $CIRCLE_TEST_REPORTS/junit/main-test-results.xml
+    - touch $CIRCLE_TEST_REPORTS/junit/parser-test-results.xml
+    - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores 1'":
+        timeout: 1800
+    - cabal exec -- sh -c "./dist/build/liquidhaskell-parser/liquidhaskell-parser -j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
         timeout: 1800
   post:
     - cabal haddock --haddock-options="--no-print-missing-docs"
