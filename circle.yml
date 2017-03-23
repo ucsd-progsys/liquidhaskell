@@ -1,6 +1,6 @@
 machine:
   ghc:
-    version: 7.10.3
+    version: 7.10.2
   pre:
     - sudo add-apt-repository -y ppa:hvr/z3
     - sudo add-apt-repository -y ppa:hvr/ghc
@@ -12,16 +12,12 @@ checkout:
     - git submodule sync
     - git submodule update --init
     - pwd
-    - (cd .. && git clone https://github.com/alanz/liquid-fixpoint.git)
-    - (cd ../liquid-fixpoint && git checkout parser-az)
-    - pwd
 
 dependencies:
   override:
     - cabal update
     - cabal sandbox init
-    #- cabal sandbox add-source ./liquid-fixpoint
-    - cabal sandbox add-source ../liquid-fixpoint
+    - cabal sandbox add-source ./liquid-fixpoint
     - cabal sandbox add-source ./liquiddesugar
     - cabal install --upgrade-dependencies --reorder-goals --constraint="template-haskell installed" --dependencies-only --enable-tests --with-compiler=/opt/ghc/7.10.3/bin/ghc
     # - cabal install hpc-coveralls
