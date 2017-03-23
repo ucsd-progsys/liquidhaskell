@@ -110,7 +110,7 @@ parseWithError pstate parser p s =
     (Right (_, rem, _), _) -> Left  $ parseErrorError $ remParseError p s rem
   where
     -- See http://stackoverflow.com/questions/16209278/parsec-consume-all-input
-    doParse = setPosition p >> remainderP (whiteSpace *> parser <* eof)
+    doParse = setPosition p >> remainderP (whiteSpace *> parser <* (whiteSpace >> eof))
 
 
 ---------------------------------------------------------------------------
