@@ -14,6 +14,8 @@ checkout:
     - pwd
 
 dependencies:
+  cache_directories:
+    - "~/cabal-sandbox"
   override:
     - cabal update
     - cabal sandbox --sandbox=~/cabal-sandbox init
