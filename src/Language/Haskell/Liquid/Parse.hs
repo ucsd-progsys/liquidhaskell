@@ -830,7 +830,7 @@ specP
 -- the same name.
 fallbackSpecP :: String -> Parser BPspec -> Parser BPspec
 fallbackSpecP kw p = do
-  kwVal@(Loc l1 l2 v) <- locParserP (reserved kw)
+  (Loc l1 l2 _) <- locParserP (reserved kw)
   (p <|> liftM Asrts (tyBindsRemP (Loc l1 l2 (symbol kw)) ))
 
 -- | Same as tyBindsP, except the single initial symbol has already been matched
