@@ -40,6 +40,7 @@ tests =
     , testFails
     , testSpecP
     , testReservedAliases
+    , testErrorReporting
     ]
 
 -- ---------------------------------------------------------------------
@@ -387,6 +388,17 @@ testFails =
             "<test>:1:13: Error: Cannot parse specification:\n    Leftover while parsing"
     ]
 
+
+-- ---------------------------------------------------------------------
+
+testErrorReporting :: TestTree
+testErrorReporting =
+  testGroup "Error reprting"
+    [ testCase "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " $
+          parseSingleSpec "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " @?=
+            "<test>:1:45: Error: Cannot parse specification:\n    Leftover while parsing"
+    ]
+
 -- ---------------------------------------------------------------------
 
 -- | Parse a single type signature containing LH refinements. To be
@@ -404,3 +416,5 @@ dummyLocs = everywhere (mkT posToDummy)
   where
     posToDummy :: SourcePos -> SourcePos
     posToDummy _ = dummyPos "Fixpoint.Types.dummyLoc"
+
+-- ---------------------------------------------------------------------

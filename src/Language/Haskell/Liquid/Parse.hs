@@ -109,7 +109,8 @@ parseWithError pstate parser p s =
     (Right (r, "", _), st) -> Right (st, r)
     (Right (_, rem, _), _) -> Left  $ parseErrorError $ remParseError p s rem
   where
-    doParse = setPosition p >> remainderP (whiteSpace *> parser <* whiteSpace)
+    -- See http://stackoverflow.com/questions/16209278/parsec-consume-all-input
+    doParse = setPosition p >> remainderP (whiteSpace *> parser <* eof)
 
 
 ---------------------------------------------------------------------------
@@ -202,12 +203,14 @@ bareTypeP
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
+ <?> "bareTypeP"
 
 bareArgP :: Symbol
          -> Parser (RType BTyCon BTyVar (UReft Reft))
 bareArgP vv
   =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
+ <?> "bareArgP"
 
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser (RType BTyCon BTyVar (UReft Reft)))
           -> Parser (RType BTyCon BTyVar (UReft Reft))
@@ -215,6 +218,7 @@ bareAtomP ref
   =  ref refasHoleP bbaseP
  <|> holeP
  <|> (dummyP (bbaseP <* spaces))
+ <?> "bareAtomP"
 
 
 refBindP :: Parser Symbol
@@ -257,6 +261,7 @@ refasHoleP :: Parser Expr
 refasHoleP
   =  (reserved "_" >> return hole)
  <|> refaP
+ <?> "refasHoleP"
 
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
@@ -273,11 +278,13 @@ bbaseP
  <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
  <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+ <?> "bbaseP"
 
 bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
+ <?> "bTyConP"
 
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
@@ -287,6 +294,7 @@ stratumP
   = do reservedOp "^"
        bstratumP
  <|> return mempty
+ <?> "stratumP"
 
 bstratumP :: Parser [Stratum]
 bstratumP
@@ -299,6 +307,7 @@ bbaseNoAppP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
  <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
+ <?> "bbaseNoAppP"
 
 maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
 maybeP p = liftM Just p <|> return Nothing
@@ -310,11 +319,13 @@ bareTyArgP
  <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
+ <?> "bareTyArgP"
 
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
  <|> try (dummyP (bbaseNoAppP <* spaces))
+ <?> "bareAtomNoAppP"
 
 bareConstraintP :: Parser (RType BTyCon BTyVar RReft)
 bareConstraintP
@@ -365,6 +376,7 @@ tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
   = try (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
+ <?> "tyVarDefsP"
 
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
@@ -375,6 +387,7 @@ tyKindVarIdP :: Parser Symbol
 tyKindVarIdP
    =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
   <|> tyVarIdP
+  <?> "tyKindVarIdP"
 
 kindP :: Parser (RType BTyCon BTyVar RReft)
 kindP = bareAtomP (refBindP bindP)
@@ -383,6 +396,7 @@ predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
   =  try (angles $ sepBy1 predVarDefP comma)
  <|> return []
+ <?> "predVarDefP"
 
 predVarDefP :: Parser (PVar BSort)
 predVarDefP
@@ -491,6 +505,7 @@ symsP
        reservedOp "->"
        return $ (, dummyRSort) <$> ss
  <|> return []
+ <?> "symsP"
 
 dummyRSort :: (IsString tv, Monoid r) => RType c tv r
 dummyRSort
@@ -501,6 +516,7 @@ predicatesP :: (IsString tv, Monoid r)
 predicatesP
    =  try (angles $ sepBy1 predicate1P comma)
   <|> return []
+  <?> "predicatesP"
 
 predicate1P :: (IsString tv, Monoid r)
             => Parser (Ref (RType c tv r) BareType)
@@ -508,6 +524,7 @@ predicate1P
    =  try (RProp <$> symsP <*> refP bbaseP)
   <|> (rPropP [] . predUReft <$> monoPredicate1P)
   <|> (braces $ bRProp <$> symsP' <*> refaP)
+  <?> "predicate1P"
    where
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
@@ -518,17 +535,20 @@ mmonoPredicateP :: Parser Predicate
 mmonoPredicateP
    = try (angles $ angles monoPredicate1P)
   <|> return mempty
+  <?> "mmonoPredicateP"
 
 monoPredicateP :: Parser Predicate
 monoPredicateP
    = try (angles monoPredicate1P)
   <|> return mempty
+  <?> "monoPredicateP"
 
 monoPredicate1P :: Parser Predicate
 monoPredicate1P
    =  try (reserved "True" >> return mempty)
   <|> try (pdVar <$> parens predVarUseP)
-  <|> (pdVar <$>        predVarUseP)
+  <|> (    pdVar <$>        predVarUseP)
+  <?> "monoPredicate1P"
 
 predVarUseP :: IsString t
             => Parser (PVar t)
