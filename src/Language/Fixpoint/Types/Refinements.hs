@@ -304,6 +304,8 @@ debruijnIndex = go
     go (PGrad _ _ e)   = go e 
 
 
+-- | Parsed refinement of @Symbol@ as @Expr@
+--   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
 newtype Reft = Reft (Symbol, Expr)
                deriving (Eq, Data, Typeable, Generic)
 
