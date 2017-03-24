@@ -30,7 +30,8 @@ dependencies:
     
 compile:
   override:
-    - stack build liquidhaskell --fast --pedantic --flag liquidhaskell:include --flag liquidhaskell:devel
+    # - stack build liquidhaskell --fast --pedantic --flag liquidhaskell:include --flag liquidhaskell:devel
+    - stack build liquidhaskell --fast --flag liquidhaskell:include --flag liquidhaskell:devel
 
 test:
   override:
