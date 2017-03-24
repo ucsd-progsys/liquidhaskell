@@ -25,8 +25,8 @@ dependencies:
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack install hlint packdeps cabal-install
-    - stack build liquidhaskell --fast --only-dependencies
+    - stack install --fast hlint packdeps cabal-install
+    - stack build liquidhaskell --fast --only-dependencies --test --no-run-tests
     
 compile:
   override:
@@ -34,9 +34,10 @@ compile:
 
 test:
   override:
-    - stack test liquidhaskell:test --test-arguments "-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores 1'":
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit
+    - stack test liquidhaskell:test --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
         timeout: 1800
-    - stack test liquidhaskell:liquidhaskell-parser --test-arguments "-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
+    - stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
         timeout: 1800
     # - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
     - stack exec -- cabal update
@@ -45,7 +46,8 @@ test:
     - stack exec -- cabal check
     - stack sdist
   post:
-    - stack haddock liquidhaskell --haddock-options="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
+    - stack haddock liquidhaskell --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
     # - cp -r dist/doc $CIRCLE_ARTIFACTS
+    - mkdir -p $CIRCLE_TEST_REPORTS/tasty
     - cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
     # - hpc-coveralls --exclude-dir=tests --repo-token=$COVERALLS_REPO_TOKEN
