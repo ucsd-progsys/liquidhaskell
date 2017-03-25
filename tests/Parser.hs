@@ -376,6 +376,10 @@ testSucceeds =
           , "       && ((len XS <= N ) => len V == 1)) "])
           @?=
           "EAlias type ValidChunk  \"V\" \"XS\" \"N\" = PAnd [PImp (PAtom Eq (EApp (EVar \"len\") (EVar \"XS\")) (ECon (I 0))) (PAtom Eq (EApp (EVar \"len\") (EVar \"V\")) (ECon (I 0))),PImp (PNot (PAtom Eq (EApp (EVar \"len\") (EVar \"XS\")) (ECon (I 0)))) (PAnd [PImp (PAnd [PAtom Lt (ECon (I 1)) (EApp (EVar \"len\") (EVar \"XS\")),PAtom Lt (ECon (I 1)) (EVar \"N\")]) (PAtom Lt (EApp (EVar \"len\") (EVar \"V\")) (EApp (EVar \"len\") (EVar \"XS\"))),PImp (PAtom Le (EApp (EVar \"len\") (EVar \"XS\")) (EVar \"N\")) (PAtom Eq (EApp (EVar \"len\") (EVar \"V\")) (ECon (I 1)))])] -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+
+    , testCase "type spec 15" $
+       parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?=
+          "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##2:a -> b) -> lq_tmp$db##3:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##5:a -> b | f == g} (dummyLoc))"
     ]
 
 -- ---------------------------------------------------------------------
@@ -401,7 +405,7 @@ testErrorReporting =
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?=
           -- parseSingleSpec "ff :: {v :  }" @?=
-            "<test>:1:17: Error: Cannot parse specification:\n    unexpected \">\"\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP or |"
+            "<test>:1:17: Error: Cannot parse specification:\n    unexpected \">\"\n    expecting  |"
     ]
 
 -- ---------------------------------------------------------------------

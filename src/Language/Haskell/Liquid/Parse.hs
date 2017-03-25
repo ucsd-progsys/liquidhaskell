@@ -226,8 +226,8 @@ refBindP :: Parser Symbol
          -> Parser (Reft -> BareType)
          -> Parser BareType
 refBindP bp rp kindP
-  = braces $
-   (   (do x  <- bp
+  = braces $ (
+   (try(do x  <- bp
            i  <- freshIntP
            t  <- kindP
            (reservedOp "|" <?> "|")
@@ -235,7 +235,9 @@ refBindP bp rp kindP
            let xi = intSymbol x i
            let su v = if v == x then xi else v
            return $ substa su $ t (Reft (x, ra)) ))
-  <|> (RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces)
+  <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+  <?> "refBindP"
+   )
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP       = refBindP bindP refaP
@@ -275,10 +277,19 @@ bbaseP
   =  holeRefP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
  <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
  <|> try (liftM3 bRVar  (bTyVar <$> lowerIdP) stratumP monoPredicateP)
- <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
  <?> "bbaseP"
+
+bbaseNoAppP :: Parser (Reft -> BareType)
+bbaseNoAppP
+  =  holeRefP
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
+ <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
+ <?> "bbaseNoAppP"
 
 bTyConP :: Parser BTyCon
 bTyConP
@@ -317,15 +328,6 @@ bareAtomNoAppP
   =  refP bbaseNoAppP
  <|> (dummyP (bbaseNoAppP <* spaces))
  <?> "bareAtomNoAppP"
-
-bbaseNoAppP :: Parser (Reft -> BareType)
-bbaseNoAppP
-  =  holeRefP
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
- <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
- <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
- <?> "bbaseNoAppP"
 
 
 bareConstraintP :: Parser (RType BTyCon BTyVar RReft)
