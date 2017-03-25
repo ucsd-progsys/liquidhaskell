@@ -385,7 +385,7 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?=
-            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP or end of input"
+            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP, \"/\" or end of input"
     ]
 
 
@@ -397,6 +397,11 @@ testErrorReporting =
     [ testCase "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " $
           parseSingleSpec "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " @?=
             "<test>:1:62: Error: Cannot parse specification:\n    unexpected end of input\n    expecting bareTyArgP"
+
+    , testCase "Missing |" $
+          parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?=
+          -- parseSingleSpec "ff :: {v :  }" @?=
+            "<test>:1:17: Error: Cannot parse specification:\n    unexpected \">\"\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP or |"
     ]
 
 -- ---------------------------------------------------------------------
