@@ -235,10 +235,12 @@ refBindP bp rp kindP'
               reservedOp "|"
               ra <- rp <* spaces
               let xi = intSymbol x i
+              -- xi is a unique var based on the name in x.
+              -- su replaces any use of x in the balance of the expression with the unique val
               let su v = if v == x then xi else v
-              -- TODO:AZ I think the 'substa' call below together with the try might be what breaks the @crhisdone parse test
               return $ substa su $ t (Reft (x, ra)) ))
      <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+     <?> "refBindP"
    )
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
@@ -247,6 +249,8 @@ refP = refBindP bindP refaP
 refDefP :: Symbol -> Parser Expr -> Parser (Reft -> BareType) -> Parser BareType
 refDefP x  = refBindP (optBindP x)
 
+
+-- "sym :" or return the devault sym
 optBindP :: Symbol
          -> Parser Symbol
 optBindP x = try bindP <|> return x
@@ -557,9 +561,9 @@ monoPredicateP
 
 monoPredicate1P :: Parser Predicate
 monoPredicate1P
-   =  try (reserved "True" >> return mempty)
-  <|> try (pdVar <$> parens predVarUseP)
-  <|> (    pdVar <$>        predVarUseP)
+   =  (reserved "True" >> return mempty)
+  <|> (pdVar <$> parens predVarUseP)
+  <|> (pdVar <$>        predVarUseP)
   <?> "monoPredicate1P"
 
 predVarUseP :: IsString t
