@@ -198,23 +198,26 @@ bareTypeP :: Parser BareType
 bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareFunP -- starts with lowerId or parens or '_'
- <|> try bareConstraintP -- starts with braces
- -- <|> bareAtomBindP -- starts with braces in some cases
- -- <|> refBindBindP refasHoleP bbaseP
- <|> braces (
-      (try(do x  <- symbolP
-              _ <- colon
-              i  <- freshIntP
-              t  <- bbaseP
-              reservedOp "|"
-              ra <- refasHoleP <* spaces
-              let xi = intSymbol x i
-              -- xi is a unique var based on the name in x.
-              -- su replaces any use of x in the balance of the expression with the unique val
-              let su v = if v == x then xi else v
-              return $ substa su $ t (Reft (x, ra)) ))
-     <|> ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
-      )
+
+ <|> bareTypeBracesP
+ -- <|> try (
+ --          do ct   <- braces constraintP
+ --             t    <- bareTypeP
+ --             return $ rrTy ct t)
+ -- <|> braces (
+ --      (try(do x  <- symbolP
+ --              _ <- colon
+ --              i  <- freshIntP
+ --              t  <- bbaseP
+ --              reservedOp "|"
+ --              ra <- refasHoleP <* spaces
+ --              let xi = intSymbol x i
+ --              -- xi is a unique var based on the name in x.
+ --              -- su replaces any use of x in the balance of the expression with the unique val
+ --              let su v = if v == x then xi else v
+ --              return $ substa su $ t (Reft (x, ra)) ))
+ --     <|> ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
+ --      )
 
  <|> holeP
  <|> (dummyP (bbaseP <* spaces))
@@ -223,6 +226,33 @@ bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
  <?> "bareTypeP"
+
+bareTypeBracesP :: Parser BareType
+bareTypeBracesP = do
+  t <-  (try (
+          do ct <- braces constraintP
+             return $ Right ct ))
+       <|> (braces (
+            (try(do x  <- symbolP
+                    _ <- colon
+                    i  <- freshIntP
+                    t  <- bbaseP
+                    reservedOp "|"
+                    ra <- refasHoleP <* spaces
+                    let xi = intSymbol x i
+                    -- xi is a unique var based on the name in x.
+                    -- su replaces any use of x in the balance of the expression with the unique val
+                    let su v = if v == x then xi else v
+                    return $ Left $ substa su $ t (Reft (x, ra)) ))
+           <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
+                  return (Left t)
+            ))
+  case t of
+    Left l -> return l
+    Right ct -> do
+      tt <- bareTypeP
+      return $ rrTy ct tt
+
 
 bareConstraintP :: Parser BareType
 bareConstraintP
