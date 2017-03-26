@@ -230,8 +230,9 @@ bareTypeP
 bareTypeBracesP :: Parser BareType
 bareTypeBracesP = do
   t <-  (try (
-          do ct <- braces constraintP
-             return $ Right ct ))
+          braces $ do
+               ct <- constraintP
+               return $ Right ct ))
        <|> (braces (
             (try(do x  <- symbolP
                     _ <- colon
@@ -254,11 +255,11 @@ bareTypeBracesP = do
       return $ rrTy ct tt
 
 
-bareConstraintP :: Parser BareType
-bareConstraintP
-  = do ct   <- braces constraintP
-       t    <- bareTypeP
-       return $ rrTy ct t
+-- bareConstraintP :: Parser BareType
+-- bareConstraintP
+--   = do ct   <- braces constraintP
+--        t    <- bareTypeP
+--        return $ rrTy ct t
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vv
