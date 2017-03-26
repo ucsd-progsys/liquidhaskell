@@ -200,24 +200,6 @@ bareTypeP
  <|> try bareFunP -- starts with lowerId or parens or '_'
 
  <|> bareTypeBracesP
- -- <|> try (
- --          do ct   <- braces constraintP
- --             t    <- bareTypeP
- --             return $ rrTy ct t)
- -- <|> braces (
- --      (try(do x  <- symbolP
- --              _ <- colon
- --              i  <- freshIntP
- --              t  <- bbaseP
- --              reservedOp "|"
- --              ra <- refasHoleP <* spaces
- --              let xi = intSymbol x i
- --              -- xi is a unique var based on the name in x.
- --              -- su replaces any use of x in the balance of the expression with the unique val
- --              let su v = if v == x then xi else v
- --              return $ substa su $ t (Reft (x, ra)) ))
- --     <|> ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
- --      )
 
  <|> holeP
  <|> (dummyP (bbaseP <* spaces))
@@ -229,12 +211,18 @@ bareTypeP
 
 bareTypeBracesP :: Parser BareType
 bareTypeBracesP = do
-  t <-  (try (
-          braces $ do
+  t <-  -- (try (
+          -- braces $ try $ do
+          --      ct <- constraintP
+          --      return $ Right ct ))
+           (braces (
+            (try (do
                ct <- constraintP
-               return $ Right ct ))
-       <|> (braces (
-            (try(do x  <- symbolP
+               return $ Right ct
+                     ))
+           <|>
+            (try(do
+                    x  <- symbolP
                     _ <- colon
                     i  <- freshIntP
                     t  <- bbaseP
@@ -289,7 +277,8 @@ refBindBindP :: Parser Expr
              -> Parser BareType
 refBindBindP rp kindP'
   = braces (
-      (try(do x  <- symbolP
+      ((do
+              x  <- symbolP
               _ <- colon
               i  <- freshIntP
               t  <- kindP'
@@ -531,6 +520,7 @@ arrowP
   =   (reservedOp "->" >> return ArrowFun)
   <|> (reservedOp "=>" >> return ArrowPred)
 
+-- TODO:AZ: split this in two alternatives, instead of the split happening in eBindP
 bareFunP :: Parser BareType
 bareFunP = do
   eb   <- eBindP
@@ -544,7 +534,7 @@ bareFunP = do
 type EBind = Either (Located Symbol) (Located Symbol)
 
 eBindSym :: EBind -> Symbol
-eBindSym = either (id . val) (id . val)
+eBindSym = either val val
 
 eBindP :: Parser EBind
 eBindP = try (Left <$> locParserP funBindP) <|> (Right <$> locParserP dummyBindP)
