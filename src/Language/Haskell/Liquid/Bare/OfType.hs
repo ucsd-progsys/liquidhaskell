@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
 -- import Language.Haskell.Liquid.Bare.RefToLogic
 
-import Data.Data (toConstr)
+-- import Data.Data (toConstr)
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
