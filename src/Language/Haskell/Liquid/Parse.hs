@@ -197,13 +197,38 @@ stringLiteral = Token.stringLiteral lexer
 bareTypeP :: Parser BareType
 bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareConstraintP -- starts with braces
  <|> try bareFunP -- starts with lowerId or parens or '_'
- <|> bareAtomBindP -- starts with braces
+ <|> try bareConstraintP -- starts with braces
+ -- <|> bareAtomBindP -- starts with braces in some cases
+ -- <|> refBindBindP refasHoleP bbaseP
+ <|> braces (
+      (try(do x  <- symbolP
+              _ <- colon
+              i  <- freshIntP
+              t  <- bbaseP
+              reservedOp "|"
+              ra <- refasHoleP <* spaces
+              let xi = intSymbol x i
+              -- xi is a unique var based on the name in x.
+              -- su replaces any use of x in the balance of the expression with the unique val
+              let su v = if v == x then xi else v
+              return $ substa su $ t (Reft (x, ra)) ))
+     <|> ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
+      )
+
+ <|> holeP
+ <|> (dummyP (bbaseP <* spaces))
+
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
  <?> "bareTypeP"
+
+bareConstraintP :: Parser BareType
+bareConstraintP
+  = do ct   <- braces constraintP
+       t    <- bareTypeP
+       return $ rrTy ct t
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vv
@@ -368,12 +393,6 @@ bareAtomNoAppP
  <?> "bareAtomNoAppP"
 
 
-bareConstraintP :: Parser BareType
-bareConstraintP
-  = do ct   <- braces constraintP
-       t    <- bareTypeP
-       return $ rrTy ct t
-
 constraintP :: Parser BareType
 constraintP
   = do xts <- constraintEnvP
@@ -490,13 +509,14 @@ bareFunP = do
   t2   <- bareTypeP
   return $ bareArrow eb t1 a t2
 
-type EBind = Located (Either Symbol Symbol)
+-- type EBind = Located (Either Symbol Symbol)
+type EBind = Either (Located Symbol) (Located Symbol)
 
 eBindSym :: EBind -> Symbol
-eBindSym = either id id . val
+eBindSym = either (id . val) (id . val)
 
 eBindP :: Parser EBind
-eBindP = locParserP (try (Left <$> funBindP) <|> (Right <$> dummyBindP))
+eBindP = try (Left <$> locParserP funBindP) <|> (Right <$> locParserP dummyBindP)
 
 funBindP :: Parser Symbol
 funBindP = lowerIdP <* colon
@@ -504,20 +524,16 @@ funBindP = lowerIdP <* colon
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
--- TODO:AZ this is only ever used with BareType, use that instead of RType BTyVar tv r
--- bareArrow :: (Monoid r)
---           => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
---           -> RType BTyCon tv r
 bareArrow :: EBind -> BareType -> ArrowSym -> BareType
           -> BareType
 bareArrow eb t1 ArrowFun t2
   = rFun (eBindSym eb) t1 t2
 bareArrow eb t1 ArrowPred t2
-  = case val eb of
+  = case eb of
       Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
-      Left x  -> uError $ ErrOther sp ("Invalid class constraint binder:" <+> pprint x)
+      Left x  -> uError $ ErrOther (sp x) ("Invalid class constraint binder:" <+> pprint x)
     where
-      sp = fSrcSpanSrcSpan . srcSpan $ eb
+      sp xx = fSrcSpanSrcSpan . srcSpan $ xx
 
 isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType boolConName -- propConName
