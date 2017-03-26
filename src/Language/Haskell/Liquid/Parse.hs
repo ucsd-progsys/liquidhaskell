@@ -199,7 +199,7 @@ bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareConstraintP -- starts with braces
  <|> try bareFunP -- starts with lowerId or parens or '_'
- <|> bareAtomBindP
+ <|> bareAtomBindP -- starts with braces
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
@@ -223,34 +223,18 @@ bareAtomP ref
 bareAtomBindP :: Parser BareType
 bareAtomBindP = bareAtomP refBindBindP
 
-{-
-refBindP :: Parser Symbol
-         -> Parser Expr
-         -> Parser (Reft -> BareType)
-         -> Parser BareType
-refBindP bp rp kindP'
-  = braces (
-      (try(do x  <- bp
-              i  <- freshIntP
-              t  <- kindP'
-              reservedOp "|"
-              ra <- rp <* spaces
-              let xi = intSymbol x i
-              -- xi is a unique var based on the name in x.
-              -- su replaces any use of x in the balance of the expression with the unique val
-              let su v = if v == x then xi else v
-              return $ substa su $ t (Reft (x, ra)) ))
-     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
-     <?> "refBindP"
-   )
--}
 
+-- Either
+--  { x : t | ra }
+-- or
+--  { ra }
 refBindBindP :: Parser Expr
              -> Parser (Reft -> BareType)
              -> Parser BareType
 refBindBindP rp kindP'
   = braces (
-      (try(do x  <- bindP
+      (try(do x  <- symbolP
+              _ <- colon
               i  <- freshIntP
               t  <- kindP'
               reservedOp "|"
@@ -300,8 +284,9 @@ optBindP x = try bindP <|> return x
 holeP :: Parser (RType c tv (UReft Reft))
 holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
 
-holeRefP :: Parser (r -> RType c tv (UReft r))
-holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
+-- holeRefP :: Parser (r -> RType c tv (UReft r))
+holeRefP :: Parser (Reft -> BareType)
+holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
 
 -- NOPROP refasHoleP :: Parser Expr
 -- NOPROP refasHoleP  = try refaP
@@ -325,7 +310,7 @@ bbaseP
   =  holeRefP  -- Starts with '_'
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> parseHelper
+ <|> parseHelper  -- starts with lower
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
            -- starts with "'" or upper case char
  <?> "bbaseP"
