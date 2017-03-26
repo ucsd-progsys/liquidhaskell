@@ -37,9 +37,9 @@ tests =
   testGroup "Tests"
     [
       testSucceeds
-    , testFails
     , testSpecP
     , testReservedAliases
+    , testFails
     , testErrorReporting
     ]
 
@@ -384,6 +384,10 @@ testSucceeds =
     , testCase "type spec 16" $
        parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?=
            "Asrts ([\"sort\" (dummyLoc)],((Ord a) -> xs:[a] -> (OListN a {len xs}) (dummyLoc),Nothing))"
+
+    , testCase "type spec 17" $
+       parseSingleSpec " ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y } " @?=
+           "Asrts ([\"==.\" (dummyLoc)],(x:a -> y:{y##0 : a | x == y##0} -> {v##1 : b | v##1 ~~ x\n                                               && v##1 ~~ y} (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------

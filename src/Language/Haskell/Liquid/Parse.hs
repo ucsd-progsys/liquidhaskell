@@ -197,8 +197,8 @@ stringLiteral = Token.stringLiteral lexer
 bareTypeP :: Parser BareType
 bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareConstraintP
- <|> try bareFunP
+ <|> try bareConstraintP -- starts with braces
+ <|> try bareFunP -- starts with lowerId or parens or '_'
  <|> bareAtomBindP
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
@@ -212,7 +212,6 @@ bareArgP vv
  <?> "bareArgP"
 
 
--- kindP :: Parser (RType BTyCon BTyVar RReft)
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
           -> Parser BareType
 bareAtomP ref
@@ -228,20 +227,22 @@ refBindP :: Parser Symbol
          -> Parser Expr
          -> Parser (Reft -> BareType)
          -> Parser BareType
-refBindP bp rp kindP
-  = braces $
-   try (do x  <- bp
-           i  <- freshIntP
-           t  <- kindP
-           reservedOp "|"
-           ra <- rp <* spaces
-           let xi = intSymbol x i
-           let su v = if v == x then xi else v
-           return $ substa su $ t (Reft (x, ra)) )
-  <|> (RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces)
+refBindP bp rp kindP'
+  = braces (
+      (try(do x  <- bp
+              i  <- freshIntP
+              t  <- kindP'
+              reservedOp "|"
+              ra <- rp <* spaces
+              let xi = intSymbol x i
+              let su v = if v == x then xi else v
+              -- TODO:AZ I think the 'substa' call below together with the try might be what breaks the @crhisdone parse test
+              return $ substa su $ t (Reft (x, ra)) ))
+     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+   )
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
-refP       = refBindP bindP refaP
+refP = refBindP bindP refaP
 
 refDefP :: Symbol -> Parser Expr -> Parser (Reft -> BareType) -> Parser BareType
 refDefP x  = refBindP (optBindP x)
@@ -275,13 +276,18 @@ refasHoleP
 -- as `foo :: a -> b bar`..
 bbaseP :: Parser (Reft -> BareType)
 bbaseP
-  =  holeRefP
+  =  holeRefP  -- Starts with '_'
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
- <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
+ <|> parseHelper
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+           -- starts with "'" or upper case char
  <?> "bbaseP"
+ where
+   parseHelper = do
+     l <- lowerIdP
+     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
+      <|> (liftM3 bRVar  (return $ bTyVar l) stratumP monoPredicateP))
 
 bTyConP :: Parser BTyCon
 bTyConP
@@ -318,7 +324,7 @@ maybeP p = liftM Just p <|> return Nothing
 bareTyArgP :: Parser BareType
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
-     try (RExprArg . fmap expr <$> locParserP integer)
+      (RExprArg . fmap expr <$> locParserP integer)
  <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -327,7 +333,7 @@ bareTyArgP
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> try (dummyP (bbaseNoAppP <* spaces))
+ <|> (dummyP (bbaseNoAppP <* spaces))
  <?> "bareAtomNoAppP"
 
 
@@ -520,7 +526,7 @@ dummyRSort
 predicatesP :: (IsString tv, Monoid r)
             => Parser [Ref (RType c tv r) BareType]
 predicatesP
-   =  try (angles $ sepBy1 predicate1P comma)
+   =  (angles $ sepBy1 predicate1P comma)
   <|> return []
   <?> "predicatesP"
 
@@ -1068,7 +1074,7 @@ rawBodyP :: Parser Body
 rawBodyP
   = braces $ do
       v <- symbolP
-      (reservedOp "|" <?> "|")
+      reservedOp "|"
       p <- predP <* spaces
       return $ R v p
 
