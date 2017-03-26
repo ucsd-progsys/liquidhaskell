@@ -380,6 +380,10 @@ testSucceeds =
     , testCase "type spec 15" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?=
           "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##2:a -> b) -> lq_tmp$db##3:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##5:a -> b | f == g} (dummyLoc))"
+
+    , testCase "type spec 16" $
+       parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?=
+           "Asrts ([\"sort\" (dummyLoc)],((Ord a) -> xs:[a] -> (OListN a {len xs}) (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------
@@ -405,7 +409,7 @@ testErrorReporting =
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?=
           -- parseSingleSpec "ff :: {v :  }" @?=
-            "<test>:1:17: Error: Cannot parse specification:\n    unexpected \">\"\n    expecting  |"
+            "<test>:1:9: Error: Cannot parse specification:\n    unexpected \":\"\n    expecting operator, white space or \"}\""
     ]
 
 -- ---------------------------------------------------------------------

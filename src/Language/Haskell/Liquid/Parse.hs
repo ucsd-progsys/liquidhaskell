@@ -199,45 +199,46 @@ bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareConstraintP
  <|> try bareFunP
- <|> bareAtomP (refBindP bindP)
+ <|> bareAtomBindP
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
  <?> "bareTypeP"
 
-bareArgP :: Symbol
-         -> Parser (RType BTyCon BTyVar (UReft Reft))
+bareArgP :: Symbol -> Parser BareType
 bareArgP vv
   =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
  <?> "bareArgP"
 
-bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser (RType BTyCon BTyVar (UReft Reft)))
-          -> Parser (RType BTyCon BTyVar (UReft Reft))
+
+-- kindP :: Parser (RType BTyCon BTyVar RReft)
+bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
+          -> Parser BareType
 bareAtomP ref
   =  ref refasHoleP bbaseP
  <|> holeP
  <|> (dummyP (bbaseP <* spaces))
  <?> "bareAtomP"
 
+bareAtomBindP :: Parser BareType
+bareAtomBindP = bareAtomP (refBindP bindP)
 
 refBindP :: Parser Symbol
          -> Parser Expr
          -> Parser (Reft -> BareType)
          -> Parser BareType
 refBindP bp rp kindP
-  = braces $ (
-   (try(do x  <- bp
+  = braces $
+   try (do x  <- bp
            i  <- freshIntP
            t  <- kindP
-           (reservedOp "|" <?> "|")
+           reservedOp "|"
            ra <- rp <* spaces
            let xi = intSymbol x i
            let su v = if v == x then xi else v
-           return $ substa su $ t (Reft (x, ra)) ))
-  <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
-  <?> "refBindP"
-   )
+           return $ substa su $ t (Reft (x, ra)) )
+  <|> (RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces)
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP       = refBindP bindP refaP
@@ -277,19 +278,10 @@ bbaseP
   =  holeRefP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
  <|> try (liftM2 bAppTy (bTyVar <$> lowerIdP) (sepBy1 bareTyArgP blanks))
- <|> try (liftM3 bRVar  (bTyVar <$> lowerIdP) stratumP monoPredicateP)
+ <|> try (liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP)
+ <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
  <?> "bbaseP"
-
-bbaseNoAppP :: Parser (Reft -> BareType)
-bbaseNoAppP
-  =  holeRefP
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
- <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
- <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
- <?> "bbaseNoAppP"
 
 bTyConP :: Parser BTyCon
 bTyConP
@@ -311,32 +303,41 @@ bstratumP :: Parser [Stratum]
 bstratumP
   = ((:[]) . SVar) <$> symbolP
 
+bbaseNoAppP :: Parser (Reft -> BareType)
+bbaseNoAppP
+  =  holeRefP
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> try (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
+ <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
+ <?> "bbaseNoAppP"
+
 maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
 maybeP p = liftM Just p <|> return Nothing
 
-bareTyArgP :: Parser (RType BTyCon BTyVar RReft)
+bareTyArgP :: Parser BareType
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
-     (RExprArg . fmap expr <$> locParserP integer)
- <|> try bareAtomNoAppP -- can have braces
- <|> try (parens bareTypeP)
+     try (RExprArg . fmap expr <$> locParserP integer)
  <|> try (braces $ RExprArg <$> locParserP exprP)
+ <|> try bareAtomNoAppP
+ <|> try (parens bareTypeP)
  <?> "bareTyArgP"
 
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> (dummyP (bbaseNoAppP <* spaces))
+ <|> try (dummyP (bbaseNoAppP <* spaces))
  <?> "bareAtomNoAppP"
 
 
-bareConstraintP :: Parser (RType BTyCon BTyVar RReft)
+bareConstraintP :: Parser BareType
 bareConstraintP
   = do ct   <- braces constraintP
        t    <- bareTypeP
        return $ rrTy ct t
 
-constraintP :: Parser (RType BTyCon BTyVar RReft)
+constraintP :: Parser BareType
 constraintP
   = do xts <- constraintEnvP
        t1  <- bareTypeP
@@ -361,14 +362,14 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
 
-bareAllS :: Parser (RType BTyCon BTyVar RReft)
+bareAllS :: Parser BareType
 bareAllS
   = do ss <- angles $ sepBy1 symbolP comma
        dot
        t  <- bareTypeP
        return $ foldr RAllS t ss
 
-bareAllP :: Parser (RType BTyCon BTyVar RReft)
+bareAllP :: Parser BareType
 bareAllP
   = do as <- tyVarDefsP
        ps <- predVarDefsP
@@ -393,8 +394,8 @@ tyKindVarIdP
   <|> tyVarIdP
   <?> "tyKindVarIdP"
 
-kindP :: Parser (RType BTyCon BTyVar RReft)
-kindP = bareAtomP (refBindP bindP)
+kindP :: Parser BareType
+kindP = bareAtomBindP
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
@@ -443,7 +444,7 @@ arrowP
   =   (reservedOp "->" >> return ArrowFun)
   <|> (reservedOp "=>" >> return ArrowPred)
 
-bareFunP :: Parser (RType BTyCon BTyVar (UReft Reft))
+bareFunP :: Parser BareType
 bareFunP = do
   eb   <- eBindP
   let b = eBindSym eb
@@ -466,6 +467,7 @@ funBindP = lowerIdP <* colon
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
+-- TODO:AZ this is only ever used with BareType, use that instead of RType BTyVar tv r
 bareArrow :: (Monoid r)
           => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
           -> RType BTyCon tv r
@@ -1022,7 +1024,7 @@ instanceP
        spaces
        return $ RI c tvs ms
   where
-    superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
+    superP   = locParserP (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
@@ -1056,7 +1058,7 @@ classP
        spaces
        return $ RClass c sups tvs ms -- sups tvs ms
   where
-    superP   = locParserP (toRCls <$> bareAtomP (refBindP bindP))
+    superP   = locParserP (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
