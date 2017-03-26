@@ -221,8 +221,9 @@ bareAtomP ref
  <?> "bareAtomP"
 
 bareAtomBindP :: Parser BareType
-bareAtomBindP = bareAtomP (refBindP bindP)
+bareAtomBindP = bareAtomP refBindBindP
 
+{-
 refBindP :: Parser Symbol
          -> Parser Expr
          -> Parser (Reft -> BareType)
@@ -242,12 +243,53 @@ refBindP bp rp kindP'
      <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
      <?> "refBindP"
    )
+-}
+
+refBindBindP :: Parser Expr
+             -> Parser (Reft -> BareType)
+             -> Parser BareType
+refBindBindP rp kindP'
+  = braces (
+      (try(do x  <- bindP
+              i  <- freshIntP
+              t  <- kindP'
+              reservedOp "|"
+              ra <- rp <* spaces
+              let xi = intSymbol x i
+              -- xi is a unique var based on the name in x.
+              -- su replaces any use of x in the balance of the expression with the unique val
+              let su v = if v == x then xi else v
+              return $ substa su $ t (Reft (x, ra)) ))
+     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+     <?> "refBindBindP"
+   )
+
+
+refBindOptBindP :: Symbol
+         -> Parser Expr
+         -> Parser (Reft -> BareType)
+         -> Parser BareType
+refBindOptBindP vv rp kindP'
+  = braces (
+      (try(do x  <- optBindP vv
+              i  <- freshIntP
+              t  <- kindP'
+              reservedOp "|"
+              ra <- rp <* spaces
+              let xi = intSymbol x i
+              -- xi is a unique var based on the name in x.
+              -- su replaces any use of x in the balance of the expression with the unique val
+              let su v = if v == x then xi else v
+              return $ substa su $ t (Reft (x, ra)) ))
+     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+     <?> "refBindP"
+   )
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
-refP = refBindP bindP refaP
+refP = refBindBindP refaP
 
 refDefP :: Symbol -> Parser Expr -> Parser (Reft -> BareType) -> Parser BareType
-refDefP x  = refBindP (optBindP x)
+refDefP x  = refBindOptBindP x
 
 
 -- "sym :" or return the devault sym
@@ -478,9 +520,11 @@ dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
 -- TODO:AZ this is only ever used with BareType, use that instead of RType BTyVar tv r
-bareArrow :: (Monoid r)
-          => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
-          -> RType BTyCon tv r
+-- bareArrow :: (Monoid r)
+--           => EBind -> RType BTyCon tv r -> ArrowSym -> RType BTyCon tv r
+--           -> RType BTyCon tv r
+bareArrow :: EBind -> BareType -> ArrowSym -> BareType
+          -> BareType
 bareArrow eb t1 ArrowFun t2
   = rFun (eBindSym eb) t1 t2
 bareArrow eb t1 ArrowPred t2
