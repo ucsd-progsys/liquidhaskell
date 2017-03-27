@@ -197,25 +197,22 @@ stringLiteral = Token.stringLiteral lexer
 bareTypeP :: Parser BareType
 bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareFunP -- starts with lowerId or parens or '_'
-
- <|> bareTypeBracesP
-
- <|> holeP
- <|> (dummyP (bbaseP <* spaces))
-
+ <|> try bareFunLeftP  -- starts with lowerId
+ <|> try bareFunRightP -- starts with bareArgP
+                       -- hence
+                       --  '(' or '_' or bbaseP or '{'
+ <|> bareTypeBracesP -- starts with '{'
+ -- <|> holeP -- starts with '_'
  <|> (angles (do t <- parens bareTypeP
                  p <- monoPredicateP
                  return $ t `strengthen` MkUReft mempty p mempty))
+             -- starts with '<'
+ <|> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "bareTypeP"
 
 bareTypeBracesP :: Parser BareType
 bareTypeBracesP = do
-  t <-  -- (try (
-          -- braces $ try $ do
-          --      ct <- constraintP
-          --      return $ Right ct ))
-           (braces (
+  t <-  braces (
             (try (do
                ct <- constraintP
                return $ Right ct
@@ -235,7 +232,7 @@ bareTypeBracesP = do
                     return $ Left $ substa su $ t (Reft (x, ra)) ))
            <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
                   return (Left t)
-            ))
+            )
   case t of
     Left l -> return l
     Right ct -> do
@@ -243,18 +240,21 @@ bareTypeBracesP = do
       return $ rrTy ct tt
 
 
--- bareConstraintP :: Parser BareType
--- bareConstraintP
---   = do ct   <- braces constraintP
---        t    <- bareTypeP
---        return $ rrTy ct t
-
+{-
 bareArgP :: Symbol -> Parser BareType
 bareArgP vv
   =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
  <?> "bareArgP"
+-}
 
+bareArgP :: Symbol -> Parser BareType
+bareArgP vv
+  =  (refDefP vv) refasHoleP bbaseP -- starts with '{'
+ <|> holeP                          -- starts with '_'
+ <|> parens bareTypeP               -- starts with '('
+ <|> (dummyP (bbaseP <* spaces))
+ <?> "bareArgP"
 
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
           -> Parser BareType
@@ -520,27 +520,32 @@ arrowP
   =   (reservedOp "->" >> return ArrowFun)
   <|> (reservedOp "=>" >> return ArrowPred)
 
--- TODO:AZ: split this in two alternatives, instead of the split happening in eBindP
-bareFunP :: Parser BareType
-bareFunP = do
-  eb   <- eBindP
-  let b = eBindSym eb
+
+bareFunLeftP :: Parser BareType
+bareFunLeftP = do
+  lb <- locParserP lowerIdP
+  _ <- colon
+  let b = val lb
   t1   <- bareArgP b
   a    <- arrowP
   t2   <- bareTypeP
-  return $ bareArrow eb t1 a t2
+  return $ bareArrow (Left lb) t1 a t2
+
+bareFunRightP :: Parser BareType
+bareFunRightP = do
+  lb <- locParserP dummyBindP
+  let b = val lb
+  t1   <- bareArgP b
+  a    <- arrowP
+  t2   <- bareTypeP
+  return $ bareArrow (Right lb) t1 a t2
+
 
 -- type EBind = Located (Either Symbol Symbol)
 type EBind = Either (Located Symbol) (Located Symbol)
 
 eBindSym :: EBind -> Symbol
 eBindSym = either val val
-
-eBindP :: Parser EBind
-eBindP = try (Left <$> locParserP funBindP) <|> (Right <$> locParserP dummyBindP)
-
-funBindP :: Parser Symbol
-funBindP = lowerIdP <* colon
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
@@ -578,6 +583,8 @@ getClasses t
 dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm
   = fm `ap` return dummyReft
+-- ap                :: (Monad m) => m (a -> b) -> m a -> m b
+-- ap m1 m2          = do { x1 <- m1; x2 <- m2; return (x1 x2) }
 
 symsP :: (IsString tv, Monoid r)
       => Parser [(Symbol, RType c tv r)]
