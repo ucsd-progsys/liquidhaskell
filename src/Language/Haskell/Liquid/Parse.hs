@@ -191,14 +191,95 @@ stringLiteral = Token.stringLiteral lexer
 -- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------
+-- AZ: reworking bareTypeP to be top-down
+
+-- fundamentally, a type is ofthe form
+--   comp -> comp -> .. -> comp
+--
+-- So
+--
+-- bt = comp
+--    | comp '->' bt
+--
+-- comp = circle
+--      | '(' bt ')'
+--
+-- circle = the ground component of a baretype, sans parens or "->" at the top
+--          level
+
+-- Each 'comp' should have a variable to refer to it, either a parser-assigned
+-- one or given explicitly.
+--  e.g.   xs : [Int]
+data ParamComp = PC { pcs :: Symbol, pct :: BareType }
+
+-- Temporary to ease the transition from older parsers
+nullPC :: BareType -> ParamComp
+nullPC bt = PC dummySymbol bt
+
+btP :: Parser ParamComp
+btP = do
+  c@(PC b t1) <- compP
+  ((do
+        reservedOp "->"
+        PC _ t2 <- btP
+        return (PC b (rFun b t1 t2)))
+     <|> return c)
+  <?> "btP"
+
+compP :: Parser ParamComp
+compP = circleP <|> parens btP <?> "compP"
+
+circleP :: Parser ParamComp
+circleP
+  =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
+ <|> namedCircleP
+ <|> unnamedCircleP
+ <|> nullPC <$> bareTypeBracesP -- starts with '{'
+ <|> (angles (do PC b t <- parens btP
+                 p <- monoPredicateP
+                 return $ PC b (t `strengthen` MkUReft mempty p mempty)))
+             -- starts with '<'
+ <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
+ <?> "circeP"
+
+namedCircleP :: Parser ParamComp
+namedCircleP = do
+  lb <- locParserP lowerIdP
+  _ <- colon
+  let b = val lb
+  t1 <- bareArgP b
+  return $ PC b t1
+
+unnamedCircleP :: Parser ParamComp
+unnamedCircleP = do
+  lb <- locParserP dummyBindP
+  let b = val lb
+  t1   <- bareArgP b
+  return $ PC b t1
+
+bbasePNew :: Parser (Reft -> BareType)
+bbasePNew
+  =  holeRefP  -- Starts with '_'
+ <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+ <?> "bbasePNew"
+
+-- ---------------------------------------------------------------------
+
 -- | The top-level parser for "bare" refinement types. If refinements are
 -- not supplied, then the default "top" refinement is used.
 
 bareTypeP :: Parser BareType
-bareTypeP
+bareTypeP = do
+  PC _ v <- btP
+  return v
+
+bareTypePOld :: Parser BareType
+bareTypePOld
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareFunLeftFunP   -- starts with lowerId
  <|> try bareFunRightFunP  -- starts with bareArgP
+
  <|> try bareFunRightPredP -- starts with bareArgP
  <|> bareTypeBracesP -- starts with '{'
  -- <|> holeP -- starts with '_'
@@ -512,12 +593,6 @@ mkPredVarType t
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
--- data ArrowSym = ArrowFun | ArrowPred
-
--- arrowP :: Parser ArrowSym
--- arrowP
---   =   (reservedOp "->" >> return ArrowFun)
---   <|> (reservedOp "=>" >> return ArrowPred)
 
 bareFunLeftFunP :: Parser BareType
 bareFunLeftFunP = do
@@ -527,19 +602,7 @@ bareFunLeftFunP = do
   t1   <- bareArgP b
   reservedOp "->"
   t2   <- bareTypeP
-  -- return $ bareArrow (Left lb) t1 a t2
   return $ rFun b t1 t2
-
--- Following is invalid
--- bareFunLeftPredP :: Parser BareType
--- bareFunLeftPredP = do
---   lb <- locParserP lowerIdP
---   _ <- colon
---   let b = val lb
---   t1   <- bareArgP b
---   reservedOp "=>"
---   t2   <- bareTypeP
---   return $ bareArrow (Left lb) t1 ArrowPred t2
 
 bareFunRightFunP :: Parser BareType
 bareFunRightFunP = do
@@ -548,7 +611,6 @@ bareFunRightFunP = do
   t1   <- bareArgP b
   reservedOp "->"
   t2   <- bareTypeP
-  -- return $ bareArrow (Right lb) t1 ArrowFun t2
   return $ rFun b t1 t2
 
 bareFunRightPredP :: Parser BareType
@@ -560,25 +622,10 @@ bareFunRightPredP = do
   t2   <- bareTypeP
   return $ foldr (rFun dummySymbol) t2 (getClasses t1)
 
--- type EBind = Located (Either Symbol Symbol)
--- type EBind = Either (Located Symbol) (Located Symbol)
-
--- eBindSym :: EBind -> Symbol
--- eBindSym = either val val
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
--- bareArrow :: EBind -> BareType -> ArrowSym -> BareType
---           -> BareType
--- bareArrow eb t1 ArrowFun t2
---   = rFun (eBindSym eb) t1 t2
--- bareArrow eb t1 ArrowPred t2
---   = case eb of
---       Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
---       Left x  -> uError $ ErrOther (sp x) ("Invalid class constraint binder:" <+> pprint x)
---     where
---       sp xx = fSrcSpanSrcSpan . srcSpan $ xx
 
 isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType boolConName -- propConName

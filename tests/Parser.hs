@@ -278,9 +278,13 @@ testReservedAliases =
 testSucceeds :: TestTree
 testSucceeds =
   testGroup "Should succeed"
-    [ testCase "Int" $
+    [ testCase "x :: Int" $
        (parseSingleSpec "x :: Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(Int (dummyLoc),Nothing))"
+
+    , testCase "x :: Int -> Int" $
+       (parseSingleSpec "x :: Int -> Int") @?=
+          "Asrts ([\"x\" (dummyLoc)],(Int -> Int (dummyLoc),Nothing))"
 
     , testCase "k:Int -> Int" $
        (parseSingleSpec "x :: k:Int -> Int") @?=
