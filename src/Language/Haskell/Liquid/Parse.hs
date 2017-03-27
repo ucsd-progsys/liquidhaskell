@@ -34,7 +34,7 @@ import           Data.Char                              (isSpace, isAlpha, isUpp
 import           Data.List                              (foldl', partition)
 
 import           GHC                                    (ModuleName, mkModuleName)
-import           Text.PrettyPrint.HughesPJ              (text, (<+>))
+import           Text.PrettyPrint.HughesPJ              (text )
 
 import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
@@ -197,10 +197,9 @@ stringLiteral = Token.stringLiteral lexer
 bareTypeP :: Parser BareType
 bareTypeP
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareFunLeftP  -- starts with lowerId
- <|> try bareFunRightP -- starts with bareArgP
-                       -- hence
-                       --  '(' or '_' or bbaseP or '{'
+ <|> try bareFunLeftFunP   -- starts with lowerId
+ <|> try bareFunRightFunP  -- starts with bareArgP
+ <|> try bareFunRightPredP -- starts with bareArgP
  <|> bareTypeBracesP -- starts with '{'
  -- <|> holeP -- starts with '_'
  <|> (angles (do t <- parens bareTypeP
@@ -252,8 +251,8 @@ bareArgP :: Symbol -> Parser BareType
 bareArgP vv
   =  (refDefP vv) refasHoleP bbaseP -- starts with '{'
  <|> holeP                          -- starts with '_'
- <|> parens bareTypeP               -- starts with '('
  <|> (dummyP (bbaseP <* spaces))
+ <|> parens bareTypeP               -- starts with '('
  <?> "bareArgP"
 
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
@@ -513,53 +512,73 @@ mkPredVarType t
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
-data ArrowSym = ArrowFun | ArrowPred
+-- data ArrowSym = ArrowFun | ArrowPred
 
-arrowP :: Parser ArrowSym
-arrowP
-  =   (reservedOp "->" >> return ArrowFun)
-  <|> (reservedOp "=>" >> return ArrowPred)
+-- arrowP :: Parser ArrowSym
+-- arrowP
+--   =   (reservedOp "->" >> return ArrowFun)
+--   <|> (reservedOp "=>" >> return ArrowPred)
 
-
-bareFunLeftP :: Parser BareType
-bareFunLeftP = do
+bareFunLeftFunP :: Parser BareType
+bareFunLeftFunP = do
   lb <- locParserP lowerIdP
   _ <- colon
   let b = val lb
   t1   <- bareArgP b
-  a    <- arrowP
+  reservedOp "->"
   t2   <- bareTypeP
-  return $ bareArrow (Left lb) t1 a t2
+  -- return $ bareArrow (Left lb) t1 a t2
+  return $ rFun b t1 t2
 
-bareFunRightP :: Parser BareType
-bareFunRightP = do
+-- Following is invalid
+-- bareFunLeftPredP :: Parser BareType
+-- bareFunLeftPredP = do
+--   lb <- locParserP lowerIdP
+--   _ <- colon
+--   let b = val lb
+--   t1   <- bareArgP b
+--   reservedOp "=>"
+--   t2   <- bareTypeP
+--   return $ bareArrow (Left lb) t1 ArrowPred t2
+
+bareFunRightFunP :: Parser BareType
+bareFunRightFunP = do
   lb <- locParserP dummyBindP
   let b = val lb
   t1   <- bareArgP b
-  a    <- arrowP
+  reservedOp "->"
   t2   <- bareTypeP
-  return $ bareArrow (Right lb) t1 a t2
+  -- return $ bareArrow (Right lb) t1 ArrowFun t2
+  return $ rFun b t1 t2
 
+bareFunRightPredP :: Parser BareType
+bareFunRightPredP = do
+  lb <- locParserP dummyBindP
+  let b = val lb
+  t1   <- bareArgP b
+  reservedOp "=>"
+  t2   <- bareTypeP
+  return $ foldr (rFun dummySymbol) t2 (getClasses t1)
 
 -- type EBind = Located (Either Symbol Symbol)
-type EBind = Either (Located Symbol) (Located Symbol)
+-- type EBind = Either (Located Symbol) (Located Symbol)
 
-eBindSym :: EBind -> Symbol
-eBindSym = either val val
+-- eBindSym :: EBind -> Symbol
+-- eBindSym = either val val
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
-bareArrow :: EBind -> BareType -> ArrowSym -> BareType
-          -> BareType
-bareArrow eb t1 ArrowFun t2
-  = rFun (eBindSym eb) t1 t2
-bareArrow eb t1 ArrowPred t2
-  = case eb of
-      Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
-      Left x  -> uError $ ErrOther (sp x) ("Invalid class constraint binder:" <+> pprint x)
-    where
-      sp xx = fSrcSpanSrcSpan . srcSpan $ xx
+-- bareArrow :: EBind -> BareType -> ArrowSym -> BareType
+--           -> BareType
+-- bareArrow eb t1 ArrowFun t2
+--   = rFun (eBindSym eb) t1 t2
+-- bareArrow eb t1 ArrowPred t2
+--   = case eb of
+--       Right _ -> foldr (rFun dummySymbol) t2 (getClasses t1)
+--       Left x  -> uError $ ErrOther (sp x) ("Invalid class constraint binder:" <+> pprint x)
+--     where
+--       sp xx = fSrcSpanSrcSpan . srcSpan $ xx
 
 isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType boolConName -- propConName

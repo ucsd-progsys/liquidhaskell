@@ -388,6 +388,10 @@ testSucceeds =
     , testCase "type spec 17" $
        parseSingleSpec " ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y } " @?=
            "Asrts ([\"==.\" (dummyLoc)],(x:a -> y:{y##0 : a | x == y##0} -> {v##1 : b | v##1 ~~ x\n                                               && v##1 ~~ y} (dummyLoc),Nothing))"
+
+    , testCase "type spec 18" $
+       parseSingleSpec "measure snd :: (a,b) -> b" @?=
+           "Meas snd :: lq_tmp$db##0:(a, b) -> b"
     ]
 
 -- ---------------------------------------------------------------------
