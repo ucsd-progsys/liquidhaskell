@@ -211,19 +211,30 @@ stringLiteral = Token.stringLiteral lexer
 -- Each 'comp' should have a variable to refer to it, either a parser-assigned
 -- one or given explicitly.
 --  e.g.   xs : [Int]
-data ParamComp = PC { pcs :: Symbol, pct :: BareType }
+data ParamComp = PC { pci :: PcScope
+                    , pcs :: Symbol
+                    , pct :: BareType }
+
+data PcScope = PcImplicit | PcExplicit
+             deriving (Eq,Show)
 
 -- Temporary to ease the transition from older parsers
 nullPC :: BareType -> ParamComp
-nullPC bt = PC dummySymbol bt
+nullPC bt = PC  PcImplicit dummySymbol bt
 
 btP :: Parser ParamComp
 btP = do
-  c@(PC b t1) <- compP
+  c@(PC s b t1) <- compP
   ((do
         reservedOp "->"
-        PC _ t2 <- btP
-        return (PC b (rFun b t1 t2)))
+        PC _ _ t2 <- btP
+        return (PC s b (rFun b t1 t2)))
+    <|>
+     (do
+        reservedOp "=>"
+        PC _ _ t2 <- btP
+        -- TODO:AZ return an error if s == PcExplicit
+        return $ PC s b $ foldr (rFun dummySymbol) t2 (getClasses t1))
      <|> return c)
   <?> "btP"
 
@@ -236,33 +247,47 @@ circleP
  <|> namedCircleP
  <|> unnamedCircleP
  <|> nullPC <$> bareTypeBracesP -- starts with '{'
- <|> (angles (do PC b t <- parens btP
+ <|> (angles (do PC s b t <- parens btP
                  p <- monoPredicateP
-                 return $ PC b (t `strengthen` MkUReft mempty p mempty)))
+                 return $ PC s b (t `strengthen` MkUReft mempty p mempty)))
              -- starts with '<'
- <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
+ <|> nullPC <$> (dummyP (bbasePNew <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "circeP"
 
 namedCircleP :: Parser ParamComp
 namedCircleP = do
   lb <- locParserP lowerIdP
-  _ <- colon
-  let b = val lb
-  t1 <- bareArgP b
-  return $ PC b t1
+  (do
+      _ <- colon
+      let b = val lb
+      t1 <- bareArgP b
+      return $ PC PcExplicit b t1
+    <|> nullPC <$> dummyP (lowerIdTail (val lb))
+    )
 
 unnamedCircleP :: Parser ParamComp
 unnamedCircleP = do
   lb <- locParserP dummyBindP
   let b = val lb
   t1   <- bareArgP b
-  return $ PC b t1
+  return $ PC PcImplicit b t1
 
 bbasePNew :: Parser (Reft -> BareType)
 bbasePNew
   =  holeRefP  -- Starts with '_'
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> parseHelper
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
  <?> "bbasePNew"
+ where
+   parseHelper = do
+     l <- lowerIdP
+     lowerIdTail l
+
+lowerIdTail :: Symbol -> Parser (Reft -> BareType)
+lowerIdTail l =
+     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
+      <|> (liftM3 bRVar  (return $ bTyVar l) stratumP monoPredicateP))
 
 -- ---------------------------------------------------------------------
 
@@ -271,7 +296,7 @@ bbasePNew
 
 bareTypeP :: Parser BareType
 bareTypeP = do
-  PC _ v <- btP
+  PC _ _ v <- btP
   return v
 
 bareTypePOld :: Parser BareType
@@ -442,8 +467,7 @@ bbaseP
  where
    parseHelper = do
      l <- lowerIdP
-     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
-      <|> (liftM3 bRVar  (return $ bTyVar l) stratumP monoPredicateP))
+     lowerIdTail l
 
 bTyConP :: Parser BTyCon
 bTyConP

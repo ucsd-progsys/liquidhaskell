@@ -282,6 +282,14 @@ testSucceeds =
        (parseSingleSpec "x :: Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(Int (dummyLoc),Nothing))"
 
+    , testCase "x :: a" $
+       (parseSingleSpec "x :: a") @?=
+          "Asrts ([\"x\" (dummyLoc)],(a (dummyLoc),Nothing))"
+
+    , testCase "x :: a -> a" $
+       (parseSingleSpec "x :: a -> a") @?=
+          "Asrts ([\"x\" (dummyLoc)],(a -> a (dummyLoc),Nothing))"
+
     , testCase "x :: Int -> Int" $
        (parseSingleSpec "x :: Int -> Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(Int -> Int (dummyLoc),Nothing))"
@@ -290,11 +298,11 @@ testSucceeds =
        (parseSingleSpec "x :: k:Int -> Int") @?=
           "Asrts ([\"x\" (dummyLoc)],(k:Int -> Int (dummyLoc),Nothing))"
 
-    , testCase "type spec 1" $
+    , testCase "type spec 1 " $
        parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?=
           "Alias type IncrListD \"a\" \"D\" = [a] -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
-    , testCase "type spec 2" $
+    , testCase "type spec 2 " $
        parseSingleSpec "takeL :: Ord a => x:a -> [a] -> [{v:a|v<=x}]" @?=
           "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v##2 : a | v##2 <= x}] (dummyLoc),Nothing))"
 
@@ -310,7 +318,7 @@ testSucceeds =
        parseSingleSpec "mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a" @?=
           "Asrts ([\"mapKeysWith\" (dummyLoc)],((Ord k2) -> lq_tmp$db##1:(lq_tmp$db##2:a -> lq_tmp$db##3:a -> a) -> lq_tmp$db##4:(lq_tmp$db##5:k1 -> k2) -> lq_tmp$db##6:(OMap k1 a) -> (OMap k2 a) (dummyLoc),Nothing))"
 
-    , testCase "type spec 6" $
+    , testCase "type spec 6 " $
        parseSingleSpec (unlines $
          [ "data Tree [ht] a = Nil"
          , "            | Tree { key :: a"
