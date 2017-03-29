@@ -337,7 +337,7 @@ testSucceeds =
        parseSingleSpec "type AVLR a X    = AVLTree {v:a |X< v} " @?=
           "Alias type AVLR \"a\" \"X\" = (AVLTree {v##0 : a | X < v##0}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
-    , testCase "type spec 9" $
+    , testCase "type spec 9 " $
        parseSingleSpec (unlines $
       [ "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool>."
       , "  {x::a<p> |- a<q> <: {v:a| x <= v}} "
