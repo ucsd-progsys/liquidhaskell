@@ -404,6 +404,17 @@ testSucceeds =
     , testCase "type spec 18" $
        parseSingleSpec "measure snd :: (a,b) -> b" @?=
            "Meas snd :: lq_tmp$db##0:(a, b) -> b"
+
+    , testCase "type spec 19" $
+       parseSingleSpec "returnST :: xState:a \n             -> ST <{\\xs xa v -> (xa = xState)}> a s " @?=
+                     -- returnST :: a -> ST a s
+                     -- returnST x = S $ \s -> (x, s)
+           "Asrts ([\"returnST\" (dummyLoc)],(xState:a -> (ST a s) (dummyLoc),Nothing))"
+
+    , testCase "type spec 20" $
+       parseSingleSpec "makeq :: l:_ -> r:{ _ | size r <= size l + 1} -> _ " @?=
+           "Asrts ([\"makeq\" (dummyLoc)],(l:{VV : _ | $HOLE} -> r:{r##0 : _ | size r##0 <= size l + 1} -> {VV : _ | $HOLE} (dummyLoc),Nothing))"
+
     ]
 
 -- ---------------------------------------------------------------------

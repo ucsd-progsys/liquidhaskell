@@ -244,6 +244,7 @@ compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 circleP :: Parser ParamComp
 circleP
   =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
+ <|> nullPC <$> holeP -- starts with '_'
  <|> namedCircleP -- starts with lower
  <|> nullPC <$> bareTypeBracesP -- starts with '{'
  <|> unnamedCircleP
@@ -415,10 +416,9 @@ optBindP :: Symbol
          -> Parser Symbol
 optBindP x = try bindP <|> return x
 
-holeP :: Parser (RType c tv (UReft Reft))
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
+holeP :: Parser BareType
+holeP    = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
 
--- holeRefP :: Parser (r -> RType c tv (UReft r))
 holeRefP :: Parser (Reft -> BareType)
 holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
 
