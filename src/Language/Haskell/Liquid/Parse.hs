@@ -227,7 +227,7 @@ btP :: Parser ParamComp
 btP = do
   c@(PC sb _) <- compP
   case sb of
-    PcNoSymbol -> return c
+    PcNoSymbol   -> return c
     PcImplicit b -> parseFun c b
     PcExplicit b -> parseFun c b
   <?> "btP"
@@ -251,7 +251,7 @@ compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 circleP :: Parser ParamComp
 circleP
   =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> nullPC <$> holeP -- starts with '_'
+ <|> holePC -- starts with '_'
  <|> namedCircleP -- starts with lower
  <|> bareTypeBracesP -- starts with '{'
  <|> unnamedCircleP
@@ -261,6 +261,12 @@ circleP
              -- starts with '<'
  <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "circeP"
+
+holePC :: Parser ParamComp
+holePC = do
+  h <- holeP
+  b <- dummyBindP
+  return (PC (PcImplicit b) h)
 
 namedCircleP :: Parser ParamComp
 namedCircleP = do

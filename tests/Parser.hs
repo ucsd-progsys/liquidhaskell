@@ -422,6 +422,10 @@ testSucceeds =
     , testCase "type spec 22" $
        parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?=
          "Asrts ([\"cycle\" (dummyLoc)],(lq_tmp$db##0:{v##1 : [a] | len v##1 > 0} -> [a] (dummyLoc),Nothing))"
+
+    , testCase "type spec 23" $
+       parseSingleSpec "cons :: x:a -> _ -> {v:[a] | hd v = x} " @?=
+         "Asrts ([\"cons\" (dummyLoc)],(x:a -> lq_tmp$db##0:{VV : _ | $HOLE} -> {v##1 : [a] | hd v##1 == x} (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------
