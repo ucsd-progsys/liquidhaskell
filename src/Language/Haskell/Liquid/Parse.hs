@@ -212,31 +212,38 @@ stringLiteral = Token.stringLiteral lexer
 -- one or given explicitly.
 --  e.g.   xs : [Int]
 data ParamComp = PC { _pci :: PcScope
-                    , _pcs :: Symbol
                     , _pct :: BareType }
 
-data PcScope = PcImplicit | PcExplicit
+data PcScope = PcImplicit Symbol
+             | PcExplicit Symbol
+             | PcNoSymbol
              deriving (Eq,Show)
 
 -- Temporary to ease the transition from older parsers
 nullPC :: BareType -> ParamComp
-nullPC bt = PC  PcImplicit dummySymbol bt
+nullPC bt = PC PcNoSymbol bt
 
 btP :: Parser ParamComp
 btP = do
-  c@(PC s b t1) <- compP
-  ((do
-        reservedOp "->"
-        PC _ _ t2 <- btP
-        return (PC s b (rFun b t1 t2)))
-    <|>
-     (do
-        reservedOp "=>"
-        PC _ _ t2 <- btP
-        -- TODO:AZ return an error if s == PcExplicit
-        return $ PC s b $ foldr (rFun dummySymbol) t2 (getClasses t1))
-     <|> return c)
+  c@(PC sb _) <- compP
+  case sb of
+    PcNoSymbol -> return c
+    PcImplicit b -> parseFun c b
+    PcExplicit b -> parseFun c b
   <?> "btP"
+  where
+    parseFun c@(PC sb t1) b  =
+      ((do
+            reservedOp "->"
+            PC _ t2 <- btP
+            return (PC sb (rFun b t1 t2)))
+        <|>
+         (do
+            reservedOp "=>"
+            PC _ t2 <- btP
+            -- TODO:AZ return an error if s == PcExplicit
+            return $ PC sb $ foldr (rFun dummySymbol) t2 (getClasses t1))
+         <|> return c)
 
 compP :: Parser ParamComp
 compP = circleP <* whiteSpace <|> parens btP <?> "compP"
@@ -246,11 +253,11 @@ circleP
   =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> nullPC <$> holeP -- starts with '_'
  <|> namedCircleP -- starts with lower
- <|> nullPC <$> bareTypeBracesP -- starts with '{'
+ <|> bareTypeBracesP -- starts with '{'
  <|> unnamedCircleP
- <|> (angles (do PC s b t <- parens btP
+ <|> (angles (do PC sb t <- parens btP
                  p <- monoPredicateP
-                 return $ PC s b (t `strengthen` MkUReft mempty p mempty)))
+                 return $ PC sb (t `strengthen` MkUReft mempty p mempty)))
              -- starts with '<'
  <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "circeP"
@@ -262,8 +269,8 @@ namedCircleP = do
       _ <- colon
       let b = val lb
       t1 <- bareArgP b
-      return $ PC PcExplicit b t1
-    <|> nullPC <$> dummyP (lowerIdTail (val lb))
+      return $ PC (PcExplicit b) t1
+    <|> PC (PcExplicit (val lb)) <$> dummyP (lowerIdTail (val lb))
     )
 
 unnamedCircleP :: Parser ParamComp
@@ -271,7 +278,7 @@ unnamedCircleP = do
   lb <- locParserP dummyBindP
   let b = val lb
   t1 <- bareArgP b
-  return $ PC PcImplicit b t1
+  return $ PC (PcImplicit b) t1
 
 -- ---------------------------------------------------------------------
 
@@ -280,11 +287,12 @@ unnamedCircleP = do
 
 bareTypeP :: Parser BareType
 bareTypeP = do
-  PC _ _ v <- btP
+  PC _ v <- btP
   return v
 
-_bareTypePOld :: Parser BareType
-_bareTypePOld
+{-
+bareTypePOld :: Parser BareType
+bareTypePOld
   =  (reserved "forall" >> (bareAllP <|> bareAllS))
  <|> try bareFunLeftFunP   -- starts with lowerId
  <|> try bareFunRightFunP  -- starts with bareArgP
@@ -298,8 +306,9 @@ _bareTypePOld
              -- starts with '<'
  <|> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "bareTypeP"
+-}
 
-bareTypeBracesP :: Parser BareType
+bareTypeBracesP :: Parser ParamComp
 bareTypeBracesP = do
   t <-  braces (
             (try (do
@@ -318,15 +327,15 @@ bareTypeBracesP = do
                     -- xi is a unique var based on the name in x.
                     -- su replaces any use of x in the balance of the expression with the unique val
                     let su v = if v == x then xi else v
-                    return $ Left $ substa su $ t (Reft (x, ra)) ))
+                    return $ Left $ PC (PcExplicit x) $ substa su $ t (Reft (x, ra)) ))
            <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
-                  return (Left t)
+                  return (Left $ nullPC t)
             )
   case t of
     Left l -> return l
     Right ct -> do
       tt <- bareTypeP
-      return $ rrTy ct tt
+      return $ nullPC $ rrTy ct tt
 
 
 {-
@@ -606,7 +615,7 @@ mkPredVarType t
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
-
+{-
 bareFunLeftFunP :: Parser BareType
 bareFunLeftFunP = do
   lb <- locParserP lowerIdP
@@ -634,7 +643,7 @@ bareFunRightPredP = do
   reservedOp "=>"
   t2   <- bareTypeP
   return $ foldr (rFun dummySymbol) t2 (getClasses t1)
-
+-}
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP

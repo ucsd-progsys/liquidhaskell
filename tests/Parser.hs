@@ -415,6 +415,13 @@ testSucceeds =
        parseSingleSpec "makeq :: l:_ -> r:{ _ | size r <= size l + 1} -> _ " @?=
            "Asrts ([\"makeq\" (dummyLoc)],(l:{VV : _ | $HOLE} -> r:{r##0 : _ | size r##0 <= size l + 1} -> {VV : _ | $HOLE} (dummyLoc),Nothing))"
 
+    , testCase "type spec 21" $
+       parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?=
+         "Asrts ([\"newRGRef\" (dummyLoc)],(e:{VV : a | true} -> e2:{VV : a | true} -> f:(x:{VV : a | true} -> y:{VV : a | true} -> {v##3 : a | v##3 == y}) -> (IO (RGRef a)) (dummyLoc),Nothing))"
+
+    , testCase "type spec 22" $
+       parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?=
+         "Asrts ([\"cycle\" (dummyLoc)],(lq_tmp$db##0:{v##1 : [a] | len v##1 > 0} -> [a] (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------
