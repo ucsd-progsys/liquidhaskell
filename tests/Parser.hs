@@ -426,6 +426,10 @@ testSucceeds =
     , testCase "type spec 23" $
        parseSingleSpec "cons :: x:a -> _ -> {v:[a] | hd v = x} " @?=
          "Asrts ([\"cons\" (dummyLoc)],(x:a -> lq_tmp$db##0:{VV : _ | $HOLE} -> {v##1 : [a] | hd v##1 == x} (dummyLoc),Nothing))"
+
+    , testCase "type spec 24" $
+       parseSingleSpec "set :: a:Vector a -> i:Idx a -> a -> {v:Vector a | vlen v = vlen a}" @?=
+         "Asrts ([\"set\" (dummyLoc)],(a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v##1 : (Vector a) | vlen v##1 == vlen a} (dummyLoc),Nothing))"
     ]
 
 -- ---------------------------------------------------------------------

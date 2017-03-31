@@ -276,7 +276,9 @@ namedCircleP = do
       let b = val lb
       t1 <- bareArgP b
       return $ PC (PcExplicit b) t1
-    <|> PC (PcExplicit (val lb)) <$> dummyP (lowerIdTail (val lb))
+    <|> do
+      b <- dummyBindP
+      PC (PcImplicit b) <$> dummyP (lowerIdTail (val lb))
     )
 
 unnamedCircleP :: Parser ParamComp
