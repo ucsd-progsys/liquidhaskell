@@ -59,6 +59,8 @@ import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
 -- import Language.Haskell.Liquid.Bare.RefToLogic
 
+-- import Data.Data (toConstr)
+
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
@@ -263,6 +265,7 @@ exprArg msg (RAppTy (RVar f _) t _)
   = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
+  -- = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z ++ "[" ++ show (toConstr z) ++ "]") msg
     -- FIXME: Handle this error much better!
 
 --------------------------------------------------------------------------------
