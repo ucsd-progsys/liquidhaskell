@@ -192,8 +192,6 @@ stringLiteral = Token.stringLiteral lexer
 ----------------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------
--- AZ: reworking bareTypeP to be top-down
-
 -- fundamentally, a type is ofthe form
 --   comp -> comp -> .. -> comp
 --
@@ -219,7 +217,6 @@ data PcScope = PcImplicit Symbol
              | PcNoSymbol
              deriving (Eq,Show)
 
--- Temporary to ease the transition from older parsers
 nullPC :: BareType -> ParamComp
 nullPC bt = PC PcNoSymbol bt
 
@@ -298,24 +295,6 @@ bareTypeP = do
   PC _ v <- btP
   return v
 
-{-
-bareTypePOld :: Parser BareType
-bareTypePOld
-  =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareFunLeftFunP   -- starts with lowerId
- <|> try bareFunRightFunP  -- starts with bareArgP
-
- <|> try bareFunRightPredP -- starts with bareArgP
- <|> bareTypeBracesP -- starts with '{'
- -- <|> holeP -- starts with '_'
- <|> (angles (do t <- parens bareTypeP
-                 p <- monoPredicateP
-                 return $ t `strengthen` MkUReft mempty p mempty))
-             -- starts with '<'
- <|> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
- <?> "bareTypeP"
--}
-
 bareTypeBracesP :: Parser ParamComp
 bareTypeBracesP = do
   t <-  braces (
@@ -342,17 +321,8 @@ bareTypeBracesP = do
   case t of
     Left l -> return l
     Right ct -> do
-      tt <- bareTypeP
+      PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
-
-
-{-
-bareArgP :: Symbol -> Parser BareType
-bareArgP vv
-  =  bareAtomP (refDefP vv)
- <|> parens bareTypeP
- <?> "bareArgP"
--}
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
@@ -509,8 +479,7 @@ maybeP p = liftM Just p <|> return Nothing
 
 bareTyArgP :: Parser BareType
 bareTyArgP
-  =  -- try (RExprArg . expr <$> binderP) <|>
-      (RExprArg . fmap expr <$> locParserP integer)
+  =  (RExprArg . fmap expr <$> locParserP integer)
  <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -623,35 +592,6 @@ mkPredVarType t
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
-{-
-bareFunLeftFunP :: Parser BareType
-bareFunLeftFunP = do
-  lb <- locParserP lowerIdP
-  _ <- colon
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "->"
-  t2   <- bareTypeP
-  return $ rFun b t1 t2
-
-bareFunRightFunP :: Parser BareType
-bareFunRightFunP = do
-  lb <- locParserP dummyBindP
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "->"
-  t2   <- bareTypeP
-  return $ rFun b t1 t2
-
-bareFunRightPredP :: Parser BareType
-bareFunRightPredP = do
-  lb <- locParserP dummyBindP
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "=>"
-  t2   <- bareTypeP
-  return $ foldr (rFun dummySymbol) t2 (getClasses t1)
--}
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
@@ -679,8 +619,6 @@ getClasses t
 dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm
   = fm `ap` return dummyReft
--- ap                :: (Monad m) => m (a -> b) -> m a -> m b
--- ap m1 m2          = do { x1 <- m1; x2 <- m2; return (x1 x2) }
 
 symsP :: (IsString tv, Monoid r)
       => Parser [(Symbol, RType c tv r)]
@@ -1374,10 +1312,6 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
-{-
-lowerIdP :: Parser Symbol
-lowerIdP = condIdP symChars (isSmall . head)
--}
 
 dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
 dataConP
@@ -1477,12 +1411,3 @@ fTyConP
   <|> (symbolFTycon      <$> locUpperIdP)
   <?> "fTyConP"
 
----------------------------------------------------------------
--- | Bundling Parsers into a Typeclass ------------------------
----------------------------------------------------------------
-
--- instance Inputable BareType where
---   rr' = doParse' bareTypeP
-
--- instance Inputable (Measure BareType LocSymbol) where
---   rr' = doParse' measureP
