@@ -534,7 +534,7 @@ bareAllP
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = try (parens $ many (bTyVar <$> tyKindVarIdP))
+  = (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
  <?> "tyVarDefsP"
 
@@ -544,10 +544,10 @@ tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 tyKindVarIdP :: Parser Symbol
-tyKindVarIdP
-   =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
-  <|> tyVarIdP
-  <?> "tyKindVarIdP"
+tyKindVarIdP = do
+   tv <- tyVarIdP
+   (  (do reservedOp "::"; _ <- kindP; return tv)
+    <|> return tv)
 
 kindP :: Parser BareType
 kindP = bareAtomBindP
@@ -1228,7 +1228,9 @@ infixCondIdP'
          return $ symbol $ T.pack $ c1 ++ ss ++ c2
        blanks
        return sym
-
+-- seems to be
+-- either anything up to ':', ',', ' ', '(', ')'
+--  or '(' anything up to ' ', '(', ',', ')'
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
