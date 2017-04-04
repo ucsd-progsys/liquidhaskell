@@ -702,14 +702,14 @@ boundP = do
   body   <- predP
   return $ Bound name vs params args body
  where
-    bargsP = try ( do reservedOp "\\"
+    bargsP =     ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs
                  )
            <|> return []
            <?> "bargsP"
-    bvsP   = try ( do reserved "forall"
+    bvsP   =     ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
                       reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
@@ -937,7 +937,7 @@ specP
 
     -- <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
     --                                  <|> liftM HMeas   hmeasureP)))
-    <|> (fallbackSpecP "measure" hmeasureP)
+    <|> (fallbackSpecP "measure"    hmeasureP)
 
     <|> (fallbackSpecP "define"     (liftM Define  defineP  ))
     <|> (reserved "infixl"        >> liftM BFix    infixlP  )
