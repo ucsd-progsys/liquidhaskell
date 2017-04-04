@@ -439,9 +439,9 @@ testSucceeds =
        parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?=
          "Assm (\"GHC.Prim.+#\" (dummyLoc),x:Int# -> y:Int# -> {v##0 : Int# | v##0 == x + y} (dummyLoc))"
 
-    -- , testCase "type spec 26" $
-    --    parseSingleSpec "assume (,) :: forall a b. forAll q1:a q2:b. a^q1 -> b^q2 ->(a^q1, b^q2)" @?=
-    --      ""
+    , testCase "type spec 26" $
+       parseSingleSpec " measure isEVar " @?=
+         "HMeas \"isEVar\" (dummyLoc)"
 
     -- , testCase "type spec 27" $
     --    parseSingleSpec "assume (.) :: forall b c a. forAll q1:a q2:b q3:c. (b^q2 -> c^q3) -> (a^q1 -> b^q2) -> a^q1 -> c^q3" @?=

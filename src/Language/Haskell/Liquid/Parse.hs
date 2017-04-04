@@ -1115,7 +1115,8 @@ aliasIdP = condIdP alphaNums (isAlpha . head)
 hmeasureP :: Parser BPspec
 hmeasureP = do
   b <- locParserP binderP
-  ((do (spaces >> dcolon)
+  spaces
+  ((do dcolon
        ty <- locParserP genBareTypeP
        whiteSpace
        eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
