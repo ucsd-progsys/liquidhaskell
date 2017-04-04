@@ -187,11 +187,11 @@ angles        = Token.angles        lexer
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
-identifier :: Parser String
-identifier = Token.identifier       lexer
+-- identifier :: Parser String
+-- identifier = Token.identifier       lexer
 
-operator :: Parser String
-operator = Token.operator           lexer
+-- operator :: Parser String
+-- operator = Token.operator           lexer
 
 ----------------------------------------------------------------------------------
 -- BareTypes ---------------------------------------------------------------------
@@ -1252,6 +1252,7 @@ infixCondIdP'
        return sym
 
 -- | LHS of the thing being defined
+binderP :: Parser Symbol
 binderP    = pwr <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
