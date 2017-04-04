@@ -1369,52 +1369,38 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-dataDeclP :: Parser DataDecl
-dataDeclP
-   =  try dataDeclFullP
-  <|> try adtDataDeclFullP
-  <|> dataDeclSizeP
-  <?> "dataDeclP"
 
 newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
 
-dataDeclSizeP :: Parser DataDecl
-dataDeclSizeP = do
+dataDeclP :: Parser DataDecl
+dataDeclP = do
   pos <- getPosition
   x   <- locUpperIdP'
   spaces
   fsize <- dataSizeP
-  return $ D x [] [] [] [] pos fsize
-
-dataDeclFullP :: Parser DataDecl
-dataDeclFullP = do
-  pos <- getPosition
-  x   <- locUpperIdP'
-  spaces
-  fsize <- dataSizeP
-  spaces
-  ts  <- sepBy tyVarIdP blanks
-  ps  <- predVarDefsP
-  whiteSpace >> reservedOp "=" >> whiteSpace
-  dcs <- sepBy dataConP (reservedOp "|")
-  whiteSpace
-  return $ D x ts ps [] dcs pos fsize
-
-
-adtDataDeclFullP :: Parser DataDecl
-adtDataDeclFullP = do
-  pos <- getPosition
-  x   <- locUpperIdP'
-  spaces
-  fsize <- dataSizeP
-  spaces
-  (ts, ps) <- tsps
-  spaces
-  dcs <- sepBy adtDataConP (reservedOp "|")
-  whiteSpace
-  return $ D x ts ps [] dcs pos fsize
+  (     (fullP pos x fsize)
+    <|> (atFullP pos x fsize)
+    <|> (return $ D x [] [] [] [] pos fsize)
+        )
   where
+    fullP pos x fsize = do
+      spaces
+      ts  <- sepBy tyVarIdP blanks
+      ps  <- predVarDefsP
+      whiteSpace >> reservedOp "=" >> whiteSpace
+      dcs <- sepBy dataConP (reservedOp "|")
+      whiteSpace
+      return $ D x ts ps [] dcs pos fsize
+
+    atFullP pos x fsize = do
+      spaces
+      (ts, ps) <- tsps
+      spaces
+      dcs <- sepBy adtDataConP (reservedOp "|")
+      whiteSpace
+      return $ D x ts ps [] dcs pos fsize
+
     tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
         <|> do ts <- sepBy tyVarIdP blanks
                ps  <- predVarDefsP
