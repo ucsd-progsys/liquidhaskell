@@ -187,6 +187,12 @@ angles        = Token.angles        lexer
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
+identifier :: Parser String
+identifier = Token.identifier       lexer
+
+operator :: Parser String
+operator = Token.operator           lexer
+
 ----------------------------------------------------------------------------------
 -- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
@@ -924,11 +930,14 @@ specP
     <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
     <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
     <|> (reserved "Local"         >> liftM LAsrt   tyBindP  )
+
+    -- TODO: These next two are synonyms, kill one
     <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
     <|> (fallbackSpecP "reflect"    (liftM Reflect axiomP   ))
 
-    <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
-                                     <|> liftM HMeas   hmeasureP)))
+    -- <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
+    --                                  <|> liftM HMeas   hmeasureP)))
+    <|> (fallbackSpecP "measure" hmeasureP)
 
     <|> (fallbackSpecP "define"     (liftM Define  defineP  ))
     <|> (reserved "infixl"        >> liftM BFix    infixlP  )
@@ -996,9 +1005,6 @@ autoinstP = do x <- locParserP binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
-
-hmeasureP :: Parser LocSymbol
-hmeasureP = locParserP binderP
 
 axiomP :: Parser LocSymbol
 axiomP = locParserP binderP
@@ -1106,6 +1112,17 @@ aliasIdP = condIdP alphaNums (isAlpha . head)
            where
              alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
+hmeasureP :: Parser BPspec
+hmeasureP = do
+  b <- locParserP binderP
+  ((do (spaces >> dcolon)
+       ty <- locParserP genBareTypeP
+       whiteSpace
+       eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+       return (Meas $ Measure.mkM b ty eqns))
+    <|> (return (HMeas b))
+    )
+
 measureP :: Parser (Measure (Located BareType) LocSymbol)
 measureP
   = do (x, ty) <- tyBindP
@@ -1113,6 +1130,11 @@ measureP
        eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
        return   $ Measure.mkM x ty eqns
 
+-- hmeasureP :: Parser LocSymbol
+-- hmeasureP = locParserP binderP
+
+
+-- | class measure
 cMeasureP :: Parser (Measure (Located BareType) ())
 cMeasureP
   = do (x, ty) <- tyBindP
@@ -1228,12 +1250,10 @@ infixCondIdP'
          return $ symbol $ T.pack $ c1 ++ ss ++ c2
        blanks
        return sym
--- seems to be
--- either anything up to ':', ',', ' ', '(', ')'
---  or '(' anything up to ' ', '(', ',', ')'
-binderP :: Parser Symbol
-binderP    =  try $ symbol <$> idP badc
-          <|> pwr <$> parens (idP bad)
+
+-- | LHS of the thing being defined
+binderP    = pwr <$> parens (idP bad)
+         <|> symbol <$> idP badc
   where
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c

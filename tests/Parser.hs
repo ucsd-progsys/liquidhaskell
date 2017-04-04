@@ -320,7 +320,6 @@ testSucceeds =
 
     , testCase "type spec 5" $
        parseSingleSpec "mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a" @?=
-          -- "Asrts ([\"mapKeysWith\" (dummyLoc)],((Ord k2) -> lq_tmp$db##1:(lq_tmp$db##2:a -> lq_tmp$db##3:a -> a) -> lq_tmp$db##4:(lq_tmp$db##5:k1 -> k2) -> lq_tmp$db##6:(OMap k1 a) -> (OMap k2 a) (dummyLoc),Nothing))"
              "Asrts ([\"mapKeysWith\" (dummyLoc)],((Ord k2) -> lq_tmp$db##2:(lq_tmp$db##3:a -> lq_tmp$db##4:a -> a) -> lq_tmp$db##6:(lq_tmp$db##7:k1 -> k2) -> lq_tmp$db##9:(OMap k1 a) -> (OMap k2 a) (dummyLoc),Nothing))"
 
     , testCase "type spec 6 " $
@@ -335,7 +334,6 @@ testSucceeds =
 
     , testCase "type spec 7" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
-          -- "Alias type AVLL \"a\" \"X\" = (AVLTree {v##0 : a | v##0 < X}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
               "Alias type AVLL \"a\" \"X\" = (AVLTree {v##1 : a | v##1 < X}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
     , testCase "type spec 8" $
@@ -351,7 +349,6 @@ testSucceeds =
       , "  {a<q> <: a<r>} "
       , "  Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> "])
         @?=
-          -- "Assm (\"(++)\" (dummyLoc),(Ord a) =>\n{x :: {VV : a | true} |- {VV : a | true} <: {v##3 : a | x <= v##3}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\nlq_tmp$db##5:(OList {VV : a | true}) -> lq_tmp$db##6:(OList {VV : a | true}) -> (OList {VV : a | true}) (dummyLoc))"
              "Assm (\"(++)\" (dummyLoc),(Ord a) =>\n{x :: {VV : a | true} |- {VV : a | true} <: {v##8 : a | x <= v##8}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\nlq_tmp$db##14:(OList {VV : a | true}) -> lq_tmp$db##16:(OList {VV : a | true}) -> (OList {VV : a | true}) (dummyLoc))"
 
     , testCase "type spec 10" $
@@ -375,7 +372,6 @@ testSucceeds =
           , "       {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}"
           , "       (Int<p> -> ()) -> x:Int<q> -> ()" ])
           @?=
-          -- "Asrts ([\"app\" (dummyLoc)],({|- Int <: Int} =>\n{x :: Int |- {v##2 : Int | v##2 == x + 1} <: Int} =>\nlq_tmp$db##3:(lq_tmp$db##4:Int -> ()) -> x:Int -> () (dummyLoc),Nothing))"
              "Asrts ([\"app\" (dummyLoc)],({|- Int <: Int} =>\n{x :: Int |- {v##7 : Int | v##7 == x + 1} <: Int} =>\nlq_tmp$db##9:(lq_tmp$db##10:Int -> ()) -> x:Int -> () (dummyLoc),Nothing))"
 
     , testCase "type spec 13" $
@@ -385,7 +381,6 @@ testSucceeds =
           , "         {x::a<p> |- {v:a | x <= v} <: a<q>}"
           , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
           @?=
-          -- "Asrts ([\"ssum\" (dummyLoc)],({|- {v##2 : a | v##2 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##3 : a | x <= v##3} <: {VV : a | true}} =>\nxs:[{v##4 : a | 0 <= v##4}] -> {v##5 : a | len xs >= 0\n                                           && 0 <= v##5} (dummyLoc),Nothing))"
              "Asrts ([\"ssum\" (dummyLoc)],({|- {v##4 : a | v##4 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##7 : a | x <= v##7} <: {VV : a | true}} =>\nxs:[{v##9 : a | 0 <= v##9}] -> {v##10 : a | len xs >= 0\n                                            && 0 <= v##10} (dummyLoc),Nothing))"
 
     , testCase "type spec 14" $
@@ -400,7 +395,6 @@ testSucceeds =
 
     , testCase "type spec 15" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?=
-          -- "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##2:a -> b) -> lq_tmp$db##3:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##5:a -> b | f == g} (dummyLoc))"
              "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##7:a -> b | f == g} (dummyLoc))"
 
     , testCase "type spec 16" $
@@ -427,12 +421,10 @@ testSucceeds =
 
     , testCase "type spec 21" $
        parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?=
-         -- "Asrts ([\"newRGRef\" (dummyLoc)],(e:{VV : a | true} -> e2:{VV : a | true} -> f:(x:{VV : a | true} -> y:{VV : a | true} -> {v##3 : a | v##3 == y}) -> (IO (RGRef a)) (dummyLoc),Nothing))"
             "Asrts ([\"newRGRef\" (dummyLoc)],(e:{VV : a | true} -> e2:{VV : a | true} -> f:(x:{VV : a | true} -> y:{VV : a | true} -> {v##5 : a | v##5 == y}) -> (IO (RGRef a)) (dummyLoc),Nothing))"
 
     , testCase "type spec 22" $
        parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?=
-         -- "Asrts ([\"cycle\" (dummyLoc)],(lq_tmp$db##0:{v##1 : [a] | len v##1 > 0} -> [a] (dummyLoc),Nothing))"
             "Asrts ([\"cycle\" (dummyLoc)],(v:{v##0 : [a] | len v##0 > 0} -> [a] (dummyLoc),Nothing))"
 
     , testCase "type spec 23" $
@@ -442,6 +434,18 @@ testSucceeds =
     , testCase "type spec 24" $
        parseSingleSpec "set :: a:Vector a -> i:Idx a -> a -> {v:Vector a | vlen v = vlen a}" @?=
          "Asrts ([\"set\" (dummyLoc)],(a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v##1 : (Vector a) | vlen v##1 == vlen a} (dummyLoc),Nothing))"
+
+    , testCase "type spec 25" $
+       parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?=
+         "Assm (\"GHC.Prim.+#\" (dummyLoc),x:Int# -> y:Int# -> {v##0 : Int# | v##0 == x + y} (dummyLoc))"
+
+    -- , testCase "type spec 26" $
+    --    parseSingleSpec "assume (,) :: forall a b. forAll q1:a q2:b. a^q1 -> b^q2 ->(a^q1, b^q2)" @?=
+    --      ""
+
+    -- , testCase "type spec 27" $
+    --    parseSingleSpec "assume (.) :: forall b c a. forAll q1:a q2:b q3:c. (b^q2 -> c^q3) -> (a^q1 -> b^q2) -> a^q1 -> c^q3" @?=
+    --      ""
     ]
 
 -- ---------------------------------------------------------------------
