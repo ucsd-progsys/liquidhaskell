@@ -1421,14 +1421,12 @@ dataDeclP = do
   where
     dcsP pos x fsize = do
       ts  <- sepBy tyVarIdP blanks
-      fail "in dcs"
       ps  <- predVarDefsP
-      dcs <- ( (reservedOp "="   >> sepBy dataConP    (reservedOp "|"))
+      dcs <- ((reservedOp "=" >> sepBy dataConP (reservedOp "|"))
               <|>
-               (reserved "where" >> fail "after where" >> sepBy adtDataConP (reservedOp "|")))
+               (reserved "where" >> sepBy adtDataConP (reservedOp "|")))
       whiteSpace
       return $ D x ts ps [] dcs pos fsize
-
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
