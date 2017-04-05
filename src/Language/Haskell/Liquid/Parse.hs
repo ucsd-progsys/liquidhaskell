@@ -568,20 +568,9 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
--- tyVarIdP = (condIdP alphanums (`notElem` keyWordSyms))
---   where
---     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
---     keyWordSyms = ["where"]
 tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
   where
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
-{-
-symCharsP :: Parser Symbol
-symCharsP = condIdP symChars (`notElem` keyWordSyms)
-  where
-    keyWordSyms = ["if", "then", "else", "mod"]
-
--}
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP = do
@@ -1009,8 +998,11 @@ specP
     <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
     <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
     <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
+
+    -- TODO: next two are synonyms, kill one
     <|> (reserved "Strict"        >> liftM Lazy   lazyVarP  )
     <|> (reserved "Lazy"          >> liftM Lazy   lazyVarP  )
+
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                liftM Asrts  tyBindsP
@@ -1166,9 +1158,6 @@ measureP
        whiteSpace
        eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
        return   $ Measure.mkM x ty eqns
-
--- hmeasureP :: Parser LocSymbol
--- hmeasureP = locParserP binderP
 
 
 -- | class measure
