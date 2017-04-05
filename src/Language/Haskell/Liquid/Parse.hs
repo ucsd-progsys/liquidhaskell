@@ -253,7 +253,6 @@ compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
-  -- =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
   =  nullPC <$> (reserved "forall" >> bareAllP)
  <|> holePC -- starts with '_'
  <|> namedCircleP -- starts with lower
@@ -524,9 +523,11 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
 
+--  "forall <z w> . TYPE"
+-- or
+--  "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
 bareAllP = do
-  -- fail "bareAllP"
   as <- tyVarDefsP
   vs <- angles inAngles
         <|> (return $ Right [])
@@ -541,24 +542,6 @@ bareAllP = do
        (try  (Right <$> sepBy  predVarDefP comma))
         <|> ((Left  <$> sepBy1 symbolP     comma))
        )
-{-
-  -- | "forall <z w> . TYPE"
-bareAllS :: Parser BareType
-bareAllS
-  = do ss <- angles $ sepBy1 symbolP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr RAllS t ss
-
--- | "forall x y <z :: Nat, w :: Int> . TYPE"
-bareAllP :: Parser BareType
-bareAllP
-  = do as <- tyVarDefsP
-       ps <- predVarDefsP
-       dot
-       t  <- bareTypeP
-       return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
--}
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
