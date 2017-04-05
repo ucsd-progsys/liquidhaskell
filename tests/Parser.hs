@@ -443,9 +443,22 @@ testSucceeds =
        parseSingleSpec " measure isEVar " @?=
          "HMeas \"isEVar\" (dummyLoc)"
 
-    -- , testCase "type spec 27" $
-    --    parseSingleSpec "assume (.) :: forall b c a. forAll q1:a q2:b q3:c. (b^q2 -> c^q3) -> (a^q1 -> b^q2) -> a^q1 -> c^q3" @?=
-    --      ""
+    , testCase "type spec 27" $
+       parseSingleSpec (unlines $
+         [ "data List a where"
+         , "    Nil  :: List a "
+         , "  | Cons :: listHead:a -> listTail:List a -> List a  "])
+        @?=
+          "DDecl DataDecl: data = \"List\" (dummyLoc), tyvars = [\"a\"]"
+
+    , testCase "type spec 28" $
+       parseSingleSpec (unlines $
+         [ "data List2 a b <p :: a -> Bool> where"
+         , "    Nil2  :: List2 a "
+         , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
+        @?=
+          "DDecl DataDecl: data = \"List2\" (dummyLoc), tyvars = [\"a\",\"b\"]"
+
     ]
 
 -- ---------------------------------------------------------------------

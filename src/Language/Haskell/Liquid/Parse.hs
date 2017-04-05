@@ -253,7 +253,8 @@ compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
-  =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
+  -- =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
+  =  nullPC <$> (reserved "forall" >> bareAllP)
  <|> holePC -- starts with '_'
  <|> namedCircleP -- starts with lower
  <|> bareTypeBracesP -- starts with '{'
@@ -523,6 +524,25 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
 
+bareAllP :: Parser BareType
+bareAllP = do
+  -- fail "bareAllP"
+  as <- tyVarDefsP
+  vs <- angles inAngles
+        <|> (return $ Right [])
+  dot
+  t <- bareTypeP
+  case vs of
+    Left ss  -> return $ foldr RAllS t ss
+    Right ps -> return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+  where
+    inAngles =
+      (
+       (try  (Right <$> sepBy  predVarDefP comma))
+        <|> ((Left  <$> sepBy1 symbolP     comma))
+       )
+{-
+  -- | "forall <z w> . TYPE"
 bareAllS :: Parser BareType
 bareAllS
   = do ss <- angles $ sepBy1 symbolP comma
@@ -530,6 +550,7 @@ bareAllS
        t  <- bareTypeP
        return $ foldr RAllS t ss
 
+-- | "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
 bareAllP
   = do as <- tyVarDefsP
@@ -537,6 +558,7 @@ bareAllP
        dot
        t  <- bareTypeP
        return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+-}
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
@@ -544,10 +566,22 @@ tyVarDefsP
  <|> many (bTyVar <$> tyVarIdP)
  <?> "tyVarDefsP"
 
+-- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
+tyVarIdP = symbol <$> condIdP alphanums (`notElem` keyWordSyms)
   where
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+    keyWordSyms = ["where"]
+-- tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
+--   where
+--     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+{-
+symCharsP :: Parser Symbol
+symCharsP = condIdP symChars (`notElem` keyWordSyms)
+  where
+    keyWordSyms = ["if", "then", "else", "mod"]
+
+-}
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP = do
@@ -560,7 +594,7 @@ kindP = bareAtomBindP
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
-  =  try (angles $ sepBy1 predVarDefP comma)
+  =  (angles $ sepBy1 predVarDefP comma)
  <|> return []
  <?> "predVarDefP"
 
@@ -966,8 +1000,11 @@ specP
     <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
     <|> (reserved "using"         >> liftM IAlias invaliasP )
     <|> (reserved "type"          >> liftM Alias  aliasP    )
+
+    -- TODO: Next two are basically synonyms
     <|> (fallbackSpecP "predicate"  (liftM EAlias ealiasP   ))
     <|> (fallbackSpecP "expression" (liftM EAlias ealiasP   ))
+
     <|> (fallbackSpecP "embed"      (liftM Embed  embedP    ))
     <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
     <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
@@ -1077,8 +1114,7 @@ invaliasP
        return (t, ta)
 
 genBareTypeP :: Parser BareType
-genBareTypeP
-  = bareTypeP
+genBareTypeP = bareTypeP
 
 embedP :: Parser (Located Symbol, FTycon)
 embedP
@@ -1379,33 +1415,20 @@ dataDeclP = do
   x   <- locUpperIdP'
   spaces
   fsize <- dataSizeP
-  (     (fullP pos x fsize)
-    <|> (atFullP pos x fsize)
+  (     (dcsP pos x fsize)
     <|> (return $ D x [] [] [] [] pos fsize)
         )
   where
-    fullP pos x fsize = do
-      spaces
+    dcsP pos x fsize = do
       ts  <- sepBy tyVarIdP blanks
+      fail "in dcs"
       ps  <- predVarDefsP
-      whiteSpace >> reservedOp "=" >> whiteSpace
-      dcs <- sepBy dataConP (reservedOp "|")
+      dcs <- ( (reservedOp "="   >> sepBy dataConP    (reservedOp "|"))
+              <|>
+               (reserved "where" >> fail "after where" >> sepBy adtDataConP (reservedOp "|")))
       whiteSpace
       return $ D x ts ps [] dcs pos fsize
 
-    atFullP pos x fsize = do
-      spaces
-      (ts, ps) <- tsps
-      spaces
-      dcs <- sepBy adtDataConP (reservedOp "|")
-      whiteSpace
-      return $ D x ts ps [] dcs pos fsize
-
-    tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
-        <|> do ts <- sepBy tyVarIdP blanks
-               ps  <- predVarDefsP
-               whiteSpace >> reserved "where" >> whiteSpace
-               return (ts, ps)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
