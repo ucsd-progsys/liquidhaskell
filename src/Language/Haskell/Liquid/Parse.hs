@@ -568,13 +568,13 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP alphanums (`notElem` keyWordSyms)
-  where
-    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
-    keyWordSyms = ["where"]
--- tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
+-- tyVarIdP = (condIdP alphanums (`notElem` keyWordSyms))
 --   where
 --     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+--     keyWordSyms = ["where"]
+tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
+  where
+    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 {-
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)
@@ -1420,13 +1420,19 @@ dataDeclP = do
         )
   where
     dcsP pos x fsize = do
-      ts  <- sepBy tyVarIdP blanks
+      ts  <- sepBy noWhere blanks
       ps  <- predVarDefsP
       dcs <- ((reservedOp "=" >> sepBy dataConP (reservedOp "|"))
               <|>
                (reserved "where" >> sepBy adtDataConP (reservedOp "|")))
       whiteSpace
       return $ D x ts ps [] dcs pos fsize
+
+    noWhere = try $ do
+      s <- tyVarIdP
+      if s == "where"
+        then parserZero
+        else return s
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
