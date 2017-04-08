@@ -83,7 +83,7 @@ data UC s = UC s {-# UNPACK #-} !Int
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given
 -- chunk size.
-{-@ Lazy unstreamChunks @-}
+{-@ lazy unstreamChunks @-}
 unstreamChunks :: Int -> Stream Char -> Text
 unstreamChunks chunkSize (Stream next s0 len0)
   | isEmpty len0 = Empty

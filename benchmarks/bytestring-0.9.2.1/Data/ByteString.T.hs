@@ -1034,7 +1034,7 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
-{-@ Lazy unfoldr @-}
+{-@ lazy unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
   where unfoldChunk n n' x =
@@ -2186,7 +2186,7 @@ hGetNonBlocking = hGet
 -- be ISO-8859-1.
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{-@ Lazy hGetContents @-}
+{-@ lazy hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024

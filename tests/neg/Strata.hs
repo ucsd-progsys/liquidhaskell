@@ -17,7 +17,7 @@ data L a = N | Cons a (L a)
 {-@ Cons :: forall <l>.a -> L^l a -> L^l a @-}
 
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 repeat x = Cons x (repeat x)
 
 

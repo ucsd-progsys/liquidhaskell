@@ -212,7 +212,7 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-@ qualif PlenEq(v:Ptr a, p:Ptr b): (plen v) = (plen p) @-}
 
 -- | Encode text using UTF-8 encoding.
-{-@ Lazy encodeUtf8 @-}
+{-@ lazy encodeUtf8 @-}
 {-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do

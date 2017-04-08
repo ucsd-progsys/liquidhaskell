@@ -15,16 +15,16 @@ foldr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a
 scanr        :: (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) }
 scanr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) }
 
-Lazy GHC.List.iterate
+lazy GHC.List.iterate
 iterate :: (a -> a) -> a -> [a]
 
 repeat :: a -> [a]
-Lazy GHC.List.repeat
+lazy GHC.List.repeat
 
 replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | len(v) = n}
 
 cycle        :: {v: [a] | len(v) > 0 } -> [a]
-Lazy cycle
+lazy cycle
 
 takeWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 

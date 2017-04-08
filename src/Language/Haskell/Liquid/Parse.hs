@@ -982,9 +982,7 @@ specP
     <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
     <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
 
-    -- TODO: next two are synonyms, kill one
-    <|> (reserved "Strict"        >> liftM Lazy   lazyVarP  )
-    <|> (reserved "Lazy"          >> liftM Lazy   lazyVarP  )
+    <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
 
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
