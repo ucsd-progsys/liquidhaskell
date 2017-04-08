@@ -187,13 +187,17 @@ angles        = Token.angles        lexer
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
+-- identifier :: Parser String
+-- identifier = Token.identifier       lexer
+
+-- operator :: Parser String
+-- operator = Token.operator           lexer
+
 ----------------------------------------------------------------------------------
 -- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------
--- AZ: reworking bareTypeP to be top-down
-
 -- fundamentally, a type is ofthe form
 --   comp -> comp -> .. -> comp
 --
@@ -219,7 +223,6 @@ data PcScope = PcImplicit Symbol
              | PcNoSymbol
              deriving (Eq,Show)
 
--- Temporary to ease the transition from older parsers
 nullPC :: BareType -> ParamComp
 nullPC bt = PC PcNoSymbol bt
 
@@ -250,7 +253,7 @@ compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
-  =  nullPC <$> (reserved "forall" >> (bareAllP <|> bareAllS))
+  =  nullPC <$> (reserved "forall" >> bareAllP)
  <|> holePC -- starts with '_'
  <|> namedCircleP -- starts with lower
  <|> bareTypeBracesP -- starts with '{'
@@ -298,24 +301,6 @@ bareTypeP = do
   PC _ v <- btP
   return v
 
-{-
-bareTypePOld :: Parser BareType
-bareTypePOld
-  =  (reserved "forall" >> (bareAllP <|> bareAllS))
- <|> try bareFunLeftFunP   -- starts with lowerId
- <|> try bareFunRightFunP  -- starts with bareArgP
-
- <|> try bareFunRightPredP -- starts with bareArgP
- <|> bareTypeBracesP -- starts with '{'
- -- <|> holeP -- starts with '_'
- <|> (angles (do t <- parens bareTypeP
-                 p <- monoPredicateP
-                 return $ t `strengthen` MkUReft mempty p mempty))
-             -- starts with '<'
- <|> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
- <?> "bareTypeP"
--}
-
 bareTypeBracesP :: Parser ParamComp
 bareTypeBracesP = do
   t <-  braces (
@@ -342,17 +327,8 @@ bareTypeBracesP = do
   case t of
     Left l -> return l
     Right ct -> do
-      tt <- bareTypeP
+      PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
-
-
-{-
-bareArgP :: Symbol -> Parser BareType
-bareArgP vv
-  =  bareAtomP (refDefP vv)
- <|> parens bareTypeP
- <?> "bareArgP"
--}
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
@@ -509,8 +485,7 @@ maybeP p = liftM Just p <|> return Nothing
 
 bareTyArgP :: Parser BareType
 bareTyArgP
-  =  -- try (RExprArg . expr <$> binderP) <|>
-      (RExprArg . fmap expr <$> locParserP integer)
+  =  (RExprArg . fmap expr <$> locParserP integer)
  <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -548,44 +523,50 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
 
-bareAllS :: Parser BareType
-bareAllS
-  = do ss <- angles $ sepBy1 symbolP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr RAllS t ss
-
+--  "forall <z w> . TYPE"
+-- or
+--  "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
-bareAllP
-  = do as <- tyVarDefsP
-       ps <- predVarDefsP
-       dot
-       t  <- bareTypeP
-       return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+bareAllP = do
+  as <- tyVarDefsP
+  vs <- angles inAngles
+        <|> (return $ Right [])
+  dot
+  t <- bareTypeP
+  case vs of
+    Left ss  -> return $ foldr RAllS t ss
+    Right ps -> return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+  where
+    inAngles =
+      (
+       (try  (Right <$> sepBy  predVarDefP comma))
+        <|> ((Left  <$> sepBy1 symbolP     comma))
+       )
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = try (parens $ many (bTyVar <$> tyKindVarIdP))
+  = (parens $ many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
  <?> "tyVarDefsP"
 
+-- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
   where
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 tyKindVarIdP :: Parser Symbol
-tyKindVarIdP
-   =  try ( do s <- tyVarIdP; reservedOp "::"; _ <- kindP; return s)
-  <|> tyVarIdP
-  <?> "tyKindVarIdP"
+tyKindVarIdP = do
+   tv <- tyVarIdP
+   (  (do reservedOp "::"; _ <- kindP; return tv)
+    <|> return tv)
 
 kindP :: Parser BareType
 kindP = bareAtomBindP
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
-  =  try (angles $ sepBy1 predVarDefP comma)
+  =  (angles $ sepBy1 predVarDefP comma)
  <|> return []
  <?> "predVarDefP"
 
@@ -623,35 +604,6 @@ mkPredVarType t
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
-{-
-bareFunLeftFunP :: Parser BareType
-bareFunLeftFunP = do
-  lb <- locParserP lowerIdP
-  _ <- colon
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "->"
-  t2   <- bareTypeP
-  return $ rFun b t1 t2
-
-bareFunRightFunP :: Parser BareType
-bareFunRightFunP = do
-  lb <- locParserP dummyBindP
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "->"
-  t2   <- bareTypeP
-  return $ rFun b t1 t2
-
-bareFunRightPredP :: Parser BareType
-bareFunRightPredP = do
-  lb <- locParserP dummyBindP
-  let b = val lb
-  t1   <- bareArgP b
-  reservedOp "=>"
-  t2   <- bareTypeP
-  return $ foldr (rFun dummySymbol) t2 (getClasses t1)
--}
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
@@ -679,8 +631,6 @@ getClasses t
 dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm
   = fm `ap` return dummyReft
--- ap                :: (Monad m) => m (a -> b) -> m a -> m b
--- ap m1 m2          = do { x1 <- m1; x2 <- m2; return (x1 x2) }
 
 symsP :: (IsString tv, Monoid r)
       => Parser [(Symbol, RType c tv r)]
@@ -758,14 +708,14 @@ boundP = do
   body   <- predP
   return $ Bound name vs params args body
  where
-    bargsP = try ( do reservedOp "\\"
+    bargsP =     ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs
                  )
            <|> return []
            <?> "bargsP"
-    bvsP   = try ( do reserved "forall"
+    bvsP   =     ( do reserved "forall"
                       xs <- many (locParserP (bTyVar <$> symbolP))
                       reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
@@ -986,11 +936,14 @@ specP
     <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
     <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
     <|> (reserved "Local"         >> liftM LAsrt   tyBindP  )
+
+    -- TODO: These next two are synonyms, kill one
     <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
     <|> (fallbackSpecP "reflect"    (liftM Reflect axiomP   ))
 
-    <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
-                                     <|> liftM HMeas   hmeasureP)))
+    -- <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
+    --                                  <|> liftM HMeas   hmeasureP)))
+    <|> (fallbackSpecP "measure"    hmeasureP)
 
     <|> (fallbackSpecP "define"     (liftM Define  defineP  ))
     <|> (reserved "infixl"        >> liftM BFix    infixlP  )
@@ -1019,14 +972,20 @@ specP
     <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
     <|> (reserved "using"         >> liftM IAlias invaliasP )
     <|> (reserved "type"          >> liftM Alias  aliasP    )
+
+    -- TODO: Next two are basically synonyms
     <|> (fallbackSpecP "predicate"  (liftM EAlias ealiasP   ))
     <|> (fallbackSpecP "expression" (liftM EAlias ealiasP   ))
+
     <|> (fallbackSpecP "embed"      (liftM Embed  embedP    ))
     <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
     <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
     <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
+
+    -- TODO: next two are synonyms, kill one
     <|> (reserved "Strict"        >> liftM Lazy   lazyVarP  )
     <|> (reserved "Lazy"          >> liftM Lazy   lazyVarP  )
+
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                liftM Asrts  tyBindsP
@@ -1058,9 +1017,6 @@ autoinstP = do x <- locParserP binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
-
-hmeasureP :: Parser LocSymbol
-hmeasureP = locParserP binderP
 
 axiomP :: Parser LocSymbol
 axiomP = locParserP binderP
@@ -1133,8 +1089,7 @@ invaliasP
        return (t, ta)
 
 genBareTypeP :: Parser BareType
-genBareTypeP
-  = bareTypeP
+genBareTypeP = bareTypeP
 
 embedP :: Parser (Located Symbol, FTycon)
 embedP
@@ -1168,6 +1123,18 @@ aliasIdP = condIdP alphaNums (isAlpha . head)
            where
              alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
+hmeasureP :: Parser BPspec
+hmeasureP = do
+  b <- locParserP binderP
+  spaces
+  ((do dcolon
+       ty <- locParserP genBareTypeP
+       whiteSpace
+       eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+       return (Meas $ Measure.mkM b ty eqns))
+    <|> (return (HMeas b))
+    )
+
 measureP :: Parser (Measure (Located BareType) LocSymbol)
 measureP
   = do (x, ty) <- tyBindP
@@ -1175,6 +1142,8 @@ measureP
        eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
        return   $ Measure.mkM x ty eqns
 
+
+-- | class measure
 cMeasureP :: Parser (Measure (Located BareType) ())
 cMeasureP
   = do (x, ty) <- tyBindP
@@ -1291,9 +1260,10 @@ infixCondIdP'
        blanks
        return sym
 
+-- | LHS of the thing being defined
 binderP :: Parser Symbol
-binderP    =  try $ symbol <$> idP badc
-          <|> pwr <$> parens (idP bad)
+binderP    = pwr <$> parens (idP bad)
+         <|> symbol <$> idP badc
   where
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
@@ -1374,10 +1344,6 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
-{-
-lowerIdP :: Parser Symbol
-lowerIdP = condIdP symChars (isSmall . head)
--}
 
 dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
 dataConP
@@ -1411,57 +1377,34 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-dataDeclP :: Parser DataDecl
-dataDeclP
-   =  try dataDeclFullP
-  <|> try adtDataDeclFullP
-  <|> dataDeclSizeP
-  <?> "dataDeclP"
 
 newtypeP :: Parser DataDecl
 newtypeP = dataDeclP
 
-dataDeclSizeP :: Parser DataDecl
-dataDeclSizeP = do
+dataDeclP :: Parser DataDecl
+dataDeclP = do
   pos <- getPosition
   x   <- locUpperIdP'
   spaces
   fsize <- dataSizeP
-  return $ D x [] [] [] [] pos fsize
-
-dataDeclFullP :: Parser DataDecl
-dataDeclFullP = do
-  pos <- getPosition
-  x   <- locUpperIdP'
-  spaces
-  fsize <- dataSizeP
-  spaces
-  ts  <- sepBy tyVarIdP blanks
-  ps  <- predVarDefsP
-  whiteSpace >> reservedOp "=" >> whiteSpace
-  dcs <- sepBy dataConP (reservedOp "|")
-  whiteSpace
-  return $ D x ts ps [] dcs pos fsize
-
-
-adtDataDeclFullP :: Parser DataDecl
-adtDataDeclFullP = do
-  pos <- getPosition
-  x   <- locUpperIdP'
-  spaces
-  fsize <- dataSizeP
-  spaces
-  (ts, ps) <- tsps
-  spaces
-  dcs <- sepBy adtDataConP (reservedOp "|")
-  whiteSpace
-  return $ D x ts ps [] dcs pos fsize
+  (     (dcsP pos x fsize)
+    <|> (return $ D x [] [] [] [] pos fsize)
+        )
   where
-    tsps =  try ((, []) <$> manyTill tyVarIdP (try $ reserved "where"))
-        <|> do ts <- sepBy tyVarIdP blanks
-               ps  <- predVarDefsP
-               whiteSpace >> reserved "where" >> whiteSpace
-               return (ts, ps)
+    dcsP pos x fsize = do
+      ts  <- sepBy noWhere blanks
+      ps  <- predVarDefsP
+      dcs <- ((reservedOp "=" >> sepBy dataConP (reservedOp "|"))
+              <|>
+               (reserved "where" >> sepBy adtDataConP (reservedOp "|")))
+      whiteSpace
+      return $ D x ts ps [] dcs pos fsize
+
+    noWhere = try $ do
+      s <- tyVarIdP
+      if s == "where"
+        then parserZero
+        else return s
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
@@ -1477,12 +1420,3 @@ fTyConP
   <|> (symbolFTycon      <$> locUpperIdP)
   <?> "fTyConP"
 
----------------------------------------------------------------
--- | Bundling Parsers into a Typeclass ------------------------
----------------------------------------------------------------
-
--- instance Inputable BareType where
---   rr' = doParse' bareTypeP
-
--- instance Inputable (Measure BareType LocSymbol) where
---   rr' = doParse' measureP

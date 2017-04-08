@@ -691,11 +691,15 @@ data RType c tv r
     , rt_ty     :: !(RType c tv r)
     }
 
+  -- | "forall x y <z :: Nat, w :: Int> . TYPE"
+  --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
   | RAllP {
       rt_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
     , rt_ty     :: !(RType c tv r)
     }
 
+  -- | "forall <z w> . TYPE"
+  --           ^^^^^ (rt_sbind)
   | RAllS {
       rt_sbind  :: !(Symbol)
     , rt_ty     :: !(RType c tv r)
