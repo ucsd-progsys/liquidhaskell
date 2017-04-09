@@ -17,7 +17,7 @@ isCons (C a l) = true
 
 {-@ type Stream a = {v: L <{\v -> (isCons v)}> a | (isCons v)} @-}
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 {-@ repeat :: a -> Stream a @-}
 repeat :: a -> L a
 repeat x = C x (repeat x)

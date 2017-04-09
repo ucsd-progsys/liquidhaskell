@@ -26,7 +26,7 @@ split (Cons x (Cons y zs)) = (Cons x xs, Cons y ys) where (xs, ys) = split zs
 split xs                   = (xs, Nil)
 
 
-{-@ Lazy merge @-}
+{-@ lazy merge @-}
 merge :: Ord a => List a -> List a -> List a
 merge xs Nil = xs
 merge Nil ys = ys

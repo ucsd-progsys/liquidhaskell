@@ -2403,7 +2403,7 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
 {- LIQUIDTODO fromDistinctAscList :: [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
-{-@ Lazy fromDistinctAscList @-}
+{-@ lazy fromDistinctAscList @-}
 {-@ fromDistinctAscList :: {v: [(k, a)] | false} -> OMap k a @-}
 fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs

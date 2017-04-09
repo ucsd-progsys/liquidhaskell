@@ -172,7 +172,7 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
                     -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
   @-}
 
-{-@ Lazy unstream @-}
+{-@ lazy unstream @-}
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
   let mlen = upperBound 4 len
@@ -212,7 +212,7 @@ length = S.lengthI
                    -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
   @-}
 
-{-@ Lazy reverse @-}
+{-@ lazy reverse @-}
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
@@ -325,7 +325,7 @@ snd = undefined
       -> (a, {v:Data.Text.Internal.Text | (tlength v) = (slen s)})
   @-}
 
-{-@ Lazy mapAccumL @-}
+{-@ lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) = (nz, I.textP na 0 nl)
   where

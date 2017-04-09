@@ -718,7 +718,7 @@ foldr1 f (Chunk c0 cs0) = go c0 cs0
 -- Special folds
 
 -- | /O(n)/ Concatenate a list of ByteStrings.
-{-@ Lazy concat @-}
+{-@ lazy concat @-}
 {-@ concat :: bs:[ByteString] -> {v:ByteString | (lbLength v) = (lbLengths bs)} @-}
 concat :: [ByteString] -> ByteString
 concat css0 = to css0
@@ -730,7 +730,7 @@ concat css0 = to css0
 
 -- | Map a function over a 'ByteString' and concatenate the results
 
-{-@ Lazy concatMap @-}
+{-@ lazy concatMap @-}
 concatMap :: (Word8 -> ByteString) -> ByteString -> ByteString
 concatMap _ Empty        = Empty
 concatMap f (Chunk c0 cs0) = to c0 cs0 0
@@ -840,7 +840,7 @@ scanl f z ps = F.loopArr . F.loopL (F.scanEFL f) z $ (ps `snoc` 0)
 -- > iterate f x == [x, f x, f (f x), ...]
 --
 {-@ iterate :: (Word8 -> Word8) -> Word8 -> ByteString @-}
-{-@ Strict Data.ByteString.Lazy.iterate @-}
+{-@ lazy Data.ByteString.Lazy.iterate @-}
 iterate :: (Word8 -> Word8) -> Word8 -> ByteString
 iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
 
@@ -848,7 +848,7 @@ iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
 -- element.
 --
 {-@ repeat :: Word8 -> ByteString @-}
-{-@ Strict Data.ByteString.Lazy.repeat @-}
+{-@ lazy Data.ByteString.Lazy.repeat @-}
 repeat :: Word8 -> ByteString
 repeat w = cs where cs = Chunk (S.replicate smallChunkSize w) cs
 
@@ -883,7 +883,7 @@ replicate n w
 -- the infinite repetition of the original ByteString.
 --
 {-@ cycle :: ByteString -> ByteString @-}
-{-@ Strict Data.ByteString.Lazy.cycle @-}
+{-@ lazy Data.ByteString.Lazy.cycle @-}
 cycle :: ByteString -> ByteString
 cycle Empty = errorEmptyList "cycle"
 --LIQUID GHOST cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
@@ -895,7 +895,7 @@ cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 -- ByteString or returns 'Just' @(a,b)@, in which case, @a@ is a
 -- prepending to the ByteString and @b@ is used as the next element in a
 -- recursive call.
-{-@ Strict Data.ByteString.Lazy.unfoldr @-}
+{-@ lazy Data.ByteString.Lazy.unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f s0 = unfoldChunk 32 s0
   where unfoldChunk n s =
@@ -1524,9 +1524,9 @@ copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
 hGetContentsN :: Int -> Handle -> IO ByteString
 hGetContentsN k h = lazyRead
   where
-    {-@ Lazy lazyRead @-}
+    {-@ lazy lazyRead @-}
     lazyRead = unsafeInterleaveIO loop
-    {-@ Lazy loop @-}
+    {-@ lazy loop @-}
     loop = do
         c <- S.hGetNonBlocking h k
         --TODO: I think this should distinguish EOF from no data available

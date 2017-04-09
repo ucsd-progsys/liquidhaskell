@@ -53,7 +53,7 @@ merge (C x xs) (C y ys)
 
 {-@ type Stream a = {xs: L <{\v -> not (emp v)}> a | not (emp xs)} @-}
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 {-@ repeat :: a -> Stream a @-}
 repeat :: a -> L a
 repeat x = x `C` repeat x

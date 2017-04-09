@@ -186,12 +186,8 @@ testSpecP =
        parseSingleSpec "LAZYVAR z" @?=
           "LVars \"z\" (dummyLoc)"
 
-    , testCase "Strict" $
-       parseSingleSpec "Strict eval" @?=
-          "Lazy \"eval\" (dummyLoc)"
-
-    , testCase "Lazy" $
-       parseSingleSpec "Lazy eval" @?=
+    , testCase "lazy" $
+       parseSingleSpec "lazy eval" @?=
           "Lazy \"eval\" (dummyLoc)"
 
     , testCase "automatic-instances" $
