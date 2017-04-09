@@ -182,8 +182,8 @@ testSpecP =
        parseSingleSpec "decrease insert 3" @?=
           "Decr (\"insert\" (dummyLoc),[2])"
 
-    , testCase "LAZYVAR" $
-       parseSingleSpec "LAZYVAR z" @?=
+    , testCase "lazyvar" $
+       parseSingleSpec "lazyvar z" @?=
           "LVars \"z\" (dummyLoc)"
 
     , testCase "lazy" $

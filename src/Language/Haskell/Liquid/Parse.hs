@@ -980,7 +980,7 @@ specP
     <|> (fallbackSpecP "embed"      (liftM Embed  embedP    ))
     <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
     <|> (reserved "decrease"      >> liftM Decr   decreaseP )
-    <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
+    <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
 

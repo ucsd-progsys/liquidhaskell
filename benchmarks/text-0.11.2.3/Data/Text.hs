@@ -498,7 +498,7 @@ uncons t@(Text arr off len)
     | len <= 0  = Nothing
     | otherwise = let Iter c d = iter t 0 -- i
                   in Just (c, textP arr (off+d) (len-d))
-    {- LAZYVAR i @-}
+    {- lazyvar i @-}
     -- where i = iter t 0
 {-# INLINE [1] uncons #-}
 
@@ -515,7 +515,7 @@ last (Text arr off len)
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
     | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          {-@ LAZYVAR n0 @-}
+          {-@ lazyvar n0 @-}
           n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
