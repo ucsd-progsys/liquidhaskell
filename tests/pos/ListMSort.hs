@@ -16,7 +16,7 @@ split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
 split xs                   = (xs, [])
 
 
-{-@ Decrease merge 4 @-}
+{-@ decrease merge 4 @-}
 {-@ merge :: Ord a => xs:(OList a) -> ys:(OList a) -> d:{v:Int| v = (len xs) + (len ys)} -> {v:(OList a) | (len v) = d} @-}
 merge :: Ord a => [a] -> [a] -> Int -> [a]
 merge xs [] _ = xs

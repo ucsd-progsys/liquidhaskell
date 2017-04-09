@@ -752,7 +752,7 @@ readInt (Chunk x xs) =
 
     where loop :: Bool -> Int -> Int -> ByteString -> B.ByteString -> Maybe (Int, ByteString)
           --LIQUID swap params 4 and 5
-          {-@ Decrease loop 4 5 @-}
+          {-@ decrease loop 4 5 @-}
           STRICT5(loop)
           loop neg i n cs c
               | B.null c = case cs of
@@ -798,7 +798,7 @@ readInteger (Chunk c0 cs0) =
           --LIQUID swap params 4 and 5
           loop :: Int -> Int -> [Integer]
                -> ByteString -> B.ByteString -> (Integer, ByteString)
-          {-@ Decrease loop 4 5 @-}
+          {-@ decrease loop 4 5 @-}
           STRICT5(loop)
           loop d acc ns cs c
               | B.null c = case cs of
@@ -831,7 +831,7 @@ readInteger (Chunk c0 cs0) =
 {-@ combine1 :: Integer -> x:{v:[Integer] | (len v) > 0}
              -> Integer
   @-}
-{-@ Decrease combine1 2 @-}
+{-@ decrease combine1 2 @-}
 combine1 :: Integer -> [Integer] -> Integer
 combine1 _ []  = error "impossible"
 combine1 _ [n] = n
@@ -842,7 +842,7 @@ combine1 b ns  = combine1 (b*b) $ combine2 b ns
                                then (len v < len x && len v > 0)
                                else (len v <= len x) }
   @-}
-{-@ Decrease combine2 2 @-}
+{-@ decrease combine2 2 @-}
 combine2 :: Integer -> [Integer] -> [Integer]
 combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
 combine2 _ ns       = ns

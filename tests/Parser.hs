@@ -178,8 +178,8 @@ testSpecP =
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?=
           "Qualif (Q {qName = \"Foo\", qParams = [(\"v\",FInt)], qBody = PAtom Lt (EVar \"v\") (ECon (I 0)), qPos = \"Fixpoint.Types.dummyLoc\" (line 0, column 0)})"
 
-    , testCase "Decrease" $
-       parseSingleSpec "Decrease insert 3" @?=
+    , testCase "decrease" $
+       parseSingleSpec "decrease insert 3" @?=
           "Decr (\"insert\" (dummyLoc),[2])"
 
     , testCase "LAZYVAR" $

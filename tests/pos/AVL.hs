@@ -30,7 +30,7 @@ singleton a = Tree a Nil Nil
 
 -- | Insert functions
 
-{-@ Decrease insert 3 @-}
+{-@ decrease insert 3 @-}
 {-@ insert :: a -> s: AVLTree -> {t: AVLTree | EqHt t s || HtDiff t s 1 } @-}
 insert :: (Ord a) => a -> Tree a -> Tree a
 insert a Nil = singleton a

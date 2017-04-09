@@ -172,7 +172,7 @@ fromText t@(Text arr off l)
 --
 fromString :: String -> Builder
 fromString str = Builder $ \k (Buffer p0 o0 u0 l0) ->
-        {-@ Decrease loop 1 6 @-}
+        {-@ decrease loop 1 6 @-}
         {- LIQUID WITNESS -}
     let loop [] !marr !o !u !l _ = k (Buffer marr o u l)
         loop s@(c:cs) marr o u l (d :: Int)

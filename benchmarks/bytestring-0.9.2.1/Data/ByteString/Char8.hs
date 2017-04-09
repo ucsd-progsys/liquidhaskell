@@ -318,7 +318,7 @@ pack str = B.unsafeCreate (P.length str) $ \p -> go p str
 
 pack str = B.unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (pack_go p str)
   where
-    {-@ Decrease pack_go 2 @-}
+    {-@ decrease pack_go 2 @-}
     pack_go :: Addr# -> [Char] -> ST a ()
     pack_go _ []        = return ()
     pack_go p (C# c:cs) = writeByte p (int2Word# (ord# c)) >> pack_go (p `plusAddr#` 1#) cs
@@ -992,7 +992,7 @@ readInt as
             _   -> loop False 0 0 as
 
     where loop :: Bool -> Int -> Int -> ByteString -> Maybe (Int, ByteString)
-          {-@ Decrease loop 4 @-}
+          {-@ decrease loop 4 @-}
           STRICT4(loop)
           loop neg i n ps
               | null ps   = end neg i n ps
@@ -1029,7 +1029,7 @@ readInteger as
 
           loop :: Int -> Int -> [Integer]
                -> ByteString -> (Integer, ByteString)
-          {-@ Decrease loop 4 @-}
+          {-@ decrease loop 4 @-}
           STRICT4(loop)
           loop d acc ns ps
               | null ps   = combine d acc ns empty
@@ -1057,7 +1057,7 @@ readInteger as
 {-@ combine1 :: Integer -> x:{v:[Integer] | (len v) > 0}
              -> Integer
   @-}
-{-@ Decrease combine1 2 @-}
+{-@ decrease combine1 2 @-}
 combine1 :: Integer -> [Integer] -> Integer
 combine1 _ []  = error "impossible"
 combine1 _ [n] = n
@@ -1068,7 +1068,7 @@ combine1 b ns  = combine1 (b*b) $ combine2 b ns
                                then (len v <  len x && len v > 0)
                                else (len v <= len x)}
   @-}
-{-@ Decrease combine2 2 @-}
+{-@ decrease combine2 2 @-}
 combine2 :: Integer -> [Integer] -> [Integer]
 combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
 combine2 _ ns       = ns

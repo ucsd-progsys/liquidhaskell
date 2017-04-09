@@ -468,7 +468,7 @@ pack str = unsafeCreate (P.length str) $ \p -> go p str
 
 pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p 0# str)
     where
-        {-@ Decrease go 3 @-}
+        {-@ decrease go 3 @-}
         go _ _ []        = return ()
         go p i (W8# c:cs) = writeByte p i c >> go p (i +# 1#) cs
 
@@ -1057,7 +1057,7 @@ unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
-  {-@ Decrease go_unfoldrN 1 @-}
+  {-@ decrease go_unfoldrN 1 @-}
   where STRICT4(go)
         {- LIQUID WITNESS -}
         go_unfoldrN (d::Int) p x n =
@@ -1237,12 +1237,12 @@ splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp 1
   where pred# c# = pred_ (W8# c#)
 
         STRICT5(splitWith0)
-        {-@ Decrease splitWith0 3 5 @-}
+        {-@ decrease splitWith0 3 5 @-}
         {- LIQUID WITNESS -}
         splitWith0 pred' off' len' fp' (x::Int) = withPtr fp $ \p ->
             splitLoop pred' p 0 off' len' fp' len' 0
 
-        {-@ Decrease splitLoop 7 8 @-}
+        {-@ decrease splitLoop 7 8 @-}
         splitLoop :: (Word# -> Bool)
                   -> Ptr Word8
                   -> Int -> Int -> Int
@@ -1582,7 +1582,7 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plu
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
 findIndices p ps = loop 0 ps
    where
-     {-@ Decrease loop 2 @-}
+     {-@ decrease loop 2 @-}
      STRICT2(loop)
      loop (n :: Int) qs             -- LIQUID CAST
         | null qs           = []
@@ -1763,7 +1763,7 @@ findSubstrings pat str
     | null pat         = rng 0 (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
     | otherwise        = search 0 str
   where
-    {-@ Decrease search 2 @-}
+    {-@ decrease search 2 @-}
     STRICT2(search)
     search (n :: Int) s
         | null s             = []
@@ -1801,7 +1801,7 @@ breakSubstring :: ByteString -- ^ String to search for
 
 breakSubstring pat src = search 0 src
   where
-    {-@ Decrease search 2 @-}
+    {-@ decrease search 2 @-}
     STRICT2(search)
     search n s
         | null s             = (src, empty)      -- not found
@@ -1890,7 +1890,7 @@ unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 inits :: ByteString -> [ByteString]
 --LIQUID INLINE inits (PS x s l) = [PS x s n | n <- [0..l]]
 inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
-      {-@ Decrease go 2 @-}
+      {-@ decrease go 2 @-}
     where go _  []     = []
           go n0 (n:ns) = PS x s n : go n ns
 --LIQUID          rng a b | a > b     = []

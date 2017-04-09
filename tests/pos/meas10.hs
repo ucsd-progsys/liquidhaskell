@@ -7,7 +7,7 @@ import Data.Set (Set(..))
 {-@ myrev :: xs:[a] -> {v:[a]| listElts(v) = listElts(xs)} @-}
 myrev :: [a] -> [a]
 myrev xs = go [] xs 
-{-@ Decrease go 2 @-}
+{-@ decrease go 2 @-}
    where go acc []     = acc
          go acc (y:ys) = go (y:acc) ys
 

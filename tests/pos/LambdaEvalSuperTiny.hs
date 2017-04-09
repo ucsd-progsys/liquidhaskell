@@ -49,7 +49,7 @@ evalVar :: Bndr -> LL (Pair Bndr Expr) -> Expr
 evalVar = error "HIDEME"
 
 {-@ eval :: Store -> e:Expr -> (Pair Store Value) @-}
-{-@ Decrease eval 2 @-}
+{-@ decrease eval 2 @-}
 eval sto (Var x)  
   = P sto (evalVar x sto)
 
