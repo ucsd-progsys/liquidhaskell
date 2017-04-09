@@ -61,8 +61,8 @@ testSpecP =
        parseSingleSpec "autosize List" @?=
           "ASize \"List\" (dummyLoc)"
 
-    , testCase "Local" $
-       parseSingleSpec "Local foo :: Nat -> Nat" @?=
+    , testCase "local" $
+       parseSingleSpec "local foo :: Nat -> Nat" @?=
           "LAsrt (\"foo\" (dummyLoc),lq_tmp$db##0:Nat -> Nat (dummyLoc))"
 
     , testCase "axiomatize" $

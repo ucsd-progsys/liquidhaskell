@@ -935,7 +935,7 @@ specP
   =     (fallbackSpecP "assume"     (liftM Assm    tyBindP  ))
     <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
     <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
-    <|> (reserved "Local"         >> liftM LAsrt   tyBindP  )
+    <|> (reserved "local"         >> liftM LAsrt   tyBindP  )
 
     -- TODO: These next two are synonyms, kill one
     <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
