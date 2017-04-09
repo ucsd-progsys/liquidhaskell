@@ -2,8 +2,8 @@
 
 module List () where
 
-{-@ Decrease go 3 4 5 @-}
-{-@ Decrease perms 4 5 6 @-}
+{-@ decrease go 3 4 5 @-}
+{-@ decrease perms 4 5 6 @-}
 
 {-@ foo :: xs:[a] -> ys:[a] -> {v:Int| v = (len xs)- (len ys)} -> Int @-}
 foo :: [a] -> [a] -> Int -> Int

@@ -859,20 +859,20 @@ Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
 sort = sortBy compare
 sortBy cmp xs = mergeAll cmp $ sequences xs 0
   where
-    {-@ Decrease sequences  1 2 @-}
+    {-@ decrease sequences  1 2 @-}
     {- LIQUID WITNESS -}
     sequences (a:b:xs) (_::Int)
       | a `cmp` b == GT = descending b [a]  xs 1
       | otherwise       = ascending  b (a:) xs 1
     sequences xs _      = [xs]
 
-    {-@ Decrease descending 3 4 @-}
+    {-@ decrease descending 3 4 @-}
     {- LIQUID WITNESS -}
     descending a as (b:bs) (_::Int)
       | a `cmp` b == GT  = descending b (a:as) bs 1 
     descending a as bs _ = (a:as): sequences bs 0
 
-    {-@ Decrease ascending  3 4 @-}
+    {-@ decrease ascending  3 4 @-}
     {- LIQUID WITNESS -}
     ascending a as (b:bs) (_::Int)
       | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs 1

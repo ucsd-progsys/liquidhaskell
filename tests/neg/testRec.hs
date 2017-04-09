@@ -19,7 +19,7 @@ map f (x:xs) = f x : map f (x:xs)
  
 -- bar = map id []
 
-{-@ Decrease go 2 @-}
+{-@ decrease go 2 @-}
 rev xs = go [] xs
   where go ack  []    = ack
         go ack (x:xs) = go (x:ack) xs

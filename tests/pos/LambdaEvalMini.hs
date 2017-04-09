@@ -53,7 +53,7 @@ evalVar x []
 
 -- A "value" is simply: {v: Expr | isValue v } *)
 
-{-@ Decrease eval 2 @-}
+{-@ decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 
 eval sto (Var x)  

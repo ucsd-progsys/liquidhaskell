@@ -67,7 +67,7 @@ isValue (Pair e1 e2) = (isValue e1) && (isValue e2)
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
 
-{-@ Decrease evalVar 2 @-}
+{-@ decrease evalVar 2 @-}
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr
 evalVar x ((y,v):sto) 
   | x == y
@@ -79,7 +79,7 @@ evalVar x []
   = error "unbound variable"
 
 
-{-@ Decrease eval 2 @-}
+{-@ decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 eval sto (Const i) 
   = (sto, Const i)

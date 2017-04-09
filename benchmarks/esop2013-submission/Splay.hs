@@ -316,7 +316,7 @@ union a b = unionT a b (slen a + slen b)
 --LIQUID     (ta,_,tb) = split x t
 
 {-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease unionT 4 @-}
+{-@ decrease unionT 4 @-}
 {- LIQUID WITNESS -}
 unionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 unionT Leaf         t _ = t
@@ -342,7 +342,7 @@ intersection a b = intersectionT a b (slen a + slen b)
 --LIQUID     (l', False, r') -> union (intersection l' l) (intersection r' r)
 
 {-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease intersectionT 4 @-}
+{-@ decrease intersectionT 4 @-}
 {- LIQUID WITNESS -}
 intersectionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 intersectionT Leaf _          _ = Leaf
@@ -369,7 +369,7 @@ difference a b = differenceT a b (slen a + slen b)
 --LIQUID     (l',_,r') = split x t1
 
 {-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease differenceT 4 @-}
+{-@ decrease differenceT 4 @-}
 {- LIQUID WITNESS -}
 differenceT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 differenceT Leaf _          _ = Leaf
@@ -401,7 +401,7 @@ showSet = showSet_go ""
 
 --LIQUID FIXME: renamed from `showSet'`, must fix parser!
 
-{-@ Decrease showSet_go 3 @-}
+{-@ decrease showSet_go 3 @-}
 showSet_go :: Show a => String -> Splay a -> String
 showSet_go _ Leaf = "\n"
 showSet_go pref (Node x l r) = show x ++ "\n"

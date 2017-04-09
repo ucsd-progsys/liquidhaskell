@@ -10,9 +10,9 @@ pos = undefined
 safeDiv :: Int -> Int -> Int
 safeDiv = undefined
 
-{-@ LAZYVAR z @-}
-{-@ LAZYVAR z1 @-}
-{-@ LAZYVAR z2 @-}
+{-@ lazyvar z @-}
+{-@ lazyvar z1 @-}
+{-@ lazyvar z2 @-}
 foo = if x > 0 then z else x
   where z  = z1 + z2
         z1 = 42 `safeDiv` x

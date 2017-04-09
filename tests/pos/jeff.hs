@@ -164,9 +164,9 @@ myIndices alg t bs
     -- right1    = BS.drop (BS.length bs - fringeLen) bs
 
 -- ISSUE: get contextual output with --diff
--- ISSUE: why does LAZYVAR right1 not work? it drops the output type on right1!
+-- ISSUE: why does lazyvar right1 not work? it drops the output type on right1!
 
-{- LAZYVAR right1 -}
+{- lazyvar right1 -}
 
 {-@ type OkPos Targ Str = {v:Nat | v <= bLength Str - bLength Targ} @-}
 {-@ type ByteStringNE   = {v:BS.ByteString | bLength v > 0 }   @-}

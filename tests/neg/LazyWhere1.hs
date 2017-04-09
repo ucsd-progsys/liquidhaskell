@@ -15,7 +15,7 @@ safeDiv = undefined
 --  otherwise, internal variables will be created and the expression will be
 --  unsafe
 
-{-@ LAZYVAR z @-}
+{-@ lazyvar z @-}
 foo = if x > 0 then z else x
   where z  = (42 `safeDiv` x) + ( pos x)
         x = choose 0

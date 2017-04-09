@@ -11,8 +11,8 @@ getTails' n xss = assert (n > 0) [t | (_:t) <- xss]
 x = getTails' 1 []
 
 -- HACK give hints for internal variables....
-{- Decrease ds_d258 3 @-}
-{- Decrease ds_d25g 3 @-}
+{- decrease ds_d258 3 @-}
+{- decrease ds_d25g 3 @-}
 
 -- TransformRec BUG: this causes some wierd unused variable error (occurrence of DEAD ID)?
 getTails'' :: Int -> [[a]] -> [[a]]

@@ -43,7 +43,7 @@ int :: NatT -> Int
 int Z     = 0
 int (S x) = 1 + int x
 
-{-@ Decrease ^^^ 2 @-}
+{-@ decrease ^^^ 2 @-}
 x ^^^ Z   = S Z
 x ^^^ S y = x * (x ^^^ y)
 

@@ -498,7 +498,7 @@ uncons t@(Text arr off len)
     | len <= 0  = Nothing
     | otherwise = let Iter c d = iter t 0 -- i
                   in Just (c, textP arr (off+d) (len-d))
-    {- LAZYVAR i @-}
+    {- lazyvar i @-}
     -- where i = iter t 0
 {-# INLINE [1] uncons #-}
 
@@ -515,7 +515,7 @@ last (Text arr off len)
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
     | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          {-@ LAZYVAR n0 @-}
+          {-@ lazyvar n0 @-}
           n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
@@ -942,7 +942,7 @@ concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
                    -> ts:{v:[TextNE] | (a + (sum_tlens v)) > 0}
                    -> {v:Int | ((v = (a + (sum_tlens ts))) && (v > 0))}
   @-}
-{-@ Decrease concat_sumP_go 3 @-}
+{-@ decrease concat_sumP_go 3 @-}
 concat_sumP_go :: String -> Int -> [Text] -> Int
 --LIQUID FIXME: we fail to infer the type of this function even with appropriate qualifiers..
 --LIQUID        probably related to the fact that `l` doesn't get a >0 refinement even though
@@ -1291,7 +1291,7 @@ dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p len (len-1) (length 
                                    && (BtwnI (v) (-1) (tlength t)))}
                       -> {v:Text | (tlength v) <= (tlength t)}
    @-}
-{-@ Decrease loop_dropWhileEnd 3 @-}
+{-@ decrease loop_dropWhileEnd 3 @-}
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
 loop_dropWhileEnd t@(Text arr off len) p !l !i cnt
     = if l <= 0  then empty
@@ -1496,7 +1496,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
                -> xs:[{v:Int | (BtwnI (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy -> (ix+(tlen pat)) <= iy}>
                -> [Text]
   @-}
-{-@ Decrease splitOn_go 4 @-}
+{-@ decrease splitOn_go 4 @-}
 splitOn_go :: Text -> Text -> Int -> [Int] -> [Text]
 splitOn_go pat@(Text _ _ l) t@(Text arr off len) !s (x:xs)
     =  textP arr (s+off) (x-s) : splitOn_go pat t (x+l) xs

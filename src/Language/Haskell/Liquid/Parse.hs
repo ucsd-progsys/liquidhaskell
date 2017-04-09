@@ -935,7 +935,7 @@ specP
   =     (fallbackSpecP "assume"     (liftM Assm    tyBindP  ))
     <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
     <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
-    <|> (reserved "Local"         >> liftM LAsrt   tyBindP  )
+    <|> (reserved "local"         >> liftM LAsrt   tyBindP  )
 
     -- TODO: These next two are synonyms, kill one
     <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
@@ -979,8 +979,8 @@ specP
 
     <|> (fallbackSpecP "embed"      (liftM Embed  embedP    ))
     <|> (fallbackSpecP "qualif"     (liftM Qualif (qualifierP sortP)))
-    <|> (reserved "Decrease"      >> liftM Decr   decreaseP )
-    <|> (reserved "LAZYVAR"       >> liftM LVars  lazyVarP  )
+    <|> (reserved "decrease"      >> liftM Decr   decreaseP )
+    <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
 

@@ -15,8 +15,8 @@ singleton = undefined
 fromDistinctAscList xs
   = create const (length xs) xs
   where
-    {-@ Decrease create  2 3 @-}
-    {-@ Decrease createR 1 4 @-}
+    {-@ decrease create  2 3 @-}
+    {-@ decrease createR 1 4 @-}
     create c (0::Int) xs' = c undefined xs'
 -- LIQUID for n = 1 n `div` 2 = 0 and the assume does not hold
     create c 1 xs' = case xs' of

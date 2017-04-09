@@ -47,7 +47,7 @@ unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
     | otherwise                = chr2 m n
     where m = A.unsafeIndexF arr off _len off
-          {-@ LAZYVAR n @-}
+          {-@ lazyvar n @-}
           n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
 
@@ -101,9 +101,9 @@ iter (Text arr off _len) i
                                  Iter (chr2 m n) 2
   where m = A.unsafeIndexF arr off _len j
         j = off + i
-        {- LAZYVAR n @-}
+        {- lazyvar n @-}
         -- n = A.unsafeIndex arr k
-        {- LAZYVAR k @-}
+        {- lazyvar k @-}
         -- k = j + 1
 {-# INLINE iter #-}
 
@@ -144,10 +144,10 @@ reverseIter (Text arr off _len) i
                                  in
                                   (chr2 n m,    neg 2)
   where m = A.unsafeIndexB arr off _len j
-        {- LAZYVAR n @-}
+        {- lazyvar n @-}
         -- n = A.unsafeIndex arr k
         j = off + i
-        {- LAZYVAR k @-}
+        {- lazyvar k @-}
         -- k = j - 1
 {-# INLINE reverseIter #-}
 

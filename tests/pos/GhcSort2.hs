@@ -31,7 +31,7 @@ merge_pairs (xs:ys:xss) = merge xs ys d : merge_pairs xss
   where d = length xs + length ys
 
 
-{-@ Decrease merge 4 @-}
+{-@ decrease merge 4 @-}
 {-@ merge :: (Ord a) => xs:OList a -> ys:OList a -> {n:Nat|n = (len xs) + (len ys)} -> OList a  @-}
 merge :: (Ord a) => [a] -> [a] -> Int -> [a]
 merge [] ys _ = ys

@@ -194,7 +194,7 @@ partialSortByBounds cmp a k l u
  {-# INLINE [1] isort #-}
  len = u - l
  m0  = l + k
- {-@ Decrease go 1 3 @-} 
+ {-@ decrease go 1 3 @-} 
  go 0 l n _    = H.partialSortByBounds cmp a k l  u 
  go n l u (m :: Int)
    | l == m   = return ()
@@ -221,8 +221,8 @@ partitionBy cmp a p l u = partUp p l u (u-l)
  where
  -- 6.10 panics without the signatures for partUp and partDown, 6.12 and later
  -- versions don't need them
- {-@ Decrease partUp 4 @-}
- {-@ Decrease partDown 4 @-}
+ {-@ decrease partUp 4 @-}
+ {-@ decrease partDown 4 @-}
  partUp :: e -> Int -> Int -> Int -> m Int
  partUp p l u _
    | l < u = do e <- unsafeRead a  l
