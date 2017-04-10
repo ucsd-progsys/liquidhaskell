@@ -941,15 +941,12 @@ specP
     <|> (fallbackSpecP "axiomatize" (liftM Reflect axiomP   ))
     <|> (fallbackSpecP "reflect"    (liftM Reflect axiomP   ))
 
-    -- <|> (fallbackSpecP "measure" (((try (liftM Meas    measureP ))
-    --                                  <|> liftM HMeas   hmeasureP)))
     <|> (fallbackSpecP "measure"    hmeasureP)
 
     <|> (fallbackSpecP "define"     (liftM Define  defineP  ))
     <|> (reserved "infixl"        >> liftM BFix    infixlP  )
     <|> (reserved "infixr"        >> liftM BFix    infixrP  )
     <|> (reserved "infix"         >> liftM BFix    infixP   )
-    <|> (fallbackSpecP "defined"    (liftM Meas    measureP ))
     <|> (fallbackSpecP "inline"     (liftM Inline  inlineP  ))
 
     <|> (fallbackSpecP "bound"    (((liftM PBound  boundP   )

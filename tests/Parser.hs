@@ -97,10 +97,6 @@ testSpecP =
        parseSingleSpec "infix 9 +++" @?=
           "BFix ()"
 
-    , testCase "defined" $ -- TODO:AZ synonym for "measure"?
-       parseSingleSpec "defined fv :: Expr -> (Set Bndr)" @?=
-          "Meas fv :: lq_tmp$db##0:Expr -> (Set Bndr)"
-
     , testCase "inline" $
        parseSingleSpec "inline eqelems" @?=
           "Inline \"eqelems\" (dummyLoc)"
