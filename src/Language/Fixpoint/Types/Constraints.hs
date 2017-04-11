@@ -110,13 +110,13 @@ data WfC a  =  WfC  { wenv  :: !IBindEnv
               deriving (Eq, Generic, Functor)
 
 
-updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a 
-updateWfCExpr _ w@(WfC {})  = w 
+updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
+updateWfCExpr _ w@(WfC {})  = w
 updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 
-isGWfc :: WfC a -> Bool 
-isGWfc (GWfC _ _ _ _) = True 
-isGWfc (WfC _ _ _)    = False 
+isGWfc :: WfC a -> Bool
+isGWfc (GWfC _ _ _ _) = True
+isGWfc (WfC _ _ _)    = False
 
 type SubcId = Integer
 
@@ -178,13 +178,13 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type GFixSolution = GFixSol Expr 
+type GFixSolution = GFixSol Expr
 
 type FixSolution  = M.HashMap KVar Expr
 newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
   deriving (Generic, Monoid, Functor)
 
-toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e 
+toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
 
@@ -265,10 +265,10 @@ instance PPrint GFixSolution where
 pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
 pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
 
-ppLocOfKVar :: KVar -> Doc 
-ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv 
+ppLocOfKVar :: KVar -> Doc
+ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
 
-ppNonTauto :: Doc -> Expr -> Doc 
+ppNonTauto :: Doc -> Expr -> Doc
 ppNonTauto d e
   | isTautoPred e = mempty
   | otherwise     = pprint e <> d
@@ -316,7 +316,7 @@ wfC be sr x = if all isEmptySubst (sus ++ gsus)
     go _            = []
 
     go' (PGrad k su e) = [((k, e), su)]
-    go' (PAnd es)      = concatMap go' es 
+    go' (PAnd es)      = concatMap go' es
     go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
@@ -476,7 +476,7 @@ fi :: [SubC a]
    -> Bool
    -> [Triggered Expr]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es 
+fi cs ws binds ls ds ks qs bi aHO aHOq es
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds

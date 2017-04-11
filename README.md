@@ -126,3 +126,138 @@ will now emit files:
 and also a dot file with the constraint dependency graph:
 
     path/to/.liquid/foo.fq.dot
+
+
+## FInfo Invariants
+
+### Binders
+
+This is the field
+
+```
+     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+```
+
+or in the .fq files as
+
+```
+bind 1 x : ...
+bind 2 y : ...
+```
+
+* Each `BindId` must be a distinct `Int`,
+* Each `BindId` that appears in a constraint
+  environment i.e. inside _any_ `IBindEnv`
+  must appear inside the `bindInfo`
+
+### Environments
+
+* Each constraint's environment is a set of `BindId`
+  which must be defined in the `bindInfo`. Furthermore
+
+* Each constraint should not have _duplicate_ names in its
+  environment, that is if you have two binders
+
+```
+  bind 1 x : ...
+  bind 12 x : ...
+```
+
+  Then a single `IBindEnv` should only mention _at most_
+  one of `1` or `12`.
+
+* There is also a "tree-shape" property that its a bit hard
+  to describe ... TODO     
+
+### LHS
+
+Each `slhs` of a constraint is a `SortedReft`.
+
+- Each `SortredReft` is basically a `Reft` -- a logical predicate.
+  The important bit is that a `KVar` i.e. terms of the formalized
+
+```
+     $k1[x1:=y1][x2:=y2]...[xn:=yn]
+```
+
+  That is represented in the `Expr` type as
+
+```
+  | PKVar  !KVar !Subst
+```
+
+  must appear _only_ at the **top-level** that is not under _any_
+  other operators, i.e. not as a sub-`Expr` of other expressions.
+
+
+- This is basically a predicate that needs to be "well sorted"
+  with respect to the `BindId`, intuitively
+
+```
+    x:int, y:int |- x + y : int
+```
+
+  is well sorted. but
+
+```
+    x:int  |- x + y : int
+```
+
+  is not, and
+
+```
+    x:int, y: list |- x + y : int
+```
+
+  is not. The exact definition is formalized in `Language.Fixpoint.SortCheck`
+
+
+### RHS
+
+Similarly each `rhs` of a `SubC` must either be a single `$k[...]` or an plain `$k`-free `Expr`.
+
+### Global vs. Distinct Literals
+
+```
+     , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
+     , dLits    :: !(SEnv Sort)       
+```
+
+The _global_ literals `gLits` are symbols that
+are in scope _everywhere_ i.e. need not be separately
+defined in individual environments. These include things like
+
+- uninterpreted _measure_ functions `len`, `height`,
+- uninterpreted _data constructor_ literals `True`, `False`
+
+Suppose you have an enumerated type like:
+
+```
+data Day = Sun | Mon | Tue | Wed | ... | Sat
+```
+
+You can model the above values in fixpoint as:
+
+```
+constant lit#Sun : Day
+constant lit#Mon : Day
+constant lit#Tue : Day
+constant lit#Wed : Day
+```
+
+The _distinct_ literals are a subset of the above where we
+want to tell the SMT solver that the values are *distinct*
+i.e. **not equal** to each other, for example, you can
+**additionally** specify this as:
+
+```
+distinct lit#Sun : Day
+distinct lit#Mon : Day
+distinct lit#Tue : Day
+distinct lit#Wed : Day
+```
+
+The above two are represented programmatically by generating   
+suitable `Symbol` values (for the literals  see `litSymbol`)
+and `Sort` values as `FTC FTycon` and then making an `SEnv`
+from the `[(Symbol, Sort)]`.
