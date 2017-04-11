@@ -116,9 +116,9 @@ emptyDef    = Token.LanguageDef
                , Token.commentLine    = ""
                , Token.nestedComments = True
                , Token.identStart     = letter <|> char '_'
-               , Token.identLetter    = alphaNum <|> oneOf "_'"
+               , Token.identLetter    = alphaNum <|> oneOf "_"
                , Token.opStart        = Token.opLetter emptyDef
-               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~'"
                , Token.reservedOpNames= []
                , Token.reservedNames  = []
                , Token.caseSensitive  = True
@@ -129,8 +129,8 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
-           , Token.identStart      = satisfy (const False)
-           , Token.identLetter     = satisfy (const False)
+           -- , Token.identStart      = satisfy (const False)
+           -- , Token.identLetter     = satisfy (const False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
                                      , "true"
@@ -138,20 +138,54 @@ languageDef =
                                      , "mod"
                                      , "data"
                                      , "Bexp"
-                                     , "forall"
-                                     , "exists"
-                                     , "assume"
-                                     , "measure"
-                                     , "module"
-                                     , "spec"
-                                     , "where"
                                      , "True"
                                      , "Int"
                                      , "import"
-                                     , "_|_"
-                                     , "|"
                                      , "if", "then", "else"
                                      , "func"
+
+                                     -- reserved words used in liquid haskell
+                                     , "forall"
+                                     , "exists"
+                                     , "module"
+                                     , "spec"
+                                     , "where"
+
+                                     , "decrease"
+                                     , "lazyvar"
+                                     , "LIQUID"
+                                     , "lazy"
+                                     , "local"
+                                     , "assert"
+                                     , "assume"
+                                     , "automatic-instances"
+                                     , "autosize"
+                                     , "axiomatize"
+                                     , "bound"
+                                     , "class"
+                                     , "data"
+                                     , "define"
+                                     , "defined"
+                                     , "embed"
+                                     , "expression"
+                                     , "import"
+                                     , "include"
+                                     , "infix"
+                                     , "infixl"
+                                     , "infixr"
+                                     , "inline"
+                                     , "instance"
+                                     , "invariant"
+                                     , "measure"
+                                     , "newtype"
+                                     , "predicate"
+                                     , "qualif"
+                                     , "reflect"
+                                     , "type"
+                                     , "using"
+                                     , "with"
+
+
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
@@ -162,7 +196,14 @@ languageDef =
                                      , "->"
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
-                                     , "?", "Bexp" -- , "'"
+                                     , "?", "Bexp"
+                                     , "'"
+                                     , "_|_"
+                                     , "|"
+                                     , "<:"
+                                     , "|-"
+                                     , "::"
+                                     , "."
                                      ]
            }
 
@@ -283,7 +324,7 @@ expr0P
   =  (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
- <|> (reserved "_|_" >> return EBot)
+ <|> (reservedOp "_|_" >> return EBot)
  <|> lamP
   -- TODO:AZ get rid of these try, after the rest
  <|> try (parens exprP)
@@ -418,11 +459,11 @@ litP = do reserved "lit"
 
 lamP :: Parser Expr
 lamP
-  = do reserved "\\"
+  = do reservedOp "\\"
        x <- symbolP
        colon
        t <- sortP
-       reserved "->"
+       reservedOp "->"
        e  <- exprP
        return $ ELam (x, t) e
 
@@ -498,12 +539,12 @@ bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
-      <|> (reserved "??" >> makeUniquePGrad)
+      <|> (reservedOp "??" >> makeUniquePGrad)
       <|> kvarPredP
       <|> (fastIfP pIte predP)
       <|> try predrP
       <|> (parens predP)
-      <|> (reserved "?" *> exprP)
+      <|> (reservedOp "?" *> exprP)
       <|> try funAppP
       <|> (eVar <$> symbolP)
       <|> (reservedOp "&&" >> pGAnds <$> predsP)
@@ -529,7 +570,7 @@ kvarP = KV <$> (char '$' *> symbolP <* spaces)
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
-    aP = reserved ":="
+    aP = reservedOp ":="
 
 predsP :: Parser [Expr]
 predsP = brackets $ sepBy predP semi
@@ -579,7 +620,7 @@ refBindP bp rp kindP
   = braces $ do
       x  <- bp
       t  <- kindP
-      reserved "|"
+      reservedOp "|"
       ra <- rp <* spaces
       return $ t (Reft (x, ra))
 
@@ -758,7 +799,7 @@ solution1P :: Parser (KVar, Expr)
 solution1P = do
   reserved "solution:"
   k  <- kvP
-  reserved ":="
+  reservedOp ":="
   ps <- brackets $ sepBy predSolP semi
   return (k, simplify $ PAnd ps)
   where
