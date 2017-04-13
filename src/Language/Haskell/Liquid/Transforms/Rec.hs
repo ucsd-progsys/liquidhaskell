@@ -32,7 +32,7 @@ import           Outputable                           (SDoc)
 import           Prelude                              hiding (error)
 import           SrcLoc
 import           Type                                 (mkForAllTys, splitForAllTys)
-import           TypeRep
+import           TyCoRep
 import           Unique                               hiding (deriveUnique)
 import           Var
 
@@ -219,11 +219,11 @@ mkFreshIds :: [TyVar]
            -> State TrEnv ([Var], Id)
 mkFreshIds tvs ids x
   = do ids'  <- mapM fresh ids
-       let t  = mkForAllTys tvs $ mkType (reverse ids') $ varType x
+       let t  = mkForAllTys ((`Named` Visible) <$> tvs) $ mkType (reverse ids') $ varType x
        let x' = setVarType x t
        return (ids', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
+    mkType ids ty = foldl (\t x -> ForAllTy (Anon $ varType x) t) ty ids
 
 class Freshable a where
   fresh :: a -> TE a

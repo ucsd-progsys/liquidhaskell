@@ -82,6 +82,7 @@ module Language.Haskell.Liquid.Types.RefType (
   ) where
 
 -- import           GHC.Stack
+import TyCoRep
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
@@ -91,7 +92,7 @@ import Kind
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import TypeRep          hiding (maybeParen, pprArrowChain)
+import Language.Haskell.Liquid.GHC.TypeRep          hiding (maybeParen, pprArrowChain)
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
@@ -212,12 +213,24 @@ instance ( SubsTy tv (RType c tv ()) c
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
+instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where 
+instance Reftable (RTProp RTyCon RTyVar ()) where 
+instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where 
+instance Reftable (RTProp BTyCon BTyVar ())  where 
+instance Reftable (RTProp RTyCon RTyVar Reft) where
+
+-- instance (Reftable r, PPrint tv, PPrint r, Eq tv, Hashable tv, FreeVar RTyCon tv
+--          ) => Reftable (RTProp RTyCon tv r) where 
+-- NV TODO 
+
+{-
 instance ( OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) r
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
+         , SubsTy tv (RType c tv ()) tv
          ) => Reftable (RTProp c tv r) where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
@@ -229,7 +242,7 @@ instance ( OkRT c tv r
   params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
-
+-}
 
 ----------------------------------------------------------------------------
 -- | Subable Instances -----------------------------------------------------
@@ -255,7 +268,8 @@ instance Subable (RRProp Reft) where
 -- | Reftable Instances -------------------------------------------------------
 -------------------------------------------------------------------------------
 
-instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Reftable (RType RTyCon RTyVar r) where
+instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+    => Reftable (RType RTyCon RTyVar r) where
   isTauto     = isTrivial
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
@@ -610,7 +624,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
 -------------------------------------------------------------------------
-addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
              => (M.HashMap TyCon FTycon)
              -> (M.HashMap TyCon RTyCon)
              -> RRType r
@@ -619,7 +633,7 @@ addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
-expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
            => (M.HashMap TyCon FTycon)
            -> (M.HashMap TyCon RTyCon)
            -> RRType r
@@ -1099,7 +1113,7 @@ ofType_ tx = go . expandTypeSynonyms
       = tcFVar tx α
     go (FunTy τ τ')
       = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy α τ)
+    go (ForAllTy (Named α f) τ)
       = RAllT (tcFTVar tx α) $ go τ
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -1177,14 +1191,14 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
 -- | Embedding RefTypes --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r)
+type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable (RTProp RTyCon RTyVar r))
 
 -- TODO: remove toType, generalize typeSort
 toType  :: (ToTypeable r) => RRType r -> Type
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
 toType (RAllT a t) | RTV α <- ty_var_value a
-  = ForAllTy α (toType t)
+  = ForAllTy (mkTyArg α) (toType t)
 toType (RAllP _ t)
   = toType t
 toType (RAllS _ t)
@@ -1216,10 +1230,12 @@ toType t
 -- | Annotations and Solutions -------------------------------------------------
 --------------------------------------------------------------------------------
 
-rTypeSortedReft ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => TCEmb TyCon -> RRType r -> SortedReft
+rTypeSortedReft ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+                => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
-rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => TCEmb TyCon -> RRType r -> Sort
+rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+              => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
 -------------------------------------------------------------------------------
@@ -1330,11 +1346,11 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 
-mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                => (DataCon, RType RTyCon RTyVar r) -> [(Var, RType RTyCon RTyVar r)]
-mkDataConIdsTy (dc, t) = [ expandProductType x t | x <- dataConImplicitIds dc]
+mkDataConIdsTy (dc, t) = [ expandProductType x t | AnId x <- dataConImplicitTyThings dc]
 
-expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                   => Var -> RType RTyCon RTyVar r -> (Var, RType RTyCon RTyVar r)
 expandProductType x t
   | ofType (varType x) == toRSort t = (x, t)

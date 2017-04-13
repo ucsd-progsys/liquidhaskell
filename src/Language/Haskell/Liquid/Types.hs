@@ -224,9 +224,9 @@ import Prelude                          hiding  (error)
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
-import TypeRep                          hiding  (maybeParen, pprArrowChain)
+import           Language.Haskell.Liquid.GHC.TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
@@ -605,7 +605,7 @@ isClassBTyCon :: BTyCon -> Bool
 isClassBTyCon = btc_class
 
 isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)
+isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqPrimTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -928,7 +928,7 @@ instance TyConable TyCon where
   isFun      = isFunTyCon
   isList     = (listTyCon ==)
   isTuple    = TyCon.isTupleTyCon
-  isClass c  = isClassTyCon c || c == eqTyCon
+  isClass c  = isClassTyCon c || c == eqPrimTyCon
   isEqual    = (eqPrimTyCon ==)
   ppTycon    = text . showPpr
 

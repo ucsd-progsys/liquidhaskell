@@ -25,8 +25,8 @@ import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
-import           TypeRep
-import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
@@ -117,10 +117,10 @@ normalizeTyVars (Rec xes)    = Rec xes'
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
   | length as == length as'
-  = mkForAllTys as' $ substTy su bt
+  = mkForAllTys (mkTyArg <$> as') $ substTy su bt
   | otherwise
-  = trace msg $ mkForAllTys as bt
-  where su = mkTopTvSubst $ zip as (mkTyVarTys as')
+  = trace msg $ mkForAllTys (mkTyArg <$> as) bt
+  where su = mkTvSubstPrs $ zip as (mkTyVarTys as')
 
 -- | eta-expand CoreBinds with quantified types
 normalizeForAllTys :: CoreExpr -> CoreExpr

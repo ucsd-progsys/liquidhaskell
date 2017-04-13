@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
 import           CoreSyn
 import           Type
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           TyCon
 import qualified CoreSubst
 import qualified Outputable

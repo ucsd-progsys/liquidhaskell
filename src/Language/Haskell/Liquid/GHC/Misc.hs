@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE PatternSynonyms           #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -29,8 +30,9 @@ import           CoreSyn                                    hiding (Expr, source
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
-import           HscTypes                                   (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
-import           Kind                                       (superKind)
+import           HscTypes                                   (Dependencies, ImportedMods(..), ModGuts(..), HscEnv(..), FindResult(..), 
+                                                             ImportedModsVal(..), Dependencies(..))
+import           TysPrim                                    (anyTy)
 import           NameSet                                    (NameSet)
 import           SrcLoc                                     hiding (L)
 import           Bag
@@ -52,7 +54,7 @@ import           TcRnDriver
 
 import           RdrName
 import           Type                                       (liftedTypeKind)
-import           TypeRep
+import           TyCoRep
 import           Var
 import           IdInfo
 import qualified TyCon                                      as TC
@@ -84,7 +86,7 @@ data MGIModGuts = MI {
     mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
   , mgi_deps      :: !Dependencies
-  , mgi_dir_imps  :: !ImportedMods
+  , mgi_dir_imps  :: ![ModuleName]
   , mgi_rdr_env   :: !GlobalRdrEnv
   , mgi_tcs       :: ![TyCon]
   , mgi_fam_insts :: ![FamInst]
@@ -104,6 +106,9 @@ miModGuts cls mg  = MI {
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
+
+mg_dir_imps :: ModGuts -> [ModuleName]
+mg_dir_imps m = fst <$> (dep_mods $ mg_deps m)
 
 mgi_namestring :: MGIModGuts -> String
 mgi_namestring = moduleNameString . moduleName . mgi_module
@@ -137,11 +142,11 @@ stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
       occ  = mkVarOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
-stringTyCon = stringTyConWithKind superKind
+stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = TC.mkKindTyCon name k
+stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name 
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -151,11 +156,11 @@ hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
+isBaseType (ForAllTy (Anon _) _) = False -- isBaseType t1 && isBaseType t2
 isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
-isBaseType (FunTy _ _)     = False -- isBaseType t1 && isBaseType t2
 isBaseType _               = False
 
 validTyVar :: String -> Bool
@@ -335,8 +340,14 @@ collectArguments :: Int -> CoreExpr -> [Var]
 collectArguments n e = if length xs > n then take n xs else xs
   where
     (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
-    vs               = fst $ collectValBinders $ ignoreLetBinds e'
+    vs               = fst $ collectBinders $ ignoreLetBinds e'
     xs               = vs' ++ vs
+
+collectTyBinders expr
+  = go [] expr
+  where
+    go tvs (Lam b e) | isTyVar b = go (b:tvs) e
+    go tvs e                     = (reverse tvs, e)
 
 collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
 collectValBinders' = go []
@@ -383,8 +394,6 @@ realTcArity
   = kindArity . TC.tyConKind
 
 kindArity :: Kind -> Arity
-kindArity (FunTy _ res)
-  = 1 + kindArity res
 kindArity (ForAllTy _ res)
   = 1 + kindArity res
 kindArity _
@@ -407,7 +416,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
                     -- Try and find the required name in the exports
                     let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
                                                 , is_qual = False, is_dloc = noSrcSpan }
-                        provenance = Imported [ImpSpec decl_spec ImpAll]
+                        provenance = Just $ ImpSpec decl_spec ImpAll
                         env = case mi_globals iface of
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
@@ -475,7 +484,7 @@ fastStringText = T.decodeUtf8With TE.lenientDecode . fastStringToByteString
 
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
-tyConTyVarsDef c | TC.isPromotedTyCon   c = []
+-- tyConTyVarsDef c | TC.isPromotedTyCon   c = []
 tyConTyVarsDef c | TC.isPromotedDataCon c = []
 tyConTyVarsDef c = TC.tyConTyVars c
 
@@ -523,9 +532,6 @@ instance Show TyCon where
   show = show . getName
 
 instance NFData Class where
-  rnf t = seq t ()
-
-instance NFData SrcSpan where
   rnf t = seq t ()
 
 instance NFData TyCon where
@@ -637,7 +643,7 @@ desugarModule tcm = do
 type Prec = TyPrec
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
+lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe

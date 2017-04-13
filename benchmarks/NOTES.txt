@@ -1,4 +1,0 @@
-Changes:
-
-[base/Data/List.hs]
-findIndices: Change Int# to Int
