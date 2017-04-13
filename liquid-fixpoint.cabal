@@ -51,7 +51,7 @@ Executable fixpoint
   if flag(devel)
     ghc-options: -Werror
   hs-source-dirs: bin
-  Build-Depends: base >= 4.8 && < 5
+  Build-Depends: base 
                , liquid-fixpoint
 
 Library
@@ -75,6 +75,7 @@ Library
                    Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
+                   Language.Fixpoint.Types.Graduals,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Graph.Types,
                    Language.Fixpoint.Graph.Reducible,
@@ -108,7 +109,7 @@ Library
                    Language.Fixpoint.Solver.GradualSolve,
                    Language.Fixpoint.Solver.Solve
 
-  Build-Depends: base >= 4.8 && < 5
+  Build-Depends: base
                , array
                , async
                , attoparsec

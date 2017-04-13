@@ -14,13 +14,13 @@ import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
+import qualified Language.Fixpoint.Types.Graduals  as G
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.GradualSolve
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
@@ -52,6 +52,28 @@ solve cfg fi = do
     n    = fromIntegral $ W.wRanks wkl
     s0   = siSol  sI
     ks   = siVars sI
+
+
+--------------------------------------------------------------------------------
+solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+--------------------------------------------------------------------------------
+solveGradual cfg fi = do 
+  fi'  <- G.uniqify fi 
+  sols <- G.makeSolutions cfg fi' 
+  gradualLoop (cfg{gradual = False}) fi' sols  
+
+gradualLoop :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> [G.GSol] -> IO (F.Result (Integer, a))
+gradualLoop _ _ [] 
+  = return $ F.unsafe 
+gradualLoop cfg fi (s:ss)
+  = do putStrLn ("Solving for " ++ show s)
+       r <- solve cfg (G.gsubst s fi)
+       putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
+       if F.isUnsafe r 
+        then gradualLoop cfg fi ss
+        else return r 
+
+
 
 --------------------------------------------------------------------------------
 -- | Progress Bar

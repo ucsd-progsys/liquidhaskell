@@ -53,6 +53,7 @@ module Language.Fixpoint.Types.Constraints (
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
+  , unsafe, isUnsafe
 
   -- * Cut KVars
   , Kuts (..)
@@ -200,6 +201,14 @@ instance Monoid (Result a) where
       stat      = mappend (resStatus r1)    (resStatus r2)
       soln      = mappend (resSolution r1)  (resSolution r2)
       gsoln     = mappend (gresSolution r1) (gresSolution r2)
+
+unsafe :: Result a 
+unsafe = mempty {resStatus = Unsafe []}
+
+isUnsafe :: Result a -> Bool
+isUnsafe r | Unsafe _ <- resStatus r 
+  = True
+isUnsafe _ = False
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"
