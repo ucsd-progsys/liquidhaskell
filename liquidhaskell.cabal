@@ -229,8 +229,6 @@ Library
    ghc-options: -W -fwarn-missing-signatures -Werror
    if flag(include)
      hs-source-dirs: devel
-   if flag(devel)
-     ghc-options: -Werror
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 

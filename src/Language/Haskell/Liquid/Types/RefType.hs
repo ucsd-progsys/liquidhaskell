@@ -88,7 +88,6 @@ import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
 import Var
-import Kind
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
@@ -124,8 +123,6 @@ import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPp
 import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, dataConImplicitIds)
 
 import Data.List (sort, foldl')
-
--- -- import Debug.Trace
 
 strengthenDataConType :: Symbolic t
                       => (t, RType c tv (UReft Reft)) -> (t, RType c tv (UReft Reft))
@@ -213,17 +210,8 @@ instance ( SubsTy tv (RType c tv ()) c
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
-instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where 
-instance Reftable (RTProp RTyCon RTyVar ()) where 
-instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where 
-instance Reftable (RTProp BTyCon BTyVar ())  where 
-instance Reftable (RTProp RTyCon RTyVar Reft) where
-
--- instance (Reftable r, PPrint tv, PPrint r, Eq tv, Hashable tv, FreeVar RTyCon tv
---          ) => Reftable (RTProp RTyCon tv r) where 
--- NV TODO 
-
-{-
+{- 
+NV: The following makes ghc diverge thus dublicating the code 
 instance ( OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) r
@@ -243,6 +231,66 @@ instance ( OkRT c tv r
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 -}
+
+instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where 
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
+
+instance Reftable (RTProp RTyCon RTyVar ()) where 
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
+
+instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where 
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
+
+instance Reftable (RTProp BTyCon BTyVar ())  where 
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
+
+instance Reftable (RTProp RTyCon RTyVar Reft) where
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 ----------------------------------------------------------------------------
 -- | Subable Instances -----------------------------------------------------
@@ -1111,9 +1159,9 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (FunTy τ τ')
+    go (ForAllTy (Anon τ) τ')
       = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy (Named α f) τ)
+    go (ForAllTy (Named α _) τ)
       = RAllT (tcFTVar tx α) $ go τ
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -1124,6 +1172,10 @@ ofType_ tx = go . expandTypeSynonyms
       = RAppTy (go t1) (ofType_ tx t2) mempty
     go (LitTy x)
       = tcFLit tx x
+    go (CastTy t _)
+      = go t 
+    go (CoercionTy _)
+      = errorstar "Coercion is currently not supported"
 
 ofLitType :: (Monoid r) => (TyCon -> [t] -> [p] -> r -> t) -> TyLit -> t
 ofLitType rF (NumTyLit _) = rF intTyCon [] [] mempty
@@ -1177,6 +1229,8 @@ isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
 isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 isBaseTy (LitTy _)       = True
+isBaseTy (CastTy _ _)    = False 
+isBaseTy (CoercionTy _)  = False 
 
 
 dataConMsReft :: Reftable r => RType c tv r -> [Symbol] -> Reft
@@ -1503,6 +1557,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
 
+    go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
     go pos (ForAllTy _ t)  = go pos t
     go pos (TyVarTy v)     = [(v, pos)]
     go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
@@ -1518,8 +1573,9 @@ makeTyConVariance c = varSignToVariance <$> tvs
        | otherwise
        = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
 
-    go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
     go _   (LitTy _)       = []
+    go _   (CoercionTy _)  = []
+    go pos (CastTy t _)    = go pos t 
 
     goTyConApp _   Invariant     _ = []
     goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
@@ -1533,6 +1589,7 @@ dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
     dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+    go  vis (FunTy t1 t2)   = go vis t1 `S.union` go vis t2
     go  vis (ForAllTy _ t)  = go vis t
     go  _   (TyVarTy _)     = S.empty
     go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2
@@ -1541,8 +1598,9 @@ dataConsOfTyCon = dcs S.empty
       = S.empty
       | otherwise
       = (S.insert c $ mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
-    go  vis (FunTy t1 t2)   = go vis t1 `S.union` go vis t2
     go  _   (LitTy _)       = S.empty
+    go  _   (CoercionTy _)  = S.empty
+    go  vis (CastTy t _)    = go vis t 
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------

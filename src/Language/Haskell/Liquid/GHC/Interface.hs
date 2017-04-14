@@ -127,7 +127,7 @@ runLiquidGhc hscEnv cfg act =
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- configureDynFlags cfg tmp
-      defaultCleanupHandler df act
+      prettyPrintGhcErrors df act
 
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do

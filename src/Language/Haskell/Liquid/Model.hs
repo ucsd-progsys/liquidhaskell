@@ -26,7 +26,6 @@ import           GHC.Prim
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-import           Unsafe.Coerce
 
 import           Language.Fixpoint.Types (FixResult(..), mapPredReft, Symbol, symbol, Expr(..),
                                           mkSubst, subst)
@@ -49,12 +48,9 @@ import qualified Outputable as GHC
 import           DynFlags
 import           HscMain hiding (hscParsedStmt)
 import           InstEnv
-import           OccName
-import           RdrName
 import           Type
 import           TysWiredIn
 import           UniqSet
-import           Var
 import           VarSet
 import           InteractiveEval
 
@@ -74,9 +70,16 @@ import CorePrep
 import TyCon
 import ErrUtils
 import HscTypes
-import FastString
 import Exception
 import Util
+
+{- NV: Currently Unused 
+import           Unsafe.Coerce
+import           OccName
+import           RdrName
+import           Var
+import FastString
+-}
 
 -- import           Debug.Trace
 
@@ -205,10 +208,12 @@ addDict preds (v, t) = addDict' preds (v, t) `gcatch`
 
 addDict' :: [PredType] -> (Symbol, SpecType)
          -> Ghc (Symbol, SpecType, Maybe TargetDict)
+addDict' _ _ 
+  = error "TODO"
+{-  NV TODO this has noumerous errors on ghc-8 
 addDict' _preds (v, t)
   | Type.isFunTy (toType t)
   = return (v, t, Nothing)
-{-  NV TODO this has noumerous errors on ghc-8 
 addDict' preds (v, t) = do
   -- liftIO $ putStrLn $ showPpr (toType t, preds)
   msu <- monomorphize preds (toType t)
@@ -445,7 +450,7 @@ hscParsedDecls hsc_env0 decls =
     {- Tidy -}
     (tidy_cg, mod_details) <- liftIO $ tidyProgram hsc_env simpl_mg
 
-    let dflags = hsc_dflags hsc_env
+    let _dflags = hsc_dflags hsc_env
         !CgGuts{ cg_module    = this_mod,
                  cg_binds     = core_binds,
                  cg_tycons    = tycons,

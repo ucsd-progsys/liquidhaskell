@@ -16,12 +16,11 @@ import DataCon
 import TyCon
 import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar)
 import PrelNames (isStringClassName)
-import Coercion
 
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 
-import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
 dataConImplicitIds :: DataCon -> [Id]
@@ -94,6 +93,9 @@ substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar "
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 substTysWith _ (LitTy t)       = LitTy t
+substTysWith s (CastTy t c)    = CastTy (substTysWith s t) c
+substTysWith _ (CoercionTy c)  = CoercionTy c 
+
 
 mapType :: (Type -> Type) -> Type -> Type
 mapType f = go
@@ -104,6 +106,8 @@ mapType f = go
     go (ForAllTy (Anon t1) t2)   = f $ ForAllTy (Anon $ go t1) (go t2)
     go (ForAllTy v t)  = f $ ForAllTy v (go t)
     go t@(LitTy _)     = f t
+    go (CastTy t c)    = CastTy (go t) c
+    go (CoercionTy c)  = f $ CoercionTy c 
 
 
 stringClassArg :: Type -> Maybe Type

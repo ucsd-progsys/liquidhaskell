@@ -30,7 +30,6 @@ import           Finder
 import           TcRnMonad
 import           IfaceEnv
 import           Var
-import           FieldLabel
 
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
