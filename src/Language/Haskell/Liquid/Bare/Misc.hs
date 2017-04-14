@@ -26,8 +26,8 @@ import           TysWiredIn
 
 import           Id
 import           Type
-import           Kind                                  (isKind)
-import           TypeRep
+import           Kind                                  (isStarKind)
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
 import           DataCon
@@ -148,6 +148,9 @@ mapTyVars k _ | isKind k
   = return ()
 mapTyVars _ _
   = throwError =<< errmsg <$> get
+
+isKind :: Kind -> Bool 
+isKind k = isStarKind k  
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST

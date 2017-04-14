@@ -11,7 +11,7 @@ import TyCon
 import Id
 import Name
 import Var
-import TypeRep
+import Language.Haskell.Liquid.GHC.TypeRep
 
 import Prelude hiding (mapM)
 

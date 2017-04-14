@@ -1,16 +1,18 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE ConstraintKinds      #-}
-{-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE LambdaCase           #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE ViewPatterns         #-}
+{-# LANGUAGE DataKinds               #-}
+{-# LANGUAGE UndecidableInstances    #-}
+{-# LANGUAGE OverloadedStrings       #-}
+{-# LANGUAGE RecordWildCards         #-}
+{-# LANGUAGE BangPatterns            #-}
+{-# LANGUAGE ConstraintKinds         #-}
+{-# LANGUAGE DoAndIfThenElse         #-}
+{-# LANGUAGE FlexibleContexts        #-}
+{-# LANGUAGE FlexibleInstances       #-}
+{-# LANGUAGE LambdaCase              #-}
+{-# LANGUAGE ScopedTypeVariables     #-}
+{-# LANGUAGE TypeFamilies            #-}
+{-# LANGUAGE ViewPatterns            #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
+
 module Test.Target.Testable (test, Testable, setup) where
 
 

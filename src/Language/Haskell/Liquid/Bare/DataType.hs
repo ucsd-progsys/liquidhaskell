@@ -21,7 +21,7 @@ import           Var
 import           InstEnv
 import           Class
 import           Data.Maybe
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M

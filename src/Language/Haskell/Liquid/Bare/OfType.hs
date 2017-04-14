@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Bare.OfType (
 import Prelude hiding (error)
 import BasicTypes
 import Name
-import Kind (isKindVar)
+-- import Kind (isKindVar)
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
@@ -117,7 +117,7 @@ rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, Reftable (RTProp RTyCon RTyVar r))
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -186,7 +186,7 @@ matchTyCon lc@(Loc _ _ c) arity
   | isList c && arity == 1
     = return listTyCon
   | isTuple c
-    = return $ tupleTyCon BoxedTuple arity
+    = return $ tupleTyCon Boxed arity
   | otherwise
     = lookupGhcTyCon lc
 
@@ -270,7 +270,7 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r)
+bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
           => r
           -> Located TyCon
           -> [RTProp RTyCon RTyVar r]
@@ -280,7 +280,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
-       tvs = filter (not . isKindVar) $ tyConTyVarsDef c
+       tvs = {- NV CHECK filter (not . isKindVar) $ -} tyConTyVarsDef c
        su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 
@@ -303,5 +303,6 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> RRType r
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+                    => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

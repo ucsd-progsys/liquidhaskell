@@ -11,6 +11,7 @@ import GHC
 import CoreSyn
 import Var
 import TyCoRep hiding (substTysWith)
+import DataCon
 
 import TyCon
 import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar)
@@ -22,6 +23,9 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors
+
+dataConImplicitIds :: DataCon -> [Id]
+dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]
 
 class Subable a where
   sub   :: M.HashMap CoreBndr CoreExpr -> a -> a

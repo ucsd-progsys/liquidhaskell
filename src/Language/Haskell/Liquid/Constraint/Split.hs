@@ -1,6 +1,7 @@
 {-# LANGUAGE ImplicitParams        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE FlexibleContexts      #-}
 
 --------------------------------------------------------------------------------
 -- | Constraint Splitting ------------------------------------------------------
@@ -128,7 +129,7 @@ bsplitW γ t =
      isHO  <- allowHO   <$> get
      return $ bsplitW' γ t pflag isHO
 
-bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
          => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t pflag isHO
   | isHO || F.isNonTrivial r'

@@ -31,17 +31,18 @@ import           Pair
 import           CoreSyn
 import           SrcLoc                                 hiding (Located)
 import           Type
+import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Class                                         (className)
 import           Var
 import           IdInfo
 import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
-import           VarSet
+import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ                     hiding (first)
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, fromJust, isJust)
@@ -1013,7 +1014,7 @@ isClassConCo co
   , [dc]    <- tyConDataCons tc
   , [tm]    <- dataConOrigArgTys dc
                -- tcMatchTy because we have to instantiate the class tyvars
-  , Just _  <- tcMatchTy (mkVarSet $ tyConTyVars tc) tm t1
+  , Just _  <- ruleMatchTyX (mkUniqSet $ tyConTyVars tc) (mkRnEnv2 emptyInScopeSet) emptyTvSubstEnv tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])
 
   | otherwise

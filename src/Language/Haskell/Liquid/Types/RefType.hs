@@ -121,7 +121,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg)
+import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
@@ -1348,7 +1348,7 @@ grabArgs τs τ
 
 mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                => (DataCon, RType RTyCon RTyVar r) -> [(Var, RType RTyCon RTyVar r)]
-mkDataConIdsTy (dc, t) = [ expandProductType x t | AnId x <- dataConImplicitTyThings dc]
+mkDataConIdsTy (dc, t) = (`expandProductType` t) <$> dataConImplicitIds dc
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                   => Var -> RType RTyCon RTyVar r -> (Var, RType RTyCon RTyVar r)

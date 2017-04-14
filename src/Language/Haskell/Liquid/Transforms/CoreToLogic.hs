@@ -21,7 +21,7 @@ import           Data.ByteString                       (ByteString)
 import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
 import           Type
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
 import qualified CoreSyn                               as C

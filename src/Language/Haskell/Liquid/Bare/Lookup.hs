@@ -17,10 +17,10 @@ import           DataCon
 import           GHC                              (HscEnv)
 import           HscMain
 import           Name
-import           PrelInfo                         (wiredInThings)
+import           PrelInfo                         (wiredInIds)
 import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName)
 import           Prelude                          hiding (error)
-import           RdrName                          (setRdrNameSpace)
+import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
 import           TcEnv
 import           TyCon
@@ -30,6 +30,7 @@ import           Finder
 import           TcRnMonad
 import           IfaceEnv
 import           Var
+import           FieldLabel
 
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
@@ -63,6 +64,13 @@ instance GhcLookup Name where
   lookupName _ _ = return . (:[])
   srcSpan        = nameSrcSpan
 
+instance GhcLookup FieldLabel where
+  lookupName e m = lookupName e m . flSelector
+  srcSpan        = srcSpan . flSelector
+
+instance Symbolic FieldLabel where
+  symbol = symbol . flSelector
+
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x = lookupGhcThing' err f x >>= maybe (throwError err) return
   where
@@ -95,7 +103,7 @@ symbolLookup env mod k
 wiredIn      :: M.HashMap Symbol Name
 wiredIn      = M.fromList $ special ++ wiredIns
   where
-    wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
+    wiredIns = [ (symbol n, n) | thing <- wiredInIds {- NV CHECK -}, let n = getName thing ]
     special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
                , ("GHC.Integer.Type.Integer", integerTyConName)
                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
@@ -115,7 +123,7 @@ symbolLookupEnvOrig env mod s
        res    <- lookupRdrName env modName rn
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
-       res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
+       res'   <- lookupRdrName env modName (mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn))
        return $ catMaybes [res, res']
   | otherwise
   = do rn             <- hscParseIdentifier env $ ghcSymbolString s
@@ -180,7 +188,7 @@ lookupGhcTyCon s = lookupGhcThing err ftc s `catchError` \_ ->
     ftc _
       = Nothing
 
-    fdc (AConLike (RealDataCon x)) | isJust $ promoteDataCon_maybe x
+    fdc (AConLike (RealDataCon x)) -- NV CHECK | isJust $ promoteDataCon_maybe x
       = Just $ promoteDataCon x
     fdc _
       = Nothing
@@ -190,7 +198,7 @@ lookupGhcTyCon s = lookupGhcThing err ftc s `catchError` \_ ->
 lookupGhcDataCon :: Located Symbol -> BareM DataCon
 lookupGhcDataCon dc
   | Just n <- isTupleDC (val dc)
-  = return $ tupleCon BoxedTuple n
+  = return $ tupleDataCon Boxed n
   | val dc == "[]"
   = return nilDataCon
   | val dc == ":"

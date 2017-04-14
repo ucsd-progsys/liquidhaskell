@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.7.0.0
+Version:             0.8.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -176,6 +176,7 @@ Library
                     Language.Haskell.Liquid.UX.CmdLine,
                     Language.Haskell.Liquid.GHC.Misc,
                     Language.Haskell.Liquid.GHC.Play,
+                    Language.Haskell.Liquid.GHC.TypeRep,
                     Language.Haskell.Liquid.GHC.Resugar,
                     Language.Haskell.Liquid.Misc,
                     Language.Haskell.Liquid.Types.Variance,
@@ -225,7 +226,7 @@ Library
                     Test.Target.Types,
                     Test.Target.Util
 
-   ghc-options: -W -fwarn-missing-signatures
+   ghc-options: -W -fwarn-missing-signatures -Werror
    if flag(include)
      hs-source-dirs: devel
    if flag(devel)

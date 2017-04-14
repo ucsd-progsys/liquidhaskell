@@ -1,16 +1,18 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE KindSignatures            #-}
+{-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE MagicHash                 #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE NamedFieldPuns            #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+
 module Language.Haskell.Liquid.Model where
 
+import GHC.Exts (Constraint)
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
@@ -45,7 +47,7 @@ import           Bag
 import           GHC hiding (obtainTermFromVal)
 import qualified Outputable as GHC
 import           DynFlags
-import           HscMain
+import           HscMain hiding (hscParsedStmt)
 import           InstEnv
 import           OccName
 import           RdrName
@@ -84,7 +86,7 @@ getModels info cfg fi = case fi of
     | cfg `hasOpt` counterExamples
     -> fmap Unsafe . runLiquidGhc mbenv cfg $ do
     df <- getSessionDynFlags
-    let df' = df { packageFlags = ExposePackage (PackageArg "liquidhaskell")
+    let df' = df { packageFlags = ExposePackage "" (PackageArg "liquidhaskell")
                                   (ModRenaming True [])
                                 : packageFlags df
                  }
@@ -206,6 +208,7 @@ addDict' :: [PredType] -> (Symbol, SpecType)
 addDict' _preds (v, t)
   | Type.isFunTy (toType t)
   = return (v, t, Nothing)
+{-  NV TODO this has noumerous errors on ghc-8 
 addDict' preds (v, t) = do
   -- liftIO $ putStrLn $ showPpr (toType t, preds)
   msu <- monomorphize preds (toType t)
@@ -285,7 +288,7 @@ addDict' preds (v, t) = do
               let dictExpr = ExprWithTySig (nlHsVar dictDataName)
                                            (nlHsTyConApp dictTcName [targetType])
                                            PlaceHolder
-              let dictStmt = noLoc $ LetStmt $ HsValBinds $ ValBindsIn
+              let dictStmt = noLoc $ LetStmt $ noLoc $ HsValBinds $ ValBindsIn
                              (listToBag [noLoc $
                                          mkFunBind (noLoc $ mkVarUnqual $ fsLit "_compile")
                                          [mkSimpleMatch [] (noLoc dictExpr)]])
@@ -300,6 +303,7 @@ addDict' preds (v, t) = do
                   return (v, subts su t, Just d)
 
             _ -> return (v, t, Nothing)
+-}
 
 type Su = [(TyVar, Type)]
 
@@ -308,7 +312,7 @@ type Su = [(TyVar, Type)]
 monomorphize :: [PredType] -> Type -> Ghc (Maybe Su)
 monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
                              (Just [])
-                             (varSetElemsKvsFirst $ tyVarsOfType t)
+                             (varSetElems $ tyCoVarsOfType t)
 
 monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
 monomorphizeOne _preds _tv Nothing = return Nothing
@@ -336,7 +340,7 @@ monomorphizeOne preds tv (Just su)
   where
 
   clss = map (fst.getClassPredTys)
-       . filter (\p -> tv `elemVarSet` tyVarsOfType p)
+       . filter (\p -> tv `elemVarSet` tyCoVarsOfType p)
        $ preds
 
   thd4 (_,_,c,_) = c
@@ -456,10 +460,10 @@ hscParsedDecls hsc_env0 decls =
     {- Prepare For Code Generation -}
     -- Do saturation and convert to A-normal form
     prepd_binds <- {-# SCC "CorePrep" #-}
-      liftIO $ corePrepPgm hsc_env iNTERACTIVELoc core_binds data_tycons
+      liftIO $ corePrepPgm hsc_env this_mod iNTERACTIVELoc core_binds data_tycons
 
     {- Generate byte code -}
-    cbc <- liftIO $ byteCodeGen dflags this_mod
+    cbc <- liftIO $ byteCodeGen hsc_env this_mod
                                 prepd_binds data_tycons mod_breaks
 
     let src_span = srcLocSpan interactiveSrcLoc
@@ -480,6 +484,7 @@ hscParsedDecls hsc_env0 decls =
         tythings =  map AnId ext_ids ++ map ATyCon tcs ++ map (AConLike . PatSynCon) patsyns
 
     let icontext = hsc_IC hsc_env
-        ictxt    = extendInteractiveContext icontext ext_ids tcs
-                                            cls_insts fam_insts defaults patsyns
+        ictxt    = extendInteractiveContext icontext ((AnId <$> ext_ids) ++  (ATyCon <$> tcs))
+                                            cls_insts fam_insts defaults emptyFixityEnv
+    -- extendInteractiveContext :: InteractiveContext -> [TyThing] -> [ClsInst] -> [FamInst] -> Maybe [Type] -> FixityEnv -> InteractiveContext                                        
     return (tythings, ictxt)

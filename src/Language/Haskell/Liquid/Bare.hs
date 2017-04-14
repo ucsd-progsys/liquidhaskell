@@ -41,7 +41,7 @@ import           Data.Maybe
 
 
 import           Control.Monad.Except                       (catchError)
-import           TypeRep                                    (Type(TyConApp))
+import           Language.Haskell.Liquid.GHC.TypeRep        (Type(TyConApp))
 
 import           Text.PrettyPrint.HughesPJ (text)
 
