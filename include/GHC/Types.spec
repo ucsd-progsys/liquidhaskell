@@ -15,7 +15,7 @@ GHC.Types.True  :: {v:GHC.Types.Bool | ((v))}
 GHC.Types.False :: {v:GHC.Types.Bool | (~ ((v)))}
 
 
-GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> ((v)))}
+// NV TODO GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> ((v)))}
 
 
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }

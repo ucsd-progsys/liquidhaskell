@@ -17,8 +17,8 @@ import           DataCon
 import           GHC                              (HscEnv)
 import           HscMain
 import           Name
-import           PrelInfo                         (wiredInIds)
-import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName)
+import           PrelInfo                         (wiredInIds, ghcPrimIds)
+import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames)
 import           Prelude                          hiding (error)
 import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
@@ -30,6 +30,7 @@ import           Finder
 import           TcRnMonad
 import           IfaceEnv
 import           Var
+import           TysPrim
 
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
@@ -41,7 +42,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -80,9 +81,9 @@ lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> Bar
 lookupGhcThing' _err f x = do
   be     <- get
   let env = hscEnv be
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+  _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+  _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -100,12 +101,19 @@ symbolLookup env mod k
   = symbolLookupEnv env mod k
 
 wiredIn      :: M.HashMap Symbol Name
-wiredIn      = M.fromList $ special ++ wiredIns
+wiredIn      = M.fromList $ special ++ wiredIns ++ wiredIns' ++ wiredTyCons ++ wiredDcCons
   where
-    wiredIns = [ (symbol n, n) | thing <- wiredInIds {- NV CHECK -}, let n = getName thing ]
-    special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
-               , ("GHC.Integer.Type.Integer", integerTyConName)
-               , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
+    wiredIns  = [ (symbol n, n) | thing <- (wiredInIds ++ ghcPrimIds) {- NV CHECK -}, let n = getName thing ]
+    wiredIns' = [ (symbol n, n) | n <- (genericTyConNames ++ basicKnownKeyNames)]
+    wiredTyCons = [(symbol n, n) | n <- getName <$> (primTyCons ++ wiredInTyCons) ]
+    wiredDcCons = [(symbol n, n) | n <- getName <$> 
+                      [ falseDataCon, trueDataCon
+                      , ltDataCon, eqDataCon, gtDataCon
+                      , nilDataCon, consDataCon 
+                      , charDataCon, intDataCon, wordDataCon, floatDataCon, doubleDataCon]]
+    special   = [ ("GHC.Integer.smallInteger", smallIntegerName)
+                , ("GHC.Integer.Type.Integer", integerTyConName)
+                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 symbolLookupEnv :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnv env mod k = do
@@ -135,6 +143,7 @@ symbolLookupEnvFull :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnvFull hsc _m s = do
   let (modName, occName) =  ghcSplitModuleName s
   mbMod  <- lookupTheModule hsc modName
+  putStrLn ("Lookup " ++ showPpr occName ++ " in module " ++ showPpr mbMod)
   case mbMod of
     Just mod -> liftIO $ F.singleton <$> lookupTheName hsc mod occName
     Nothing  -> return []
@@ -178,7 +187,9 @@ lookupGhcVar x
 
 
 lookupGhcTyCon   ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s = lookupGhcThing err ftc s `catchError` \_ ->
+lookupGhcTyCon s = do 
+  liftIO $ putStrLn "Lookup TypCon"
+  lookupGhcThing err ftc s `catchError` \_ ->
                          lookupGhcThing err fdc s
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
