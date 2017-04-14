@@ -30,8 +30,8 @@ import           CoreSyn                                    hiding (Expr, source
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
-import           HscTypes                                   (Dependencies, ImportedMods(..), ModGuts(..), HscEnv(..), FindResult(..), 
-                                                             ImportedModsVal(..), Dependencies(..))
+import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..), 
+                                                             Dependencies(..))
 import           TysPrim                                    (anyTy)
 import           NameSet                                    (NameSet)
 import           SrcLoc                                     hiding (L)
@@ -343,6 +343,7 @@ collectArguments n e = if length xs > n then take n xs else xs
     vs               = fst $ collectBinders $ ignoreLetBinds e'
     xs               = vs' ++ vs
 
+collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
 collectTyBinders expr
   = go [] expr
   where
