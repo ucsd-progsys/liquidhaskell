@@ -22,6 +22,7 @@ import Control.Monad.Except
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
+import           Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 
@@ -111,7 +112,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
 
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
+    initvmap          = initMapSt $ ErrMismatch lqSp (text "Plugged Init types " <+> pprint t <+> "\nVS\n" <+> pprint st  <+> pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
     hsSp              = getSrcSpan x
     lqSp              = sourcePos2SrcSpan l l'
 

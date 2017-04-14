@@ -262,7 +262,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
+errTypeMismatch x t = ErrMismatch lqSp (text "Checked" <+> pprint x) d1 d2 hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t

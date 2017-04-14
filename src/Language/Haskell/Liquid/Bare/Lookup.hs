@@ -42,7 +42,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -81,9 +81,9 @@ lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> Bar
 lookupGhcThing' _err f x = do
   be     <- get
   let env = hscEnv be
-  _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
-  _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -143,7 +143,6 @@ symbolLookupEnvFull :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnvFull hsc _m s = do
   let (modName, occName) =  ghcSplitModuleName s
   mbMod  <- lookupTheModule hsc modName
-  putStrLn ("Lookup " ++ showPpr occName ++ " in module " ++ showPpr mbMod)
   case mbMod of
     Just mod -> liftIO $ F.singleton <$> lookupTheName hsc mod occName
     Nothing  -> return []
@@ -188,7 +187,6 @@ lookupGhcVar x
 
 lookupGhcTyCon   ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s = do 
-  liftIO $ putStrLn "Lookup TypCon"
   lookupGhcThing err ftc s `catchError` \_ ->
                          lookupGhcThing err fdc s
   where

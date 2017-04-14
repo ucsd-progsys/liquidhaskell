@@ -115,12 +115,10 @@ runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Erro
 runMapTyVars = execStateT
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
-mapTyVars τ (RAllT _ t)
-  = mapTyVars τ t
-mapTyVars (ForAllTy _ τ) t
-  = mapTyVars τ t
 mapTyVars (FunTy τ τ') (RFun _ t t' _)
    = mapTyVars τ t >> mapTyVars τ' t'
+mapTyVars τ (RAllT _ t)
+  = mapTyVars τ t
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
    = zipWithM_ mapTyVars τs (matchKindArgs' τs ts)
 mapTyVars (TyVarTy α) (RVar a _)
@@ -146,6 +144,8 @@ mapTyVars _ (RHole _)
   = return ()
 mapTyVars k _ | isKind k
   = return ()
+mapTyVars (ForAllTy _ τ) t
+  = mapTyVars τ t
 mapTyVars _ _
   = throwError =<< errmsg <$> get
 
