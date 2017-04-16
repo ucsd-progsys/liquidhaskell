@@ -37,6 +37,7 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
+import           Language.Fixpoint.Solver.Instantiate
 
 import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal,
                                                     allowRewrite, allowArithmetic)
@@ -106,7 +107,7 @@ initEnv info
     is autoinv   = mkRTyConInv    (gsInvariants sp ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
-makeDataConTypes x = (x,) <$> trueTy (varType x)
+makeDataConTypes x = (x,) <$> (trueTy $ varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
@@ -121,7 +122,7 @@ makeAutoDecrDataCons dcts specenv dcs
       = []
     idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
-    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (const mempty) <$> L.nub invs
+    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf :: F.Symbol -> F.Expr
@@ -303,15 +304,15 @@ coreBindLits tce info
 
 
 
-makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)]  -> AxiomEnv
-makeAxiomEnvironment info xts
+makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> [(Integer, F.SubC Cinfo)] -> AxiomEnv Cinfo
+makeAxiomEnvironment info xts fcs
   = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
          (makeEquations info ++ (specTypToEq  <$> xts))
          (concatMap makeSimplify xts)
-         (\sub -> fromMaybe (fuel cfg) (fuelNumber sub))
+         fuelMap
          doExpand
-         (\_ -> allowRewrite    cfg)
-         (\_ -> allowArithmetic cfg)
+         (allowRewrite    cfg)
+         (allowArithmetic cfg)
          (debugInstantionation cfg)
          fixCfg
          (makeContext cfg)
@@ -327,17 +328,19 @@ makeAxiomEnvironment info xts
     fileName = head (files cfg)  ++ ".evals"
     -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv
 
-    doExpand sub = allowLiquidInstationationGlobal cfg
+    doExpand = M.fromList $ (\(sid,sub) -> (sid, allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
-                   && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))
+                                      && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))))
+                            <$> fcs
 
     cfg = getConfig info
 
     fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp}
 
+    fuelMap   = M.fromList $ (\(sid, sub) -> (sid, fromMaybe (fuel cfg) (fuelNumber sub))) <$> fcs
 
     specTypToEq (x, t)
-      = Eq (F.symbol x) (ty_binds $ toRTypeRep t)
+      = Equ (F.symbol x) (ty_binds $ toRTypeRep t)
            (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
 
 makeSimplify :: (Var, SpecType) -> [Simplify]
@@ -367,7 +370,7 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
 
 makeEquations :: GhcInfo -> [Equation]
 makeEquations info
-  = [ Eq x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
+  = [ Equ x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
   where
     makeEqBody x xs e = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
     lookupSpecType x xts = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
@@ -376,7 +379,7 @@ makeEquations info
 
 
 getEqBody :: Equation -> Maybe F.Expr
-getEqBody (Eq x xs (F.PAnd ((F.PAtom F.Eq fxs e):_)))
+getEqBody (Equ  x xs (F.PAnd ((F.PAtom F.Eq fxs e):_)))
   | (F.EVar f, es) <- F.splitEApp fxs
   , f == x
   , es == (F.EVar <$> xs)

@@ -171,7 +171,6 @@ Library
                     Language.Haskell.Liquid.Constraint.Env,
                     Language.Haskell.Liquid.Constraint.Types,
                     Language.Haskell.Liquid.Constraint.Split,
-                    Language.Haskell.Liquid.Constraint.Instantiate,
                     -- Language.Haskell.Liquid.Constraint.Axioms,
                     -- Language.Haskell.Liquid.Constraint.ProofToCore,
                     Language.Haskell.Liquid.Constraint.Generate,

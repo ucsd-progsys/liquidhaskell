@@ -53,6 +53,7 @@ import qualified Data.Traversable                              as T
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
+import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
@@ -72,10 +73,10 @@ import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
-import           Language.Haskell.Liquid.Constraint.Instantiate
 
 import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
 
+import System.IO.Unsafe
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -88,11 +89,13 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
     act                  = consAct cfg info
     cfg                  = getConfig   info
 
+instance Show (Cinfo) where
+  show = show . ci_var
+
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ'    <- initEnv      info
   sflag <- scheck   <$> get
-  when (gradual cfg) (mapM_ (addW . WfC γ' . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
   γ     <- {- NOPROVER if expandProofsMode then addCombine τProof γ' else -}
            return  γ'
   cbs'  <- {- NOPROVER if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else -}
@@ -109,13 +112,14 @@ consAct cfg info = do
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   bds <- binds <$> get
-  dcs <- dataConTys <$> get 
-  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs) <$> fcs else  fcs 
+  dcs <- dataConTys <$> get
+  let fcs' = F.addIds fcs
+  let fcs'' = if allowLiquidInstationation (getConfig info) then unsafePerformIO . instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs fcs') <$> fcs' else fcs
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
-                     , fixCs    = fcs'
+                     , fixCs    = fcs''
                      , fixWfs   = fws
                      , annotMap = annot' }
   where
