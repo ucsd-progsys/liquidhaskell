@@ -13,11 +13,6 @@
 module Language.Haskell.Liquid.Constraint.Init (
     initEnv ,
     initCGI,
-    makeAxiomEnvironment,
-
-    -- NV TODO move getEqBody in a new file
-    getEqBody
-
     ) where
 
 import           Prelude                                       hiding (error, undefined)
@@ -37,10 +32,11 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
-import           Language.Fixpoint.Solver.Instantiate
+-- import           Language.Fixpoint.Solver.Instantiate
 
-import           Language.Haskell.Liquid.UX.Config (terminationCheck, allowLiquidInstationationGlobal, allowLiquidInstationationLocal,
-                                                    allowRewrite, allowArithmetic)
+import           Language.Haskell.Liquid.UX.Config (terminationCheck)
+                 --, allowLiquidInstationationGlobal, allowLiquidInstationationLocal,
+                 -- allowRewrite, allowArithmetic)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -52,15 +48,15 @@ import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.GHC.Misc             ( dropModuleNames, simplesymbol, hasBaseTypeVar, isDataConId )
+import           Language.Haskell.Liquid.GHC.Misc             ( hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Constraint.ToFixpoint (fixConfig)
-import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
+-- import           Language.Haskell.Liquid.Constraint.ToFixpoint (fixConfig)
+-- import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
 
-import System.IO.Unsafe
+-- import System.IO.Unsafe
 
 -- import Debug.Trace (trace)
 
@@ -300,129 +296,3 @@ coreBindLits tce info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
-
-
-
-
-makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> [(Integer, F.SubC Cinfo)] -> AxiomEnv Cinfo
-makeAxiomEnvironment info xts fcs
-  = AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
-         (makeEquations info ++ (specTypToEq  <$> xts))
-         (concatMap makeSimplify xts)
-         fuelMap
-         doExpand
-         (allowRewrite    cfg)
-         (allowArithmetic cfg)
-         (debugInstantionation cfg)
-         fixCfg
-         (makeContext cfg)
-  where
-    fixCfg = fixConfig fileName cfg
-
-    makeContext cfg = unsafePerformIO $  do
-                       ctx <- makeSmtContext (fixConfig fileName cfg) fileName []
-                           {-     $ L.nubBy (\(x,_) (y,_) -> x == y)
-                                    [(x, toSMT fixCfg fenv s) | (x, s) <- binds', not (M.member x FT.theorySymbols) ] -}
-                       smtPush ctx
-                       return ctx
-    fileName = head (files cfg)  ++ ".evals"
-    -- binds'   = {- [(x, s) | (_, x, F.RR s _) <- F.bindEnvToList bds] ++ -} F.toListSEnv fenv
-
-    doExpand = M.fromList $ (\(sid,sub) -> (sid, allowLiquidInstationationGlobal cfg
-                || (allowLiquidInstationationLocal cfg
-                                      && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))))
-                            <$> fcs
-
-    cfg = getConfig info
-
-    fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp}
-
-    fuelMap   = M.fromList $ (\(sid, sub) -> (sid, fromMaybe (fuel cfg) (fuelNumber sub))) <$> fcs
-
-    specTypToEq (x, t)
-      = Equ (F.symbol x) (ty_binds $ toRTypeRep t)
-           (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
-
-makeSimplify :: (Var, SpecType) -> [Simplify]
-makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
-  where
-    go (F.PAnd es) = concatMap go es
-
-    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
-      | eq `elem` [F.Eq, F.Ueq]
-      , (F.EVar dc, xs) <- F.splitEApp dc
-      , all isEVar xs
-      = [SMeasure f dc (fromEVar <$> xs) bd]
-
-    go (F.PIff (F.EApp (F.EVar f) dc) bd)
-      | (F.EVar dc, xs) <- F.splitEApp dc
-      , all isEVar xs
-      = [SMeasure f dc (fromEVar <$> xs) bd]
-
-    go _ = []
-
-    isEVar (F.EVar _) = True
-    isEVar _ = False
-
-    fromEVar (F.EVar x) = x
-    fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
-
-
-makeEquations :: GhcInfo -> [Equation]
-makeEquations info
-  = [ Equ x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
-  where
-    makeEqBody x xs e = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
-    lookupSpecType x xts = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
-    makeRefBody _ _  Nothing  = F.PTrue
-    makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
-
-
-getEqBody :: Equation -> Maybe F.Expr
-getEqBody (Equ  x xs (F.PAnd ((F.PAtom F.Eq fxs e):_)))
-  | (F.EVar f, es) <- F.splitEApp fxs
-  , f == x
-  , es == (F.EVar <$> xs)
-  = Just e
-getEqBody _
-  = Nothing
-
--- NV Move this to types?
--- sound but imprecise approximation of a tyep in the logic
-specTypeToLogic :: [F.Expr] -> F.Expr -> SpecType -> F.Expr
-specTypeToLogic es e t
-  | ok        = F.subst su (F.PImp (F.pAnd args) res)
-  | otherwise = F.PTrue
-  where
-    res     = specTypeToResultRef e t
-
-    args    = zipWith mkExpr (mkReft <$> ts) es
-
-    mkReft t =  F.toReft $ fromMaybe mempty (stripRTypeBase t)
-    mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
-
-
-    ok      = okLen && okClass && okArgs
-    okLen   = length xs == length xs
-    okClass = all (F.isTauto . snd) cls
-    okArgs  = all okArg ts
-
-    okArg (RVar _ _)       = True
-    okArg t@(RApp _ _ _ _) = F.isTauto (t{rt_reft = mempty})
-    okArg _                = False
-
-
-    su           = F.mkSubst $ zip xs es
-    (cls, nocls) = L.partition (isClassType.snd) $ zip (ty_binds trep) (ty_args trep)
-                 :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
-    (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
-
-    trep = toRTypeRep t
-
-
-specTypeToResultRef :: F.Expr -> SpecType -> F.Expr
-specTypeToResultRef e t
-  = mkExpr $ F.toReft $ fromMaybe mempty (stripRTypeBase $ ty_res trep)
-  where
-    mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
-    trep                   = toRTypeRep t
