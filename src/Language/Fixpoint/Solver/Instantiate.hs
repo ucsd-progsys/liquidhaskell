@@ -43,30 +43,10 @@ import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
 import           Data.Foldable        (foldlM)
 
--- DEBUGGING
-------------
-import qualified Debug.Trace as T
-
-trace :: AxiomEnv c -> String -> a -> a
-trace aenv str x
-  | aenvVerbose aenv
-  = T.trace str x
-  | otherwise
-  = x
-
-returnTrace :: String -> Expr -> Expr -> EvalST Expr
-returnTrace str e e'
-  = do (EvalEnv i _ c) <- get
-       return $
-           trace c
-             ("\nEval " ++ show i ++ " by " ++ str ++ " :\n" ++
-             showpp e ++ " ~> " ++ showpp e' ++ "\n")
-             e'
-
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
-(e,str) ~> e' = do
+(_,_) ~> e' = do
     modify (\st -> st{evId = evId st + 1})
-    returnTrace str e (η e')
+    return (η e')
 
 ------------
 -- Interface
@@ -114,15 +94,15 @@ instantiateAxioms _ _ aenv (sid,sub)
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
 instantiateAxioms bds fenv aenv (sid,sub)
-  = flip strengthenLhs sub . pAnd . trace aenv msg . (is0 ++) . (is ++) <$> evalEqs
+  = flip strengthenLhs sub . pAnd . (is0 ++) . (is ++) <$> evalEqs
   where
     is0 = eqBody <$> L.filter (null . eqArgs) eqs
     -- AT: Fuck strict IO semantics
     is               = if aenvDoEqs aenv
-                          then instances maxNumber aenv (trace aenv initMsg initOccurences)
+                          then instances maxNumber aenv initOccurences
                           else []
     evalEqs          = if aenvDoRW aenv
-                         then trace aenv evalMsg
+                         then
              map (uncurry (PAtom Eq)) .
              filter (uncurry (/=)) <$>
              evaluate ((vv Nothing, slhs sub):binds) fenv as aenv initExpressions
@@ -138,21 +118,6 @@ instantiateAxioms bds fenv aenv (sid,sub)
     initOccNumber = length initOccurences
     axiomNumber   = length $ aenvSyms aenv
     maxNumber     = (axiomNumber * initOccNumber) ^ fuelNumber
-
-    initMsg = "\nStart instantiation" ++ show (sinfo sub) ++
-              " with fuel = " ++ show fuelNumber ++
-              " init occurences = " ++ show initOccNumber ++
-              " axioms = " ++ show axiomNumber ++
-              " can generate up to " ++ show maxNumber ++ " instantiations\n" ++
-              "\n\nShow simplifies "  ++ show (aenvSimpl aenv) ++ evalMsg
-    evalMsg = "\n\nStart Rewriting"
-
-    msg = "\n\nLiquid Instantiation with " ++ show (L.intercalate "and" methods) ++ "\n\n"
-    methods = catMaybes [if aenvDoEqs aenv
-                            then Just "arithmetic" else Nothing ,
-                         if aenvDoRW  aenv
-                            then Just "rewrite"    else Nothing
-                        ] :: [String]
 
 
 ------------------------------
@@ -182,19 +147,7 @@ lookupKnowledge γ e
   = Nothing
 
 makeKnowledge :: AxiomEnv c -> SEnv Sort -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge)
-makeKnowledge aenv fenv es = trace aenv ("\n\nMY KNOWLEDGE= \n\n" ++ -- showpp (expr <$> es) ++
-                              -- "INIT KNOWLEDGE\n" ++
-                              -- L.intercalate "\n" (showpp <$> es) ++
-                              -- L.intercalate "\n" (showpp <$> filter noPKVar (expr <$> es)) ++
-                              -- if null tes then "" else "\n\nTRUES = \n\n" ++ showpp tes ++
-                              -- if null fes then "" else "\n\nFALSE\n\n" ++ showpp fes ++
-                              -- if null sels then "" else "\n\nSELECTORS\n\n" ++ showpp sels ++
-                              -- if null eqs then "" else "\n\nAxioms\n\n" ++ showpp eqs ++
-                              -- "\n\nAxioms \n\n" ++ show (aenvEqs aenv) ++
-                              -- if null proofs then "" else "\n\nProofs\n\n" ++ showpp proofs ++
-                              -- if null eqs' then "" else "\n\nCheckers\n\n" ++ showpp eqs' ++
-                              "\n" )
-                             (simpleEqs,) $ (emptyKnowledge context)
+makeKnowledge aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                  { knSels   = sels
                                  , knEqs    = eqs
                                  , knSims   = aenvSimpl aenv
@@ -349,11 +302,8 @@ evaluate facts fenv _ aenv einit
     -- TODO: add a flag to enable it
     evalOne :: Expr -> IO [(Expr, Expr)]
     evalOne e = do
-      (e', st) <- runStateT (eval γ $ trace aenv ("\n\nSTART EVALUATION OF\n" ++ showpp e)
-                                    e) initEvalSt
-      if e' == e then return [] else trace aenv
-        ("\n\nEVALUATION OF \n\n" ++ showpp e ++ "\nIS\n" ++ showpp e')
-        (return $ (e, e'):evSequence st)
+      (e', st) <- runStateT (eval γ e) initEvalSt
+      if e' == e then return [] else return ((e, e'):evSequence st)
 
 grepTopApps :: Expr -> [Expr]
 grepTopApps (PAnd es) = concatMap grepTopApps es
@@ -385,7 +335,7 @@ eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
 eval _ e
   = do EvalEnv _ _ _env <- get
-       return e -- trace env ("\n\nEvaluation stops at " ++ showpp e) e
+       return e
 
 
 evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
@@ -432,7 +382,7 @@ evalRecApplication γ e (EIte b e1 e2)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
                    then addApplicationEq γ e e2 >> assertSelectors γ e2 >> eval γ e2 >>= ((e, "App") ~>)
-                   else return e --  T.trace ("FAIL TO EVALUATE\n" ++ showpp b' ++ "\nOR\n" ++ showpp b )  e
+                   else return e
 evalRecApplication _ _ e
   = return e
 
@@ -526,14 +476,13 @@ instances maxIs aenv !occs
 -- Step 2: Compute fuel based on Ranjit's algorithm
 
 instancesLoop :: AxiomEnv c ->  Int -> [Equation] -> [Occurence] -> [Expr]
-instancesLoop aenv maxIns eqs = go 0 []
+instancesLoop _ _ eqs = go 0 []
   where
     go :: Int -> [Expr] -> [Occurence] -> [Expr]
     go !i acc occs = let is      = concatMap (unfold eqs) occs
                          newIs   = findNewEqs is acc
                          newOccs = concatMap (grepOccurences eqs) newIs
-                         msg     = show (i + length newIs) ++ "/" ++ show maxIns ++ "\t\t"
-                     in  if null newIs then acc else go (trace aenv msg (i + length newIs)) ((fst <$> newIs) ++ acc) newOccs
+                     in  if null newIs then acc else go (i + length newIs) ((fst <$> newIs) ++ acc) newOccs
 
 findNewEqs :: [(Expr, FuelMap)] -> [Expr] -> [(Expr, FuelMap)]
 findNewEqs [] _ = []
