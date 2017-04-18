@@ -87,7 +87,7 @@ data Config
     , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts         :: Bool           -- ^ ignore given kut variables
     , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
-    } deriving (Eq,Data,Typeable,Show)
+    } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig

@@ -14,14 +14,12 @@
 module Language.Fixpoint.Solver.Instantiate (
 
   instantiateAxioms,
-  AxiomEnv (..),
-  Equation (..),
-  Simplify (..)
+  instantiateFInfo,
 
   ) where
 
 import           Language.Fixpoint.Types
-import qualified Language.Fixpoint.Types.Config as FC
+-- import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Fixpoint.Smt.Theories as FT
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
@@ -42,6 +40,7 @@ import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
 import           Data.Foldable        (foldlM)
+-- import           Data.Monoid          ((<>))
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_,_) ~> e' = do
@@ -51,32 +50,6 @@ import           Data.Foldable        (foldlM)
 ------------
 -- Interface
 ------------
-data AxiomEnv a = AEnv { aenvSyms    :: ![Symbol]
-                       , aenvEqs     :: ![Equation]
-                       , aenvSimpl   :: ![Simplify]
-                       , aenvFuel    :: M.HashMap SubcId Int
-                       , aenvExpand  :: M.HashMap SubcId Bool
-                       , aenvDoRW    :: Bool
-                       , aenvDoEqs   :: Bool
-                       , aenvVerbose :: !Bool
-                       , aenvConfig  :: FC.Config
-                       , aenvContext :: Context
-                       }
-
-
-data Equation = Equ { eqName :: Symbol
-                    , eqArgs :: [Symbol]
-                    , eqBody :: Expr
-                    } deriving (Show)
-
--- eg  SMeasure (f D [x1..xn] e)
--- for f (D x1 .. xn) = e
-data Simplify = SMeasure  { smName  :: Symbol         -- eg. f
-                          , smDC    :: Symbol         -- eg. D
-                          , smArgs  :: [Symbol]       -- eg. xs
-                          , smBody  :: Expr           -- eg. e[xs]
-                          } deriving (Show)
-
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ x xs (PAnd (PAtom Eq fxs e:_)))
   | (EVar f, es) <- splitEApp fxs
@@ -89,11 +62,16 @@ getEqBody _
 ---------------------
 -- Instantiate Axioms
 ---------------------
-instantiateAxioms :: Show c => BindEnv -> SEnv Sort -> AxiomEnv c -> (Integer, SubC c) -> IO (SubC c)
-instantiateAxioms _ _ aenv (sid,sub)
+instantiateFInfo :: Context -> FInfo c -> IO (FInfo c)
+instantiateFInfo ctx fi = do
+  cm' <- sequence $ M.mapWithKey (instantiateAxioms ctx (bs fi) (gLits fi) (ae fi)) (cm fi)
+  return $ fi { cm = cm' }
+
+instantiateAxioms :: Context -> BindEnv -> SEnv Sort -> AxiomEnv -> Integer -> SubC c -> IO (SubC c)
+instantiateAxioms _ _ _ aenv sid sub
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
-instantiateAxioms bds fenv aenv (sid,sub)
+instantiateAxioms ctx bds fenv aenv sid sub
   = flip strengthenLhs sub . pAnd . (is0 ++) . (is ++) <$> evalEqs
   where
     is0 = eqBody <$> L.filter (null . eqArgs) eqs
@@ -105,7 +83,7 @@ instantiateAxioms bds fenv aenv (sid,sub)
                          then
              map (uncurry (PAtom Eq)) .
              filter (uncurry (/=)) <$>
-             evaluate ((vv Nothing, slhs sub):binds) fenv as aenv initExpressions
+             evaluate ctx ((vv Nothing, slhs sub):binds) fenv as aenv initExpressions
                          else return []
     initExpressions  = expr (slhs sub) : expr (srhs sub) : (expr <$> binds)
     binds            = envCs bds (senv sub)
@@ -146,8 +124,8 @@ lookupKnowledge γ e
   | otherwise
   = Nothing
 
-makeKnowledge :: AxiomEnv c -> SEnv Sort -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge)
-makeKnowledge aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
+makeKnowledge :: Context -> AxiomEnv -> SEnv Sort -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge)
+makeKnowledge ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                  { knSels   = sels
                                  , knEqs    = eqs
                                  , knSims   = aenvSimpl aenv
@@ -156,15 +134,13 @@ makeKnowledge aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                  }
   where
     (xv, sv) = (vv Nothing,  sr_sort $ snd $ head es)
-    initCtx = aenvContext aenv
-
     context :: IO Context
     context = do
-      smtPop initCtx
-      smtPush initCtx
-      smtDecls initCtx $ L.nub [(x, toSMT xv sv [] aenv senv s) | (x, s) <- fbinds, not (M.member x FT.theorySymbols)]
-      smtAssert initCtx (pAnd ([toSMT xv sv [] aenv senv $ PAtom Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv senv . expr) <$> es)))
-      return initCtx
+      smtPop ctx
+      smtPush ctx
+      smtDecls ctx $ L.nub [(x, toSMT xv sv [] aenv senv s) | (x, s) <- fbinds, not (M.member x FT.theorySymbols)]
+      smtAssert ctx (pAnd ([toSMT xv sv [] aenv senv $ PAtom Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv senv . expr) <$> es)))
+      return ctx
 
     fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
 
@@ -202,7 +178,7 @@ makeKnowledge aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
     isProof (_, RR s _) =  showpp s == "Tuple"
 
 
-toSMT :: (Elaborate a, Defunc a, PPrint a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv c -> SEnv Sort -> a -> a
+toSMT :: (Elaborate a, Defunc a, PPrint a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> SEnv Sort -> a -> a
 toSMT xv sv xs aenv senv
   = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) .
     elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs)
@@ -284,18 +260,18 @@ assertSelectors γ e = do
 -------------------------------
 -- Symbolic Evaluation with SMT
 -------------------------------
-data EvalEnv = forall a . EvalEnv { evId        :: Int
-                                  , evSequence  :: [(Expr,Expr)]
-                                  , _evAEnv      :: AxiomEnv a
-                                  }
+data EvalEnv = EvalEnv { evId        :: Int
+                       , evSequence  :: [(Expr,Expr)]
+                       , _evAEnv     :: AxiomEnv
+                       }
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: [(Symbol, SortedReft)] -> SEnv Sort -> FuelMap -> AxiomEnv c -> [Expr] -> IO [(Expr, Expr)]
-evaluate facts fenv _ aenv einit
+evaluate :: Context -> [(Symbol, SortedReft)] -> SEnv Sort -> FuelMap -> AxiomEnv -> [Expr] -> IO [(Expr, Expr)]
+evaluate ctx facts fenv _ aenv einit
   = (eqs ++) <$> (fmap join . sequence) (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge aenv fenv facts
+    (eqs, γ) = makeKnowledge ctx aenv fenv facts
     initEvalSt = EvalEnv 0 [] aenv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
@@ -463,7 +439,7 @@ maxFuelMap occs = mergeMax <$> L.transpose (ofuel <$> occs)
 data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr], ofuel :: FuelMap}
  deriving (Show)
 
-instances :: Int -> AxiomEnv c -> [Occurence] -> [Expr]
+instances :: Int -> AxiomEnv -> [Occurence] -> [Expr]
 instances maxIs aenv !occs
   = instancesLoop aenv maxIs eqs occs -- (eqBody <$> eqsZero) ++ is
   where
@@ -475,7 +451,7 @@ instances maxIs aenv !occs
 -- How? Hack expressions to contatin fuel info within eg Cst
 -- Step 2: Compute fuel based on Ranjit's algorithm
 
-instancesLoop :: AxiomEnv c ->  Int -> [Equation] -> [Occurence] -> [Expr]
+instancesLoop :: AxiomEnv ->  Int -> [Equation] -> [Occurence] -> [Expr]
 instancesLoop _ _ eqs = go 0 []
   where
     go :: Int -> [Expr] -> [Occurence] -> [Expr]
