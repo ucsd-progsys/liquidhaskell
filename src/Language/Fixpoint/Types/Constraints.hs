@@ -66,8 +66,8 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation (..)
-  , Simplify (..)
-
+  , Rewrite  (..)
+  , getEqBody
   ) where
 
 import qualified Data.Binary as B
@@ -662,7 +662,7 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
                      , aenvEqs     :: ![Equation]
-                     , aenvSimpl   :: ![Simplify]
+                     , aenvSimpl   :: ![Rewrite]
                      , aenvFuel    :: M.HashMap SubcId Int
                      , aenvExpand  :: M.HashMap SubcId Bool
                      , aenvDoRW    :: Bool
@@ -674,13 +674,13 @@ data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
 
 instance B.Binary AxiomEnv
 instance B.Binary Config
-instance B.Binary Simplify
+instance B.Binary Rewrite
 instance B.Binary Equation
 instance B.Binary SMTSolver
 instance B.Binary Eliminate
 instance NFData AxiomEnv
 instance NFData Config
-instance NFData Simplify
+instance NFData Rewrite
 instance NFData Equation
 instance NFData SMTSolver
 instance NFData Eliminate
@@ -708,9 +708,18 @@ data Equation = Equ { eqName :: Symbol
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
-data Simplify = SMeasure  { smName  :: Symbol         -- eg. f
+data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
                           , smDC    :: Symbol         -- eg. D
                           , smArgs  :: [Symbol]       -- eg. xs
                           , smBody  :: Expr           -- eg. e[xs]
                           }
   deriving (Eq, Show, Generic)
+
+getEqBody :: Equation -> Maybe Expr
+getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))
+  | (EVar f, es) <- splitEApp fxs
+  , f == x
+  , es == (EVar <$> xs)
+  = Just e
+getEqBody _
+  = Nothing

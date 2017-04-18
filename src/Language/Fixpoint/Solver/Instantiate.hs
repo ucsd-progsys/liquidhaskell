@@ -47,18 +47,6 @@ import           Data.Foldable        (foldlM)
     modify (\st -> st{evId = evId st + 1})
     return (η e')
 
-------------
--- Interface
-------------
-getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ x xs (PAnd (PAtom Eq fxs e:_)))
-  | (EVar f, es) <- splitEApp fxs
-  , f == x
-  , es == (EVar <$> xs)
-  = Just e
-getEqBody _
-  = Nothing
-
 ---------------------
 -- Instantiate Axioms
 ---------------------
@@ -75,7 +63,6 @@ instantiateAxioms ctx bds fenv aenv sid sub
   = flip strengthenLhs sub . pAnd . (is0 ++) . (is ++) <$> evalEqs
   where
     is0 = eqBody <$> L.filter (null . eqArgs) eqs
-    -- AT: Fuck strict IO semantics
     is               = if aenvDoEqs aenv
                           then instances maxNumber aenv initOccurences
                           else []
@@ -104,7 +91,7 @@ instantiateAxioms ctx bds fenv aenv sid sub
 data Knowledge
   = KN { knSels    :: ![(Expr, Expr)]
        , knEqs     :: ![(Expr, Expr)]
-       , knSims    :: ![Simplify]
+       , knSims    :: ![Rewrite]
        , knAms     :: ![Equation]
        , knContext :: IO Context
        , knPreds   :: !([(Symbol, Sort)] -> Expr -> Context -> IO Bool)
@@ -184,7 +171,7 @@ toSMT xv sv xs aenv senv
     elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs)
 
 
-makeSimplifications :: [Simplify] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
  = go =<< sis
  where
@@ -248,7 +235,7 @@ assertSelectors γ e = do
    _ <- foldlM (\_ s -> mapMExpr (go s) e) e sims
    return ()
   where
-    go :: Simplify -> Expr -> EvalST Expr
+    go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
       | (EVar dc', es) <- splitEApp e
       , dc == dc', length xs == length es
@@ -331,7 +318,7 @@ evalApp γ e (EVar f, [ex])
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
-       (e, "Simplify-" ++ showpp f) ~> e'
+       (e, "Rewrite -" ++ showpp f) ~> e'
 
 evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
