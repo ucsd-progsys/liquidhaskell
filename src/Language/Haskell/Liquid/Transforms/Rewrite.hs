@@ -33,6 +33,7 @@ import qualified CoreUtils
 import qualified Var
 import qualified MkCore
 import           Data.Maybe     (fromMaybe)
+import           Data.Foldable  (find)
 import           Control.Monad  (msum)
 import           Language.Fixpoint.Misc       (mapFst, mapSnd)
 
@@ -47,7 +48,7 @@ import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
+  | simplifyCore cfg = fmap (rewriteBindWith safeSimplifyPatTuple)
   | otherwise        = id
 
 simplifyCore :: Config -> Bool
@@ -147,6 +148,10 @@ rewriteWith tx           = go
   which, alas, is ill formed.
 
 -}
+
+safeSimplifyPatTuple :: RewriteRule
+safeSimplifyPatTuple e 
+  = find ((CoreUtils.exprType e ==) . CoreUtils.exprType) (simplifyPatTuple e)  
 
 --------------------------------------------------------------------------------
 
