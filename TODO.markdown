@@ -1,3 +1,220 @@
+GHC-8 integration 
+==================
+- bring back bench
+- remove desugaring dependence 
+- fix Target 
+- FAILING TESTS 
+Unit
+    pos
+      zipper0.hs:                 FAIL (1.45s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      zipper.hs:                  FAIL (2.74s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      WrapUnWrap.hs:              FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      VerifiedMonoid.hs:          FAIL (0.80s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      TypeFamilies.hs:            FAIL (0.73s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ToyMVar.hs:                 FAIL (0.72s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Term.hs:                    FAIL (0.97s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      TemplateHaskell.hs:         FAIL (0.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      take.hs:                    FAIL (1.11s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      T914.hs:                    FAIL (0.75s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      T820.hs:                    FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      T819A.hs:                   FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      T819.hs:                    FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      T716.hs:                    FAIL (0.50s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      state00.hs:                 FAIL (0.80s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Solver.hs:                  FAIL (0.86s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ResolveA.hs:                FAIL (0.71s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Resolve.hs:                 FAIL (0.70s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      repeatHigherOrder.hs:       FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ReflectClient2.hs:          FAIL (0.74s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      recursion0.hs:              FAIL (0.58s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      primInt0.hs:                FAIL (0.71s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ORM.hs:                     FAIL (0.82s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      nullterm.hs:                FAIL (0.77s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      NoCaseExpand.hs:            FAIL (0.67s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      NatClass.hs:                FAIL (0.80s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      monad7.hs:                  FAIL (0.91s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      monad1.hs:                  FAIL (1.20s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Mod2.hs:                    FAIL (1.12s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      MapReduceVerified.hs:       FAIL (0.86s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      MapFusion.hs:               FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Map2.hs:                    FAIL (35.98s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map0.hs:                    FAIL (34.99s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map.hs:                     FAIL (34.97s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Loo.hs:                     FAIL (0.73s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      LocalSpecImp.hs:            FAIL (0.73s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListMSort.hs:               FAIL (2.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      LiquidAutomate.hs:          FAIL (0.81s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Invariants.hs:              FAIL (0.82s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      initarray.hs:               FAIL (0.77s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      HeartBleed.hs:              FAIL (1.13s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Goo.hs:                     FAIL (0.72s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Fixme.lhs:                  FAIL (1.45s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      dropwhile.hs:               FAIL (0.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Diverge.hs:                 FAIL (0.77s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      DataBase.hs:                FAIL (1.24s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      contra0.hs:                 FAIL (0.85s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Chunks.hs:                  FAIL (1.47s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      BST000.hs:                  FAIL (2.46s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      BST.hs:                     FAIL (13.68s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Automate.hs:                FAIL (0.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ANF.hs:                     FAIL (1.34s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
 - Reader
   - Applicative crashing
   - Functor crashing
