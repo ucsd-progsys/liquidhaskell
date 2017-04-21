@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
@@ -32,7 +33,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
--- import Language.Fixpoint.Misc (traceShow)
+import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types ( atLoc
                                , Expr(..)
                                , Reftable
@@ -63,16 +64,16 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
-ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expand)
+ofBareType l t 
+  = ofBRType expandRTAliasApp (resolve l <=< expand) (traceShow ("RESOLVED TYPE FOR " ++ showpp t) t)
 
 ofMeaSort :: BareType -> BareM SpecType
-ofMeaSort
-  = ofBRType failRTAliasApp return
+ofMeaSort t
+  = ofBRType failRTAliasApp return (traceShow ("2RESOLVED TYPE FOR " ++ showpp t) t)
 
 ofBSort :: BSort -> BareM RSort
-ofBSort
-  = ofBRType failRTAliasApp return
+ofBSort t
+  = ofBRType failRTAliasApp return (traceShow ("3RESOLVED TYPE FOR " ++ showpp t) t)
 
 --------------------------------------------------------------------------------
 
@@ -88,13 +89,13 @@ mapMPvar f (PV x t v txys)
 
 --------------------------------------------------------------------------------
 mkLSpecType :: Located BareType -> BareM (Located SpecType)
-mkLSpecType t = atLoc t <$> mkSpecType (loc t) (val t)
+mkLSpecType !t = atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
 mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft t
+mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft (traceShow "makeSpecType" t)
   where
     resolveReft    = (resolve l <=< expand) . txParam l subvUReft (uPVar <$> πs) t
 
@@ -117,13 +118,13 @@ rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, Reftable (RTProp RTyCon RTyVar r))
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, Reftable (RTProp RTyCon RTyVar r), Reftable (RTProp BTyCon BTyVar r))
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft
-  = go
+ofBRType appRTAlias resolveReft !t
+  = go t
   where
     go t@(RApp _ _ _ _)
       = do aliases <- (typeAliases . rtEnv) <$> get
@@ -166,11 +167,11 @@ ofBRType appRTAlias resolveReft
     goRFun _ x t1 t2 r
       = RFun x <$> go t1 <*> go t2 <*> resolveReft r
 
-    goRApp aliases (RApp tc ts _ r)
+    goRApp aliases !(RApp tc ts _ r)
       | Loc l _ c <- btc_tc tc
       , Just rta <- M.lookup c aliases
       = appRTAlias l rta ts =<< resolveReft r
-    goRApp _ (RApp tc ts rs r)
+    goRApp _ !(RApp tc ts rs r)
       =  do let lc = btc_tc tc
             let l = loc lc
             r'  <- resolveReft r
@@ -188,7 +189,7 @@ matchTyCon lc@(Loc _ _ c) arity
   | isTuple c
     = return $ tupleTyCon Boxed arity
   | otherwise
-    = lookupGhcTyCon lc
+    = lookupGhcTyCon "matchTyCon" lc
 
 --------------------------------------------------------------------------------
 

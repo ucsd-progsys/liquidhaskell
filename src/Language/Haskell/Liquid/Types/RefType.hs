@@ -1345,12 +1345,11 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
 
-
 typeSort :: TCEmb TyCon -> Type -> Sort
-typeSort tce τ@(ForAllTy _ _)
-  = typeSortForAll tce τ
 typeSort tce t@(FunTy _ _)
   = typeSortFun tce t
+typeSort tce τ@(ForAllTy _ _)
+  = typeSortForAll tce τ
 typeSort tce (TyConApp c τs)
   = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
@@ -1358,6 +1357,8 @@ typeSort tce (AppTy t1 t2)
 typeSort _tce (TyVarTy tv)
   = let x = FObj $ tyVarUniqueSymbol tv
     in x
+typeSort tce (CastTy t _)
+  = typeSort tce t
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 

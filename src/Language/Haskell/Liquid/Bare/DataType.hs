@@ -111,7 +111,7 @@ ofBDataDecl :: Maybe DataDecl
             -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
-       tc'        <- lookupGhcTyCon tc
+       tc'        <- lookupGhcTyCon "ofBDataDecl" tc
        cts'       <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
@@ -135,7 +135,7 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
                                 _        -> Bivariant
 
 ofBDataDecl Nothing (Just (tc, is))
-  = do tc'        <- lookupGhcTyCon tc
+  = do tc'        <- lookupGhcTyCon "ofBDataDecl" tc
        return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing), [])
   where
     (tcov, tcontr) = (is, [])
@@ -197,7 +197,7 @@ makeTyConEmbeds (mod, spec)
 makeTyConEmbeds' :: TCEmb (Located Symbol) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where
-    tx (c, y) = (, y) <$> lookupGhcTyCon c
+    tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
 makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, Located SpecType)]
 makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs

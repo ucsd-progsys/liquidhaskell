@@ -45,7 +45,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 import           Language.Fixpoint.Misc                     (group, snd3, groupList)
--- import           Language.Fixpoint.Misc                     (traceShow)
+import           Language.Fixpoint.Misc                     (traceShow)
 
 
 import qualified Language.Fixpoint.Types                    as F
@@ -80,8 +80,8 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
             = do let c      = btc_tc cc
                  let l      = loc  c
                  let l'     = locE c
-                 tc        <- lookupGhcTyCon c
-                 ss'       <- mapM mkLSpecType ss
+                 tc        <- lookupGhcTyCon "makeClasses" c
+                 ss'       <- mapM mkLSpecType (traceShow "makeClasses" <$> ss)
                  let (dc:_) = tyConDataCons tc
                  let αs  = map bareRTyVar as
                  let as' = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
@@ -259,7 +259,7 @@ lookupIds ignoreUnknown
       = throwError err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, _, b) = tx <$> mkLSpecType b
+mkVarSpec (v, _, b) = tx <$> mkLSpecType (traceShow "mkVarSpec" b)
   where
     tx              = (v,) . fmap generalize
 
@@ -272,7 +272,7 @@ makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecT
 makeIAliases'     = mapM mkIA
   where
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
-    mkI t         = fmap generalize <$> mkLSpecType t
+    mkI t         = fmap generalize <$> mkLSpecType (traceShow "makeIAliases" t)
 
 makeNewTypes :: (ModName, Ms.Spec (Located BareType) bndr)
                -> BareM [(TyCon, Located SpecType)]
@@ -283,7 +283,7 @@ makeNewTypes' :: [DataDecl] -> BareM [(TyCon, Located SpecType)]
 makeNewTypes' = mapM mkNT
   where
     mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
-    mkNT d       = (,) <$> lookupGhcTyCon (tycName d)
+    mkNT d       = (,) <$> lookupGhcTyCon "makeNewTypes'" (tycName d)
                        <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
     getTy l [(_,[(_,t)])] = return $ withLoc l t
     getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"

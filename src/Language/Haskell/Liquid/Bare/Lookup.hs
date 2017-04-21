@@ -81,9 +81,9 @@ lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> Bar
 lookupGhcThing' _err f x = do
   be     <- get
   let env = hscEnv be
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+  _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+  _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -185,8 +185,8 @@ lookupGhcVar x
     fv _                          = Nothing
 
 
-lookupGhcTyCon   ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s = do 
+lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
+lookupGhcTyCon src s = do 
   lookupGhcThing err ftc s `catchError` \_ ->
                          lookupGhcThing err fdc s
   where
@@ -201,7 +201,7 @@ lookupGhcTyCon s = do
     fdc _
       = Nothing
 
-    err = "type constructor or class"
+    err = "type constructor or class\n " ++ src
 
 lookupGhcDataCon :: Located Symbol -> BareM DataCon
 lookupGhcDataCon dc

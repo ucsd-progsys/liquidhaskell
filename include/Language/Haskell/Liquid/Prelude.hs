@@ -6,15 +6,15 @@ module Language.Haskell.Liquid.Prelude where
 --------------------------- Arithmetic ----------------------------
 -------------------------------------------------------------------
 
-{-@ assume plus   :: x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}  @-}
-{-@ assume minus  :: x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x - y} @-}
-{-@ assume times  :: x:Int -> y:Int -> Int                           @-}
-{-@ assume eq     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x = y)}  @-}
-{-@ assume neq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x != y)} @-}
-{-@ assume leq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x <= y)} @-}
-{-@ assume geq    :: x:Int -> y:Int -> {v:Bool | ((v) <=> x >= y)} @-}
-{-@ assume lt     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x < y)}  @-}
-{-@ assume gt     :: x:Int -> y:Int -> {v:Bool | ((v) <=> x > y)}  @-}
+{-@ assume plus   :: x:{v:GHC.Types.Int | true } -> y:{v:GHC.Types.Int | true} -> {v:GHC.Types.Int | v = x + y}  @-}
+{-@ assume minus  :: x:{v:GHC.Types.Int | true } -> y:{v:GHC.Types.Int | true} -> {v:GHC.Types.Int | v = x - y} @-}
+{-@ assume times  :: x:GHC.Types.Int -> y:GHC.Types.Int -> GHC.Types.Int                           @-}
+{-@ assume eq     :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x = y)}  @-}
+{-@ assume neq    :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x != y)} @-}
+{-@ assume leq    :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x <= y)} @-}
+{-@ assume geq    :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x >= y)} @-}
+{-@ assume lt     :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x < y)}  @-}
+{-@ assume gt     :: x:GHC.Types.Int -> y:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> x > y)}  @-}
 
 {-# NOINLINE plus #-}
 plus :: Int -> Int -> Int
@@ -61,34 +61,34 @@ gt x y = x > y
 -------------------------------------------------------------------
 
 
-{-@ assume liquidAssertB :: x:{v:Bool | v} -> {v: Bool | v} @-}
+{-@ assume liquidAssertB :: x:{v:GHC.Types.Bool | v} -> {v: GHC.Types.Bool | v} @-}
 {-# NOINLINE liquidAssertB #-}
 liquidAssertB :: Bool -> Bool
 liquidAssertB b = b
 
-{-@ assume liquidAssert :: {v:Bool | v} -> a -> a  @-}
+{-@ assume liquidAssert :: {v:GHC.Types.Bool | v} -> a -> a  @-}
 {-# NOINLINE liquidAssert #-}
 liquidAssert :: Bool -> a -> a
 liquidAssert _ x = x
 
-{-@ assume liquidAssume :: b:Bool -> a -> {v: a | b}  @-}
+{-@ assume liquidAssume :: b:GHC.Types.Bool -> a -> {v: a | b}  @-}
 {-# NOINLINE liquidAssume #-}
 liquidAssume :: Bool -> a -> a
 liquidAssume b x = if b then x else error "liquidAssume fails"
 
-{-@ assume liquidAssumeB :: forall <p :: a -> Bool>. (a<p> -> {v:Bool| v}) -> a -> a<p> @-}
+{-@ assume liquidAssumeB :: forall <p :: a -> Bool>. (a<p> -> {v:GHC.Types.Bool| v}) -> a -> a<p> @-}
 liquidAssumeB :: (a -> Bool) -> a -> a
 liquidAssumeB p x | p x = x
                   | otherwise = error "liquidAssumeB fails"
 
 
 
-{-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
+{-@ assume liquidError :: {v:GHC.Base.String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}
 liquidError :: String -> a
 liquidError = error
 
-{-@ assume crash  :: forall a . x:{v:Bool | v} -> a @-}
+{-@ assume crash  :: forall a . x:{v:GHC.Types.Bool | v} -> a @-}
 {-# NOINLINE crash #-}
 crash :: Bool -> a
 crash = undefined
@@ -106,12 +106,12 @@ choose = undefined
 -------------------------------------------------------------------
 
 -- tedium because fixpoint doesnt want to deal with (x mod y) only (x mod c)
-{-@ assume isEven :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 0))} @-}
+{-@ assume isEven :: x:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> ((x mod 2) = 0))} @-}
 {-# NOINLINE isEven #-}
 isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 
-{-@ assume isOdd :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 1))} @-}
+{-@ assume isOdd :: x:GHC.Types.Int -> {v:GHC.Types.Bool | ((v) <=> ((x mod 2) = 1))} @-}
 {-# NOINLINE isOdd #-}
 isOdd   :: Int -> Bool
 isOdd x = x `mod` 2 == 1
@@ -127,7 +127,7 @@ safeZipWith _ _ _ = error "safeZipWith: cannot happen!"
 
 
 
-{-@ (==>) :: p:Bool -> q:Bool -> {v:Bool | v <=> (p =>  q)} @-}
+{-@ (==>) :: p:GHC.Types.Bool -> q:GHC.Types.Bool -> {v:GHC.Types.Bool | v <=> (p =>  q)} @-}
 infixr 8 ==>
 (==>) :: Bool -> Bool -> Bool
 False ==> False = True
