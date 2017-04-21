@@ -1,3 +1,5 @@
+{-@ LIQUID "--exact-data-con" @-}
+
 module Induction where
 
 import           Prelude (Char, Int, Bool(..))

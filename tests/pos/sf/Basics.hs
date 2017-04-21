@@ -1,3 +1,5 @@
+{-@ LIQUID "--exact-data-con" @-}
+
 module Basics (
   Bool(..),
   boolAnd, boolOr,
@@ -72,13 +74,12 @@ example_Even4 = ( natEven O
                 , natEven (S (S (S (S O))))
                 ) *** QED
 
-{-@ axiomatize natEven @-}
-
--- When one is lazy, axiomatization comes handy.
-
 {-@ example_Even5 :: { natEven (S (S (S (S (S O))))) = False } @-}
 example_Even5 :: Proof
-example_Even5 = () *** QED
+example_Even5 = ( natEven (S O)
+                , natEven (S (S (S O)))
+                , natEven (S (S (S (S (S O)))))
+                ) *** QED
 
 {-@ reflect natPlus @-}
 {-@ natPlus :: Peano -> Peano -> Peano @-}
