@@ -210,8 +210,8 @@ ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
-ppTyConB _bb
---   | ppShort bb = shortModules . ppTycon
+ppTyConB bb
+  | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
 
 shortModules :: Doc -> Doc

@@ -42,7 +42,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName, showPpr)
+import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -81,9 +81,9 @@ lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> Bar
 lookupGhcThing' _err f x = do
   be     <- get
   let env = hscEnv be
-  _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+--   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) x
-  _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+--   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -129,12 +129,10 @@ symbolLookupEnvOrig env mod s
        L _ rn <- hscParseIdentifier env $ ghcSymbolString s
        let rn' = mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn)
        let rn'' = mkUnqual tcName (occNameFS $ rdrNameOcc rn)
-       putStrLn ("Parsed Name = " ++ showPpr rn ++ "\nOR qualed name = \n" ++ showPpr rn')
        res    <- lookupRdrName env modName rn''
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
        res'   <- lookupRdrName env modName rn'
-       putStrLn ("Parsed Name = " ++ showPpr rn)
        return $ catMaybes [res, res']
   | otherwise
   = do rn             <- hscParseIdentifier env $ ghcSymbolString s

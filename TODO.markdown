@@ -2,6 +2,7 @@ GHC-8 integration
 ==================
 - bring back bench
 - remove desugaring dependence 
+- remove lookup rewriting (GHC/Misc: TODO)
 - fix Target 
 - FAILING TESTS 
 Unit

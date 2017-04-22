@@ -46,7 +46,6 @@ import qualified Data.HashMap.Strict                        as M
 
 
 import           Language.Fixpoint.Misc                     (group, snd3, groupList)
-import           Language.Fixpoint.Misc                     (traceShow)
 
 
 import qualified Language.Fixpoint.Types                    as F
@@ -82,7 +81,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
                  let l      = loc  c
                  let l'     = locE c
                  tc        <- lookupGhcTyCon "makeClasses" c
-                 ss'       <- mapM mkLSpecType (traceShow "makeClasses" <$> ss)
+                 ss'       <- mapM mkLSpecType ss
                  let (dc:_) = tyConDataCons tc
                  let αs  = map bareRTyVar as
                  let as' = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
@@ -183,7 +182,7 @@ makeAssertSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
-  = inModule mod $ makeSpec (traceShow ("mod = " ++ show mod) True) vs $ Ms.sigs spec
+  = inModule mod $ makeSpec True vs $ Ms.sigs spec
 
 makeAssumeSpec
   :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
@@ -260,7 +259,7 @@ lookupIds ignoreUnknown
       = throwError err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, _, b) = tx <$> mkLSpecType (traceShow "mkVarSpec" b)
+mkVarSpec (v, _, b) = tx <$> mkLSpecType b
   where
     tx              = (v,) . fmap generalize
 
@@ -273,7 +272,7 @@ makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecT
 makeIAliases'     = mapM mkIA
   where
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
-    mkI t         = fmap generalize <$> mkLSpecType (traceShow "makeIAliases" t)
+    mkI t         = fmap generalize <$> mkLSpecType t
 
 makeNewTypes :: (ModName, Ms.Spec (Located BareType) bndr)
                -> BareM [(TyCon, Located SpecType)]

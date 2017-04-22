@@ -33,7 +33,6 @@ import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types ( atLoc
                                , Expr(..)
                                , Reftable
@@ -64,16 +63,16 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
-ofBareType l t 
-  = ofBRType expandRTAliasApp (resolve l <=< expand) (traceShow ("RESOLVED TYPE FOR " ++ showpp t) t)
+ofBareType l 
+  = ofBRType expandRTAliasApp (resolve l <=< expand) 
 
 ofMeaSort :: BareType -> BareM SpecType
-ofMeaSort t
-  = ofBRType failRTAliasApp return (traceShow ("2RESOLVED TYPE FOR " ++ showpp t) t)
+ofMeaSort
+  = ofBRType failRTAliasApp return 
 
 ofBSort :: BSort -> BareM RSort
-ofBSort t
-  = ofBRType failRTAliasApp return (traceShow ("3RESOLVED TYPE FOR " ++ showpp t) t)
+ofBSort 
+  = ofBRType failRTAliasApp return 
 
 --------------------------------------------------------------------------------
 
@@ -95,7 +94,7 @@ mkSpecType :: SourcePos -> BareType -> BareM SpecType
 mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft (traceShow "makeSpecType" t)
+mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft t
   where
     resolveReft    = (resolve l <=< expand) . txParam l subvUReft (uPVar <$> πs) t
 
