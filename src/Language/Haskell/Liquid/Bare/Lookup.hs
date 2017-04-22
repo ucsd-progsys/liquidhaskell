@@ -20,7 +20,7 @@ import           Name
 import           PrelInfo                         (wiredInIds, ghcPrimIds)
 import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames)
 import           Prelude                          hiding (error)
-import           RdrName                          (mkQual, rdrNameOcc)
+import           RdrName                          (mkQual, rdrNameOcc, mkUnqual)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
 import           TcEnv
 import           TyCon
@@ -42,7 +42,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName, showPpr)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -127,10 +127,14 @@ symbolLookupEnvOrig env mod s
   | isSrcImport mod
   = do let modName = getModName mod
        L _ rn <- hscParseIdentifier env $ ghcSymbolString s
-       res    <- lookupRdrName env modName rn
+       let rn' = mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn)
+       let rn'' = mkUnqual tcName (occNameFS $ rdrNameOcc rn)
+       putStrLn ("Parsed Name = " ++ showPpr rn ++ "\nOR qualed name = \n" ++ showPpr rn')
+       res    <- lookupRdrName env modName rn''
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
-       res'   <- lookupRdrName env modName (mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn))
+       res'   <- lookupRdrName env modName rn'
+       putStrLn ("Parsed Name = " ++ showPpr rn)
        return $ catMaybes [res, res']
   | otherwise
   = do rn             <- hscParseIdentifier env $ ghcSymbolString s

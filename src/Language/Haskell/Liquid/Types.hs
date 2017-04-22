@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE BangPatterns               #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -1668,13 +1669,16 @@ instance NFData Cinfo
 -- | Module Names --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName deriving (Eq, Ord)
+data ModName = ModName !ModType !ModuleName deriving (Eq, Ord, Show)
 
 instance PPrint ModName where
   pprintTidy _ = text . show
 
-instance Show ModName where
-  show = getModString
+instance Show ModuleName where
+  show = moduleNameString
+
+-- instance Show ModName where
+--   show = getModString
 
 instance Symbolic ModName where
   symbol (ModName _ m) = symbol m
@@ -1682,7 +1686,7 @@ instance Symbolic ModName where
 instance Symbolic ModuleName where
   symbol = symbol . moduleNameFS
 
-data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
+data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord,Show)
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True

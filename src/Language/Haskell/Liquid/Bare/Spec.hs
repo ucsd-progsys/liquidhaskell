@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE BangPatterns      #-}
 
 module Language.Haskell.Liquid.Bare.Spec (
     makeClasses
@@ -182,7 +183,7 @@ makeAssertSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
-  = inModule mod $ makeSpec True vs $ Ms.sigs spec
+  = inModule mod $ makeSpec (traceShow ("mod = " ++ show mod) True) vs $ Ms.sigs spec
 
 makeAssumeSpec
   :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
@@ -241,7 +242,7 @@ makeLocalSpec cfg mod vs lvs cbs xbs
 
 makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
          -> BareM [(ModName, Var, LocSpecType)]
-makeSpec ignoreUnknown vs xbs = do
+makeSpec !ignoreUnknown vs xbs = do
   vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
   (BE { modName = mod}) <- get
   map (addFst3 mod) <$> mapM mkVarSpec vbs

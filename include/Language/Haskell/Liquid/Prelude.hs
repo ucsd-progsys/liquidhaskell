@@ -127,7 +127,7 @@ safeZipWith _ _ _ = error "safeZipWith: cannot happen!"
 
 
 
-{-@ (==>) :: p:GHC.Types.Bool -> q:GHC.Types.Bool -> {v:GHC.Types.Bool | v <=> (p =>  q)} @-}
+{-@ (==>) :: p:Bool -> q:GHC.Types.Bool -> {v:GHC.Types.Bool | v <=> (p =>  q)} @-}
 infixr 8 ==>
 (==>) :: Bool -> Bool -> Bool
 False ==> False = True

@@ -59,7 +59,7 @@ import           Var
 import           IdInfo
 import qualified TyCon                                      as TC
 import           Data.Char                                  (isLower, isSpace)
-import           Data.Maybe                                 (isJust, fromMaybe)
+import           Data.Maybe                                 (isJust, fromMaybe, mapMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
 
@@ -78,6 +78,8 @@ import           Language.Fixpoint.Misc                     (safeHead, safeLast,
 import           Language.Haskell.Liquid.Desugar.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
+
+import DynamicLoading (lookupRdrNameInModuleForPlugins)
 
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
@@ -404,6 +406,9 @@ uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
 -- slightly modified version of DynamicLoading.lookupRdrNameInModule
+_lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
+_lookupRdrName {- env mod name -} = lookupRdrNameInModuleForPlugins
+
 lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
 lookupRdrName hsc_env mod_name rdr_name = do
     -- First find the package the module resides in by searching exposed packages and home modules
@@ -411,19 +416,19 @@ lookupRdrName hsc_env mod_name rdr_name = do
     case found_module of
         Found _ mod -> do
             -- Find the exports of the module
-            (_, mb_iface) <- getModuleInterface hsc_env mod
+            (_, mb_iface) <- getModuleInterface hsc_env (traceShow ("mod " ++ showPpr mod) mod)
             case mb_iface of
                 Just iface -> do
                     -- Try and find the required name in the exports
                     let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
                                                 , is_qual = False, is_dloc = noSrcSpan }
-                        provenance = Just $ ImpSpec decl_spec ImpAll
+                        provenance = Just $ ImpSpec (traceShow ("decl_spec = " ++ showPpr mod_name) decl_spec) ImpAll
                         env = case mi_globals iface of
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
-                    case lookupGRE_RdrName rdr_name env of
-                        [gre] -> return (Just (gre_name gre))
-                        []    -> return Nothing
+                    case lookupGRE_RdrName' rdr_name (traceShow "ENV is " env) of
+                        [gre] -> return (traceShow ("FOUND " ++ showPpr rdr_name ++ "\nAS\n" ++ showPpr gre ++ "\nIN\n" ++ showPpr env) $ Just (gre_name gre))
+                        []    -> return $ traceShow ("NOT FOUND " ++ showPprName rdr_name ++ "\nIN\n"  ++ showPpr env) Nothing
                         _     -> Out.panic "lookupRdrNameInModule"
                 Nothing -> throwCmdLineErrorS dflags $ Out.hsep [Out.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
         err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
@@ -431,6 +436,59 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
+showPprName :: RdrName -> String
+showPprName n@(Unqual {}) = "Unqual " ++ showPpr n 
+showPprName n@(Qual {}) = "Qual " ++ showPpr n 
+showPprName n@(Orig {}) = "Orig " ++ showPpr n 
+showPprName n@(Exact {}) = "Exact " ++ showPpr n 
+
+
+
+lookupGRE_RdrName' :: RdrName -> GlobalRdrEnv -> [GlobalRdrElt]
+lookupGRE_RdrName' rdr_name env
+  = case lookupOccEnv env (rdrNameOcc rdr_name) of
+    Nothing   -> traceShow ("NOT FOUND AT ALL " ++ showPpr (rdrNameOcc rdr_name)) []
+    Just gres -> let res = pickGREsOLD rdr_name gres in 
+                 traceShow ("FILTERING RES FROM\n" ++ showPprName rdr_name ++ "\n"++ showPpr gres ++ "\nTO\n" ++ showPpr res) res
+
+
+pickGREsOLD :: RdrName -> [GlobalRdrElt] -> [GlobalRdrElt]
+pickGREsOLD rdl@(Unqual {})  gres 
+  = let res = mapMaybe pickUnqualGRE     gres
+    in traceShow ("UNQUAL GRES\n NAME = " ++ showPpr rdl ++ "\nGRES = " ++ showPpr gres ++ "\nAFTER = " ++ showPpr res) res 
+-- pickGREsOLD name@(Qual mod _) gres = mapMaybe (pickQualGRE name mod) gres
+pickGREsOLD rdl          gres 
+  = let res = pickGREs rdl gres 
+    in traceShow ("QUAL GRES\n NAME = " ++ showPpr rdl ++ "\nGRES = " ++ showPpr gres ++ "\nAFTER = " ++ showPpr res) res 
+
+
+pickUnqualGRE :: GlobalRdrElt -> Maybe GlobalRdrElt
+pickUnqualGRE gre@(GRE { gre_lcl = lcl, gre_imp = iss })
+  | not lcl, null iss' = traceShow ("Nothing BECAUSE \nLCL = " ++ showPpr lcl ++ 
+                                    "\nISS = " ++ showPpr iss ++ 
+                                    "\nISS POST = " ++ showPpr iss' ) Nothing
+  | otherwise          = Just (gre { gre_imp = iss' })
+  where
+    iss' = filter unQualSpecOK' iss
+
+
+_pickQualGRE :: RdrName -> ModuleName -> GlobalRdrElt -> Maybe GlobalRdrElt
+_pickQualGRE _ mod gre@(GRE { gre_name = n, gre_lcl = lcl, gre_imp = iss })
+  | not lcl', null iss' = Nothing
+  | otherwise           = Just (gre { gre_lcl = lcl', gre_imp = iss' })
+  where
+    iss' = filter (qualSpecOK mod) iss
+    lcl' = lcl && name_is_from mod n
+
+    name_is_from :: ModuleName -> Name -> Bool
+    name_is_from mod name = case nameModule_maybe name of
+                              Just n_mod -> moduleName n_mod == mod
+                              Nothing    -> False
+
+unQualSpecOK' :: ImportSpec -> Bool
+-- ^ Is in scope unqualified?
+unQualSpecOK' is = let res = not (is_qual (is_decl is)) in 
+                   traceShow ("IS IN SCPOPE " ++ showPpr is ++ " ?? "  ++ show res) res 
 
 qualImportDecl :: ModuleName -> ImportDecl name
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }

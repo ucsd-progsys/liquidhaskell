@@ -1,5 +1,5 @@
 module Moo (plusOne) where
 
-{-@ plusOne :: x:Int -> {v:Int| v > x } @-}
+{-@ plusOne :: x:Int -> {v:Int| 42 < v } @-}
 plusOne :: Int -> Int
-plusOne x = x + 1
+plusOne x = 43
