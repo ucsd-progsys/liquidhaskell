@@ -1,7 +1,5 @@
-module Main where
+module Recursion where
 
-main :: IO ()
-main = return ()
 
 {-@ total :: Nat -> Nat @-}
 total :: Int -> Int 
