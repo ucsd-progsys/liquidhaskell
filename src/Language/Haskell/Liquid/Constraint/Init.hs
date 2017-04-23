@@ -89,7 +89,7 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = traceShow "INIT ENV" ((tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5])
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
        modify $ \s -> s{dataConTys = f4}
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]

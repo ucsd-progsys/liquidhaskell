@@ -142,7 +142,6 @@ makeGhcSpec' :: Config -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var] -> Nam
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg cbs instenv vars defVars exports specs
   = do name          <- modName <$> get
-       liftIO $ putStrLn ("SPEC = " ++ show specs)
        embs          <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs)
        xils          <- concatMapM (makeHaskellInlines embs cbs name) specs
        lmap          <- logic_map . logicEnv <$> get

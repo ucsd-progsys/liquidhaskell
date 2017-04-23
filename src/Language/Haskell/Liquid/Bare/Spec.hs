@@ -45,7 +45,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 
-import           Language.Fixpoint.Misc                     (group, snd3, groupList, traceShow)
+import           Language.Fixpoint.Misc                     (group, snd3, groupList)
 
 
 import qualified Language.Fixpoint.Types                    as F
@@ -229,7 +229,7 @@ makeLocalSpec cfg mod vs lvs cbs xbs
   = do vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2  <- makeSpec (noCheckUnknown cfg) vs xbs2
-       return $ traceShow ("\nLOCALSPEC for " ++ show mod ++ "\n" ++ show xbs) (vts1 ++ vts2)
+       return $ (vts1 ++ vts2)
   where
     xbs1                = xbs1' ++ cbs
     (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
@@ -243,9 +243,8 @@ makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
          -> BareM [(ModName, Var, LocSpecType)]
 makeSpec _ignoreUnknown vs xbs = do
   (BE { modName = mod}) <- get
-  vbs <- map (joinVar vs) <$> lookupIds False (traceShow ("Lookupids for " ++ show mod) xbs)
-  xts <- map (addFst3 mod) <$> mapM mkVarSpec vbs
-  return $ traceShow ("make Spec for  = " ++ show mod) xts  
+  vbs <- map (joinVar vs) <$> lookupIds False xbs
+  map (addFst3 mod) <$> mapM mkVarSpec vbs
 
 lookupIds :: Bool -> [(LocSymbol, Located BareType)] -> BareM [(Var, LocSymbol, Located BareType)]
 lookupIds !ignoreUnknown
