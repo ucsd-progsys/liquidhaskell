@@ -20,7 +20,7 @@ import           Name
 import           PrelInfo                         (wiredInIds, ghcPrimIds)
 import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames)
 import           Prelude                          hiding (error)
-import           RdrName                          (mkQual, rdrNameOcc, mkUnqual)
+import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
 import           TcEnv
 import           TyCon
@@ -29,8 +29,9 @@ import           Module
 import           Finder
 import           TcRnMonad
 import           IfaceEnv
-import           Var
+import           Var hiding (varName)
 import           TysPrim
+import RdrName
 
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
@@ -53,37 +54,37 @@ import           Language.Haskell.Liquid.Bare.Env
 --------------------------------------------------------------------------------
 
 class Symbolic a => GhcLookup a where
-  lookupName :: HscEnv -> ModName -> a -> IO [Name]
+  lookupName :: HscEnv -> ModName -> Maybe NameSpace -> a -> IO [Name]
   srcSpan    :: a -> SrcSpan
 
 instance GhcLookup (Located Symbol) where
-  lookupName e m = symbolLookup e m . val
-  srcSpan        = sourcePosSrcSpan . loc
+  lookupName e m ns = symbolLookup e m ns . val
+  srcSpan           = sourcePosSrcSpan . loc
 
 instance GhcLookup Name where
-  lookupName _ _ = return . (:[])
-  srcSpan        = nameSrcSpan
+  lookupName _ _ _ = return . (:[])
+  srcSpan          = nameSrcSpan
 
 instance GhcLookup FieldLabel where
-  lookupName e m = lookupName e m . flSelector
-  srcSpan        = srcSpan . flSelector
+  lookupName e m ns = lookupName e m ns . flSelector
+  srcSpan           = srcSpan . flSelector
 
 instance Symbolic FieldLabel where
   symbol = symbol . flSelector
 
-lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
-lookupGhcThing name f x = lookupGhcThing' err f x >>= maybe (throwError err) return
+lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
+lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
     msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
 
-lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
-lookupGhcThing' _err f x = do
+lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM (Maybe b)
+lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
---   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
-  ns     <- liftIO $ lookupName env (modName be) x
---   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+  _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+  ns     <- liftIO $ lookupName env (modName be) ns x
+  _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -93,12 +94,12 @@ symbolicString = symbolString . symbol
 -- liftIOErr :: TError e -> IO a -> BareM a
 -- liftIOErr e act = liftIO (act `catchError` \_ -> throwError e)
 
-symbolLookup :: HscEnv -> ModName -> Symbol -> IO [Name]
-symbolLookup env mod k
+symbolLookup :: HscEnv -> ModName -> Maybe NameSpace -> Symbol -> IO [Name]
+symbolLookup env mod ns k
   | k `M.member` wiredIn
   = return $ maybeToList $ M.lookup k wiredIn
   | otherwise
-  = symbolLookupEnv env mod k
+  = symbolLookupEnv env mod ns k
 
 wiredIn      :: M.HashMap Symbol Name
 wiredIn      = M.fromList $ special ++ wiredIns ++ wiredIns' ++ wiredTyCons ++ wiredDcCons
@@ -115,21 +116,20 @@ wiredIn      = M.fromList $ special ++ wiredIns ++ wiredIns' ++ wiredTyCons ++ w
                 , ("GHC.Integer.Type.Integer", integerTyConName)
                 , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
-symbolLookupEnv :: HscEnv -> ModName -> Symbol -> IO [Name]
-symbolLookupEnv env mod k = do
-  ns <- symbolLookupEnvOrig env mod k
+symbolLookupEnv :: HscEnv -> ModName -> Maybe NameSpace -> Symbol -> IO [Name]
+symbolLookupEnv env mod ns k = do
+  ns <- symbolLookupEnvOrig env mod ns k
   case ns of
     [] -> symbolLookupEnvFull env mod k
     _  -> return ns
 
-symbolLookupEnvOrig :: HscEnv -> ModName -> Symbol -> IO [Name]
-symbolLookupEnvOrig env mod s
+symbolLookupEnvOrig :: HscEnv -> ModName -> Maybe NameSpace -> Symbol -> IO [Name]
+symbolLookupEnvOrig env mod namespace s
   | isSrcImport mod
   = do let modName = getModName mod
        L _ rn <- hscParseIdentifier env $ ghcSymbolString s
        let rn' = mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn)
-       let rn'' = mkUnqual tcName (occNameFS $ rdrNameOcc rn)
-       res    <- lookupRdrName env modName rn''
+       res    <- lookupRdrName env modName (makeRdrName rn namespace)
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
        res'   <- lookupRdrName env modName rn'
@@ -140,6 +140,18 @@ symbolLookupEnvOrig env mod s
        case lookupres of
          Just ns -> return ns
          _       -> return []
+
+
+-- TODO: move to misc 
+makeRdrName :: RdrName -> Maybe NameSpace -> RdrName
+makeRdrName (Unqual n) ns = Unqual $ makeOcc n ns 
+makeRdrName (Qual m n) ns = Qual m $ makeOcc n ns 
+makeRdrName (Orig m n) ns = Orig m $ makeOcc n ns 
+makeRdrName (Exact n)  _  = Exact n 
+
+makeOcc :: OccName -> Maybe NameSpace -> OccName
+makeOcc n Nothing   = n 
+makeOcc n (Just ns) = mkOccNameFS ns (occNameFS n)
 
 symbolLookupEnvFull :: HscEnv -> ModName -> Symbol -> IO [Name]
 symbolLookupEnvFull hsc _m s = do
@@ -179,7 +191,7 @@ lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
        case L.lookup (symbol x) env of
-         Nothing -> lookupGhcThing "variable" fv x
+         Nothing -> lookupGhcThing "variable" fv (Just varName) x
          Just v  -> return v
   where
     fv (AnId x)                   = Just x
@@ -189,8 +201,8 @@ lookupGhcVar x
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do 
-  lookupGhcThing err ftc s `catchError` \_ ->
-                         lookupGhcThing err fdc s
+  lookupGhcThing err ftc (Just tcName) s `catchError` \_ ->
+                         lookupGhcThing err fdc (Just tcName) s
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
@@ -224,7 +236,7 @@ isTupleDC zs
   = Nothing
 
 lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
-lookupGhcDataCon' = lookupGhcThing "data constructor" fdc
+lookupGhcDataCon' = lookupGhcThing "data constructor" fdc (Just dataName)
   where
     fdc (AConLike (RealDataCon x)) = Just x
     fdc _                          = Nothing

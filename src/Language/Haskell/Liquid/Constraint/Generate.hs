@@ -592,7 +592,7 @@ safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
-varTemplate γ (x, eo) = varTemplate' γ (x, eo) >>= mapM (topSpecType x)
+varTemplate γ (x, eo) = varTemplate' γ (traceShow ("looking up Var " ++ show (F.symbol x)) x, eo) >>= mapM (topSpecType x)
 
 -- | @lazVarTemplate@ is like `varTemplate` but for binders that are *not*
 --   termination checked and hence, the top-level refinement / KVar is
@@ -603,7 +603,7 @@ varTemplate γ (x, eo) = varTemplate' γ (x, eo) >>= mapM (topSpecType x)
 --    dbg   = traceShow ("LAZYVAR-TEMPLATE: " ++ show x)
 
 varTemplate' :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
-varTemplate' γ (x, eo)
+varTemplate' γ (!x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
@@ -1263,7 +1263,7 @@ varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
 varRefType γ x = do
   xt <- varRefType' γ x <$> (γ ??= x)
-  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
+  return $ traceShow ("varRefType for" ++ show (F.symbol x)) xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'

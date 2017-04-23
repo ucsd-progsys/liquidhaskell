@@ -49,6 +49,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
+import           Language.Fixpoint.Misc                     (traceShow)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -212,7 +213,7 @@ makeGhcSpec'
   -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
-  -- liftIO $ dumpSigs specs0
+  liftIO $ putStrLn ("ALLSPECS = " ++ show (specSigs <$> specs0))
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
@@ -241,6 +242,11 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su
     >>= addRTEnv
+
+specSigs :: (ModName, Ms.BareSpec) -> String
+specSigs (m, sp) = show m ++ "\nSIGS = \n" ++ concatMap go (Ms.sigs sp)
+  where
+    go (x, t) = show x ++ " , " ++ show (symbol x) ++ " :: " ++ show t  ++ "\n"
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -515,7 +521,9 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
-  return     (invs ++ minvs, ntys, ialias, sigs, asms)
+  return     (invs ++ minvs, ntys, ialias, showSigs' "\n\nSIGS = " sigs, asms)
+  where
+    showSigs' str sigs = traceShow (str ++ concat [show x ++ " AND " ++ show (GM.varSymbol x) ++ " : " ++ show t |  (x, t) <- sigs]) sigs
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
 makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, val x == symbol' y]

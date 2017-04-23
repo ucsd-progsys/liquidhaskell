@@ -406,7 +406,6 @@ uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
 -- slightly modified version of DynamicLoading.lookupRdrNameInModule
--- TODO: Switch to the ghc unmodified function?
 _lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
 _lookupRdrName {- env mod name -} = lookupRdrNameInModuleForPlugins
 
@@ -417,25 +416,41 @@ lookupRdrName hsc_env mod_name rdr_name = do
     case found_module of
         Found _ mod -> do
             -- Find the exports of the module
-            (_, mb_iface) <- getModuleInterface hsc_env mod
+            (_, mb_iface) <- getModuleInterface hsc_env (traceShow ("mod " ++ showPpr mod) mod)
             case mb_iface of
                 Just iface -> do
                     -- Try and find the required name in the exports
                     let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
                                                 , is_qual = False, is_dloc = noSrcSpan }
-                        provenance = Just $ ImpSpec decl_spec ImpAll
+                        provenance = Just $ ImpSpec (traceShow ("decl_spec = " ++ showPpr mod_name) decl_spec) ImpAll
                         env = case mi_globals iface of
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
-                    case lookupGRE_RdrName rdr_name env of
-                        [gre] -> return $ Just (gre_name gre)
-                        []    -> return Nothing
+                    case lookupGRE_RdrName' rdr_name env of
+                        [gre] -> return (traceShow ("FOUND " ++ showPpr rdr_name ++ "\nAS\n" ++ showPpr gre ++ "\nIN\n" ++ showPpr env) $ Just (gre_name gre))
+                        []    -> return $ traceShow ("NOT FOUND " ++ showPpr rdr_name ++ "\nIN\n"  ++ showPpr env) Nothing
                         _     -> Out.panic "lookupRdrNameInModule"
                 Nothing -> throwCmdLineErrorS dflags $ Out.hsep [Out.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
         err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
+
+
+lookupGRE_RdrName' :: ModName -> RdrName -> GlobalRdrEnv -> [GlobalRdrElt]
+lookupGRE_RdrName' mod rdr_name env
+  = case lookupOccEnv env (rdrNameOcc rdr_name) of
+    Nothing   -> []
+    Just gres -> pickGREs rdr_name gres
+  where 
+    mkOcc name@(Unqual {})   = mkUnqual () (occNameFS $ rdrNameOcc rn)
+    mkOcc name               = rdrNameOcc name
+
+
+_pickGREs' :: RdrName -> [GlobalRdrElt] -> [GlobalRdrElt]
+_pickGREs' (Unqual {})  gres = traceShow ("INIT GRES UNQUAL = " ++ showPpr gres) gres
+_pickGREs' (Qual _ _) gres = traceShow ("INIT GRES QUAL = " ++ showPpr gres) gres
+_pickGREs' _            _    = []  -- I don't think this actually happens
 
 qualImportDecl :: ModuleName -> ImportDecl name
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }

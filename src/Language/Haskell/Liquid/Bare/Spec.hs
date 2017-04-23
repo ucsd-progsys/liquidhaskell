@@ -33,7 +33,7 @@ import           Prelude                                    hiding (error)
 import           TyCon
 import           Var
 
-
+import qualified OccName as NS
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Data.Maybe
@@ -45,7 +45,7 @@ import qualified Data.HashMap.Strict                        as M
 
 
 
-import           Language.Fixpoint.Misc                     (group, snd3, groupList)
+import           Language.Fixpoint.Misc                     (group, snd3, groupList, traceShow)
 
 
 import qualified Language.Fixpoint.Types                    as F
@@ -171,7 +171,7 @@ varsAfter f s lvs
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss
   = do env   <- gets hscEnv
-       ns    <- liftIO $ concatMapM (lookupName env name . dummyLoc . prefix) ss
+       ns    <- liftIO $ concatMapM (lookupName env name (Just NS.varName) . dummyLoc . prefix) ss
        return $ filter ((`elem` ns) . varName) vs
     where
        prefix s = qualifySymbol (F.symbol name) (F.symbol s)
@@ -229,7 +229,7 @@ makeLocalSpec cfg mod vs lvs cbs xbs
   = do vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2  <- makeSpec (noCheckUnknown cfg) vs xbs2
-       return $ vts1 ++ vts2
+       return $ traceShow ("\nLOCALSPEC for " ++ show mod ++ "\n" ++ show xbs) (vts1 ++ vts2)
   where
     xbs1                = xbs1' ++ cbs
     (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
@@ -241,20 +241,21 @@ makeLocalSpec cfg mod vs lvs cbs xbs
 
 makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
          -> BareM [(ModName, Var, LocSpecType)]
-makeSpec !ignoreUnknown vs xbs = do
-  vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
+makeSpec _ignoreUnknown vs xbs = do
   (BE { modName = mod}) <- get
-  map (addFst3 mod) <$> mapM mkVarSpec vbs
+  vbs <- map (joinVar vs) <$> lookupIds False (traceShow ("Lookupids for " ++ show mod) xbs)
+  xts <- map (addFst3 mod) <$> mapM mkVarSpec vbs
+  return $ traceShow ("make Spec for  = " ++ show mod) xts  
 
-lookupIds :: GhcLookup a => Bool -> [(a, t)] -> BareM [(Var, a, t)]
-lookupIds ignoreUnknown
+lookupIds :: Bool -> [(LocSymbol, Located BareType)] -> BareM [(Var, LocSymbol, Located BareType)]
+lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where
     lookup (s, t)
       = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
     handleError (ErrGhc {})
       | ignoreUnknown
-        = return Nothing
+      = return Nothing
     handleError err
       = throwError err
 
