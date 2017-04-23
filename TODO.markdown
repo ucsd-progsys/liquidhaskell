@@ -2,8 +2,9 @@ GHC-8 integration
 ==================
 - bring back bench
 - remove desugaring dependence 
-- remove lookup rewriting (GHC/Misc: TODO)
-- fix Target 
+- ES: fix Target 
+- RJ: fix pattern inlines in `tests/pos/monad1.hs`
+- NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - FAILING TESTS 
 Unit
     pos
@@ -15,10 +16,6 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      WrapUnWrap.hs:              FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       VerifiedMonoid.hs:          FAIL (0.80s)
         Wrong exit code
         expected: ExitSuccess
@@ -28,10 +25,6 @@ Unit
         expected: ExitSuccess
          but got: ExitFailure 2
       ToyMVar.hs:                 FAIL (0.72s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Term.hs:                    FAIL (0.97s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2

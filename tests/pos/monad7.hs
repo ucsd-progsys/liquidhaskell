@@ -1,4 +1,5 @@
 module Foo () where
+{-@ LIQUID "--no-pattern-inline" @-}
 
 import Language.Haskell.Liquid.Prelude 
 
