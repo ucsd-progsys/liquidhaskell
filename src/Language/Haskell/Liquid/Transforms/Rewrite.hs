@@ -46,8 +46,8 @@ import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- | Top-level rewriter --------------------------------------------------------
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
-rewriteBinds cfg
-  | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
+rewriteBinds _cfg
+--   | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
   | otherwise        = id
 
 simplifyCore :: Config -> Bool
