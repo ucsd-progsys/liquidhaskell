@@ -15,6 +15,7 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.Types.Graduals  as G
+import qualified Language.Fixpoint.Solver.GradualSolution as GS 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -25,11 +26,13 @@ import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
+import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
+import qualified Language.Fixpoint.SortCheck       as So
+import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 -- DEBUG
 -- import           Debug.Trace (trace)
 
@@ -41,7 +44,7 @@ solve cfg fi | gradual cfg
 
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -49,7 +52,6 @@ solve cfg fi = do
     act  = solve_ cfg fi s0 ks  wkl
     sI   = solverInfo cfg fi
     wkl  = W.init sI
-    n    = fromIntegral $ W.wRanks wkl
     s0   = siSol  sI
     ks   = siVars sI
 
@@ -58,20 +60,95 @@ solve cfg fi = do
 solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solveGradual cfg fi = do 
-  fi'  <- G.uniqify fi 
-  sols <- G.makeSolutions cfg fi' 
+  let fi' = G.uniquify fi 
+  sols   <- makeSolutions cfg fi' 
   gradualLoop (cfg{gradual = False}) fi' sols  
 
 gradualLoop :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> [G.GSol] -> IO (F.Result (Integer, a))
 gradualLoop _ _ [] 
   = return $ F.unsafe 
 gradualLoop cfg fi (s:ss)
-  = do putStrLn ("Solving for " ++ show s)
+  = do whenLoud   $ putStrLn ("Solving for " ++ show s)
+       whenNormal $ putStr "*"
+       v <- getVerbosity 
+       whenNormal $ setVerbosity Quiet
        r <- solve cfg (G.gsubst s fi)
-       putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
+       setVerbosity v
+       whenLoud $ putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
        if F.isUnsafe r 
         then gradualLoop cfg fi ss
         else return r 
+
+
+makeSolutions :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO [G.GSol] 
+makeSolutions cfg fi 
+  = (G.makeSolutions cfg fi) <$> (makeLocalLattice cfg fi $ GS.init fi) 
+
+
+
+makeLocalLattice :: Config -> F.SInfo a 
+            -> [(F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))]
+            -> IO [(F.KVar, (((F.Symbol,F.Sort), F.Expr), [[F.Expr]]))]
+makeLocalLattice cfg fi kes = runSolverM cfg sI (act kes)
+  where
+    sI  = solverInfo cfg fi
+    act = mapM (makeLocalLatticeOne cfg fi) 
+
+
+makeLocalLatticeOne :: Config -> F.SInfo a 
+            -> (F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))
+            -> SolveM (F.KVar, (((F.Symbol,F.Sort), F.Expr), [[F.Expr]]))
+makeLocalLatticeOne cfg fi (k, (e, es)) = do  
+   elems0  <- filterM (isLocal e) (map (:[]) es)
+   elems   <- sortEquals elems0 
+   lattice <- makeLattice [] (map (:[]) elems) elems
+   return $ ((k,) . (e,)) lattice
+  where
+    sEnv = symbolEnv cfg fi 
+    makeLattice acc new elems
+      | null new
+      = return acc 
+      | otherwise
+      = do let cands = [e:es |e<-elems, es<-new]
+           localCans <- filterM (isLocal e) cands
+           newElems  <- filterM (notTrivial (new ++ acc)) localCans 
+           makeLattice (acc ++ new) newElems elems
+
+    notTrivial [] _     = return True 
+    notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
+                             if v then return False 
+                                  else notTrivial xs p 
+
+    mkPred es = So.elaborate "initBGind.mkPred" sEnv (F.pAnd es)
+    
+    isLocal (v, e) es = do 
+      let pp = So.elaborate "filterLocal" sEnv $ F.PExist [v] $ F.pAnd (e:es) 
+      isValid mempty pp
+
+    root      = mempty
+    sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs 
+      where 
+       vs        = zip [0..] (root:(head <$> xs))
+
+       bfs []     _  = [] 
+       bfs (i:is) es = (snd $ (vs!!i)) : bfs (is++map snd (filter (\(j,k) ->  (j==i && notElem k is)) es)) es
+
+       makeEdges _   acc []    = return acc
+       makeEdges vs acc (x:xs) = do ves  <- concat <$> mapM (makeEdgesOne x) vs
+                                    if any (\(i,j) -> elem (j,i) acc) ves 
+                                      then makeEdges (filter ((/= fst x) . fst) vs) (filter (\(i,j) -> ((i /= fst x) && (j /= fst x))) acc) xs 
+                                      else makeEdges vs (mergeEdges (ves ++ acc)) xs 
+
+    makeEdgesOne (i,_) (j,_) | i == j = return [] 
+    makeEdgesOne (i,x) (j,y) = do 
+      ij <- isValid (mkPred [x]) (mkPred [y])
+      return (if ij then [(j,i)] else [])
+
+    mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
+
+
+
+
 
 
 

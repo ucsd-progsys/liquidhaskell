@@ -91,9 +91,9 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b c -> Int -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI _ act =
+runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"

@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Solutions (
   , trueEqual
 
   -- * Gradual Solution elements   
-  , qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap   
+  , qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap, qbExprs
 
   -- * Solution Candidates (move to SolverMonad?)
   , Cand
@@ -133,6 +133,9 @@ qb = QB
 
 qbEQuals :: QBind -> [EQual]
 qbEQuals (QB xs) = xs
+
+qbExprs :: QBind -> [Expr]
+qbExprs (QB xs) = eqPred <$> xs
 
 qbToGb :: QBind -> GBind
 qbToGb (QB xs) = GB $ map (:[]) xs

@@ -106,7 +106,6 @@ Library
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
-                   Language.Fixpoint.Solver.GradualSolve,
                    Language.Fixpoint.Solver.Solve
 
   Build-Depends: base

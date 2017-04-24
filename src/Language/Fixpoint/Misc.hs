@@ -14,7 +14,7 @@ import           Control.Exception                (bracket_)
 import           Data.Hashable
 -- import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (when, forM_)
+import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
@@ -351,3 +351,6 @@ allCombinations []          = [[]]
 allCombinations [[]]        = [[]]
 allCombinations ([]:_)     = []
 allCombinations ((x:xs):ys) = ((x:) <$> allCombinations ys) ++ allCombinations (xs:ys)
+
+powerset :: [a] -> [[a]]
+powerset xs = filterM (const [False, True]) xs
