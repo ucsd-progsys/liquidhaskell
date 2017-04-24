@@ -364,11 +364,17 @@ thm0NeqPlus1 (S n) = trivial
 
 {-@ thmIdTwice :: f:(x:Bool -> {v:Bool | v = x}) -> b:Bool -> { f (f b) = b } @-}
 thmIdTwice :: (Bool -> Bool) -> Bool -> Proof
-thmIdTwice f b = f (f b) ==. b *** QED
+thmIdTwice f b 
+  =   f (f b) 
+  ==. b 
+  *** QED
 
 {-@ thmNegTwice :: f:(x:Bool -> {v:Bool | v = negb x}) -> b:Bool -> { f (f b) = b } @-}
 thmNegTwice :: (Bool -> Bool) -> Bool -> Proof
-thmNegTwice f b = f (f b) ==. b ? thmNegbInvolutive b *** QED
+thmNegTwice f b 
+  =   f (f b) 
+  ==. b ? thmNegbInvolutive b 
+  *** QED
 
 -- RJ: You can rewrite
 --   (m : Peano) -> (n : Peano) -> (eqProof : m = n) -> (beq m n = True)
