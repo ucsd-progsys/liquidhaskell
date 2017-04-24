@@ -29,7 +29,7 @@ natMult n m = case n of
   O    -> O
   S n' -> natPlus m (natMult n' m)
 
-{-@ theorem_plus_n_O :: n : Peano -> { n = (natPlus n O) } @-}
+{-@ theorem_plus_n_O :: n : Peano -> { n == natPlus n O } @-}
 theorem_plus_n_O :: Peano -> Proof
 theorem_plus_n_O O     = ( natPlus O O ) *** QED
 theorem_plus_n_O (S n) = ( natPlus (S n) O
@@ -38,7 +38,7 @@ theorem_plus_n_O (S n) = ( natPlus (S n) O
 
 {-@ theorem_mult_0_r :: n : Peano -> { natMult n O = O } @-}
 theorem_mult_0_r :: Peano -> Proof
-theorem_mult_0_r O     = ( natMult O O ) *** QED
+theorem_mult_0_r O     = natMult O O *** QED
 theorem_mult_0_r (S n) = ( natMult (S n) O
                          , theorem_mult_0_r n
                          , natPlus O O
