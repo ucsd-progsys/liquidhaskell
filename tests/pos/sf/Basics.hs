@@ -4,14 +4,14 @@
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 {- NOTE:
-   
+
    1. See the TODO:trivial for cases where the instances seems to fail
-   
-   2. Would be nice to have case-splitting combinatores, 
-      e.g. for thmAndbCom,  thmAndbExch which are super boilerplate-y 
-  
-   3. For @minsheng: See the rewritten signature for `thmEqBeq`; 
-      we don't really need `rewrite` as the SMT 
+
+   2. Would be nice to have case-splitting combinatores,
+      e.g. for thmAndbCom,  thmAndbExch which are super boilerplate-y
+
+   3. For @minsheng: See the rewritten signature for `thmEqBeq`;
+      we don't really need `rewrite` as the SMT
       does "congruence closure" automatically.
 
  -}
@@ -364,22 +364,22 @@ thm0NeqPlus1 (S n) = trivial
 
 {-@ thmIdTwice :: f:(x:Bool -> {v:Bool | v = x}) -> b:Bool -> { f (f b) = b } @-}
 thmIdTwice :: (Bool -> Bool) -> Bool -> Proof
-thmIdTwice f b 
-  =   f (f b) 
-  ==. b 
+thmIdTwice f b
+  =   f (f b)
+  ==. b
   *** QED
 
 {-@ thmNegTwice :: f:(x:Bool -> {v:Bool | v = negb x}) -> b:Bool -> { f (f b) = b } @-}
 thmNegTwice :: (Bool -> Bool) -> Bool -> Proof
-thmNegTwice f b 
-  =   f (f b) 
-  ==. b ? thmNegbInvolutive b 
+thmNegTwice f b
+  =   f (f b)
+  ==. b ? thmNegbInvolutive b
   *** QED
 
 -- RJ: You can rewrite
 --   (m : Peano) -> (n : Peano) -> (eqProof : m = n) -> (beq m n = True)
 
-{-@ thmEqBeq :: m:Peano -> n:Peano -> { m = n } -> { beq m n = True } @-}
+{-@ thmEqBeq :: m:Peano -> n:Peano -> { v : Proof |  m = n } -> { beq m n = True } @-}
 thmEqBeq :: Peano -> Peano -> Proof -> Proof
 thmEqBeq O O _         = trivial
 thmEqBeq (S m) (S n) _ = thmEqBeq m n trivial

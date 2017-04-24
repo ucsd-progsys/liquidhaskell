@@ -37,11 +37,6 @@ natEven (S O)     = False
 natEven (S (S n)) = natEven n
 
 -- fails
-{-@ test_Even0 :: { natEven (S O) == True } @-}
-test_Even0 :: Proof
-test_Even0 = trivial
-
--- fails
 {-@ test_Even4 :: { natEven (S (S (S (S O)))) == True } @-}
 test_Even4 :: Proof
 test_Even4 = trivial
