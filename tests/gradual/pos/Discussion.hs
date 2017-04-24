@@ -2,7 +2,8 @@
 
 module Discussion where
 {-@ LIQUID "--gradual" @-}
-{-@ LIQUID "--eliminate=none" @-}
+{- LIQUID "--eliminate=none" @-}
+{-@ LIQUID "--savequery" @-}
 
 {-@ get :: {v:Int | 0 <= v } -> Int @-} 
 get :: Int -> Int 
