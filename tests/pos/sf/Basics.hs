@@ -16,22 +16,27 @@
 
  -}
 
-module Basics
-  (
-    -- * Booleans
-    Bool(..)
-  , negb, andb, orb
+module Basics where
 
-    -- * Peano numerals
-  , Peano(..), toNat
-  , plus, mult
-  , beq, ble, blt
-  )
-  where
+  -- (
+    -- -- * Booleans
+    -- Bool(..)
+  -- , negb, andb, orb
+--
+    -- -- * Peano numerals
+  -- , Peano(..), toNat
+  -- , plus, mult
+  -- , beq, ble, blt
+  -- )
+  -- where
 
 import           Prelude (Char, Int)
 import qualified Prelude
 import           Language.Haskell.Liquid.ProofCombinators
+
+{-@ reflect incr @-}
+incr :: Int -> Int
+incr x = x Prelude.+ 1
 
 --------------------------------------------------------------------------------
 -- | Days ----------------------------------------------------------------------
@@ -161,32 +166,32 @@ toNat :: Peano -> Int
 toNat O     = 0
 toNat (S n) = 1 Prelude.+ toNat n
 
-{-@ reflect natEven @-}
-natEven :: Peano -> Bool
-natEven O         = True
-natEven (S O)     = False
-natEven (S (S n)) = natEven n
+{-@ reflect even @-}
+even :: Peano -> Bool
+even O         = True
+even (S O)     = False
+even (S (S n)) = even n
 
-{-@ test_Even0 :: { natEven O == True } @-}
+{-@ test_Even0 :: { even O == True } @-}
 test_Even0 :: Proof
 test_Even0 = trivial
 
 -- LH ISSUE #995
-{-@ test_Even4 :: { natEven (S (S (S (S O)))) == True } @-}
+{-@ test_Even4 :: { even (S (S (S (S O)))) == True } @-}
 test_Even4 :: Proof
 test_Even4
-  =   natEven (S (S (S (S O))))
-  ==. natEven (S (S O))
-  ==. natEven O
+  =   even (S (S (S (S O))))
+  ==. even (S (S O))
+  ==. even O
   ==. True
   *** QED
 
-{-@ test_Even5 :: { natEven (S (S (S (S (S O))))) = False } @-}
+{-@ test_Even5 :: { even (S (S (S (S (S O))))) = False } @-}
 test_Even5 :: Proof
 test_Even5
-  =   natEven (S (S (S (S (S O)))))
-  ==. natEven (((S (S (S O)))))
-  ==. natEven (((((S O)))))
+  =   even (S (S (S (S (S O)))))
+  ==. even (((S (S (S O)))))
+  ==. even (((((S O)))))
   ==. False
   *** QED
 

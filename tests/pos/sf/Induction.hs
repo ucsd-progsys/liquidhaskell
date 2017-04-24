@@ -1,4 +1,7 @@
-{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--totality"                            @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 module Induction where
 
@@ -101,7 +104,7 @@ theorem_plus_swap n m p = ( theorem_plus_assoc n m p
                           , theorem_plus_assoc m n p
                           ) *** QED
 
-{-@ lemma_mult_distrib_S_n :: m : Peano -> n : Peano 
+{-@ lemma_mult_distrib_S_n :: m : Peano -> n : Peano
   -> { natMult m (S n) = natPlus m (natMult m n) }
 @-}
 lemma_mult_distrib_S_n :: Peano -> Peano -> Proof
