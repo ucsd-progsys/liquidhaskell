@@ -31,5 +31,5 @@ even (S (S n)) = even n
 
 {-@ thmPlusCom :: n:Peano -> m:Peano -> { plus n m == plus m n} @-}
 thmPlusCom :: Peano -> Peano -> Proof
-thmPlusCom O     m = trivial -- thmPlusNO m
+thmPlusCom O     m = trivial
 thmPlusCom (S n) m = [ thmPlusCom n m ] *** QED
