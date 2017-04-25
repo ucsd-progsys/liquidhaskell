@@ -1,35 +1,28 @@
 {-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--totality"                            @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module Induction where
+{-@ data List [llen] = Nil | Cons {lTl :: List} @-}
+data List = Nil | Cons List
 
-import qualified Prelude
-import           Prelude (Char, Int)
-import Language.Haskell.Liquid.ProofCombinators
+{-@ measure llen @-}
+{-@ llen :: List -> Nat @-}
+llen :: List -> Int
+llen Nil      = 0
+llen (Cons t) = 1 + llen t
 
-{-@ data Peano [toNat] = O | S Peano @-}
-data Peano = O | S Peano
+{-@ reflect sz @-}
+{-@ sz :: List -> Nat @-}
+sz :: List -> Int
+sz Nil      = 0
+sz (Cons t) = 1 + sz t
 
-{-@ measure toNat @-}
-{-@ toNat :: Peano -> Nat @-}
-toNat :: Peano -> Int
-toNat O     = 0
-toNat (S n) = 1 Prelude.+ toNat n
+-- THIS IS OK
+{-@ ok :: { llen ((Cons Nil)) == 1 } @-}
+ok = ()
 
-{-@ reflect plus @-}
-plus :: Peano -> Peano -> Peano
-plus O     n = n
-plus (S m) n = S (plus m n)
-
-{-@ data Bool = True | False @-}
-data Bool = True | False
-
-{-@ reflect even @-}
-even :: Peano -> Bool
-even O         = True
-even (S O)     = False
-even (S (S n)) = even n
-
-{-@ thmPlusCom :: n:Peano -> m:Peano -> { plus n m == plus m n} @-}
-thmPlusCom :: Peano -> Peano -> Proof
-thmPlusCom O     m = trivial
-thmPlusCom (S n) m = [ thmPlusCom n m ] *** QED
+-- THIS IS NOT
+{-@ fails :: { sz (Cons Nil) == 1 } @-}
+fails = ()
+ 
