@@ -97,7 +97,7 @@ instance Unique (SimpC a) where
     return cs{_crhs = rhs, _cenv = env}
 
 instance Unique IBindEnv where
-  uniq env = fromListIBindEnv <$> mapM uniq (elemsIBindEnv env) 
+  uniq env = emptyCache >> (fromListIBindEnv <$> mapM uniq (elemsIBindEnv env))
 
 instance Unique BindId where
   uniq i = do 
@@ -122,9 +122,7 @@ instance Unique Expr where
   uniq = mapMExpr go 
    where 
     go (PGrad k su e) = do 
-      k' <- freshK
-      addK k k' 
-      setChange 
+      k' <- freshK k 
       return $ PGrad k' su e  
     go e              = return e 
 
@@ -137,8 +135,15 @@ data UniqueST
   = UniqueST { freshId :: Integer
              , kmap    :: M.HashMap KVar [KVar]
              , change  :: Bool 
+             , cache   :: M.HashMap KVar KVar 
              , benv    :: BindEnv 
              }
+
+emptyCache :: UniqueM ()
+emptyCache = modify $ \s -> s{cache = mempty}
+
+addCache :: KVar -> KVar -> UniqueM ()
+addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 
 updateBEnv :: BindEnv -> UniqueM ()
 updateBEnv bs = modify $ \s -> s{benv = bs}
@@ -150,13 +155,24 @@ resetChange :: UniqueM ()
 resetChange = modify $ \s -> s{change = False}
 
 initUniqueST :: BindEnv ->  UniqueST
-initUniqueST = UniqueST 0 mempty False
+initUniqueST = UniqueST 0 mempty False mempty
 
-freshK :: UniqueM KVar
-freshK = do 
+freshK, freshK' :: KVar -> UniqueM KVar
+freshK k  = do
+  cached <- cache <$> get 
+  case M.lookup k cached of 
+    {- OPTIMIZATION: Only create one fresh occurence of ? per constraint environment. -}
+    Just k' -> return  k' 
+    Nothing -> freshK' k 
+
+freshK' k = do 
   i <- freshId <$> get 
   modify $ (\s -> s{freshId = i + 1})
-  return $ KV $ gradIntSymbol i 
+  let k' = KV $ gradIntSymbol i 
+  addK k k' 
+  setChange 
+  addCache k k'
+  return k'
 
 addK :: KVar -> KVar -> UniqueM ()
 addK key val = 
