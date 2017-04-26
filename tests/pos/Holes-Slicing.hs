@@ -1,8 +1,8 @@
 module Foo () where
 
 {-@ LIQUID "--savequery"      @-}
-{-@ LIQUID "--eliminate=none" @-}
 {-@ LIQUID "--noslice"        @-}
+{-@ LIQUID "--maxparam=3"        @-}
 
 {-@ measure isFoo :: A -> B -> Bool @-}
 {-@ isFoo :: a:A -> b:B -> {v:Bool | v <=> isFoo a b} @-}
