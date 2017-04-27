@@ -253,7 +253,7 @@ import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (Error, SrcSpan, Result, Predicate, R)
 
-
+import qualified Language.Fixpoint.Types as F
 
 
 import           Language.Haskell.Liquid.GHC.Misc
@@ -1661,6 +1661,9 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_var :: !(Maybe Var)
                    }
                 deriving (Eq, Ord, Generic)
+
+instance F.Loc Cinfo where
+  srcSpan = srcSpanFSrcSpan . ci_loc
 
 instance NFData Cinfo
 
