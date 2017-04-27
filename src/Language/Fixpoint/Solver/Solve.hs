@@ -37,7 +37,7 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solve cfg fi | gradual cfg 
   = solveGradual cfg fi 
@@ -57,30 +57,44 @@ solve cfg fi = do
 
 
 --------------------------------------------------------------------------------
-solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradual :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solveGradual cfg fi = do 
-  let fi' = G.uniquify fi 
-  sols   <- makeSolutions cfg fi' 
-  gradualLoop (cfg{gradual = False}) fi' sols  
+  let fis = partition' Nothing $ G.uniquify fi 
+  -- let fis = [G.uniquify fi]
+  -- let fis = [fi]
+  dumpPartitions cfg fis 
+  res <- mapM (solveGradualOne cfg) fis 
+  return $ traceShow "FINAL SOLUTION" $  mconcat $ traceShow "SOLUTIONS" $   res 
 
-gradualLoop :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> [G.GSol] -> IO (F.Result (Integer, a))
-gradualLoop _ _ [] 
-  = return $ F.unsafe 
-gradualLoop cfg fi (s:ss)
+
+solveGradualOne :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradualOne cfg fi = do 
+  sols   <- makeSolutions cfg fi 
+  gradualLoop (cfg{gradual = False}) fi sols  
+
+gradualLoop :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (F.Result (Integer, a))
+gradualLoop _ _ Nothing  
+  = return F.safe 
+gradualLoop _ _ (Just []) 
+  = return F.unsafe 
+gradualLoop cfg fi (Just (s:ss))
   = do whenLoud   $ putStrLn ("Solving for " ++ show s)
        whenNormal $ putStr "*"
        v <- getVerbosity 
+       -- putStr ("Substitution = " ++ show s)
+       -- putStr ("BEFORE \n\n"  ++ (show $ F.toFixpoint cfg fi))
+       -- putStr ("AFTER \n\n"  ++ (show $ F.toFixpoint cfg $ G.gsubst s fi))
        whenNormal $ setVerbosity Quiet
        r <- solve cfg (G.gsubst s fi)
        setVerbosity v
        whenLoud $ putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
        if F.isUnsafe r 
-        then gradualLoop cfg fi ss
+        then gradualLoop cfg fi (Just ss)
         else return r 
 
 
-makeSolutions :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO [G.GSol] 
+makeSolutions :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (Maybe [G.GSol]) 
 makeSolutions cfg fi 
   = (G.makeSolutions cfg fi) <$> (makeLocalLattice cfg fi $ GS.init fi) 
 

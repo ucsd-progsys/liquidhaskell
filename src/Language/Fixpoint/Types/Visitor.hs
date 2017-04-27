@@ -28,7 +28,7 @@ module Language.Fixpoint.Types.Visitor (
   , envKVars
   , envKVarsN
   , rhsKVars
-  , mapKVars, mapKVars', mapKVarSubsts
+  , mapKVars, mapKVars', mapGVars', mapKVarSubsts
   , mapExpr, mapMExpr
 
   -- * Predicates on Constraints
@@ -170,6 +170,16 @@ mapKVars' f            = trans kvVis () []
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
+    txK _ (PGrad k su _)
+      | Just p' <- f (k, su) = subst su p'
+    txK _ p            = p
+
+
+
+mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapGVars' f            = trans kvVis () []
+  where
+    kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PGrad k su _)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p

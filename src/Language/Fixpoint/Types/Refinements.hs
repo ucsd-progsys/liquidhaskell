@@ -387,7 +387,7 @@ instance Fixpoint Expr where
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix (PGrad _ _ e)    = toFix e <+> text "&&" <+> text "??" -- <+> toFix k <+> toFix su
+  toFix (PGrad k _ e)    = toFix e <+> text "&&" <+> text "??" -- <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
@@ -558,7 +558,7 @@ instance PPrint Expr where
   pprintPrec _ _ p@(PKVar {})    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
-  pprintPrec z k (PGrad _ _ e)   = pprintPrec z k e <+> "&&" <+> "??"
+  pprintPrec z k (PGrad x _ e)   = pprintPrec z k e <+> "&&" <+> "??"
 
 pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)

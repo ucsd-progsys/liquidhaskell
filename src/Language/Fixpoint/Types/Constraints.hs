@@ -53,7 +53,7 @@ module Language.Fixpoint.Types.Constraints (
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
-  , unsafe, isUnsafe
+  , unsafe, isUnsafe, safe
 
   -- * Cut KVars
   , Kuts (..)
@@ -202,8 +202,9 @@ instance Monoid (Result a) where
       soln      = mappend (resSolution r1)  (resSolution r2)
       gsoln     = mappend (gresSolution r1) (gresSolution r2)
 
-unsafe :: Result a 
+unsafe, safe :: Result a 
 unsafe = mempty {resStatus = Unsafe []}
+safe   = mempty {resStatus = Safe}
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ <- resStatus r 
@@ -533,7 +534,6 @@ data GInfo c a =
      , asserts  :: ![Triggered Expr]
      }
   deriving (Eq, Show, Functor, Generic)
-
 
 instance Monoid HOInfo where
   mempty        = HOI False False

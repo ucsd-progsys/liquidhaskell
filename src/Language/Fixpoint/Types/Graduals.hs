@@ -46,20 +46,24 @@ import qualified Language.Fixpoint.SortCheck       as So
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 
 
-data GSol = GSol (SEnv Sort) (M.HashMap KVar Expr)
+data GSol = GSol !(SEnv Sort) !(M.HashMap KVar Expr)
 
 instance Show GSol where
   show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,e) -> showpp k ++ " |-> " ++ showpp (tx e)) <$> M.toList m)
+                                ++ "\n END GSOL"
     where
       tx e = subst (mkSubst $ [(x, EVar $ tidySymbol x) | x <- syms e]) e
 
 
-makeSolutions :: (NFData a, Fixpoint a) 
+makeSolutions :: (NFData a, Fixpoint a, Show a) 
               => Config -> SInfo a 
               -> [(KVar, ((b, Expr), [[Expr]]))]
-              -> [GSol]
+              -> Maybe [GSol]
+
+makeSolutions _ _ []
+  = Nothing 
 makeSolutions cfg fi kes 
-  = map (GSol env . M.fromList) (allCombinations (go  <$> kes))
+  = Just $ map (GSol env . M.fromList) (allCombinations (go  <$> kes))
   where
     go (k, ((_,e), es)) = [(k, pAnd (e:e')) | e' <- es]
     env = symbolEnv cfg fi 
@@ -97,7 +101,7 @@ instance Unique (SimpC a) where
     return cs{_crhs = rhs, _cenv = env}
 
 instance Unique IBindEnv where
-  uniq env = emptyCache >> (fromListIBindEnv <$> mapM uniq (elemsIBindEnv env))
+  uniq env = withCache (fromListIBindEnv <$> mapM uniq (elemsIBindEnv env))
 
 instance Unique BindId where
   uniq i = do 
@@ -138,6 +142,13 @@ data UniqueST
              , cache   :: M.HashMap KVar KVar 
              , benv    :: BindEnv 
              }
+
+withCache :: UniqueM a -> UniqueM a 
+withCache act = do 
+  emptyCache 
+  a <- act 
+  emptyCache 
+  return a 
 
 emptyCache :: UniqueM ()
 emptyCache = modify $ \s -> s{cache = mempty}
@@ -203,7 +214,10 @@ class Gradual a where
   gsubst :: GSol -> a -> a 
 
 instance Gradual Expr where
-  gsubst (GSol env m) = mapKVars' (\(k, _) -> Just (fromMaybe mempty $ So.elaborate "initBGind.mkPred" env $ M.lookup k m))
+  gsubst (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
+    where
+      mknew k = So.elaborate "initBGind.mkPred" env $ M.lookup k m 
+      err   _ = mempty -- errorstar ("gradual substitution: Cannot find " ++ showpp k)
 
 instance Gradual Reft where
   gsubst su (Reft (x, e)) = Reft (x, gsubst su e)
