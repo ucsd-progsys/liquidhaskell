@@ -325,7 +325,7 @@ wfC be sr x = if all isEmptySubst (sus ++ gsus)
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
 
-    go' (PGrad k su e) = [((k, e), su)]
+    go' (PGrad k su _ e) = [((k, e), su)]
     go' (PAnd es)      = concatMap go' es 
     go' _              = []
 

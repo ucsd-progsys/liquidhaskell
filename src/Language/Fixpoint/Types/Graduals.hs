@@ -32,6 +32,7 @@ import Language.Fixpoint.Types.Environments
 import Language.Fixpoint.Types.Substitutions
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Sorts
+import Language.Fixpoint.Types.Spans        (SourcePos)
 import Language.Fixpoint.Types.Names        (gradIntSymbol, tidySymbol)
 import Language.Fixpoint.Misc               (allCombinations)
 
@@ -125,9 +126,10 @@ instance Unique Reft where
 instance Unique Expr where
   uniq = mapMExpr go 
    where 
-    go (PGrad k su e) = do 
-      k' <- freshK k 
-      return $ PGrad k' su e  
+    go (PGrad k su i e) = do 
+      k'  <- freshK k 
+      src <- usrc <$> get  
+      return $ PGrad k' su (i{gused = src}) e  
     go e              = return e 
 
 -------------------------------------------------------------------------------
@@ -140,6 +142,7 @@ data UniqueST
              , kmap    :: M.HashMap KVar [KVar]
              , change  :: Bool 
              , cache   :: M.HashMap KVar KVar 
+             , usrc    :: Maybe SourcePos
              , benv    :: BindEnv 
              }
 
@@ -166,7 +169,7 @@ resetChange :: UniqueM ()
 resetChange = modify $ \s -> s{change = False}
 
 initUniqueST :: BindEnv ->  UniqueST
-initUniqueST = UniqueST 0 mempty False mempty
+initUniqueST = UniqueST 0 mempty False mempty Nothing
 
 freshK, freshK' :: KVar -> UniqueM KVar
 freshK k  = do
