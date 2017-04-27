@@ -119,6 +119,7 @@ import qualified Data.HashMap.Strict       as M
 -- import qualified Data.HashSet              as S
 
 instance NFData KVar
+instance NFData SrcSpan
 instance NFData Subst
 instance NFData GradInfo
 instance NFData Constant
@@ -133,6 +134,7 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
+instance B.Binary SrcSpan
 instance B.Binary KVar
 instance B.Binary Subst
 instance B.Binary GradInfo
@@ -265,11 +267,11 @@ pattern EDiv e1 e2    = EBin Div    e1 e2
 pattern ERDiv e1 e2   = EBin RDiv   e1 e2
 
 
-data GradInfo = GradInfo {gsrc :: SourcePos, gused :: Maybe SourcePos}
+data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
           deriving (Eq, Show, Data, Typeable, Generic)
 
 srcGradInfo :: SourcePos -> GradInfo
-srcGradInfo = (`GradInfo` Nothing)
+srcGradInfo src = GradInfo (SS src src) Nothing
 
 mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp = eApps . EVar . val

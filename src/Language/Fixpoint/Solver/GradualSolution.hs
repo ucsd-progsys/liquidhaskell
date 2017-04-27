@@ -23,7 +23,7 @@ import           Prelude                              hiding (init, lookup)
 --------------------------------------------------------------------------------
 -- | Initial Gradual Solution (from Qualifiers and WF constraints) -------------
 --------------------------------------------------------------------------------
-init :: F.SInfo a -> [(F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))]
+init :: F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
 init si = map (refineG si qs genv) gs `using` parList rdeepseq 
   where
@@ -35,8 +35,8 @@ init si = map (refineG si qs genv) gs `using` parList rdeepseq
 
 
 --------------------------------------------------------------------------------
-refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))
-refineG fi qs genv w = (k, (((fst3 $ wrft w, snd3 $ wrft w), wexpr w), Sol.qbExprs qb))
+refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (F.GWInfo, [F.Expr]))
+refineG fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
   where 
     (k, qb) = refine fi qs genv w 
 

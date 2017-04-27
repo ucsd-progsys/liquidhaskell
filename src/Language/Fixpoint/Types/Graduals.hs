@@ -32,7 +32,7 @@ import Language.Fixpoint.Types.Environments
 import Language.Fixpoint.Types.Substitutions
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Sorts
-import Language.Fixpoint.Types.Spans        (SourcePos)
+import Language.Fixpoint.Types.Spans        
 import Language.Fixpoint.Types.Names        (gradIntSymbol, tidySymbol)
 import Language.Fixpoint.Misc               (allCombinations)
 
@@ -47,18 +47,18 @@ import qualified Language.Fixpoint.SortCheck       as So
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 
 
-data GSol = GSol !(SEnv Sort) !(M.HashMap KVar Expr)
+data GSol = GSol !(SEnv Sort) !(M.HashMap KVar (Expr, GradInfo))
 
 instance Show GSol where
-  show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,e) -> showpp k ++ " |-> " ++ showpp (tx e)) <$> M.toList m)
-                                ++ "\n END GSOL"
+  show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,(e, i)) -> showpp k ++ showInfo i ++  " |-> " ++ showpp (tx e)) <$> M.toList m)
     where
       tx e = subst (mkSubst $ [(x, EVar $ tidySymbol x) | x <- syms e]) e
+      showInfo i = show i 
 
 
 makeSolutions :: (NFData a, Fixpoint a, Show a) 
               => Config -> SInfo a 
-              -> [(KVar, ((b, Expr), [[Expr]]))]
+              -> [(KVar, (GWInfo, [[Expr]]))]
               -> Maybe [GSol]
 
 makeSolutions _ _ []
@@ -66,24 +66,24 @@ makeSolutions _ _ []
 makeSolutions cfg fi kes 
   = Just $ map (GSol env . M.fromList) (allCombinations (go  <$> kes))
   where
-    go (k, ((_,e), es)) = [(k, pAnd (e:e')) | e' <- es]
+    go (k, (i, es)) = [(k, (pAnd (gexpr i:e'), ginfo i)) | e' <- es]
     env = symbolEnv cfg fi 
 
 
 -------------------------------------------------------------------------------
 -- |  Make each gradual appearence unique -------------------------------------
 -------------------------------------------------------------------------------
-uniquify :: (NFData a, Fixpoint a) => SInfo a -> (SInfo a)
+uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> (SInfo a)
 
 uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
   where 
   (cm', km, bs') = uniquifyCS (bs fi) (cm fi)
   ws'            = expandWF km (ws fi)       
 
-uniquifyCS :: (NFData a, Fixpoint a) 
+uniquifyCS :: (NFData a, Fixpoint a, Loc a) 
            => BindEnv
            -> M.HashMap SubcId (SimpC a) 
-           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [KVar], BindEnv)
+           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
 uniquifyCS bs cs 
   = (x, kmap st, benv st) 
   where
@@ -95,8 +95,9 @@ class Unique a where
 instance Unique a => Unique (M.HashMap SubcId a) where
   uniq m = M.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (M.toList m)
 
-instance Unique (SimpC a) where
+instance Loc a => Unique (SimpC a) where
   uniq cs = do 
+    updateLoc $ srcSpan $ _cinfo cs 
     rhs <- uniq (_crhs cs)
     env <- uniq (_cenv cs)
     return cs{_crhs = rhs, _cenv = env}
@@ -128,7 +129,7 @@ instance Unique Expr where
    where 
     go (PGrad k su i e) = do 
       k'  <- freshK k 
-      src <- usrc <$> get  
+      src <- uloc <$> get  
       return $ PGrad k' su (i{gused = src}) e  
     go e              = return e 
 
@@ -139,12 +140,15 @@ instance Unique Expr where
 type UniqueM = State UniqueST 
 data UniqueST 
   = UniqueST { freshId :: Integer
-             , kmap    :: M.HashMap KVar [KVar]
+             , kmap    :: M.HashMap KVar [(KVar, Maybe SrcSpan)]
              , change  :: Bool 
              , cache   :: M.HashMap KVar KVar 
-             , usrc    :: Maybe SourcePos
+             , uloc    :: Maybe SrcSpan
              , benv    :: BindEnv 
              }
+
+updateLoc :: SrcSpan -> UniqueM ()
+updateLoc x = modify $ \s -> s{uloc = Just x}
 
 withCache :: UniqueM a -> UniqueM a 
 withCache act = do 
@@ -190,24 +194,26 @@ freshK' k = do
 
 addK :: KVar -> KVar -> UniqueM ()
 addK key val = 
-  modify $ (\s -> s{kmap = M.insertWith (++) key [val] (kmap s)})
+  modify $ (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
 
 -------------------------------------------------------------------------------
 -- | expandWF -----------------------------------------------------------------
 -------------------------------------------------------------------------------
 
 expandWF :: (NFData a, Fixpoint a)
-         => M.HashMap KVar [KVar]
+         => M.HashMap KVar [(KVar, Maybe SrcSpan)]
          -> M.HashMap KVar (WfC a)
          -> M.HashMap KVar (WfC a)
 expandWF km ws 
   = M.fromList $ 
-       ([(k, updateKVar k w) | (i, w) <- gws, (kw, ks) <- km', kw == i, k <- ks]
+       ([(k, updateKVar k src w) | (i, w) <- gws, (kw, ks) <- km', kw == i, (k, src) <- ks]
         ++ kws)
   where
     (gws, kws)       = L.partition (isGWfc . snd) $ M.toList ws
     km'              = M.toList km 
-    updateKVar k wfc = wfc {wrft = (\(v,s,_) -> (v,s,k)) $ wrft wfc}
+    updateKVar k src wfc = wfc { wrft = (\(v,s,_) -> (v,s,k)) $ wrft wfc
+                               , wloc = (wloc wfc){gused = src}
+                               }
 
 -------------------------------------------------------------------------------
 -- |  Substitute Gradual Solution ---------------------------------------------
@@ -219,7 +225,7 @@ class Gradual a where
 instance Gradual Expr where
   gsubst (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
     where
-      mknew k = So.elaborate "initBGind.mkPred" env $ M.lookup k m 
+      mknew k = So.elaborate "initBGind.mkPred" env $ fst <$> M.lookup k m 
       err   _ = mempty -- errorstar ("gradual substitution: Cannot find " ++ showpp k)
 
 instance Gradual Reft where

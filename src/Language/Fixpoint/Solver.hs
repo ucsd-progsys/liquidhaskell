@@ -71,7 +71,7 @@ ignoreQualifiers cfg fi
 --------------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints -----------------------------
 --------------------------------------------------------------------------------
-solve :: (NFData a, Fixpoint a, Show a) => Solver a
+solve :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
 --------------------------------------------------------------------------------
 solve cfg q
   | parts cfg      = partition  cfg        $!! q
@@ -81,12 +81,12 @@ solve cfg q
   | minimizeKs cfg = minKvars cfg solve'   $!! q
   | otherwise      = solve'     cfg        $!! q
 
-solve' :: (NFData a, Fixpoint a, Show a) => Solver a
+solve' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
 solve' cfg q = do
   when (save cfg) $ saveQuery   cfg q
   configSW  cfg     solveNative cfg q
 
-configSW :: (NFData a, Fixpoint a, Show a) => Config -> Solver a -> Solver a
+configSW :: (NFData a, Fixpoint a, Show a, Loc a) => Config -> Solver a -> Solver a
 configSW cfg
   | multicore cfg = solveParWith
   | otherwise     = solveSeqWith
@@ -149,7 +149,7 @@ inParallelUsing f xs = do
 --------------------------------------------------------------------------------
 -- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
-solveNative, solveNative' :: (NFData a, Fixpoint a, Show a) => Solver a
+solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = (solveNative' cfg fi0)
                           `catch`

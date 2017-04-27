@@ -37,7 +37,7 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solve cfg fi | gradual cfg 
   = solveGradual cfg fi 
@@ -57,7 +57,7 @@ solve cfg fi = do
 
 
 --------------------------------------------------------------------------------
-solveGradual :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solveGradual cfg fi = do 
   let fis = partition' Nothing $ G.uniquify fi 
@@ -68,12 +68,12 @@ solveGradual cfg fi = do
   return $ traceShow "FINAL SOLUTION" $  mconcat $ traceShow "SOLUTIONS" $   res 
 
 
-solveGradualOne :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradualOne :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 solveGradualOne cfg fi = do 
   sols   <- makeSolutions cfg fi 
   gradualLoop (cfg{gradual = False}) fi sols  
 
-gradualLoop :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (F.Result (Integer, a))
+gradualLoop :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (F.Result (Integer, a))
 gradualLoop _ _ Nothing  
   = return F.safe 
 gradualLoop _ _ (Just []) 
@@ -101,8 +101,8 @@ makeSolutions cfg fi
 
 
 makeLocalLattice :: Config -> F.SInfo a 
-            -> [(F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))]
-            -> IO [(F.KVar, (((F.Symbol,F.Sort), F.Expr), [[F.Expr]]))]
+            -> [(F.KVar, (F.GWInfo, [F.Expr]))]
+            -> IO [(F.KVar, (F.GWInfo, [[F.Expr]]))]
 makeLocalLattice cfg fi kes = runSolverM cfg sI (act kes)
   where
     sI  = solverInfo cfg fi
@@ -110,8 +110,8 @@ makeLocalLattice cfg fi kes = runSolverM cfg sI (act kes)
 
 
 makeLocalLatticeOne :: Config -> F.SInfo a 
-            -> (F.KVar, (((F.Symbol,F.Sort), F.Expr), [F.Expr]))
-            -> SolveM (F.KVar, (((F.Symbol,F.Sort), F.Expr), [[F.Expr]]))
+            -> (F.KVar, (F.GWInfo, [F.Expr]))
+            -> SolveM (F.KVar, (F.GWInfo, [[F.Expr]]))
 makeLocalLatticeOne cfg fi (k, (e, es)) = do  
    elems0  <- filterM (isLocal e) (map (:[]) es)
    elems   <- sortEquals elems0 
@@ -135,8 +135,8 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
 
     mkPred es = So.elaborate "initBGind.mkPred" sEnv (F.pAnd es)
     
-    isLocal (v, e) es = do 
-      let pp = So.elaborate "filterLocal" sEnv $ F.PExist [v] $ F.pAnd (e:es) 
+    isLocal i es = do 
+      let pp = So.elaborate "filterLocal" sEnv $ F.PExist [(F.gsym i, F.gsort i)] $ F.pAnd (F.gexpr i:es) 
       isValid mempty pp
 
     root      = mempty

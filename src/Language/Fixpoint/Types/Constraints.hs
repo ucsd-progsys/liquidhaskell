@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Constraints (
   , addIds
   , sinfo
   , shiftVV
+  , gwInfo, GWInfo (..)
 
   -- * Qualifiers
   , Qualifier (..)
@@ -107,17 +108,30 @@ data WfC a  =  WfC  { wenv  :: !IBindEnv
                     , wrft  :: !(Symbol, Sort, KVar)
                     , winfo :: !a
                     , wexpr :: !Expr
+                    , wloc  :: !GradInfo
                     }
               deriving (Eq, Generic, Functor)
 
+data GWInfo = GWInfo { gsym  :: Symbol
+                     , gsort :: Sort
+                     , gexpr :: Expr
+                     , ginfo :: GradInfo
+                     }
+              deriving (Eq, Generic)
+
+gwInfo :: WfC a -> GWInfo
+gwInfo (GWfC _ (x,s,_) _ e i) 
+  = GWInfo x s e i
+gwInfo _ 
+  = errorstar "gwInfo"
 
 updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a 
 updateWfCExpr _ w@(WfC {})  = w 
 updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 
 isGWfc :: WfC a -> Bool 
-isGWfc (GWfC _ _ _ _) = True 
-isGWfc (WfC _ _ _)    = False 
+isGWfc (GWfC {}) = True 
+isGWfc (WfC  {}) = False 
 
 type SubcId = Integer
 
@@ -290,6 +304,7 @@ instance Show   GFixSolution where
 instance B.Binary Qualifier
 instance B.Binary Kuts
 instance B.Binary HOInfo
+instance B.Binary GWInfo
 instance B.Binary GFixSolution
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
@@ -300,6 +315,7 @@ instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
 instance NFData GFixSolution
+instance NFData GWInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -313,7 +329,8 @@ instance (NFData a) => NFData (Result a)
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x = if all isEmptySubst (sus ++ gsus)
-                then [WfC be (v, sr_sort sr, k) x | k <- ks] ++ [GWfC be (v, sr_sort sr, k) x e | (k, e) <- gs ]
+                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ] 
+                  ++ [GWfC be (v, sr_sort sr, k) x e i | (k, e, i) <- gs ]
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr
@@ -325,7 +342,7 @@ wfC be sr x = if all isEmptySubst (sus ++ gsus)
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
 
-    go' (PGrad k su _ e) = [((k, e), su)]
+    go' (PGrad k su i e) = [((k, e, i), su)]
     go' (PAnd es)      = concatMap go' es 
     go' _              = []
 

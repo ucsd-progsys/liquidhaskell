@@ -42,6 +42,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
 
+
 -----------------------------------------------------------------------
 -- | Located Values ---------------------------------------------------
 -----------------------------------------------------------------------
@@ -167,6 +168,9 @@ ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')
 
 instance Hashable SrcSpan where
   hashWithSalt i z = hashWithSalt i (sp_start z, sp_stop z)
+
+instance Loc () where
+  srcSpan _ = dummySpan
 
 dummySpan :: SrcSpan
 dummySpan = SS l l
