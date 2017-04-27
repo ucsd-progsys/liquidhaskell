@@ -87,6 +87,7 @@ data Config
     , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts         :: Bool           -- ^ ignore given kut variables
     , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
+    , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -164,6 +165,7 @@ defConfig = Config {
   , normalForm       = False  &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
+  , noslice          = False &= help "Disable non-concrete KVar slicing"
   }
   &= verbosity
   &= program "fixpoint"
