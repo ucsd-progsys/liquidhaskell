@@ -1,6 +1,7 @@
 {-# LANGUAGE PatternGuards     #-}
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 --------------------------------------------------------------------------------
@@ -30,6 +31,8 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.List as L 
+import Control.Concurrent.ParallelIO.Global (parallel)
 
 import qualified Language.Fixpoint.SortCheck       as So
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
@@ -57,27 +60,27 @@ solve cfg fi = do
 
 
 --------------------------------------------------------------------------------
-solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a) 
+             => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solveGradual cfg fi = do 
-  let fis = partition' Nothing $ G.uniquify fi 
-  -- let fis = [G.uniquify fi]
-  -- let fis = [fi]
-  dumpPartitions cfg fis 
-  res <- mapM (solveGradualOne cfg) fis 
-  return $ traceShow "FINAL SOLUTION" $  mconcat $ traceShow "SOLUTIONS" $   res 
+  -- graphStatistics cfg $ G.uniquify fi  
+  let fis = zip [1..] $ partition' Nothing $ G.uniquify fi 
+  ifis   <- if (interactive cfg) then iMergePartitions fis else return fis 
+  res    <- parallel (solveGradualOne cfg <$> ifis) 
+  -- res    <- mapM (solveGradualOne cfg) ifis  
+  return  $ snd $ traceShow "FINAL SOLUTION\n" $  mconcat $ res 
 
-
-solveGradualOne :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
-solveGradualOne cfg fi = do 
+solveGradualOne :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> (Int, F.SInfo a) -> IO (Maybe G.GSol, F.Result (Integer, a))
+solveGradualOne cfg (_, fi) = do 
   sols   <- makeSolutions cfg fi 
   gradualLoop (cfg{gradual = False}) fi sols  
 
-gradualLoop :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (F.Result (Integer, a))
+gradualLoop :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (Maybe G.GSol, F.Result (Integer, a))
 gradualLoop _ _ Nothing  
-  = return F.safe 
+  = return (Nothing, F.safe) 
 gradualLoop _ _ (Just []) 
-  = return F.unsafe 
+  = return (Nothing, F.unsafe) 
 gradualLoop cfg fi (Just (s:ss))
   = do whenLoud   $ putStrLn ("Solving for " ++ show s)
        whenNormal $ putStr "*"
@@ -91,7 +94,7 @@ gradualLoop cfg fi (Just (s:ss))
        whenLoud $ putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
        if F.isUnsafe r 
         then gradualLoop cfg fi (Just ss)
-        else return r 
+        else return (Just s, r) 
 
 
 makeSolutions :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (Maybe [G.GSol]) 
@@ -101,8 +104,8 @@ makeSolutions cfg fi
 
 
 makeLocalLattice :: Config -> F.SInfo a 
-            -> [(F.KVar, (F.GWInfo, [F.Expr]))]
-            -> IO [(F.KVar, (F.GWInfo, [[F.Expr]]))]
+                 -> [(F.KVar, (F.GWInfo, [F.Expr]))]
+                 -> IO [(F.KVar, (F.GWInfo, [[F.Expr]]))]
 makeLocalLattice cfg fi kes = runSolverM cfg sI (act kes)
   where
     sI  = solverInfo cfg fi
@@ -121,12 +124,16 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
     sEnv = symbolEnv cfg fi 
     makeLattice acc new elems
       | null new
-      = return acc 
+      = return $ {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc 
       | otherwise
       = do let cands = [e:es |e<-elems, es<-new]
            localCans <- filterM (isLocal e) cands
            newElems  <- filterM (notTrivial (new ++ acc)) localCans 
            makeLattice (acc ++ new) newElems elems
+    _showElem :: F.Expr -> String 
+    _showElem e = showpp $ F.subst (F.mkSubst $ [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e]) e
+    _showElems = unlines . map _showElem
+    _showElemss = unlines. map _showElems
 
     notTrivial [] _     = return True 
     notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
@@ -159,12 +166,6 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
       return (if ij then [(j,i)] else [])
 
     mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
-
-
-
-
-
-
 
 --------------------------------------------------------------------------------
 -- | Progress Bar
@@ -358,3 +359,49 @@ donePhase' msg = lift $ do
   putBlankLn
   donePhase Loud msg
 -}
+
+
+-- NV TODO Move to a new file 
+-------------------------------------------------------------------------------
+-- | Interaction with the user when Solving -----------------------------------
+-------------------------------------------------------------------------------
+
+iMergePartitions :: [(Int, F.SInfo a)] -> IO [(Int, F.SInfo a)]
+iMergePartitions ifis = do 
+  putStrLn "Current Partitions are: "
+  putStrLn $ unlines $ (partitionInfo <$> ifis)
+  putStrLn "Merge Partitions? Y/N"
+  c <- getChar
+  if c == 'N' 
+    then do putStrLn "Solving Partitions"
+            return ifis 
+    else do
+      (i, j) <- getMergePartition (length ifis) 
+      iMergePartitions (mergePartitions i j ifis)
+
+getMergePartition :: Int -> IO (Int, Int)
+getMergePartition n = do 
+  putStrLn "Which two partition to merge? (i, j)"
+  ic <- getLine
+  let (i,j) = read ic :: (Int, Int)
+  if (i < 1 || n < i || j < 1 || n < j)
+    then do putStrLn ("Invalid Partition numbers, write (i,j) with 1 <= i <= " ++ show n)
+            getMergePartition n 
+    else return (i,j)
+
+mergePartitions :: Int -> Int -> [(Int, F.SInfo a)] -> [(Int, F.SInfo a)]
+mergePartitions i j fis 
+  = zip [1..] ((takei i `mappend` (takei j){F.bs = mempty}):rest)
+  where
+    takei i = snd ((fis L.!! (i-1)))
+    rest = snd <$> filter (\(k,_) -> (k /= i && k /= j)) fis
+
+partitionInfo :: (Int, F.SInfo a) -> String
+partitionInfo (i, fi) 
+  = "Partition number " ++ show i ++ "\n" ++
+    "Defined ?? " ++ show defs    ++ "\n" ++
+    "Used ?? "    ++ show uses 
+  where
+    gs   = F.wloc . snd <$> (L.filter (F.isGWfc . snd) $ M.toList (F.ws fi))
+    defs = L.nub (F.gsrc <$> gs)
+    uses = L.nub (F.gused <$> gs)

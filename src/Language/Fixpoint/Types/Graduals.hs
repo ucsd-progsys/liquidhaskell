@@ -34,7 +34,7 @@ import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Sorts
 import Language.Fixpoint.Types.Spans        
 import Language.Fixpoint.Types.Names        (gradIntSymbol, tidySymbol)
-import Language.Fixpoint.Misc               (allCombinations)
+import Language.Fixpoint.Misc               (allCombinations, errorstar)
 
 import Control.DeepSeq
 
@@ -48,6 +48,10 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 
 
 data GSol = GSol !(SEnv Sort) !(M.HashMap KVar (Expr, GradInfo))
+
+instance Monoid GSol where
+  mempty = GSol mempty mempty
+  mappend (GSol e1 m1) (GSol e2 m2) = GSol (mappend e1 e2) (mappend m1 m2)
 
 instance Show GSol where
   show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,(e, i)) -> showpp k ++ showInfo i ++  " |-> " ++ showpp (tx e)) <$> M.toList m)
@@ -85,9 +89,13 @@ uniquifyCS :: (NFData a, Fixpoint a, Loc a)
            -> M.HashMap SubcId (SimpC a) 
            -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
 uniquifyCS bs cs 
-  = (x, kmap st, benv st) 
+  = (x, km, benv st) 
+--   = (x, km, mapBindEnv (\i (x,r) -> if i `elem` ubs st then (x, ungrad r) else (x, r)) $ benv st) 
   where
     (x, st) = runState (uniq cs) (initUniqueST bs)
+    km      = kmap st 
+    -- gs      = [x | xs <- M.elems km, (x,_) <- xs]
+
 
 class Unique a where 
    uniq :: a -> UniqueM a 
@@ -114,7 +122,7 @@ instance Unique BindId where
     hasChanged <- change <$> get 
     if hasChanged
       then do let (i', bs') = insertBindEnv x t' bs  
-              updateBEnv bs'
+              updateBEnv i bs'
               return i'
       else return i
 
@@ -144,6 +152,7 @@ data UniqueST
              , change  :: Bool 
              , cache   :: M.HashMap KVar KVar 
              , uloc    :: Maybe SrcSpan
+             , ubs     :: [BindId]
              , benv    :: BindEnv 
              }
 
@@ -163,8 +172,8 @@ emptyCache = modify $ \s -> s{cache = mempty}
 addCache :: KVar -> KVar -> UniqueM ()
 addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 
-updateBEnv :: BindEnv -> UniqueM ()
-updateBEnv bs = modify $ \s -> s{benv = bs}
+updateBEnv :: BindId -> BindEnv -> UniqueM ()
+updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i:(ubs s)}
 
 setChange :: UniqueM ()
 setChange = modify $ \s -> s{change = True}
@@ -173,10 +182,11 @@ resetChange :: UniqueM ()
 resetChange = modify $ \s -> s{change = False}
 
 initUniqueST :: BindEnv ->  UniqueST
-initUniqueST = UniqueST 0 mempty False mempty Nothing
+initUniqueST = UniqueST 0 mempty False mempty Nothing mempty
 
 freshK, freshK' :: KVar -> UniqueM KVar
 freshK k  = do
+  setChange 
   cached <- cache <$> get 
   case M.lookup k cached of 
     {- OPTIMIZATION: Only create one fresh occurence of ? per constraint environment. -}
@@ -188,7 +198,6 @@ freshK' k = do
   modify $ (\s -> s{freshId = i + 1})
   let k' = KV $ gradIntSymbol i 
   addK k k' 
-  setChange 
   addCache k k'
   return k'
 
@@ -226,7 +235,7 @@ instance Gradual Expr where
   gsubst (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
     where
       mknew k = So.elaborate "initBGind.mkPred" env $ fst <$> M.lookup k m 
-      err   _ = mempty -- errorstar ("gradual substitution: Cannot find " ++ showpp k)
+      err   k = errorstar ("gradual substitution: Cannot find " ++ showpp k)
 
 instance Gradual Reft where
   gsubst su (Reft (x, e)) = Reft (x, gsubst su e)

@@ -88,7 +88,7 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Gradual Type Manipulation
   , pGAnds, pGAnd  
-  , isGradual
+  , HasGradual (..)
   , srcGradInfo
 
   ) where
@@ -156,9 +156,35 @@ isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
 
-isGradual :: Expr -> Bool 
-isGradual (PGrad {}) = True
-isGradual _          = False 
+class HasGradual a where 
+  isGradual :: a -> Bool
+  gVars     :: a -> [KVar] 
+  ungrad    :: a -> a  
+
+instance HasGradual Expr where
+  isGradual (PGrad {}) = True
+  isGradual (PAnd xs)  = any isGradual xs 
+  isGradual _          = False 
+
+  gVars (PGrad k _ _ _) = [k]
+  gVars (PAnd xs)       = concatMap gVars xs 
+  gVars _               = []
+
+  ungrad (PGrad {}) = PTrue
+  ungrad (PAnd xs)  = PAnd (ungrad <$> xs ) 
+  ungrad e          = e 
+
+
+instance HasGradual Reft where
+  isGradual (Reft (_,r)) = isGradual r  
+  gVars (Reft (_,r))     = gVars r  
+  ungrad (Reft (x,r))    = Reft(x, ungrad r)  
+
+instance HasGradual SortedReft where
+  isGradual = isGradual . sr_reft
+  gVars     = gVars . sr_reft
+  ungrad r  = r {sr_reft = ungrad (sr_reft r)}
+
 
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
@@ -399,7 +425,7 @@ instance Fixpoint Expr where
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix (PGrad _ _ _ e)  = toFix e <+> text "&&" <+> text "??" -- <+> toFix k <+> toFix su
+  toFix (PGrad k _ _ e)  = toFix e <+> text "&&" <+> toFix k -- text "??" -- <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
@@ -570,7 +596,7 @@ instance PPrint Expr where
   pprintPrec _ _ p@(PKVar {})    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
-  pprintPrec z k (PGrad _ _ _ e) = pprintPrec z k e <+> "&&" <+> "??"
+  pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
 
 pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
