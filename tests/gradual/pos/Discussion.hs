@@ -2,7 +2,6 @@
 
 module Discussion where
 {-@ LIQUID "--gradual" @-}
-{-@ LIQUID "--eliminate=none" @-}
 {-@ LIQUID "--savequery" @-}
 
 {-@ check0 :: x:Int -> {v:Bool | ?? } @-} 
@@ -14,6 +13,7 @@ get :: Int -> Int
 get = undefined 
 
 safe0 x = if check0 x then get x else get (-x)
+
 {-@ assume qual :: x:Int -> {v:Bool | (not v) => (x <= 0)} @-}
 qual :: Int -> Bool 
 qual = undefined 

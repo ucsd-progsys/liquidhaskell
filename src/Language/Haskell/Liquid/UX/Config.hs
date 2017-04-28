@@ -63,6 +63,7 @@ data Config = Config {
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   , gradual        :: Bool       -- ^ enable gradual type checking 
+  , interactive    :: Bool       -- ^ interactive gradual solving 
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)

@@ -3,6 +3,7 @@
 module Interpretations where
 {-@ LIQUID "--gradual"        @-}
 {-@ LIQUID "--savequery"      @-}
+{-@ LIQUID "--eliminate=none"      @-}
 
 
 {-@ f :: {v:Int | ?? } -> Int -> Int @-} 

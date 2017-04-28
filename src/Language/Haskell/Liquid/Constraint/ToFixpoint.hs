@@ -42,6 +42,7 @@ fixConfig tgt cfg = def
   , FC.normalForm       = normalForm        cfg
   , FC.stringTheory     = stringTheory      cfg
   , FC.gradual          = gradual           cfg 
+  , FC.interactive      = interactive       cfg 
   }
 
 
