@@ -115,7 +115,7 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
 solveSeqWith s c fi0 = {- withProgressFI fi $ -} s c fi
   where
-    fi               = slice fi0
+    fi               = slice c fi0
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -124,7 +124,7 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 --------------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
-  let fi    = slice fi0
+  let fi    = slice c fi0
   mci      <- mcInfo c
   let fis   = partition' (Just mci) fi
   writeLoud $ "Number of partitions : " ++ show (length fis)
