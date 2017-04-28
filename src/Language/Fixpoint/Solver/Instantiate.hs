@@ -24,10 +24,11 @@ import qualified Language.Fixpoint.Smt.Theories as FT
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
 
-import Language.Fixpoint.Smt.Interface          (smtPop, smtPush, smtDecls, smtAssert,
-                                                 checkValid', Context(..) )
-import Language.Fixpoint.Defunctionalize        (defuncAny, Defunc, makeLamArg)
-import Language.Fixpoint.SortCheck              (elaborate, Elaborate)
+import Language.Fixpoint.Smt.Interface          ( smtPop, smtPush
+                                                , smtDecls, smtAssert
+                                                , checkValid', Context(..) )
+import Language.Fixpoint.Defunctionalize        (defuncAny, makeLamArg)
+import Language.Fixpoint.SortCheck              (elaborate)
 
 import Control.Monad.State
 
@@ -43,8 +44,9 @@ import           Data.Foldable        (foldlM)
 -- import           Data.Monoid          ((<>))
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
-(_,_) ~> e' = do
+(_e,_str) ~> e' = do
     modify (\st -> st{evId = evId st + 1})
+    -- traceM $ showpp _str ++ " : " ++ showpp _e ++ showpp e'
     return (η e')
 
 ---------------------
@@ -52,42 +54,44 @@ import           Data.Foldable        (foldlM)
 ---------------------
 instantiateFInfo :: Context -> FInfo c -> IO (FInfo c)
 instantiateFInfo ctx fi = do
-  cm' <- sequence $ M.mapWithKey (instantiateAxioms ctx (bs fi) (gLits fi) (ae fi)) (cm fi)
-  return $ fi { cm = cm' }
+    cm' <- sequence $ M.mapWithKey instantiateOne (cm fi)
+    return $ fi { cm = cm' }
+  where instantiateOne = instantiateAxioms ctx (bs fi) (gLits fi) (ae fi)
 
-instantiateAxioms :: Context -> BindEnv -> SEnv Sort -> AxiomEnv -> Integer -> SubC c -> IO (SubC c)
+instantiateAxioms :: Context -> BindEnv -> SEnv Sort -> AxiomEnv
+                     -> Integer -> SubC c
+                     -> IO (SubC c)
 instantiateAxioms _ _ _ aenv sid sub
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
 instantiateAxioms ctx bds fenv aenv sid sub
-  = flip strengthenLhs sub . pAnd . (is0 ++) . (is ++) <$> evalEqs
+  = flip strengthenLhs sub . pAnd . (is0 ++) .
+    (if aenvDoEqs aenv then (is ++) else id) <$>
+    if aenvDoRW aenv then evalEqs else return []
   where
-    is0 = eqBody <$> L.filter (null . eqArgs) eqs
-    is               = if aenvDoEqs aenv
-                          then instances maxNumber aenv initOccurences
-                          else []
-    evalEqs          = if aenvDoRW aenv
-                         then
-             map (uncurry (PAtom Eq)) .
-             filter (uncurry (/=)) <$>
-             evaluate ctx ((vv Nothing, slhs sub):binds) fenv as aenv initExpressions
-                         else return []
+    is0              = eqBody <$> L.filter (null . eqArgs) eqs
+    is               = instances maxNumber aenv initOccurences
+    evalEqs          =
+           map (uncurry (PAtom Eq)) .
+           filter (uncurry (/=)) <$>
+           evaluate ctx ((vv Nothing, slhs sub):binds) fenv aenv initExpressions
     initExpressions  = expr (slhs sub) : expr (srhs sub) : (expr <$> binds)
     binds            = envCs bds (senv sub)
     initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
 
     eqs = aenvEqs aenv
 
-    as  = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
-    fuelNumber    = M.lookupDefault 0 sid (aenvFuel aenv)
-    initOccNumber = length initOccurences
-    axiomNumber   = length $ aenvSyms aenv
-    maxNumber     = (axiomNumber * initOccNumber) ^ fuelNumber
+    -- fuel calculated and used only by `instances` arith rewrite method
+    fuelNumber = M.lookupDefault 0 sid (aenvFuel aenv)
+    as         = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
+    maxNumber  = (length (aenvSyms aenv) * length initOccurences) ^ fuelNumber
 
 
 ------------------------------
 -- Knowledge (SMT Interaction)
 ------------------------------
+-- AT:@TODO: knSels and knEqs should reall just be the same thing. In this way,
+-- we should also unify knSims and knAms, as well as their analogues in AxiomEnv
 data Knowledge
   = KN { knSels    :: ![(Expr, Expr)]
        , knEqs     :: ![(Expr, Expr)]
@@ -111,7 +115,11 @@ lookupKnowledge γ e
   | otherwise
   = Nothing
 
-makeKnowledge :: Context -> AxiomEnv -> SEnv Sort -> [(Symbol, SortedReft)] -> ([(Expr, Expr)], Knowledge)
+isValid :: Knowledge -> Expr -> IO Bool
+isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
+
+makeKnowledge :: Context -> AxiomEnv -> SEnv Sort -> [(Symbol, SortedReft)]
+                 -> ([(Expr, Expr)], Knowledge)
 makeKnowledge ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                  { knSels   = sels
                                  , knEqs    = eqs
@@ -120,55 +128,66 @@ makeKnowledge ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                  , knPreds  = \bs e c -> askSMT c bs e
                                  }
   where
-    (xv, sv) = (vv Nothing,  sr_sort $ snd $ head es)
+    (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
+    fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
+    senv = fromListSEnv fbinds
+
     context :: IO Context
     context = do
       smtPop ctx
       smtPush ctx
-      smtDecls ctx $ L.nub [(x, toSMT xv sv [] aenv senv s) | (x, s) <- fbinds, not (M.member x FT.theorySymbols)]
-      smtAssert ctx (pAnd ([toSMT xv sv [] aenv senv $ PAtom Eq e1 e2 |  (e1, e2) <- simpleEqs] ++ filter noPKVar ((toSMT xv sv [] aenv senv . expr) <$> es)))
+      smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds
+                                            , not (M.member x FT.theorySymbols)]
+      smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
+                           ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
+                          ))
       return ctx
 
-    fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-
-    senv = fromListSEnv fbinds
-
-    noPKVar = null . kvars
-
-    askSMT :: Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-    askSMT _ _ e     | isTautoPred e = return True
-    askSMT _ _ e     | isFalse e     = return False
-    askSMT cxt xss e | noPKVar e = do
-        smtPush cxt
-        b <- checkValid' cxt [] PTrue (toSMT xv sv xss aenv senv e)
-        smtPop cxt
-        return b
-    askSMT _ _ _ = return False
-
-    proofs = filter isProof es
-    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv, PAtom Eq (EVar x) ex <- splitPAnd bd, x == a, EVar x /= ex ]
     -- This creates the rewrite rule e1 -> e2
     -- when should I apply it?
     -- 1. when e2 is a data con and can lead to further reductions
     -- 2. when size e2 < size e1
-    simpleEqs = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
-    dcEqs = L.nub $ catMaybes [getDCEquality e1 e2 | PAtom Eq e1 e2 <- concatMap splitPAnd (expr <$> proofs)]
-    sels  = concatMap (go . expr) es
-    go e = let es  = splitPAnd e
-               su  = mkSubst [(x, EVar y) | PAtom Eq (EVar x) (EVar y) <- es ]
-               sels = [(EApp (EVar s) x, e) | PAtom Eq (EApp (EVar s) x) e <- es, isSelector s ]
+    -- @TODO: Can this be generalized?
+    atms = splitPAnd =<< (expr <$> filter isProof es)
+    simpleEqs = makeSimplifications (aenvSimpl aenv) =<<
+                L.nub (catMaybes [getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
+    sels = (go . expr) =<< es
+    go e = let es   = splitPAnd e
+               su   = mkSubst [(x, EVar y)  | PAtom Eq (EVar x) (EVar y) <- es ]
+               sels = [(EApp (EVar s) x, e) | PAtom Eq (EApp (EVar s) x) e <- es
+                                            , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
+    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
+                        , PAtom Eq (EVar x) ex <- splitPAnd bd
+                        , x == a
+                        -- AT: no test needs this
+                        --, EVar x /= ex
+                        ]
+
+    toSMT xs = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) .
+               elaborate "symbolic evaluation"
+               (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env))
+                      (insertSEnv xv sv senv)
+                      xs)
+
+    -- AT: Non-obvious needed invariant: askSMT True is always the
+    -- totality-effecting one
+    askSMT :: Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+    askSMT cxt xss e
+      | isTautoPred  e = return True
+      | isContraPred e = return False
+      | null (kvars e) = do
+          smtPush cxt
+          b <- checkValid' cxt [] PTrue (toSMT xss e)
+          smtPop cxt
+          return b
+      | otherwise      = return False
+
+    -- TODO: Stringy hacks
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
-
     isProof (_, RR s _) =  showpp s == "Tuple"
-
-
-toSMT :: (Elaborate a, Defunc a, PPrint a) => Symbol -> Sort -> [(Symbol, Sort)] -> AxiomEnv -> SEnv Sort -> a -> a
-toSMT xv sv xs aenv senv
-  = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) .
-    elaborate "symbolic evaluation" (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env)) (insertSEnv xv sv senv) xs)
 
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
@@ -185,7 +204,9 @@ getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
 getDCEquality e1 e2
     | Just dc1 <- f1
     , Just dc2 <- f2
-    = if dc1 == dc2 then Nothing else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
+    = if dc1 == dc2
+         then Nothing
+         else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
     | Just dc1 <- f1
     = Just (dc1, es1, e2)
     | Just dc2 <- f2
@@ -196,12 +217,15 @@ getDCEquality e1 e2
     (f1, es1) = mapFst getDC $ splitEApp e1
     (f2, es2) = mapFst getDC $ splitEApp e2
 
+    -- TODO: Stringy hacks
     getDC (EVar x)
-        = if isUpper $ head $ symbolString $ dropModuleNames x then Just x else Nothing
+      = if isUpper $ head $ symbolString $ dropModuleNames x
+           then Just x
+           else Nothing
     getDC _
-        = Nothing
+      = Nothing
 
-    dropModuleNames  = mungeNames (symbol . last) "."
+    dropModuleNames = mungeNames (symbol . last) "."
 
     mungeNames _ _ ""  = ""
     mungeNames f d s'@(symbolText -> s)
@@ -210,15 +234,9 @@ getDCEquality e1 e2
 
     stripParens t = fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
 
-
 splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
 splitPAnd e         = [e]
-
-addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
-addSMTEquality γ e1 e2 =
-  return $ do ctx <- knContext γ
-              smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
 ------------------------
 -- Creating Measure Info
@@ -244,6 +262,11 @@ assertSelectors γ e = do
     go _ e
       = return e
 
+addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
+addSMTEquality γ e1 e2 =
+  return $ do ctx <- knContext γ
+              smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
+
 -------------------------------
 -- Symbolic Evaluation with SMT
 -------------------------------
@@ -254,9 +277,12 @@ data EvalEnv = EvalEnv { evId        :: Int
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Context -> [(Symbol, SortedReft)] -> SEnv Sort -> FuelMap -> AxiomEnv -> [Expr] -> IO [(Expr, Expr)]
-evaluate ctx facts fenv _ aenv einit
-  = (eqs ++) <$> (fmap join . sequence) (evalOne <$> L.nub (grepTopApps =<< einit))
+evaluate :: Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv -> [Expr]
+            -> IO [(Expr, Expr)]
+evaluate ctx facts fenv aenv einit
+  = (eqs ++) <$>
+    (fmap join . sequence)
+    (evalOne <$> L.nub (grepTopApps =<< einit))
   where
     (eqs, γ) = makeKnowledge ctx aenv fenv facts
     initEvalSt = EvalEnv 0 [] aenv
@@ -297,9 +323,7 @@ eval γ e@(EIte b e1 e2)
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
 eval _ e
-  = do EvalEnv _ _ _env <- get
-       return e
-
+  = return e
 
 evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
 evalArgs γ = go []
@@ -309,17 +333,16 @@ evalArgs γ = go []
            e' <- eval γ e
            go (e':acc) f'
     go acc e
-      = do e' <- eval γ e
-           return (e', acc)
+      = (,acc) <$> eval γ e
 
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
-  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
+  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc))
+                        (knSims γ)
   , length (smArgs simp) == length es
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
-
 evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
@@ -330,32 +353,48 @@ evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es  --  recursive
-  = evalRecApplication γ (eApps (EVar f) es) $ subst (mkSubst $ zip (eqArgs eq) es) bd
-
+  = evalRecApplication γ (eApps (EVar f) es) $
+    subst (mkSubst $ zip (eqArgs eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
 
+substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
+substPopIf xes e = η $ foldl go e xes
+  where
+    go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
+    go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge ->  Expr -> Expr -> EvalST Expr
 evalRecApplication γ e (EIte b e1 e2)
   = do b' <- eval γ b
        b'' <- liftIO (isValid γ b')
        if b''
-          then addApplicationEq γ e e1 >> assertSelectors γ e1 >> eval γ e1 >>= ((e, "App") ~>)
+          then addApplicationEq γ e e1 >>
+               assertSelectors γ e1 >>
+               eval γ e1 >>=
+               ((e, "App") ~>)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
-                   then addApplicationEq γ e e2 >> assertSelectors γ e2 >> eval γ e2 >>= ((e, "App") ~>)
-                   else return e
+                     then addApplicationEq γ e e2 >>
+                          assertSelectors γ e2 >>
+                          eval γ e2 >>=
+                          ((e, "App") ~>)
+                     else return e
 evalRecApplication _ _ e
   = return e
 
-isValid :: Knowledge -> Expr -> IO Bool
-isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
+addApplicationEq :: Knowledge -> Expr -> Expr -> EvalST ()
+addApplicationEq γ e1 e2 =
+  modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
 
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 e2 = join $ evalIte' γ e b e1 e2 <$> liftIO (isValid γ b) <*> liftIO (isValid γ (PNot b))
+evalIte γ e b e1 e2 = join $
+                      evalIte' γ e b e1 e2 <$>
+                      liftIO (isValid γ b) <*>
+                      liftIO (isValid γ (PNot b))
 
-evalIte' :: Knowledge -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool -> EvalST Expr
+evalIte' :: Knowledge -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool
+            -> EvalST Expr
 evalIte' γ e _ e1 _ b _
   | b
   = do e' <- eval γ e1
@@ -369,30 +408,31 @@ evalIte' γ _ b e1 e2 _ _
        e2' <- eval γ e2
        return $ EIte b e1' e2'
 
-addApplicationEq :: Knowledge -> Expr -> Expr -> EvalST ()
-addApplicationEq γ e1 e2 =
-  modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
-
-substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = η $ foldl go e xes
-  where
-    go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
-    go e (x, ex)           = subst1 e (x, ex)
-
 -- normalization required by ApplicativeMaybe.composition
+---------------------------------------------------------
 η :: Expr -> Expr
 η = snd . go
   where
-    go (EIte b t f) | isTautoPred t && isFalse f = (True, b)
-    go (EIte b e1 e2) = let (fb, b') = go b
-                            (f1, e1') = go e1
-                            (f2, e2') = go e2
-                        in  (fb || f1 || f2, EIte b' e1' e2')
-    go (EApp (EIte b f1 f2) e) = (True, EIte b (snd $ go $ EApp f1 e) (snd $ go $ EApp f2 e))
-    go (EApp f (EIte b e1 e2)) = (True, EIte b (snd $ go $ EApp f e1) (snd $ go $ EApp f e2))
-    go (EApp e1 e2)            = let (f1, e1') = go e1
-                                     (f2, e2') = go e2
-                                 in if f1 || f2 then go $ EApp e1' e2' else (False, EApp e1' e2')
+    go (EIte b t f)
+      | isTautoPred t && isFalse f
+      = (True, b)
+    go (EIte b e1 e2)
+      = let (fb, b') = go b
+            (f1, e1') = go e1
+            (f2, e2') = go e2
+            in
+        (fb || f1 || f2, EIte b' e1' e2')
+    go (EApp (EIte b f1 f2) e)
+      = (True, EIte b (snd $ go $ EApp f1 e) (snd $ go $ EApp f2 e))
+    go (EApp f (EIte b e1 e2))
+      = (True, EIte b (snd $ go $ EApp f e1) (snd $ go $ EApp f e2))
+    go (EApp e1 e2)
+      = let (f1, e1') = go e1
+            (f2, e2') = go e2
+            in
+        if f1 || f2
+              then go $ EApp e1' e2'
+              else (False, EApp e1' e2')
     go e = (False, e)
 
 
@@ -412,17 +452,10 @@ makeFuelMap f ((x, fx):fs) y
   | x == y    = (x, f fx) : fs
   | otherwise = (x, fx)   : makeFuelMap f fs y
 makeFuelMap _ _ _ = error "makeFuelMap"
-{-
-maxFuelMap :: [Occurence] -> FuelMap
-maxFuelMap occs = mergeMax <$> L.transpose (ofuel <$> occs)
-  where
-    mergeMax :: FuelMap -> (Symbol, Fuel)
-    mergeMax xfs = let (xs, fs) = unzip xfs in (head xs, maximum fs)
--}
 
------------------------------
--- Naieve evaluation strategy
------------------------------
+----------------------------
+-- Naive evaluation strategy
+----------------------------
 data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr], ofuel :: FuelMap}
  deriving (Show)
 
@@ -432,20 +465,25 @@ instances maxIs aenv !occs
   where
     eqs = filter (not . null . eqArgs) (aenvEqs  aenv)
 
--- Currently: Instantiation happens arbitrary times (in recursive functions it diverges)
--- Step 1: Hack it so that instantiation of axiom A happens from an occurences and its
--- subsequent instances <= FUEL times
--- How? Hack expressions to contatin fuel info within eg Cst
--- Step 2: Compute fuel based on Ranjit's algorithm
+-- Naively: Instantiation happens arbitrary times (in recursive functions it
+-- diverges)
+-- Step 1 [done] : Hack it so that instantiation of axiom A happens from an
+-- occurences and its subsequent instances <= FUEL times
+-- How? Hack expressions to contatin fuel info within eg Cst Step 2: Compute
+-- fuel based on Ranjit's algorithm
 
 instancesLoop :: AxiomEnv ->  Int -> [Equation] -> [Occurence] -> [Expr]
 instancesLoop _ _ eqs = go 0 []
   where
     go :: Int -> [Expr] -> [Occurence] -> [Expr]
-    go !i acc occs = let is      = concatMap (unfold eqs) occs
-                         newIs   = findNewEqs is acc
-                         newOccs = concatMap (grepOccurences eqs) newIs
-                     in  if null newIs then acc else go (i + length newIs) ((fst <$> newIs) ++ acc) newOccs
+    go !i acc occs
+       = let is      = concatMap (unfold eqs) occs
+             newIs   = findNewEqs is acc
+             newOccs = concatMap (grepOccurences eqs) newIs
+             in
+         if null newIs
+            then acc
+            else go (i + length newIs) ((fst <$> newIs) ++ acc) newOccs
 
 findNewEqs :: [(Expr, FuelMap)] -> [Expr] -> [(Expr, FuelMap)]
 findNewEqs [] _ = []
@@ -468,22 +506,13 @@ grepOccurences eqs (e, fs)
 
 unfold :: [Equation] -> Occurence -> [(Expr, FuelMap)]
 unfold eqs (Occ x es fs)
-  = catMaybes [if hasFuel fs x then Just (subst (mkSubst $ zip  xs' es) e, makeFuelMap (\x -> x-1) fs x) else Nothing
+  = catMaybes [if hasFuel fs x
+                  then Just (subst (mkSubst $ zip  xs' es) e
+                            , makeFuelMap (\x -> x-1) fs x)
+                  else Nothing
               | Equ x' xs' e <- eqs
               , x == x'
               , length xs' == length es]
-
-
-{-
-showExpr :: Expr -> String
-showExpr (PAnd eqs)
-  = L.intercalate "\n" (showpp . lhs <$> eqs )
-  where
-    lhs (PAtom Eq l _) = l
-    lhs e                = e
-showExpr e = showpp e
--}
-
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

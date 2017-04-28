@@ -67,6 +67,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Predicates
   , isFunctionSortedReft, functionSort
   , isNonTrivial
+  , isContraPred
   , isTautoPred
   , isSingletonReft
   , isFalse
