@@ -1225,3 +1225,26 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 + The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Haskell re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Haskell is now `A.(B + 1)`
 
 + The `A` component shall be updated at the sole discretion of the project owners.
+
+Proof Automation
+----------------
+The `liquidinstances` automatically generates proof terms using symbolic evaluation. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/MonoidList.hs).
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+```
+
+This flag is **global** and will symbolically evaluation all the terms that appear in the specifications. 
+
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+```
+
+will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated 
+for automatic instantiation using the following liquid annotation
+
+```
+{-@ automatic-instances theorem @-}
+```
