@@ -100,6 +100,7 @@ isTypeError :: SDoc -> Bool
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
 
+-- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
 transformScope = outerScTr . innerScTr
 

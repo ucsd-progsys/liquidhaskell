@@ -8,15 +8,7 @@ GHC-8 integration
 - FAILING TESTS 
 Unit
     pos
-      zipper0.hs:                 FAIL (1.45s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      zipper.hs:                  FAIL (2.74s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      VerifiedMonoid.hs:          FAIL (0.80s)
+      VerifiedMonoid.hs:          FAIL (1.23s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2

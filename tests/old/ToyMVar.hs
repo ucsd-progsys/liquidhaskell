@@ -1,4 +1,4 @@
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MagicHash     #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 {-@ LIQUID "--no-termination" @-}
