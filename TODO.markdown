@@ -5,7 +5,7 @@ GHC-8 integration
 - ES: fix Target 
 - RJ: fix pattern inlines in `tests/pos/monad1.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
-- FAILING TESTS 
+- FAILING TESTS: 19
 Unit
     pos
       VerifiedMonoid.hs:          FAIL (1.23s)
@@ -16,23 +16,11 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      ToyMVar.hs:                 FAIL (0.72s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       TemplateHaskell.hs:         FAIL (0.90s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      take.hs:                    FAIL (1.11s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
       T819A.hs:                   FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T716.hs:                    FAIL (0.50s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -48,18 +36,10 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      primInt0.hs:                FAIL (0.71s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       ORM.hs:                     FAIL (0.82s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      NoCaseExpand.hs:            FAIL (0.67s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
       NatClass.hs:                FAIL (0.80s)
         Wrong exit code
         expected: ExitSuccess
@@ -80,25 +60,7 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
--- H
-
       Invariants.hs:              FAIL (0.82s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      initarray.hs:               FAIL (0.77s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      HeartBleed.hs:              FAIL (1.13s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Goo.hs:                     FAIL (0.72s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Fixme.lhs:                  FAIL (1.45s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -106,38 +68,19 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Diverge.hs:                 FAIL (0.77s)
+      CountMonad.hs:              FAIL (1.30s)
         Wrong exit code
         expected: ExitSuccess
-         but got: ExitFailure 2
-      DataBase.hs:                FAIL (1.24s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+         but got: ExitFailure 1
       contra0.hs:                 FAIL (0.85s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Chunks.hs:                  FAIL (1.47s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      BST000.hs:                  FAIL (2.46s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
       BST.hs:                     FAIL (13.68s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      Automate.hs:                FAIL (0.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ANF.hs:                     FAIL (1.34s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+
 
 - Reader
   - Applicative crashing
