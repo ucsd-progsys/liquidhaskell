@@ -88,7 +88,7 @@ data Config
     , autoKuts         :: Bool           -- ^ ignore given kut variables
     , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
     , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
-    } deriving (Eq,Data,Typeable,Show)
+    } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig
