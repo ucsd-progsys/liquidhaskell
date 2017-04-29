@@ -43,7 +43,7 @@ import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Model
-import           Language.Haskell.Liquid.Transforms.Rec
+-- import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
 type MbEnv = Maybe HscEnv
@@ -111,7 +111,7 @@ liquidOne info = do
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-  let cbs' = transformScope (cbs info)
+  let cbs' = cbs info --  -- transformScope (cbs info)
   whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
