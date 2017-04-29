@@ -62,6 +62,7 @@ Executable liquid
   default-language: Haskell98
   Build-Depends: base
                , ghc
+               , ghc-boot
                , cmdargs
                , time
                , deepseq
@@ -88,6 +89,7 @@ Library
    Default-Language: Haskell98
    Build-Depends: base
                 , ghc == 8.0.2 
+                , ghc-boot == 8.0.2
                 , liquiddesugar >= 7.10 
                 , template-haskell >= 2.9
                 , time >= 1.4

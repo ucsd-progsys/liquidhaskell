@@ -47,6 +47,7 @@ import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrNam
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
+
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -140,6 +141,7 @@ symbolLookupEnvOrig env mod namespace s
        case lookupres of
          Just ns -> return ns
          _       -> return []
+
 
 
 -- TODO: move to misc 

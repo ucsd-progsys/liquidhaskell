@@ -28,19 +28,7 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      T914.hs:                    FAIL (0.75s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T820.hs:                    FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       T819A.hs:                   FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T819.hs:                    FAIL (0.79s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -48,15 +36,7 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      state00.hs:                 FAIL (0.80s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       Solver.hs:                  FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ResolveA.hs:                FAIL (0.71s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -68,23 +48,11 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      ReflectClient2.hs:          FAIL (0.74s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      recursion0.hs:              FAIL (0.58s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       primInt0.hs:                FAIL (0.71s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
       ORM.hs:                     FAIL (0.82s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      nullterm.hs:                FAIL (0.77s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -96,23 +64,7 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      monad7.hs:                  FAIL (0.91s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      monad1.hs:                  FAIL (1.20s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Mod2.hs:                    FAIL (1.12s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       MapReduceVerified.hs:       FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MapFusion.hs:               FAIL (0.79s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -128,22 +80,8 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      Loo.hs:                     FAIL (0.73s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      LocalSpecImp.hs:            FAIL (0.73s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ListMSort.hs:               FAIL (2.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      LiquidAutomate.hs:          FAIL (0.81s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+-- H
+
       Invariants.hs:              FAIL (0.82s)
         Wrong exit code
         expected: ExitSuccess

@@ -49,6 +49,7 @@ import TcRnTypes
 import Var
 import NameSet
 import FastString
+import GHC.LanguageExtensions
 
 import Control.Exception
 import Control.Monad
@@ -155,6 +156,9 @@ configureDynFlags cfg tmp = do
                  , stubDir      = Just tmp
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
+                   `xopt_set` MagicHash
+                   `xopt_set` DeriveGeneric
+                   `xopt_set` StandaloneDeriving
   _ <- setSessionDynFlags df''
   return df''
 
