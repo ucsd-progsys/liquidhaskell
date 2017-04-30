@@ -14,11 +14,9 @@ module Language.Haskell.Liquid.Bare.OfType (
 import Prelude hiding (error)
 import BasicTypes
 import Name
--- import Kind (isKindVar)
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
-
 
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
@@ -54,6 +52,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Bounds
 
 import Language.Haskell.Liquid.Bare.Env
+import Language.Haskell.Liquid.Bare.Misc (isKindVar)
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
@@ -280,7 +279,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
-       tvs = {- NV CHECK filter (not . isKindVar) $ -} tyConTyVarsDef c
+       tvs = filter (not . isKindVar) $  tyConTyVarsDef c
        su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 

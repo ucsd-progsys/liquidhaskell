@@ -90,7 +90,6 @@ Library
    Build-Depends: base
                 , ghc == 8.0.2 
                 , ghc-boot == 8.0.2
-                , liquiddesugar >= 7.10 
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -293,7 +292,6 @@ test-suite liquidhaskell-parser
                 , ghc == 8.0.2
                 , hashable >= 1.2
                 , liquid-fixpoint >= 0.6
-                , liquiddesugar >= 7.10 
                 , pretty
                 , syb >= 0.4.4
                 , time

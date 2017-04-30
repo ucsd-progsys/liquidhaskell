@@ -1,18 +1,13 @@
 GHC-8 integration 
 ==================
 - bring back bench
-- remove desugaring dependence 
 - ES: fix Target 
 - RJ: fix pattern inlines in `tests/pos/monad1.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
-- FAILING TESTS: 19
+- FAILING TESTS: 17
 Unit
     pos
       VerifiedMonoid.hs:          FAIL (1.23s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      TypeFamilies.hs:            FAIL (0.73s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -60,27 +55,61 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      Invariants.hs:              FAIL (0.82s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      dropwhile.hs:               FAIL (0.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      CountMonad.hs:              FAIL (1.30s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+-variance          
       contra0.hs:                 FAIL (0.85s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+      Invariants.hs:              FAIL (0.82s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+- bounds 
+      dropwhile.hs:               FAIL (0.90s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+- no idea 
+      CountMonad.hs:              FAIL (1.30s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
       BST.hs:                     FAIL (13.68s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
 
+
+```
+showTy' :: Type -> String 
+showTy' (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy' <$> ts) ++ ")"
+showTy' (AppTy t1 t2)   = "(TAppTy " ++ (showTy' t1 ++ " " ++ showTy' t2) ++ ")" 
+showTy' t@(TyVarTy v)     = "[" ++ show (isKind t) ++ " " ++ showPpr (varType v) ++ "](RVar " ++ showPpr v ++ ")" 
+showTy' (ForAllTy v t)  = "ForAllTy " ++ showPpr v ++ "." ++  showTy' t 
+showTy' (CastTy _ _)    = "CastTy"
+showTy' (CoercionTy _)  = "CoercionTy"
+showTy' (LitTy _)       = "LitTy"
+
+
+showTy :: ( PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+          => RType RTyCon RTyVar r -> String 
+showTy t@(RApp c ts _ _)  = "[" ++ show (isKind $ toType t) ++ "](RApp   " ++ show c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
+showTy (RAppTy t1 t2 _) = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
+showTy t@(RVar v _) = "[" ++ show (isKind $ toType t) ++ "](RVar " ++ show v ++ ")" 
+showTy (RFun _ _ _ _) = "RFun"
+showTy (RAllT v t) = "RAllT " ++ show v ++ "." ++ showTy t 
+showTy (RAllP _ _) = "RAllP"
+showTy (RAllS _ _) = "RAllS"
+showTy (RAllE _ _ _) = "RAllE"
+showTy (REx _ _ _) = "REx"
+showTy (RExprArg _) = "RExprArg"
+showTy (RRTy _ _ _ _) = "RRTy"
+showTy (RHole _) = "RHole"
+
+sep' :: String -> [String] -> String
+sep' _ [] = []
+sep' _ [x] = x 
+sep' s (x:xs) = x ++ s ++ sep' s xs ```
 
 - Reader
   - Applicative crashing
