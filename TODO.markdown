@@ -2,16 +2,12 @@ GHC-8 integration
 ==================
 - bring back bench
 - ES: fix Target 
-- RJ: fix pattern inlines in `tests/pos/monad1.hs`
+- RJ: fix pattern inlines in `tests/pos/monad1.hs`, `tests/pos/TemplateHaskell.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
-- FAILING TESTS: 17
+- FAILING TESTS: 16
 Unit
     pos
       VerifiedMonoid.hs:          FAIL (1.23s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      TemplateHaskell.hs:         FAIL (0.90s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
