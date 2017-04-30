@@ -1,20 +1,37 @@
-
-
 # TODO
 
-## Beta-Equivalence
+## Proper Encoding of DataTypes
 
-* tests/pos/NormalForm.hs.fq
-
-```haskell
-(\x y -> meraki x) == \x -> ((\z -> (\y -> meraki x)) (meraki x))
 ```
+(declare-datatypes (T) ((LL lnil (lcons (lhd T) (ltl LL)))))
+(declare-fun l1 () (LL Int))
+(declare-fun l2 () (LL Int))
+(declare-fun l3 () (LL Int))
+(declare-fun x  () Int)
+(declare-fun zzz () Int)
+
+(assert (not (= l1 (as lnil (LL Int)))))
+(assert (not (= l2 (as lnil (LL Int)))))
+
+(assert (= (lhd l1) (lhd l2)))
+(assert (not (= l1 l2)))
+(assert (= l3 (lcons x l2)))
+(assert (> x 100))
+(check-sat)
+
+(get-model)
 
 
-BETA 1:
+(declare-fun xs () (LL Int))
+(declare-fun ys () (LL Int))
+(declare-fun y  () Int)
 
-  ((\z -> (\y -> meraki x)) (meraki x))
+(assert (= xs (as lnil (LL Int))))
+(assert (= ys (lcons y ys)))
+(assert (= xs ys))
+(check-sat)
 
-  ==
 
-  (\y -> meraki x)
+;; (assert (= (ltl l1) (ltl l2)))
+;; (check-sat)
+```

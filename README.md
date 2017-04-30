@@ -135,7 +135,7 @@ and also a dot file with the constraint dependency graph:
 This is the field
 
 ```
-     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+     , bs       :: !BindEnv         -- ^ Bind  |-> (Symbol, SortedReft)
 ```
 
 or in the .fq files as
@@ -148,7 +148,7 @@ bind 2 y : ...
 * Each `BindId` must be a distinct `Int`,
 * Each `BindId` that appears in a constraint
   environment i.e. inside _any_ `IBindEnv`
-  must appear inside the `bindInfo`
+  must appear inside the `bs`
 
 ### Environments
 
@@ -261,3 +261,43 @@ The above two are represented programmatically by generating
 suitable `Symbol` values (for the literals  see `litSymbol`)
 and `Sort` values as `FTC FTycon` and then making an `SEnv`
 from the `[(Symbol, Sort)]`.
+
+### Sorts
+
+> What's the difference between an FTC and an FObj?
+
+In early versions of fixpoint, there was support for 
+three sorts for expressions (`Expr`) that were sent 
+to the SMT solver:
+
+1. `int`
+2. `bool`
+3. "other"
+
+The `FObj` sort was introduced to represent essentially _all_ 
+non-int and non-bool values (e.g. tuples, lists, trees, pointers...)
+
+However, we later realized that it is valuable to keep _more_
+precise information for `Expr`s and so we introduced the `FTC`
+(fixpoint type constructor), which lets us represent the above
+respectively as:
+
+- `FTC "String" []`                   -- in Haskell `String`
+- `FTC "Tuple"  [FInt, Bool]`         -- in Haskell `(Int, Bool)`
+- `FTC "List" [FTC "List" [FInt]]`    -- in Haskell `[[Int]]`
+
+> There is a comment that says FObj's are uninterpretted types;
+> so probably a type the SMT solver doesn't know about?
+> Does that then make FTC types that the SMT solver does
+> know about (bools, ints, lists, sets, etc.)?
+
+The SMT solver knows about `bool`, `int` and `set` (also `bitvector` 
+and `map`) but _all_ other types are _currently_ represented as plain 
+`Int` inside the SMT solver. However, we _will be_ changing this 
+to make use of SMT support for ADTs ...
+
+To sum up: the `FObj` is there for historical reasons; it has been 
+subsumed by `FTC` which is what I recomend you use. However `FObj` 
+is there if you want a simple "unitype" / "any" type for terms 
+that are not "interpreted".
+
