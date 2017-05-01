@@ -1356,7 +1356,7 @@ typeSort tce (AppTy t1 t2)
   = fApp (typeSort tce t1) [typeSort tce t2]
 typeSort _tce (TyVarTy tv)
   = let x = FObj $ tyVarUniqueSymbol tv
-    in traceShow ("Typesort for " ++ showPpr tv) x
+    in  x
 typeSort tce (CastTy t _)
   = typeSort tce t
 typeSort _ τ
