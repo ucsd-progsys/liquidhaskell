@@ -4,6 +4,7 @@ module Count () where
 
 {-@ measure count :: Count a -> Int @-}
 
+{-@ Count :: x:a -> {v:Count a | v == Count x } @-}
 data Count a = Count a 
 
 instance Functor Count where
@@ -36,6 +37,8 @@ assertCount _ x = x
 getCount :: Count a -> Int 
 getCount _ = 0 
 
+{-@ makeCount :: x:a -> {v:Count a | v == Count x} @-}
+makeCount = Count
 
 {-@ assume incr :: a -> {v:Count a | count v == 1 } @-}
 incr :: a -> Count a 

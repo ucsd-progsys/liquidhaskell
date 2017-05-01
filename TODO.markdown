@@ -2,16 +2,16 @@ GHC-8 integration
 ==================
 - bring back bench
 - ES: fix Target 
-- RJ: fix pattern inlines in `tests/pos/monad1.hs`, `tests/pos/TemplateHaskell.hs`
+- RJ: fix pattern inlines in 
+  - `tests/todo/NoInlines.hs`
+  - `tests/pos/monad1.hs`, 
+  - `tests/pos/TemplateHaskell.hs`, 
+  - `tests/pos/dropWhile.hs`
+  - `tests/todo/NoInlines.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
-- FAILING TESTS: 12
+- NV: bound syntax `tests/todo/dropWhile.hs`
+- FAILING TESTS: 8
 Unit
-    pos
-- no idea 
-      CountMonad.hs:              FAIL (1.30s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
 - resolution          
       Resolve.hs:                 FAIL (0.70s)
         Wrong exit code
@@ -47,19 +47,7 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-- bounds 
-      repeatHigherOrder.hs:       FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      dropwhile.hs:               FAIL (0.90s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Solver.hs:                  FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+
 
 
 
