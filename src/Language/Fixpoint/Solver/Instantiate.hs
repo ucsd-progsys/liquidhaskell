@@ -315,15 +315,28 @@ eval γ (ELam (x,s) e)
   = do let x' = makeLamArg s (1+ length (knLams γ))
        e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
        return $ ELam (x,s) $ subst1 e' (x', EVar x)
-eval γ (PAtom r e1 e2)
-  = PAtom r <$> eval γ e1 <*> eval γ e2
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
-eval _ e
-  = return e
+eval γ (PAtom r e1 e2)
+  = PAtom r <$> eval γ e1 <*> eval γ e2
+eval γ (ENeg e)
+  = ENeg <$> eval γ e
+eval γ (EBin o e1 e2)
+  = EBin o <$> eval γ e1 <*> eval γ e2
+eval γ (ETApp e t)
+  = flip ETApp t <$> eval γ e
+eval γ (ETAbs e s)
+  = flip ETAbs s <$> eval γ e
+eval γ (PNot e)
+  = PNot <$> eval γ e
+eval γ (PImp e1 e2)
+  = PImp <$> eval γ e1 <*> eval γ e2
+eval γ (PIff e1 e2)
+  = PIff <$> eval γ e1 <*> eval γ e2
+eval _ e = return e
 
 evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
 evalArgs γ = go []
