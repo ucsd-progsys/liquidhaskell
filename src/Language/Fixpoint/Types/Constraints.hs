@@ -566,7 +566,8 @@ instance PTable (SInfo a) where
 --------------------------------------------------------------------------
 toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
-toFixpoint cfg x' =    qualsDoc x'
+toFixpoint cfg x' =    cfgDoc   cfg
+                  $++$ qualsDoc x'
                   $++$ kutsDoc  x'
                 --   $++$ packsDoc x'
                   $++$ gConDoc   x'
@@ -577,6 +578,7 @@ toFixpoint cfg x' =    qualsDoc x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
+    cfgDoc cfg    = text ("// " ++ show cfg)
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
     csDoc         = vcat     . map toFix . M.elems . cm
