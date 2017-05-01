@@ -17,12 +17,21 @@ next :: Day -> Day
 next Mon = Tue
 next Tue = Mon
 
+{-@ reflect lDay @-}
+lDay :: List a -> Day
+lDay Nil      = Mon
+lDay (Cons x) = Tue
+
 -- | Lists ---------------------------------------------------------------------
 
 {-@ data List  a = Nil | Cons {lHd :: a} @-}
 data List a = Nil | Cons a
 
-{-@ reflect lDay @-}
-lDay :: List a -> Day
-lDay Nil      = Mon
-lDay (Cons x) = Tue
+
+{-@ reflect gapp @-}
+gapp :: List a -> List a
+gapp Nil      = Nil
+gapp (Cons x) = Cons x
+
+{-@ test4 :: { gapp Nil = Nil } @-}
+test4 = ()
