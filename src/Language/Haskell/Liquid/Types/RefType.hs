@@ -1385,7 +1385,7 @@ tyConName c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
 typeSortFun tce t -- τ1 τ2
-  = mkFFunc 0  sos
+  = mkFFunc 0 sos
   where sos  = typeSort tce <$> τs
         τs   = grabArgs [] t
 
@@ -1437,7 +1437,7 @@ classBinds _
   = []
 
 rTyVarSymbol :: RTyVar -> Symbol
-rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
+rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------
