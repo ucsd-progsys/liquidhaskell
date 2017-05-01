@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Bare.Misc (
   , hasBoolResult
 
   , makeDataConChecker, makeDataSelector
-  , isKind, isKindVar
+  , isKind
   ) where
 
 import           Name
@@ -29,7 +29,7 @@ import           Id
 import           Type
 import           Kind                                  (isStarKind)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Var
+import           Var 
 
 import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
@@ -151,10 +151,8 @@ mapTyVars _ _
   = throwError =<< errmsg <$> get
 
 isKind :: Kind -> Bool 
-isKind k = isStarKind $ typeKind k  
+isKind k = isStarKind k -- $ typeKind k  
 
-isKindVar :: Var -> Bool  
-isKindVar = isKind . TyVarTy
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST

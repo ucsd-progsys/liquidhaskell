@@ -17,6 +17,7 @@ import Name
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
+import TyCoRep
 
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
@@ -31,6 +32,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
+-- import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types ( atLoc
                                , Expr(..)
                                , Reftable
@@ -52,7 +54,6 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Bounds
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Misc (isKindVar)
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
@@ -279,7 +280,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
-       tvs = filter (not . isKindVar) $  tyConTyVarsDef c
+       tvs = [ v | (v, b) <- zip (tyConTyVarsDef c) (tyConBinders c), isAnonBinder b]
        su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 

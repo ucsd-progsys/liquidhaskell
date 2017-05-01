@@ -50,7 +50,7 @@ import qualified Data.List as L
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg = fmap ( rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
+  | simplifyCore cfg = fmap (rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
   | otherwise        = id
 
 simplifyCore :: Config -> Bool
@@ -399,7 +399,7 @@ mkSubst ys xs = CoreSubst.extendIdSubstList CoreSubst.emptySubst yxs
 isVarTup :: [Var] -> CoreExpr -> Maybe [Var]
 isVarTup xs e
   | Just ys <- isTuple e
-  , eqVars xs (reverse ys)         = Just $ reverse ys
+  , eqVars xs ys        = Just ys
 isVarTup _ _             = Nothing
 
 eqVars :: [Var] -> [Var] -> Bool

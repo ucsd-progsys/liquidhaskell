@@ -4,7 +4,7 @@ GHC-8 integration
 - ES: fix Target 
 - RJ: fix pattern inlines in `tests/pos/monad1.hs`, `tests/pos/TemplateHaskell.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
-- FAILING TESTS: 16
+- FAILING TESTS: 12
 Unit
     pos
 - no idea 
@@ -12,23 +12,6 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      BST.hs:                     FAIL (13.68s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1         
-      Map2.hs:                    FAIL (35.98s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Map0.hs:                    FAIL (34.99s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Map.hs:                     FAIL (34.97s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
 - resolution          
       Resolve.hs:                 FAIL (0.70s)
         Wrong exit code
