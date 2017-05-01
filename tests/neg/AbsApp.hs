@@ -3,7 +3,7 @@
 -- silently dropped.
 -- issue #519
 
-module Main where
+module AbsApp where
 
 {-@ id2 :: forall <p :: Int -> Bool>. Int<p> -> Int<p> @-}
 id2 :: Int -> Int

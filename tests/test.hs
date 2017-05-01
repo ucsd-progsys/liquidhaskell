@@ -101,8 +101,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []                (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []                ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
-    , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-    , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+    -- , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+    -- , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
     -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
     -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
