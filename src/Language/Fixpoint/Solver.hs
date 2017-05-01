@@ -175,7 +175,7 @@ solveNative' !cfg !fi0 = do
   -- TODO: make this less of a hack
   ctx <- makeSmtContext cfg (srcFile cfg ++ ".evals") []
   smtPush ctx
-  fi1 <- instantiateFInfo ctx $ fi0 { quals = remakeQual <$> quals fi0 }
+  fi1 <- instantiateFInfo cfg ctx $ fi0 { quals = remakeQual <$> quals fi0 }
   -- whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)

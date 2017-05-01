@@ -667,29 +667,25 @@ data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
                      , aenvSimpl   :: ![Rewrite]
                      , aenvFuel    :: M.HashMap SubcId Int
                      , aenvExpand  :: M.HashMap SubcId Bool
-                     , aenvDoRW    :: Bool
-                     , aenvDoEqs   :: Bool
-                     , aenvVerbose :: !Bool
-                     , aenvConfig  :: Config
+                     , aenvDoRW    :: !Bool
+                     , aenvDoEqs   :: !Bool
                      }
   deriving (Eq, Show, Generic)
 
 instance B.Binary AxiomEnv
-instance B.Binary Config
 instance B.Binary Rewrite
 instance B.Binary Equation
 instance B.Binary SMTSolver
 instance B.Binary Eliminate
 instance NFData AxiomEnv
-instance NFData Config
 instance NFData Rewrite
 instance NFData Equation
 instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] [] (M.fromList []) (M.fromList []) False False False defConfig
-  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand' aenvDoRW' aenvDoEqs' aenvVerbose' aenvConfig'
+  mempty = AEnv [] [] [] (M.fromList []) (M.fromList []) False False
+  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand' aenvDoRW' aenvDoEqs'
     where aenvSyms'    = mappend (aenvSyms a1) (aenvSyms a2)
           aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
@@ -697,10 +693,6 @@ instance Monoid AxiomEnv where
           aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
           aenvDoRW'    = aenvDoRW a1 || aenvDoRW a2
           aenvDoEqs'   = aenvDoEqs a1 || aenvDoEqs a2
-          aenvVerbose' = aenvVerbose a1 || aenvVerbose a2
-          -- HACK: unlawful Monoid, Oh Boy!
-          -- This could be easily fixed to make Config a Monoid, probably.
-          aenvConfig'  = (aenvConfig a1)
 
 data Equation = Equ { eqName :: Symbol
                     , eqArgs :: [Symbol]
