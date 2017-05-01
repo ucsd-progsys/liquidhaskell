@@ -1,0 +1,122 @@
+name:           unordered-containers
+version:        0.2.1.0
+synopsis:       Efficient hashing-based container types
+description:
+  Efficient hashing-based container types.  The containers have been
+  optimized for performance critical use, both in terms of large data
+  quantities and high speed.
+  .
+  The declared cost of each operation is either worst-case or
+  amortized, but remains valid even if structures are shared.
+license:        BSD3
+license-file:   LICENSE
+author:         Johan Tibell
+maintainer:     johan.tibell@gmail.com
+bug-reports:    https://github.com/tibbe/unordered-containers/issues
+copyright:      2010-2012 Johan Tibell
+                2010 Edward Z. Yang
+category:       Data
+build-type:     Simple
+cabal-version:  >=1.8
+
+flag debug
+  description:  Enable debug support
+  default:      False
+
+library
+  exposed-modules:
+    Data.HashMap.Lazy
+    Data.HashMap.Strict
+    Data.HashSet
+  other-modules:
+    Data.HashMap.Array
+    Data.HashMap.Base
+    Data.HashMap.PopCount
+    Data.HashMap.UnsafeShift
+
+  build-depends:
+    base >= 4 && < 4.6,
+    deepseq >= 1.1 && < 1.4,
+    hashable >= 1.0.1.1 && < 1.2
+
+  if impl(ghc < 7.4)
+    c-sources: cbits/popc.c
+
+  ghc-options: -Wall -O2
+  if impl(ghc >= 6.8)
+    ghc-options: -fwarn-tabs
+  if impl(ghc > 6.10)
+    ghc-options: -fregs-graph
+  if flag(debug)
+    cpp-options: -DASSERTS
+
+test-suite hashmap-lazy-properties
+  hs-source-dirs: tests
+  main-is: HashMapProperties.hs
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    base,
+    containers >= 0.4.1 && < 0.5,
+    hashable >= 1.0.1.1 && < 1.2,
+    QuickCheck >= 2.4.0.1,
+    test-framework >= 0.3.3 && < 0.6,
+    test-framework-quickcheck2 >= 0.2.9 && < 0.3,
+    unordered-containers
+
+  ghc-options: -Wall
+  cpp-options: -DASSERTS
+
+test-suite hashmap-strict-properties
+  hs-source-dirs: tests
+  main-is: HashMapProperties.hs
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    base,
+    containers >= 0.4.1 && < 0.5,
+    hashable >= 1.0.1.1 && < 1.2,
+    QuickCheck >= 2.4.0.1,
+    test-framework >= 0.3.3 && < 0.6,
+    test-framework-quickcheck2 >= 0.2.9 && < 0.3,
+    unordered-containers
+
+  ghc-options: -Wall
+  cpp-options: -DASSERTS -DSTRICT
+
+test-suite hashset-properties
+  hs-source-dirs: tests
+  main-is: HashSetProperties.hs
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    base,
+    containers >= 0.4.2 && < 0.5,
+    hashable >= 1.0.1.1 && < 1.2,
+    QuickCheck >= 2.4.0.1,
+    test-framework >= 0.3.3 && < 0.6,
+    test-framework-quickcheck2 >= 0.2.9 && < 0.3,
+    unordered-containers
+
+  ghc-options: -Wall
+  cpp-options: -DASSERTS
+
+test-suite regressions
+  hs-source-dirs: tests
+  main-is: Regressions.hs
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    base,
+    hashable >= 1.0.1.1 && < 1.2,
+    HUnit,
+    test-framework >= 0.3.3 && < 0.6,
+    test-framework-hunit,
+    unordered-containers
+
+  ghc-options: -Wall
+  cpp-options: -DASSERTS
+
+source-repository head
+  type:     git
+  location: https://github.com/tibbe/unordered-containers.git

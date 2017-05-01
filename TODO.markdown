@@ -10,15 +10,8 @@ GHC-8 integration
   - `tests/todo/NoInlines.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - NV: bound syntax `tests/todo/dropWhile.hs`
-- FAILING TESTS: 6
-Unit
-- resolution          
-      Resolve.hs:                 FAIL (0.70s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-
+- FAILING TESTS: 1 neg 
+  T602.hs
 
 ```
 showTy' :: Type -> String 

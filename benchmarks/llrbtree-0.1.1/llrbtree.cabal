@@ -1,0 +1,38 @@
+Name:                   llrbtree
+Version:                0.1.1
+Author:                 Kazu Yamamoto <kazu@iij.ad.jp>
+Maintainer:             Kazu Yamamoto <kazu@iij.ad.jp>
+License:                BSD3
+License-File:           LICENSE
+Synopsis:               Purely functional sets and heaps
+Description:            Purely functional data structure including
+                        red-black trees,
+                        left-leaning red-black trees,
+                        weight balanced trees,
+                        splay trees,
+                        skew heaps,
+                        leftist heaps,
+                        splay heaps,
+                        and binominal heaps.
+Category:               Data
+Cabal-Version:          >= 1.6
+Build-Type:             Simple
+library
+  if impl(ghc >= 6.12)
+    GHC-Options:        -Wall -fno-warn-unused-do-bind
+  else
+    GHC-Options:        -Wall
+  Exposed-Modules:      Data.Set.RBTree
+                        Data.Set.LLRBTree
+                        Data.Set.WBTree
+                        Data.Set.Splay
+                        Data.Set.BUSplay
+                        Data.Heap.Skew
+                        Data.Heap.Leftist
+                        Data.Heap.Splay
+                        Data.Heap.Binominal
+  Build-Depends:        base >= 4 && < 5
+
+Source-Repository head
+  Type:                 git
+  Location:             https://github.com/kazu-yamamoto/llrbtree
