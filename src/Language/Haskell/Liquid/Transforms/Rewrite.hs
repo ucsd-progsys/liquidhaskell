@@ -7,6 +7,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE FlexibleContexts          #-}
 
 -- | This module contains functions for recursively "rewriting"
 --   GHC core using "rules".
@@ -34,24 +35,66 @@ import qualified Var
 import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad  (msum)
+import Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       (mapFst, mapSnd)
-
+import qualified          Language.Fixpoint.Types as F 
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId) -- , showPpr, tracePpr)
+import           Language.Haskell.Liquid.GHC.Misc (isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
+import qualified Data.List as L 
 
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg = fmap (rewriteBindWith simplifyPatTuple)
+  | simplifyCore cfg = fmap ( rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
   | otherwise        = id
 
 simplifyCore :: Config -> Bool
 simplifyCore = not . noSimplifyCore
+
+tidyTuples :: CoreExpr -> Maybe CoreExpr
+tidyTuples e = Just $ evalState (go e) []
+  where
+    go (Tick t e)
+      = Tick t <$> go e  
+    go (Let (NonRec x ex) e)
+      = do ex' <- go ex 
+           e'  <- go e 
+           return $ Let (NonRec x ex') e'
+    go (Let (Rec bes) e)
+      = Let <$> (Rec <$> mapM goRec bes) <*> go e 
+    go (Case (Var v) x t alts) 
+      = Case (Var v) x t <$> mapM (goAltR v) alts
+    go (Case e x t alts) 
+      = Case e x t <$> mapM goAlt alts  
+    go (App e1 e2)
+      = App <$> go e1 <*> go e2 
+    go (Lam x e)
+      = Lam x <$> go e 
+    go (Cast e c)
+      = (`Cast` c) <$> go e 
+    go e 
+      = return e 
+
+    goRec (x, e)
+      = (x,) <$> go e 
+
+    goAlt (c, bs, e)
+      = (c, bs,) <$> go e 
+
+    goAltR v (c, bs, e)
+      = do m <- get 
+           case L.lookup (c,v) m of 
+            Just bs' -> return (c, bs', substTuple bs' bs e)
+            Nothing  -> do let bs' = mkAlive <$> bs
+                           modify (((c,v),bs'):)
+                           return $ (c,bs', e)
+
+
 
 --------------------------------------------------------------------------------
 -- | A @RewriteRule@ is a function that maps a CoreExpr to another
@@ -170,6 +213,30 @@ _safeSimplifyPatTuple e
 --------------------------------------------------------------------------------
 simplifyPatTuple :: RewriteRule
 --------------------------------------------------------------------------------
+
+_tidyAlt :: Int -> Maybe CoreExpr -> Maybe CoreExpr 
+
+_tidyAlt n (Just (Let (NonRec x e) rest)) 
+  | Just (yes, e') <- takeBinds n rest 
+  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' ((reverse $ go $ reverse yes)) 
+ 
+  where
+    go xes@((_, e):_) = let bs = grapBinds e in mapSnd (replaceBinds bs) <$> xes
+    go [] = [] 
+    replaceBinds bs (Case c x t alt) = Case c x t (replaceBindsAlt bs <$> alt)
+    replaceBinds bs (Tick t e)       = Tick t (replaceBinds bs e)
+    replaceBinds _ e                 = e 
+    replaceBindsAlt bs (c, _, e)     = (c, bs, e) 
+
+    grapBinds (Case _ _ _ alt) = grapBinds' alt 
+    grapBinds (Tick _ e) = grapBinds e 
+    grapBinds _ = []
+    grapBinds' [] = []
+    grapBinds' ((_,bs,_):_) = bs 
+
+_tidyAlt _ e
+  = e 
+
 simplifyPatTuple (Let (NonRec x e) rest)
   | Just (n, ts  ) <- varTuple x
   , 2 <= n
@@ -241,13 +308,29 @@ replaceTuple ys e e'           = stepE e
   where
     t'                          = CoreUtils.exprType e'
     stepE e
-     | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
+     | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'  
      | otherwise                = go e
     stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
     stepA (c, xs, e)            = (c, xs,)   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
     go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
+
+
+_showExpr :: CoreExpr -> String     
+_showExpr e = show' e 
+  where 
+    show' (App e1 e2) = show' e1 ++ " " ++ show' e2
+    show' (Var x)     = _showVar x 
+    show' (Let (NonRec x ex) e) = "Let " ++ _showVar x ++ " = " ++ show' ex ++ "\nIN " ++ show' e 
+    show' (Tick _ e) = show' e 
+    show' (Case e x _ alt) = "Case " ++ _showVar x ++ " = " ++ show' e ++ " OF " ++ unlines (showAlt' <$> alt)
+    show' e           = showPpr e 
+
+    showAlt' (c, bs, e) = showPpr c ++ unwords (_showVar <$> bs) ++ " -> " ++ show' e 
+
+_showVar :: Var -> String 
+_showVar = show . F.symbol
 
 _errorSkip :: String -> a -> b
 _errorSkip x _ = error x
@@ -316,11 +399,11 @@ mkSubst ys xs = CoreSubst.extendIdSubstList CoreSubst.emptySubst yxs
 isVarTup :: [Var] -> CoreExpr -> Maybe [Var]
 isVarTup xs e
   | Just ys <- isTuple e
-  , eqVars xs ys         = Just ys
+  , eqVars xs (reverse ys)         = Just $ reverse ys
 isVarTup _ _             = Nothing
 
 eqVars :: [Var] -> [Var] -> Bool
-eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
+eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys' 
   where
     xs' = {- F.symbol -} show <$> xs
     ys' = {- F.symbol -} show <$> ys

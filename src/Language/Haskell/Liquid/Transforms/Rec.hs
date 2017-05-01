@@ -8,6 +8,7 @@
 
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
+     , outerScTr , innerScTr 
      ) where
 
 import           Bag
@@ -19,12 +20,11 @@ import           CoreUtils
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
 import           ErrUtils
-import           Id                                   (idOccInfo, setIdInfo)
 import           IdInfo
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
-import           Language.Fixpoint.Misc               (mapSnd)
+import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)
@@ -102,7 +102,7 @@ isTypeError _ = True
 
 -- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
-transformScope = outerScTr . innerScTr
+transformScope = outerScTr . innerScTr 
 
 outerScTr :: [Bind Id] -> [Bind Id]
 outerScTr = mapNonRec (go [])
@@ -248,12 +248,6 @@ freshInt
 freshUnique :: MonadState TrEnv m => m Unique
 freshUnique = liftM (mkUnique 'X') freshInt
 
-mkAlive :: Var -> Id
-mkAlive x
-  | isId x && isDeadOcc (idOccInfo x)
-  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
-  | otherwise
-  = x
 
 mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]
 mapNonRec f (NonRec x xe:xes) = NonRec x xe : f x (mapNonRec f xes)

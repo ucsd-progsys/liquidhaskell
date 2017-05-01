@@ -78,6 +78,14 @@ import           Language.Fixpoint.Misc                     (safeHead, safeLast,
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
+import           Id                                   (idOccInfo, setIdInfo)
+
+mkAlive :: Var -> Id
+mkAlive x
+  | isId x && isDeadOcc (idOccInfo x)
+  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
+  | otherwise
+  = x
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------

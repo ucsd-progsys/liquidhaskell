@@ -7,23 +7,48 @@ GHC-8 integration
 - FAILING TESTS: 16
 Unit
     pos
+- no idea 
+      CountMonad.hs:              FAIL (1.30s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      BST.hs:                     FAIL (13.68s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1         
+      Map2.hs:                    FAIL (35.98s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map0.hs:                    FAIL (34.99s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map.hs:                     FAIL (34.97s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+- resolution          
+      Resolve.hs:                 FAIL (0.70s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+-variance          
+      contra0.hs:                 FAIL (0.85s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Invariants.hs:              FAIL (0.82s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+- reflection     
       VerifiedMonoid.hs:          FAIL (1.23s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
       T819A.hs:                   FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Solver.hs:                  FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Resolve.hs:                 FAIL (0.70s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      repeatHigherOrder.hs:       FAIL (0.79s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
@@ -39,41 +64,20 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Map2.hs:                    FAIL (35.98s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Map0.hs:                    FAIL (34.99s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Map.hs:                     FAIL (34.97s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
--variance          
-      contra0.hs:                 FAIL (0.85s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Invariants.hs:              FAIL (0.82s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
 - bounds 
+      repeatHigherOrder.hs:       FAIL (0.79s)
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
       dropwhile.hs:               FAIL (0.90s)
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-- no idea 
-      CountMonad.hs:              FAIL (1.30s)
+      Solver.hs:                  FAIL (0.86s)
         Wrong exit code
         expected: ExitSuccess
-         but got: ExitFailure 1
-      BST.hs:                     FAIL (13.68s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+         but got: ExitFailure 2
+
 
 
 ```
