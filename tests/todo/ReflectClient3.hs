@@ -6,21 +6,18 @@
 module ReflectClient3 where
 
 import Language.Haskell.Liquid.ProofCombinators
+
 import ReflectLib3
 
-stupidity = [ undefined llen ]
+-- THIS IS NEEDED TO BRING THE NAMES INTO SCOPE FOR GHC ...
+forceImports = [ undefined next
+               , undefined lDay
+               ]
 
-{-@ test3 :: { llen Nil == 0 } @-}
-test3 = ()
+-- THIS WORKS
+{-@ test2 :: { next Mon == Tue } @-}
+test2 = next Mon ==. Tue *** QED
 
--- THIS FAILS
-{-@ zoo :: List a -> {v:Int | v == 0} @-}
-zoo :: List a -> Int
-zoo Nil         = llen Nil
-zoo (Cons x xs) = 0
-
--- BUT ADDING THIS MAKES EVERYTHING WORK
-{-@ moo :: List a -> {v:Int | v == 0} @-}
-moo :: List a -> Int
-moo Nil         = ben Nil
-moo (Cons x xs) = moo xs
+-- THIS DOES NOT
+{-@ test4 :: { lDay Nil == Mon } @-}
+test4 = lDay Nil ==. Mon *** QED
