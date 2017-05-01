@@ -667,8 +667,6 @@ data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
                      , aenvSimpl   :: ![Rewrite]
                      , aenvFuel    :: M.HashMap SubcId Int
                      , aenvExpand  :: M.HashMap SubcId Bool
-                     , aenvDoRW    :: !Bool
-                     , aenvDoEqs   :: !Bool
                      }
   deriving (Eq, Show, Generic)
 
@@ -684,15 +682,13 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] [] (M.fromList []) (M.fromList []) False False
-  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand' aenvDoRW' aenvDoEqs'
+  mempty = AEnv [] [] [] (M.fromList []) (M.fromList [])
+  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand'
     where aenvSyms'    = mappend (aenvSyms a1) (aenvSyms a2)
           aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
           aenvFuel'    = mappend (aenvFuel a1) (aenvFuel a2)
           aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
-          aenvDoRW'    = aenvDoRW a1 || aenvDoRW a2
-          aenvDoEqs'   = aenvDoEqs a1 || aenvDoEqs a2
 
 data Equation = Equ { eqName :: Symbol
                     , eqArgs :: [Symbol]

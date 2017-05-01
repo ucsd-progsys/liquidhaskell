@@ -66,8 +66,8 @@ instantiateAxioms _ _ _ _ aenv sid sub
   = return sub
 instantiateAxioms cfg ctx bds fenv aenv sid sub
   = flip strengthenLhs sub . pAnd . (is0 ++) .
-    (if aenvDoEqs aenv then (is ++) else id) <$>
-    if aenvDoRW aenv then evalEqs else return []
+    (if arithmeticAxioms cfg then (is ++) else id) <$>
+    if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
     is               = instances maxNumber aenv initOccurences
