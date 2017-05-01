@@ -36,6 +36,11 @@ zen :: List a -> Int
 zen Nil        = 0
 zen (Cons h t) = 1 + zen t
 
+{-@ test5 :: { app (Cons 1 Nil) (Cons 2 (Cons 3 Nil)) = Cons 1 (Cons 2 (Cons 3 Nil)) } @-}
+test5 =   app (Cons 1 Nil) (Cons 2 (Cons 3 Nil))
+      ==. Cons 1 (app Nil (Cons 2 (Cons 3 Nil)))
+      ==. Cons 1 (Cons 2 (Cons 3 Nil))
+      *** QED
 
 {-@ thmAppLen :: xs:List a -> ys:List a ->
       { llen (app xs ys) == llen xs + llen ys}
