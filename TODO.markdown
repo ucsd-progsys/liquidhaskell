@@ -17,28 +17,6 @@ Unit
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-- reflection     
-      VerifiedMonoid.hs:          FAIL (1.23s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T819A.hs:                   FAIL (0.79s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ORM.hs:                     FAIL (0.82s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      NatClass.hs:                FAIL (0.80s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MapReduceVerified.hs:       FAIL (0.86s)
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
 
 
 
