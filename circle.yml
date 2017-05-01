@@ -25,7 +25,7 @@ dependencies:
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack install --fast hlint packdeps cabal-install
+    - stack install
     - stack build liquidhaskell --fast --only-dependencies --test --no-run-tests
     
 compile:
