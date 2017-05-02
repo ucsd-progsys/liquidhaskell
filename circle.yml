@@ -9,7 +9,6 @@ machine:
 
 checkout:
   post:
-    - git submodule foreach git fetch 
     - git submodule sync
     - sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
     - git submodule update --init
