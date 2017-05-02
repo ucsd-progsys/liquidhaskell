@@ -96,7 +96,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
-  let renv = ghcSpecEnv sp specs
+  let renv = ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
@@ -141,8 +141,8 @@ postProcess cbs specEnv sp@(SP {..})
     addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
     allowHO           = higherOrderFlag gsConfig
 
-ghcSpecEnv :: GhcSpec -> [(ModName, Ms.BareSpec)] -> SEnv SortedReft
-ghcSpecEnv sp _specs = fromListSEnv binds
+ghcSpecEnv :: GhcSpec -> SEnv SortedReft
+ghcSpecEnv sp = fromListSEnv binds
   where
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
@@ -178,7 +178,7 @@ makeLiftedSpec1 file name lSpec0 xts axs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
     xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
-    lSpec1 = lSpec0 { Ms.asmSigs  = xbs
+    lSpec1 = lSpec0 { Ms.asmSigs  = tracepp "reflect-datacons:makeLiftedSpec1" xbs
                     , Ms.reflSigs = xbs
                     , Ms.axeqs    = axs }
 
@@ -220,7 +220,7 @@ symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM ([(Symbol, Var)], [
 symbolVarMap f vs xs = do
   syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
-  return (M.toList syms1, [ (val lx, v) | (v, lx, _) <- syms2 ])
+  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1,  [ (val lx, v) | (v, lx, _) <- syms2 ])
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
@@ -247,9 +247,9 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   quals    <- mconcat <$> mapM makeQualifiers specs
   let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
-  (syms1, syms2) <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  (syms1, _syms2) <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms1 ]
-  let syms = syms1 ++ syms2
+  let syms = syms1 -- ++ syms2
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su
@@ -320,7 +320,7 @@ makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   xtes    <- makeHaskellAxioms embs cbs sp mSpc
   let xts  = [(x, t) | (x, t, _) <- xtes ]
   let mAxs = [ e     | (_, _, e) <- xtes ]  -- axiom-eqs in THIS module
-  let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
+  let iAxs = tracepp "reflected-datacons:axiomEqs" $ getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
   let xts' = xts ++ gsAsmSigs sp

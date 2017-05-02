@@ -432,7 +432,7 @@ ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 simpleSymbolVar' :: Id -> Symbol
-simpleSymbolVar' = symbol . showPpr . getName
+simpleSymbolVar' = symbol . {- showPpr . -} getName
 
 varSymbol :: Var -> Symbol
 varSymbol v | Type.isFunTy (varType v) = simplesymbol v

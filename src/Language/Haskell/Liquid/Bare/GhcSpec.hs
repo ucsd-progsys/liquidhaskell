@@ -219,7 +219,7 @@ makeAxioms tce cbs spec sp = do
   return $ spec { gsMeas     = msA ++ msR ++ gsMeas     spec
                 , gsAsmSigs  = concat tysA ++ concat tysR ++ gsAsmSigs  spec
                 , gsReflects = concat asA  ++ concat asR  ++ gsReflects spec
-                , gsAxioms   = smtA ++ gsAxioms spec 
+                , gsAxioms   = smtA ++ gsAxioms spec
                 , gsLogicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
@@ -251,7 +251,7 @@ emptySpec cfg = SP
   , gsTyconEnv   = mempty
   , gsDicts      = mempty
   , gsAxioms     = mempty
-  , gsReflects   = mempty 
+  , gsReflects   = mempty
   , gsLogicMap   = mempty
   , gsProofType  = Nothing
   , gsRTAliases  = mempty
