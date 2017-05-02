@@ -67,6 +67,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Predicates
   , isFunctionSortedReft, functionSort
   , isNonTrivial
+  , isContraPred
   , isTautoPred
   , isSingletonReft
   , isFalse
@@ -86,7 +87,7 @@ module Language.Fixpoint.Types.Refinements (
   , debruijnIndex
 
   -- * Gradual Type Manipulation
-  , pGAnds, pGAnd  
+  , pGAnds, pGAnd
   , isGradual
 
   ) where
@@ -150,9 +151,9 @@ isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
 
-isGradual :: Expr -> Bool 
+isGradual :: Expr -> Bool
 isGradual (PGrad _ _ _) = True
-isGradual _             = False 
+isGradual _             = False
 
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
@@ -245,7 +246,7 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
-          | PGrad  !KVar !Subst !Expr 
+          | PGrad  !KVar !Subst !Expr
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr
@@ -301,7 +302,7 @@ debruijnIndex = go
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
-    go (PGrad _ _ e)   = go e 
+    go (PGrad _ _ e)   = go e
 
 
 -- | Parsed refinement of @Symbol@ as @Expr@
@@ -603,10 +604,10 @@ class Predicate a where
   prop   :: a -> Expr
 
 instance Expression SortedReft where
-  expr (RR _ r) = expr r  
+  expr (RR _ r) = expr r
 
 instance Expression Reft where
-  expr (Reft(_, e)) = e  
+  expr (Reft(_, e)) = e
 
 instance Expression Expr where
   expr = id
@@ -719,9 +720,9 @@ reftBind (Reft (x, _)) = x
 pGAnds :: [Expr] -> Expr
 pGAnds = foldl pGAnd PTrue
 
-pGAnd :: Expr -> Expr -> Expr 
-pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q]) 
-pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q]) 
+pGAnd :: Expr -> Expr -> Expr
+pGAnd (PGrad k su p) q = PGrad k su (pAnd [p, q])
+pGAnd p (PGrad k su q) = PGrad k su (pAnd [p, q])
 pGAnd p q              = pAnd [p,q]
 
 ------------------------------------------------------------

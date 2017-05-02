@@ -40,6 +40,8 @@ import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
+import           Language.Fixpoint.Solver.Instantiate (instantiateFInfo)
+import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -113,7 +115,7 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
 solveSeqWith s c fi0 = {- withProgressFI fi $ -} s c fi
   where
-    fi               = slice fi0
+    fi               = slice c fi0
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -122,7 +124,7 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 --------------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
-  let fi    = slice fi0
+  let fi    = slice c fi0
   mci      <- mcInfo c
   let fis   = partition' (Just mci) fi
   writeLoud $ "Number of partitions : " ++ show (length fis)
@@ -170,7 +172,10 @@ solveNative' !cfg !fi0 = do
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
   -- whenLoud $ print qs
-  let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
+  -- TODO: make this less of a hack
+  ctx <- makeSmtContext cfg (srcFile cfg ++ ".evals") []
+  smtPush ctx
+  fi1 <- instantiateFInfo cfg ctx $ fi0 { quals = remakeQual <$> quals fi0 }
   -- whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)

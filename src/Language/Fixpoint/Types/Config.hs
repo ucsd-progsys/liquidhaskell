@@ -87,7 +87,10 @@ data Config
     , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
     , autoKuts         :: Bool           -- ^ ignore given kut variables
     , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
-    } deriving (Eq,Data,Typeable,Show)
+    , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
+    , rewriteAxioms    :: Bool           -- ^ allow axiom instantiation via rewriting
+    , arithmeticAxioms :: Bool           -- ^ allow axiom instantiation on arithmetic expressions
+    } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig
@@ -164,6 +167,9 @@ defConfig = Config {
   , normalForm       = False  &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
+  , noslice          = False &= help "Disable non-concrete KVar slicing"
+  , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
+  , arithmeticAxioms = False &= help "Disable non-concrete KVar slicing"
   }
   &= verbosity
   &= program "fixpoint"
