@@ -147,7 +147,7 @@ ghcSpecEnv sp _specs = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- frees ] -- , isConLikeId v || S.member x refls ]
+                     ++ [(x,        vSort v) | (x, v)         <- frees , isConLikeId v ] -- || S.member x refls ]
     frees            = tracepp "reflect-datacons:gsFreeSyms" $ gsFreeSyms sp
     -- refls            = S.fromList $ tracepp "reflect-datacons:getReflects" $ getReflects specs
     rSort            = rTypeSortedReft emb
@@ -213,11 +213,16 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
     dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
 
 
-symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
+-- | symbolVarMap resolves each Symbol to its Var; we keep the
+--   lists SEPARATE because Symbol corresponding to measures generated
+--   from LIFTED functions SHOULD NOT be substituted away (while DATA CONSTRUCTORS
+--   SHOULD be. (Due to our brittle name handling.) Ideally, ALL names
+--   should be resolved to their GHC version...
+symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM ([(Symbol, Var)], [(Symbol, Var)])
 symbolVarMap f vs xs = do
   syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
-  return $ M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2 ]
+  return (M.toList syms1, [ (val lx, v) | (v, lx, _) <- syms2 ])
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
@@ -244,8 +249,9 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   quals    <- mconcat <$> mapM makeQualifiers specs
   let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
-  syms     <- tracepp "reflect-datacons:syms" <$> symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
+  (syms1, syms2) <- tracepp "reflect-datacons:syms" <$> symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms1 ]
+  let syms = syms1 ++ syms2
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su
