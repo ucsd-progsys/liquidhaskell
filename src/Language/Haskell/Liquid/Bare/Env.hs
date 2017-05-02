@@ -63,7 +63,7 @@ data BareEnv = BE
   { modName  :: !ModName
   , tcEnv    :: !TCEnv
   , rtEnv    :: !RTEnv
-  , varEnv   :: ![(Symbol, Var)]
+  , varEnv   :: M.HashMap Symbol Var -- S.HashSet (Symbol, Var) -- [(Symbol, Var)]
   , hscEnv   :: HscEnv
   , logicEnv :: LogicMap
   , bounds   :: RBEnv

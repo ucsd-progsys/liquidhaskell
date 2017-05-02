@@ -36,9 +36,9 @@ import           Control.Monad.State
 import           Data.Maybe                            (isNothing)
 
 import qualified Data.List                             as L
-
+import qualified Data.HashMap.Strict                   as M
 import           Language.Fixpoint.Misc                (sortNub)
-import           Language.Fixpoint.Types               (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft, symbolString)
+import           Language.Fixpoint.Types               (tracepp, Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft, symbolString)
 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
@@ -77,7 +77,7 @@ makeSymbols :: (Functor t1, Functor t2, Foldable t, Foldable t1, Foldable t2, Re
             -> t (Located (RType c tv r))
             -> m [(Symbol, Var)]
 makeSymbols f vs xs' xts yts ivs
-  = do svs <- gets varEnv
+  = do svs <- tracepp "reflect-datacons: svs" <$> (M.toList <$> gets varEnv)
        return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
                        ++  [ (symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])
     where

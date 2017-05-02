@@ -43,7 +43,7 @@ import           Data.Maybe
 import           Control.Monad.Except                       (catchError)
 import           TypeRep                                    (Type(TyConApp))
 
-import           Text.PrettyPrint.HughesPJ (text)
+import           Text.PrettyPrint.HughesPJ (text, (<+>))
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -147,7 +147,8 @@ ghcSpecEnv sp        = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v]
+                     ++ [(x,        vSort v) | (x, v)         <- frees, isConLikeId v]
+    frees            = tracepp "reflect-datacons: gsFreeSyms" $ gsFreeSyms sp
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -675,7 +676,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ({- text "replaceLocalBindsOne" <+> -} pprint v) t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "replaceLocalBindsOne" <+> pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))

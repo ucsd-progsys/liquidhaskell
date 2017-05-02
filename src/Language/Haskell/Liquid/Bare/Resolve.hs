@@ -15,8 +15,8 @@ import           Control.Monad.State
 import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos
 
-import qualified Data.List                           as L
-
+-- import qualified Data.List                           as L
+-- import qualified Data.HashSet                        as S
 import qualified Data.HashMap.Strict                 as M
 
 -- import           Language.Fixpoint.Misc              (traceShow)
@@ -69,7 +69,7 @@ instance Resolvable Expr where
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
   resolve _ (ESym s)        = return $ ESym s
   resolve _ (ECon c)        = return $ ECon c
-  resolve l (PGrad k su e)  = PGrad k su <$> resolve l e 
+  resolve l (PGrad k su e)  = PGrad k su <$> resolve l e
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)
@@ -85,7 +85,7 @@ instance Resolvable LocSymbol where
            _                 -> return ls
 
 addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
-addSym x = modify $ \be -> be { varEnv = varEnv be `L.union` [x] }
+addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.union` [x] } -- TODO: OMG THIS IS THE SLOWEST THING IN THE WORLD!
 
 isCon :: Symbol -> Bool
 isCon s

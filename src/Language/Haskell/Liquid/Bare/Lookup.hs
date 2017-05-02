@@ -35,7 +35,6 @@ import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
-import qualified Data.List                        as L
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
@@ -161,7 +160,7 @@ ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
-       case L.lookup (symbol x) env of
+       case M.lookup (symbol x) env of
          Nothing -> lookupGhcThing "variable" fv x
          Just v  -> return v
   where
