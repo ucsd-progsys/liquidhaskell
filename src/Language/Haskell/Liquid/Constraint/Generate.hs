@@ -90,9 +90,6 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
     act                  = consAct cfg info
     cfg                  = getConfig   info
 
-instance Show (Cinfo) where
-  show = show . ci_var
-
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ'    <- initEnv      info
