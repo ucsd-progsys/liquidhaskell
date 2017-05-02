@@ -4,3 +4,6 @@
 [submodule "ghc-options"]
 	path = ghc-options
 	url = https://github.com/ranjitjhala/ghc-options.git
+[submodule "liquiddesugar"]
+	path = liquiddesugar
+	url = https://github.com/nikivazou/liquiddesugar.git
