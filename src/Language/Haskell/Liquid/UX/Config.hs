@@ -105,6 +105,7 @@ data Config = Config {
   , proofMethod     :: ProofMethod -- ^ How to create automatic instances 
   , fuel            :: Int         -- ^ Fuel for axiom instantiation 
   , debugInstantionation :: Bool   -- ^ Debug Instantiation  
+  , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize ProofMethod

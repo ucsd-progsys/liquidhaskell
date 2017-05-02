@@ -48,7 +48,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
+import           Language.Fixpoint.Misc                     (traceShow, ensurePath, thd3, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -249,12 +249,14 @@ addRTEnv spec = do
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
-makeExactDataCons n flag vs spec
+makeExactDataCons _n flag vs0 spec
   | flag      = return $ spec { gsTySigs = gsTySigs spec ++ xts}
   | otherwise = return spec
   where
     xts       = makeExact <$> filter f vs
-    f v       = GM.isDataConId v && varInModule n v
+    f v       = GM.isDataConId v -- TODO:reflect-datacons && varInModule _n v
+    vs        = traceShow "makeExactDataCons vs  = " $ filter f vs1
+    vs1       = traceShow "makeExactDataCons vs0 = " vs0
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v

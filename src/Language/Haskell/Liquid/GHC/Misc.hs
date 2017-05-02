@@ -40,7 +40,7 @@ import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Text.Parsec.Pos                            (sourceName, sourceLine, sourceColumn, newPos)
+import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
 
 import           Name
 import           Module                                     (moduleNameFS)
@@ -274,7 +274,8 @@ sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
     (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
-sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
+-- sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
+sourcePosSrcSpan p = sourcePos2SrcSpan p (incSourceColumn p 1)
 
 sourcePosSrcLoc    :: SourcePos -> SrcLoc
 sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
