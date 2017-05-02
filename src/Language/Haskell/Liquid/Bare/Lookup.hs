@@ -216,7 +216,7 @@ lookupGhcTyCon src s = do
 
     fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey 
       = Just $ dataConTyCon x 
-    fdc (AConLike (RealDataCon x)) -- | isJust $ promoteDataCon_maybe x
+    fdc (AConLike (RealDataCon x)) --  isJust $ promoteDataCon_maybe x
       = Just $ promoteDataCon x
     fdc _
       = Nothing
