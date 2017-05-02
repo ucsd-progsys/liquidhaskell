@@ -96,7 +96,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
   sp <- throwLeft =<< execBare act initEnv
-  let renv = ghcSpecEnv sp
+  let renv = tracepp "reflect-datacons:ghcSpecEnv" $ ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
@@ -211,16 +211,13 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
     dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
 
 
--- | symbolVarMap resolves each Symbol to its Var; we keep the
---   lists SEPARATE because Symbol corresponding to measures generated
---   from LIFTED functions SHOULD NOT be substituted away (while DATA CONSTRUCTORS
---   SHOULD be. (Due to our brittle name handling.) Ideally, ALL names
---   should be resolved to their GHC version...
-symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM ([(Symbol, Var)], [(Symbol, Var)])
+-- | symbolVarMap resolves each Symbol to its Var;
+
+symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs = do
   syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
-  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1,  [ (val lx, v) | (v, lx, _) <- syms2 ])
+  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++  [ (val lx, v) | (v, lx, _) <- syms2 ])
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
@@ -242,14 +239,13 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
-  (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
+  (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 defVars specs dcSs datacons cls embs
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
-  let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+  let fSyms = tracepp "reflect-datacons:freeSymbols" $ freeSymbols (tracepp "reflect-datacons: KNOWN" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
-  (syms1, _syms2) <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms1 ]
-  let syms = syms1 -- ++ syms2
+  syms     <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su
@@ -317,14 +313,14 @@ makeGhcAxioms
 makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (getReflects specs)
-  xtes    <- makeHaskellAxioms embs cbs sp mSpc
+  xtes    <- tracepp "haskell-axioms" <$> makeHaskellAxioms embs cbs sp mSpc
   let xts  = [(x, t) | (x, t, _) <- xtes ]
   let mAxs = [ e     | (_, _, e) <- xtes ]  -- axiom-eqs in THIS module
-  let iAxs = tracepp "reflected-datacons:axiomEqs" $ getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
+  let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
   let xts' = xts ++ gsAsmSigs sp
-  let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = varSymbol v, S.member vx rfls ]
+  let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
   let msR  = [ (vx, t)    | (_, vx, t) <- vts ]
   let vs   = [ v          | (v,  _, _) <- vts ]
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
@@ -332,9 +328,6 @@ makeGhcAxioms file name embs cbs specs lSpec0 sp = do
                 , gsReflects = vs  ++ gsReflects sp
                 , gsAxioms   = axs ++ gsAxioms   sp
                 }
-
-varSymbol :: Var -> Symbol
-varSymbol = GM.dropModuleNames . GM.simplesymbol
 
 makeLogicMap :: GhcSpec -> BareM GhcSpec
 makeLogicMap sp = do
@@ -418,7 +411,13 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
       tx       = fmap . mapSnd . subst $ su
       tx'      = fmap (mapSnd $ fmap uRType)
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
-      measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'
+      measSyms = tx' $ tx $ (tracepp "meas1" ms') ++ (  tracepp "meas2" $ varMeasures vars) ++ ( tracepp "meas3" cms')
+
+
+qualifySymbol :: [Var] -> [(Symbol, a)] -> [(Symbol, a)]
+qualifySymbol vs xts = [ (qualify x , t) | (x, t) <- xts ]
+  where
+    qualify x        = maybe x symbol (L.find (isSymbolOfVar x) vs)
 
 makeGhcSpec2 :: Monad m
              => [(Maybe Var  , LocSpecType)]
@@ -553,7 +552,10 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
-makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, val x == symbol' y]
+makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, isSymbolOfVar (val x) y ]
+
+isSymbolOfVar :: Symbol -> Var -> Bool
+isSymbolOfVar x v = x == symbol' v
   where
     symbol' :: Var -> Symbol
     symbol' = GM.dropModuleNames . symbol . getName
@@ -588,7 +590,7 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
 
         p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
-makeGhcSpecCHOP2 :: [CoreBind]
+makeGhcSpecCHOP2 :: [Var]
                  -> [(ModName, Ms.BareSpec)]
                  -> [Measure SpecType DataCon]
                  -> [(DataCon, DataConP)]
@@ -599,16 +601,16 @@ makeGhcSpecCHOP2 :: [CoreBind]
                           , [(Symbol, Located (RRType Reft))]
                           , [(Var,    LocSpecType)]
                           , [Symbol] )
-makeGhcSpecCHOP2 _cbs specs dcSelectors datacons cls embs = do
+makeGhcSpecCHOP2 defVars specs dcSelectors datacons cls embs = do
   measures'   <- mconcat <$> mapM makeMeasureSpec specs
   tyi         <- gets tcEnv
   let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors]
   let (cs, ms) = makeMeasureSpec' measures
   let cms      = makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
-  let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
+  let ms'      = qualifySymbol defVars [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
   let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
-  let xs'      = val . fst <$> ms
+  let xs'      = fst <$> ms'
   return (measures, cms', ms', cs', xs')
 
 txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType

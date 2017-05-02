@@ -311,20 +311,13 @@ toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e = do
   let (f, es) = splitArgs e
   case f of
-    C.Var x -> do args <- mapM coreToLg es
+    C.Var _ -> do args <- mapM coreToLg es
                   lmap       <- symbolMap <$> getState
                   def        <- (`mkEApp` args) <$> tosymbol f
-                  bbs        <- boolbinds <$> get
-                  (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
+                  -- bbs        <- boolbinds <$> get
+                  (\x -> makeApp def lmap x args) <$> tosymbol' f
     _       -> do (fe:args) <- mapM coreToLg (f:es)
                   return $ foldl EApp fe args
-
-liftBoolBinds :: Var -> [Var] -> Expr -> Expr
-liftBoolBinds x xs e
-  | x `elem` xs
-  = mkProp e
-  | otherwise
-  = e
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
@@ -339,7 +332,7 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f' <- tosymbol' (C.Var x :: C.CoreExpr)
-  return $ eAppWithMap lmap f' [] (varExpr x)
+  return $ tracepp "eAppWithMap" $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x
@@ -402,7 +395,7 @@ tosymbol e
     _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
-tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
+tosymbol' (C.Var x) = return $ dummyLoc $ tracepp "tosymbol'" $ simpleSymbolVar' x
 tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 makesub :: C.CoreBind -> LogicM (Symbol, Expr)
@@ -436,7 +429,6 @@ simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = F.tracepp "reflect-datacons:simpleSymbolVar'" . simplesymbol --symbol . {- showPpr . -} getName
 
 varSymbol :: Var -> Symbol
-varSymbol v | Type.isFunTy (varType v) = simplesymbol v
 varSymbol v                            = F.tracepp "reflect-datacons:varSymbol" $ symbol v
 
 isErasable :: Id -> Bool
