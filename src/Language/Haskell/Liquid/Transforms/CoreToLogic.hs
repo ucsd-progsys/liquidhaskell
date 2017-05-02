@@ -390,8 +390,9 @@ splitArgs e = (f, reverse es)
     go f           = (f, [])
 
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
-tomaybesymbol (C.Var c) | isDataConId  c = Just $ symbol c
-tomaybesymbol (C.Var x) = Just $ simpleSymbolVar x
+-- TODO:reflect-datacons tomaybesymbol (C.Var c) | isDataConId  c = Just $  F.tracepp "reflect-datacons:tomaybe1" $ symbol c
+-- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybe2" $ simpleSymbolVar x
+tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybesymbol" $ simpleSymbolVar' x
 tomaybesymbol _         = Nothing
 
 tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
@@ -432,11 +433,11 @@ ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 simpleSymbolVar' :: Id -> Symbol
-simpleSymbolVar' = symbol . {- showPpr . -} getName
+simpleSymbolVar' = F.tracepp "reflect-datacons:simpleSymbolVar'" . simplesymbol --symbol . {- showPpr . -} getName
 
 varSymbol :: Var -> Symbol
 varSymbol v | Type.isFunTy (varType v) = simplesymbol v
-varSymbol v                            = symbol v
+varSymbol v                            = F.tracepp "reflect-datacons:varSymbol" $ symbol v
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)

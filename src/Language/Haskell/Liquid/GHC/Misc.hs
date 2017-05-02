@@ -494,7 +494,7 @@ instance Symbolic Name where
   symbol = symbol . qualifiedNameSymbol
 
 instance Symbolic Var where
-  symbol = varSymbol
+  symbol = symbol . getName -- TODO:reflect-datacons varSymbol
 
 instance Hashable Var where
   hashWithSalt = uniqueHash
