@@ -142,14 +142,14 @@ postProcess cbs specEnv sp@(SP {..})
     allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> [(ModName, Ms.BareSpec)] -> SEnv SortedReft
-ghcSpecEnv sp _specs  = fromListSEnv binds
+ghcSpecEnv sp _specs = fromListSEnv binds
   where
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- frees, isConLikeId v]
-                     -- HELP HEREHEREHERE ++ [(val x,    rSort t) | (x, Loc _ _ t) <- getReflSigs specs]
-    frees            = tracepp "reflect-datacons: gsFreeSyms" $ gsFreeSyms sp
+                     ++ [(x,        vSort v) | (x, v)         <- frees ] -- , isConLikeId v || S.member x refls ]
+    frees            = tracepp "reflect-datacons:gsFreeSyms" $ gsFreeSyms sp
+    -- refls            = S.fromList $ tracepp "reflect-datacons:getReflects" $ getReflects specs
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -245,7 +245,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
   syms     <- tracepp "reflect-datacons:syms" <$> symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
+  let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su
