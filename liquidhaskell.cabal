@@ -69,6 +69,7 @@ Executable liquid
                , pretty
                , process
                , liquid-fixpoint >= 0.6
+               , liquiddesugar 
                , located-base
                , liquidhaskell
 
@@ -114,6 +115,7 @@ Library
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.6
+                , liquiddesugar
                 , located-base
                 , aeson >= 0.10 && < 1.0 
                 , bytestring >= 0.10
@@ -255,6 +257,7 @@ test-suite test
                ,     transformers >= 0.3
                ,     syb
                ,     liquid-fixpoint
+               ,     liquiddesugar
 
 test-suite liquidhaskell-parser
   default-language: Haskell2010
@@ -274,6 +277,7 @@ test-suite liquidhaskell-parser
                ,     transformers >= 0.3
                ,     syb
                ,     liquid-fixpoint >= 0.6
+               ,     liquiddesugar
   if flag(devel)
     hs-source-dirs:   tests src
     build-depends:
@@ -290,6 +294,7 @@ test-suite liquidhaskell-parser
                 , ghc == 8.0.2
                 , hashable >= 1.2
                 , liquid-fixpoint >= 0.6
+                , liquiddesugar
                 , pretty
                 , syb >= 0.4.4
                 , time

@@ -2,6 +2,7 @@ resolver: lts-8.9
 
 packages:
 - liquid-fixpoint/
+- liquiddesugar
 - '.'
 
 extra-deps:
