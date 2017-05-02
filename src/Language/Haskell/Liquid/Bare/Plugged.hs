@@ -15,19 +15,21 @@ import NameSet
 import TyCon
 import Type (expandTypeSynonyms, Type)
 import Var
-
+-- import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import Control.Monad
 import Control.Monad.Except
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
+import           Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
+-- import Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
 import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
@@ -102,7 +104,7 @@ plugHoles tce tyi x f t (Loc l l' st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt
@@ -111,7 +113,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
 
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
+    initvmap          = initMapSt $ ErrMismatch lqSp (text "Plugged Init types " <+> pprint t <+> "\nVS\n" <+> pprint st  <+> pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
     hsSp              = getSrcSpan x
     lqSp              = sourcePos2SrcSpan l l'
 

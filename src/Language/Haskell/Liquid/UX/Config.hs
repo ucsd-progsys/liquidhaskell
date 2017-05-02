@@ -106,6 +106,7 @@ data Config = Config {
   , proofMethod     :: ProofMethod -- ^ How to create automatic instances 
   , fuel            :: Int         -- ^ Fuel for axiom instantiation 
   , debugInstantionation :: Bool   -- ^ Debug Instantiation  
+  , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize ProofMethod
@@ -158,7 +159,9 @@ class HasConfig t where
   getConfig :: t -> Config
 
   patternFlag :: t -> Bool
-  patternFlag = not . noPatternInline . getConfig
+  -- NV: This edit goes with the similar edit in Config.hs
+  patternFlag = const False
+  --   patternFlag = not . noPatternInline . getConfig
 
   higherOrderFlag :: t -> Bool
   higherOrderFlag = higherorder . getConfig

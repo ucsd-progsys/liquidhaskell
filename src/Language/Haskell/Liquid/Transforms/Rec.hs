@@ -8,6 +8,7 @@
 
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
+     , outerScTr , innerScTr 
      ) where
 
 import           Bag
@@ -19,12 +20,11 @@ import           CoreUtils
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
 import           ErrUtils
-import           Id                                   (idOccInfo, setIdInfo)
 import           IdInfo
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
-import           Language.Fixpoint.Misc               (mapSnd)
+import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)
@@ -32,7 +32,7 @@ import           Outputable                           (SDoc)
 import           Prelude                              hiding (error)
 import           SrcLoc
 import           Type                                 (mkForAllTys, splitForAllTys)
-import           TypeRep
+import           TyCoRep
 import           Unique                               hiding (deriveUnique)
 import           Var
 
@@ -100,8 +100,9 @@ isTypeError :: SDoc -> Bool
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
 
+-- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
-transformScope = outerScTr . innerScTr
+transformScope = outerScTr . innerScTr 
 
 outerScTr :: [Bind Id] -> [Bind Id]
 outerScTr = mapNonRec (go [])
@@ -219,11 +220,11 @@ mkFreshIds :: [TyVar]
            -> State TrEnv ([Var], Id)
 mkFreshIds tvs ids x
   = do ids'  <- mapM fresh ids
-       let t  = mkForAllTys tvs $ mkType (reverse ids') $ varType x
+       let t  = mkForAllTys ((`Named` Visible) <$> tvs) $ mkType (reverse ids') $ varType x
        let x' = setVarType x t
        return (ids', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
+    mkType ids ty = foldl (\t x -> ForAllTy (Anon $ varType x) t) ty ids
 
 class Freshable a where
   fresh :: a -> TE a
@@ -247,12 +248,6 @@ freshInt
 freshUnique :: MonadState TrEnv m => m Unique
 freshUnique = liftM (mkUnique 'X') freshInt
 
-mkAlive :: Var -> Id
-mkAlive x
-  | isId x && isDeadOcc (idOccInfo x)
-  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
-  | otherwise
-  = x
 
 mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]
 mapNonRec f (NonRec x xe:xes) = NonRec x xe : f x (mapNonRec f xes)

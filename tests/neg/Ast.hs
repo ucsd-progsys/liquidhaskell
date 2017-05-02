@@ -2,7 +2,7 @@
 -- issue #519
 
 {-# LANGUAGE DeriveFunctor #-}
-module Main where
+module AST where
 
 data AstIndex = IxExpr | IxType
 

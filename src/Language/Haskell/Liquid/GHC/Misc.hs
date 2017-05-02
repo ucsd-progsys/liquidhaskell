@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE PatternSynonyms           #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -29,8 +30,9 @@ import           CoreSyn                                    hiding (Expr, source
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
-import           HscTypes                                   (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
-import           Kind                                       (superKind)
+import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..), 
+                                                             Dependencies(..))
+import           TysPrim                                    (anyTy)
 import           NameSet                                    (NameSet)
 import           SrcLoc                                     hiding (L)
 import           Bag
@@ -38,7 +40,7 @@ import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Text.Parsec.Pos                            (sourceName, sourceLine, sourceColumn, newPos)
+import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
 
 import           Name
 import           Module                                     (moduleNameFS)
@@ -52,7 +54,7 @@ import           TcRnDriver
 
 import           RdrName
 import           Type                                       (liftedTypeKind)
-import           TypeRep
+import           TyCoRep
 import           Var
 import           IdInfo
 import qualified TyCon                                      as TC
@@ -73,10 +75,17 @@ import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
-import           Language.Haskell.Liquid.Desugar.HscMain
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
+import           Id                                   (idOccInfo, setIdInfo)
+
+mkAlive :: Var -> Id
+mkAlive x
+  | isId x && isDeadOcc (idOccInfo x)
+  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
+  | otherwise
+  = x
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
@@ -84,7 +93,7 @@ data MGIModGuts = MI {
     mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
   , mgi_deps      :: !Dependencies
-  , mgi_dir_imps  :: !ImportedMods
+  , mgi_dir_imps  :: ![ModuleName]
   , mgi_rdr_env   :: !GlobalRdrEnv
   , mgi_tcs       :: ![TyCon]
   , mgi_fam_insts :: ![FamInst]
@@ -104,6 +113,9 @@ miModGuts cls mg  = MI {
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
+
+mg_dir_imps :: ModGuts -> [ModuleName]
+mg_dir_imps m = fst <$> (dep_mods $ mg_deps m)
 
 mgi_namestring :: MGIModGuts -> String
 mgi_namestring = moduleNameString . moduleName . mgi_module
@@ -137,11 +149,11 @@ stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
       occ  = mkVarOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
-stringTyCon = stringTyConWithKind superKind
+stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = TC.mkKindTyCon name k
+stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name 
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -151,11 +163,11 @@ hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
+isBaseType (ForAllTy (Anon _) _) = False -- isBaseType t1 && isBaseType t2
 isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
-isBaseType (FunTy _ _)     = False -- isBaseType t1 && isBaseType t2
 isBaseType _               = False
 
 validTyVar :: String -> Bool
@@ -262,7 +274,8 @@ sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
     (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
-sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
+-- sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
+sourcePosSrcSpan p = sourcePos2SrcSpan p (incSourceColumn p 1)
 
 sourcePosSrcLoc    :: SourcePos -> SrcLoc
 sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
@@ -335,8 +348,15 @@ collectArguments :: Int -> CoreExpr -> [Var]
 collectArguments n e = if length xs > n then take n xs else xs
   where
     (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
-    vs               = fst $ collectValBinders $ ignoreLetBinds e'
+    vs               = fst $ collectBinders $ ignoreLetBinds e'
     xs               = vs' ++ vs
+
+collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
+collectTyBinders expr
+  = go [] expr
+  where
+    go tvs (Lam b e) | isTyVar b = go (b:tvs) e
+    go tvs e                     = (reverse tvs, e)
 
 collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
 collectValBinders' = go []
@@ -383,8 +403,6 @@ realTcArity
   = kindArity . TC.tyConKind
 
 kindArity :: Kind -> Arity
-kindArity (FunTy _ res)
-  = 1 + kindArity res
 kindArity (ForAllTy _ res)
   = 1 + kindArity res
 kindArity _
@@ -407,7 +425,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
                     -- Try and find the required name in the exports
                     let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
                                                 , is_qual = False, is_dloc = noSrcSpan }
-                        provenance = Imported [ImpSpec decl_spec ImpAll]
+                        provenance = Just $ ImpSpec decl_spec ImpAll
                         env = case mi_globals iface of
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
@@ -420,7 +438,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
-
 
 qualImportDecl :: ModuleName -> ImportDecl name
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
@@ -475,7 +492,7 @@ fastStringText = T.decodeUtf8With TE.lenientDecode . fastStringToByteString
 
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
-tyConTyVarsDef c | TC.isPromotedTyCon   c = []
+-- tyConTyVarsDef c | TC.isPromotedTyCon   c = []
 tyConTyVarsDef c | TC.isPromotedDataCon c = []
 tyConTyVarsDef c = TC.tyConTyVars c
 
@@ -523,9 +540,6 @@ instance Show TyCon where
   show = show . getName
 
 instance NFData Class where
-  rnf t = seq t ()
-
-instance NFData SrcSpan where
   rnf t = seq t ()
 
 instance NFData TyCon where
@@ -622,22 +636,10 @@ gHC_VERSION = show __GLASGOW_HASKELL__
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-desugarModule :: TypecheckedModule -> Ghc DesugaredModule
-desugarModule tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm
-  -- let ms = modSummary tcm
-  let (tcg, _) = tm_internals_ tcm
-  hsc_env <- getSession
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
-
--- desugarModule = GHC.desugarModule
-
 type Prec = TyPrec
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
+lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe

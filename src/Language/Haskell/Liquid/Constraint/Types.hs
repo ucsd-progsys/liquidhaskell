@@ -50,13 +50,11 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
-
-  -- * Axiom Instantiation
-  , AxiomEnv(..), Equation(..), Simplify(..)
   ) where
 
 import Prelude hiding (error)
 import           CoreSyn
+import           Type (TyThing( AnId ))
 import           Var
 import           SrcLoc
 import           Unify (tcUnifyTy)
@@ -76,8 +74,6 @@ import           Language.Haskell.Liquid.Misc           (fourth4)
 import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
-import qualified Language.Fixpoint.Types.Config as FC
-import qualified Language.Fixpoint.Smt.Interface as FI 
 import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
@@ -128,33 +124,6 @@ instance PPrint CGEnv where
 
 instance Show CGEnv where
   show = showpp
-
-
-data AxiomEnv = AEnv { aenvSyms    :: ![F.Symbol]
-                     , aenvEqs     :: ![Equation]
-                     , aenvSimpl   :: ![Simplify] 
-                     , aenvFuel    :: (FixSubC -> Int) 
-                     , aenvExpand  :: (FixSubC -> Bool)
-                     , aenvDoRW    :: (FixSubC -> Bool)
-                     , aenvDoEqs   :: (FixSubC -> Bool)
-                     , aenvVerbose :: !Bool 
-                     , aenvConfig  :: FC.Config 
-                     , aenvContext :: FI.Context 
-                     }
-
-data Equation = Eq   { eqName :: F.Symbol
-                     , eqArgs :: [F.Symbol]
-                     , eqBody :: F.Expr
-                     } deriving (Show)
-
-
--- eg  SMeasure (f D [x1..xn] e) 
--- for f (D x1 .. xn) = e 
-data Simplify = SMeasure  { smName  :: F.Symbol         -- eg. f
-                          , smDC    :: F.Symbol         -- eg. D
-                          , smArgs  :: [F.Symbol]         -- eg. xs
-                          , smBody  :: F.Expr           -- eg. e[xs]
-                          } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -351,7 +320,7 @@ addRInv m (x, t)
    where
      ids = [id | tc <- M.keys m
                , dc <- TC.tyConDataCons $ rtc_tc tc
-               , id <- DC.dataConImplicitIds dc]
+               , AnId id <- DC.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType

@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.GHC.Interface (
 import Prelude hiding (error)
 
 import qualified Outputable as O
-import GHC hiding (Target, desugarModule, Located)
+import GHC hiding (Target, Located)
 import qualified GHC
 import GHC.Paths (libdir)
 
@@ -48,6 +48,8 @@ import Serialized
 import TcRnTypes
 import Var
 import NameSet
+import FastString
+import GHC.LanguageExtensions
 
 import Control.Exception
 import Control.Monad
@@ -76,6 +78,7 @@ import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Parse
@@ -125,7 +128,7 @@ runLiquidGhc hscEnv cfg act =
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- configureDynFlags cfg tmp
-      defaultCleanupHandler df act
+      prettyPrintGhcErrors df act
 
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
@@ -135,7 +138,8 @@ configureDynFlags cfg tmp = do
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                  , includePaths = nub $ idirs cfg ++ includePaths df'
-                 , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                 , packageFlags = ExposePackage ""
+                                                (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
@@ -145,16 +149,16 @@ configureDynFlags cfg tmp = do
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
                                     then defaultLogAction
-                                    else \_ _ _ _ _ -> return ()
+                                    else \_ _ _ _ _ _ -> return ()
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
                  , stubDir      = Just tmp
-                 } `xopt_set` Opt_MagicHash
-                   `xopt_set` Opt_DeriveGeneric
-                   `xopt_set` Opt_StandaloneDeriving
-                   `gopt_set` Opt_ImplicitImportQualified
+                 } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
+                   `xopt_set` MagicHash
+                   `xopt_set` DeriveGeneric
+                   `xopt_set` StandaloneDeriving
   _ <- setSessionDynFlags df''
   return df''
 
@@ -206,18 +210,17 @@ mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
   homePkg <- thisPackage <$> getSessionDynFlags
-  return $ modulePackageKey mod == homePkg
+  return $ moduleUnitId mod == homePkg
 
 modSummaryImports :: ModSummary -> Ghc [Module]
 modSummaryImports modSummary =
-  mapM (importDeclModule (ms_mod modSummary) . unLoc)
+  mapM (importDeclModule (ms_mod modSummary))
        (ms_textual_imps modSummary)
 
-importDeclModule :: Module -> ImportDecl a -> Ghc Module
-importDeclModule fromMod decl = do
+importDeclModule :: Module -> (Maybe FastString,  GHC.Located ModuleName) -> Ghc Module
+importDeclModule fromMod (pkgQual, locModName) = do
   hscEnv <- getSession
-  let modName = unLoc $ ideclName decl
-  let pkgQual = ideclPkgQual decl
+  let modName = unLoc locModName
   result <- liftIO $ findImportedModule hscEnv modName pkgQual
   case result of
     Finder.Found _ mod -> return mod

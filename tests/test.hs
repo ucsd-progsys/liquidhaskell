@@ -17,7 +17,7 @@ import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..))
+import Data.Monoid (Sum(..), (<>))
 import Data.Proxy
 import Data.String
 import Data.Tagged
@@ -59,6 +59,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
+    -- tests = group "Tests" [ unitTests]
     tests = group "Tests" [ unitTests, benchTests ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests ]
@@ -100,11 +101,14 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []                (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []                ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
-    , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-    , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+    -- , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+    -- , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
     -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
     -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
    ]
+
+gPosIgnored = ["Intro.hs"]
+gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests
@@ -220,6 +224,8 @@ testCmd bin dir file smt (LO opts)
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
               , "DataBase.hs" 
+              , "FindRec.hs" 
+              , "CopyRec.hs" 
               ]
 
 proverIgnored  :: [FilePath]
@@ -273,6 +279,7 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
+              , "Data/Text/Encoding.hs"
               ]
 
 demosIgnored :: [FilePath]

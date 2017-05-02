@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE BangPatterns               #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -224,9 +225,9 @@ import Prelude                          hiding  (error)
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
-import TypeRep                          hiding  (maybeParen, pprArrowChain)
+import           Language.Haskell.Liquid.GHC.TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
@@ -605,7 +606,7 @@ isClassBTyCon :: BTyCon -> Bool
 isClassBTyCon = btc_class
 
 isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)
+isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqPrimTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -672,6 +673,9 @@ instance Show TyConInfo where
 --------------------------------------------------------------------
 type RTVU c tv = RTVar tv (RType c tv ())
 type PVU  c tv = PVar     (RType c tv ())
+
+instance Show tv => Show (RTVU c tv) where
+  show (RTVar t _) = show t 
 
 data RType c tv r
   = RVar {
@@ -928,7 +932,7 @@ instance TyConable TyCon where
   isFun      = isFunTyCon
   isList     = (listTyCon ==)
   isTuple    = TyCon.isTupleTyCon
-  isClass c  = isClassTyCon c || c == eqTyCon
+  isClass c  = isClassTyCon c || c == eqPrimTyCon
   isEqual    = (eqPrimTyCon ==)
   ppTycon    = text . showPpr
 
@@ -1671,13 +1675,16 @@ instance NFData Cinfo
 -- | Module Names --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName deriving (Eq, Ord)
+data ModName = ModName !ModType !ModuleName deriving (Eq, Ord, Show)
 
 instance PPrint ModName where
   pprintTidy _ = text . show
 
-instance Show ModName where
-  show = getModString
+instance Show ModuleName where
+  show = moduleNameString
+
+-- instance Show ModName where
+--   show = getModString
 
 instance Symbolic ModName where
   symbol (ModName _ m) = symbol m
@@ -1685,7 +1692,7 @@ instance Symbolic ModName where
 instance Symbolic ModuleName where
   symbol = symbol . moduleNameFS
 
-data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
+data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord,Show)
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True

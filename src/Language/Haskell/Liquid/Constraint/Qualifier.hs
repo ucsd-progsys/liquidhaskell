@@ -176,7 +176,7 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
+refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
             => SEnv Sort
             -> SourcePos
             -> TCEmb TyCon
@@ -202,7 +202,7 @@ refTopQuals lEnv l tce t0 γ t
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv
 
-mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
+mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
         => SEnv Sort
         -> SourcePos
         -> TCEmb TyCon

@@ -31,7 +31,7 @@ env:
   global:
   # - STACK=1.0.0.0
   - SMT=z3
-  - GHC=ghc-7.10.3
+  - GHC=ghc-8.0.2
   matrix:
   - TESTS=Unit/
   - TESTS=Benchmarks/text

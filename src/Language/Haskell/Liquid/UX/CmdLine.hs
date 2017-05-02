@@ -280,6 +280,11 @@ config = cmdArgsMode $ Config {
             &= name "elimBound"
             &= help "Maximum chain length for eliminating KVars"
 
+ , noslice
+    = False
+            &= name "noSlice"
+            &= help "Disable non-concrete KVar slicing"
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -518,6 +523,7 @@ defConfig = Config { files             = def
                    , proofMethod       = def 
                    , fuel              = defFuel
                    , debugInstantionation = False 
+                   , noslice              = False 
                    }
 
 defFuel :: Int 

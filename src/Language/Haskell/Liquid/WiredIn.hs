@@ -35,7 +35,7 @@ import DataCon
 import TyCon
 import TysWiredIn
 
-import TypeRep
+import Language.Haskell.Liquid.GHC.TypeRep
 import CoreSyn
 
 
@@ -48,7 +48,7 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 -----------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (mkTyArg dictionaryTyVar) $ TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"
@@ -137,8 +137,8 @@ tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo No
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
     l0            = dummyPos "LH.Bare.tupleTyDataCons"
-    c             = tupleTyCon BoxedTuple n
-    dc            = tupleCon BoxedTuple n
+    c             = tupleTyCon   Boxed n
+    dc            = tupleDataCon Boxed n
     tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"
