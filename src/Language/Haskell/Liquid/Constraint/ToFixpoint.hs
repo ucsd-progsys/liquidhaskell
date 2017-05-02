@@ -93,7 +93,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
   = F.AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
-           ((makeEquations info ++ (specTypToEq  <$> F.tracepp "reflect-datacons: makeAx-xts" xts)))
+           ((makeEquations info ++ (specTypToEq  <$> xts)))
            (concatMap makeSimplify xts)
            fuelMap
            doExpand
@@ -142,7 +142,7 @@ makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x x
     makeRefBody _ _  Nothing  = F.PTrue
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
     sigs                      = gsTySigs sp
-    axioms                    = F.tracepp "reflect-datacons: gsAxioms" $ gsAxioms sp
+    axioms                    = gsAxioms sp
     sp                        = spec info
 
 -- NV Move this to types?
