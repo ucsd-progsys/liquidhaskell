@@ -3,7 +3,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module ReflectLib3 where
+module ReflectLib5 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

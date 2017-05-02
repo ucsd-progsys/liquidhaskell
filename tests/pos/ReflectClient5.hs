@@ -2,13 +2,11 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module ReflectClient3a where
+module ReflectClient5 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import ReflectLib3
-
--- stupidity = [ undefined gapp ] -- , undefined Nil ]
+import ReflectLib5
 
 {-@ test5 :: { gapp Nil = Nil } @-}
 test5 = ()
