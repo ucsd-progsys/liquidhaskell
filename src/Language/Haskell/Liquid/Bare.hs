@@ -244,6 +244,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
   let fSyms = tracepp "reflect-datacons:freeSymbols" $ freeSymbols (tracepp "reflect-datacons: KNOWN" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+                                                    ++ S.toList (Ms.reflects mySpec)
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
   syms     <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
