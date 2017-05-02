@@ -219,7 +219,7 @@ cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
-    fv   = cRng `nubDiff` (lits ++ cDom ++ F.prims)
+    fv   =  cRng `nubDiff` (F.tracepp "FREEVARS" $ lits ++ cDom ++ F.prims)
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
