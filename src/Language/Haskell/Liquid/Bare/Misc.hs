@@ -151,7 +151,7 @@ mapTyVars _ _
   = throwError =<< errmsg <$> get
 
 isKind :: Kind -> Bool 
-isKind k = isStarKind k -- $ typeKind k  
+isKind k = isStarKind k --  typeKind k  
 
 
 mapTyRVar :: MonadError Error m
