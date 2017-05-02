@@ -80,7 +80,7 @@ strengthenResult v
     r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
     r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
     vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
-    f   = dummyLoc $ dropModuleNames $ simplesymbol v
+    f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
     t   = (ofType $ varType v) :: SpecType
     mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
@@ -91,7 +91,7 @@ strengthenResult' v
   = go mkProp [] [1..] t
   | otherwise
   = go mkExpr [] [1..] t
-  where f   = dummyLoc $ dropModuleNames $ simplesymbol v
+  where f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
         -- refine types of meaures: keep going until you find the last data con!

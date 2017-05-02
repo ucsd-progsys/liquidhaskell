@@ -171,7 +171,8 @@ makeLiftedSpec0 embs cbs mySpec = do
   ms     <- makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                    , Ms.measures = ms
-                   , Ms.reflects = Ms.reflects mySpec      }
+                   , Ms.reflects = Ms.reflects mySpec
+                   }
 
 makeLiftedSpec1 :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq] -> BareM ()
 makeLiftedSpec1 file name lSpec0 xts axs
@@ -252,7 +253,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
     -- The lifted-spec is saved in the next step
-    >>= makeGhcAxioms file name embs cbs specs lSpec0
+    >>= makeGhcAxioms file name embs cbs su specs lSpec0
     >>= makeLogicMap
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
@@ -282,7 +283,7 @@ varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, LocSpecType)
-makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = tracepp "makeExact" (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
     t    = ofType $ varType x
@@ -307,22 +308,22 @@ _getReflSigs = concatMap (Ms.reflSigs . snd)
 
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms
-  :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind]
+  :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Subst
   -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
   -> GhcSpec -> BareM GhcSpec
-makeGhcAxioms file name embs cbs specs lSpec0 sp = do
+makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (getReflects specs)
   xtes    <- tracepp "haskell-axioms" <$> makeHaskellAxioms embs cbs sp mSpc
-  let xts  = [(x, t) | (x, t, _) <- xtes ]
+  let xts  = [(x, subst su t) | (x, t, _) <- xtes ]
   let mAxs = [ e     | (_, _, e) <- xtes ]  -- axiom-eqs in THIS module
   let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
   let xts' = xts ++ gsAsmSigs sp
-  let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
-  let msR  = [ (vx, t)    | (_, vx, t) <- vts ]
-  let vs   = [ v          | (v,  _, _) <- vts ]
+  let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
+  let msR  = [ (symbol v, t) | (v, t) <- vts ]
+  let vs   = [ v             | (v, _) <- vts ]
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
                 , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
@@ -401,9 +402,9 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi           $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi           $ tx cs'
-       return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
-                   , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
-                   , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
+       return $ sp { gsTySigs   = tracepp "gsTySigs" $ filter (\(v,_) -> v `elem` vs) tySigs
+                   , gsAsmSigs  = tracepp "gsAsmSigs" $ filter (\(v,_) -> v `elem` vs) asmSigs
+                   , gsCtors    = tracepp "gsCtors" $ filter (\(v,_) -> v `elem` vs) ctors
                    , gsMeas     = measSyms
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
@@ -485,7 +486,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
                 , gsAutosize   = asize'
                 , gsLazy       = S.insert dictionaryVar lazies
                 , gsLogicMap   = lmap'
-                , gsTySigs     = gsTySigs'
+                , gsTySigs     = tracepp "HEREHEREHEREHEREHEREFORGODSSAKE" gsTySigs'
                 , gsTexprs     = gsTexprs'
                 , gsMeasures   = gsMeasures'
                 , gsAsmSigs    = gsAsmSigs'
