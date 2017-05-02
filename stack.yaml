@@ -13,6 +13,8 @@ extra-deps:
 - intern-0.9.1.4
 - located-base-0.1.1.0
 
-flags: {}
+flags:
+  liquidhaskell:
+    devel: true
 
 extra-package-dbs: []

@@ -228,9 +228,11 @@ Library
                     Test.Target.Types,
                     Test.Target.Util
 
-   ghc-options: -W -fwarn-missing-signatures -Werror
+   ghc-options: -W -fwarn-missing-signatures
    if flag(include)
      hs-source-dirs: devel
+   if flag(devel)
+     ghc-options: -Werror
    Default-Extensions: PatternGuards
 
 test-suite test
