@@ -52,8 +52,10 @@ fixConfig tgt cfg = def
   , FC.betaEquivalence  = betaEquivalence   cfg
   , FC.normalForm       = normalForm        cfg
   , FC.stringTheory     = stringTheory      cfg
-  , FC.gradual          = gradual           cfg 
-  , FC.noslice          = noslice           cfg 
+  , FC.gradual          = gradual           cfg
+  , FC.noslice          = noslice           cfg
+  , FC.rewriteAxioms    = allowRewrite      cfg
+  , FC.arithmeticAxioms = allowArithmetic   cfg
   }
 
 
@@ -100,20 +102,14 @@ makeAxiomEnvironment info xts fcs
            (concatMap makeSimplify xts)
            fuelMap
            doExpand
-           (allowRewrite    cfg)
-           (allowArithmetic cfg)
-           (debugInstantionation cfg)
-           fixCfg
   where
     cfg = getConfig info
-    fixCfg = fixConfig fileName cfg
-    fileName = head (files cfg)  ++ ".evals"
-    doExpand = (\sub -> (allowLiquidInstationationGlobal cfg
-                || (allowLiquidInstationationLocal cfg
-                && (maybe False (`M.member` (gsAutoInst (spec info))) (subVar sub)))))
-                            <$> fcs
+    doExpand = (\sub -> allowLiquidInstationationGlobal cfg
+                || allowLiquidInstationationLocal cfg
+                && maybe False (`M.member` gsAutoInst (spec info)) (subVar sub))
+                                    <$> fcs
     fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp}
-    fuelMap = (\sub -> (fromMaybe (fuel cfg) (fuelNumber sub))) <$> fcs
+    fuelMap =  fromMaybe (fuel cfg) . fuelNumber <$> fcs
     specTypToEq (x, t)
       = F.Equ (F.symbol x) (ty_binds $ toRTypeRep t)
            (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
