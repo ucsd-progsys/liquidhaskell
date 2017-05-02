@@ -19,7 +19,7 @@ module Language.Fixpoint.Solver.Instantiate (
   ) where
 
 import           Language.Fixpoint.Types
--- import qualified Language.Fixpoint.Types.Config as FC
+import           Language.Fixpoint.Types.Config as FC
 import qualified Language.Fixpoint.Smt.Theories as FT
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
@@ -52,29 +52,29 @@ import           Data.Foldable        (foldlM)
 ---------------------
 -- Instantiate Axioms
 ---------------------
-instantiateFInfo :: Context -> FInfo c -> IO (FInfo c)
-instantiateFInfo ctx fi = do
+instantiateFInfo :: Config -> Context -> FInfo c -> IO (FInfo c)
+instantiateFInfo cfg ctx fi = do
     cm' <- sequence $ M.mapWithKey instantiateOne (cm fi)
     return $ fi { cm = cm' }
-  where instantiateOne = instantiateAxioms ctx (bs fi) (gLits fi) (ae fi)
+  where instantiateOne = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
-instantiateAxioms :: Context -> BindEnv -> SEnv Sort -> AxiomEnv
+instantiateAxioms :: Config -> Context -> BindEnv -> SEnv Sort -> AxiomEnv
                      -> Integer -> SubC c
                      -> IO (SubC c)
-instantiateAxioms _ _ _ aenv sid sub
+instantiateAxioms _ _ _ _ aenv sid sub
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
-instantiateAxioms ctx bds fenv aenv sid sub
+instantiateAxioms cfg ctx bds fenv aenv sid sub
   = flip strengthenLhs sub . pAnd . (is0 ++) .
-    (if aenvDoEqs aenv then (is ++) else id) <$>
-    if aenvDoRW aenv then evalEqs else return []
+    (if arithmeticAxioms cfg then (is ++) else id) <$>
+    if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
     is               = instances maxNumber aenv initOccurences
     evalEqs          =
-           map (uncurry (PAtom Eq)) .
-           filter (uncurry (/=)) <$>
-           evaluate ctx ((vv Nothing, slhs sub):binds) fenv aenv initExpressions
+       map (uncurry (PAtom Eq)) .
+       filter (uncurry (/=)) <$>
+       evaluate cfg ctx ((vv Nothing, slhs sub):binds) fenv aenv initExpressions
     initExpressions  = expr (slhs sub) : expr (srhs sub) : (expr <$> binds)
     binds            = envCs bds (senv sub)
     initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
@@ -118,15 +118,16 @@ lookupKnowledge γ e
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
 
-makeKnowledge :: Context -> AxiomEnv -> SEnv Sort -> [(Symbol, SortedReft)]
+makeKnowledge :: Config -> Context -> AxiomEnv -> SEnv Sort
+                 -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
-makeKnowledge ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
-                                 { knSels   = sels
-                                 , knEqs    = eqs
-                                 , knSims   = aenvSimpl aenv
-                                 , knAms    = aenvEqs aenv
-                                 , knPreds  = \bs e c -> askSMT c bs e
-                                 }
+makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
+                                     { knSels   = sels
+                                     , knEqs    = eqs
+                                     , knSims   = aenvSimpl aenv
+                                     , knAms    = aenvEqs aenv
+                                     , knPreds  = \bs e c -> askSMT c bs e
+                                     }
   where
     (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
     fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
@@ -165,7 +166,7 @@ makeKnowledge ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                         --, EVar x /= ex
                         ]
 
-    toSMT xs = defuncAny (aenvConfig aenv) (insertSEnv xv sv senv) .
+    toSMT xs = defuncAny cfg (insertSEnv xv sv senv) .
                elaborate "symbolic evaluation"
                (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env))
                       (insertSEnv xv sv senv)
@@ -277,14 +278,15 @@ data EvalEnv = EvalEnv { evId        :: Int
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv -> [Expr]
+evaluate :: Config -> Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv
+            -> [Expr]
             -> IO [(Expr, Expr)]
-evaluate ctx facts fenv aenv einit
+evaluate cfg ctx facts fenv aenv einit
   = (eqs ++) <$>
     (fmap join . sequence)
     (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge ctx aenv fenv facts
+    (eqs, γ) = makeKnowledge cfg ctx aenv fenv facts
     initEvalSt = EvalEnv 0 [] aenv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
