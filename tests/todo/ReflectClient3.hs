@@ -6,9 +6,9 @@ module ReflectClient3a where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import ReflectLib3a
+import ReflectLib3
 
 stupidity = [ undefined gapp ]
 
 {-@ test4 :: { gapp Nil = Nil } @-}
-test4 = gapp Nil ==. Nil *** QED 
+test4 = gapp Nil ==. Nil *** QED

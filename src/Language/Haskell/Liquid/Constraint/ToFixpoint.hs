@@ -17,14 +17,17 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
--- import           Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
 import Data.Maybe (fromJust)
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
-import           Language.Haskell.Liquid.UX.Config (allowLiquidInstationationGlobal, allowLiquidInstationationLocal, allowRewrite, allowArithmetic)
+import           Language.Haskell.Liquid.UX.Config ( allowLiquidInstationationGlobal
+                                                   , allowLiquidInstationationLocal
+                                                   , allowRewrite
+                                                   , allowArithmetic
+                                                   )
 import           Language.Haskell.Liquid.GHC.Misc  (dropModuleNames, simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -52,8 +55,8 @@ fixConfig tgt cfg = def
   , FC.betaEquivalence  = betaEquivalence   cfg
   , FC.normalForm       = normalForm        cfg
   , FC.stringTheory     = stringTheory      cfg
-  , FC.gradual          = gradual           cfg 
-  , FC.noslice          = noslice           cfg 
+  , FC.gradual          = gradual           cfg
+  , FC.noslice          = noslice           cfg
   }
 
 
@@ -96,7 +99,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
   = F.AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
-           (makeEquations info ++ (specTypToEq  <$> xts))
+           (F.tracepp "reflect-datacons: equations" (makeEquations info ++ (specTypToEq  <$> xts)))
            (concatMap makeSimplify xts)
            fuelMap
            doExpand
@@ -105,8 +108,8 @@ makeAxiomEnvironment info xts fcs
            (debugInstantionation cfg)
            fixCfg
   where
-    cfg = getConfig info
-    fixCfg = fixConfig fileName cfg
+    cfg      = getConfig info
+    fixCfg   = fixConfig fileName cfg
     fileName = head (files cfg)  ++ ".evals"
     doExpand = (\sub -> (allowLiquidInstationationGlobal cfg
                 || (allowLiquidInstationationLocal cfg
@@ -193,8 +196,8 @@ specTypeToResultRef e t
     trep                   = toRTypeRep t
 
 makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
-makeAxioms info 
+makeAxioms info
   | allowSMTInstationation (getConfig info)
   = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
   | otherwise
-  = [] 
+  = []

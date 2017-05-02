@@ -17,8 +17,8 @@ forceImports = [ undefined next
 {-@ test2 :: { next Mon == Tue } @-}
 test2 = next Mon ==. Tue *** QED
 
--- THIS DOES NOT WORK, but it DOES work if we remove the 
--- type parameter from `List`. However it DOES work if we 
+-- THIS DOES NOT WORK, but it DOES work if we remove the
+-- type parameter from `List`. However it DOES work if we
 -- put this back into ReflectLib3.hs
 {-@ test4 :: { lDay Nil == Mon } @-}
 test4 = lDay Nil ==. Mon *** QED

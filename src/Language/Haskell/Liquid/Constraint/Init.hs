@@ -77,9 +77,9 @@ initEnv info
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty              -- data constructors
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ vals gsAsmSigs sp            -- assumed refinedments     (with `assume`)
-       f40      <- refreshArgs' $ vals gsCtors sp              -- constructor refinements  (for measures)
-       f5       <- refreshArgs' $ vals gsInSigs sp             -- internal refinements     (from Haskell measures)
+       f3       <- refreshArgs' $ vals gsAsmSigs sp          -- assumed refinedments     (with `assume`)
+       f40      <- refreshArgs' $ vals gsCtors sp            -- constructor refinements  (for measures)
+       f5       <- refreshArgs' $ vals gsInSigs sp           -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize sp) dcs'
        let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
