@@ -8,7 +8,7 @@ import Language.Haskell.Liquid.ProofCombinators
 
 import ReflectLib3
 
-stupidity = [ undefined gapp ]
+-- stupidity = [ undefined gapp ] -- , undefined Nil ]
 
-{-@ test4 :: { gapp Nil = Nil } @-}
-test4 = gapp Nil ==. Nil *** QED
+{-@ test5 :: { gapp Nil = Nil } @-}
+test5 = ()

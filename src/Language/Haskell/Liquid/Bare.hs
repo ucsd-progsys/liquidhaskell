@@ -173,13 +173,14 @@ makeLiftedSpec0 embs cbs mySpec = do
                    , Ms.measures = ms
                    , Ms.reflects = Ms.reflects mySpec      }
 
-makeLiftedSpec1 :: FilePath -> ModName -> Ms.BareSpec -> [(Var,LocSpecType)] -> BareM ()
-makeLiftedSpec1 file name lSpec0 xts
+makeLiftedSpec1 :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq] -> BareM ()
+makeLiftedSpec1 file name lSpec0 xts axs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
     xbs    = [ (GM.namedLocSymbol x, specToBare <$> t) | (x, t) <- xts ]
     lSpec1 = lSpec0 { Ms.asmSigs  = xbs
-                    , Ms.reflSigs = xbs }
+                    , Ms.reflSigs = xbs
+                    , Ms.axeqs    = axs }
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
@@ -232,13 +233,14 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals   <- mconcat <$> mapM makeQualifiers specs
-  syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (map snd invs ++ (snd <$> ialias))
+  syms                                    <- tracepp "reflect-datacons: syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
   let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
-    >>= makeGhcSpec1 vars defVars embs tyi exports name sigs (recSs ++ asms) cs' ms' cms' su
+    >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
+    -- The lifted-spec is saved in the next step
     >>= makeGhcAxioms file name embs cbs specs lSpec0
     >>= makeLogicMap
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
@@ -256,7 +258,6 @@ addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
   rt <- rtEnv <$> get
   return $ spec { gsRTAliases = rt }
-
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons _n flag vs spec
@@ -287,6 +288,9 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects = fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
 
+getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
+getAxiomEqs = concatMap (Ms.axeqs . snd)
+
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms
   :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind]
@@ -297,8 +301,10 @@ makeGhcAxioms file name embs cbs specs lSpec0 sp = do
   let rfls = S.fromList (getReflects specs)
   xtes    <- makeHaskellAxioms embs cbs sp mSpc
   let xts  = [(x, t) | (x, t, _) <- xtes ]
-  let axs  = [ e     | (_, _, e) <- xtes ]
-  _       <- makeLiftedSpec1 file name lSpec0 xts
+  let mAxs = [ e     | (_, _, e) <- xtes ]  -- axiom-eqs in THIS module
+  let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
+  let axs  = mAxs ++ iAxs
+  _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
   let xts' = xts ++ gsAsmSigs sp
   let vts  = [ (v, vx, t) | (v, t) <- xts', let vx = varSymbol v, S.member vx rfls ]
   let msR  = [ (vx, t)    | (_, vx, t) <- vts ]
@@ -365,7 +371,8 @@ makeGhcSpec0 cfg defVars exports name sp
                         , gsExports = exports
                         , gsTgtVars = targetVars }
 
-makeGhcSpec1 :: [Var]
+makeGhcSpec1 :: [(Symbol, Var)]
+             -> [Var]
              -> [Var]
              -> TCEmb TyCon
              -> M.HashMap TyCon RTyCon
@@ -379,20 +386,20 @@ makeGhcSpec1 :: [Var]
              -> Subst
              -> GhcSpec
              -> BareM GhcSpec
-makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
+makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi           $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi           $ tx cs'
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
-                   , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
+                   , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors -- TODO:reflect-datacons
                    , gsMeas     = measSyms
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where
       tx       = fmap . mapSnd . subst $ su
       tx'      = fmap (mapSnd $ fmap uRType)
-      vs       = vars ++ defVars
+      vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
       measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'
 
 makeGhcSpec2 :: Monad m

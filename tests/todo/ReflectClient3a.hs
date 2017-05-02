@@ -11,6 +11,6 @@ import ReflectLib3
 {-@ testOK :: { next Mon == Tue } @-}
 testOK = next Mon ==. Tue *** QED
 
-{-@ testFAIL :: { next Mon == Tue } @-}
+{-@ testFAIL :: { next Tue == Mon } @-}
 testFAIL = trivial 
 

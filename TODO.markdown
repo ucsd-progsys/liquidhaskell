@@ -7,6 +7,35 @@
 TODO
 ====
 
+
+Computing Result
+UNSAT id 20 False
+LHS: (VV##F##20 == GHC.Tuple.()##70
+      && int_apply_##1 len GHC.Types.[]##6m == 0
+      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
+      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
+      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
+      && (bool_apply_##1 is_Cons ReflectLib3.Nil##rOq <=> false)
+      && (bool_apply_##1 is_Nil ReflectLib3.Nil##rOq <=> true)
+      && int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq)
+RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
+RESULT: Safe
+
+
+
+
+LHS: (VV##F##12 == GHC.Tuple.()##70
+      && int_apply_##1 len GHC.Types.[]##6m == 0
+      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
+      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
+      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
+      && int_apply_##1 gapp ReflectLib3.Nil##rOq == (if bool_apply_##1 is_Nil ReflectLib3.Nil##rOq then ReflectLib3.Nil##rOq else int_apply_##1 ReflectLib3.Cons##rOr (int_apply_##1 select_Cons_1 ReflectLib3.Nil##rOq)))
+RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
+RESULT: Unsafe [Just 12]
+
+
+
+
 Prune Unsorted Refs
 -------------------
 

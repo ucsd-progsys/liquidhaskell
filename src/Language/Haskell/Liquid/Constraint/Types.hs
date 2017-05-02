@@ -146,7 +146,7 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 
-subVar :: FixSubC -> Maybe Var 
+subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where

@@ -350,8 +350,8 @@ data GhcSpec = SP {
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from axiomatized functions
-  , gsReflects  :: [Var] -- [HAxiom]              -- ^ Binders for reflected functions
+  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from reflected functions
+  , gsReflects  :: [Var]                          -- ^ Binders for reflected functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
   , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
@@ -1027,11 +1027,18 @@ data Axiom b s e = Axiom
   }
 
 type HAxiom = Axiom Var    Type CoreExpr
-data AxiomEq = AxiomEq { axiomName :: Symbol
-                       , axiomArgs :: [Symbol]
-                       , axiomBody :: Expr
-                       , axiomEq   :: Expr
-                       }
+
+data AxiomEq = AxiomEq
+  { axiomName :: Symbol
+  , axiomArgs :: [Symbol]
+  , axiomBody :: Expr
+  , axiomEq   :: Expr
+  } deriving (Generic)
+
+instance B.Binary AxiomEq
+
+instance PPrint AxiomEq where
+  pprintTidy k (AxiomEq n xs b _) = text "axeq" <+> pprint n <+> pprint xs <+> ":=" <+> pprintTidy k b
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
