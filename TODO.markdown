@@ -10,8 +10,9 @@ GHC-8 integration
   - `tests/todo/NoInlines.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - NV: bound syntax `tests/todo/dropWhile.hs`
-- FAILING TESTS: 1 neg 
-  T602.hs
+- NV: bound `icfp/pos/FindRec.hs`
+- NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
+
 
 ```
 showTy' :: Type -> String 
@@ -42,7 +43,8 @@ showTy (RHole _) = "RHole"
 sep' :: String -> [String] -> String
 sep' _ [] = []
 sep' _ [x] = x 
-sep' s (x:xs) = x ++ s ++ sep' s xs ```
+sep' s (x:xs) = x ++ s ++ sep' s xs 
+```
 
 - Reader
   - Applicative crashing

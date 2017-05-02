@@ -13,16 +13,9 @@ import Language.Haskell.Liquid.Prelude
 2.2 Bounded Refinements
 -----------------------
 \begin{code}
-{-@ bound upClosed @-}
-
-upClosed :: (Int -> Bool) -> Int -> Int -> Bool
-upClosed p x v =
-  p x ==> (v == x + 1) ==> p v
-
 {-@ find :: forall <p :: Int -> Bool>.
-            (UpClosed p) =>
+            {x :: Int <p> |- {v:Int | v == x + 1} <: Int <p> }
             (Int -> Bool) -> (Int<p> -> a) -> Int<p> -> a @-}
-
 find :: (Int -> Bool) -> (Int -> a) -> Int -> a
 find q k i | q i       = k i
            | otherwise = find q k (i + 1)
@@ -33,15 +26,15 @@ find q k i | q i       = k i
 -------------------------------------
 
 \begin{code}
-{-@ bound chain @-}
-chain :: (b -> c -> Bool) -> (a -> b -> Bool) -> (a -> c -> Bool) -> a -> b -> c -> Bool
-chain p q r = \ x y z -> q x y ==> p y z ==> r x z
 {-@
-(.) :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>.
-       (Chain b c a p q r) =>
-       (y:b -> c<p y>)
-    -> (z:a -> b<q z>)
-    ->  x:a -> c<r x>
+(.) :: forall < p :: b -> c -> Bool
+              , q :: a -> b -> Bool
+              , r :: a -> c -> Bool
+              >.
+       {x::a, w::b<q x> |- c<p w> <: c<r x>}
+       f:(y:b -> c<p y>)
+    -> g:(z:a -> b<q z>)
+    -> x:a -> c<r x>
 @-}
 (.) f g x = f (g x)
 
@@ -57,12 +50,8 @@ plusminus n m = (n+) . (m-)
 
 
 \begin{code}
-witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
-
-{-@ bound witness @-}
 {-@ filter :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
-                  (Witness a p w) =>
+                  {y :: a, b::{v:Bool<w y> | v}|- {v:a| v == y} <: a<p>}
                   (x:a -> Bool<w x>) -> [a] -> [a<p>]
   @-}
 
@@ -90,24 +79,14 @@ primes     = filter isPrime
 \begin{code}
 data Vec a = Nil | Cons a (Vec a)
 
-{-@ bound inductive @-}
-inductive inv1 step1 =
-    \y ys acc z v ->
-     (z == Cons y ys) ==>
-     (llen z == llen ys + 1) ==>
-     step1 y acc v ==>
-     inv1 ys acc ==>
-     inv1 z v
-
-
 
 {-@
-efoldr :: forall <inv :: (Vec a) -> b -> Bool, step :: a -> b -> b -> Bool>.
-         (Inductive a b inv step)
-      => (x:a -> acc:b -> b<step x acc>)
-      -> b<inv Nil>
+efoldr :: forall <p :: (Vec a) -> b -> Bool, q :: a -> b -> b -> Bool>.
+          {y::a, ys :: Vec a, acc:: b<p ys>, z :: {v:Vec a | v = Cons y ys && llen v = llen ys + 1}|- b<q y acc> <: b<p z>}
+         (x:a -> acc:b -> b<q x acc>)
+      -> b<p Nil>
       -> xs:(Vec a)
-      -> b<inv xs>
+      -> b<p xs>
 @-}
 
 efoldr :: (a -> b -> b) -> b -> Vec a -> b

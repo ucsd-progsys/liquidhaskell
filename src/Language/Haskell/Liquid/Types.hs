@@ -674,6 +674,9 @@ instance Show TyConInfo where
 type RTVU c tv = RTVar tv (RType c tv ())
 type PVU  c tv = PVar     (RType c tv ())
 
+instance Show tv => Show (RTVU c tv) where
+  show (RTVar t _) = show t 
+
 data RType c tv r
   = RVar {
       rt_var    :: !tv

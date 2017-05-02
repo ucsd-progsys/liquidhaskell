@@ -184,11 +184,11 @@ ofBRType appRTAlias resolveReft !t
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
 matchTyCon lc@(Loc _ _ c) arity
   | isList c && arity == 1
-    = return listTyCon
+  = return listTyCon
   | isTuple c
-    = return $ tupleTyCon Boxed arity
+  = return $ tupleTyCon Boxed arity
   | otherwise
-    = lookupGhcTyCon "matchTyCon" lc
+  = lookupGhcTyCon "matchTyCon" lc
 
 --------------------------------------------------------------------------------
 

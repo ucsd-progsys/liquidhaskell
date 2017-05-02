@@ -15,7 +15,7 @@ import NameSet
 import TyCon
 import Type (expandTypeSynonyms, Type)
 import Var
-
+-- import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import Control.Monad
 import Control.Monad.Except
@@ -29,6 +29,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
+-- import Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
 import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
@@ -103,7 +104,7 @@ plugHoles tce tyi x f t (Loc l l' st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt

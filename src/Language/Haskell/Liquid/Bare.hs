@@ -380,7 +380,7 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where
-      tx       = fmap . mapSnd . subst $ su
+      tx       = fmap . mapSnd . subst $ su 
       tx'      = fmap (mapSnd $ fmap uRType)
       vs       = vars ++ defVars
       measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'

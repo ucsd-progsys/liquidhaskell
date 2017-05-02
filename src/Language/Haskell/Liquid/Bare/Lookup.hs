@@ -18,7 +18,7 @@ import           GHC                              (HscEnv)
 import           HscMain
 import           Name
 import           PrelInfo                         (wiredInIds, ghcPrimIds)
-import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames)
+import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames) -- , getUnique)
 import           Prelude                          hiding (error)
 import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
@@ -33,6 +33,7 @@ import           Var hiding (varName)
 import           TysPrim
 import RdrName
 
+-- import PrelNames (ioTyConKey)
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
 import           Data.Maybe
@@ -43,7 +44,7 @@ import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import           Language.Haskell.Liquid.Misc     (firstMaybes)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -83,9 +84,9 @@ lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> Maybe Na
 lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
+--   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) ns x
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
+--   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   return  $ firstMaybes mts
 
@@ -204,8 +205,8 @@ lookupGhcVar x
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do 
-  lookupGhcThing err ftc (Just tcName) s `catchError` \_ ->
-                         lookupGhcThing err fdc (Just tcName) s
+  lookupGhcThing err ftc (Just tcName) s  `catchError` \_ ->
+   lookupGhcThing err fdc (Just tcName) s 
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
@@ -213,7 +214,9 @@ lookupGhcTyCon src s = do
     ftc _
       = Nothing
 
-    fdc (AConLike (RealDataCon x)) -- NV CHECK | isJust $ promoteDataCon_maybe x
+    fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey 
+      = Just $ dataConTyCon x 
+    fdc (AConLike (RealDataCon x)) -- | isJust $ promoteDataCon_maybe x
       = Just $ promoteDataCon x
     fdc _
       = Nothing
