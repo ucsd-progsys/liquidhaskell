@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
+  , lookupIds 
   ) where
 
 import           CoreSyn                                    (CoreBind)
@@ -191,7 +192,7 @@ makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAssumes (Ms.rinstance spec)) $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
+  = inModule mod $ makeSpec True vs $  Ms.asmSigs spec
 
 grepClassAsserts :: [RInstance t] -> [(Located F.Symbol, t)]
 grepClassAsserts           = concatMap go
