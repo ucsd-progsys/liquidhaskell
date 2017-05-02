@@ -53,10 +53,14 @@ import           Debug.Trace (trace)
 -- | Compute constraints that transitively affect target constraints,
 --   and delete everything else from F.SInfo a
 --------------------------------------------------------------------------------
-slice :: (F.TaggedC c a) => F.GInfo c a -> F.GInfo c a
+slice :: (F.TaggedC c a) => Config -> F.GInfo c a -> F.GInfo c a
 --------------------------------------------------------------------------------
-slice fi = fi { F.cm = cm'
-              , F.ws = ws' }
+slice cfg fi 
+  | noslice cfg 
+  = fi 
+  | otherwise
+  = fi { F.cm = cm'
+       , F.ws = ws' }
   where
      cm' = M.filterWithKey inC (F.cm fi)
      ws' = M.filterWithKey inW (F.ws fi)

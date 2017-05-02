@@ -65,6 +65,11 @@ module Language.Fixpoint.Types.Constraints (
   , allowHO
   , allowHOquals
 
+  -- * Axioms
+  , AxiomEnv (..)
+  , Equation (..)
+  , Rewrite  (..)
+  , getEqBody
   ) where
 
 import qualified Data.Binary as B
@@ -125,8 +130,8 @@ gwInfo (GWfC _ (x,s,_) _ e i)
 gwInfo _ 
   = errorstar "gwInfo"
 
-updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a 
-updateWfCExpr _ w@(WfC {})  = w 
+updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
+updateWfCExpr _ w@(WfC {})  = w
 updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 
 isGWfc :: WfC a -> Bool 
@@ -193,13 +198,13 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type GFixSolution = GFixSol Expr 
+type GFixSolution = GFixSol Expr
 
 type FixSolution  = M.HashMap KVar Expr
 newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
   deriving (Generic, Monoid, Functor)
 
-toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e 
+toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
 
@@ -289,10 +294,10 @@ instance PPrint GFixSolution where
 pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
 pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
 
-ppLocOfKVar :: KVar -> Doc 
-ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv 
+ppLocOfKVar :: KVar -> Doc
+ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
 
-ppNonTauto :: Doc -> Expr -> Doc 
+ppNonTauto :: Doc -> Expr -> Doc
 ppNonTauto d e
   | isTautoPred e = mempty
   | otherwise     = pprint e <> d
@@ -502,8 +507,9 @@ fi :: [SubC a]
    -> Bool
    -> Bool
    -> [Triggered Expr]
+   -> AxiomEnv
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es 
+fi cs ws binds ls ds ks qs bi aHO aHOq es axe
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -514,6 +520,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es
        , bindInfo = bi
        , hoInfo   = HOI aHO aHOq
        , asserts  = es
+       , ae       = axe
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -549,6 +556,7 @@ data GInfo c a =
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , hoInfo   :: !HOInfo                    -- ^ Higher Order info
      , asserts  :: ![Triggered Expr]
+     , ae       :: AxiomEnv
      }
   deriving (Eq, Show, Functor, Generic)
 
@@ -559,7 +567,7 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -571,6 +579,7 @@ instance Monoid (GInfo c a) where
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      , asserts  = mappend (asserts i1)  (asserts i2)
+                     , ae  = mappend (ae i1)  (ae i2)
                      }
 
 instance PTable (SInfo a) where
@@ -583,7 +592,8 @@ instance PTable (SInfo a) where
 --------------------------------------------------------------------------
 toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
-toFixpoint cfg x' =    qualsDoc x'
+toFixpoint cfg x' =    cfgDoc   cfg
+                  $++$ qualsDoc x'
                   $++$ kutsDoc  x'
                 --   $++$ packsDoc x'
                   $++$ gConDoc   x'
@@ -594,6 +604,7 @@ toFixpoint cfg x' =    qualsDoc x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
+    cfgDoc cfg    = text ("// " ++ show cfg)
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
     csDoc         = vcat     . map toFix . M.elems . cm
@@ -673,3 +684,58 @@ saveTextQuery cfg fi = do
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
   writeFile fq $ render (toFixpoint cfg fi)
+
+---------------------------------------------------------------------------
+-- | Axiom Instantiation Information --------------------------------------
+---------------------------------------------------------------------------
+data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
+                     , aenvEqs     :: ![Equation]
+                     , aenvSimpl   :: ![Rewrite]
+                     , aenvFuel    :: M.HashMap SubcId Int
+                     , aenvExpand  :: M.HashMap SubcId Bool
+                     }
+  deriving (Eq, Show, Generic)
+
+instance B.Binary AxiomEnv
+instance B.Binary Rewrite
+instance B.Binary Equation
+instance B.Binary SMTSolver
+instance B.Binary Eliminate
+instance NFData AxiomEnv
+instance NFData Rewrite
+instance NFData Equation
+instance NFData SMTSolver
+instance NFData Eliminate
+
+instance Monoid AxiomEnv where
+  mempty = AEnv [] [] [] (M.fromList []) (M.fromList [])
+  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand'
+    where aenvSyms'    = mappend (aenvSyms a1) (aenvSyms a2)
+          aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
+          aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
+          aenvFuel'    = mappend (aenvFuel a1) (aenvFuel a2)
+          aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
+
+data Equation = Equ { eqName :: Symbol
+                    , eqArgs :: [Symbol]
+                    , eqBody :: Expr
+                    }
+  deriving (Eq, Show, Generic)
+
+-- eg  SMeasure (f D [x1..xn] e)
+-- for f (D x1 .. xn) = e
+data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
+                          , smDC    :: Symbol         -- eg. D
+                          , smArgs  :: [Symbol]       -- eg. xs
+                          , smBody  :: Expr           -- eg. e[xs]
+                          }
+  deriving (Eq, Show, Generic)
+
+getEqBody :: Equation -> Maybe Expr
+getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))
+  | (EVar f, es) <- splitEApp fxs
+  , f == x
+  , es == (EVar <$> xs)
+  = Just e
+getEqBody _
+  = Nothing

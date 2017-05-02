@@ -68,6 +68,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Predicates
   , isFunctionSortedReft, functionSort
   , isNonTrivial
+  , isContraPred
   , isTautoPred
   , isSingletonReft
   , isFalse
@@ -90,6 +91,7 @@ module Language.Fixpoint.Types.Refinements (
   , pGAnds, pGAnd  
   , HasGradual (..)
   , srcGradInfo
+  , isGradual
 
   ) where
 
@@ -184,7 +186,6 @@ instance HasGradual SortedReft where
   isGradual = isGradual . sr_reft
   gVars     = gVars . sr_reft
   ungrad r  = r {sr_reft = ungrad (sr_reft r)}
-
 
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
@@ -641,10 +642,10 @@ class Predicate a where
   prop   :: a -> Expr
 
 instance Expression SortedReft where
-  expr (RR _ r) = expr r  
+  expr (RR _ r) = expr r
 
 instance Expression Reft where
-  expr (Reft(_, e)) = e  
+  expr (Reft(_, e)) = e
 
 instance Expression Expr where
   expr = id
