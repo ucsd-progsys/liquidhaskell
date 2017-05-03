@@ -232,7 +232,7 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
-  let xs = [ x' | x <- xs, x' <- [x, GM.dropModuleNames <$> x] ]
+  let xs = [ x' | x <- xs', x' <- [x, GM.dropModuleNames <$> x] ]
   syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++  [ (val lx, v) | (v, lx, _) <- syms2 ])

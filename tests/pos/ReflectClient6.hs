@@ -1,18 +1,17 @@
+
 {-@ LIQUID "--totality"                            @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module ReflectLib3a where
+module ReflectClient6 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-{-@ data Day = Mon | Tue @-}
-data Day = Mon | Tue
+import ReflectLib6
 
-{-@ reflect next @-}
-next :: Day -> Day
-next Mon = Tue
-next Tue = Mon
+{-@ testOK :: { next Mon == Tue } @-}
+testOK = next Mon ==. Tue *** QED
 
-{-@ testFAIL :: { next Mon == Tue } @-}
+{-@ testFAIL :: { next Tue == Mon } @-}
 testFAIL = trivial 
+
