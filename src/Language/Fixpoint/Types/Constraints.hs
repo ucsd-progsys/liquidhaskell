@@ -576,6 +576,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
+                  $++$ aeDoc    x'
                   $++$ text "\n"
   where
     cfgDoc cfg    = text ("// " ++ show cfg)
@@ -587,6 +588,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     -- packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
+    aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc
@@ -662,7 +664,7 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
-data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
+data AxiomEnv = AEnv { aenvSyms    :: !Int
                      , aenvEqs     :: ![Equation]
                      , aenvSimpl   :: ![Rewrite]
                      , aenvFuel    :: M.HashMap SubcId Int
@@ -682,9 +684,9 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] [] (M.fromList []) (M.fromList [])
+  mempty = AEnv 0 [] [] (M.fromList []) (M.fromList [])
   mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand'
-    where aenvSyms'    = mappend (aenvSyms a1) (aenvSyms a2)
+    where aenvSyms'    = aenvSyms a1 + aenvSyms a2
           aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
           aenvFuel'    = mappend (aenvFuel a1) (aenvFuel a2)
@@ -708,6 +710,24 @@ data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
                           , smBody  :: Expr           -- eg. e[xs]
                           }
   deriving (Eq, Show, Generic)
+
+instance Fixpoint AxiomEnv where
+  toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
+              $++$ text "syms" <+> text (show (aenvSyms axe))
+              $++$ text "fuel" <+> hsep (pairdoc <$> M.toList (aenvFuel axe))
+              $++$ text "expand" <+> hsep (pairdoc <$> M.toList(aenvExpand axe))
+    where pairdoc (x,y) = text $ show x ++ ":" ++ show y
+
+
+instance Fixpoint Equation where
+  toFix (Equ f xs e)  = text "define"
+                     <+> toFix f <+> hsep (toFix <$> xs) <+> toFix e
+instance Fixpoint Rewrite where
+  toFix (SMeasure f d xs e)
+    = text "match"
+   <+> toFix f
+   <+> lparen <> toFix d <> hsep (toFix <$> xs) <> rparen
+   <+> toFix e
 
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))

@@ -665,7 +665,16 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 --  where
 --    Just (c,cs) = T.uncons $ symbolSafeText s
 
+---------------------------------------------------------------------
+-- | Axioms for Symbolic Evaluation ---------------------------------
+---------------------------------------------------------------------
 
+defineP = Equ <$> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
+
+matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
+
+pairsP :: Parser a -> Parser b -> Parser [(a, b)]
+pairsP aP bP = brackets $ sepBy1 (pairP aP (reserved ":") bP) semi
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------
 ---------------------------------------------------------------------
@@ -683,6 +692,11 @@ data Def a
   | Pack !KVar !Int
   | IBind !Int !Symbol !SortedReft
   | Opt !String
+  | Def !Equation
+  | Mat !Rewrite
+  | Fuel ![(Int,Int)]
+  | Expand ![(Int,Bool)]
+  | Syms !Int
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
@@ -704,8 +718,15 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Pack  <$> (reserved "pack"       >> kvarP)   <*> (colon >> intP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
-    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
+    <|> IBind <$> (reserved "bind"       >> intP)
+              <*> symbolP
+              <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
     <|> Opt   <$> (reserved "fixpoint"   >> stringLiteral)
+    <|> Def   <$> (reserved "define"     >> defineP)
+    <|> Mat   <$> (reserved "match"      >> matchP)
+    <|> Fuel  <$> (reserved "fuel"       >> pairsP intP intP)
+    <|> Expand <$> (reserved "expand"    >> pairsP intP boolP)
+    <|> Syms  <$> (reserved "syms"       >> intP)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -759,8 +780,12 @@ envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
 intP :: Parser Int
 intP = fromInteger <$> integer
 
+boolP :: Parser Bool
+boolP = (reserved "True" >> return True)
+    <|> (reserved "False" >> return False)
+
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty ae
   where
     cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
     ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
@@ -770,7 +795,13 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty m
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
     -- pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
     qs         =                    [q                  | Qul q       <- defs]
+    fuel       = M.fromList         [(fromIntegral i, f)| Fuel fs     <- defs, (i,f) <- fs]
+    expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
+    syms       = sum                [s                  | Syms s      <- defs]
+    eqs        =                    [e                  | Def e       <- defs]
+    rews       =                    [r                  | Mat r       <- defs]
     cid        = fromJust . sid
+    ae         = AEnv syms eqs rews fuel expand
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
 ---------------------------------------------------------------------
