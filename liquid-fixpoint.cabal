@@ -59,7 +59,6 @@ Library
   ghc-options:     -W -fno-warn-missing-methods
   if flag(devel)
     ghc-options:   -Werror
-  ghc-prof-options: -fprof-auto
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -160,7 +159,7 @@ test-suite test
   if flag(devel)
     ghc-options:    -Werror
   main-is:          test.hs
-  build-depends:    base,
+  build-depends:    base >= 4.8 && < 5,
                     directory,
                     filepath,
                     process,
@@ -177,7 +176,7 @@ test-suite testparser
   if flag(devel)
     ghc-options:    -Werror
   main-is:          testParser.hs
-  build-depends:    base,
+  build-depends:    base >= 4.8 && < 5,
                     directory,
                     filepath,
                     tasty >= 0.10,
