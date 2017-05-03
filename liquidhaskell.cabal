@@ -321,5 +321,16 @@ test-suite liquidhaskell-parser
                 , syb >= 0.4.4
                 , time
                 , unordered-containers >= 0.2
+                , template-haskell
   else
-    build-depends: liquidhaskell, ghc-boot == 8.0.2
+    build-depends: liquidhaskell
+                 , base >= 4 && < 5
+                 , ghc == 8.0.2
+                 , ghc-boot == 8.0.2
+                 , array >= 0.5
+                 , time >= 1.4
+                 , directory >= 1.2
+                 , hpc >= 0.6
+                 , containers >= 0.5
+                 , template-haskell >= 2.9
+                 , bytestring
