@@ -54,6 +54,7 @@ module Language.Haskell.Liquid.Constraint.Types
 
 import Prelude hiding (error)
 import           CoreSyn
+import           Type (TyThing( AnId ))
 import           Var
 import           SrcLoc
 import           Unify (tcUnifyTy)
@@ -319,7 +320,7 @@ addRInv m (x, t)
    where
      ids = [id | tc <- M.keys m
                , dc <- TC.tyConDataCons $ rtc_tc tc
-               , id <- DC.dataConImplicitIds dc]
+               , AnId id <- DC.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType

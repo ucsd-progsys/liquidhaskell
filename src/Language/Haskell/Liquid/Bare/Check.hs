@@ -19,7 +19,7 @@ import           Name                                      (getSrcSpan)
 import           Prelude                                   hiding (error)
 import           TyCon
 import           Var
-import           TypeRep (Type(TyConApp, TyVarTy))
+import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -262,7 +262,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
+errTypeMismatch x t = ErrMismatch lqSp (text "Checked" <+> pprint x) d1 d2 hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t
@@ -272,7 +272,8 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
+checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r))) 
+           => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
 checkRType allowHO emb env t
@@ -342,7 +343,7 @@ checkFunRefs t = go t
 -}
 
 checkAbstractRefs
-  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t) =>
+  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t))) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs t = go t
   where
@@ -406,7 +407,8 @@ checkAbstractRefs t = go t
 
 
 
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r))) 
+                             => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
   where
@@ -438,7 +440,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
            => SEnv SortedReft
            -> TCEmb TyCon
            -> t
@@ -464,7 +466,7 @@ checkMBodyUnify                 = go
     go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                      = []
 
-checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
             => TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv SortedReft

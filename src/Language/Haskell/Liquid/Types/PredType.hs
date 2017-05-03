@@ -32,7 +32,7 @@ import           DataCon
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
 import           Type
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
@@ -110,8 +110,8 @@ dataConTy m (TyVarTy v)
   = M.lookupDefault (rVar v) (RTV v) m
 dataConTy m (FunTy t1 t2)
   = rFun dummySymbol (dataConTy m t1) (dataConTy m t2)
-dataConTy m (ForAllTy α t)
-  = RAllT (makeRTVar $ RTV α) (dataConTy m t)
+dataConTy m (ForAllTy (Named α _) t) -- α :: TyVar
+  = RAllT (makeRTVar (RTV α)) (dataConTy m t)
 dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
@@ -243,7 +243,9 @@ substRCon
       SubsTy tv (RType RTyCon tv ()) tv,
       Reftable (RType RTyCon tv r),
       SubsTy tv (RType RTyCon tv ()) (RTVar tv (RType RTyCon tv ())),
-      FreeVar RTyCon tv)
+      FreeVar RTyCon tv,
+      Reftable (RTProp RTyCon tv r), 
+      Reftable (RTProp RTyCon tv ()))
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))
   -> RType RTyCon tv r

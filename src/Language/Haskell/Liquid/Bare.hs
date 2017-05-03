@@ -39,10 +39,6 @@ import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
 
-
-import           Control.Monad.Except                       (catchError)
-import           TypeRep                                    (Type(TyConApp))
-
 import           Text.PrettyPrint.HughesPJ (text)
 
 import qualified Control.Exception                          as Ex
@@ -244,13 +240,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su
-    >>= addProofType
     >>= addRTEnv
-
-addProofType :: GhcSpec -> BareM GhcSpec
-addProofType spec = do
-  tycon <- (Just <$> lookupGhcTyCon (dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
-  return $ spec { gsProofType = (`TyConApp` []) <$> tycon }
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -392,7 +382,7 @@ makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where
-      tx       = fmap . mapSnd . subst $ su
+      tx       = fmap . mapSnd . subst $ su 
       tx'      = fmap (mapSnd $ fmap uRType)
       vs       = vars ++ defVars
       measSyms = tx' $ tx $ ms' ++ varMeasures vars ++ cms'
@@ -475,7 +465,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
                 }
   where
     mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
-    makeASize  = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+    makeASize  = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 
 insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()

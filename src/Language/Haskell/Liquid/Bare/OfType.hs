@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE BangPatterns     #-}
 
 module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
@@ -13,11 +14,10 @@ module Language.Haskell.Liquid.Bare.OfType (
 import Prelude hiding (error)
 import BasicTypes
 import Name
-import Kind (isKindVar)
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
-
+import TyCoRep
 
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
@@ -63,16 +63,16 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
-ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expand)
+ofBareType l 
+  = ofBRType expandRTAliasApp (resolve l <=< expand) 
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp return
+  = ofBRType failRTAliasApp return 
 
 ofBSort :: BSort -> BareM RSort
-ofBSort
-  = ofBRType failRTAliasApp return
+ofBSort 
+  = ofBRType failRTAliasApp return 
 
 --------------------------------------------------------------------------------
 
@@ -88,7 +88,7 @@ mapMPvar f (PV x t v txys)
 
 --------------------------------------------------------------------------------
 mkLSpecType :: Located BareType -> BareM (Located SpecType)
-mkLSpecType t = atLoc t <$> mkSpecType (loc t) (val t)
+mkLSpecType !t = atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
 mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
@@ -117,13 +117,13 @@ rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r)
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, Reftable (RTProp RTyCon RTyVar r), Reftable (RTProp BTyCon BTyVar r))
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft
-  = go
+ofBRType appRTAlias resolveReft !t
+  = go t
   where
     go t@(RApp _ _ _ _)
       = do aliases <- (typeAliases . rtEnv) <$> get
@@ -166,11 +166,11 @@ ofBRType appRTAlias resolveReft
     goRFun _ x t1 t2 r
       = RFun x <$> go t1 <*> go t2 <*> resolveReft r
 
-    goRApp aliases (RApp tc ts _ r)
+    goRApp aliases !(RApp tc ts _ r)
       | Loc l _ c <- btc_tc tc
       , Just rta <- M.lookup c aliases
       = appRTAlias l rta ts =<< resolveReft r
-    goRApp _ (RApp tc ts rs r)
+    goRApp _ !(RApp tc ts rs r)
       =  do let lc = btc_tc tc
             let l = loc lc
             r'  <- resolveReft r
@@ -184,11 +184,11 @@ ofBRType appRTAlias resolveReft
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
 matchTyCon lc@(Loc _ _ c) arity
   | isList c && arity == 1
-    = return listTyCon
+  = return listTyCon
   | isTuple c
-    = return $ tupleTyCon BoxedTuple arity
+  = return $ tupleTyCon Boxed arity
   | otherwise
-    = lookupGhcTyCon lc
+  = lookupGhcTyCon "matchTyCon" lc
 
 --------------------------------------------------------------------------------
 
@@ -270,7 +270,7 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r)
+bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
           => r
           -> Located TyCon
           -> [RTProp RTyCon RTyVar r]
@@ -280,7 +280,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
   = do when (realTcArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
-       tvs = filter (not . isKindVar) $ tyConTyVarsDef c
+       tvs = [ v | (v, b) <- zip (tyConTyVarsDef c) (tyConBinders c), isAnonBinder b]
        su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 
@@ -303,5 +303,6 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => RRType r -> RRType r
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+                    => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

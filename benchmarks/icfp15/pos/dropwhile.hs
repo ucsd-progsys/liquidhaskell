@@ -35,7 +35,7 @@ one = 1 ::: 2 ::: 3 ::: Emp
 -------------------------------------------------------------------------------
 
 {-@ dropWhile :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
-                   (Witness a p w) =>
+                   {y :: a, b :: {v:Bool<w y> | not v} |- {v:a| v == y} <: a<p>}
                    (x:a -> Bool<w x>) -> List a -> List <p> a
   @-}
 dropWhile :: (a -> Bool) -> List a -> List a

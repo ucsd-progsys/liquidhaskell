@@ -30,13 +30,8 @@ solve   :: Formula -> Maybe Asgn
 solve f = find (\a -> sat a f) (asgns f)
 
 
-witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
-
-{-@ bound witness @-}
-
 {-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
-            (Witness a p w) =>
+            {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing
