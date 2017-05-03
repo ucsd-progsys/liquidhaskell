@@ -63,14 +63,17 @@ data Stack a = Stack { focus :: a
 
 {-@ type UStack a = {v:Stack a | (ListDisjoint (getUp v) (getDown v))}@-}
 
-{-@ measure getUp :: forall a. (Stack a) -> [a] 
-    getUp (Stack focus up down) = up
-  @-}
+{-@ measure getFocus @-} 
+getFocus :: Stack a -> a
+getFocus (Stack xfocus _ _) = xfocus 
 
-{-@ measure getDown :: forall a. (Stack a) -> [a] 
-    getDown (Stack focus up down) = down
-  @-}
+{-@ measure getUp @-} 
+getUp :: Stack a -> [a]
+getUp (Stack xfocus xup xdown) = xup
 
+{-@ measure getDown @-}
+getDown :: Stack a -> [a]
+getDown (Stack xfocus xup xdown) = xdown
 
 
 -------------------------------------------------------------------------------
