@@ -477,7 +477,7 @@ makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(S
 makeGhcSpec3 datacons tycons embs syms sp = do
   tcEnv  <- tcEnv    <$> get
   return  $ sp { gsTyconEnv = tcEnv
-               , gsDconsP   = datacons
+               , gsDconsP   = [ Loc (dc_loc z) (dc_locE z) dc | (dc, z) <- datacons]
                , gsTcEmbeds = embs
                , gsTconsP   = [(tc, qualifyTyConP (qualifySymbol syms) tcp) | (tc, tcp) <- tycons]
                , gsFreeSyms = [(symbol v, v) | (_, v) <- syms]
@@ -514,7 +514,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
   gsInvarnts' <- expand $ gsInvariants sp
   gsCtors'    <- expand $ gsCtors      sp
   gsIaliases' <- expand $ gsIaliases   sp
-  gsDconsP'   <- expand $ gsDconsP     sp
+  -- gsDconsP'   <- expand $ gsDconsP     sp
   return   $ sp { gsQualifiers = subst su quals
                 , gsDecr       = decr'
                 , gsLvars      = lvars'
@@ -530,7 +530,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
                 , gsInvariants = gsInvarnts'
                 , gsCtors      = gsCtors'
                 , gsIaliases   = gsIaliases'
-                , gsDconsP     = gsDconsP'
+                -- , gsDconsP     = gsDconsP'
                 }
   where
     mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]

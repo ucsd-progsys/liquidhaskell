@@ -328,7 +328,7 @@ data GhcSpec = SP {
   , gsInvariants :: ![(Maybe Var, LocSpecType)]  -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   :: ![(LocSpecType, LocSpecType)]-- ^ Data Type Invariant Aliases
-  , gsDconsP     :: ![(DataCon, DataConP)]       -- ^ Predicated Data-Constructors
+  , gsDconsP     :: ![Located DataCon]           -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]           -- ^ Predicated Type-Constructors
                                                  -- eg.  see tests/pos/Map.hs
@@ -675,7 +675,7 @@ type RTVU c tv = RTVar tv (RType c tv ())
 type PVU  c tv = PVar     (RType c tv ())
 
 instance Show tv => Show (RTVU c tv) where
-  show (RTVar t _) = show t 
+  show (RTVar t _) = show t
 
 data RType c tv r
   = RVar {

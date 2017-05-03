@@ -47,7 +47,7 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 
-import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
+-- import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
 
@@ -65,8 +65,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
-    errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+    errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
+                        mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
@@ -80,7 +80,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (gsTySigs sp) (gsAsmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
-                     ++ checkDuplicateFieldNames                   (gsDconsP sp)
+                     -- ++ checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
@@ -89,10 +89,10 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
-    dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
-                                        | (_, dcp) <- gsDconsP spec
-                                        , let l     = dc_loc  dcp
-                                        , let l'    = dc_locE dcp ]
+    -- dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
+                                        -- | (_, dcp) <- gsDconsP spec
+                                        -- , let l     = dc_loc  dcp
+                                        -- , let l'    = dc_locE dcp ]
     emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp
@@ -143,18 +143,18 @@ _checkRefinedClasses definitions instances
     ofConflict
       = sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
 
-checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
-checkDuplicateFieldNames = mapMaybe go
+_checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
+_checkDuplicateFieldNames = mapMaybe go
   where
     go (d, dts)          = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
-    checkNoDups l d xs   = mkErr l d <$> firstDuplicate xs
+    checkNoDups l d xs   = mkErr l d <$> _firstDuplicate xs
 
     mkErr l d x = ErrBadData (sourcePosSrcSpan l)
                              (pprint d)
                              (text "Multiple declarations of record selector" <+> pprintSymbol x)
 
-firstDuplicate :: Ord a => [a] -> Maybe a
-firstDuplicate = go . L.sort
+_firstDuplicate :: Ord a => [a] -> Maybe a
+_firstDuplicate = go . L.sort
   where
     go (y:x:xs) | x == y    = Just x
                 | otherwise = go (x:xs)
@@ -272,7 +272,7 @@ errTypeMismatch x t = ErrMismatch lqSp (text "Checked" <+> pprint x) d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r))) 
+checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
            => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
@@ -407,7 +407,7 @@ checkAbstractRefs t = go t
 
 
 
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r))) 
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
