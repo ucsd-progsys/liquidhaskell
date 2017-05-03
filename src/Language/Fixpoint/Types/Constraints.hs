@@ -576,6 +576,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
+                  $++$ aeDoc    x'
                   $++$ text "\n"
   where
     cfgDoc cfg    = text ("// " ++ show cfg)
@@ -587,6 +588,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     -- packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
+    aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc
@@ -704,6 +706,24 @@ data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
                           , smBody  :: Expr           -- eg. e[xs]
                           }
   deriving (Eq, Show, Generic)
+
+instance Fixpoint AxiomEnv where
+  toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
+              $++$ text "syms" <+> text (show (aenvSyms axe))
+              $++$ text "fuel" <+> hsep (pairdoc <$> M.toList (aenvFuel axe))
+              $++$ text "expand" <+> hsep (pairdoc <$> M.toList(aenvExpand axe))
+    where pairdoc (x,y) = text $ show x ++ ":" ++ show y
+
+
+instance Fixpoint Equation where
+  toFix (Equ f xs e)  = text "define"
+                     <+> toFix f <+> hsep (toFix <$> xs) <+> toFix e
+instance Fixpoint Rewrite where
+  toFix (SMeasure f d xs e)
+    = text "match"
+   <+> toFix f
+   <+> lparen <> toFix d <> hsep (toFix <$> xs) <> rparen
+   <+> toFix e
 
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))
