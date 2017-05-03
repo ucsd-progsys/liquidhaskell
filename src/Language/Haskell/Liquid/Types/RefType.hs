@@ -1426,7 +1426,7 @@ isSizeable autoenv tc = S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRec
 
 mkDecrFun :: S.HashSet TyCon -> RType RTyCon t t1 -> Symbol -> Expr
 mkDecrFun autoenv (RApp c _ _ _)
-  | Just f <- szFun <$> sizeFunction (rtc_info c)
+  | Just f <- szFun <$> F.tracepp "MKDECRFUN1" <$> sizeFunction (rtc_info c)
   = f
   | isSizeable autoenv $ rtc_tc c
   = \v -> F.mkEApp lenLocSymbol [F.EVar v]
@@ -1435,6 +1435,7 @@ mkDecrFun _ (RVar _ _)
 mkDecrFun _ _
   = panic Nothing "RefType.mkDecrFun called on invalid input"
 
+-- | [NOTE]: THIS IS WHERE THE TERMINATION METRIC REFINEMENTS ARE CREATED.
 cmpLexRef :: [(t1, t1, t1 -> Expr)] -> (t, t, t -> Expr) -> Expr
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
