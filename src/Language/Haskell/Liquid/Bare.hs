@@ -136,10 +136,10 @@ postProcess cbs specEnv sp@(SP {..})
        , gsLits       = txSort        <$> gsLits
        , gsMeas       = tracepp "GSMEAS" <$> (txSort        <$> gsMeas)
        , gsDicts      = dmapty addTCI'    gsDicts
-       , gsTexprs     = tracepp "GSTEXPR"   $ ts
+       , gsTexprs     = ts
        }
   where
-    (sigs,   ts')     = replaceLocBinds (tracepp "postProc1" gsTySigs ) gsTexprs
+    (sigs,   ts')     = replaceLocBinds (tracepp "postProc1" gsTySigs ) (tracepp "GSTEXPRS" gsTexprs)
     (assms,  ts'')    = replaceLocBinds (tracepp "postProc2" gsAsmSigs) ts'
     (insigs, ts)      = replaceLocBinds (tracepp "postProc3" gsInSigs ) ts''
     replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
@@ -523,7 +523,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
                 , gsLazy       = S.insert dictionaryVar lazies
                 , gsLogicMap   = lmap'
                 , gsTySigs     = gsTySigs'
-                , gsTexprs     = gsTexprs'
+                , gsTexprs     = [ (v, subst su es) | (v, es) <- gsTexprs' ]
                 , gsMeasures   = gsMeasures'
                 , gsAsmSigs    = gsAsmSigs'
                 , gsInSigs     = gsInSigs'
@@ -683,7 +683,7 @@ replaceLocalBinds allowHO emb tyi senv cbs sigs texprs
   where
     (s, t) = execState (runReaderT (mapM_ (\x -> traverseBinds allowHO x (return ())) cbs)
                                    (RE M.empty senv emb tyi))
-                       (M.fromList sigs, M.fromList texprs)
+                       (M.fromList sigs,  M.fromList texprs)
 
 traverseExprs :: Bool -> CoreSyn.Expr Var -> ReplaceM ()
 traverseExprs allowHO (Let b e)
