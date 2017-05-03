@@ -62,7 +62,7 @@ Executable liquid
   default-language: Haskell98
   Build-Depends: base >=4.8.1.0 && <5
                , ghc
-               , ghc-boot
+               , ghc-boot == 8.0.2
                , cmdargs
                , time
                , deepseq
@@ -289,6 +289,7 @@ test-suite liquidhaskell-parser
   main-is: Parser.hs
   build-depends:
                      base >=4.8.1.0 && <5
+               ,     ghc-boot == 8.0.2
                ,     containers >= 0.5
                ,     parsec
                ,     tasty >= 0.10
@@ -313,6 +314,7 @@ test-suite liquidhaskell-parser
                 , filepath >= 1.3
                 , mtl >= 2.1
                 , ghc == 8.0.2
+                , ghc == boot-8.0.2
                 , hashable >= 1.2
                 , liquid-fixpoint >= 0.6
                 , pretty
@@ -320,4 +322,4 @@ test-suite liquidhaskell-parser
                 , time
                 , unordered-containers >= 0.2
   else
-    build-depends: liquidhaskell
+    build-depends: liquidhaskell, ghc-boot == 8.0.2
