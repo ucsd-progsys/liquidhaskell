@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
-  , lookupIds 
+  , lookupIds
   ) where
 
 import           CoreSyn                                    (CoreBind)
@@ -247,7 +247,7 @@ makeSpec _ignoreUnknown vs xbs = do
   vbs <- map (joinVar vs) <$> lookupIds False xbs
   map (addFst3 mod) <$> mapM mkVarSpec vbs
 
-lookupIds :: Bool -> [(LocSymbol, Located BareType)] -> BareM [(Var, LocSymbol, Located BareType)]
+lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]
 lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where

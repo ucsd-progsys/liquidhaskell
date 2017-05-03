@@ -39,8 +39,6 @@ import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
 
-import           Control.Monad.Except                       (catchError)
-import           TypeRep                                    (Type(TyConApp))
 import           Text.PrettyPrint.HughesPJ (text, (<+>))
 
 import qualified Control.Exception                          as Ex

@@ -192,7 +192,7 @@ ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
-       case L.lookup (symbol x) env of
+       case M.lookup (symbol x) env of
          Nothing -> lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
                     lookupGhcThing "variable or data constructor" fv (Just dataName) x
          Just v  -> return v
