@@ -696,6 +696,10 @@ data Equation = Equ { eqName :: Symbol
                     }
   deriving (Eq, Show, Generic)
 
+instance PPrint Equation where
+  pprintTidy k (Equ f xs e) = "def" <+> pprint f <+> intersperse " " (pprint <$> xs) <+> ":=" <+> pprintTidy k e 
+
+
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
 data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
