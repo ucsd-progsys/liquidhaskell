@@ -1050,6 +1050,15 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
+instance Subable AxiomEq where
+  syms   a = syms (axiomBody a) ++ syms (axiomEq a)
+  subst su = mapAxiomEqExpr (subst su)
+  substf f = mapAxiomEqExpr (substf f)
+  substa f = mapAxiomEqExpr (substa f)
+
+mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
+mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
+                       , axiomEq   = f (axiomEq   a) }
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------

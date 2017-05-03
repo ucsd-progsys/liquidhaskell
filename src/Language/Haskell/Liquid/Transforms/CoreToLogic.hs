@@ -332,7 +332,7 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f' <- tosymbol' (C.Var x :: C.CoreExpr)
-  return $ tracepp "eAppWithMap" $ eAppWithMap lmap f' [] (varExpr x)
+  return $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x
@@ -385,7 +385,7 @@ splitArgs e = (f, reverse es)
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
 -- TODO:reflect-datacons tomaybesymbol (C.Var c) | isDataConId  c = Just $  F.tracepp "reflect-datacons:tomaybe1" $ symbol c
 -- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybe2" $ simpleSymbolVar x
-tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybesymbol" $ simpleSymbolVar' x
+tomaybesymbol (C.Var x) = Just $ simpleSymbolVar' x
 tomaybesymbol _         = Nothing
 
 tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
@@ -395,7 +395,7 @@ tosymbol e
     _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
-tosymbol' (C.Var x) = return $ dummyLoc $ tracepp "tosymbol'" $ simpleSymbolVar' x
+tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
 tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 makesub :: C.CoreBind -> LogicM (Symbol, Expr)
@@ -426,10 +426,10 @@ ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 simpleSymbolVar' :: Id -> Symbol
-simpleSymbolVar' = F.tracepp "reflect-datacons:simpleSymbolVar'" . simplesymbol --symbol . {- showPpr . -} getName
+simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
 
 varSymbol :: Var -> Symbol
-varSymbol v                            = F.tracepp "reflect-datacons:varSymbol" $ symbol v
+varSymbol v                            = symbol v
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
