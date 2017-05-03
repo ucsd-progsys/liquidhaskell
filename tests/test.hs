@@ -27,6 +27,7 @@ unitTests
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    []             (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 2)
+    , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"  []             ExitSuccess
    ]
 
 skipNativePos :: [FilePath]

@@ -84,8 +84,7 @@ instantiateAxioms cfg ctx bds fenv aenv sid sub
     -- fuel calculated and used only by `instances` arith rewrite method
     fuelNumber = M.lookupDefault 0 sid (aenvFuel aenv)
     as         = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
-    maxNumber  = (length (aenvSyms aenv) * length initOccurences) ^ fuelNumber
-
+    maxNumber  = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 ------------------------------
 -- Knowledge (SMT Interaction)
