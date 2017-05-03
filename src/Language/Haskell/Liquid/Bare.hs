@@ -130,7 +130,7 @@ postProcess cbs specEnv sp@(SP {..})
        , gsLits       = txSort        <$> gsLits
        , gsMeas       = tracepp "GSMEAS" <$> (txSort        <$> gsMeas)
        , gsDicts      = dmapty addTCI'    gsDicts
-       , gsTexprs     = ts
+       , gsTexprs     = tracepp "GSTEXPR"   $ ts
        }
   where
     (sigs,   ts')     = replaceLocBinds (tracepp "postProc1" gsTySigs ) gsTexprs

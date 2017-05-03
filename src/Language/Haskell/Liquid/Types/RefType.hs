@@ -1404,7 +1404,7 @@ mkDType :: Symbolic a
 mkDType autoenv xvs acc [(v, (x, t))]
   = (x, ) $ t `strengthen` tr
   where
-    tr = uTop $ Reft (vv, pOr (r:acc))
+    tr = F.tracepp "MKDECRFUN" $ uTop $ Reft (vv, pOr (r:acc))
     r  = cmpLexRef xvs (v', vv, f)
     v' = symbol v
     f  = mkDecrFun autoenv  t
