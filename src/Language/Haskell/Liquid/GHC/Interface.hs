@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.GHC.Interface (
 import Prelude hiding (error)
 
 import qualified Outputable as O
-import GHC hiding (Target, Located)
+import GHC hiding (Target, Located, desugarModule)
 import qualified GHC
 import GHC.Paths (libdir)
 
