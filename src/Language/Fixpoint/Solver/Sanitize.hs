@@ -43,7 +43,7 @@ sanitize =    -- banIllScopedKvars
          >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
          >=>         banMixedRhs
          >=>         banQualifFreeVars
-        -- >=>         banConstraintFreeVars
+         >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
 
 
@@ -205,8 +205,8 @@ initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
 --------------------------------------------------------------------------------
-_banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
-_banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
+banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
+banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
     fi = mapKVars (const $ Just F.PTrue) fi0
     bads = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi c]]
