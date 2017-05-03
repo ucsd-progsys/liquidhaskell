@@ -233,9 +233,13 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
   let xs = [ x' | x <- xs', x' <- [x, GM.dropModuleNames <$> x] ]
-  syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
+  syms1 <- M.fromList <$> makeSymbols f (tracepp "reflect-datacons:VARS" vs) (tracepp "reflect-datacons:SVM" (val <$> xs))
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
-  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++  [ (val lx, v) | (v, lx, _) <- syms2 ])
+  let syms3  = mapMaybe (hackySymbolVar vs . val) xs
+  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2] ++ syms3)
+
+hackySymbolVar :: [Id] -> Symbol -> Maybe (Symbol, Var)
+hackySymbolVar vs x = (x, ) <$> L.find (isSymbolOfVar x) vs
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
@@ -513,9 +517,9 @@ makeGhcSpec4 quals defVars specs name su sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
   isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+  gsTySigs'   <- tracepp "EXPAND:after" <$> (expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs)
   gsMeasures' <- expand $ gsMeasures   sp
-  gsAsmSigs'  <- tracepp "EXPAND:after" <$> (expand $ (tracepp "EXPAND:before" $ gsAsmSigs    sp))
+  gsAsmSigs'  <- expand $ gsAsmSigs    sp
   gsInSigs'   <- expand $ gsInSigs     sp
   gsInvarnts' <- expand $ gsInvariants sp
   gsCtors'    <- expand $ gsCtors      sp
