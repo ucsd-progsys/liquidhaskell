@@ -111,6 +111,16 @@ initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
     locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
     tx                = qualifySymbol' vs
 
+importedSymbols :: [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
+importedSymbols specs = S.unions (exportedSymbols . snd <$> specs)
+
+exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
+exportedSymbols spec = S.unions
+  [ Ms.reflects spec
+  , Ms.hmeas    spec
+  , Ms.inlines  spec ]
+
+
 listLMap :: LogicMap
 listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
                        , (dummyLoc consName, [x, xs], hCons (EVar <$> [x, xs])) ]
@@ -221,7 +231,8 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 -- | symbolVarMap resolves each Symbol to its Var;
 
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
-symbolVarMap f vs xs = do
+symbolVarMap f vs xs' = do
+  let xs = [ x' | x <- xs, x' <- [x, GM.dropModuleNames <$> x] ]
   syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++  [ (val lx, v) | (v, lx, _) <- syms2 ])
@@ -242,7 +253,8 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   lmap           <- logic_map . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs lmap
-  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs defVars
+  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols specs)
+  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs syms1 -- defVars
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -250,11 +262,10 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
   let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
-                ++ S.toList (Ms.reflects mySpec)
-                ++ S.toList (Ms.hmeas    mySpec)
-                ++ S.toList (Ms.inlines  mySpec)
+  --              ++ S.toList (exportedSymbols mySpec)
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
-  syms     <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  let syms  = syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
@@ -546,16 +557,16 @@ insertHMeasLogicEnv (x, s)
 --   = return ()
 
 makeGhcSpecCHOP1
-  :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon -> [Var]
+  :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon -> [(Symbol, Var)]
   -> BareM ( [(TyCon,TyConP)]
            , [(DataCon,DataConP)]
            , [Measure SpecType DataCon]
            , [(Var, Located SpecType)]
            , M.HashMap TyCon RTyCon     )
-makeGhcSpecCHOP1 cfg specs embs defVars = do
+makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
   let tycons       = tcs        ++ wiredTyCons
-  let tyi          = qualifyRTyCon (qualifySymbol' defVars) <$> makeTyConInfo tycons
+  let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
   recSels         <- makeRecordSelectorSigs datacons
