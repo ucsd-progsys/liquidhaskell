@@ -15,8 +15,11 @@ import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
+<<<<<<< HEAD
 import qualified Language.Fixpoint.Types.Graduals  as G
 import qualified Language.Fixpoint.Solver.GradualSolution as GS 
+=======
+>>>>>>> 93e81f3bb4c1ae9216cfc2d75d0217952e08310c
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -42,9 +45,6 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-solve cfg fi | gradual cfg 
-  = solveGradual cfg fi 
-
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
@@ -168,6 +168,7 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
     mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
 
 --------------------------------------------------------------------------------
+
 -- | Progress Bar
 --------------------------------------------------------------------------------
 withProgressFI :: SolverInfo a b -> IO b -> IO b

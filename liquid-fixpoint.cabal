@@ -51,7 +51,7 @@ Executable fixpoint
   if flag(devel)
     ghc-options: -Werror
   hs-source-dirs: bin
-  Build-Depends: base 
+  Build-Depends: base >=4.8.1.0 && <5
                , liquid-fixpoint
 
 Library
@@ -59,7 +59,6 @@ Library
   ghc-options:     -W -fno-warn-missing-methods
   if flag(devel)
     ghc-options:   -Werror
-  ghc-prof-options: -fprof-auto
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -75,7 +74,6 @@ Library
                    Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
-                   Language.Fixpoint.Types.Graduals,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Graph.Types,
                    Language.Fixpoint.Graph.Reducible,
@@ -109,7 +107,7 @@ Library
                    Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
 
-  Build-Depends: base
+  Build-Depends: base >=4.8.1.0 && <5
                , array
                , async
                , attoparsec
@@ -161,7 +159,7 @@ test-suite test
   if flag(devel)
     ghc-options:    -Werror
   main-is:          test.hs
-  build-depends:    base,
+  build-depends:    base >= 4.8 && < 5,
                     directory,
                     filepath,
                     process,
@@ -178,7 +176,7 @@ test-suite testparser
   if flag(devel)
     ghc-options:    -Werror
   main-is:          testParser.hs
-  build-depends:    base,
+  build-depends:    base >= 4.8 && < 5,
                     directory,
                     filepath,
                     tasty >= 0.10,
