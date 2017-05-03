@@ -662,7 +662,7 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
-data AxiomEnv = AEnv { aenvSyms    :: ![Symbol]
+data AxiomEnv = AEnv { aenvSyms    :: !Int
                      , aenvEqs     :: ![Equation]
                      , aenvSimpl   :: ![Rewrite]
                      , aenvFuel    :: M.HashMap SubcId Int
@@ -682,9 +682,9 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] [] (M.fromList []) (M.fromList [])
+  mempty = AEnv 0 [] [] (M.fromList []) (M.fromList [])
   mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand'
-    where aenvSyms'    = mappend (aenvSyms a1) (aenvSyms a2)
+    where aenvSyms'    = aenvSyms a1 + aenvSyms a2
           aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
           aenvFuel'    = mappend (aenvFuel a1) (aenvFuel a2)
