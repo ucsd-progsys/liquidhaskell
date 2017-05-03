@@ -314,7 +314,7 @@ test-suite liquidhaskell-parser
                 , filepath >= 1.3
                 , mtl >= 2.1
                 , ghc == 8.0.2
-                , ghc == boot-8.0.2
+                , ghc-boot == 8.0.2
                 , hashable >= 1.2
                 , liquid-fixpoint >= 0.6
                 , pretty
