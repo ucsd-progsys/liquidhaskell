@@ -19,13 +19,15 @@ type Vec2D = Int -> Int -> Value
 
 {-@ sum2D :: Vec2D -> Nat -> Nat -> Value @-}
 sum2D :: Vec2D -> Int -> Int -> Value
-sum2D a n m = go n m
+sum2D a n m = goo n m
   where 
-    {-@ go :: i:Nat -> j:Nat -> Value / [i, j] @-}
+    -- the LH bug is because of the name clash; both are called "go"
+    -- THIS NEEDS TO BE FIXED.
+    {-@ go :: ink:Nat -> joe:Nat -> Value / [ink, joe] @-}
     go 0 0        = a 0 0
     go i j 
-      | j == 0    =  a i 0 + go (i-1) m
-      | otherwise =  a i j + go i (j-1)
+      | j == 0    =  a i 0 + goo (i-1) m
+      | otherwise =  a i j + goo i (j-1)
 
 {-@ sumFromTo :: Vec -> lo:Nat -> hi:{v:Nat|v>=lo} -> Value @-}
 sumFromTo :: Vec -> Int -> Int ->  Value

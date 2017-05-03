@@ -467,7 +467,7 @@ makeGhcSpec2 invs ntys ialias measures su sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
-                , gsMeasures   = subst su
+                , gsMeasures   = qualifyLocSymbolHEREHEREHEREHERE subst su
                                  <$> M.elems (Ms.measMap measures)
                                   ++ Ms.imeas measures
                 }

@@ -1,11 +1,11 @@
-GHC-8 integration 
+GHC-8 integration
 ==================
 - bring back bench
-- ES: fix Target 
-- RJ: fix pattern inlines in 
+- ES: fix Target
+- RJ: fix pattern inlines in
   - `tests/todo/NoInlines.hs`
-  - `tests/pos/monad1.hs`, 
-  - `tests/pos/TemplateHaskell.hs`, 
+  - `tests/pos/monad1.hs`,
+  - `tests/pos/TemplateHaskell.hs`,
   - `tests/pos/dropWhile.hs`
   - `tests/todo/NoInlines.hs`
 - NV: Termination requires Haskell signature in `tests/pos/Term.hs`
@@ -15,23 +15,23 @@ GHC-8 integration
 
 
 ```
-showTy' :: Type -> String 
+showTy' :: Type -> String
 showTy' (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy' <$> ts) ++ ")"
-showTy' (AppTy t1 t2)   = "(TAppTy " ++ (showTy' t1 ++ " " ++ showTy' t2) ++ ")" 
-showTy' t@(TyVarTy v)     = "[" ++ show (isKind t) ++ " " ++ showPpr (varType v) ++ "](RVar " ++ showPpr v ++ ")" 
-showTy' (ForAllTy v t)  = "ForAllTy " ++ showPpr v ++ "." ++  showTy' t 
+showTy' (AppTy t1 t2)   = "(TAppTy " ++ (showTy' t1 ++ " " ++ showTy' t2) ++ ")"
+showTy' t@(TyVarTy v)     = "[" ++ show (isKind t) ++ " " ++ showPpr (varType v) ++ "](RVar " ++ showPpr v ++ ")"
+showTy' (ForAllTy v t)  = "ForAllTy " ++ showPpr v ++ "." ++  showTy' t
 showTy' (CastTy _ _)    = "CastTy"
 showTy' (CoercionTy _)  = "CoercionTy"
 showTy' (LitTy _)       = "LitTy"
 
 
 showTy :: ( PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-          => RType RTyCon RTyVar r -> String 
+          => RType RTyCon RTyVar r -> String
 showTy t@(RApp c ts _ _)  = "[" ++ show (isKind $ toType t) ++ "](RApp   " ++ show c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
-showTy (RAppTy t1 t2 _) = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
-showTy t@(RVar v _) = "[" ++ show (isKind $ toType t) ++ "](RVar " ++ show v ++ ")" 
+showTy (RAppTy t1 t2 _) = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")"
+showTy t@(RVar v _) = "[" ++ show (isKind $ toType t) ++ "](RVar " ++ show v ++ ")"
 showTy (RFun _ _ _ _) = "RFun"
-showTy (RAllT v t) = "RAllT " ++ show v ++ "." ++ showTy t 
+showTy (RAllT v t) = "RAllT " ++ show v ++ "." ++ showTy t
 showTy (RAllP _ _) = "RAllP"
 showTy (RAllS _ _) = "RAllS"
 showTy (RAllE _ _ _) = "RAllE"
@@ -42,8 +42,8 @@ showTy (RHole _) = "RHole"
 
 sep' :: String -> [String] -> String
 sep' _ [] = []
-sep' _ [x] = x 
-sep' s (x:xs) = x ++ s ++ sep' s xs 
+sep' _ [x] = x
+sep' s (x:xs) = x ++ s ++ sep' s xs
 ```
 
 - Reader
