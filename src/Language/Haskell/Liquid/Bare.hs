@@ -477,7 +477,7 @@ makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(S
 makeGhcSpec3 datacons tycons embs syms sp = do
   tcEnv  <- tcEnv    <$> get
   return  $ sp { gsTyconEnv = tcEnv
-               , gsDconsP   = datacons -- dcons'
+               , gsDconsP   = datacons
                , gsTcEmbeds = embs
                , gsTconsP   = [(tc, qualifyTyConP (qualifySymbol syms) tcp) | (tc, tcp) <- tycons]
                , gsFreeSyms = [(symbol v, v) | (_, v) <- syms]
@@ -507,7 +507,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
   isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- tracepp "EXPAND:after" <$> (expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs)
+  gsTySigs'   <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
   gsMeasures' <- expand $ gsMeasures   sp
   gsAsmSigs'  <- expand $ gsAsmSigs    sp
   gsInSigs'   <- expand $ gsInSigs     sp

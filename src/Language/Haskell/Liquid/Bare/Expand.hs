@@ -2,16 +2,16 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Expand ( 
-  -- * Alias Expansion 
-  ExpandAliases (..) 
+module Language.Haskell.Liquid.Bare.Expand (
+  -- * Alias Expansion
+  ExpandAliases (..)
   ) where
 
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
 import qualified Data.HashMap.Strict              as M
-import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
--- import qualified Language.Fixpoint.Types as F 
+import           Language.Fixpoint.Types          (tracepp, Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
+-- import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc     (firstMaybes, safeZipWithError)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
@@ -112,7 +112,7 @@ expandSym' :: Symbol -> BareM Symbol
 expandSym' s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
-  return $ if M.member s' axs then s' else s
+  return $ if M.member s' axs then tracepp "EXPANDSYM" s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es) = do
