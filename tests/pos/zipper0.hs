@@ -16,25 +16,25 @@ data Stack a = Stack { focus :: a
                      , down  :: UListDif a focus }
 @-}
 
-{-@
-  measure listDup :: [a] -> (Set a)
+{-@ measure listDup :: [a] -> (Set a)
   listDup([]) = {v | Set_emp v }
   listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}
 
 {-@ type UStack a = {v:Stack a |(Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))}@-}
 
-{-@ measure getFocus :: forall a. (Stack a) -> a
-    getFocus (Stack focus up down) = focus
-  @-}
+{-@ measure getFocus @-} 
+getFocus :: Stack a -> a
+getFocus (Stack xfocus _ _) = xfocus 
 
-{-@ measure getUp :: forall a. (Stack a) -> [a]
-    getUp (Stack focus up down) = up
-  @-}
+{-@ measure getUp @-} 
+getUp :: Stack a -> [a]
+getUp (Stack xfocus xup xdown) = xup
 
-{-@ measure getDown :: forall a. (Stack a) -> [a]
-    getDown (Stack focus up down) = down
-  @-}
+{-@ measure getDown @-}
+getDown :: Stack a -> [a]
+getDown (Stack xfocus xup xdown) = xdown
+
 
 -- QUALIFIERS
 {-@ q :: x:a ->  {v:[a] |(not (Set_mem x (listElts v)))} @-}
