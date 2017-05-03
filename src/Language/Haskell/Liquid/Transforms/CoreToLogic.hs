@@ -284,8 +284,9 @@ coreToIte e (efalse, etrue)
        return $ EIte p e2 e1
 
 toPredApp :: C.CoreExpr -> LogicM Expr
-toPredApp p = go . mapFst tomaybesymbol . splitArgs $ p
+toPredApp p = go . mapFst opSym . splitArgs $ p
   where
+    opSym = fmap dropModuleNames . tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg e1 <*> coreToLg e2
@@ -314,8 +315,7 @@ toLogicApp e = do
     C.Var _ -> do args <- mapM coreToLg es
                   lmap       <- symbolMap <$> getState
                   def        <- (`mkEApp` args) <$> tosymbol f
-                  -- bbs        <- boolbinds <$> get
-                  (\x -> makeApp def lmap x args) <$> tosymbol' f
+                  (\x -> makeApp (F.tracepp "TOLOGICAPP" def)  lmap x args) <$> tosymbol' f
     _       -> do (fe:args) <- mapM coreToLg (f:es)
                   return $ foldl EApp fe args
 

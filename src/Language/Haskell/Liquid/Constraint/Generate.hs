@@ -302,9 +302,9 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
     where
-      topBind (NonRec v _)  = Just v 
-      topBind (Rec [(v,_)]) = Just v 
-      topBind _             = Nothing 
+      topBind (NonRec v _)  = Just v
+      topBind (Rec [(v,_)]) = Just v
+      topBind _             = Nothing
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
@@ -789,7 +789,7 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
-       return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+       return $ F.tracepp "STRENGTHENMEETHACK" $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 -- NV END HACK
 

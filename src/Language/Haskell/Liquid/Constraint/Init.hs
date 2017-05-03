@@ -75,7 +75,7 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty              -- data constructors
+       f1'      <- F.tracepp "MAKEDCS" <$> (refreshArgs' $ makedcs dcsty)              -- data constructors
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals gsAsmSigs sp          -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals gsCtors sp            -- constructor refinements  (for measures)
@@ -204,7 +204,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , lcb      = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
-  , aenv     = axiom_map $ gsLogicMap sp
+  , aenv     = mempty -- F.tracepp "AXIOM-MAP" $ axiom_map $ gsLogicMap sp
   , cerr     = Nothing
   , cgInfo   = info
   , cgVar    = Nothing

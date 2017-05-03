@@ -102,13 +102,14 @@ makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
-    axs       = initAxSymbols name specs
+    axs       = tracepp "initAxSymbols" $ initAxSymbols name defVars specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
-initAxSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initAxSymbols name = locMap . {- Ms.axioms -} Ms.reflects . fromMaybe mempty . lookup name
+initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where
-    locMap xs      = M.fromList [ (val x, x) | x <- S.toList xs]
+    locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
+    tx                = qualifySymbol' vs
 
 listLMap :: LogicMap
 listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
@@ -122,19 +123,19 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { gsTySigs     = mapSnd addTCI <$> sigs
-       , gsInSigs     = mapSnd addTCI <$> insigs
-       , gsAsmSigs    = mapSnd addTCI <$> assms
-       , gsInvariants = mapSnd addTCI <$> gsInvariants
+  = sp { gsTySigs     = tracepp "GSTYSIGS" <$> (mapSnd addTCI <$> sigs)
+       , gsInSigs     = tracepp "GSINSIGS" <$> (mapSnd addTCI <$> insigs)
+       , gsAsmSigs    = tracepp "GSASMSIG" <$> (mapSnd addTCI <$> assms)
+       , gsInvariants = tracepp "GSINVS"   <$> (mapSnd addTCI <$> gsInvariants)
        , gsLits       = txSort        <$> gsLits
-       , gsMeas       = txSort        <$> gsMeas
+       , gsMeas       = tracepp "GSMEAS" <$> (txSort        <$> gsMeas)
        , gsDicts      = dmapty addTCI'    gsDicts
        , gsTexprs     = ts
        }
   where
-    (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
-    (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
-    (insigs, ts)      = replaceLocBinds gsInSigs  ts''
+    (sigs,   ts')     = replaceLocBinds (tracepp "postProc1" gsTySigs ) gsTexprs
+    (assms,  ts'')    = replaceLocBinds (tracepp "postProc2" gsAsmSigs) ts'
+    (insigs, ts)      = replaceLocBinds (tracepp "postProc3" gsInSigs ) ts''
     replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
     txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
     addTCI            = (addTCI' <$>)
@@ -167,8 +168,8 @@ ghcSpecEnv sp = fromListSEnv binds
 
 makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
 makeLiftedSpec0 embs cbs mySpec = do
-  xils   <- makeHaskellInlines  embs cbs mySpec
-  ms     <- makeHaskellMeasures embs cbs mySpec
+  xils   <- tracepp "HASKELLINLINES"  <$> makeHaskellInlines  embs cbs mySpec
+  ms     <- tracepp "HASKELLMEASURES" <$> makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                    , Ms.measures = ms
                    , Ms.reflects = Ms.reflects mySpec
@@ -251,6 +252,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   let fSyms = freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
                 ++ S.toList (Ms.reflects mySpec)
                 ++ S.toList (Ms.hmeas    mySpec)
+                ++ S.toList (Ms.inlines  mySpec)
   -- syms     <- tracepp "reflect-datacons:syms" <$> makeSymbols (varInModule name) (vars ++ map fst cs') (val <$> fSyms)
   syms     <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
@@ -305,7 +307,9 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
          | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
-getReflects = fmap val . S.toList . S.unions . fmap (Ms.reflects . snd)
+getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
+  where
+    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
 
 getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
 getAxiomEqs = concatMap (Ms.axeqs . snd)
@@ -321,13 +325,13 @@ makeGhcAxioms
 makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (getReflects specs)
-  xtes    <- tracepp "haskell-axioms" <$> makeHaskellAxioms embs cbs sp mSpc
+  xtes    <- makeHaskellAxioms embs cbs sp mSpc
   let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
   let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
   let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
-  let xts' = xts ++ gsAsmSigs sp
+  let xts' = (tracepp "asmSigs1" xts) ++ (tracepp "asmSigs2" $ gsAsmSigs sp)
   let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
   let vs   = [ v             | (v, _) <- vts ]
@@ -343,7 +347,7 @@ qualifyAxiomEq v su eq = subst su eq { axiomName = symbol v}
 makeLogicMap :: GhcSpec -> BareM GhcSpec
 makeLogicMap sp = do
   lmap  <- logicEnv <$> get
-  return $ sp { gsLogicMap = lmap }
+  return $ sp { gsLogicMap = tracepp "GSLOGICMAP" lmap }
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP
@@ -500,7 +504,7 @@ makeGhcSpec4 quals defVars specs name su sp = do
   isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
   gsTySigs'   <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
   gsMeasures' <- expand $ gsMeasures   sp
-  gsAsmSigs'  <- expand $ gsAsmSigs    sp
+  gsAsmSigs'  <- tracepp "EXPAND:after" <$> (expand $ (tracepp "EXPAND:before" $ gsAsmSigs    sp))
   gsInSigs'   <- expand $ gsInSigs     sp
   gsInvarnts' <- expand $ gsInvariants sp
   gsCtors'    <- expand $ gsCtors      sp
