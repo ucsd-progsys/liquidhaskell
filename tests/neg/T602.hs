@@ -3,7 +3,7 @@ module T602 where
 -- UNSOUNDLY SAFE
 {-@
 class Fractional a => Foo a where
-    foo :: { x : a | x /= 0 } -> a
+    foo :: { x : a | x /= 0.0 } -> a
 @-}
 
 -- UNSAFE

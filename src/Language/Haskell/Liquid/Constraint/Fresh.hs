@@ -57,18 +57,18 @@ instance Freshable CG Integer where
              put $ s { freshIndex = n + 1 }
              return n
 
-instance Freshable m Integer => Freshable m F.Symbol where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Symbol where
   fresh = F.tempSymbol "x" <$> fresh
 
-instance Freshable m Integer => Freshable m F.Expr where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Expr where
   fresh  = kv <$> fresh
     where
       kv = (`F.PKVar` mempty) . F.intKvar
 
-instance Freshable m Integer => Freshable m [F.Expr] where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m [F.Expr] where
   fresh = single <$> fresh
 
-instance Freshable m Integer => Freshable m F.Reft where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft where
   fresh                  = panic Nothing "fresh Reft"
   true    (F.Reft (v,_)) = return $ F.Reft (v, mempty)
   refresh (F.Reft (_,_)) = (F.Reft .) . (,) <$> freshVV <*> fresh

@@ -2,7 +2,10 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Expand ( ExpandAliases (..) ) where
+module Language.Haskell.Liquid.Bare.Expand ( 
+  -- * Alias Expansion 
+  ExpandAliases (..) 
+  ) where
 
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)

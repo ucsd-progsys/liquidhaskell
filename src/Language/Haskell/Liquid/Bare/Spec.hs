@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE BangPatterns      #-}
 
 module Language.Haskell.Liquid.Bare.Spec (
     makeClasses
@@ -33,7 +34,7 @@ import           Prelude                                    hiding (error)
 import           TyCon
 import           Var
 
-
+import qualified OccName as NS
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Data.Maybe
@@ -46,7 +47,6 @@ import qualified Data.HashMap.Strict                        as M
 
 
 import           Language.Fixpoint.Misc                     (group, snd3, groupList)
--- import           Language.Fixpoint.Misc                     (traceShow)
 
 
 import qualified Language.Fixpoint.Types                    as F
@@ -81,7 +81,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
             = do let c      = btc_tc cc
                  let l      = loc  c
                  let l'     = locE c
-                 tc        <- lookupGhcTyCon c
+                 tc        <- lookupGhcTyCon "makeClasses" c
                  ss'       <- mapM mkLSpecType ss
                  let (dc:_) = tyConDataCons tc
                  let αs  = map bareRTyVar as
@@ -172,7 +172,7 @@ varsAfter f s lvs
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss
   = do env   <- gets hscEnv
-       ns    <- liftIO $ concatMapM (lookupName env name . dummyLoc . prefix) ss
+       ns    <- liftIO $ concatMapM (lookupName env name (Just NS.varName) . dummyLoc . prefix) ss
        return $ filter ((`elem` ns) . varName) vs
     where
        prefix s = qualifySymbol (F.symbol name) (F.symbol s)
@@ -230,7 +230,7 @@ makeLocalSpec cfg mod vs lvs cbs xbs
   = do vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2  <- makeSpec (noCheckUnknown cfg) vs xbs2
-       return $ vts1 ++ vts2
+       return $ (vts1 ++ vts2)
   where
     xbs1                = xbs1' ++ cbs
     (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
@@ -242,20 +242,20 @@ makeLocalSpec cfg mod vs lvs cbs xbs
 
 makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
          -> BareM [(ModName, Var, LocSpecType)]
-makeSpec ignoreUnknown vs xbs = do
-  vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
+makeSpec _ignoreUnknown vs xbs = do
   (BE { modName = mod}) <- get
+  vbs <- map (joinVar vs) <$> lookupIds False xbs
   map (addFst3 mod) <$> mapM mkVarSpec vbs
 
-lookupIds :: GhcLookup a => Bool -> [(a, t)] -> BareM [(Var, a, t)]
-lookupIds ignoreUnknown
+lookupIds :: Bool -> [(LocSymbol, Located BareType)] -> BareM [(Var, LocSymbol, Located BareType)]
+lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where
     lookup (s, t)
       = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
     handleError (ErrGhc {})
       | ignoreUnknown
-        = return Nothing
+      = return Nothing
     handleError err
       = throwError err
 
@@ -284,7 +284,7 @@ makeNewTypes' :: [DataDecl] -> BareM [(TyCon, Located SpecType)]
 makeNewTypes' = mapM mkNT
   where
     mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
-    mkNT d       = (,) <$> lookupGhcTyCon (tycName d)
+    mkNT d       = (,) <$> lookupGhcTyCon "makeNewTypes'" (tycName d)
                        <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
     getTy l [(_,[(_,t)])] = return $ withLoc l t
     getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"

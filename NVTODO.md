@@ -1,3 +1,7 @@
+- Porting to ghc-8
+  - restore benchmarks
+  - look at Target's model
+
 - Gradual Refinement Types
  - [x] clean up code
  - [x] compare numbers

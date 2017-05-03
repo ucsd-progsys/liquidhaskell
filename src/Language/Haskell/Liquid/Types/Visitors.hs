@@ -20,7 +20,7 @@ import           DataCon
 import           Literal
 import           Prelude                          hiding (error)
 
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 import           FastString (fastStringToByteString)
 
@@ -141,7 +141,7 @@ instance CBVisitable (Alt Var) where
   literals (c,_, e)       = literals c ++ literals e
 
 instance CBVisitable AltCon where
-  freeVars _ (DataAlt dc) = dataConImplicitIds dc
+  freeVars _ (DataAlt dc) = [ x | AnId x <- dataConImplicitTyThings dc]
   freeVars _ _            = []
   readVars _              = []
   letVars  _              = []

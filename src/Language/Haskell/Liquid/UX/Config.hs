@@ -158,7 +158,9 @@ class HasConfig t where
   getConfig :: t -> Config
 
   patternFlag :: t -> Bool
-  patternFlag = not . noPatternInline . getConfig
+  -- NV: This edit goes with the similar edit in Config.hs
+  patternFlag = const False
+  --   patternFlag = not . noPatternInline . getConfig
 
   higherOrderFlag :: t -> Bool
   higherOrderFlag = higherorder . getConfig

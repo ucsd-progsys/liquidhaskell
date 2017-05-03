@@ -1,6 +1,7 @@
 {-# LANGUAGE ImplicitParams        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE FlexibleContexts      #-}
 
 --------------------------------------------------------------------------------
 -- | Constraint Splitting ------------------------------------------------------
@@ -28,7 +29,7 @@ import           Prelude hiding (error)
 
 
 
-import           Text.PrettyPrint.HughesPJ hiding (first)
+import           Text.PrettyPrint.HughesPJ hiding (first, parens)
 import qualified TyCon  as TC
 
 import           Data.Maybe          (fromMaybe) -- catMaybes, fromJust, isJust)
@@ -128,7 +129,7 @@ bsplitW γ t =
      isHO  <- allowHO   <$> get
      return $ bsplitW' γ t pflag isHO
 
-bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
          => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t pflag isHO
   | isHO || F.isNonTrivial r'
@@ -390,7 +391,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC γ t1 t2)
-  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
+  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -408,6 +409,23 @@ splitC (SubR γ o r)
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ
+
+traceTy :: SpecType -> String 
+traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
+traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts)) 
+traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
+traceTy (RAllS _ t)     = parens ("RAllS " ++ traceTy t)
+traceTy (RAllT _ t)     = parens ("RAllT " ++ traceTy t)
+traceTy (RFun _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
+traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
+traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))
+traceTy (RExprArg _)    = "RExprArg"
+traceTy (RAppTy t t' _) = parens ("RAppTy " ++ parens (traceTy t) ++ parens (traceTy t'))
+traceTy (RHole _)       = "rHole"
+traceTy (RRTy _ _ _ t)  = parens ("RRTy " ++ traceTy t)
+
+parens :: String -> String
+parens s = "(" ++ s ++ ")"
 
 rHole :: F.Reft -> SpecType
 rHole = RHole . uTop

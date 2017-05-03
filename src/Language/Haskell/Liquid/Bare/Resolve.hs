@@ -106,7 +106,7 @@ instance Resolvable Sort where
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
     | tcs' `elem` prims   = FTC <$> return c
-    | otherwise           = do ty     <- lookupGhcTyCon tcs
+    | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
                                emb    <- embeds <$> get
                                let ftc = symbolFTycon $ Loc l l' $ symbol ty
                                return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
