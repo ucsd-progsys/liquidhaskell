@@ -4,10 +4,10 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ LIQUID "--no-termination" @-}
 
-{-@  
-data List [llen] a <p :: x0:a -> x1:a -> Bool>  
-  = Nil 
-  | Cons (h :: a) (t :: List <p> (a <p h>))
+{-@
+data List [llen] a <p :: x0:a -> x1:a -> Bool>
+  = Nil
+  | Cons { lHd :: a, lTl :: List <p> (a <p h>) }
 @-}
 
 {-@ measure llen :: (List a) -> Int
@@ -25,14 +25,14 @@ low  = 0
 high = 10
 -}
 
-range l h = 
+range l h =
   if l <= h then Cons l (range (l+1) h) else Nil
 
-chk y = 
-  case y of 
+chk y =
+  case y of
    Nil -> True
-   Cons x1 xs -> case xs of 
+   Cons x1 xs -> case xs of
                  Nil -> True
                  Cons x2 xs2 -> liquidAssertB (x1 <= x2) && chk xs2
 
-prop3 = chk $ range 1 100 
+prop3 = chk $ range 1 100

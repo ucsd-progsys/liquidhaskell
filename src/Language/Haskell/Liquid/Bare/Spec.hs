@@ -257,7 +257,7 @@ lookupIds !ignoreUnknown
       | ignoreUnknown
       = return Nothing
     handleError err
-      = throwError err
+      = throwError $ F.tracepp "HANDLE-ERROR" err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, _, b) = tx <$> mkLSpecType b
