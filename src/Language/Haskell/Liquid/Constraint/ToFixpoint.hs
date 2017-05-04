@@ -97,7 +97,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv ((axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
+  = F.AEnv (length $ (axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
            (makeEquations info ++ (specTypToEq  <$> xts))
            (concatMap makeSimplify xts)
            fuelMap
