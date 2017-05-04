@@ -30,7 +30,7 @@ import           CoreSyn                                    hiding (Expr, source
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
-import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..), 
+import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..),
                                                              Dependencies(..))
 import           TysPrim                                    (anyTy)
 import           NameSet                                    (NameSet)
@@ -77,8 +77,7 @@ import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
-
-import           Id                                   (idOccInfo, setIdInfo)
+import           Id                                         (isExportedId, idOccInfo, setIdInfo)
 
 mkAlive :: Var -> Id
 mkAlive x
@@ -153,7 +152,7 @@ stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name 
+stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -461,13 +460,17 @@ symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar :: Symbol -> TyVar
 symbolTyVar n = stringTyVar (symbolString n)
 
-varSymbol ::  Var -> Symbol
-varSymbol v
+
+localVarSymbol ::  Var -> Symbol
+localVarSymbol v
   | us `isSuffixOfSym` vs = vs
   | otherwise             = suffixSymbol vs us
   where
     us                    = symbol $ showPpr $ getDataConVarUnique v
-    vs                    = symbol $ getName v
+    vs                    = exportedVarSymbol v -- TODO:reflect-datacons varSymbol
+
+exportedVarSymbol :: Var -> Symbol
+exportedVarSymbol = symbol . getName            -- TODO:reflect-datacons varSymbol
 
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
@@ -509,8 +512,17 @@ instance Symbolic Class where
 instance Symbolic Name where
   symbol = symbol . qualifiedNameSymbol
 
-instance Symbolic Var where
-  symbol = symbol . getName -- TODO:reflect-datacons varSymbol
+-- | [NOTE:REFLECT-IMPORTS] we **eschew** the `unique` suffix for exported vars,
+-- to make it possible to lookup names from symbols _across_ modules;
+-- anyways exported names are top-level and you shouldn't have local binders
+-- that shadow them. However, we **keep** the `unique` suffix for local variables,
+-- as otherwise there are spurious, but extremely problematic, name collisions
+-- in the fixpoint environment.
+
+instance Symbolic Var where   -- TODO:reflect-datacons varSymbol
+  symbol v
+    | isExportedId v = exportedVarSymbol v
+    | otherwise      = localVarSymbol    v
 
 instance Hashable Var where
   hashWithSalt = uniqueHash
