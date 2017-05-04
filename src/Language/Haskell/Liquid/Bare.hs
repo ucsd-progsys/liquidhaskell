@@ -48,7 +48,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapSnd)
+import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -430,11 +430,12 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
     where
       tx       = fmap . mapSnd . subst $ su
       tx'      = fmap (mapSnd $ fmap uRType)
+      tx''     = fmap . mapFst . qualifySymbol $ syms
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
-      measSyms = tx' $ tx $ ms' ++ (varMeasures vars) ++ cms'
+      measSyms = tx'' . tx' . tx $ ms' ++ (varMeasures vars) ++ cms'
 
 qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
-qualifyMeasure syms m = m { name = qualifySymbol syms (name m) }
+qualifyMeasure syms m = m { name = qualifyLocSymbol (qualifySymbol syms) (name m) }
 
 qualifyRTyCon :: (Symbol -> Symbol) -> RTyCon -> RTyCon
 qualifyRTyCon f rtc = rtc { rtc_info = qualifyTyConInfo f (rtc_info rtc) }
@@ -467,13 +468,13 @@ makeGhcSpec2 :: Monad m
              -> [(Symbol, Var)]
              -> GhcSpec
              -> m GhcSpec
-makeGhcSpec2 invs ntys ialias measures su sp
+makeGhcSpec2 invs ntys ialias measures su syms sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
-                , gsMeasures   = (qualifyMeasures syms . subst su)
-                                 <$> M.elems (Ms.measMap measures)
-                                  ++ Ms.imeas measures
+                , gsMeasures   = (qualifyMeasure syms . subst su)
+                                 <$> (M.elems (Ms.measMap measures)
+                                   ++ Ms.imeas measures)
                 }
 
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(Symbol, Var)]
