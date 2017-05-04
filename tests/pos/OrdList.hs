@@ -3,7 +3,7 @@
 module OrdList (
     OrdList,
         nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL, concatOL',
-        mapOL, fromOL, toOL, foldrOL, foldlOL
+        mapOL, fromOL, toOL, foldrOL, foldlOL, llen, olen, olens
 ) where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
@@ -14,30 +14,34 @@ infixr 5  `consOL`
 
 {-@
 data OrdList [olen] a = None
-                      | One  (x  :: a)
-                      | Many (xs1 :: ListNE a)
-                      | Cons (x  :: a)           (xs3 :: OrdList a)
-                      | Snoc (xs2 :: OrdList a)   (x  :: a)
-                      | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
+                      | One  (ox  :: a)
+                      | Many (oxs1 :: ListNE a)
+                      | Cons (ox  :: a)           (oxs3 :: OrdList a)
+                      | Snoc (oxs2 :: OrdList a)  (ox  :: a)
+                      | Two  (ox  :: OrdListNE a) (oy  :: OrdListNE a)
 @-}
 
-{-@
-measure olen :: OrdList a -> Int
+{-@ measure llen @-}
+{-@ llen :: [a] -> Nat @-}
+llen :: [a] -> Int 
+llen [] = 0
+llen (x:xs) = 1 + llen xs 
+
+{-@ measure olen @-} 
+olen :: OrdList a -> Int
 olen (None)      = 0
 olen (One x)     = 1
-olen (Many xs)   = (len xs)
+olen (Many xs)   = llen xs
 olen (Cons x xs) = 1 + (olen xs)
 olen (Snoc xs x) = 1 + (olen xs)
 olen (Two x y)   = (olen x) + (olen y)
-@-}
 
-{-@
-measure olens :: [OrdList a] -> Int
+{-@ measure olens @-} 
+olens :: [OrdList a] -> Int
 olens ([])     = 0
 olens (ol:ols) = (olen ol) + (olens ols)
-@-}
 
-{-@ type ListNE    a   = {v:[a]       | (len v)  > 0} @-}
+{-@ type ListNE    a   = {v:[a]       | (llen v) > 0} @-}
 {-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
 {-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
 
@@ -59,10 +63,10 @@ data OrdList a
 {-@ isNilOL  :: xs:OrdList a -> {v:Bool | v <=> (olen xs == 0)} @-}
 
 {-@ unitOL   :: a              -> OrdListN a {1} @-}
-{-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1+(olen xs)} @-}
-{-@ consOL   :: a              -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
-{-@ appOL    :: xs:OrdList a   -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
-{-@ concatOL :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
+{-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1 + olen xs} @-}
+{-@ consOL   :: a              -> xs:OrdList a -> OrdListN a {1 + olen xs} @-}
+{-@ appOL    :: xs:OrdList a   -> ys:OrdList a -> OrdListN a { (olen xs) + (olen ys)} @-}
+{-@ concatOL :: xs:[OrdList a] -> OrdListN a {olens xs} @-}
 
 nilOL        = None
 unitOL as    = One as
@@ -89,12 +93,12 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
-{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (len v) = (olen xs) + (len ys) @-}
+{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (llen v) = (olen xs) + (llen ys) @-}
 
-{-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
+{-@ fromOL :: xs:OrdList a -> {v:[a] | (llen v) = (olen xs)} @-}
 fromOL a = go a []
   where
-    {- go :: xs:_ -> acc:_ -> {v:[a] | len v = olen xs + len acc } -}
+    {- go :: xs:_ -> acc:_ -> {v:[a] | llen v = olen xs + len acc } -}
     go None       acc = acc
     go (One a)    acc = a : acc
     go (Cons a b) acc = a : go b acc
@@ -102,7 +106,7 @@ fromOL a = go a []
     go (Two a b)  acc = go a (go b acc)
     go (Many xs)  acc = xs ++ acc
 
-{-@ mapOL :: (a -> b) -> xs:OrdList a -> OrdListN b {(olen xs)} @-}
+{-@ mapOL :: (a -> b) -> xs:OrdList a -> OrdListN b {olen xs} @-}
 mapOL _ None = None
 mapOL f (One x) = One (f x)
 mapOL f (Cons x xs) = Cons (f x) (mapOL f xs)
@@ -129,6 +133,6 @@ foldlOL k z (Snoc xs x) = k (foldlOL k z xs) x
 foldlOL k z (Two b1 b2) = foldlOL k (foldlOL k z b1) b2
 foldlOL k z (Many xs)   = foldl k z xs
 
-{-@ toOL :: xs:[a] -> OrdListN a {len xs} @-}
+{-@ toOL :: xs:[a] -> OrdListN a {llen xs} @-}
 toOL [] = None
 toOL xs = Many xs
