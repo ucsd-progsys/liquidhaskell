@@ -95,7 +95,7 @@ a     `appOL` b     = Two a b
 
 {-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (llen v) = (olen xs) + (llen ys) @-}
 
-{-@ fromOL :: xs:OrdList a -> {v:[a] | (llen v) = (olen xs)} @-}
+{-@ fromOL :: xs:OrdList a -> {v:[a] | len v = olen xs} @-}
 fromOL a = go a []
   where
     {- go :: xs:_ -> acc:_ -> {v:[a] | llen v = olen xs + len acc } -}

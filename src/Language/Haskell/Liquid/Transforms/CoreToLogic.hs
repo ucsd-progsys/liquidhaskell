@@ -39,13 +39,13 @@ import           Control.Monad.Identity
 import           Language.Fixpoint.Misc                (snd3, mapSnd, mapFst)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
-import           Language.Haskell.Liquid.GHC.Misc hiding (varSymbol)
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
--- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
+-- import           Language.Haskell.Liquid.WiredIn
 -- import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
@@ -340,7 +340,7 @@ varExpr x
   | otherwise   = EVar s
   where
     t           = varType x
-    s           = varSymbol x
+    s           = symbol x
 
 isPolyCst :: Type -> Bool
 isPolyCst (ForAllTy _ t) = isCst t
@@ -427,9 +427,6 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 simpleSymbolVar' :: Id -> Symbol
 simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
-
-varSymbol :: Var -> Symbol
-varSymbol v                            = symbol v
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
