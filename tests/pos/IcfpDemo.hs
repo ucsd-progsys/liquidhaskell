@@ -25,7 +25,7 @@ range lo hi
   | otherwise = []
 
 {-@ data L [sz] a <p :: L a -> Bool>
-      = N | C (x::a) (xs::L <p> a <<p>>)
+      = N | C (lHd :: a) (lTl ::L <p> a <<p>>)
   @-}
 data L a = N | C a (L a)
 
@@ -63,19 +63,3 @@ take :: Int -> L a -> L a
 take 0 _        = N
 take n (C x xs) = x `C` take (n-1) xs
 take _ N        = liquidError "never happens"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -134,7 +134,7 @@ postProcess cbs specEnv sp@(SP {..})
        , gsAsmSigs    = tracepp "GSASMSIG" <$> (mapSnd addTCI <$> assms)
        , gsInvariants = tracepp "GSINVS"   <$> (mapSnd addTCI <$> gsInvariants)
        , gsLits       = txSort        <$> gsLits
-       , gsMeas       = tracepp "GSMEAS" <$> (txSort        <$> gsMeas)
+       , gsMeas       = txSort        <$> gsMeas
        , gsDicts      = dmapty addTCI'    gsDicts
        , gsTexprs     = ts
        }
@@ -152,7 +152,7 @@ ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
   where
     emb              = gsTcEmbeds sp
-    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
+    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- tracepp "GS-MEAS" $ gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ] -- || S.member x refls ]
     rSort            = rTypeSortedReft emb
@@ -269,7 +269,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
-    >>= makeGhcSpec2 invs ntys ialias measures su
+    >>= makeGhcSpec2 invs ntys ialias measures su syms
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
     -- The lifted-spec is saved in the next step
@@ -433,6 +433,9 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
       measSyms = tx' $ tx $ ms' ++ (varMeasures vars) ++ cms'
 
+qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
+qualifyMeasure syms m = m { name = qualifySymbol syms (name m) }
+
 qualifyRTyCon :: (Symbol -> Symbol) -> RTyCon -> RTyCon
 qualifyRTyCon f rtc = rtc { rtc_info = qualifyTyConInfo f (rtc_info rtc) }
 
@@ -461,14 +464,14 @@ makeGhcSpec2 :: Monad m
              -> [(LocSpecType, LocSpecType)]
              -> MSpec SpecType DataCon
              -> Subst
+             -> [(Symbol, Var)]
              -> GhcSpec
              -> m GhcSpec
 makeGhcSpec2 invs ntys ialias measures su sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
-                , gsMeasures   = -- qualifyLocSymbolHEREHEREHEREHERE
-                                 subst su
+                , gsMeasures   = (qualifyMeasures syms . subst su)
                                  <$> M.elems (Ms.measMap measures)
                                   ++ Ms.imeas measures
                 }

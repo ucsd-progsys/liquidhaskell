@@ -20,7 +20,7 @@ import DataCon
 import TyCon
 import Id
 import Type hiding (isFunTy)
-import qualified Type
+-- import qualified Type
 import Var
 
 import Data.Default
@@ -93,7 +93,7 @@ makeMeasureInline tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
     chomp (v, def)               = (vx, ) <$> coreToFun' tce lmap vx v def (ok vx)
                                    where vx = F.atLoc x (symbol v)
     err                          = throwError $ errHMeas x "Cannot inline haskell function"
-    ok vx (xs, e)                = return (LMap vx (varSymbol <$> xs) (either id id e))
+    ok vx (xs, e)                = return (LMap vx (symbol <$> xs) (either id id e))
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
                       -> BareM (Measure LocSpecType DataCon)
@@ -109,10 +109,10 @@ makeMeasureDefinition tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) c
     mkErr str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     err       = throwError $ mkErr "Cannot extract measure from haskell function"
 
-varSymbol :: Var -> Symbol
-varSymbol v
-  | Type.isFunTy (varType v) = GM.simplesymbol v
-  | otherwise                = symbol v
+-- reflect-datacons varSymbol :: Var -> Symbol
+-- reflect-datacons varSymbol v
+  -- reflect-datacons | Type.isFunTy (varType v) = GM.simplesymbol v
+  -- reflect-datacons | otherwise                = symbol v
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
