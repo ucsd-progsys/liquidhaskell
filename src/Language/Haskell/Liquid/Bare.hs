@@ -190,7 +190,7 @@ makeLiftedSpec1 file name lSpec0 xts axs
     xbs    = [ (varLocSym x, specToBare <$> t) | (x, t) <- xts ]
     lSpec1 = lSpec0 { Ms.asmSigs  = tracepp "reflect-datacons:makeLiftedSpec1" xbs
                     , Ms.reflSigs = xbs
-                    , Ms.axeqs    = axs }
+                    , Ms.axeqs    = tracepp "reflect-datacons:axs" axs }
 
 varLocSym :: Var -> LocSymbol
 varLocSym v = symbol <$> GM.locNamedThing v
@@ -333,7 +333,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   xtes    <- makeHaskellAxioms embs cbs sp mSpc
   let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
   let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
-  let iAxs = getAxiomEqs specs              -- axiom-eqs from IMPORTED modules
+  let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
   let xts' = (tracepp "asmSigs1" xts) ++ (tracepp "asmSigs2" $ gsAsmSigs sp)
@@ -467,7 +467,7 @@ makeGhcSpec2 invs ntys ialias measures su sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
-                , gsMeasures   = -- qualifyLocSymbolHEREHEREHEREHERE 
+                , gsMeasures   = -- qualifyLocSymbolHEREHEREHEREHERE
                                  subst su
                                  <$> M.elems (Ms.measMap measures)
                                   ++ Ms.imeas measures

@@ -1,5 +1,13 @@
 GHC-8 integration
 ==================
+
+----
+Trace: [reflect-datacons:makeAxiom] : ( MapFusion.map
+                                      , lq1:(a -> b) -> lq2:(L a) -> {VV : (L b) | VV == map lq1 lq2
+                                                           && VV == (if is_N lq2 then MapFusion.N else MapFusion.C (lq1 (select_C_1 lq2)) (map lq1 (select_C_2 lq2)))}
+                                      , axeq map [f4, ds_d2l2] := if is_N ds_d2l2 then MapFusion.N else MapFusion.C (f4 (select_C_1 ds_d2l2)) (map f4##a2hx (select_C_2 ds_d2l2)))
+----
+
 - bring back bench
 - ES: fix Target
 - RJ: fix pattern inlines in

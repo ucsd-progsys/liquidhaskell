@@ -388,7 +388,6 @@ eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
   , length xs == length es
-  -- NOPROP , length xs <= length es
   = subst (mkSubst $ zip xs es) e
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
   , isApp e

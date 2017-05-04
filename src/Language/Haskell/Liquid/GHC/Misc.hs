@@ -664,7 +664,6 @@ showCBs untidy
   | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
 
-
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
 findVarDef x cbs = case xCbs of
                      (NonRec v def   : _ ) -> Just (v, def)
