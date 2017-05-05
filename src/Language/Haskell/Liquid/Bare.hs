@@ -352,7 +352,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
                 , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
-                , gsAxioms   = axs ++ gsAxioms   sp
+                , gsAxioms   = tracepp "GSAXIOMS" $ axs ++ gsAxioms   sp
                 }
 
 qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq
