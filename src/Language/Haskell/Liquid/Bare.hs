@@ -52,8 +52,8 @@ import           Language.Fixpoint.Misc                     (ensurePath, thd3, m
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
--- import           Language.Haskell.Liquid.Misc               (ifM)
-import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (getSourcePosE, getSourcePos, sourcePosSrcSpa)
+import           Language.Haskell.Liquid.Misc               (nubHashOn)
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
@@ -223,13 +223,15 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
   where
     dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
 
-
--- | symbolVarMap resolves each Symbol to its Var;
+--------------------------------------------------------------------------------
+-- | symbolVarMap resolves each Symbol occuring in the spec to its Var;---------
+--------------------------------------------------------------------------------
 
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
-symbolVarMap f vs xs' = do
-  let xs = [ x' | x <- xs', x' <- [x, GM.dropModuleNames <$> x] ]
-  syms1 <- M.fromList <$> makeSymbols f (tracepp "reflect-datacons:VARS" vs) (tracepp "reflect-datacons:SVM" (val <$> xs))
+symbolVarMap f vs allXs' = do
+  let xs' = nubHashOn val allXs'
+  let xs  = [ x' | x <- xs', x' <- [x, GM.dropModuleNames <$> x] ]
+  syms1 <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2 <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   let syms3  = mapMaybe (hackySymbolVar vs . val) xs
   return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2] ++ syms3)
@@ -237,12 +239,13 @@ symbolVarMap f vs xs' = do
 hackySymbolVar :: [Id] -> Symbol -> Maybe (Symbol, Var)
 hackySymbolVar vs x = (x, ) <$> L.find (isSymbolOfVar x) vs
 
+
 --------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
   -> BareM GhcSpec
-------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   -- liftIO $ dumpSigs specs0
   name           <- modName <$> get
@@ -496,16 +499,15 @@ makeGhcSpec4 :: [Qualifier]
              -> GhcSpec
              -> BareM GhcSpec
 makeGhcSpec4 quals defVars specs name su sp = do
-  decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
+  decr'     <- mconcat <$> mapM (makeHints defVars . snd) specs
   gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
-  lazies  <- mkThing makeLazy
-  lvars'  <- mkThing makeLVar
-  autois  <- mkThing makeAutoInsts
-  defs'   <- mkThing makeDefs
-  addDefs defs'
-  asize'  <- S.fromList <$> makeASize
-  hmeas   <- mkThing makeHMeas
-  hinls   <- mkThing makeHInlines
+  lazies    <- mkThing makeLazy
+  lvars'    <- mkThing makeLVar
+  autois    <- mkThing makeAutoInsts
+  addDefs  =<< mkThing makeDefs
+  asize'    <- S.fromList <$> makeASize
+  hmeas     <- mkThing makeHMeas
+  hinls     <- mkThing makeHInlines
   mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
   mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hinls
   mapM_ insertHMeasLogicEnv $ S.toList hmeas

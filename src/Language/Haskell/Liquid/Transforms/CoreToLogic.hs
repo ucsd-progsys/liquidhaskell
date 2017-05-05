@@ -199,7 +199,7 @@ instance Show C.CoreExpr where
   show = showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
-coreToLogic cb = F.tracepp "reflect-datacons:coreToLogic" <$> coreToLg (normalize cb)
+coreToLogic cb = coreToLg (normalize cb)
 
 
 coreToLg :: C.CoreExpr -> LogicM Expr
@@ -218,7 +218,7 @@ coreToLg (C.Var x)
   | otherwise
   = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)
-  = F.tracepp "reflect-datacons:toPredApp" <$> toPredApp e
+  = toPredApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
@@ -316,7 +316,7 @@ toLogicApp e = do
     C.Var _ -> do args <- mapM coreToLg es
                   lmap       <- symbolMap <$> getState
                   def        <- (`mkEApp` args) <$> tosymbol f
-                  F.tracepp "TOLOGICAPP1" <$> ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
+                  ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
     _       -> do (fe : args) <- mapM coreToLg (f:es)
                   return $ foldl EApp fe args
 
@@ -328,14 +328,14 @@ makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
   = EBin op e1 e2
 
 makeApp def lmap f es
-  = F.tracepp msg $ eAppWithMap lmap f es def
-  where msg = "makeApp f = " ++ show f ++ " es = " ++ show es ++ " def = " ++ show def
+  = eAppWithMap lmap f es def
+  -- where msg = "makeApp f = " ++ show f ++ " es = " ++ show es ++ " def = " ++ show def
 
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
   f'     <- tosymbol' (C.Var x :: C.CoreExpr)
-  let msg = "eVarWithMap x = " ++ show x ++ " f' = " ++ show f'
-  return $ F.tracepp msg $ eAppWithMap lmap f' [] (varExpr x)
+  -- let msg = "eVarWithMap x = " ++ show x ++ " f' = " ++ show f'
+  return $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
 varExpr x

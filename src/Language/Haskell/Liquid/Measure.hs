@@ -88,7 +88,8 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap LocSymbol Symbol)
+  , defs       :: !(M.HashMap LocSymbol Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
+                                                 --   see tests/pos/NatClass.hs
   , axeqs      :: ![AxiomEq]                     -- ^ AxiomEqualities used for Proof-By-Evaluation
   } deriving (Generic)
 

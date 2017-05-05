@@ -39,7 +39,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
+import           Language.Fixpoint.Types              (tracepp, Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -72,16 +72,15 @@ data BareEnv = BE
   }
 
 setEmbeds :: TCEmb TyCon -> BareM ()
-setEmbeds emb
-  = modify $ \be -> be {embeds = emb}
+setEmbeds emb = modify $ \be -> be {embeds = emb}
 
 addDefs :: S.HashSet (Var, Symbol) -> BareM ()
-addDefs ds
-  = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
+addDefs ds = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map = M.union (axiom_map $ logicEnv be) vxs }}
+  where
+    vxs    = tracepp "reflect-datacons:addDefs" $ M.fromList $ S.toList ds
 
 insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e
-  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
+insertLogicEnv _msg x ys e = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
 
 insertAxiom :: Var -> Symbol -> BareM ()
 insertAxiom x s

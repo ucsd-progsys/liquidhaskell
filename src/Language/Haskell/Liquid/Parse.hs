@@ -927,7 +927,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
   , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.defs       = M.fromList [d | Define d <- xs]
-  , Measure.axeqs      = []  
+  , Measure.axeqs      = []
   }
 
 -- | Parse a single top level liquid specification
