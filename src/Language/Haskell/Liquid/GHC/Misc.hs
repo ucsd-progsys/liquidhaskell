@@ -77,6 +77,7 @@ import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Desugar.HscMain
 import           Id                                         (isExportedId, idOccInfo, setIdInfo)
 
 mkAlive :: Var -> Id
@@ -636,7 +637,15 @@ stripParens t = fromMaybe t (strip t)
 stripParensSym :: Symbol -> Symbol
 stripParensSym (symbolText -> t) = symbol $ stripParens t
 
-
+desugarModule :: TypecheckedModule -> Ghc DesugaredModule
+desugarModule tcm = do
+  let ms = pm_mod_summary $ tm_parsed_module tcm
+  -- let ms = modSummary tcm
+  let (tcg, _) = tm_internals_ tcm
+  hsc_env <- getSession
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
 -- | GHC Compatibility Layer ---------------------------------------------------
