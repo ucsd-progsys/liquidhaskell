@@ -48,7 +48,7 @@ infixl 3 ==:
 (==:) x y = x
 
 
-{- fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Identity a
+{-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Identity a
                  -> { fmap (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
 fmap_distrib :: (a -> a) -> (a -> a) -> Identity a -> Proof
 fmap_distrib f g (Identity x)
@@ -59,17 +59,6 @@ fmap_distrib f g (Identity x)
   ==. (fmap f) (fmap g (Identity x))
   ==. (compose (fmap f) (fmap g)) (Identity x)
   *** QED
-
-test :: (a -> a) -> (a -> a) -> a -> Proof
-test f g x
-  =   fmap thing1 (Identity x)
-  ==: fmap thing2 (Identity x)
-  *** QED
-  where
-    thing1 = compose f g
-    thing2 = compose f g
-
-
 
 
 
