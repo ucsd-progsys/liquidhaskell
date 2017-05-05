@@ -9,8 +9,6 @@
 
 module Language.Haskell.Liquid.Constraint.Monad  where
 
-
-import           Prelude hiding (error)
 import           Var
 import           Name (getSrcSpan)
 import           SrcLoc
@@ -48,7 +46,8 @@ addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
   | toType t1 /= toType t2
-  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 ++ showPpr (toType t1, toType t2)
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
+  --     ++ "\n\n" ++ showTy (toType t1) ++ "\n /=\n" ++ showTy (toType t2)
   | otherwise
   = do modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
@@ -62,7 +61,6 @@ addC c@(SubC γ t1 t2) _msg
 
 addC c _msg
   = modify $ \s -> s { hsCs  = c : hsCs s }
-
 
 --------------------------------------------------------------------------------
 -- | addPost: RJ: what DOES this function do?
