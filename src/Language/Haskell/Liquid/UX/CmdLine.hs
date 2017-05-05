@@ -285,7 +285,7 @@ config = cmdArgsMode $ Config {
     = False
             &= name "no-lifted-imports"
             &= help "Disable loading lifted specifications (for legacy libs)"
-             
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -524,6 +524,7 @@ defConfig = Config { files             = def
                    , fuel              = defFuel
                    , debugInstantionation = False
                    , noslice              = False
+                   , noLiftedImport       = False
                    }
 
 defFuel :: Int

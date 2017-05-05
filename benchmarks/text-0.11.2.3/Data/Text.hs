@@ -1639,13 +1639,13 @@ breakOnEnd pat src = (reverse b, reverse a)
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
-breakOnAll pat src@(Text arr off slen)
+breakOnAll pat src@(Text arr off zslen)
     | null pat  = liquidError "breakOnAll"
     | otherwise = L.map step (indices pat src)
   where
 --LIQUID     step       x = (chunk 0 x, chunk x (slen-x))
 --LIQUID     chunk !n !l  = textP arr (n+off) l
-    step       x = (textP arr off x, textP arr (x+off) (slen-x))
+    step       x = (textP arr off x, textP arr (x+off) (zslen-x))
 {-# INLINE breakOnAll #-}
 
 -------------------------------------------------------------------------------

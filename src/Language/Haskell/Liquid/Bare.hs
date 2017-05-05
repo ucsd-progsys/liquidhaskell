@@ -207,7 +207,7 @@ loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
 loadLiftedSpec cfg srcF
   | noLiftedImport cfg = return mempty
   | otherwise          = do
-    let specF = extFileName BinSpec srcF
+      let specF = extFileName BinSpec srcF
       ex  <- doesFileExist specF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
