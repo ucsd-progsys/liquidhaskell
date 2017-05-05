@@ -39,7 +39,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (tracepp, Expr(..), Symbol, symbol, TCEmb)
+import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
@@ -84,10 +84,7 @@ insertAxiom x s
 
 addDefs :: S.HashSet (Var, Symbol) -> BareM ()
 addDefs ds
-  = forM_ vxs $ \(v, x) -> insertAxiom v (Just x)
-  -- TODO:reflect-datacons modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map = M.union (axiom_map $ logicEnv be) vxs }}
-  where
-    vxs  = tracepp "reflect-datacons:addDefs" $ S.toList ds
+  = forM_ (S.toList ds) $ \(v, x) -> insertAxiom v (Just x)
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }
