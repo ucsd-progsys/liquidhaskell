@@ -98,7 +98,7 @@ makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
-    axs       = tracepp "initAxSymbols" $ initAxSymbols name defVars specs
+    axs       = initAxSymbols name defVars specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
@@ -129,10 +129,10 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { gsTySigs     = tracepp "GSTYSIGS" <$> (mapSnd addTCI <$> sigs)
-       , gsInSigs     = tracepp "GSINSIGS" <$> (mapSnd addTCI <$> insigs)
-       , gsAsmSigs    = tracepp "GSASMSIG" <$> (mapSnd addTCI <$> assms)
-       , gsInvariants = tracepp "GSINVS"   <$> (mapSnd addTCI <$> gsInvariants)
+  = sp { gsTySigs     = mapSnd addTCI <$> sigs
+       , gsInSigs     = mapSnd addTCI <$> insigs
+       , gsAsmSigs    = mapSnd addTCI <$> assms
+       , gsInvariants = mapSnd addTCI <$> gsInvariants
        , gsLits       = txSort        <$> gsLits
        , gsMeas       = txSort        <$> gsMeas
        , gsDicts      = dmapty addTCI'    gsDicts
@@ -174,8 +174,8 @@ ghcSpecEnv sp = fromListSEnv binds
 
 makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
 makeLiftedSpec0 embs cbs mySpec = do
-  xils   <- tracepp "HASKELLINLINES"  <$> makeHaskellInlines  embs cbs mySpec
-  ms     <- tracepp "HASKELLMEASURES" <$> makeHaskellMeasures embs cbs mySpec
+  xils   <- makeHaskellInlines  embs cbs mySpec
+  ms     <- makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils
                    , Ms.measures = ms
                    , Ms.reflects = Ms.reflects mySpec
