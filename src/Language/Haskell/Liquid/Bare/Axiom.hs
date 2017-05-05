@@ -69,7 +69,7 @@ makeAxiom :: F.TCEmb TyCon
           -> BareM (Var, LocSpecType, AxiomEq)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap _cbs (x, mbT, v, def) = do
-  insertAxiom v (val x)
+  insertAxiom v Nothing -- TODO:reflect-datacons (val x)
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
   let (t, e) = makeAssumeType tce lmap x mbT v def

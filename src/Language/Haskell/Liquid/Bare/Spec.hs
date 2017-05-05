@@ -118,8 +118,8 @@ makeAutoInsts :: [Var]
               -> BareM [(Var, Maybe Int)]
 makeAutoInsts vs spec = varSymbols id vs (M.toList $ Ms.autois spec)
 
-makeDefs :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, F.Symbol)]
-makeDefs vs spec = F.tracepp "reflect-datacons:makeDefs" <$> varSymbols id vs (M.toList $ Ms.defs spec)
+makeDefs ::  [Var] -> Ms.Spec ty bndr -> BareM [(Var, LocSymbol)]
+makeDefs vs spec = varSymbols id vs (M.toList $ Ms.defs spec)
 
 makeHBounds :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, LocSymbol)]
 makeHBounds vs spec = varSymbols id vs [(v, v ) | v <- S.toList $ Ms.hbounds spec]

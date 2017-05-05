@@ -361,9 +361,20 @@ data GhcSpec = SP {
 instance HasConfig GhcSpec where
   getConfig = gsConfig
 
+-- axiom_map ===> lmVarSyms
+
+-- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
+-- each (lifted) `Var` is mapped to its `Symbol` via the `Symbolic Var`
+-- instance. For _generated_ vars, we may want a custom name e.g. see
+--   tests/pos/NatClass.hs
+-- and we maintain that map in `lmVarSyms` with the `Just s` case.
+-- Ideally, this bandaid should be replaced so we don't have these
+-- hacky corner cases.
+
 data LogicMap = LM
-  { logic_map :: M.HashMap Symbol LMap
-  , axiom_map :: M.HashMap Var    Symbol
+  { lmSymDefs  :: M.HashMap Symbol LMap        -- ^ Map from symbols to equations they define
+  , lmVarSyms  :: M.HashMap Var (Maybe Symbol) -- ^ Map from (lifted) Vars to `Symbol`; see:
+                                              --   NOTE:LIFTED-VAR-SYMBOLS and NOTE:REFLECT-IMPORTs
   } deriving (Show)
 
 instance Monoid LogicMap where
@@ -380,16 +391,16 @@ instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t |-> \t" ++ show e
 
 toLogicMap :: [(LocSymbol, [Symbol], Expr)] -> LogicMap
-toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
+toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
   where
     toLMap (x, ys, e) = (val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
   , length xs == length es
   = subst (mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
   , isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise

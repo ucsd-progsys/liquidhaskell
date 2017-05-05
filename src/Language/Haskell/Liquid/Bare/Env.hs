@@ -74,17 +74,20 @@ data BareEnv = BE
 setEmbeds :: TCEmb TyCon -> BareM ()
 setEmbeds emb = modify $ \be -> be {embeds = emb}
 
-addDefs :: S.HashSet (Var, Symbol) -> BareM ()
-addDefs ds = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map = M.union (axiom_map $ logicEnv be) vxs }}
-  where
-    vxs    = tracepp "reflect-datacons:addDefs" $ M.fromList $ S.toList ds
 
 insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
+insertLogicEnv _msg x ys e = modify $ \be -> be {logicEnv = (logicEnv be) {lmSymDefs = M.insert (val x) (LMap x ys e) $ lmSymDefs $ logicEnv be}}
 
-insertAxiom :: Var -> Symbol -> BareM ()
+insertAxiom :: Var -> Maybe Symbol -> BareM ()
 insertAxiom x s
-  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
+  = modify $ \be -> be {logicEnv = (logicEnv be) {lmVarSyms = M.insert x s $ lmVarSyms $ logicEnv be}}
+
+addDefs :: S.HashSet (Var, Symbol) -> BareM ()
+addDefs ds
+  = forM_ vxs $ \(v, x) -> insertAxiom v (Just x)
+  -- TODO:reflect-datacons modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map = M.union (axiom_map $ logicEnv be) vxs }}
+  where
+    vxs  = tracepp "reflect-datacons:addDefs" $ S.toList ds
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }

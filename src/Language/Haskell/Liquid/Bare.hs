@@ -253,7 +253,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
   lSpec0         <- makeLiftedSpec0 embs cbs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
-  lmap           <- logic_map . logicEnv    <$> get
+  lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs (tracepp "reflect-datacons: LOGICMAP" lmap)
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols specs)
@@ -280,7 +280,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= makeLogicMap
     >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
-    >>= makeGhcSpec4 quals defVars specs name su
+    >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
@@ -437,6 +437,9 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
       measSyms = tx'' . tx' . tx $ ms' ++ (varMeasures vars) ++ cms'
 
+qualifyDefs :: [(Symbol, Var)] -> [(Var, Symbol)] -> [(Var, Symbol)]
+qualifyDefs syms vxs = F.tracepp "reflect-datacons:makeDefs" [ (v, qualifySymbol syms x) | (v, x) <- vxs ]
+
 qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
 qualifyMeasure syms m = m { name = qualifyLocSymbol (qualifySymbol syms) (name m) }
 
@@ -496,20 +499,22 @@ makeGhcSpec4 :: [Qualifier]
              -> [(ModName, Ms.Spec ty bndr)]
              -> ModName
              -> Subst
+             -> [(Symbol, Var)]
              -> GhcSpec
              -> BareM GhcSpec
-makeGhcSpec4 quals defVars specs name su sp = do
+makeGhcSpec4 quals defVars specs name su syms sp = do
   decr'     <- mconcat <$> mapM (makeHints defVars . snd) specs
   gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
   lazies    <- mkThing makeLazy
   lvars'    <- mkThing makeLVar
   autois    <- mkThing makeAutoInsts
-  addDefs  =<< mkThing makeDefs
+  ds        <- mkThing makeDefs
+  addDefs  =<< (qualifyDefs syms <$> mkThing makeDefs')
   asize'    <- S.fromList <$> makeASize
   hmeas     <- mkThing makeHMeas
   hinls     <- mkThing makeHInlines
-  mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hmeas
-  mapM_ (\(v, s) -> insertAxiom (val v) (val s)) $ S.toList hinls
+  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas
+  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hinls
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
@@ -540,8 +545,9 @@ makeGhcSpec4 quals defVars specs name su sp = do
                 -- , gsDconsP     = gsDconsP'
                 }
   where
-    mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
-    makeASize  = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+    mkThing mk      = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
+    makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+
 
 
 insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()
