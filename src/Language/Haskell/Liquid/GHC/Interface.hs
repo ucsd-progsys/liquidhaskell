@@ -392,7 +392,7 @@ toGhcSpec :: GhcMonad m
           -> Either Error LogicMap
           -> [(ModName, Ms.BareSpec)]
           -> m (GhcSpec, [String], [FilePath])
-toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
+toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
@@ -401,7 +401,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath

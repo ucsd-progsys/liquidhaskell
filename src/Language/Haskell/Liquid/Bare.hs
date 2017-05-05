@@ -252,7 +252,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- logic_map . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
-  makeRTEnv name lSpec0 specs lmap
+  makeRTEnv name lSpec0 specs (tracepp "reflect-datacons: LOGICMAP" lmap)
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols specs)
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs syms1 -- defVars
   makeBounds embs name defVars cbs specs
