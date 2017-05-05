@@ -437,8 +437,11 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
       measSyms = tx'' . tx' . tx $ ms' ++ (varMeasures vars) ++ cms'
 
-qualifyDefs :: [(Symbol, Var)] -> [(Var, Symbol)] -> [(Var, Symbol)]
-qualifyDefs syms vxs = F.tracepp "reflect-datacons:makeDefs" [ (v, qualifySymbol syms x) | (v, x) <- vxs ]
+qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Symbol)
+qualifyDefs syms = tracepp "reflect-datacons:makeDefs"
+                 . S.fromList
+                 . fmap (mapSnd (qualifySymbol syms))
+                 . S.toList
 
 qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
 qualifyMeasure syms m = m { name = qualifyLocSymbol (qualifySymbol syms) (name m) }
@@ -508,8 +511,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   lazies    <- mkThing makeLazy
   lvars'    <- mkThing makeLVar
   autois    <- mkThing makeAutoInsts
-  ds        <- mkThing makeDefs
-  addDefs  =<< (qualifyDefs syms <$> mkThing makeDefs')
+  addDefs  =<< (qualifyDefs syms <$> mkThing makeDefs)
   asize'    <- S.fromList <$> makeASize
   hmeas     <- mkThing makeHMeas
   hinls     <- mkThing makeHInlines

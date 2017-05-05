@@ -205,7 +205,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , lcb      = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
-  , aenv     = F.tracepp "AXIOM-MAP" $ M.mapWithKey (\v _ -> F.symbol v) $ axiom_map $ gsLogicMap sp
+  , aenv     = F.tracepp "AXIOM-MAP" $ axEnv sp
   , cerr     = Nothing
   , cgInfo   = info
   , cgVar    = Nothing
@@ -215,6 +215,8 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
       tcb'        = []
+      axEnv       = M.mapWithKey (fromMaybe . F.symbol). lmVarSyms . gsLogicMap
+
 
 assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars
