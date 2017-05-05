@@ -203,14 +203,16 @@ saveLiftedSpec srcF _ lspec = do
   where
     specF = extFileName BinSpec srcF
 
-loadLiftedSpec :: FilePath -> IO Ms.BareSpec
-loadLiftedSpec srcF = do
-  let specF = extFileName BinSpec srcF
-  ex  <- doesFileExist specF
-  -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
-  lSp <- if ex then B.decodeFile specF else return mempty
-  -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
-  return lSp
+loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
+loadLiftedSpec cfg srcF
+  | noLiftedImport cfg = return mempty
+  | otherwise          = do
+    let specF = extFileName BinSpec srcF
+      ex  <- doesFileExist specF
+      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
+      lSp <- if ex then B.decodeFile specF else return mempty
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
+      return lSp
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
 insert k v []              = [(k, v)]

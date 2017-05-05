@@ -108,7 +108,11 @@ data Array = Array {
 {-@ data Array
          = Array
             (aBA :: ByteArray#)
-            (alen :: Nat)
+            (aLen :: Nat)
+  @-}
+
+{-@ measure alen :: Array -> Int
+    alen (Array b n) = n
   @-}
 
 {-@ type ArrayN N = {v:Array | (alen v) = N} @-}

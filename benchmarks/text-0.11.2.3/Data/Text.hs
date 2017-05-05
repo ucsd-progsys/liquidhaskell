@@ -1804,8 +1804,8 @@ unwords = intercalate (singleton ' ')
                -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isPrefixOf :: Text -> Text -> Bool
-isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
-    alen <= blen && S.isPrefixOf (stream a) (stream b)
+isPrefixOf a@(Text _ _ zalen) b@(Text _ _ blen) =
+    zalen <= blen && S.isPrefixOf (stream a) (stream b)
 {-# INLINE [1] isPrefixOf #-}
 
 {-# RULES
@@ -1819,14 +1819,14 @@ isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
                -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isSuffixOf :: Text -> Text -> Bool
-isSuffixOf a@(Text _aarr _aoff alen) b@(Text barr boff blen) =
+isSuffixOf a@(Text _aarr _aoff zalen) b@(Text barr boff blen) =
   --   d >= 0 && a == b'
   -- where d              = blen - alen
   --       b' | d == 0    = b
   --          | otherwise = Text barr (boff+d) alen
-    let d = blen - alen
+    let d = blen - zalen
     in if d >= 0
-       then let b' = if d == 0 then b else Text barr (boff+d) alen
+       then let b' = if d == 0 then b else Text barr (boff+d) zalen
             in a == b'
        else False
 {-# INLINE isSuffixOf #-}

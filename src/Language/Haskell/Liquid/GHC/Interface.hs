@@ -309,7 +309,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec file -- modName
+  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec cfg file -- modName
   let bareSpec         = commSpec `mappend` liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
