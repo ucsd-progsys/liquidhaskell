@@ -3,6 +3,8 @@ GHC-8 integration
 
 - [ ] bring back bench
 - [ ] ES: fix Target
+- [ ] RJ: add error-message test-suite
+- [ ] RJ: add error-messages for tests/error-message 
 - [ ] RJ: fix pattern inlines in
   - `tests/todo/NoInlines.hs`
   - `tests/pos/monad1.hs`,
