@@ -5,7 +5,7 @@ https://github.com/clojure/clojure/blob/d5708425995e8c83157ad49007ec2f8f43d8eac8
 
 {-@ LIQUID "--no-termination" @-}
 
-module PVec (arrayFor) where
+module PVec (height, arrayFor) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssume)
 import qualified Data.Vector as V

@@ -1,7 +1,7 @@
 {- Example of AVL trees by michaelbeaumont -}
 
 {-@ LIQUID "--totality" @-}
-module AVL (Tree, singleton, insert, ht) where
+module AVL (Tree, singleton, insert, ht, bFac) where
 
 -- Basic functions
 {-@ data Tree [ht] @-} -- a = Nil | Tree (x::a) (l::Tree a) (r::Tree a) @-}

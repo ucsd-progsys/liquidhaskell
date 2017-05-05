@@ -3,7 +3,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--totality" @-}
 
-module AVL (Tree, empty, singleton, insert, ht, balanced) where
+module AVL (Tree, empty, singleton, insert, ht, bFac, balanced) where
 
 -- Basic functions
 data Tree a = Nil | Tree { tKey :: a, tLeft ::Tree a, tRight :: Tree a} deriving Show

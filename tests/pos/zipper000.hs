@@ -1,6 +1,4 @@
-module Zipper () where
-
-
+module Zipper (getUp, getDown) where
 
 import Data.Set
 
@@ -18,7 +16,7 @@ data Stack a = Stack { focus :: a
 
 {-@ type UStack a = {v:Stack a | (Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))} @-}
 
-{-@ measure getUp @-} 
+{-@ measure getUp @-}
 getUp :: Stack a -> [a]
 getUp (Stack xfocus xup xdown) = xup
 

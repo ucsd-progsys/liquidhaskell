@@ -1,4 +1,4 @@
-module Zipper () where
+module Zipper (getUp, getDown, getFocus) where
 
 import Prelude hiding (reverse)
 
@@ -23,11 +23,11 @@ data Stack a = Stack { focus :: a
 
 {-@ type UStack a = {v:Stack a |(Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))}@-}
 
-{-@ measure getFocus @-} 
+{-@ measure getFocus @-}
 getFocus :: Stack a -> a
-getFocus (Stack xfocus _ _) = xfocus 
+getFocus (Stack xfocus _ _) = xfocus
 
-{-@ measure getUp @-} 
+{-@ measure getUp @-}
 getUp :: Stack a -> [a]
 getUp (Stack xfocus xup xdown) = xup
 
