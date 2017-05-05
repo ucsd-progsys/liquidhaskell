@@ -678,10 +678,6 @@ coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 simplesymbol :: (NamedThing t) => t -> Symbol
 simplesymbol = symbol . getName
 
-
-
-
-
 binders :: Bind a -> [a]
 binders (NonRec z _) = [z]
 binders (Rec xes)    = fst <$> xes

@@ -10,7 +10,15 @@ data Poo = Poo Int
 test :: Poo -> Int 
 test (Poo n) = n 
 
+
+
 flinkertyPoz = unPoo 
   where 
     unPoo :: Int
     unPoo = 12 
+
+unPoo :: Int
+unPoo = 121
+
+
+
