@@ -67,7 +67,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 
 {-@ data ByteString [lbLength]
          = Empty
-         | Chunk (b :: ByteStringNE) (cs :: ByteString)
+         | Chunk {lbiHead :: ByteStringNE, lbiRest :: ByteString }
   @-}
 
 {-@ measure lbLength :: ByteString -> Int

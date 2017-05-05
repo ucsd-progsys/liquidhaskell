@@ -76,7 +76,8 @@ import Language.Haskell.Liquid.Prelude
 data I16 = I16 Int
     deriving (Eq, Ord)
 
-{-@ data I16 = I16 (i::Nat) @-}
+{-@ data I16 = I16 { i16Val ::Nat } @-}
+
 {-@ measure getI16 :: I16 -> Int
     getI16 (I16 n) = n
   @-}
