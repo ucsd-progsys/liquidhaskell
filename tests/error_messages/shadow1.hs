@@ -4,7 +4,11 @@
 
 module StringIndexing where
 
-import Prelude hiding (mappend)
+-- ISSUE: Uncomment the below to make this test pass
+--
+--    import Prelude hiding (mappend)
+-- 
+-- LH should give an error message indicating the above.
 
 data D = D Int Int 
 

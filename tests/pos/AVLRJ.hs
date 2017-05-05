@@ -3,15 +3,15 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--totality" @-}
 
-module AVL (Tree, empty, singleton, insert) where
+module AVL (Tree, empty, singleton, insert, ht, balanced) where
 
 -- Basic functions
-data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a} deriving Show
+data Tree a = Nil | Tree { tKey :: a, tLeft ::Tree a, tRight :: Tree a} deriving Show
 
 {-@ data Tree [ht] a = Nil
-                     | Tree { key :: a
-                            , l   :: Tree {v:a | v < key }
-                            , r   :: Tree {v:a | key < v }
+                     | Tree { tKey   :: a
+                            , tLeft  :: Tree {v:a | v < tKey }
+                            , tRight :: Tree {v:a | tKey < v }
                             }
   @-}
 
@@ -20,6 +20,7 @@ data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a} deriving Show
 ht              :: Tree a -> Int
 ht Nil          = 0
 ht (Tree _ l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
+
 {-@ invariant {v:Tree a | 0 <= bFac v + 1 && bFac v <= 1 } @-}
 
 
@@ -52,7 +53,7 @@ insert a t@(Tree v _ _) = case compare a v of
     GT -> insR a t
     EQ -> t
 
-{-@ insL :: x:a -> s:{AVLTree a | x < key s && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
+{-@ insL :: x:a -> s:{AVLTree a | x < tKey s && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insL a (Tree v l r)
   | siblDiff == 2 && bl' == 1  = rebalanceLL v l' r
   | siblDiff == 2 && bl' == -1 = rebalanceLR v l' r
@@ -62,7 +63,7 @@ insL a (Tree v l r)
     siblDiff                 = htDiff l' r
     bl'                      = bFac l'
 
-{-@ insR :: x:a -> s:{AVLTree a | key s < x && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
+{-@ insR :: x:a -> s:{AVLTree a | tKey s < x && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insR a (Tree v l r)
   | siblDiff == 2 && br' == 1  = rebalanceRL v l r'
   | siblDiff == 2 && br' == -1  = rebalanceRR v l r'

@@ -3,7 +3,8 @@
 module OrdList (
     OrdList,
         nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL, concatOL',
-        mapOL, fromOL, toOL, foldrOL, foldlOL, llen, olen, olens
+        mapOL, fromOL, toOL, foldrOL, foldlOL, llen
+        -- , olen, olens
 ) where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
@@ -27,21 +28,21 @@ llen :: [a] -> Int
 llen [] = 0
 llen (x:xs) = 1 + llen xs 
 
-{-@ measure olen @-} 
-olen :: OrdList a -> Int
-olen (None)      = 0
-olen (One x)     = 1
-olen (Many xs)   = llen xs
-olen (Cons x xs) = 1 + (olen xs)
-olen (Snoc xs x) = 1 + (olen xs)
-olen (Two x y)   = (olen x) + (olen y)
+{-@ measure olen :: OrdList a -> Int 
+    olen (None)      = 0
+    olen (One x)     = 1
+    olen (Many xs)   = len xs
+    olen (Cons x xs) = 1 + (olen xs)
+    olen (Snoc xs x) = 1 + (olen xs)
+    olen (Two x y)   = (olen x) + (olen y)
+  @-}
 
-{-@ measure olens @-} 
-olens :: [OrdList a] -> Int
-olens ([])     = 0
-olens (ol:ols) = (olen ol) + (olens ols)
+{-@ measure olens :: [OrdList a] -> Int
+    olens ([])     = 0
+    olens (ol:ols) = (olen ol) + (olens ols)
+  @-}
 
-{-@ type ListNE    a   = {v:[a]       | (llen v) > 0} @-}
+{-@ type ListNE    a   = {v:[a]       | (len v) > 0} @-}
 {-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
 {-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
 
@@ -93,7 +94,7 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
-{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (llen v) = (olen xs) + (llen ys) @-}
+{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (len v) = (olen xs) + (len ys) @-}
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | len v = olen xs} @-}
 fromOL a = go a []
@@ -133,6 +134,6 @@ foldlOL k z (Snoc xs x) = k (foldlOL k z xs) x
 foldlOL k z (Two b1 b2) = foldlOL k (foldlOL k z b1) b2
 foldlOL k z (Many xs)   = foldl k z xs
 
-{-@ toOL :: xs:[a] -> OrdListN a {llen xs} @-}
+{-@ toOL :: xs:[a] -> OrdListN a {len xs} @-}
 toOL [] = None
 toOL xs = Many xs

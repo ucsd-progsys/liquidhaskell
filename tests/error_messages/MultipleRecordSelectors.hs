@@ -1,9 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 module RedBlack  where
 
-
--- data F = F {fx :: Int, fx :: Int}
-
 data RBTree a = Leaf 
               | Node Color a !(RBTree a) !(RBTree a)
 
@@ -14,6 +11,7 @@ ok = Node R (2 :: Int)
          (Node B 1 Leaf Leaf)
          (Node B 3 Leaf Leaf)
 
+-- LH should give an error message that the field names are duplicates.
 
 {-@ data RBTree a = Leaf
                   | Node { c     :: Color

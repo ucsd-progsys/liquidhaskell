@@ -95,8 +95,11 @@
 -- improves the benchmark by up to 10% on x86.
 
 module Data.Map.Base (
+
             -- * Map type
               Map(..)          -- instance Eq,Show,Read
+
+            , mlen
 
             -- * Operators
             , (!), (\\)
@@ -328,7 +331,7 @@ type Size     = Int
 {-@ include <Base.hquals> @-}
 
 {-@ data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
-         = Bin (sz    :: Size) 
+         = Bin (mSize :: Size) 
                (key   :: k) 
                (value :: a) 
                (left  :: Map <l, r> (k <l key>) a) 
@@ -336,17 +339,18 @@ type Size     = Int
          | Tip 
   @-}
 
-{-@ measure mlen :: (Map k a) -> Int
-    mlen(Tip) = 0
-    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
-  @-}
-
 {-@ type SumMLen A B = {v:Nat | v = (mlen A) + (mlen B)} @-}
 
 {-@ invariant {v:Map k a | (mlen v) >= 0} @-}
 
+{- mlen :: m:Map k a -> {v:Nat | v = (mlen m)} -}
 
-{-@ mlen :: m:Map k a -> {v:Nat | v = (mlen m)} @-}
+{- measure mlen :: (Map k a) -> Int
+    mlen(Tip) = 0
+    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
+  -}
+
+{-@ measure mlen @-}
 mlen :: Map k a -> Int
 mlen Tip = 0
 mlen (Bin s k v l r) = 1 + mlen l + mlen r

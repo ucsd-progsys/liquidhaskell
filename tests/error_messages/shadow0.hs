@@ -6,7 +6,14 @@ data Foo a = F a a a
 
 data LL a = N | C a (LL a)
 
-{-@ data LL [llen] @-} 
+-- ISSUE: use the below definition to make the test pass 
+
+--    {- data LL [llen] @-} 
+
+-- LH should give an error message that the field selectors `x` and `xs` are
+-- shadowed and should be renamed. 
+ 
+{- data LL [llen] a = N | C { x ::a, xs :: LL a } @-}
 
 {-@ invariant {v:LL a | (llen v) >= 0} @-}
 
