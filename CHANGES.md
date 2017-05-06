@@ -2,6 +2,12 @@
 
 ## NEXT
 
+- **DELETED** the gsDcons and generally carrying DataConP beyond Bare; this _may_ cause
+  problems with `target` as I removed the `dconEnv` field in `TargetState`. Is it live?
+  To restore: have to apply the substitution syms/su in Bare.hs ALSO to gsDconsP (after 
+  restoring the gsDconsP field to [(DataCon, DataConP)])
+
+
 - **breaking change** Remove the `Bool` vs. `Prop` distinction. This means that: 
 
     * signatures that use(d) `Prop` as a type, e.g. 

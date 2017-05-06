@@ -121,7 +121,7 @@ data TargetState = TargetState
   , constraints  :: !Constraint
   , deps         :: !(M.HashMap Symbol [Symbol])
   , realized     :: ![(Symbol, Value)]
-  , dconEnv      :: ![(Symbol, DataConP)]
+  -- , dconEnv      :: ![(Symbol, DataConP)]
   , ctorEnv      :: !DataConEnv
   , measEnv      :: !MeasureEnv
   , embEnv       :: !(TCEmb GHC.TyCon)
@@ -144,7 +144,7 @@ initState fp sp ctx = TargetState
   , constraints  = []
   , deps         = mempty
   , realized     = []
-  , dconEnv      = dcons
+  -- , dconEnv      = dcons
   , ctorEnv      = cts
   , measEnv      = meas
   , embEnv       = gsTcEmbeds sp
@@ -161,7 +161,7 @@ initState fp sp ctx = TargetState
   }
   where
     -- FIXME: can we NOT tidy???
-    dcons = tidyF $ map (first symbol) (gsDconsP sp)
+    -- dcons = tidyF $ map (first symbol) (gsDconsP sp)
 
     -- NOTE: we want to tidy all occurrences of nullary datacons in the signatures
     cts   = subst su $ tidyF $ map (symbol *** val) (gsCtors sp)

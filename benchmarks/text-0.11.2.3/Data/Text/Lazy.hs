@@ -192,6 +192,7 @@ module Data.Text.Lazy
     --LIQUID
     , equal
     , compareText
+    , isNull
     ) where
 
 import Prelude (Char, Bool(..), Maybe(..), String,
@@ -359,21 +360,21 @@ instance Show Text where
 
 --LIQUID instance Read Text where
 --LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
---LIQUID 
+--LIQUID
 --LIQUID instance Monoid Text where
 --LIQUID     mempty  = empty
 --LIQUID     mappend = append
 --LIQUID     mconcat = concat
---LIQUID 
+--LIQUID
 --LIQUID instance IsString Text where
 --LIQUID     fromString = pack
---LIQUID 
+--LIQUID
 --LIQUID #if defined(HAVE_DEEPSEQ)
 --LIQUID instance NFData Text where
 --LIQUID     rnf Empty        = ()
 --LIQUID     rnf (Chunk _ ts) = rnf ts
 --LIQUID #endif
---LIQUID 
+--LIQUID
 --LIQUID instance Data Text where
 --LIQUID   gfoldl f z txt = z pack `f` (unpack txt)
 --LIQUID   toConstr _     = error "Data.Text.Lazy.Text.toConstr"
@@ -1000,14 +1001,19 @@ replicate n t
 {-@ replicate_rep :: d:Nat64 -> n:{v:Int64 | v > 0} -> t:Text
                   -> i:{v:Int64 | ((v >= 0) && (v <= n) && (v = n - d))}
                   -> {v:[{v0:Text | (ltlength v0) = (ltlength t)}] |
-                        ((((n - i) = 0) <=> (null v))
-                         && ((null v) || ((sum_ltlengths v) >= (ltlength t))))}
+                        ((((n - i) = 0) <=> (isNull v))
+                         && ((isNull v) || ((sum_ltlengths v) >= (ltlength t))))}
   @-}
 replicate_rep :: Int64 -> Int64 -> Text -> Int64 -> [Text]
 replicate_rep (d :: Int64) n t !i
                      | i >= n    = []
                      | otherwise = t : replicate_rep (d-1) n t (i+1)
 {-# INLINE replicate #-}
+
+{-@ measure isNull @-}
+isNull :: [a] -> Bool
+isNull []     = True
+isNull (x:xs) = False
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.

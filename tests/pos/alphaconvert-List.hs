@@ -7,15 +7,15 @@
 -- | An example from "A Relational Framework for Higher-Order Shape Analysis",
 --   by Gowtham Kaki Suresh Jagannathan, ICFP 2014.
 
-module AlphaConvert (subst, alpha) where
+module AlphaConvert (subst, alpha, isAbs) where
 
 import Prelude hiding ((++), elem)
 import Data.Set (Set (..))
-import Language.Haskell.Liquid.Prelude   
+import Language.Haskell.Liquid.Prelude
 
-alpha  :: [Bndr] -> Expr -> Expr 
+alpha  :: [Bndr] -> Expr -> Expr
 subst  :: Expr -> Bndr -> Expr -> Expr
-maxs   :: [Int] -> Int 
+maxs   :: [Int] -> Int
 lemma1 :: Int -> [Int] -> Bool
 fresh  :: [Bndr] -> Bndr
 free   :: Expr -> [Bndr]
@@ -24,25 +24,25 @@ free   :: Expr -> [Bndr]
 -- | Datatype Definition --------------------------------------------
 ---------------------------------------------------------------------
 
-type Bndr 
+type Bndr
   = Int
 
-data Expr 
-  = Var Bndr  
+data Expr
+  = Var Bndr
   | Abs Bndr Expr
   | App Expr Expr
 
 {-@ measure fv       :: Expr -> (Set Bndr)
     fv (Var x)       = (Set_sng x)
     fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
-    fv (App e a)     = (Set_cup (fv e) (fv a)) 
+    fv (App e a)     = (Set_cup (fv e) (fv a))
   @-}
 
 {-@ measure isAbs  @-}
-isAbs :: Expr -> Bool 
+isAbs :: Expr -> Bool
 isAbs (Abs v e)  = True
 isAbs (Var v)    = False
-isAbs (App e a)  = False             
+isAbs (App e a)  = False
 
 {-@ predicate AddV E E2 X E1   = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
 {-@ predicate EqV E1 E2        = fv E1 = fv E2                                        @-}
@@ -52,7 +52,7 @@ isAbs (App e a)  = False
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
 ----------------------------------------------------------------------------
-{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-} 
+{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-}
 ----------------------------------------------------------------------------
 
 subst e1 x e2@(Var y)
@@ -64,12 +64,12 @@ subst e1 x (App ea eb)    = App ea' eb'
     ea'                   = subst e1 x ea
     eb'                   = subst e1 x eb
 
-subst e1 x e2@(Abs y e)  
+subst e1 x e2@(Abs y e)
   | x == y                = e2
-  | y `elem` xs           = subst e1 x (alpha xs e2) 
+  | y `elem` xs           = subst e1 x (alpha xs e2)
   | otherwise             = Abs y      (subst e1 x e)
      where
-      xs                  = free e1 
+      xs                  = free e1
 
 ----------------------------------------------------------------------------
 -- | Part 4: Alpha Conversion ----------------------------------------------
@@ -77,7 +77,7 @@ subst e1 x e2@(Abs y e)
 {-@ alpha :: ys:[Bndr] -> e:{Expr | isAbs e} -> {v:Expr | EqV v e} @-}
 ----------------------------------------------------------------------------
 alpha ys (Abs x e) = Abs x' (subst (Var x') x e)
-  where 
+  where
     xs             = free e
     x'             = fresh (x : ys ++ xs)
 
@@ -90,22 +90,22 @@ alpha _  _         = liquidError "never"
 {-@ fresh :: xs:[Bndr] -> {v:Bndr | NotElem v xs} @-}
 ----------------------------------------------------------------------------
 fresh bs = liquidAssert (lemma1 n bs) n
-  where 
+  where
     n    = 1 + maxs bs
 
 {-@ maxs :: xs:_ -> {v:_ | v = maxs xs} @-}
 maxs ([])   = 0
-maxs (x:xs) = if (x > maxs xs) then x else (maxs xs) 
- 
- 
-{-@ measure maxs :: [Int] -> Int 
+maxs (x:xs) = if (x > maxs xs) then x else (maxs xs)
+
+
+{-@ measure maxs :: [Int] -> Int
     maxs ([])   = 0
-    maxs (x:xs) = if (x > maxs xs) then x else (maxs xs) 
+    maxs (x:xs) = if (x > maxs xs) then x else (maxs xs)
   @-}
 
 {-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | v && NotElem x xs} @-}
-lemma1 _ []     = True 
-lemma1 x (_:ys) = lemma1 x ys 
+lemma1 _ []     = True
+lemma1 x (_:ys) = lemma1 x ys
 
 
 ----------------------------------------------------------------------------
@@ -139,8 +139,8 @@ xs   \\ y     = [x | x <- xs, x /= y]
 {-@ elem      :: (Eq a) => x:a -> ys:[a] -> {v:Bool | v <=> Elem x ys} @-}
 elem x []     = False
 elem x (y:ys) = x == y || elem x ys
- 
-{-@ measure elts :: [a] -> (Set a) 
+
+{-@ measure elts :: [a] -> (Set a)
     elts ([])    = {v | Set_emp v}
     elts (x:xs)  = {v | v = Set_cup (Set_sng x) (elts xs) }
   @-}

@@ -7,21 +7,21 @@ import Data.Map
 prop0       :: Map Int Int -> Int -> Int -> Bool
 prop0 m x y = (a == b)
   where
-    a       = m ! x 
-    b       = m ! y 
+    a       = m ! x
+    b       = m ! y
 
 {-@ prop1   :: _ -> x:_ -> y:{_ | y /= x} -> TT @-}
 prop1       :: Map Int Int -> Int -> Int -> Bool
 prop1 m x y = (z == 10)
   where
-    m1      = insert x 10 m 
+    m1      = insert x 10 m
     m2      = insert y 20 m1
-    z       = m2 ! x 
+    z       = m2 ! x
 
 {-@ prop2   :: _ -> x:_ -> y:{_ | y == x} -> TT @-}
 prop2 m x y = (z == 20)
   where
-    m1      = insert x 10 m 
+    m1      = insert x 10 m
     m2      = insert y 20 m1
     z       = m2 ! x
 

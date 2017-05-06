@@ -57,7 +57,7 @@ data Text = Empty
 --LIQUID            deriving (Typeable)
 
 {-@ data Text [ltlen] = Empty
-                      | Chunk (t :: TextNE) (cs :: Text)
+                      | Chunk { txtHead :: TextNE, txtRest :: Text }
   @-}
 
 {-@ measure ltlen :: Text -> Integer

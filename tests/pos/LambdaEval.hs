@@ -4,18 +4,18 @@ module LambdaEval () where
 
 import Data.List        (lookup)
 
-import Language.Haskell.Liquid.Prelude   
+import Language.Haskell.Liquid.Prelude
 
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------
 
-type Bndr 
+type Bndr
   = Int
 
-data Expr 
+data Expr
   = Lam Bndr Expr
-  | Var Bndr  
+  | Var Bndr
   | App Expr Expr
   | Const Int
   | Plus Expr Expr
@@ -23,17 +23,19 @@ data Expr
   | Fst Expr
   | Snd Expr
 
-{-@ 
+{-@
 data Expr [elen]
-  = Lam (x::Bndr) (e::Expr)
-  | Var (x::Bndr)  
-  | App (e1::Expr) (e2::Expr)
-  | Const (i::Int)
-  | Plus (e1::Expr) (e2::Expr)
-  | Pair (e1::Expr) (e2::Expr)
-  | Fst (e::Expr)
-  | Snd (e::Expr)
+  = Lam   { eX :: Bndr, eBody :: Expr }
+  | Var   { eX :: Bndr                }
+  | App   { eL :: Expr, eR    :: Expr }
+  | Const { eN :: Int                 }
+  | Plus  { eL :: Expr, eR :: Expr    }
+  | Pair  { eL :: Expr, eR :: Expr    }
+  | Fst   { eL :: Expr                }
+  | Snd   { eL :: Expr                }
 @-}
+
+
 
 {-@ measure elen :: (Expr) -> Int
     elen(Lam x e)    = 1 + (elen e)
@@ -69,23 +71,23 @@ isValue (Pair e1 e2) = (isValue e1) && (isValue e2)
 
 {-@ decrease evalVar 2 @-}
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr
-evalVar x ((y,v):sto) 
+evalVar x ((y,v):sto)
   | x == y
   = v
   | otherwise
   = evalVar x sto
 
-evalVar x []      
+evalVar x []
   = error "unbound variable"
 
 
 {-@ decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
-eval sto (Const i) 
+eval sto (Const i)
   = (sto, Const i)
 
-eval sto (Var x)  
-  = (sto, evalVar x sto) 
+eval sto (Var x)
+  = (sto, evalVar x sto)
 
 eval sto (Plus e1 e2)
   = let (_, e1') = eval sto e1
@@ -95,13 +97,13 @@ eval sto (Plus e1 e2)
          _                    -> error "non-integer addition"
 
 eval sto (App e1 e2)
-  = let (_,    v2 ) = eval sto e2 
+  = let (_,    v2 ) = eval sto e2
         (sto1, e1') = eval sto e1
     in case e1' of
          (Lam x e) -> eval ((x, v2): sto1) e
          _         -> error "non-function application"
 
-eval sto (Lam x e) 
+eval sto (Lam x e)
   = (sto, Lam x e)
 
 eval sto (Pair e1 e2)
@@ -140,9 +142,9 @@ check (Plus _ _)   = liquidAssertB False
 ---------------------------------------------------------------------
 
 tests =
-  let (f,g,x) = (0,1,2) 
+  let (f,g,x) = (0,1,2)
       e1      = Lam x (Var x)
-      e2      = App e1 e1 
+      e2      = App e1 e1
       e3      = Lam f (Lam g (Lam x (App (Var f)  (App (Var g) (Var x)))))
       e4      = Const 10
       e5      = App e1 e4

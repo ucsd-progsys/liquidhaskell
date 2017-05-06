@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-termination" @-}
+
 module TestRec where
 
 import Prelude hiding (foldl)
@@ -21,6 +23,7 @@ reverse :: L a -> L a
 reverse xs = go N xs
   where 
     {-@ go :: acc:_ -> xs:_ -> _ / [llen xs] @-}
+    go :: L a -> L a -> L a 
     go acc N        = acc
     go acc (C x xs) = go (C x acc) xs
 

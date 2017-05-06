@@ -63,7 +63,7 @@ data BareEnv = BE
   { modName  :: !ModName
   , tcEnv    :: !TCEnv
   , rtEnv    :: !RTEnv
-  , varEnv   :: ![(Symbol, Var)]
+  , varEnv   :: M.HashMap Symbol Var -- S.HashSet (Symbol, Var) -- [(Symbol, Var)]
   , hscEnv   :: HscEnv
   , logicEnv :: LogicMap
   , bounds   :: RBEnv
@@ -72,20 +72,19 @@ data BareEnv = BE
   }
 
 setEmbeds :: TCEmb TyCon -> BareM ()
-setEmbeds emb
-  = modify $ \be -> be {embeds = emb}
+setEmbeds emb = modify $ \be -> be {embeds = emb}
+
+
+insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
+insertLogicEnv _msg x ys e = modify $ \be -> be {logicEnv = (logicEnv be) {lmSymDefs = M.insert (val x) (LMap x ys e) $ lmSymDefs $ logicEnv be}}
+
+insertAxiom :: Var -> Maybe Symbol -> BareM ()
+insertAxiom x s
+  = modify $ \be -> be {logicEnv = (logicEnv be) {lmVarSyms = M.insert x s $ lmVarSyms $ logicEnv be}}
 
 addDefs :: S.HashSet (Var, Symbol) -> BareM ()
 addDefs ds
-  = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
-
-insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e
-  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
-
-insertAxiom :: Var -> Symbol -> BareM ()
-insertAxiom x s
-  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
+  = forM_ (S.toList ds) $ \(v, x) -> insertAxiom v (Just x)
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }

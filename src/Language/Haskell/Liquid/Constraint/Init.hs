@@ -87,7 +87,7 @@ initEnv info
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
-       modify $ \s -> s{dataConTys = f4}
+       modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -100,7 +100,7 @@ initEnv info
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
-    makeExactDc dcs = if exactDC (getConfig info) then makedcs dcs else dcs 
+    makeExactDc dcs = if exactDC (getConfig info) then makedcs dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants sp ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
@@ -205,7 +205,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , lcb      = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
-  , aenv     = axiom_map $ gsLogicMap sp
+  , aenv     = axEnv sp
   , cerr     = Nothing
   , cgInfo   = info
   , cgVar    = Nothing
@@ -215,6 +215,8 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
       tcb'        = []
+      axEnv       = M.mapWithKey (fromMaybe . F.symbol). lmVarSyms . gsLogicMap
+
 
 assm :: GhcInfo -> [(Var, SpecType)]
 assm = assmGrty impVars

@@ -24,6 +24,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeSpecDictionaries
   , makeBounds
   , makeHBounds
+  , lookupIds
   ) where
 
 import           CoreSyn                                    (CoreBind)
@@ -117,7 +118,6 @@ makeAutoInsts :: [Var]
               -> BareM [(Var, Maybe Int)]
 makeAutoInsts vs spec = varSymbols id vs (M.toList $ Ms.autois spec)
 
-
 makeDefs :: [Var] -> Ms.Spec ty bndr -> BareM [(Var, F.Symbol)]
 makeDefs vs spec = varSymbols id vs (M.toList $ Ms.defs spec)
 
@@ -191,7 +191,7 @@ makeAssumeSpec cmod cfg vs lvs (mod, spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAssumes (Ms.rinstance spec)) $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
+  = inModule mod $ makeSpec True vs $  Ms.asmSigs spec
 
 grepClassAsserts :: [RInstance t] -> [(Located F.Symbol, t)]
 grepClassAsserts           = concatMap go
@@ -246,7 +246,7 @@ makeSpec _ignoreUnknown vs xbs = do
   vbs <- map (joinVar vs) <$> lookupIds False xbs
   map (addFst3 mod) <$> mapM mkVarSpec vbs
 
-lookupIds :: Bool -> [(LocSymbol, Located BareType)] -> BareM [(Var, LocSymbol, Located BareType)]
+lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]
 lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where
@@ -256,7 +256,7 @@ lookupIds !ignoreUnknown
       | ignoreUnknown
       = return Nothing
     handleError err
-      = throwError err
+      = throwError $ F.tracepp "HANDLE-ERROR" err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, _, b) = tx <$> mkLSpecType b

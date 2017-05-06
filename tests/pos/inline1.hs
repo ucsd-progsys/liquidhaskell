@@ -3,10 +3,11 @@ module InlineMeasure where
 data Zoo a = Z { elts :: [a], sz :: Int }
 
 -- | this is not ok (unbound symbol `boo`)
-{-@ data Zoo a = Z { elts :: [a], sz :: {v: Int | IsBoo v elts} } @-}
+{-@ data Zoo a = Z { elts :: [a], sz :: {v: Int | isBoo v elts} } @-}
 
-{-@ predicate IsBoo V E = V = boo E @-}
--- | this is ok
+{-@ inline isBoo @-}
+isBoo :: Int -> [a] -> Bool
+isBoo v e = v == boo e
 
 {-@ type Moo a = {v:Zoo a | sz v = boo (elts v)} @-}
 

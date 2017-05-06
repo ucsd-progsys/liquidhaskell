@@ -62,7 +62,7 @@ mappend_assoc (x ::: xs) ys zs
   *** QED
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] = Emp | (:::) {x::a, xs:: (L a)} @-}
+{-@ data L [llen] = Emp | (:::) { lHd ::a, lTl :: (L a)} @-}
 
 
 {-@ measure llen @-}

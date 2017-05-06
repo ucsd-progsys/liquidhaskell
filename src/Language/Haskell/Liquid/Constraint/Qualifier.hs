@@ -188,7 +188,7 @@ refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
-                   , not $ isGradual pa 
+                   , not $ isGradual pa
                    , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
@@ -238,4 +238,4 @@ envSort l lEnv tEnv x i
   | otherwise                   = Just (x, ai)
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
-    msg            = "unknown symbol in qualifier: " ++ show x
+    msg            = "Unknown symbol in qualifier: " ++ show x

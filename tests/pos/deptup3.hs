@@ -13,7 +13,7 @@ baz x  = P x (incr x)
 n :: Int
 n           = choose 0
 
-prop_baz    = chk (baz n) 
+prop_baz    = chk (baz n)
 
-chk :: Pair Int Int -> Bool								
+chk :: Pair Int Int -> Bool
 chk (P x y) = liquidAssertB (x <= y)

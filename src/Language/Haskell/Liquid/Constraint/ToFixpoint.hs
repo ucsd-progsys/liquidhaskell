@@ -17,14 +17,17 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
--- import           Language.Fixpoint.Misc (traceShow)
 
 import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
 import Data.Maybe (fromJust)
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
-import           Language.Haskell.Liquid.UX.Config (allowLiquidInstationationGlobal, allowLiquidInstationationLocal, allowRewrite, allowArithmetic)
+import           Language.Haskell.Liquid.UX.Config ( allowLiquidInstationationGlobal
+                                                   , allowLiquidInstationationLocal
+                                                   , allowRewrite
+                                                   , allowArithmetic
+                                                   )
 import           Language.Haskell.Liquid.GHC.Misc  (dropModuleNames, simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -64,19 +67,11 @@ cgInfoFInfo info cgi = do
   let tgtFI  = targetFInfo info cgi
   impFI     <- ignoreQualifiers info <$> parseFInfo (hqFiles info)
   return       (tgtFI <> impFI)
-  -- let fI    = ignoreQualifiers info (tgtFI <> impFI)
-  -- return fI
 
 ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
 ignoreQualifiers info fi
   | useSpcQuals info = fi
   | otherwise        = fi { F.quals = [] }
-
--- NOPROP ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
--- NOPROP ignoreQualifiers info fi
-  -- NOPROP | noQuals     = fi { F.quals = [] }
-  -- NOPROP | otherwise   = fi
-  -- NOPROP where noQuals = (FC.All == ) . eliminate . getConfig . spec $ info
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
@@ -139,14 +134,16 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 makeEquations :: GhcInfo -> [F.Equation]
-makeEquations info
-  = [ F.Equ x xs (F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x (gsTySigs $ spec info))]) | AxiomEq x xs e _ <- gsAxioms (spec info)]
+makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x xs e _ <- axioms]
   where
-    makeEqBody x xs e = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
-    lookupSpecType x xts = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
+    equationBody x xs e       = F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x sigs)]
+    makeEqBody x xs e         = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
+    lookupSpecType x xts      = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
     makeRefBody _ _  Nothing  = F.PTrue
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
-
+    sigs                      = gsTySigs sp
+    axioms                    = gsAxioms sp
+    sp                        = spec info
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a tyep in the logic
@@ -189,8 +186,8 @@ specTypeToResultRef e t
     trep                   = toRTypeRep t
 
 makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
-makeAxioms info 
+makeAxioms info
   | allowSMTInstationation (getConfig info)
   = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
   | otherwise
-  = [] 
+  = []
