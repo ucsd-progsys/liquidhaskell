@@ -210,8 +210,8 @@ instance ( SubsTy tv (RType c tv ()) c
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
-{- 
-NV: The following makes ghc diverge thus dublicating the code 
+{-
+NV: The following makes ghc diverge thus dublicating the code
 instance ( OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) r
@@ -232,7 +232,7 @@ instance ( OkRT c tv r
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 -}
 
-instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where 
+instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
   top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
@@ -244,7 +244,7 @@ instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
-instance Reftable (RTProp RTyCon RTyVar ()) where 
+instance Reftable (RTProp RTyCon RTyVar ()) where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
   top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
@@ -256,7 +256,7 @@ instance Reftable (RTProp RTyCon RTyVar ()) where
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
-instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where 
+instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
   top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
@@ -268,7 +268,7 @@ instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
-instance Reftable (RTProp BTyCon BTyVar ())  where 
+instance Reftable (RTProp BTyCon BTyVar ())  where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
   top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
@@ -316,7 +316,7 @@ instance Subable (RRProp Reft) where
 -- | Reftable Instances -------------------------------------------------------
 -------------------------------------------------------------------------------
 
-instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
     => Reftable (RType RTyCon RTyVar r) where
   isTauto     = isTrivial
   ppTy        = panic Nothing "ppTy RProp Reftable"
@@ -1173,7 +1173,7 @@ ofType_ tx = go . expandTypeSynonyms
     go (LitTy x)
       = tcFLit tx x
     go (CastTy t _)
-      = go t 
+      = go t
     go (CoercionTy _)
       = errorstar "Coercion is currently not supported"
 
@@ -1229,8 +1229,8 @@ isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
 isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 isBaseTy (LitTy _)       = True
-isBaseTy (CastTy _ _)    = False 
-isBaseTy (CoercionTy _)  = False 
+isBaseTy (CastTy _ _)    = False
+isBaseTy (CoercionTy _)  = False
 
 
 dataConMsReft :: Reftable r => RType c tv r -> [Symbol] -> Reft
@@ -1284,11 +1284,11 @@ toType t
 -- | Annotations and Solutions -------------------------------------------------
 --------------------------------------------------------------------------------
 
-rTypeSortedReft ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+rTypeSortedReft ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                 => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
-rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
               => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
@@ -1506,6 +1506,7 @@ mkDecrFun _ (RVar _ _)
 mkDecrFun _ _
   = panic Nothing "RefType.mkDecrFun called on invalid input"
 
+-- | [NOTE]: THIS IS WHERE THE TERMINATION METRIC REFINEMENTS ARE CREATED.
 cmpLexRef :: [(t1, t1, t1 -> Expr)] -> (t, t, t -> Expr) -> Expr
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
@@ -1576,7 +1577,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     go _   (LitTy _)       = []
     go _   (CoercionTy _)  = []
-    go pos (CastTy t _)    = go pos t 
+    go pos (CastTy t _)    = go pos t
 
     goTyConApp _   Invariant     _ = []
     goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
@@ -1601,7 +1602,7 @@ dataConsOfTyCon = dcs S.empty
       = (S.insert c $ mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
     go  _   (LitTy _)       = S.empty
     go  _   (CoercionTy _)  = S.empty
-    go  vis (CastTy t _)    = go vis t 
+    go  vis (CastTy t _)    = go vis t
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------

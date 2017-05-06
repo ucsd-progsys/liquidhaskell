@@ -1,4 +1,4 @@
-module Zipper () where
+module Zipper (getUp, getDown) where
 
 import Data.Set
 
@@ -14,15 +14,15 @@ data Stack a = Stack { focus :: a
                      , down  :: UListDif a focus }
 @-}
 
-{-@ type UStack a = {v:Stack a | (Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v)))) }@-}
+{-@ type UStack a = {v:Stack a | (Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))} @-}
 
-{-@ measure getUp :: forall a. (Stack a) -> [a]
-    getUp (Stack focus up down) = up
-  @-}
+{-@ measure getUp @-}
+getUp :: Stack a -> [a]
+getUp (Stack xfocus xup xdown) = xup
 
-{-@ measure getDown :: forall a. (Stack a) -> [a]
-    getDown (Stack focus up down) = down
-  @-}
+{-@ measure getDown @-}
+getDown :: Stack a -> [a]
+getDown (Stack xfocus xup xdown) = xdown
 
 data Foo a b = J | P a b
 

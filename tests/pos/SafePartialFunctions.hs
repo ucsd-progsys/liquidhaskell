@@ -15,7 +15,7 @@ fromJust (Just a) = a
 tail :: [a] -> [a]
 tail (x:xs) = xs
 
-{-@ head :: {v:[a] | len v > 0}-> a @-}
+{-@ head :: {v:[a] | len v > 0} -> a @-}
 head :: [a] -> a
 head (x:xs) = x
 

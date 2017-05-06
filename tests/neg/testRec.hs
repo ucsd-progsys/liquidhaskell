@@ -3,9 +3,8 @@ module TestRec () where
 import Prelude hiding (map, foldl)
 
 data L a = N | C a (L a)
-{-@ 
-data L [llen] a = N | C (x::a) (xs::(L a))
-  @-}
+
+{-@ data L [llen] @-}
 
 {-@ measure llen :: (L a) -> Int
     llen(N) = 0

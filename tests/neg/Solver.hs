@@ -79,7 +79,7 @@ satLit a (Neg x) = isFalse x a
 
 {-@ measure isTrue @-}
 isTrue          :: Var -> Asgn -> Bool
-isTrue xisT (yv:as) = if xisT == (fst yv) then (isVFalse (snd yv)) else isTrue xisT as
+isTrue xisT (yv:as) = if xisT == (myFst yv) then (isVFalse (mySnd yv)) else isTrue xisT as
 isTrue _ []      = False
 
 {-@ measure isVTrue @-}
@@ -87,9 +87,17 @@ isVTrue :: Val -> Bool
 isVTrue VTrue  = True
 isVTrue VFalse = False
 
+{-@ measure myFst @-}
+myFst :: (a, b) -> a
+myFst (x, y) = x
+
+{-@ measure mySnd @-}
+mySnd :: (a, b) -> b
+mySnd (x, y) = y
+
 {-@ measure isFalse @-}
 isFalse          :: Var -> Asgn -> Bool
-isFalse xisF (yv:as) = if xisF == (fst yv) then (isVFalse (snd yv)) else isFalse xisF as
+isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
 isFalse _ []      = False
 
 {-@ measure isVFalse @-}

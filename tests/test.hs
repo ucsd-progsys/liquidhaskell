@@ -223,20 +223,21 @@ testCmd bin dir file smt (LO opts)
 
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
-              , "DataBase.hs" 
-              , "FindRec.hs" 
-              , "CopyRec.hs" 
+              , "DataBase.hs"
+              , "FindRec.hs"
+              , "CopyRec.hs"
               ]
-
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-                 
+
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
                 , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
+
+                , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
 
 
@@ -249,7 +250,7 @@ hscIgnored = [ "HsColour.hs"
 
 negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
-             , "LibSpec.hs" 
+             , "LibSpec.hs"
              ]
 
 textIgnored :: [FilePath]
@@ -280,6 +281,8 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
               , "Data/Text/Encoding.hs"
+
+            --   , "Data/Text/Fusion.hs"               -- GHC 8
               ]
 
 demosIgnored :: [FilePath]

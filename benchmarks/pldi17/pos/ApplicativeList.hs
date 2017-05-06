@@ -193,8 +193,7 @@ interchange (C x xs) y
 
 
 data L a = N | C a (L a)
-{-@ data L [llen]
-    = N | C {x :: a, xs :: L a } @-}
+{-@ data L [llen] = N | C { lHd :: a, lTl :: L a } @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int

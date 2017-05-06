@@ -69,11 +69,11 @@ makeAxiom :: F.TCEmb TyCon
           -> BareM (Var, LocSpecType, AxiomEq)
 --------------------------------------------------------------------------------
 makeAxiom tce lmap _cbs (x, mbT, v, def) = do
-  insertAxiom v (val x)
+  insertAxiom v Nothing -- TODO:reflect-datacons (val x)
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
   let (t, e) = makeAssumeType tce lmap x mbT v def
-  return (v, t, e)
+  return $ F.tracepp "reflect-datacons:makeAxiom" (v, t, e)
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -88,33 +88,34 @@ makeAssumeType
   :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
   -> (LocSpecType, AxiomEq)
 makeAssumeType tce lmap x mbT v def
-  = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xss le )
+  = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xts le )
   where
     t    = fromMaybe (ofType $ varType v) mbT
     at   = {- F.tracepp ("axiomType: " ++ msg) $ -} axiomType x mbT t
-    _msg  = unwords [showpp x, showpp mbT]
-    le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
+    _msg = unwords [showpp x, showpp mbT]
+    le   = F.tracepp "reflect-datacons:le" $ case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
              Right e -> e
              Left  e -> panic Nothing $ show e
 
-    ref  = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    ref     = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
-
     bbs     = filter isBoolBind xs
+    (xs, def') = grabBody $ normalize def
+    su = F.tracepp "reflect-datacons: subst" $ F.mkSubst
+           $ zip (F.symbol     <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
+          ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
 
-    (xs, def') = grapBody $ normalize def
-    su = F.mkSubst $ zip (F.symbol     <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
-                  ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
-
-    grapBody (Lam x e)  = let (xs, e') = grapBody e in (x:xs, e')
-    grapBody (Tick _ e) = grapBody e
-    grapBody e          = ([], e)
-
-    xss = zipWith (\x t -> (mkSymbol x t, rTypeSort tce t)) xs (filter (not . isClassType) (ty_args (toRTypeRep at))) 
-
-    mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x
+    xts = zipWith (\x t -> (symbol x, rTypeSort tce t)) xs ts
+    ts  = (filter (not . isClassType) (ty_args (toRTypeRep at)))
+    -- mkSymbol x _ = F.symbol x
+    -- mkSymbol x t = if isFunTy t then simplesymbol x else F.symbol x
     ty_non_dict_binds trep = [x | (x, t) <- zip (ty_binds trep) (ty_args trep), not (isClassType t)]
+
+grabBody :: CoreExpr -> ([Id], CoreExpr)
+grabBody (Lam x e)  = (x:xs, e') where (xs, e') = grabBody e
+grabBody (Tick _ e) = grabBody e
+grabBody e          = ([], e)
 
 isBoolBind :: Var -> Bool
 isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ varType v) :: RRType ()))

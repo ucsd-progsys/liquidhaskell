@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
+{-@ LIQUID "--eliminate=none" @-}
+
 -- |
 -- Module      : Data.Text.Fusion
 -- Copyright   : (c) Tom Harper 2008-2009,

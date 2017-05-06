@@ -20,7 +20,7 @@ import DataCon
 import TyCon
 import Id
 import Type hiding (isFunTy)
-import qualified Type
+-- import qualified Type
 import Var
 
 import Data.Default
@@ -88,17 +88,19 @@ makeHaskellInlines tce cbs spec = do
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, LMap)
-makeMeasureInline tce lmap cbs x = maybe err (chomp x) $ GM.findVarDef (val x) cbs
+makeMeasureInline tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
-    chomp x (v, def)             = (x, ) <$> coreToFun' tce lmap x v def ok
+    chomp (v, def)               = (vx, ) <$> coreToFun' tce lmap vx v def (ok vx)
+                                   where vx = F.atLoc x (symbol v)
     err                          = throwError $ errHMeas x "Cannot inline haskell function"
-    ok (xs, e)                   = return (LMap x (varSymbol <$> xs) (either id id e))
+    ok vx (xs, e)                = return (LMap vx (symbol <$> xs) (either id id e))
 
 makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
                       -> BareM (Measure LocSpecType DataCon)
-makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ GM.findVarDef (val x) cbs
+makeMeasureDefinition tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
-    chomp x (v, def)   = Ms.mkM x (GM.varLocInfo logicType v) <$> coreToDef' x v def
+    chomp (v, def)     = Ms.mkM vx (GM.varLocInfo logicType v) <$> coreToDef' vx v def
+                         where vx = F.atLoc x (symbol v)
     coreToDef' x v def = case runToLogic tce lmap mkErr (coreToDef x v def) of
                            Right l -> return     l
                            Left e  -> throwError e
@@ -107,10 +109,10 @@ makeMeasureDefinition tce lmap cbs x = maybe err (chomp x) $ GM.findVarDef (val 
     mkErr str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     err       = throwError $ mkErr "Cannot extract measure from haskell function"
 
-varSymbol :: Var -> Symbol
-varSymbol v
-  | Type.isFunTy (varType v) = GM.simplesymbol v
-  | otherwise                = symbol v
+-- reflect-datacons varSymbol :: Var -> Symbol
+-- reflect-datacons varSymbol v
+  -- reflect-datacons | Type.isFunTy (varType v) = GM.simplesymbol v
+  -- reflect-datacons | otherwise                = symbol v
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)

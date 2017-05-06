@@ -38,6 +38,7 @@ module Data.Set.Splay (
   , (===)
   , showSet
   , printSet
+  , slen
   ) where
 
 import Data.List (foldl')
@@ -54,12 +55,7 @@ import Language.Haskell.Liquid.Prelude
          | Leaf 
 @-}
 
-{-@ measure slen :: (Splay a) -> Int
-    slen(Leaf) = 0
-    slen(Node v l r) = 1 + (slen l) + (slen r)
-  @-}
-
-{-@ slen :: s:Splay s -> {v:Nat | v = (slen s)} @-}
+{-@ measure slen @-}
 slen :: Splay a -> Int
 slen (Leaf)       = 0
 slen (Node v l r) = 1 + (slen l) + (slen r)
