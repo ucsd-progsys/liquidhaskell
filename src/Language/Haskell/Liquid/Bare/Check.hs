@@ -89,10 +89,10 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
-    -- dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
-                                        -- | (_, dcp) <- gsDconsP spec
-                                        -- , let l     = dc_loc  dcp
-                                        -- , let l'    = dc_locE dcp ]
+    -- / dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
+                                        -- / | (_, dcp) <- gsDconsP spec
+                                        -- / , let l     = dc_loc  dcp
+                                        -- / , let l'    = dc_locE dcp ]
     emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp

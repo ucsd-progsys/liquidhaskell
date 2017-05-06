@@ -227,7 +227,6 @@ icfpIgnored = [ "RIO.hs"
               , "FindRec.hs"
               , "CopyRec.hs"
               ]
-
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"

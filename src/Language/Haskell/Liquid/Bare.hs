@@ -155,7 +155,7 @@ ghcSpecEnv sp = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ] -- || S.member x refls ]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ] -- // || S.member x refls ]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
