@@ -231,6 +231,7 @@ icfpIgnored = [ "RIO.hs"
               , "DataBase.hs"
               , "FindRec.hs"
               , "CopyRec.hs"
+              , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
               ]
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
