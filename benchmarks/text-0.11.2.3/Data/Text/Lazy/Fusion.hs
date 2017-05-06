@@ -45,7 +45,7 @@ import Language.Haskell.Liquid.Prelude
 default(Int64)
 
 --LIQUID SPECIALIZE
-{-@ data TPairS [pslen] b = (:*) (t::Text) (b::b) @-}
+{-@ data TPairS [pslen] @-} -- b = (:*) (t::Text) (b::b) @-}
 
 data TPairS b = Text :* b
 infixl 2 :*
@@ -73,8 +73,8 @@ stream text = Stream next (text :* 0) unknownSize
 data UC s = UC s {-# UNPACK #-} !Int
 
 {-@ data UC s = UC
-        (s :: s)
-        (i :: {v:Int | v > 0})
+        (ucFld1 :: s)
+        (ucFld2 :: {v:Int | v > 0})
   @-}
 
 {-@ measure ucInt :: UC s -> Int

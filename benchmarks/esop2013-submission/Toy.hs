@@ -60,7 +60,7 @@ count m = foldN (\_ n -> n + 1) m 0
 
 data Vec a = Nil | Cons a (Vec a)
 
-{-@ data Vec [llen] a = Nil | Cons (x::a) (xs::Vec a) @-}
+{-@ data Vec [llen] @-} -- a = Nil | Cons (x::a) (xs::Vec a) 
 
 -- | We can encode the notion of length as an inductive measure @llen@ 
 

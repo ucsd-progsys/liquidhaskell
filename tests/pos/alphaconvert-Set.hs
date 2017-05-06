@@ -3,14 +3,14 @@
 {-@ LIQUID "--fullcheck"      @-}
 {-@ LIQUID "--maxparams=3"    @-}
 
-module AlphaConvert (subst) where
+module AlphaConvert (isAbs, subst) where
 
 import qualified Data.Set as S
 
-import Language.Haskell.Liquid.Prelude   
+import Language.Haskell.Liquid.Prelude
 
 freshS  :: S.Set Bndr -> Bndr
-alpha   :: S.Set Bndr -> Expr -> Expr 
+alpha   :: S.Set Bndr -> Expr -> Expr
 subst   :: Expr -> Bndr -> Expr -> Expr
 free    :: Expr -> S.Set Bndr
 
@@ -19,24 +19,24 @@ free    :: Expr -> S.Set Bndr
 -- | Datatype Definition --------------------------------------------
 ---------------------------------------------------------------------
 
-type Bndr 
+type Bndr
   = Int
 
-data Expr 
-  = Var Bndr  
+data Expr
+  = Var Bndr
   | Abs Bndr Expr
   | App Expr Expr
 
 {-@ measure fv       :: Expr -> (S.Set Bndr)
     fv (Var x)       = (Set_sng x)
     fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
-    fv (App e a)     = (Set_cup (fv e) (fv a)) 
+    fv (App e a)     = (Set_cup (fv e) (fv a))
   @-}
 
 {-@ measure isAbs @-}
 isAbs (Var v)    = False
 isAbs (Abs v e)  = True
-isAbs (App e a)  = False             
+isAbs (App e a)  = False
 
 {-@ predicate Elem  X Ys       = Set_mem X Ys               @-}
 {-@ predicate NotElem X Ys     = not (Elem X Ys)            @-}
@@ -48,11 +48,11 @@ isAbs (App e a)  = False
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
 ----------------------------------------------------------------------------
-{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-} 
+{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-}
 ----------------------------------------------------------------------------
 
 subst e' x e@(Var y)
-  | x == y                = e' 
+  | x == y                = e'
   | otherwise             = e
 
 subst e' x (App ea eb)    = App ea' eb'
@@ -60,12 +60,12 @@ subst e' x (App ea eb)    = App ea' eb'
     ea'                   = subst e' x ea
     eb'                   = subst e' x eb
 
-subst e1 x e2@(Abs y e)   
+subst e1 x e2@(Abs y e)
   | x == y                = e2
-  | y `S.member` xs       = subst e1 x (alpha xs e2) 
+  | y `S.member` xs       = subst e1 x (alpha xs e2)
   | otherwise             = Abs y (subst e1 x e)
     where
-      xs                  = free e1  
+      xs                  = free e1
 
 ----------------------------------------------------------------------------
 -- | Part 4: Alpha Conversion ----------------------------------------------
@@ -73,7 +73,7 @@ subst e1 x e2@(Abs y e)
 {-@ alpha :: ys:(S.Set Bndr) -> e:{Expr | isAbs e} -> {v:Expr | EqV v e} @-}
 ----------------------------------------------------------------------------
 alpha ys (Abs x e) = Abs x' (subst (Var x') x e)
-  where 
+  where
     xs             = free e
     x'             = freshS zs
     zs             = S.insert x (S.union ys xs)
@@ -99,5 +99,3 @@ freshS xs = undefined
 free (Var x)     = S.singleton x
 free (App e e')  = S.union  (free e) (free e')
 free (Abs x e)   = S.delete x (free e)
-
-

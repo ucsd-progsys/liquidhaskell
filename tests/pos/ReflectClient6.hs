@@ -1,14 +1,17 @@
+
 {-@ LIQUID "--totality"                            @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module ReflectClient3a where
+module ReflectClient6 where
 
 import Language.Haskell.Liquid.ProofCombinators
 
-import ReflectLib3a
+import ReflectLib6
 
-stupidity = [ undefined gapp ]
+{-@ testOK :: { next Mon == Tue } @-}
+testOK = next Mon ==. Tue *** QED
 
-{-@ test4 :: { gapp Nil = Nil } @-}
-test4 = gapp Nil ==. Nil *** QED 
+{-@ testFAIL :: { next Tue == Mon } @-}
+testFAIL = trivial 
+

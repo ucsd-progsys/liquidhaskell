@@ -36,8 +36,13 @@ measureToBare :: SpecMeasure -> BareMeasure
 --------------------------------------------------------------------------------
 measureToBare = bimap (fmap specToBare) dataConToBare
 
+-- namedLocSymbol d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare = namedLocSymbol
+dataConToBare d = F.tracepp msg ( ( dropModuleNames . F.symbol) <$> locNamedThing d) {- TODO:reflect-datacons namedLocSymbol d -}
+  where
+    msg  = "dataConToBare dc = " ++ show d ++ " v = " ++ show v ++ " vx = " ++ show vx
+    v    = dataConWorkId d
+    vx   = F.symbol v
 
 specToBareTC :: RTyCon -> BTyCon
 specToBareTC = tyConBTyCon . rtc_tc

@@ -38,7 +38,6 @@ import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
-import qualified Data.List                        as L
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
@@ -109,10 +108,10 @@ wiredIn      = M.fromList $ special ++ wiredIns ++ wiredIns' ++ wiredTyCons ++ w
     wiredIns  = [ (symbol n, n) | thing <- (wiredInIds ++ ghcPrimIds) {- NV CHECK -}, let n = getName thing ]
     wiredIns' = [ (symbol n, n) | n <- (genericTyConNames ++ basicKnownKeyNames)]
     wiredTyCons = [(symbol n, n) | n <- getName <$> (primTyCons ++ wiredInTyCons) ]
-    wiredDcCons = [(symbol n, n) | n <- getName <$> 
+    wiredDcCons = [(symbol n, n) | n <- getName <$>
                       [ falseDataCon, trueDataCon
                       , ltDataCon, eqDataCon, gtDataCon
-                      , nilDataCon, consDataCon 
+                      , nilDataCon, consDataCon
                       , charDataCon, intDataCon, wordDataCon, floatDataCon, doubleDataCon]]
     special   = [ ("GHC.Integer.smallInteger", smallIntegerName)
                 , ("GHC.Integer.Type.Integer", integerTyConName)
@@ -145,15 +144,15 @@ symbolLookupEnvOrig env mod namespace s
 
 
 
--- TODO: move to misc 
+-- TODO: move to misc
 makeRdrName :: RdrName -> Maybe NameSpace -> RdrName
-makeRdrName (Unqual n) ns = Unqual $ makeOcc n ns 
-makeRdrName (Qual m n) ns = Qual m $ makeOcc n ns 
-makeRdrName (Orig m n) ns = Orig m $ makeOcc n ns 
-makeRdrName (Exact n)  _  = Exact n 
+makeRdrName (Unqual n) ns = Unqual $ makeOcc n ns
+makeRdrName (Qual m n) ns = Qual m $ makeOcc n ns
+makeRdrName (Orig m n) ns = Orig m $ makeOcc n ns
+makeRdrName (Exact n)  _  = Exact n
 
 makeOcc :: OccName -> Maybe NameSpace -> OccName
-makeOcc n Nothing   = n 
+makeOcc n Nothing   = n
 makeOcc n (Just ns) = mkOccNameFS ns (occNameFS n)
 
 symbolLookupEnvFull :: HscEnv -> ModName -> Symbol -> IO [Name]
@@ -193,7 +192,7 @@ ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
-       case L.lookup (symbol x) env of
+       case M.lookup (symbol x) env of
          Nothing -> lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
                     lookupGhcThing "variable or data constructor" fv (Just dataName) x
          Just v  -> return v
@@ -204,9 +203,9 @@ lookupGhcVar x
 
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
-lookupGhcTyCon src s = do 
+lookupGhcTyCon src s = do
   lookupGhcThing err ftc (Just tcName) s  `catchError` \_ ->
-   lookupGhcThing err fdc (Just tcName) s 
+   lookupGhcThing err fdc (Just tcName) s
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
@@ -214,8 +213,8 @@ lookupGhcTyCon src s = do
     ftc _
       = Nothing
 
-    fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey 
-      = Just $ dataConTyCon x 
+    fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey
+      = Just $ dataConTyCon x
     fdc (AConLike (RealDataCon x)) --  isJust $ promoteDataCon_maybe x
       = Just $ promoteDataCon x
     fdc _

@@ -13,7 +13,7 @@ module Proves (
 
   , (==.), (<=.), (<.), (>.), (>=.)
 
-  -- Function Equality 
+  -- Function Equality
   , Arg
 
   , (=*=.)
@@ -229,20 +229,20 @@ instance (a~b) => OptGt a b where
 
 
 
--- | Function Equality 
+-- | Function Equality
 
-{- TO REFINE 
+{- TO REFINE
 class FunEq a b r where
   (=*=.) :: (a -> b) -> (a -> b) -> r
 
 instance (c~(a -> b)) => FunEq a b ((a -> Proof) -> c) where
   {-@ instance FunEq a b ((a -> Proof) -> a -> b) where
    =*=. :: f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:_ | f == g && v ~~ f && v ~~ g}
-   @-} 
-   f =*=. g = undefined  
+   @-}
+   f =*=. g = undefined
 -}
 
-class Arg a where 
+class Arg a where
 
 
 {-@ assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}

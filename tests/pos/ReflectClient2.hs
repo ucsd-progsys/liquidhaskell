@@ -1,3 +1,5 @@
+{-@ LIQUID "--higherorder" @-}
+
 module ReflectClient2 where
 
 import ReflectLib2

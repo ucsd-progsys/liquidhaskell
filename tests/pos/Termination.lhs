@@ -12,7 +12,7 @@ sum a i = a i + sum a (i-1)
 
 {-@ sum' :: Vec -> Value -> n:Nat -> Value / [n] @-}
 sum' :: Vec -> Value -> Int -> Value
-sum' a acc 0 = acc + a 0 
+sum' a acc 0 = acc + a 0
 sum' a acc i = sum' a (acc + a i) (i-1)
 
 type Vec2D = Int -> Int -> Value
@@ -20,17 +20,17 @@ type Vec2D = Int -> Int -> Value
 {-@ sum2D :: Vec2D -> Nat -> Nat -> Value @-}
 sum2D :: Vec2D -> Int -> Int -> Value
 sum2D a n m = go n m
-  where 
-    {-@ go :: i:Nat -> j:Nat -> Value / [i, j] @-}
+  where
+    {-@ go :: ink:Nat -> joe:Nat -> Value / [ink, joe] @-}
     go 0 0        = a 0 0
-    go i j 
+    go i j
       | j == 0    =  a i 0 + go (i-1) m
       | otherwise =  a i j + go i (j-1)
 
 {-@ sumFromTo :: Vec -> lo:Nat -> hi:{v:Nat|v>=lo} -> Value @-}
 sumFromTo :: Vec -> Int -> Int ->  Value
 sumFromTo a lo hi = go lo hi
-  where 
+  where
        {-@ go :: lo:Nat -> hi:{v:Nat|v>=lo} -> Value / [hi-lo] @-}
         go lo hi | lo == hi  =  a lo
                  | otherwise =  a lo + go (lo+1) hi

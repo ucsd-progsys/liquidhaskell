@@ -6,7 +6,7 @@ data Foo a = F a a a
 
 data LL a = N | C a (LL a)
 
-{-@ data LL [llen] a = N | C (x::a) (xs::(LL a)) @-}
+{-@ data LL [llen] @-} 
 
 {-@ invariant {v:LL a | (llen v) >= 0} @-}
 
