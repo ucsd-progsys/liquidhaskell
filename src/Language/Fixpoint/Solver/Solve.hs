@@ -15,11 +15,8 @@ import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
-<<<<<<< HEAD
 import qualified Language.Fixpoint.Types.Graduals  as G
 import qualified Language.Fixpoint.Solver.GradualSolution as GS 
-=======
->>>>>>> 93e81f3bb4c1ae9216cfc2d75d0217952e08310c
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
