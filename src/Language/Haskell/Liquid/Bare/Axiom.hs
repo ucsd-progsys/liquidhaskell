@@ -58,7 +58,9 @@ findVarDefType
   :: [CoreBind] -> [(Var, LocSpecType)] -> LocSymbol
   -> BareM (LocSymbol, Maybe SpecType, Var, CoreExpr)
 findVarDefType cbs sigs x = case findVarDef (val x) cbs of
-  Just (v, e) -> return (x, val <$> lookup v sigs, v, e)
+  Just (v, e) -> if F.tracepp ("ISEXPORTED v = " ++ show v) $ isExportedId v
+                   then return (x, val <$> lookup v sigs, v, e)
+                   else throwError $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> throwError $ mkError x "Cannot lift haskell function"
 
 --------------------------------------------------------------------------------

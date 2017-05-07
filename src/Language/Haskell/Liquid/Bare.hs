@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
+
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
@@ -34,6 +35,7 @@ import           InstEnv
 
 import           Control.Monad.Reader
 import           Control.Monad.State
+-- import           Control.Monad.Except                       (throwError)
 import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
@@ -47,7 +49,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -90,15 +92,15 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
-  sp <- throwLeft =<< execBare act initEnv
+  sp      <- throwLeft =<< execBare act initEnv
   let renv =  ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
-    axs       = initAxSymbols name defVars specs
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+    axs       = tracepp "INIT-AXS" $ initAxSymbols name defVars specs
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
@@ -106,8 +108,8 @@ initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
     locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
     tx                = qualifySymbol' vs
 
-importedSymbols :: [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
-importedSymbols specs = S.unions (exportedSymbols . snd <$> specs)
+importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
+importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
 
 exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
 exportedSymbols spec = S.unions
@@ -231,21 +233,34 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
   let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  let xs    = tracepp ("SYMS: " ++ show xs0) xs0
+  let xs    = tracepp "SYMS" xs0
   syms1    <- tracepp "SVM1" <$> (M.fromList <$> makeSymbols f vs (val <$> xs))
   syms2    <- tracepp "SVM2" <$> lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   -- let syms3 = tracepp "SVM3" $ mapMaybe (hackySymbolVar vs . val) xs
   return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2]) -- ++ syms3)
 
+-- `liftedVarMap` is a special case of `symbolVarMap` that checks that all
+-- lifted binders are in fact exported by the given module. We cannot use
+-- GHC's isExportedId because it marks things exported even when they are not;
+-- see tests/error_messages/ExportReflects.hs
+
+liftedVarMap :: (Id -> Bool) -> [LocSymbol] -> BareM [(Symbol, Var)]
+liftedVarMap f xs = do
+  syms    <- symbolVarMap f [] xs
+  let symm = M.fromList syms
+  let es   = [ x | x <- xs, not (checkLifted symm x) ]
+  applyNonNull (return syms) (Ex.throw . fmap mkErr) es
+  where
+    mkErr :: LocSymbol -> Error
+    mkErr x = ErrLiftExp (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
+
+checkLifted :: M.HashMap Symbol Var -> LocSymbol -> Bool
+checkLifted symm x = M.member (val x) symm
+
 _hackySymbolVar :: [Id] -> Symbol -> Maybe (Symbol, Var)
 _hackySymbolVar vs x = (x, ) <$> L.find (isSymbolOfVar x) vs
 
-isWiredIn :: (Show a) => Located a -> Bool
-isWiredIn x  = l == l' && l == 0 && c == c' && c' == 0
-  where
-    (l , c)  = tracepp ("isWiredIn " ++ show (val x)) $ spe (loc x)
-    (l', c') = spe (locE x)
-    spe l    = (x, y) where (_, x, y) = sourcePosElts l
+
 --------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
@@ -262,17 +277,19 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs lmap
-  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols specs)
-  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs syms1
+  syms0 <- liftedVarMap (varInModule name)      (S.toList $ exportedSymbols mySpec      )
+  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
+  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
-  let fSyms = freeSymbols (tracepp "WHOAMI" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+  let fSyms =  freeSymbols (tracepp "WHOAMI" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+            ++ measureSymbols measures
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let syms  = syms1 ++ syms2
+  let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
@@ -286,6 +303,9 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
+
+measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
+measureSymbols measures = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -348,9 +368,9 @@ makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
   let vs   = [ v             | (v, _) <- vts ]
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
-                , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
+                , gsMeas     = tracepp "gsMeas" $ msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
-                , gsAxioms   = tracepp "GSAXIOMS" $ axs ++ gsAxioms   sp
+                , gsAxioms   = {- tracepp "GSAXIOMS" $ -} axs ++ gsAxioms   sp
                 }
 
 qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq

@@ -3,10 +3,10 @@
 {-@ LIQUID "--exact-data-cons" @-}
 
 
-
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
-module ListFunctors where
+
+module ApplicativeMaybe where
 
 import Prelude hiding (fmap, id, Maybe(..), seq, pure)
 
@@ -135,27 +135,23 @@ interchange (Just f) y
   = toProof $
       seq (Just f) (pure y)
          ==. seq (Just f) (Just y)
-         ==. Just (select_Just_1 (Just f) (select_Just_1 (Just y)))
-         ==. Just (select_Just_1 (Just f) y)
-         ==. Just ((select_Just_1 (Just f)) y)
+         -- ==. Just (select_Just_1 (Just f) (select_Just_1 (Just y)))
+         -- ==. Just (select_Just_1 (Just f) y)
+         -- ==. Just ((select_Just_1 (Just f)) y)
          ==. Just (f y)
          ==. Just (idollar y f)
          ==. Just ((idollar y) f)
          ==. seq (Just (idollar y)) (Just f)
          ==. seq (pure (idollar y)) (Just f)
 
-
+{-@ data Maybe a = Nothing | Just a @-}
 data Maybe a = Nothing | Just a
 
 {-@ measure select_Just_1 @-}
 select_Just_1 :: Maybe a -> a
+
 {-@ select_Just_1 :: xs:{Maybe a | is_Just xs } -> a @-}
 select_Just_1 (Just x) = x
-
-{-@ measure is_Nothing @-}
-is_Nothing :: Maybe a -> Bool
-is_Nothing Nothing = True
-is_Nothing _       = False
 
 {-@ measure is_Just @-}
 is_Just :: Maybe a -> Bool
