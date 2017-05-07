@@ -65,10 +65,15 @@ solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a)
 solveGradual cfg fi = do 
   -- graphStatistics cfg $ G.uniquify fi  
   let fis = zip [1..] $ partition' Nothing $ G.uniquify fi 
-  ifis   <- if (interactive cfg) then iMergePartitions fis else return fis 
-  res    <- parallel (solveGradualOne cfg <$> ifis) 
-  -- res    <- mapM (solveGradualOne cfg) ifis  
-  return  $ snd $ traceShow "FINAL SOLUTION\n" $  mconcat $ res 
+  if (ginteractive cfg) 
+    then snd . traceShow "FINAL SOLUTION\n"  <$> iSolveGradual cfg fis   
+    else snd . traceShow "FINAL SOLUTION\n" . mconcat <$> parallel (solveGradualOne cfg <$> fis) 
+
+
+iSolveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> [(Int, F.SInfo a)] -> IO (Maybe G.GSol, F.Result (Integer, a))
+iSolveGradual cfg fis 
+  = mconcat <$> parallel (solveGradualOne cfg <$> fis) 
+
 
 solveGradualOne :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> (Int, F.SInfo a) -> IO (Maybe G.GSol, F.Result (Integer, a))
 solveGradualOne cfg (_, fi) = do 
