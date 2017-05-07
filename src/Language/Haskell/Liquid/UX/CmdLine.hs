@@ -160,6 +160,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Enable gradual refinementtype checking"
           &= name "gradual"
 
+ , ginteractive 
+    = def &= help "Interactive Gradual Solving"
+          &= name "ginteractive"
+
  , totalHaskell
     = def &= help "Check for termination and totality, Overrides no-termination flags"
           &= name "total-Haskell"
@@ -482,6 +486,7 @@ defConfig = Config { files             = def
                    , noCheckUnknown    = def
                    , notermination     = def
                    , gradual           = False
+                   , ginteractive      = False 
                    , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
