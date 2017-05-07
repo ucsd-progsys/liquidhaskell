@@ -334,6 +334,10 @@ data TError t =
                 , tcname :: !Doc
                 }
 
+  | ErrLiftExp  { pos    :: !SrcSpan
+                , msg    :: !Doc
+                }
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -616,6 +620,10 @@ ppError' _ dSp _ (ErrTySpec _ v t s)
   = dSp <+> text "Bad Type Specification"
         $+$ (pprint v <+> dcolon <+> pprint t)
         $+$ (nest 4 $ pprint s)
+
+ppError' _ dSp _ (ErrLiftExp _ v)
+  = dSp <+> text "Cannot lift `" <> pprint v <> "` into refinement logic"
+        $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
 
 ppError' _ dSp _ (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"

@@ -42,7 +42,7 @@ import           Data.Maybe                            (isNothing)
 
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
-import           Language.Fixpoint.Misc                (sortNub)
+import           Language.Fixpoint.Misc                (singleton, sortNub)
 -- import           Language.Fixpoint.Types               (suffixSymbol, Symbol, Expr(..), Reft(..))
 import qualified Language.Fixpoint.Types as F
 --              (suffixSymbol, atLoc, Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft )
@@ -73,16 +73,13 @@ makeDataConSelector d i
   | otherwise
   = dcMeasure "select" d (Just i)
 
--- isDataConSymbol :: Symbol -> Bool
--- isDataConSymbol = isPrefixOfSym dcPrefix
-
 dcMeasure :: String -> DataCon -> Maybe Int -> F.Symbol
 dcMeasure f d iMb = foldr1 F.suffixSymbol (F.symbol "lqdc" : F.symbol f : dcSymbol d : rest)
+                    -- F.symbol $ L.intercalate "_" ("lqdc" : f : dcString d : rest)
   where
-    rest = maybe [] (\i -> [ F.symbol . show $ i  ]) iMb
-
-dcSymbol :: DataCon -> F.Symbol
-dcSymbol = simpleSymbolVar . dataConWorkId
+    rest = maybe [] (singleton . F.symbol . show) iMb
+    -- dcString :: DataCon -> F.Symbol
+    dcSymbol = simpleSymbolVar . dataConWorkId
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
