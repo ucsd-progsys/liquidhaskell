@@ -2,6 +2,7 @@ module Gradual where
  
 {-@ LIQUID "--gradual"        @-}
 {-@ LIQUID "--savequery"      @-}
+{-@ LIQUID "--ginteractive"   @-}
  
 {-@ safe :: {v:Int | ?? } -> Int @-}
 safe   :: Int ->  Int
