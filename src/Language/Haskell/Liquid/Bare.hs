@@ -19,8 +19,6 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
-import Debug.Trace (trace)
-
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
@@ -233,7 +231,7 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
   let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  let xs    = trace ("SYMS: " ++ show xs0) xs0
+  let xs    = tracepp ("SYMS: " ++ show xs0) xs0
   syms1    <- tracepp "SVM1" <$> (M.fromList <$> makeSymbols f vs (val <$> xs))
   syms2    <- tracepp "SVM2" <$> lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   -- let syms3 = tracepp "SVM3" $ mapMaybe (hackySymbolVar vs . val) xs

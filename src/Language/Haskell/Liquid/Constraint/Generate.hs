@@ -94,6 +94,7 @@ consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ'    <- initEnv      info
   sflag <- scheck   <$> get
+  when (gradual cfg) (mapM_ (addW . WfC γ' . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
   γ     <- {- NOPROVER if expandProofsMode then addCombine τProof γ' else -}
            return  γ'
   cbs'  <- {- NOPROVER if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else -}
