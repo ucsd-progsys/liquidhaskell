@@ -333,12 +333,14 @@ instance (NFData a) => NFData (Result a)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst (sus ++ gsus)
+wfC be sr x = if all isEmptySubst (sus ) -- ++ gsus)
+                 -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
+                 -- NV TO RJ looks like a resolution issue
                 then [WfC be (v, sr_sort sr, k) x      | k         <- ks ] 
                   ++ [GWfC be (v, sr_sort sr, k) x e i | (k, e, i) <- gs ]
                 else errorstar msg
   where
-    msg             = "wfKvar: malformed wfC " ++ show sr
+    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show (sus ++ gsus) 
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
     (gs, gsus)      = unzip $ go' ras

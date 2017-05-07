@@ -23,7 +23,7 @@ import           Prelude                              hiding (init, lookup)
 --------------------------------------------------------------------------------
 -- | Initial Gradual Solution (from Qualifiers and WF constraints) -------------
 --------------------------------------------------------------------------------
-init :: F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
+init :: (F.Fixpoint a) => F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
 init si = map (refineG si qs genv) gs `using` parList rdeepseq 
   where

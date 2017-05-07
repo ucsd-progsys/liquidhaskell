@@ -74,6 +74,7 @@ Library
                    Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
+                   Language.Fixpoint.Types.Graduals,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Graph.Types,
                    Language.Fixpoint.Graph.Reducible,

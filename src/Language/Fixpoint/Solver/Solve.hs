@@ -42,6 +42,8 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
+solve cfg fi | gradual cfg 
+ = solveGradual cfg fi 
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
