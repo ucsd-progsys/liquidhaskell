@@ -22,6 +22,8 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
+import qualified Data.Text    as T
+import qualified Data.Text.IO as T
 import Options.Applicative
 import System.Directory
 import System.Environment
@@ -60,11 +62,12 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
     -- tests = group "Tests" [ unitTests]
-    tests = group "Tests" [ unitTests, benchTests ]
+    tests = group "Tests" [ unitTests, errorTests, benchTests ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
+
 instance IsOption SmtSolver where
   defaultValue = Z3
   parseValue = safeRead . map toUpper
@@ -93,19 +96,25 @@ instance IsOption LiquidOpts where
       <> help (untag (optionHelp :: Tagged LiquidOpts String))
       )
 
+errorTests :: IO TestTree
+errorTests = group "Error-Messages"
+  [ errorTest "tests/errors/ExportMeasure0.hs"  2 "Cannot lift `llen` into refinement logic"
+  , errorTest "tests/errors/ExportMeasure1.hs"  2 "Cannot lift `psnd` into refinement logic"
+  , errorTest "tests/errors/ExportReflect0.hs"  2 "Cannot lift `identity` into refinement logic"
+  ]
+
 unitTests :: IO TestTree
-unitTests
-  = group "Unit" [
-      testGroup "pos"         <$> dirTests "tests/pos"                            ["mapreduce.hs"]   ExitSuccess
-    , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
-    , testGroup "crash"       <$> dirTests "tests/crash"                          []                (ExitFailure 2)
-    , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-    , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
-    -- , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-    -- , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
-    -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
-    -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
-   ]
+unitTests = group "Unit"
+  [ testGroup "pos"         <$> dirTests "tests/pos"                            ["mapreduce.hs"]   ExitSuccess
+  , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+  , testGroup "crash"       <$> dirTests "tests/crash"                          []                (ExitFailure 2)
+  , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+  , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
+  -- , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+  -- , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
+  -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
+  ]
 
 gPosIgnored = ["Intro.hs"]
 gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
@@ -115,7 +124,7 @@ benchTests
   = group "Benchmarks" [
        testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
      , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
-     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored             ExitSuccess
+     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
      , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
      , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
@@ -131,22 +140,53 @@ selfTests
       testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
   ]
 
----------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | For each file in `root` check, that we get the given exit `code.`
+--------------------------------------------------------------------------------
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
----------------------------------------------------------------------------
-dirTests root ignored code
-  = do files    <- walkDirectory root
-       let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
-       return    $ mkTest code root <$> tests
+--------------------------------------------------------------------------------
+dirTests root ignored code = do
+  files    <- walkDirectory root
+  let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
+  return    $ mkCodeTest code root <$> tests
+
+mkCodeTest :: ExitCode -> FilePath -> FilePath -> TestTree
+mkCodeTest code dir file = mkTest (EC file code Nothing) dir file
 
 isTest   :: FilePath -> Bool
 isTest f =  takeExtension f == ".hs"
          || takeExtension f == ".lhs"
 
----------------------------------------------------------------------------
-mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
----------------------------------------------------------------------------
-mkTest code dir file
+--------------------------------------------------------------------------------
+-- | Check that we get the given `err` text and `ExitFailure status` for the given `path`.
+--------------------------------------------------------------------------------
+errorTest :: FilePath -> Int -> T.Text -> IO TestTree
+--------------------------------------------------------------------------------
+errorTest path status err = return (mkTest ec dir file)
+  where
+    ec                    = EC file (ExitFailure status) (Just err)
+    (dir, file)           = splitFileName path
+
+--------------------------------------------------------------------------------
+data ExitCheck = EC { ecTest :: FilePath, ecCode :: ExitCode, ecLog :: Maybe T.Text }
+                 deriving (Show)
+
+ecAssert :: ExitCheck -> ExitCode -> T.Text -> Assertion
+ecAssert ec (ExitFailure 137) _   =
+  printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
+
+ecAssert (EC _ code Nothing)  c _   =
+  assertEqual "Wrong exit code" code c
+
+ecAssert (EC _ code (Just t)) c log = do
+  assertEqual "Wrong exit code" code c
+  assertBool ("Did not match message: " ++ T.unpack t) (T.isInfixOf t log)
+
+--------------------------------------------------------------------------------
+mkTest :: ExitCheck -> FilePath -> FilePath -> TestTree
+--------------------------------------------------------------------------------
+mkTest ec dir file
   = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
       if test `elem` knownToFail smt
       then do
@@ -161,10 +201,11 @@ mkTest code dir file
           -- let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) $ mappend "-v" opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
-          renameFile log $ log <.> (if code == c then "pass" else "fail")
-          if c == ExitFailure 137
-            then printf "WARNING: possible OOM while testing %s: IGNORING" test
-            else assertEqual "Wrong exit code" code c
+          ecAssert ec c =<< T.readFile log
+          -- renameFile log $ log <.> (if code == c then "pass" else "fail")
+          -- if c == ExitFailure 137
+            -- then printf "WARNING: possible OOM while testing %s: IGNORING" test
+            -- else assertEqual "Wrong exit code" code c
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
@@ -222,9 +263,9 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
-esopIgnored = [ "Base0.hs"               
+esopIgnored = [ "Base0.hs"
               , "Base.hs"                  -- REFLECT-IMPORTS: TODO BLOWUP
-              ] 
+              ]
 
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
