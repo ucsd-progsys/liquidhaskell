@@ -19,7 +19,6 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
--- import Debug.Trace (trace)
 
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
