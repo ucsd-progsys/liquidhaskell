@@ -60,7 +60,7 @@ import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataSelector)
+import           Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataConSelector)
 import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
@@ -146,7 +146,7 @@ makeMeasureSelectors autoselectors autofields (dc, Loc l l' (DataConP _ vs _ _ _
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
-      = Just $ makeMeasureSelector (Loc l l' (makeDataSelector dc i)) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector dc i)) (dty t) dc n i
 
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
     scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)

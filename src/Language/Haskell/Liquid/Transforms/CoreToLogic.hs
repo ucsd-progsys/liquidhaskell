@@ -270,7 +270,7 @@ altToLg de (C.DataAlt d, xs, e)
        let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]
        return (d, subst su p)
   where
-    f x i = let t = EApp (EVar $ makeDataSelector d i) de
+    f x i = let t = EApp (EVar $ makeDataConSelector d i) de
             in [(symbol x, t), (simplesymbol x, t)]
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"

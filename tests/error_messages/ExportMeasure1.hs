@@ -5,6 +5,7 @@
 module SPair (
     PairS(..)
   , moo
+  -- FIX: , psnd
   ) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
