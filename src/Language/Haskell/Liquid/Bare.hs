@@ -242,12 +242,7 @@ symbolVarMap f vs xs' = do
 _hackySymbolVar :: [Id] -> Symbol -> Maybe (Symbol, Var)
 _hackySymbolVar vs x = (x, ) <$> L.find (isSymbolOfVar x) vs
 
-isWiredIn :: (Show a) => Located a -> Bool
-isWiredIn x  = l == l' && l == 0 && c == c' && c' == 0
-  where
-    (l , c)  = tracepp ("isWiredIn " ++ show (val x)) $ spe (loc x)
-    (l', c') = spe (locE x)
-    spe l    = (x, y) where (_, x, y) = sourcePosElts l
+
 --------------------------------------------------------------------------------
 makeGhcSpec'
   :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
