@@ -92,6 +92,8 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M
     zs'                     = concatMap freeSyms (snd <$> yts)
     zs''                    = concatMap freeSyms ivs
 
+
+
 freeSyms :: (Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 freeSyms ty    = [ atLoc ty x | x <- tySyms ]
   where

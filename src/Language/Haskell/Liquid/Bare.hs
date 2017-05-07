@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
@@ -233,7 +233,7 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
   let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  let xs    = trace ("SYMS: " ++ show xs0) xs0
+  let xs    = {- trace ("SYMS: " ++ show xs0) -} xs0
   syms1    <- tracepp "SVM1" <$> (M.fromList <$> makeSymbols f vs (val <$> xs))
   syms2    <- tracepp "SVM2" <$> lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   -- let syms3 = tracepp "SVM3" $ mapMaybe (hackySymbolVar vs . val) xs
@@ -272,7 +272,8 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
-  let fSyms = freeSymbols (tracepp "WHOAMI" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+  let fSyms =  freeSymbols (tracepp "WHOAMI" xs') (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+            ++ measureSymbols measures
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let syms  = syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
@@ -288,6 +289,9 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
+
+measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
+measureSymbols measures = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -352,7 +356,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
                 , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
-                , gsAxioms   = tracepp "GSAXIOMS" $ axs ++ gsAxioms   sp
+                , gsAxioms   = {- tracepp "GSAXIOMS" $ -} axs ++ gsAxioms   sp
                 }
 
 qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq
