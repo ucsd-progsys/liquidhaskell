@@ -63,7 +63,7 @@ wiredInNames = [ "head", "tail", "fst", "snd", "len" ]
 isWiredInShape :: Located Symbol -> Bool
 isWiredInShape x = any (`F.isPrefixOfSym` s) [F.anfPrefix, F.tempPrefix, dcPrefix]
   where s        = val x
-        dcPrefix = "lqdc$"
+        dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(Symbol, Sort)]
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
