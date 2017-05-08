@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Constraints (
   , addIds
   , sinfo
   , shiftVV
+  , gwInfo, GWInfo (..)
 
   -- * Qualifiers
   , Qualifier (..)
@@ -53,6 +54,7 @@ module Language.Fixpoint.Types.Constraints (
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
+  , unsafe, isUnsafe, safe
 
   -- * Cut KVars
   , Kuts (..)
@@ -111,17 +113,30 @@ data WfC a  =  WfC  { wenv  :: !IBindEnv
                     , wrft  :: !(Symbol, Sort, KVar)
                     , winfo :: !a
                     , wexpr :: !Expr
+                    , wloc  :: !GradInfo
                     }
               deriving (Eq, Generic, Functor)
 
+data GWInfo = GWInfo { gsym  :: Symbol
+                     , gsort :: Sort
+                     , gexpr :: Expr
+                     , ginfo :: GradInfo
+                     }
+              deriving (Eq, Generic)
+
+gwInfo :: WfC a -> GWInfo
+gwInfo (GWfC _ (x,s,_) _ e i) 
+  = GWInfo x s e i
+gwInfo _ 
+  = errorstar "gwInfo"
 
 updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
 updateWfCExpr _ w@(WfC {})  = w
 updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 
-isGWfc :: WfC a -> Bool
-isGWfc (GWfC _ _ _ _) = True
-isGWfc (WfC _ _ _)    = False
+isGWfc :: WfC a -> Bool 
+isGWfc (GWfC {}) = True 
+isGWfc (WfC  {}) = False 
 
 type SubcId = Integer
 
@@ -206,6 +221,15 @@ instance Monoid (Result a) where
       soln      = mappend (resSolution r1)  (resSolution r2)
       gsoln     = mappend (gresSolution r1) (gresSolution r2)
 
+unsafe, safe :: Result a 
+unsafe = mempty {resStatus = Unsafe []}
+safe   = mempty {resStatus = Safe}
+
+isUnsafe :: Result a -> Bool
+isUnsafe r | Unsafe _ <- resStatus r 
+  = True
+isUnsafe _ = False
+
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"
   -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
@@ -285,6 +309,7 @@ instance Show   GFixSolution where
 instance B.Binary Qualifier
 instance B.Binary Kuts
 instance B.Binary HOInfo
+instance B.Binary GWInfo
 instance B.Binary GFixSolution
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
@@ -295,6 +320,7 @@ instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
 instance NFData GFixSolution
+instance NFData GWInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -307,11 +333,14 @@ instance (NFData a) => NFData (Result a)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst (sus ++ gsus)
-                then [WfC be (v, sr_sort sr, k) x | k <- ks] ++ [GWfC be (v, sr_sort sr, k) x e | (k, e) <- gs ]
+wfC be sr x = if all isEmptySubst (sus ) -- ++ gsus)
+                 -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
+                 -- NV TO RJ looks like a resolution issue
+                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ] 
+                  ++ [GWfC be (v, sr_sort sr, k) x e i | (k, e, i) <- gs ]
                 else errorstar msg
   where
-    msg             = "wfKvar: malformed wfC " ++ show sr
+    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show (sus ++ gsus) 
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
     (gs, gsus)      = unzip $ go' ras
@@ -320,8 +349,8 @@ wfC be sr x = if all isEmptySubst (sus ++ gsus)
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
 
-    go' (PGrad k su e) = [((k, e), su)]
-    go' (PAnd es)      = concatMap go' es
+    go' (PGrad k su i e) = [((k, e, i), su)]
+    go' (PAnd es)      = concatMap go' es 
     go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
@@ -532,7 +561,6 @@ data GInfo c a =
      , ae       :: AxiomEnv
      }
   deriving (Eq, Show, Functor, Generic)
-
 
 instance Monoid HOInfo where
   mempty        = HOI False False

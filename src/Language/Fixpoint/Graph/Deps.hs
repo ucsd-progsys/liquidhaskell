@@ -222,7 +222,7 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
-elimDeps :: F.SInfo a -> [CEdge] -> S.HashSet F.KVar -> CDeps
+elimDeps :: (F.TaggedC c a) => F.GInfo c a -> [CEdge] -> S.HashSet F.KVar -> CDeps
 elimDeps si es nonKutVs = graphDeps si es'
   where
     es'                 = graphElim es nonKutVs
@@ -437,7 +437,7 @@ maximumDef _ xs = maximum xs
 
 
 ---------------------------------------------------------------------------
-graphDeps :: F.SInfo a -> [CEdge] -> CDeps
+graphDeps :: F.TaggedC c a => F.GInfo c a -> [CEdge] -> CDeps
 ---------------------------------------------------------------------------
 graphDeps fi cs = CDs { cSucc   = gSucc cg
                       , cPrev   = cPrevM
@@ -472,15 +472,15 @@ cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
     iWrites  = group [ (i, k) | (Cstr i, KVar k) <- es ]
     kReads   = group [ (k, j) | (KVar k, Cstr j) <- es ]
 
-rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> F.SubcId -> Rank
+rankF ::  F.TaggedC c a => CMap (c a) -> CMap Int -> CMap Int -> F.SubcId -> Rank
 rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
   where
     outScc        = lookupCMap outR
     inScc         = lookupCMap inR
-    tag           = F._ctag . lookupCMap cm
+    tag           = F.stag . lookupCMap cm
 
 ---------------------------------------------------------------------------
-inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
+inRanks ::  F.TaggedC c a => F.GInfo c a -> [DepEdge] -> CMap Int -> CMap Int
 ---------------------------------------------------------------------------
 inRanks fi es outR
   | ks == mempty      = outR
@@ -496,7 +496,7 @@ inRanks fi es outR
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 --------------------------------------------------------------------------------
-graphStatistics :: Config -> F.SInfo a -> IO ()
+graphStatistics :: F.TaggedC c a => Config -> F.GInfo c a -> IO ()
 --------------------------------------------------------------------------------
 graphStatistics cfg si = when (elimStats cfg) $ do
   -- writeGraph f  (kvGraph si)
@@ -525,7 +525,7 @@ instance PTable Stats where
     , ("KVars NonLin"     , pprint stSetKVNonLin)
     ]
 
-graphStats :: Config -> F.SInfo a -> Stats
+graphStats :: F.TaggedC c a => Config -> F.GInfo c a -> Stats
 graphStats cfg si = Stats {
     stNumKVCuts   = S.size $ F.tracepp "CUTS:" (depCuts d)
   , stNumKVNonLin = S.size  nlks

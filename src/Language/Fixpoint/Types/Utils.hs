@@ -51,7 +51,7 @@ sortedReftConcKVars x sr = go [] [] [] ves
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
-    go ps ks gs ((v, PKVar k su  ):xs) = go ps (KVS v t k su:ks) gs xs 
-    go ps ks gs ((v, PGrad k su _):xs) = go ps ks (KVS v t k su:gs) xs 
-    go ps ks gs ((_, p):xs)            = go (p:ps) ks gs xs 
-    go ps ks gs []                     = (ps, ks, gs)
+    go ps ks gs ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) gs xs 
+    go ps ks gs ((v, PGrad k su _ _):xs) = go ps ks (KVS v t k su:gs) xs 
+    go ps ks gs ((_, p):xs)              = go (p:ps) ks gs xs 
+    go ps ks gs []                       = (ps, ks, gs)

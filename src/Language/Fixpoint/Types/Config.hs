@@ -81,6 +81,7 @@ data Config
     , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
     , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
     , gradual     :: Bool                -- ^ solve "gradual" constraints
+    , ginteractive :: Bool                -- ^ interactive gradual solving
     , extensionality   :: Bool           -- ^ allow function extensionality
     , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
     , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
@@ -161,6 +162,7 @@ defConfig = Config {
   , minimizeKs       = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
   , minimalSol       = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual          = False &= help "Solve gradual-refinement typing constraints"
+  , ginteractive      = False &= help "Interactive Gradual Solving"
   , extensionality   = False &= help "Allow function extensionality axioms"
   , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
   , betaEquivalence  = False &= help "Allow lambda alpha equivalence axioms"

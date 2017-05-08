@@ -28,7 +28,7 @@ module Language.Fixpoint.Types.Visitor (
   , envKVars
   , envKVarsN
   , rhsKVars
-  , mapKVars, mapKVars', mapKVarSubsts
+  , mapKVars, mapKVars', mapGVars', mapKVarSubsts
   , mapExpr, mapMExpr
 
   -- * Predicates on Constraints
@@ -157,7 +157,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
-    step c (PGrad k su e)  = PGrad k su <$> vE c e 
+    step c (PGrad k su i e) = PGrad k su i <$> vE c e 
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -170,7 +170,17 @@ mapKVars' f            = trans kvVis () []
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
-    txK _ (PGrad k su _)
+    txK _ (PGrad k su _ _)
+      | Just p' <- f (k, su) = subst su p'
+    txK _ p            = p
+
+
+
+mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapGVars' f            = trans kvVis () []
+  where
+    kvVis              = defaultVisitor { txExpr = txK }
+    txK _ (PGrad k su _ _)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
@@ -185,7 +195,7 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go (PGrad k su e)  = f =<< (PGrad k su  <$>  go e                     )
+    go (PGrad k su i e) = f =<< (PGrad k su i <$>  go e                     )
     go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
     go (PNot p)        = f =<< (PNot        <$>  go p                     )
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
@@ -208,7 +218,7 @@ mapKVarSubsts f          = trans kvVis () []
   where
     kvVis                = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)   = PKVar k (f k su)
-    txK _ (PGrad k su e) = PGrad k (f k su) e
+    txK _ (PGrad k su i e) = PGrad k (f k su) i e
     txK _ p              = p
   
 newtype MInt = MInt Integer
@@ -244,7 +254,7 @@ kvars                 = fold kvVis () []
   where
     kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
     kv' _ (PKVar k _)   = [k]
-    kv' _ (PGrad k _ _) = [k]
+    kv' _ (PGrad k _ _ _) = [k]
     kv' _ _             = []
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]

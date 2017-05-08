@@ -62,6 +62,7 @@ module Language.Fixpoint.Types.Names (
   , dummySymbol
   , intSymbol
   , tempSymbol
+  , gradIntSymbol
 
   -- * Wrapping Symbols
   , litSymbol
@@ -415,12 +416,15 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
+gradIntSymbol :: Integer -> Symbol
+gradIntSymbol = intSymbol gradPrefix 
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix  :: Symbol
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix  :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
+gradPrefix   = "grad$"
 
 kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"

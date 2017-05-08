@@ -93,6 +93,9 @@ instance Elaborate (SInfo a) where
 instance (Elaborate e) => (Elaborate (Triggered e)) where
   elaborate x env t = fmap (elaborate x env) t
 
+instance (Elaborate a) => (Elaborate (Maybe a)) where
+  elaborate x env t = fmap (elaborate x env) t  
+
 instance Elaborate Sort where
   elaborate _ _ = go
    where
@@ -184,7 +187,7 @@ elabApply = go
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
     step (ELam b e)       = ELam b (go e)
-    step (PGrad k su e)   = PGrad k su (go e)
+    step (PGrad k su i e)   = PGrad k su i (go e)
     step e@(PKVar {})     = e
     step e@(ESym {})      = e
     step e@(ECon {})      = e
@@ -369,7 +372,7 @@ checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
-checkExpr f (PGrad _ _ e)  = checkPred f e >> return boolSort
+checkExpr f (PGrad _ _ _ e)  = checkPred f e >> return boolSort
 
 checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
@@ -417,8 +420,8 @@ elab _ e@(ECon (L _ s)) =
 elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab f (PGrad k su e) = 
-  ((, boolSort) . PGrad k su . fst) <$> elab f e 
+elab f (PGrad k su i e) = 
+  ((, boolSort) . PGrad k su i . fst) <$> elab f e 
 
 elab f e@(EVar x) =
   (e,) <$> checkSym f x

@@ -14,7 +14,7 @@ import           Control.Exception                (bracket_)
 import           Data.Hashable
 -- import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (when, forM_)
+import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
@@ -34,6 +34,7 @@ import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                        (stdout, hFlush )
 import           System.Exit                      (ExitCode)
 import           Control.Concurrent.Async
+
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -347,7 +348,14 @@ mapSnd f (x, y) = (x, f y)
 
 {-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
 allCombinations :: [[a]] -> [[a]]
-allCombinations []          = [[]]
-allCombinations [[]]        = [[]]
-allCombinations ([]:_)     = []
-allCombinations ((x:xs):ys) = ((x:) <$> allCombinations ys) ++ allCombinations (xs:ys)
+allCombinations xs = assert (and . map (((length xs) == ) . length)) $ go xs
+  where
+   go []          = [[]]
+   go [[]]        = []
+   go ([]:_)      = []
+   go ((x:xs):ys) = ((x:) <$> go ys) ++ go (xs:ys)
+
+   assert b x = if b x then x else errorstar "allCombinations: assertion violation"
+
+powerset :: [a] -> [[a]]
+powerset xs = filterM (const [False, True]) xs
