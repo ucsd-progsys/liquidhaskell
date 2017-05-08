@@ -112,7 +112,7 @@ importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
 importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
 
 exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
-exportedSymbols spec = S.unions
+exportedSymbols spec = tracepp "exported-symbols" $ S.unions
   [ Ms.reflects spec
   , Ms.hmeas    spec
   , Ms.inlines  spec ]
@@ -538,7 +538,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   asize'    <- S.fromList <$> makeASize
   hmeas     <- mkThing makeHMeas
   hinls     <- mkThing makeHInlines
-  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas
+  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas -- HEREHEREHERE #1030
   mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hinls
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
