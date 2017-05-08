@@ -50,7 +50,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
-import           Language.Fixpoint.Types                    hiding (Error)
+import           Language.Fixpoint.Types                    hiding (tracepp, Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (nubHashOn)
@@ -76,6 +76,11 @@ import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
+
+import Debug.Trace (trace)
+
+tracepp :: (PPrint a) => String -> a -> a
+tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
@@ -600,7 +605,8 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tycons       = tcs        ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-  let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
+  -- reflect-datacons: let dcSelectors  = concatMap (makeMeasureSelectors (exactDC cfg) (not $ noMeasureFields cfg)) datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi)
 
