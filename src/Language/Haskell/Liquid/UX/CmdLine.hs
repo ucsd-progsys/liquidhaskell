@@ -386,13 +386,17 @@ withSmtSolver :: Config -> IO Config
 --------------------------------------------------------------------------------
 withSmtSolver cfg =
   case smtsolver cfg of
-    Just _  -> return cfg
-    Nothing -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
-                  case catMaybes smts of
-                    (s:_) -> return (cfg {smtsolver = Just s})
-                    _     -> panic Nothing noSmtError
+    Just smt -> do found <- findSmtSolver smt
+                   case found of
+                     Just _ -> return cfg
+                     Nothing -> panic Nothing (missingSmtError smt)
+    Nothing  -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
+                   case catMaybes smts of
+                     (s:_) -> return (cfg {smtsolver = Just s})
+                     _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+    missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
