@@ -80,7 +80,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (gsTySigs sp) (gsAsmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
-                     -- ++ checkDuplicateFieldNames                   (gsDconsP sp)
+                     -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts

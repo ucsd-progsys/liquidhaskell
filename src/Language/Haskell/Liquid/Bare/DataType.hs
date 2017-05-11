@@ -26,7 +26,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
+import           Language.Fixpoint.Types                (tracepp, mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
@@ -65,9 +65,9 @@ instanceTyCon = go . is_tys
     go [TyConApp c _] = Just c
     go _              = Nothing
 
------------------------------------------------------------------------
--- Bare Predicate: DataCon Definitions --------------------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Bare Predicate: DataCon Definitions ---------------------------------------
+--------------------------------------------------------------------------------
 
 makeConTypes
   :: (ModName,Ms.Spec ty bndr)
@@ -83,8 +83,8 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
           | tycName d == fst v = (Just d, Just v)  : merge ds vs
           | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
           | otherwise          = (Nothing, Just v) : merge (d:ds) vs
-        merge []     vs  = ((Nothing,) . Just) <$> vs
-        merge ds     []  = ((,Nothing) . Just) <$> ds
+        merge []     vs        = ((Nothing,) . Just) <$> vs
+        merge ds     []        = ((,Nothing) . Just) <$> ds
 
 dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
@@ -112,7 +112,7 @@ ofBDataDecl :: Maybe DataDecl
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon "ofBDataDecl" tc
-       cts'       <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
+       cts'       <- tracepp "OBDATADECLS" <$> mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = L.nub $  concatMap (getPsSig initmap True) tys
