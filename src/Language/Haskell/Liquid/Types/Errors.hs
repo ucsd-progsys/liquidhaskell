@@ -231,6 +231,10 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple definitions of the same measure
 
+  | ErrDupField { pos   :: !SrcSpan
+                , dcon  :: !Doc
+                , field :: !Doc
+                } -- ^ duplicate fields in same datacon
 
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
@@ -621,12 +625,14 @@ ppError' _ dSp _ (ErrTySpec _ v t s)
         $+$ (pprint v <+> dcolon <+> pprint t)
         $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp _ (ErrLiftExp _ v)
+ppError' _ dSp dCtx (ErrLiftExp _ v)
   = dSp <+> text "Cannot lift `" <> pprint v <> "` into refinement logic"
+        $+$ dCtx
         $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
 
-ppError' _ dSp _ (ErrBadData _ v s)
+ppError' _ dSp dCtx (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
+        $+$ dCtx
         $+$ (pprint v <+> dcolon <+> pprint s)
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
@@ -660,8 +666,9 @@ ppError' _ dSp _ (ErrMeas _ t s)
   = dSp <+> text "Bad Measure Specification"
         $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
-ppError' _ dSp _ (ErrHMeas _ t s)
+ppError' _ dSp dCtx (ErrHMeas _ t s)
   = dSp <+> text "Cannot promote Haskell function" <+> pprint t <+> text "to logic"
+        $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
@@ -673,6 +680,12 @@ ppError' _ dSp _ (ErrDupMeas _ v t ls)
         <+> text "and" <+> pprint t
         <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp dCtx (ErrDupField _ dc x)
+  = dSp <+> text "Malformed refined data constructor" <+> dc
+        $+$ dCtx
+        $+$ (nest 4 $ text "Duplicated definitions for field" <+> x)
+
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "

@@ -101,6 +101,7 @@ errorTests = group "Error-Messages"
   [ errorTest "tests/errors/ExportMeasure0.hs"  2 "Cannot lift `llen` into refinement logic"
   , errorTest "tests/errors/ExportMeasure1.hs"  2 "Cannot lift `psnd` into refinement logic"
   , errorTest "tests/errors/ExportReflect0.hs"  2 "Cannot lift `identity` into refinement logic"
+  , errorTest "tests/errors/MultiRecSels.hs"    2 "Duplicated definitions for field `left`"
   ]
 
 unitTests :: IO TestTree
