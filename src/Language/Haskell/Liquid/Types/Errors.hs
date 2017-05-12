@@ -626,7 +626,7 @@ ppError' _ dSp _ (ErrTySpec _ v t s)
         $+$ (nest 4 $ pprint s)
 
 ppError' _ dSp dCtx (ErrLiftExp _ v)
-  = dSp <+> text "Cannot lift `" <> pprint v <> "` into refinement logic"
+  = dSp <+> text "Cannot lift" <+> ppVar v <+> "into refinement logic"
         $+$ dCtx
         $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
 
@@ -684,8 +684,7 @@ ppError' _ dSp _ (ErrDupMeas _ v t ls)
 ppError' _ dSp dCtx (ErrDupField _ dc x)
   = dSp <+> text "Malformed refined data constructor" <+> dc
         $+$ dCtx
-        $+$ (nest 4 $ text "Duplicated definitions for field" <+> x)
-
+        $+$ (nest 4 $ text "Duplicated definitions for field" <+> ppVar x)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
@@ -777,5 +776,6 @@ ppError' _ dSp _ (ErrRClass p0 c is)
 ppError' _ dSp _ (ErrTyCon _ msg ty)
   = dSp <+> text "Bad Data Refinement for " <+> ty
     $+$ (nest 4 msg)
+
 ppVar :: PPrint a => a -> Doc
-ppVar v = text "`" <> pprint v <> text "'"
+ppVar v = text "`" <> pprint v <> text "`"
