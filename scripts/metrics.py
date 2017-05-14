@@ -6,7 +6,6 @@ import os
 import re
 import string
 import subprocess
-import sys
 
 benchmarks = {
 'benchmarks/icfp17/applicative' : [
@@ -103,6 +102,21 @@ benchmarks = {
 ],
 }
 
+benchmarksNames = {
+'benchmarks/icfp17/data-structs' : "DATA-STRUCT",
+'benchmarks/icfp17/vector-algorithms-0.5.4.2' : "VEC-ALGOS",
+'benchmarks/icfp17/bytestring-0.9.2.1' : "BYTESTRING",
+'benchmarks/icfp17/text-0.11.2.3' : "TEXT",
+'benchmarks/icfp17/arith' : "ARITH",
+'benchmarks/icfp17/fold' : "FOLD",
+'benchmarks/icfp17/monoid' : "MONOID",
+'benchmarks/icfp17/functor' : "FUNCTOR",
+'benchmarks/icfp17/applicative' : "APPLICATIVE",
+'benchmarks/icfp17/monad' : "MONAD",
+'benchmarks/icfp17/sat-solver' : "SAT-SOLVER",
+'benchmarks/icfp17/unification' : "UNIFICATION",
+}
+
 benchmarksOrdered = [
 'benchmarks/icfp17/data-structs',
 'benchmarks/icfp17/vector-algorithms-0.5.4.2',
@@ -119,7 +133,7 @@ benchmarksOrdered = [
 ]
 
 def sloc(scripts,fn):
-    out = subprocess.check_output('sloccount %s' % fn, shell=True)
+    out = subprocess.check_output('sloccount %s 2> /dev/null' % fn, shell=True)
     return int(out.split('haskell=')[1].split(',')[0].split('\n')[0])
 
 def lines(anns):
@@ -137,11 +151,29 @@ def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
 
 def csvify(fn, metrics):
-    return '%s, %d, %d\n' % (
+    return '%s, %d, %d, %d\n' % (
         fn, metrics['sloc'], metrics['specs_lines'] +
-        metrics['others_lines'])
+        metrics['others_lines'], int(metrics['time']))
+
+def mkTimeDict(timeFile):
+    times = timeFile.readlines()
+    times = [line.split(',') for line in times if "True\n" in line]
+    timeDict = {}
+    for time in times:
+        timeDict[time[0]] = float(time[1])
+    return timeDict
 
 def main():
+    subprocess.call('stack test liquidhaskell', shell=True)
+    subprocess.call('mv tests/logs/cur/summary.csv tests/logs/cur/summary-FUSION.csv', shell=True)
+    with open('tests/logs/cur/summary-FUSION.csv', 'r') as timeFile:
+        timeDictF = mkTimeDict(timeFile)
+
+    # subprocess.call('stack test liquidhaskell', shell=True)
+    # subprocess.call('mv tests/logs/cur/summary.csv tests/logs/cur/summary-LIQUID.csv', shell=True)
+    # with open('tests/logs/cur/summary-LIQUID.csv', 'r') as timeFile:
+    #     timeDictF = mkTimeDict(timeFile)
+
     results = {}
     pwd = os.getcwd()
     for d, fs in benchmarks.iteritems():
@@ -151,6 +183,8 @@ def main():
             print fn
             f_res = {}
             f_res['sloc'] = sloc(os.path.join(pwd,'scripts'),fn)
+
+            f_res['time'] = timeDictF["Tests/Benchmarks/%s/%s" % (benchmarksNames[d], fn)]
 
             str = (open(fn, 'r')).read()
 
@@ -170,7 +204,8 @@ def main():
             dirtotals = defaultdict(int)
             for fn, metrics in sorted(fs.iteritems()):
                 dirtotals = combine(dirtotals, metrics)
-            out.write(csvify(d, dirtotals))
+            displayName = benchmarksNames[d]
+            out.write(csvify(displayName, dirtotals))
 
 if __name__ == '__main__':
     main()
