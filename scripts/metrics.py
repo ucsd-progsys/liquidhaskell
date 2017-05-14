@@ -9,69 +9,98 @@ import subprocess
 import sys
 
 benchmarks = {
-    'benchmarks/text-0.11.2.3': [ 'Data/Text.hs'
-                                , 'Data/Text/Array.hs'
-                                , 'Data/Text/Encoding.hs'
-                                , 'Data/Text/Foreign.hs'
-                                , 'Data/Text/Fusion.hs'
-                                , 'Data/Text/Fusion/Size.hs'
-                                , 'Data/Text/Internal.hs'
-                                , 'Data/Text/Lazy.hs'
-                                , 'Data/Text/Lazy/Builder.hs'
-                                , 'Data/Text/Lazy/Encoding.hs'
-                                , 'Data/Text/Lazy/Fusion.hs'
-                                , 'Data/Text/Lazy/Internal.hs'
-                                , 'Data/Text/Lazy/Search.hs'
-                                , 'Data/Text/Private.hs'
-                                , 'Data/Text/Search.hs'
-                                , 'Data/Text/Unsafe.hs'
-                                , 'Data/Text/UnsafeChar.hs' ],
-
-    'benchmarks/bytestring-0.9.2.1': [ 'Data/ByteString.T.hs'
-                                     , 'Data/ByteString/Char8.hs'
-                                     , 'Data/ByteString/Fusion.T.hs'
-                                     , 'Data/ByteString/Internal.hs'
-                                     , 'Data/ByteString/Lazy.hs'
-                                     # , 'Data/ByteString/LazyZip.hs'
-                                     , 'Data/ByteString/Lazy/Char8.hs'
-                                     , 'Data/ByteString/Lazy/Internal.hs'
-                                     , 'Data/ByteString/Unsafe.hs' ],
-
-    'benchmarks/vector-algorithms-0.5.4.2': [ 'Data/Vector/Algorithms/AmericanFlag.hs'
-                                            , 'Data/Vector/Algorithms/Combinators.hs'
-                                            , 'Data/Vector/Algorithms/Common.hs'
-                                            , 'Data/Vector/Algorithms/Heap.hs'
-                                            , 'Data/Vector/Algorithms/Insertion.hs'
-                                            , 'Data/Vector/Algorithms/Intro.hs'
-                                            , 'Data/Vector/Algorithms/Merge.hs'
-                                            , 'Data/Vector/Algorithms/Optimal.hs'
-                                            , 'Data/Vector/Algorithms/Radix.hs'
-                                            , 'Data/Vector/Algorithms/Search.hs' ],
-
-    'benchmarks/esop2013-submission': [ 'Base.hs', 'Splay.hs' ],
-
-    'benchmarks/hscolour-1.20.0.0': [ 'Language/Haskell/HsColour.hs'
-                                    , 'Language/Haskell/HsColour/ACSS.hs'
-                                    , 'Language/Haskell/HsColour/Anchors.hs'
-                                    , 'Language/Haskell/HsColour/ANSI.hs'
-                                    , 'Language/Haskell/HsColour/Classify.hs'
-                                    , 'Language/Haskell/HsColour/ColourHighlight.hs'
-                                    , 'Language/Haskell/HsColour/Colourise.hs'
-                                    , 'Language/Haskell/HsColour/CSS.hs'
-                                    , 'Language/Haskell/HsColour/General.hs'
-                                    , 'Language/Haskell/HsColour/HTML.hs'
-                                    , 'Language/Haskell/HsColour/InlineCSS.hs'
-                                    , 'Language/Haskell/HsColour/LaTeX.hs'
-                                    , 'Language/Haskell/HsColour/MIRC.hs'
-                                    , 'Language/Haskell/HsColour/Options.hs'
-                                    , 'Language/Haskell/HsColour/Output.hs'
-                                    , 'Language/Haskell/HsColour/TTY.hs' ],
-
-    'benchmarks/xmonad': [ 'XMonad/StackSet.hs' ],
-
-    'include': [ 'GHC/List.lhs' ],
-
-    '.': [ 'benchmarks/base-4.5.1.0/Data/List.hs' ]
+'benchmarks/icfp17/applicative' : [
+ 'ApplicativeId.hs'
+, 'ApplicativeMaybe.hs'
+, 'ApplicativeReader.hs'
+],
+'benchmarks/icfp17/arith' : [
+ 'Ackermann.hs'
+, 'Fibonacci.hs'
+],
+'benchmarks/icfp17/data-structs' : [
+ 'Array.hs'
+, 'Base.hs'
+, 'Fib.hs'
+, 'GhcListSort.hs'
+, 'ListSort.hs'
+, 'RBTree.hs'
+, 'Splay.hs'
+, 'Toy.hs'
+],
+'benchmarks/icfp17/monad' : [
+ 'MonadId.hs'
+, 'MonadList.hs'
+, 'MonadMaybe.hs'
+, 'MonadReader.hs'
+],
+'benchmarks/icfp17/text-0.11.2.3' : [
+ 'Data/Text/Array.hs'
+, 'Data/Text/Encoding.hs'
+, 'Data/Text/Foreign.hs'
+, 'Data/Text/Fusion/Size.hs'
+, 'Data/Text/Fusion.hs'
+, 'Data/Text/Internal.hs'
+, 'Data/Text/Lazy/Builder.hs'
+, 'Data/Text/Lazy/Encoding.hs'
+, 'Data/Text/Lazy/Fusion.hs'
+, 'Data/Text/Lazy/Internal.hs'
+, 'Data/Text/Lazy/Search.hs'
+, 'Data/Text/Lazy.hs'
+, 'Data/Text/Private.hs'
+, 'Data/Text/Search.hs'
+, 'Data/Text/Unsafe.hs'
+, 'Data/Text/UnsafeChar.hs'
+, 'Data/Text.hs'
+, 'Setup.lhs'
+],
+'benchmarks/icfp17/functor' : [
+ 'FunctorId.hs'
+, 'FunctorList.hs'
+, 'FunctorMaybe.hs'
+, 'FunctorReader.hs'
+, 'FunctorReader.NoExtensionality.hs'
+],
+'benchmarks/icfp17/fold' : [
+ 'FoldrUniversal.hs'
+],
+'benchmarks/icfp17/vector-algorithms-0.5.4.2' : [
+ 'Data/Vector/Algorithms/AmericanFlag.hs'
+, 'Data/Vector/Algorithms/Combinators.hs'
+, 'Data/Vector/Algorithms/Common.hs'
+, 'Data/Vector/Algorithms/Heap.hs'
+, 'Data/Vector/Algorithms/Insertion.hs'
+, 'Data/Vector/Algorithms/Intro.hs'
+, 'Data/Vector/Algorithms/Merge.hs'
+, 'Data/Vector/Algorithms/Optimal.hs'
+, 'Data/Vector/Algorithms/Radix.hs'
+, 'Data/Vector/Algorithms/Search.hs'
+, 'Data/Vector/Algorithms/Termination.hs'
+, 'Setup.lhs'
+],
+'benchmarks/icfp17/unification' : [
+ 'Unification.hs'
+],
+'benchmarks/icfp17/sat-solver' : [
+ 'Solver.hs'
+],
+'benchmarks/icfp17/bytestring-0.9.2.1' : [
+ 'Data/ByteString/Char8.hs'
+, 'Data/ByteString/Fusion.hs'
+, 'Data/ByteString/Fusion.T.hs'
+, 'Data/ByteString/Internal.hs'
+, 'Data/ByteString/Lazy/Char8.hs'
+, 'Data/ByteString/Lazy/Internal.hs'
+, 'Data/ByteString/Lazy.hs'
+, 'Data/ByteString/LazyZip.hs'
+, 'Data/ByteString/Unsafe.hs'
+, 'Data/ByteString.hs'
+, 'Data/ByteString.T.hs'
+],
+'benchmarks/icfp17/monoid' : [
+ 'MonoidList.hs'
+, 'MonoidMaybe.hs'
+],
 }
 
 def time(fn):

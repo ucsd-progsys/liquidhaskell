@@ -59,7 +59,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, benchTests ]
+    tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests ]
 
@@ -107,14 +107,18 @@ unitTests
 benchTests :: IO TestTree
 benchTests
   = group "Benchmarks" [
-       testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
-     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
-     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-     , testGroup "popl17_pos"   <$> dirTests "benchmarks/popl17/pos"         proverIgnored             ExitSuccess
-     , testGroup "popl17_neg"   <$> dirTests "benchmarks/popl17/neg"         proverIgnored             (ExitFailure 1)
+       testGroup "DATA-STRUCT" <$> dirTests "benchmarks/icfp17/data-structs"              [] ExitSuccess
+     , testGroup "VEC-ALGOS"   <$> dirTests "benchmarks/icfp17/vector-algorithms-0.5.4.2" [] ExitSuccess
+     , testGroup "BYTESTRING"  <$> dirTests "benchmarks/icfp17/bytestring-0.9.2.1"        [] ExitSuccess
+     , testGroup "TEXT"        <$> dirTests "benchmarks/icfp17/text-0.11.2.3"             textIgnored ExitSuccess
+     , testGroup "ARITH"       <$> dirTests "benchmarks/icfp17/arith"                     [] ExitSuccess
+     , testGroup "FOLD"        <$> dirTests "benchmarks/icfp17/fold"                      [] ExitSuccess
+     , testGroup "MONOID"      <$> dirTests "benchmarks/icfp17/monoid"                    [] ExitSuccess
+     , testGroup "FUNCTOR"     <$> dirTests "benchmarks/icfp17/functor"                   [] ExitSuccess
+     , testGroup "APPLICATIVE" <$> dirTests "benchmarks/icfp17/applicative"               [] ExitSuccess
+     , testGroup "MONAD"       <$> dirTests "benchmarks/icfp17/monad"                     [] ExitSuccess
+     , testGroup "SAT-SOLVER"  <$> dirTests "benchmarks/icfp17/sat-solver"                [] ExitSuccess
+     , testGroup "UNIFICATION" <$> dirTests "benchmarks/icfp17/unification"               [] ExitSuccess
      ]
 
 selfTests :: IO TestTree
@@ -188,14 +192,32 @@ extraOptions :: FilePath -> FilePath -> LiquidOpts
 extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
-      [ ( "benchmarks/bytestring-0.9.2.1"
+      [ ( "benchmarks/icfp17/bytestring-0.9.2.1"
         , "-iinclude --c-files=cbits/fpstring.c"
         )
-      , ( "benchmarks/text-0.11.2.3"
-        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+      , ( "benchmarks/icfp17/text-0.11.2.3"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../../include --c-files=cbits/cbits.c"
         )
-      , ( "benchmarks/vector-0.10.0.1"
-        , "-i."
+      , ( "benchmarks/icfp17/applicative"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/arith"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/fold"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/functor"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monad"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monoid"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/unification"
+        , "-i../include"
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
@@ -215,7 +237,7 @@ testCmd bin dir file smt (LO opts)
 
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
-              , "DataBase.hs" 
+              , "DataBase.hs"
               ]
 
 proverIgnored  :: [FilePath]
@@ -235,7 +257,7 @@ hscIgnored = [ "HsColour.hs"
 
 negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
-             , "LibSpec.hs" 
+             , "LibSpec.hs"
              ]
 
 textIgnored :: [FilePath]
