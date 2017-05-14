@@ -52,7 +52,7 @@ benchmarks = {
 , 'Data/Text/Unsafe.hs'
 , 'Data/Text/UnsafeChar.hs'
 , 'Data/Text.hs'
-, 'Setup.lhs'
+# , 'Setup.lhs'
 ],
 'benchmarks/icfp17/functor' : [
  'FunctorId.hs'
@@ -76,7 +76,7 @@ benchmarks = {
 , 'Data/Vector/Algorithms/Radix.hs'
 , 'Data/Vector/Algorithms/Search.hs'
 , 'Data/Vector/Algorithms/Termination.hs'
-, 'Setup.lhs'
+# , 'Setup.lhs'
 ],
 'benchmarks/icfp17/unification' : [
  'Unification.hs'
@@ -103,70 +103,45 @@ benchmarks = {
 ],
 }
 
-def time(fn):
-    start = datetime.now()
-    with open(fn+'.log', 'w') as out:
-        subprocess.call(['liquid', '--smtsolver', 'z3mem', fn], stdout=out, stderr=out)
-    return (datetime.now() - start).total_seconds()
-
-def errors(fn):
-    with open(fn+'.log') as fd:
-        log = fd.readlines()
-    unsafes = [l for l in log if l.startswith('**** UNSAFE:')]
-    return unsafes
+benchmarksOrdered = [
+'benchmarks/icfp17/data-structs',
+'benchmarks/icfp17/vector-algorithms-0.5.4.2',
+'benchmarks/icfp17/bytestring-0.9.2.1',
+'benchmarks/icfp17/text-0.11.2.3',
+'benchmarks/icfp17/arith',
+'benchmarks/icfp17/fold',
+'benchmarks/icfp17/monoid',
+'benchmarks/icfp17/functor',
+'benchmarks/icfp17/applicative',
+'benchmarks/icfp17/monad',
+'benchmarks/icfp17/sat-solver',
+'benchmarks/icfp17/unification',
+]
 
 def sloc(scripts,fn):
-    return int(subprocess.check_output(
-        '%s/haskell_count %s | tail -n1' % (scripts, fn), shell=True))
+    out = subprocess.check_output('sloccount %s' % fn, shell=True)
+    return int(out.split('haskell=')[1].split(',')[0].split('\n')[0])
 
 def lines(anns):
     return sum(map(lambda x:(1+x.count('\n')), anns))
-
-def recs(fn):
-    out = subprocess.check_output('liquid-count-binders %s 2>/dev/null' % fn, shell=True)
-    return [int(n) for n in re.findall('(\d+)', out)]
 
 def find(rx, str):
     return [(str[a.start():(3+string.find(str,"@-}", a.start()))])
             for a in list(re.finditer(rx, str))]
 
-qualif_re = '{-@ qualif'
 other = 'import|include|invariant|embed|Decrease|LAZYVAR|Strict|Lazy'
 other_re = '{-@ (%s)' % other
 spec_re = '{-@ (?!(%s|qualif|LIQUID))' % other
-dec_re = '{-@ Decrease'
-div_re = '{-@ (Strict|Lazy)'
-wit_re = '{- LIQUID WITNESS'
-mod_re = '^module ([\w\.]+)'
 
 def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
 
-def texify(fn, metrics):
-    return '\\texttt{%s} & %d & %d / %d & %d / %d & %d / %d & %d & %d & %d & %d & %d \\\\\n' % (
-        fn, metrics['sloc'], metrics['specs'], metrics['specs_lines'],
-        metrics['others'], metrics['others_lines'],
-        metrics['qualifs'], metrics['qualifs_lines'],
-        metrics['funs'], metrics['recfuns'], metrics['divs'],
-        metrics['hints'], metrics['time'])
-
-def texify_term(fn, metrics):
-    return '\\texttt{%s} & %d & %d & %d & %d & %d & %d & %d \\\\\n' % (
-        fn, metrics['sloc'], metrics['errs'],
-        metrics['funs'], metrics['recfuns'], metrics['divs'],
-        metrics['hints'], metrics['time'])
+def csvify(fn, metrics):
+    return '%s, %d, %d\n' % (
+        fn, metrics['sloc'], metrics['specs_lines'] +
+        metrics['others_lines'])
 
 def main():
-    if len(sys.argv) >= 2 and sys.argv[1] == '--only-term':
-        print 'ONLY COLLECTING TERMINATION DATA!'
-        colformat = '|l|rr|rrrr|r|'
-        headers = ['Module', 'LOC', 'Err', 'Fun', 'Rec', 'Div', 'Hint', 'Time']
-        pptex = texify_term
-    else:
-        colformat = '|l|rrrr|rrrr|r|'
-        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif',
-                   'Fun', 'Rec', 'Div', 'Hint', 'Time']
-        pptex = texify
     results = {}
     pwd = os.getcwd()
     for d, fs in benchmarks.iteritems():
@@ -175,55 +150,27 @@ def main():
         for fn in fs:
             print fn
             f_res = {}
-            f_res['time'] = time(fn)
             f_res['sloc'] = sloc(os.path.join(pwd,'scripts'),fn)
-            [fs,rs,rfs] = recs(fn)
-            f_res['funs'] = fs
-            f_res['recs'] = rs
-            f_res['recfuns'] = rfs
-
-            errs = set(errors(fn))
-            import pprint
-            pprint.pprint(errs)
-            f_res['errs'] = len(errs)
 
             str = (open(fn, 'r')).read()
-            mod = re.search(mod_re, str, re.M).group(1)
 
             specs = find(spec_re, str)
-            f_res['specs'] = len(specs)
             f_res['specs_lines'] = lines(specs)
 
-            qualifs = find(qualif_re, str)
-            f_res['qualifs'] = len(qualifs)
-            f_res['qualifs_lines'] = lines(qualifs)
-
             others = find(other_re, str)
-            f_res['others'] = len(others)
             f_res['others_lines'] = lines(others)
 
-            f_res['divs'] = len(re.findall(div_re, str))
-            f_res['hints'] = len(re.findall(wit_re, str)) + len(re.findall(dec_re, str))
-            results[d][mod] = f_res
+            results[d][fn] = f_res
 
         os.chdir(pwd)
 
-    with open('metrics.tex', 'w') as out:
-        out.write('\\begin{tabular}{%s}\n' % colformat)
-        out.write('\\hline\n')
-        out.write(' & '.join('\\textbf{%s}' % h for h in headers) + '\\\\\n')
-        out.write('\\hline\\hline\n')
-        totals = defaultdict(int)
-        for d, fs in results.iteritems():
+    with open('metrics.csv', 'w') as out:
+        for d in benchmarksOrdered:
+            fs = results[d]
             dirtotals = defaultdict(int)
             for fn, metrics in sorted(fs.iteritems()):
-                out.write(pptex(fn, metrics))
                 dirtotals = combine(dirtotals, metrics)
-            out.write(pptex(d, dirtotals))
-            out.write('\\hline\n\n')
-            totals = combine(totals, dirtotals)
-        out.write(pptex('Total', totals))
-        out.write('\\hline\n\\end{tabular}\n')
+            out.write(csvify(d, dirtotals))
 
 if __name__ == '__main__':
     main()
