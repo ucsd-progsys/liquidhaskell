@@ -5,7 +5,7 @@ import Fig2Lib (inc, dec, idd)
 
 {-@ ex1 :: Nat -> Nat @-}
 ex1 :: Int -> Int
-ex1 x = let t = \z -> idd (dec x)
+ex1 x = let t _ = idd (dec x)
             y = t ()
         in inc y
 

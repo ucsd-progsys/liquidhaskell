@@ -9,5 +9,6 @@ inc x = x + 1
 dec :: Int -> Int
 dec x = x - 1
 
-idd :: a -> a
+{-@ idd :: x:Int -> {v:Int | v = x} @-}
+idd :: Int -> Int
 idd z = z
