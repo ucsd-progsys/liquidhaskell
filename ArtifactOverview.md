@@ -14,9 +14,9 @@ The output will end in "**** RESULT: SAFE ****", indicating that the tool has de
 
     stack exec -- liquid fig2examples.hs --no-eliminate
 
-This time it will say UNSAFE because regular liquid inference is insufficient to verify all the examples.
+This time it will say UNSAFE because regular liquid inference is insufficient to verify any of the examples. (You'll see that our examples 1 and 2 are slightly different from the paper - this is because we have to prevent ghc from simplifying those on its own).
 
-Try modifying the examples. For example, if you change `inc` to `dec` on line 36, `liquid` should now return UNSAFE (with or without FUSION) because the program now fails to meet its specification.
+Try modifying the examples. For example, if you change `inc` to `dec` on line 30, `liquid` should now return UNSAFE (with or without FUSION) because the program now fails to meet its specification.
 
 # Step-by-Step Instructions
 
