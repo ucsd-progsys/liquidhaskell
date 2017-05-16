@@ -14,5 +14,14 @@ data Poo = Poo Int
 test :: Poo -> Int
 test (Poo n) = n
 
-unPoo :: Int
-unPoo = 121
+{-@ measure unPoo @-}
+unPoo :: Poo -> Int
+unPoo (Poo z) = 121
+
+{-@ measure zink @-}
+zink :: Poo -> Int
+zink (Poo n) = n
+
+{-@ reflect hup @-}
+hup :: Poo -> Int
+hup (Poo n) = n

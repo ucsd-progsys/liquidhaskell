@@ -50,7 +50,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
-import           Language.Fixpoint.Types                    hiding (tracepp, Error)
+import           Language.Fixpoint.Types                    hiding (Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (nubHashOn)
@@ -77,10 +77,9 @@ import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 
-import Debug.Trace (trace)
-
-tracepp :: (PPrint a) => String -> a -> a
-tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
+-- import Debug.Trace (trace)
+-- tracepp :: (PPrint a) => String -> a -> a
+-- tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
@@ -104,7 +103,7 @@ makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
     act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    axs       = tracepp "INIT-AXS" $ initAxSymbols name defVars specs
+    axs       = initAxSymbols name defVars specs
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
@@ -117,7 +116,7 @@ importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
 importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
 
 exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
-exportedSymbols spec = tracepp "exported-symbols" $ S.unions
+exportedSymbols spec = S.unions
   [ Ms.reflects spec
   , Ms.hmeas    spec
   , Ms.inlines  spec ]
@@ -135,7 +134,7 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { gsTySigs     = tracepp "GSTYSIGS" (mapSnd addTCI <$> sigs)
+  = sp { gsTySigs     = mapSnd addTCI <$> sigs
        , gsInSigs     = mapSnd addTCI <$> insigs
        , gsAsmSigs    = mapSnd addTCI <$> assms
        , gsInvariants = mapSnd addTCI <$> gsInvariants
@@ -242,7 +241,7 @@ symbolVarMap f vs xs' = do
   syms1    <- tracepp "SVM1" <$> (M.fromList <$> makeSymbols f vs (val <$> xs))
   syms2    <- tracepp "SVM2" <$> lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   -- let syms3 = tracepp "SVM3" $ mapMaybe (hackySymbolVar vs . val) xs
-  return $ tracepp "reflect-datacons:symbolVarMap" (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2]) -- ++ syms3)
+  return $ (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2]) -- ++ syms3)
 
 -- `liftedVarMap` is a special case of `symbolVarMap` that checks that all
 -- lifted binders are in fact exported by the given module. We cannot use
@@ -494,25 +493,23 @@ qualifySymbol syms x = maybe x symbol (lookup x syms)
 qualifySymbol' :: [Var] -> Symbol -> Symbol
 qualifySymbol' vs x = tracepp ("qualifySymbol: x = " ++ show x) $ maybe x symbol (L.find (isSymbolOfVar x) vs)
 
-makeGhcSpec2 :: Monad m
-             => [(Maybe Var  , LocSpecType)]
+makeGhcSpec2 :: [(Maybe Var  , LocSpecType)]
              -> [(TyCon      , LocSpecType)]
              -> [(LocSpecType, LocSpecType)]
              -> MSpec SpecType DataCon
              -> Subst
              -> [(Symbol, Var)]
              -> GhcSpec
-             -> m GhcSpec
+             -> BareM GhcSpec
 makeGhcSpec2 invs ntys ialias measures su syms sp
   = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
-                , gsMeasures   = tracepp "gs-measures"
-                                ((qualifyMeasure syms . subst su)
-                                 <$> (M.elems (Ms.measMap measures)
-                                   ++ Ms.imeas measures)
-                                   )
+                , gsMeasures   = tracepp "gs-measures" ((qualifyMeasure syms . subst su) <$> (ms1 ++ ms2))
                 }
+    where
+      ms1 = tracepp "MKGHC2:ms1" $ M.elems (Ms.measMap measures)
+      ms2 = tracepp "MKGHC2:ms2" $         Ms.imeas   measures
 
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(Symbol, Var)]
              -> GhcSpec -> BareM GhcSpec
@@ -682,9 +679,9 @@ makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]
                           , [(Var,    LocSpecType)]
                           , [Symbol] )
 makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
-  measures'   <- mconcat <$> mapM makeMeasureSpec specs
+  measures'   <- tracepp "CHOP2-MSPEC" <$> (mconcat <$> mapM makeMeasureSpec specs)
   tyi         <- gets tcEnv
-  let measures = tracepp "MADE-MSPEC" $ mconcat [measures' , Ms.mkMSpec' dcSelectors]
+  let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors]
   let (cs, ms) = makeMeasureSpec' measures
   let cms      = makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]

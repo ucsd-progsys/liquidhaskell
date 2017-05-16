@@ -500,7 +500,7 @@ checkClassMeasures ms = mapMaybe checkOne byTyCon
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
-  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
-                                     (pprint (val (name m)))
-                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
-                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))
+  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (name m)))
+                                      (pprint (val (name m)))
+                                      (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                      (map (sourcePosSrcSpan.loc.name) (m:ms)))

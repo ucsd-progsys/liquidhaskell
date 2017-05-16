@@ -13,7 +13,7 @@ data LL a = N | C a (LL a)
 -- LH should give an error message that the field selectors `x` and `xs` are
 -- shadowed and should be renamed. 
  
-{- data LL [llen] a = N | C { x ::a, xs :: LL a } @-}
+{-@ data LL [llen] a = N | C { x ::a, xs :: LL a } @-}
 
 {-@ invariant {v:LL a | (llen v) >= 0} @-}
 

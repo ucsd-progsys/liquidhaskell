@@ -102,6 +102,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ExportMeasure1.hs"  2 "Cannot lift `psnd` into refinement logic"
   , errorTest "tests/errors/ExportReflect0.hs"  2 "Cannot lift `identity` into refinement logic"
   , errorTest "tests/errors/MultiRecSels.hs"    2 "Duplicated definitions for field `left`"
+  , errorTest "tests/errors/DupMeasure.hs"      2 "Multiple measures named `lenA`"
   ]
 
 unitTests :: IO TestTree

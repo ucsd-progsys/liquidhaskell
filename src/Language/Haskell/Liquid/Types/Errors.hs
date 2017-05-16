@@ -225,10 +225,15 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
-  | ErrDupMeas  { pos :: !SrcSpan
-                , var :: !Doc
+  | ErrDupIMeas { pos   :: !SrcSpan
+                , var   :: !Doc
                 , tycon :: !Doc
-                , locs:: ![SrcSpan]
+                , locs  :: ![SrcSpan]
+                } -- ^ multiple definitions of the same instance measure
+
+  | ErrDupMeas  { pos   :: !SrcSpan
+                , var   :: !Doc
+                , locs  :: ![SrcSpan]
                 } -- ^ multiple definitions of the same measure
 
   | ErrDupField { pos   :: !SrcSpan
@@ -675,11 +680,17 @@ ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
 
-ppError' _ dSp _ (ErrDupMeas _ v t ls)
+ppError' _ dSp _ (ErrDupIMeas _ v t ls)
   = dSp <+> text "Multiple Instance Measures for" <+> pprint v
         <+> text "and" <+> pprint t
         <> colon
         $+$ (nest 4 $ vcat $ pprint <$> ls)
+
+ppError' _ dSp dCtx (ErrDupMeas _ v ls)
+  = dSp <+> text "Multiple measures named" <+> ppVar v
+        $+$ dCtx
+        $+$ (nest 4 $ text "Conflicts with other definitions at"
+                      $+$ (nest 4 (vcat $ pprint <$> ls)))
 
 ppError' _ dSp dCtx (ErrDupField _ dc x)
   = dSp <+> text "Malformed refined data constructor" <+> dc
