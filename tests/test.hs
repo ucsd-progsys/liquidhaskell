@@ -109,8 +109,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ShadowMeasureVar.hs"    2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/AmbiguousReflect.hs"    2 "Ambiguous specification symbol `mappend`"
   , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
-  , errorTest "tests/errors/TerminationExprSort.hs" 2 "Ambiguous specification symbol `min`"
-  , errorTest "tests/errors/TerminationExprNum.hs"  2 "Ambiguous specification symbol `min`"
+  , errorTest "tests/errors/TerminationExprSort.hs" 2 "Illegal termination specification for `TerminationExpr.showSep`"
+  , errorTest "tests/errors/TerminationExprNum.hs"  2 "Illegal termination specification for `TerminationExpr.showSep`"
   ]
 
 unitTests :: IO TestTree
