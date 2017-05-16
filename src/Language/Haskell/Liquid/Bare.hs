@@ -77,10 +77,6 @@ import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 
--- import Debug.Trace (trace)
--- tracepp :: (PPrint a) => String -> a -> a
--- tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
-
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> FilePath
@@ -139,7 +135,7 @@ postProcess cbs specEnv sp@(SP {..})
        , gsAsmSigs    = mapSnd addTCI <$> assms
        , gsInvariants = mapSnd addTCI <$> gsInvariants
        , gsLits       = txSort        <$> gsLits
-       , gsMeas       = tracepp "GSMEAS"   (txSort        <$> gsMeas)
+       , gsMeas       = txSort        <$> gsMeas
        , gsDicts      = dmapty addTCI'    gsDicts
        , gsTexprs     = ts
        }
@@ -240,9 +236,9 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
   let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  let xs    = tracepp "SYMS" xs0
-  syms1    <- tracepp "SVM1" <$> (M.fromList <$> makeSymbols f vs (val <$> xs))
-  syms2    <- tracepp "SVM2" <$> lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
+  let xs    = xs0
+  syms1    <- M.fromList <$> makeSymbols f vs (val <$> xs)
+  syms2    <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
   return $ (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2]) -- ++ syms3)
 
 -- `liftedVarMap` is a special case of `symbolVarMap` that checks that all
@@ -335,9 +331,9 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= addRTEnv
 
 measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
-measureSymbols measures = tracepp msg zs
+measureSymbols measures = zs
   where
-    msg = "MEASURE-SYMBOLS" ++ showpp [(loc v, val v) | v <- zs]
+    -- msg = "MEASURE-SYMBOLS" ++ showpp [(loc v, val v) | v <- zs]
     zs = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
@@ -403,7 +399,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
   return   $ sp { gsAsmSigs  = xts'                   -- the IMPORTED refl-sigs are in gsAsmSigs sp
                 , gsMeas     = msR ++ gsMeas     sp   -- we must add them to gsMeas to allow the names in specifications
                 , gsReflects = vs  ++ gsReflects sp
-                , gsAxioms   = {- tracepp "GSAXIOMS" $ -} axs ++ gsAxioms   sp
+                , gsAxioms   = axs ++ gsAxioms   sp
                 }
 
 qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq
@@ -633,7 +629,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons
-  return             (tycons, second val <$> datacons, tracepp "MAKE-PLUGGED-DCSELS" dcSelectors, recSels, tyi)
+  return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi)
 
 makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]
@@ -707,7 +703,7 @@ makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]
                           , [(Var,    LocSpecType)]
                           , [Symbol] )
 makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
-  measures'   <- tracepp "CHOP2-MSPEC" <$> (mconcat <$> mapM makeMeasureSpec specs)
+  measures'   <- mconcat <$> mapM makeMeasureSpec specs
   tyi         <- gets tcEnv
   let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors]
   let (cs, ms) = makeMeasureSpec' measures
