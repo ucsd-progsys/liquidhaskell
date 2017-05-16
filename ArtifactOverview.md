@@ -8,11 +8,11 @@
 LiquidHaskell+FUSION is run using `stack exec -- liquid FILE`. Try this with the examples from Figure 2 of the paper:
 
     cd ~/liquidhaskell/benchmarks/icfp17
-    stack exec -- liquid fig2examples.hs
+    stack exec -- liquid Fig2Examples.hs
 
 The output will end in "**** RESULT: SAFE ****", indicating that the tool has determined the code meets its specification. Next, re-run the command with FUSION disabled:
 
-    stack exec -- liquid fig2examples.hs --no-eliminate
+    stack exec -- liquid Fig2Examples.hs --no-eliminate
 
 This time it will say UNSAFE because regular liquid inference is insufficient to verify any of the examples. (You'll see that our examples 1 and 2 are slightly different from the paper - this is because we have to prevent ghc from simplifying those on its own).
 
@@ -53,7 +53,7 @@ Then run `--minimizeqs` on each `.bfq` file that was produced:
 
     find . -name "*hs.bfq" | xargs -n1 stack exec -- fixpoint --minimizeqs --eliminate
     find . -name "*hs.bfq" | xargs -n1 stack exec -- fixpoint --minimizeqs
-    
-This gets you the results with then without FUSION. 
+
+This gets you the results with then without FUSION.
 
 (The code still calls FUSION by its original working name `eliminate`. It is ON by default in `liquid` and OFF by default in `fixpoint` - hence the respective flags `--no-eliminate` and `--eliminate` appearing in this document.)
