@@ -44,8 +44,7 @@ import CoreSyn
 --   *should not* be resolved to GHC Vars.
 
 isWiredIn :: Located Symbol -> Bool
-isWiredIn x = F.tracepp ("isWiredIn x = " ++ show (val x)) $
-                isWiredInLoc x  || isWiredInName x || isWiredInShape x
+isWiredIn x = isWiredInLoc x  || isWiredInName x || isWiredInShape x
 
 isWiredInLoc :: Located Symbol -> Bool
 isWiredInLoc x  = l == l' && l == 0 && c == c' && c' == 0

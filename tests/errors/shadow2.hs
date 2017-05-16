@@ -16,3 +16,9 @@ test (Poo n) = n
 
 unPoo :: Int
 unPoo = 121
+
+
+{-@ measure bacon @-}
+bacon :: [a] -> Int 
+bacon [] = 0
+bacon (x:xs) = 0

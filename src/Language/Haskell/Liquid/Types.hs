@@ -1820,7 +1820,7 @@ instance PPrint a => PPrint (Def t a) where
       cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
 
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprintTidy k (M n s eqs) =  pprintTidy k n <+> parens (pprintTidy k (loc n)) <+> "::" <+> pprintTidy k s
+  pprintTidy k (M n s eqs) =  pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> pprintTidy k s
                               $$ vcat (pprintTidy k `fmap` eqs)
 
 

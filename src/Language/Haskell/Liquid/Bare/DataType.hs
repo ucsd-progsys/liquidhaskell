@@ -27,7 +27,7 @@ import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (tracepp, mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
+import           Language.Fixpoint.Types                ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
@@ -122,7 +122,7 @@ ofBDataDecl (Just (D tc as ps ls cts0 _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon "ofBDataDecl" tc
        cts        <- mapM checkDataDeclFields cts0
-       cts'       <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) ( tracepp "OFBDATADECL"  cts )
+       cts'       <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = L.nub $  concatMap (getPsSig initmap True) tys

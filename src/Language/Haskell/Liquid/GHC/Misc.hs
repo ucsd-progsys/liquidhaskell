@@ -255,6 +255,7 @@ instance Hashable Loc where
 instance Hashable SrcSpan where
   hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
   hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 

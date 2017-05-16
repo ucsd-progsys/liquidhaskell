@@ -676,21 +676,22 @@ ppError' _ dSp dCtx (ErrHMeas _ t s)
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp _ (ErrDupSpecs _ v ls)
-  = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
-        $+$ (nest 4 $ vcat $ pprint <$> ls)
+ppError' _ dSp dCtx (ErrDupSpecs _ v ls)
+  = dSp <+> text "Multiple specifications for" <+> ppVar v <+> colon
+        $+$ dCtx
+        $+$ ppConflicts ls
+
 
 ppError' _ dSp _ (ErrDupIMeas _ v t ls)
   = dSp <+> text "Multiple Instance Measures for" <+> pprint v
         <+> text "and" <+> pprint t
         <> colon
-        $+$ (nest 4 $ vcat $ pprint <$> ls)
+        $+$ ppConflicts ls
 
 ppError' _ dSp dCtx (ErrDupMeas _ v ls)
   = dSp <+> text "Multiple measures named" <+> ppVar v
         $+$ dCtx
-        $+$ (nest 4 $ text "Conflicts with other definitions at"
-                      $+$ (nest 4 (vcat $ pprint <$> ls)))
+        $+$ ppConflicts ls
 
 ppError' _ dSp dCtx (ErrDupField _ dc x)
   = dSp <+> text "Malformed refined data constructor" <+> dc
@@ -700,7 +701,7 @@ ppError' _ dSp dCtx (ErrDupField _ dc x)
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    <+> (nest 4 $ vcat $ pprint <$> ls)
+    $+$ ppConflicts ls
 
 ppError' _ dSp dCtx (ErrUnbound _ x)
   = dSp <+> text "Unbound variable" <+> pprint x
@@ -790,3 +791,9 @@ ppError' _ dSp _ (ErrTyCon _ msg ty)
 
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "`"
+
+ppConflicts :: (PPrint a) => [a] -> Doc
+ppConflicts ls
+  = nest 4 $     text ""
+             $+$ text "Conflicts with other definitions at"
+             $+$ (nest 4 (vcat $ (text "") : (pprint <$> ls)))
