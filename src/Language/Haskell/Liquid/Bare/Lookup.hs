@@ -32,7 +32,6 @@ import           IfaceEnv
 import           Var hiding (varName)
 import           TysPrim
 import RdrName
-
 -- import PrelNames (ioTyConKey)
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
@@ -44,7 +43,7 @@ import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, le
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
 import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
--- import           Language.Haskell.Liquid.Misc     (firstMaybes)
+import           Language.Haskell.Liquid.Misc     (nubHashOn)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -87,7 +86,7 @@ lookupGhcThing' _err f ns x = do
   ns     <- liftIO $ lookupName env (modName be) ns x
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
-  case catMaybes mts of
+  case nubHashOn showpp $ catMaybes mts of
     []  -> return Nothing
     [z] -> return (Just z)
     zs  -> uError $ ErrDupNames (srcSpan x) (pprint (symbol x)) (pprint <$> zs)
