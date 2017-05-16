@@ -63,9 +63,10 @@ filter _ []   = []
 
 
 {-@ measure isPrime :: Int -> Bool @-}
-isPrime :: Int -> Bool
-{-@ isPrime :: n:Int -> {v:Bool | v <=> isPrime n} @-}
-isPrime = undefined
+
+{-@ isPrimeP :: n:Int -> {v:Bool | v <=> isPrime n} @-}
+isPrimeP :: Int -> Bool
+isPrimeP = undefined
 
 -- | `positives` works by instantiating:
 -- p := \v   -> isPrime v
@@ -73,7 +74,7 @@ isPrime = undefined
 
 
 {-@ primes :: [Int] -> [{v:Int | isPrime v}] @-}
-primes     = filter isPrime
+primes     = filter isPrimeP
 \end{code}
 
 \begin{code}

@@ -1,11 +1,9 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--maxparams=5"     @-}
 
+{-@ measure ackF :: Int -> Int -> Int  @-}
 
-{-@ measure ack :: Int -> Int -> Int  @-}
-
-{-@ assume ack :: n:Int -> {v: (x:Int -> {v:Int | v == ack n x}) | v == ack n } @-}
+{-@ assume ack :: n:Int -> {v: (x:Int -> {v:Int | v == ackF n x}) | v == ackF n } @-}
 ack :: Int -> Int -> Int
 ack = undefined
 

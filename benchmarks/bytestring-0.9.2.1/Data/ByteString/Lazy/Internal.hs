@@ -128,7 +128,7 @@ checkInvariant (Chunk c@(S.PS _ _ len) cs)
 ------------------------------------------------------------------------
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
-{-@ chunk :: b:S.ByteString -> bs:ByteString
+{-@ chunk :: b:_ -> bs:ByteString
           -> {v:ByteString | (lbLength v) = ((bLength b) + (lbLength bs))}
   @-}
 chunk :: S.ByteString -> ByteString -> ByteString
