@@ -108,6 +108,9 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ShadowMeasure.hs"       2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/ShadowMeasureVar.hs"    2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/AmbiguousReflect.hs"    2 "Ambiguous specification symbol `mappend`"
+  , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
+  , errorTest "tests/errors/TerminationExprSort.hs" 2 "Ambiguous specification symbol `min`"
+  , errorTest "tests/errors/TerminationExprNum.hs"  2 "Ambiguous specification symbol `min`"
   ]
 
 unitTests :: IO TestTree

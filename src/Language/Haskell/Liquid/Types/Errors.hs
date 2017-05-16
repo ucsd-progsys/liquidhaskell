@@ -208,10 +208,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
-  | ErrTermSpec { pos :: !SrcSpan
-                , var :: !Doc
-                , exp :: !Expr
-                , msg :: !Doc
+  | ErrTermSpec { pos  :: !SrcSpan
+                , var  :: !Doc
+                , msg  :: !Doc
+                , exp  :: !Expr
+                , msg' :: !Doc
                 } -- ^ sort error in specification
 
   | ErrDupAlias { pos  :: !SrcSpan
@@ -651,14 +652,15 @@ ppError' _ dSp dCtx (ErrDataCon _ d s)
         $+$ s
 
 ppError' _ dSp dCtx (ErrBadQual _ n d)
-  = dSp <+> text "Bad Qualifier Specification for" <+> n
+  = dSp <+> text "Illegal qualifier specification for" <+> n
         $+$ dCtx
         $+$ (pprint d)
 
-ppError' _ dSp _ (ErrTermSpec _ v e s)
-  = dSp <+> text "Bad Termination Specification"
-        $+$ (pprint v <+> dcolon <+> pprint e)
-        $+$ (nest 4 $ pprint s)
+ppError' _ dSp dCtx (ErrTermSpec _ v msg e s)
+  = dSp <+> text "Illegal termination specification for" <+> ppVar v
+        $+$ dCtx
+        $+$ (nest 4 $ ((text "Termination metric" <+> pprint e <+> text "is" <+> msg)
+                        $+$ pprint s)) 
 
 ppError' _ dSp _ (ErrInvt _ t s)
   = dSp <+> text "Bad Invariant Specification"
