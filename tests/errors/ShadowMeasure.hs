@@ -6,16 +6,15 @@ module Shadow where
 
 data Poo = Poo Int
 
-{-@ data Poo = Poo { shadow :: Int } @-}
-
+{-@ measure shadow :: Poo -> Int
+    shadow (Poo n) = n
+  @-}
 
 {-@ test :: p:Poo -> {v:Int | v = shadow p} @-}
 test :: Poo -> Int
 test (Poo n) = n
 
-shadow :: Poo -> Int
-shadow (Poo z) = 121
-
-thing :: Poo -> Int
-thing (Poo shadow) = 121
-
+{-@ measure shadow @-}
+shadow :: [a] -> Int
+shadow [] = 0
+shadow (x:xs) = 0

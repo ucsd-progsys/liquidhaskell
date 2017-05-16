@@ -68,7 +68,7 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Existential
 import           Language.Haskell.Liquid.Bare.Measure
 import           Language.Haskell.Liquid.Bare.Axiom
-import           Language.Haskell.Liquid.Bare.Misc         (freeSymbols, makeSymbols, mkVarExpr)
+import           Language.Haskell.Liquid.Bare.Misc         (freeSymbols, makeSymbols, mkVarExpr, simpleSymbolVar)
 import           Language.Haskell.Liquid.Bare.Plugged
 import           Language.Haskell.Liquid.Bare.RTEnv
 import           Language.Haskell.Liquid.Bare.Spec
@@ -200,6 +200,9 @@ makeLiftedSpec1 file name lSpec0 xts axs
 varLocSym :: Var -> LocSymbol
 varLocSym v = symbol <$> GM.locNamedThing v
 
+varLocSimpleSym :: Var -> LocSymbol
+varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
+
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
   -- putStrLn $ "Saving Binary Lifted Spec: " ++ specF
@@ -260,15 +263,17 @@ liftedVarMap f xs = do
 checkLifted :: M.HashMap Symbol Var -> LocSymbol -> Bool
 checkLifted symm x = M.member (val x) symm
 
-
-checkDisjointNames :: [Measure ta ca] -> [Measure tb cb] -> [LocSymbol] -> BareM ()
-checkDisjointNames myDcs myMeas myExportSyms = do
+-- TODO: move into Check.hs
+checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [LocSymbol] -> [Var] -> BareM ()
+checkShadowedSpecs myDcs myMeas myExportSyms defVars = do
   checkDisjoint dcSyms   measSyms
   checkDisjoint dcSyms   myExportSyms
   checkDisjoint measSyms myExportSyms
+  checkDisjoint measSyms defSyms
   where
     dcSyms   = name <$> myDcs
     measSyms = name <$> myMeas
+    defSyms  = varLocSimpleSym <$> defVars
 
 checkDisjoint :: [LocSymbol] -> [LocSymbol] -> BareM ()
 checkDisjoint xs ys
@@ -300,7 +305,7 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
   (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
 
-  checkDisjointNames dcSs (Ms.measures mySpec) expSyms
+  checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
 
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
@@ -330,7 +335,10 @@ makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
     >>= addRTEnv
 
 measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
-measureSymbols measures = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
+measureSymbols measures = tracepp msg zs
+  where
+    msg = "MEASURE-SYMBOLS" ++ showpp [(loc v, val v) | v <- zs]
+    zs = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do

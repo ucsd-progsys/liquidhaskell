@@ -241,6 +241,11 @@ data TError t =
                 , field :: !Doc
                 } -- ^ duplicate fields in same datacon
 
+  | ErrDupNames { pos   :: !SrcSpan
+                , var   :: !Doc
+                , names :: ![Doc]
+                } -- ^ name resolves to multiple possible GHC vars
+
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
@@ -679,29 +684,34 @@ ppError' _ dSp dCtx (ErrHMeas _ t s)
 ppError' _ dSp dCtx (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple specifications for" <+> ppVar v <+> colon
         $+$ dCtx
-        $+$ ppConflicts ls
+        $+$ ppSrcSpans ls
 
 
 ppError' _ dSp _ (ErrDupIMeas _ v t ls)
   = dSp <+> text "Multiple Instance Measures for" <+> pprint v
         <+> text "and" <+> pprint t
         <> colon
-        $+$ ppConflicts ls
+        $+$ ppSrcSpans ls
 
 ppError' _ dSp dCtx (ErrDupMeas _ v ls)
   = dSp <+> text "Multiple measures named" <+> ppVar v
         $+$ dCtx
-        $+$ ppConflicts ls
+        $+$ ppSrcSpans ls
 
 ppError' _ dSp dCtx (ErrDupField _ dc x)
   = dSp <+> text "Malformed refined data constructor" <+> dc
         $+$ dCtx
         $+$ (nest 4 $ text "Duplicated definitions for field" <+> ppVar x)
 
+ppError' _ dSp dCtx (ErrDupNames _ x ns)
+  = dSp <+> text "Ambiguous specification symbol" <+> ppVar x
+        $+$ dCtx
+        $+$ ppNames ns
+
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    $+$ ppConflicts ls
+    $+$ ppSrcSpans ls
 
 ppError' _ dSp dCtx (ErrUnbound _ x)
   = dSp <+> text "Unbound variable" <+> pprint x
@@ -792,8 +802,16 @@ ppError' _ dSp _ (ErrTyCon _ msg ty)
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "`"
 
-ppConflicts :: (PPrint a) => [a] -> Doc
-ppConflicts ls
+ppSrcSpans :: [SrcSpan] -> Doc
+ppSrcSpans = ppList (text "Conflicts with other definitions at")
+
+ppNames :: [Doc] -> Doc
+ppNames ds = ppList
+                (text "Could refer to any of the names")
+                [text "-" <+> d | d <- ds]
+
+ppList :: (PPrint a) => Doc -> [a] -> Doc
+ppList d ls
   = nest 4 $     text ""
-             $+$ text "Conflicts with other definitions at"
+             $+$ d
              $+$ (nest 4 (vcat $ (text "") : (pprint <$> ls)))
