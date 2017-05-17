@@ -80,7 +80,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (gsTySigs sp) (gsAsmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
-                     -- ++ checkDuplicateFieldNames                   (gsDconsP sp)
+                     -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
@@ -199,13 +199,13 @@ checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env' t
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr])-> Maybe Error
+checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
             = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where
     es      = val <$> les
-    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
-    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
+    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
+    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
     go      = foldl (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
     go'     = foldl (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
@@ -262,7 +262,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch lqSp (text "Checked" <+> pprint x) d1 d2 hsSp
+errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t
@@ -500,7 +500,7 @@ checkClassMeasures ms = mapMaybe checkOne byTyCon
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
-  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
-                                     (pprint (val (name m)))
-                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
-                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))
+  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (name m)))
+                                      (pprint (val (name m)))
+                                      (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                      (map (sourcePosSrcSpan.loc.name) (m:ms)))

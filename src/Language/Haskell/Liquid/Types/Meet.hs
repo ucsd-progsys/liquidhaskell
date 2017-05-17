@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Types.Meet
      ( meetVarTypes ) where
 
 import           SrcLoc
-import           Text.PrettyPrint.HughesPJ (Doc)
+import           Text.PrettyPrint.HughesPJ (text, Doc)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
 
@@ -18,7 +18,7 @@ meetVarTypes v hs lq = meetError err hsT lqT
   where
     (hsSp, hsT)      = hs
     (lqSp, lqT)      = lq
-    err              = ErrMismatch lqSp v hsD lqD hsSp
+    err              = ErrMismatch lqSp v (text "meetVarTypes") hsD lqD hsSp
     hsD              = F.pprint (toRSort hsT)
     lqD              = F.pprint (toRSort lqT)
 

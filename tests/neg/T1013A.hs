@@ -2,7 +2,10 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exactdc"         @-}
 {-# LANGUAGE RankNTypes #-}
+
 module Bug where
+
+import Prelude hiding (fmap)
 
 import Language.Haskell.Liquid.ProofCombinators
 

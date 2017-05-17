@@ -27,7 +27,6 @@ import           GHC                                    hiding (Located)
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding (first)
-import           Text.Printf                            (printf)
 import           Type
 import           Var
 -- import           Data.Serialize                         (Serialize)
@@ -121,18 +120,21 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     mm     = M.fromList [(name m, m) | m <- ms' ]
     cmm    = M.fromList [(name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
-    -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 
 checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
 checkDuplicateMeasure ms
   = case M.toList dups of
       []         -> ms
-      mms        -> panic Nothing $ concatMap err mms
+      (m,ms):_   -> uError $ err m (name <$> ms)
     where
       gms        = group [(name m , m) | m <- ms]
       dups       = M.filter ((1 <) . length) gms
-      err (m,ms) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp m) (showpp $ map (loc . name) ms)
+      err m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
+
+      -- printf "\nDuplicate Measure Definitions for %s\n%s" (showpp m) (showpp $ map (loc . name) ms)
+      -- err k1 k2 = ErrDupMeas (fSrcSpan k1) (pprint (val k1)) (fSrcSpan <$> [k1, k2])
+
 
 
 
@@ -321,7 +323,7 @@ defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
                      = {- traceShow "defRefType: " $ -} generalize $ mkArrow [] [] [] xts t'
   where
-    xts              = stitchArgs (fSrcSpan f) dc xs ts
+    xts              = stitchArgs (fSrcSpan f) dc ({- tracepp ("FIELDS-XS" ++ showpp f) -} xs) ({- tracepp ("FIELDS-TS" ++ showpp f) -} ts)
     t                = fromMaybe (ofType tr) mt
     t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
     mkForAlls xts t  = foldl' (\t (x, tx) -> RAllE x tx t) t xts
@@ -343,31 +345,12 @@ stitchArgs sp dc xs ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
 
--- validArgs :: [(Symbol, Maybe (RRType Reft))] -> [Type] -> Bool
--- validArgs xs ts = nXs == nTs
---   where
---    otherwise               = and (zipWith eqBSort xs ts)
---   nXs /= nTs            = panicFieldNumMismatch sp dc nXs nTs
---     eqBSort (_, Nothing) _  = True
---     eqBSort (x, Just t)  t'
---       | eqSort t t'         = True
---       | otherwise           = panicFieldSortMismatch sp dc x
-
--- eqSort :: RRType Reft -> Type -> Bool
--- eqSort t t'             = s == s'
-  -- where
-    -- s  = traceShow "sort1" $ toRSort t
-    -- s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2
 panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
-
--- panicFieldSortMismatch sp dc x = panicDataCon sp dc msg
-  -- where
-    -- msg = "Field type mismatch for" <+> pprint x
 
 panicDataCon :: PPrint a1 => SrcSpan -> a1 -> Doc -> a
 panicDataCon sp dc d

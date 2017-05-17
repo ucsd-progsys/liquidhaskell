@@ -40,7 +40,9 @@ data-files: include/*.hquals
 
 extra-source-files: tests/pos/*.hs
                   , tests/neg/*.hs
-                  , tests/crash/*.hs
+                  , tests/import/lib/*.hs
+                  , tests/import/client/*.hs
+                  , tests/errors/*.hs
                   , tests/pos/*.hquals
                   , tests/ffi-include/foo.c
                   , tests/ffi-include/foo.h
@@ -76,7 +78,7 @@ Executable liquid
   Main-is: src/Liquid.hs
   ghc-options: -W -threaded
   if flag(devel)
-    ghc-options: -Werror
+    ghc-options: -Wall
   Default-Extensions: PatternGuards
 
 executable target
@@ -89,7 +91,7 @@ executable target
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.8.1.0 && <5
-                , ghc == 8.0.2 
+                , ghc == 8.0.2
                 , ghc-boot == 8.0.2
                 , template-haskell >= 2.9
                 , time >= 1.4
@@ -116,7 +118,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.6
                 , located-base
-                , aeson >= 0.10 && < 1.0 
+                , aeson >= 0.10 && < 1.0
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
@@ -232,7 +234,7 @@ Library
                     Language.Haskell.Liquid.Bare.Misc,
                     Language.Haskell.Liquid.Bare.OfType,
                     Language.Haskell.Liquid.Bare.Plugged,
-                    Language.Haskell.Liquid.Bare.ToBare, 
+                    Language.Haskell.Liquid.Bare.ToBare,
                     Language.Haskell.Liquid.Bare.Resolve,
                     Language.Haskell.Liquid.Bare.RTEnv,
                     Language.Haskell.Liquid.Bare.SymSort,
@@ -256,7 +258,7 @@ Library
    if flag(include)
      hs-source-dirs: devel
    if flag(devel)
-     ghc-options: -Werror
+     ghc-options: -Wall
    Default-Extensions: PatternGuards
 
 test-suite test
@@ -265,7 +267,7 @@ test-suite test
   hs-source-dirs:    tests
   ghc-options:       -W -threaded
   if flag(devel)
-    ghc-options: -Werror
+    ghc-options: -Wall
   main-is:           test.hs
   build-depends:     base >=4.8.1.0 && <5
                ,     containers >= 0.5
@@ -284,6 +286,7 @@ test-suite test
                ,     syb
                ,     liquid-fixpoint
                ,     hpc >= 0.6
+               ,     text
 
 
 test-suite liquidhaskell-parser
@@ -310,7 +313,7 @@ test-suite liquidhaskell-parser
   if flag(devel)
     hs-source-dirs:   tests src
     build-depends:
-                  aeson >= 0.10 && < 1.0 
+                  aeson >= 0.10 && < 1.0
                 , binary
                 , bytestring
                 , cereal

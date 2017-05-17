@@ -431,8 +431,8 @@ data DataConP = DataConP
   , freeTyVars :: ![RTyVar]
   , freePred   :: ![PVar RSort]
   , freeLabels :: ![Symbol]
-  , tyConsts   :: ![SpecType] -- FIXME: WHAT IS THIS??
-  , tyArgs     :: ![(Symbol, SpecType)] -- FIXME: These are backwards, why??
+  , tyConsts   :: ![SpecType]             -- FIXME: WHAT IS THIS??
+  , tyArgs     :: ![(Symbol, SpecType)]   -- FIXME: These are backwards, why??
   , tyRes      :: !SpecType
   , dc_locE    :: !SourcePos
   } deriving (Generic, Data, Typeable)
@@ -1820,7 +1820,7 @@ instance PPrint a => PPrint (Def t a) where
       cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
 
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprintTidy k (M n s eqs) =  pprintTidy k n <+> "::" <+> pprintTidy k s
+  pprintTidy k (M n s eqs) =  pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> pprintTidy k s
                               $$ vcat (pprintTidy k `fmap` eqs)
 
 
@@ -2031,15 +2031,18 @@ instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) wh
 
 instance Eq ctor => Monoid (MSpec ty ctor) where
   mempty = MSpec M.empty M.empty M.empty []
-
   (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2)
-    | null dups
-    = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
-           (cm1 `M.union` cm2) (im1 ++ im2)
+    | (k1, k2) : _ <- dups
+      -- = panic Nothing $ err (head dups)
+    = uError $ err k1 k2
     | otherwise
-    = panic Nothing $ err (head dups)
-    where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
-          err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
+    = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2) (cm1 `M.union` cm2) (im1 ++ im2)
+    where
+      dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
+      err k1 k2 = ErrDupMeas (fSrcSpan k1) (pprint (val k1)) (fSrcSpan <$> [k1, k2])
+
+
+
 
 --------------------------------------------------------------------------------
 -- Nasty PP stuff

@@ -788,7 +788,7 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
-       return $ F.tracepp "STRENGTHENMEETHACK" $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+       return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 -- NV END HACK
 

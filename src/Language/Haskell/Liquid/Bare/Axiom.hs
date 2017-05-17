@@ -58,7 +58,7 @@ findVarDefType
   :: [CoreBind] -> [(Var, LocSpecType)] -> LocSymbol
   -> BareM (LocSymbol, Maybe SpecType, Var, CoreExpr)
 findVarDefType cbs sigs x = case findVarDef (val x) cbs of
-  Just (v, e) -> if F.tracepp ("ISEXPORTED v = " ++ show v) $ isExportedId v
+  Just (v, e) -> if isExportedId v
                    then return (x, val <$> lookup v sigs, v, e)
                    else throwError $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> throwError $ mkError x "Cannot lift haskell function"
@@ -75,7 +75,7 @@ makeAxiom tce lmap _cbs (x, mbT, v, def) = do
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
   let (t, e) = makeAssumeType tce lmap x mbT v def
-  return $ F.tracepp "reflect-datacons:makeAxiom" (v, t, e)
+  return (v, t, e)
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -95,7 +95,7 @@ makeAssumeType tce lmap x mbT v def
     t    = fromMaybe (ofType $ varType v) mbT
     at   = {- F.tracepp ("axiomType: " ++ msg) $ -} axiomType x mbT t
     _msg = unwords [showpp x, showpp mbT]
-    le   = F.tracepp "reflect-datacons:le" $ case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
+    le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
              Right e -> e
              Left  e -> panic Nothing $ show e
 
@@ -104,7 +104,7 @@ makeAssumeType tce lmap x mbT v def
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text s)
     bbs     = filter isBoolBind xs
     (xs, def') = grabBody $ normalize def
-    su = F.tracepp "reflect-datacons: subst" $ F.mkSubst
+    su = F.mkSubst
            $ zip (F.symbol     <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
           ++ zip (simplesymbol <$> xs) (F.EVar <$> ty_non_dict_binds (toRTypeRep at))
 
