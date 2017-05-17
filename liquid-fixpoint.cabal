@@ -49,7 +49,7 @@ Executable fixpoint
   Main-is:       Fixpoint.hs
   ghc-options:   -threaded -W -fno-warn-missing-methods
   if flag(devel)
-    ghc-options: -Wall
+    ghc-options: -Werror
   hs-source-dirs: bin
   Build-Depends: base >=4.8.1.0 && <5
                , liquid-fixpoint
@@ -58,7 +58,7 @@ Library
   default-language: Haskell98
   ghc-options:     -W -fno-warn-missing-methods
   if flag(devel)
-    ghc-options:   -Wall
+    ghc-options:   -Werror
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -158,7 +158,7 @@ test-suite test
   hs-source-dirs:   tests
   ghc-options:      -threaded
   if flag(devel)
-    ghc-options:    -Wall
+    ghc-options:    -Werror
   main-is:          test.hs
   build-depends:    base >= 4.8 && < 5,
                     directory,
@@ -175,7 +175,7 @@ test-suite testparser
   hs-source-dirs:   tests
   ghc-options:      -threaded
   if flag(devel)
-    ghc-options:    -Wall
+    ghc-options:    -Werror
   main-is:          testParser.hs
   build-depends:    base >= 4.8 && < 5,
                     directory,
