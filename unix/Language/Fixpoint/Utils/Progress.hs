@@ -39,7 +39,7 @@ mkPB n = newProgressBar def { pgWidth       = 80
                             , pgTotal       = toInteger n
                             , pgFormat      = "Working :percent [:bar]"
                             , pgPendingChar = '.'
-                            , pgOnCompletion = Just "Done solving." --  :percent."
+                            , pgOnCompletion = Nothing -- Just "Done solving." --  :percent."
                             }
 
 progressTick :: IO ()

@@ -283,7 +283,7 @@ result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
-  lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
+  lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
   where
     ci c = (F.subcId c, F.sinfo c)
