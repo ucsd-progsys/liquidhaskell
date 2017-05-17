@@ -1,6 +1,6 @@
 flags:
  liquid-fixpoint:
-  devel: True
+  devel: true
 packages:
 - '.'
 extra-deps:
