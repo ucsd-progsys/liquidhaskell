@@ -2,14 +2,27 @@ GHC-8 integration
 ==================
 
 
+## RJ 
+
+Pattern Inlines in 
+
+- `tests/todo/NoInlines.hs`
+- `tests/pos/monad1.hs`,
+- `tests/pos/TemplateHaskell.hs`,
+- `tests/pos/dropWhile.hs`
+- `tests/todo/NoInlines.hs`
+- `Map2.hs`:                                OK (50.02s)
+- `Map0.hs`:                                OK (43.76s)
+- `Map.hs`:                                 OK (46.71s)
+- `LambdaEval.hs`:                             OK (83.86s)
+
+## NV 
+
+## ES 
+
+- [ ] fix Target
+
 - [ ] bring back bench
-- [ ] ES: fix Target
-- [ ] RJ: fix pattern inlines in
-  - `tests/todo/NoInlines.hs`
-  - `tests/pos/monad1.hs`,
-  - `tests/pos/TemplateHaskell.hs`,
-  - `tests/pos/dropWhile.hs`
-  - `tests/todo/NoInlines.hs`
 - [ ] NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`

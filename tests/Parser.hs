@@ -468,7 +468,7 @@ testFails =
 
 testErrorReporting :: TestTree
 testErrorReporting =
-  testGroup "Error reprting"
+  testGroup "Error reporting"
     [ testCase "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " $
           parseSingleSpec "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " @?=
             "<test>:1:62: Error: Cannot parse specification:\n    unexpected end of input\n    expecting bareTyArgP"

@@ -111,17 +111,66 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
   , errorTest "tests/errors/TerminationExprSort.hs" 2 "Illegal termination specification for `TerminationExpr.showSep`"
   , errorTest "tests/errors/TerminationExprNum.hs"  2 "Illegal termination specification for `TerminationExpr.showSep`"
+  , errorTest "tests/errors/TerminationExprUnb.hs"  2 "Illegal termination specification for `go`"
+  , errorTest "tests/errors/UnboundVarInSpec.hs"    2 "Illegal type specification for `Fixme.foo`"
+  , errorTest "tests/errors/MissingAbsRefArgs.hs"   2 "Illegal type specification for `Fixme.bar`"
+  , errorTest "tests/errors/UnboundVarInAssume.hs"  2 "Illegal type specification for `Assume.incr`"
+  , errorTest "tests/errors/UnboundVarInAssume1.hs" 2 "Illegal type specification for `Main.b`"
+  , errorTest "tests/errors/UnboundFunInSpec.hs"    2 "Illegal type specification for `Goo.three`"
+  , errorTest "tests/errors/UnboundFunInSpec1.hs"   2 "Illegal type specification for `Goo.foo`"
+  , errorTest "tests/errors/UnboundFunInSpec2.hs"   2 "Illegal type specification for `Goo.foo`"
+  , errorTest "tests/errors/Fractional.hs"          2 "Illegal type specification for `Crash.f`"
+  , errorTest "tests/errors/T773.hs"                2 "Illegal type specification for `LiquidR.incr`"
+  , errorTest "tests/errors/T774.hs"                2 "Illegal type specification for `LiquidR.incr`"
+  , errorTest "tests/errors/Inconsistent0.hs"       2 "Specified type does not refine Haskell type for `Ast.app` (Checked)"
+  , errorTest "tests/errors/Inconsistent1.hs"       2 "Specified type does not refine Haskell type for `Boo.incr` (Checked)"
+  , errorTest "tests/errors/Inconsistent2.hs"       2 "Specified type does not refine Haskell type for `Mismatch.foo` (Checked)"
+  , errorTest "tests/errors/BadAliasApp.hs"         2 "Malformed application of type alias `ListN`"
+  , errorTest "tests/errors/BadPragma0.hs"          2 "Illegal pragma"
+  , errorTest "tests/errors/BadPragma1.hs"          2 "Illegal pragma"
+  , errorTest "tests/errors/BadPragma2.hs"          2 "Illegal pragma"
+  , errorTest "tests/errors/BadSyn1.hs"             2 "Malformed application of type alias `Fooz`"
+  , errorTest "tests/errors/BadSyn2.hs"             2 "Malformed application of type alias `Zoo.Foo`"
+  , errorTest "tests/errors/BadSyn3.hs"             2 "Malformed application of type alias `Zoo.Foo`"
+  , errorTest "tests/errors/BadSyn4.hs"             2 "Malformed application of type alias `Foo.Point`"
+  , errorTest "tests/errors/CyclicExprAlias0.hs"    2 "Cyclic type alias definition for `CyclicA1`"
+  , errorTest "tests/errors/CyclicExprAlias1.hs"    2 "Cyclic type alias definition for `CyclicB1`"
+  , errorTest "tests/errors/CyclicExprAlias2.hs"    2 "Cyclic type alias definition for `CyclicC1`"
+  , errorTest "tests/errors/CyclicExprAlias3.hs"    2 "Cyclic type alias definition for `CyclicD3`"
+  , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Type Alias `BoundedNat`"
+  , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Pred Alias `Foo`"
+  , errorTest "tests/errors/BadDataCon1.hs"         2 "Malformed refined data constructor `Boo.C`"
+  -- , errorTest "tests/errors/TODOBadDataCon2.hs"         2 "Malformed refined data constructor `Boo.C`"
+  , errorTest "tests/errors/BadDataConType.hs"      2 "Specified type does not refine Haskell type for `Boo.C`"
+  , errorTest "tests/errors/LiftMeasureCase.hs"     2 "Cannot promote Haskell function `foo` to logic"
+  , errorTest "tests/errors/HigherOrderBinder.hs"   2 "Illegal type specification for `Main.foo`"
+  , errorTest "tests/errors/HoleCrash1.hs"          2 "Illegal type specification for `ListDemo.t`"
+  , errorTest "tests/errors/HoleCrash2.hs"          2 "Malformed application of type alias `Geq`"
+  , errorTest "tests/errors/HoleCrash3.hs"          2 "Specified type does not refine Haskell type for `ListDemo.countUp`"
+  , errorTest "tests/errors/HoleCrash3.hs"          2 "Specified type does not refine Haskell type for `ListDemo.countUp`"
+  , errorTest "tests/errors/BadPredApp.hs"          2 "Malformed predicate application"
+  , errorTest "tests/errors/LocalHole.hs"           2 "Illegal type specification for `go`"
+  , errorTest "tests/errors/UnboundAbsRef.hs"       2 "Cannot apply unbound abstract refinement `p`"
+  , errorTest "tests/errors/BadQualifier.hs"        2 "Illegal qualifier specification for `Foo`"
+  , errorTest "tests/errors/ParseClass.hs"          2 "Cannot parse specification"
+  , errorTest "tests/errors/ParseBind.hs"           2 "Cannot parse specification"
+  , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List`"
+  , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List2`"
+  , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
+
   ]
 
 unitTests :: IO TestTree
 unitTests = group "Unit"
-  [ testGroup "pos"         <$> dirTests "tests/pos"                            ["mapreduce.hs"]   ExitSuccess
-  , testGroup "neg"         <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
-  , testGroup "crash"       <$> dirTests "tests/crash"                          []                (ExitFailure 2)
-  , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-  , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
-  , testGroup "gradual_pos" <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-  , testGroup "gradual_neg" <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  [ testGroup "pos"            <$> dirTests "tests/pos"                            ["mapreduce.hs"]   ExitSuccess
+  , testGroup "neg"            <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+  , testGroup "crash"          <$> dirTests "tests/crash"                          []                (ExitFailure 2)
+  , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+  , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+  , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
+  , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
+  -- , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []                (ExitFailure 2)
   -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
   -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
   ]
@@ -257,6 +306,9 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."
+        )
+      , ( "tests/import/client"
+        , "-i../lib"
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList

@@ -323,7 +323,7 @@ defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
                      = {- traceShow "defRefType: " $ -} generalize $ mkArrow [] [] [] xts t'
   where
-    xts              = stitchArgs (fSrcSpan f) dc xs ts
+    xts              = stitchArgs (fSrcSpan f) dc ({- tracepp ("FIELDS-XS" ++ showpp f) -} xs) ({- tracepp ("FIELDS-TS" ++ showpp f) -} ts)
     t                = fromMaybe (ofType tr) mt
     t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
     mkForAlls xts t  = foldl' (\t (x, tx) -> RAllE x tx t) t xts

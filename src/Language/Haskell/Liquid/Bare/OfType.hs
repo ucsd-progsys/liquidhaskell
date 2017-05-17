@@ -63,16 +63,16 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
-ofBareType l 
-  = ofBRType expandRTAliasApp (resolve l <=< expand) 
+ofBareType l
+  = ofBRType expandRTAliasApp (resolve l <=< expand)
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp return 
+  = ofBRType failRTAliasApp return
 
 ofBSort :: BSort -> BareM RSort
-ofBSort 
-  = ofBRType failRTAliasApp return 
+ofBSort
+  = ofBRType failRTAliasApp return
 
 --------------------------------------------------------------------------------
 
@@ -105,10 +105,13 @@ txParam l f πs t = f (txPvar l (predMap πs t))
 
 txPvar :: SourcePos -> M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
 txPvar l m π = π { pargs = args' }
-  where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
-              | otherwise            = pargs π'
-        π'    = fromMaybe (panic (Just $ sourcePosSrcSpan l) err) $ M.lookup (pname π) m
-        err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
+  where
+    args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
+          | otherwise            = pargs π'
+    π'    = fromMaybe err $ M.lookup (pname π) m
+    err   = uError $ ErrUnbPred (sourcePosSrcSpan l) (pprint π)
+        -- err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
+
 
 predMap :: [UsedPVar] -> RType c tv r -> M.HashMap Symbol UsedPVar
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
@@ -303,6 +306,6 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r)) 
+expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                     => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
