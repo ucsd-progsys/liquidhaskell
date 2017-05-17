@@ -1,5 +1,6 @@
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-termination"    @-}
+{-@ LIQUID "--short-names"       @-}
 
 module Foo () where
 

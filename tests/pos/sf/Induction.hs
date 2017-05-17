@@ -1,4 +1,7 @@
-{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--totality"                            @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 module Induction where
 
@@ -29,7 +32,7 @@ natMult n m = case n of
   O    -> O
   S n' -> natPlus m (natMult n' m)
 
-{-@ theorem_plus_n_O :: n : Peano -> { n = (natPlus n O) } @-}
+{-@ theorem_plus_n_O :: n : Peano -> { n == natPlus n O } @-}
 theorem_plus_n_O :: Peano -> Proof
 theorem_plus_n_O O     = ( natPlus O O ) *** QED
 theorem_plus_n_O (S n) = ( natPlus (S n) O
@@ -38,7 +41,7 @@ theorem_plus_n_O (S n) = ( natPlus (S n) O
 
 {-@ theorem_mult_0_r :: n : Peano -> { natMult n O = O } @-}
 theorem_mult_0_r :: Peano -> Proof
-theorem_mult_0_r O     = ( natMult O O ) *** QED
+theorem_mult_0_r O     = natMult O O *** QED
 theorem_mult_0_r (S n) = ( natMult (S n) O
                          , theorem_mult_0_r n
                          , natPlus O O
@@ -101,7 +104,7 @@ theorem_plus_swap n m p = ( theorem_plus_assoc n m p
                           , theorem_plus_assoc m n p
                           ) *** QED
 
-{-@ lemma_mult_distrib_S_n :: m : Peano -> n : Peano 
+{-@ lemma_mult_distrib_S_n :: m : Peano -> n : Peano
   -> { natMult m (S n) = natPlus m (natMult m n) }
 @-}
 lemma_mult_distrib_S_n :: Peano -> Peano -> Proof

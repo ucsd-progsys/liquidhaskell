@@ -1,16 +1,18 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE ConstraintKinds      #-}
-{-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE LambdaCase           #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE ViewPatterns         #-}
+{-# LANGUAGE DataKinds               #-}
+{-# LANGUAGE UndecidableInstances    #-}
+{-# LANGUAGE OverloadedStrings       #-}
+{-# LANGUAGE RecordWildCards         #-}
+{-# LANGUAGE BangPatterns            #-}
+{-# LANGUAGE ConstraintKinds         #-}
+{-# LANGUAGE DoAndIfThenElse         #-}
+{-# LANGUAGE FlexibleContexts        #-}
+{-# LANGUAGE FlexibleInstances       #-}
+{-# LANGUAGE LambdaCase              #-}
+{-# LANGUAGE ScopedTypeVariables     #-}
+{-# LANGUAGE TypeFamilies            #-}
+{-# LANGUAGE ViewPatterns            #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
+
 module Test.Target.Testable (test, Testable, setup) where
 
 
@@ -147,7 +149,6 @@ instance {-# OVERLAPPING #-} (Show a, Targetable a, Testable b) => Testable (a -
   decodeArgs _ _ _ = error "decodeArgs called with empty list"
   apply f (x ::: xs)
     = apply (f x) xs
-  apply _ _ = error "apply called with empty list"
   mkExprs f (v:vs) (x ::: xs)
     = (v, toExpr x) : mkExprs (f undefined) vs xs
   mkExprs _ _ _ = error "mkExprs called with empty list"

@@ -5,6 +5,7 @@
 module SPair (
     PairS(..)
   , moo
+  , psnd
   ) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
@@ -16,15 +17,15 @@ infixl 2 :*:
 --   this program is marked as SAFE...
 data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 
-{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)  @-}
+{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) { spX ::a, spY ::b<p spX> }  @-}
 
-{-@ measure psnd :: (PairS a b) -> b 
-    psnd ((:*:) x y) = y 
-  @-} 
+{-@ measure psnd @-}
+psnd :: PairS a b -> b
+psnd ((:*:) x y) = y
 
-{-@ type FooS a = PairS <{\z v -> v <= (psnd z)}> (PairS a Int) Int @-}
+
+{-@ type FooS a = PairS <{\z v -> v <= psnd z}> (PairS a Int) Int @-}
 
 {-@ moo :: (FooS a) -> () @-}
-moo :: PairS (PairS a Int) Int -> () 
+moo :: PairS (PairS a Int) Int -> ()
 moo (x :*: n :*: m) = liquidAssert (m <= n) ()
-

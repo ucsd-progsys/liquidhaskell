@@ -1,4 +1,4 @@
-module Main where
+module Search where
 
 {-@ search :: { hi : Int | 0 < hi } -> Int @-}
 search :: Int -> Int

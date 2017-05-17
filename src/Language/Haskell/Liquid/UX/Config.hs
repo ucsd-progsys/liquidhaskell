@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.UX.Config (
 
    , ProofMethod (..)
    , allowRewrite
-   , allowArithmetic 
+   , allowArithmetic
    ) where
 
 import Prelude hiding (error)
@@ -63,6 +63,7 @@ data Config = Config {
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   , gradual        :: Bool       -- ^ enable gradual type checking 
+  , ginteractive   :: Bool       -- ^ interactive gradual solving 
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
@@ -84,8 +85,6 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate      :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
-  -- , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
-  --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noMeasureFields :: Bool      -- ^ Do not automatically lift data constructor fields into measures
@@ -102,9 +101,11 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , proofMethod     :: ProofMethod -- ^ How to create automatic instances 
-  , fuel            :: Int         -- ^ Fuel for axiom instantiation 
-  , debugInstantionation :: Bool   -- ^ Debug Instantiation  
+  , proofMethod     :: ProofMethod -- ^ How to create automatic instances
+  , fuel            :: Int         -- ^ Fuel for axiom instantiation
+  , debugInstantionation :: Bool   -- ^ Debug Instantiation
+  , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
+  , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize ProofMethod
@@ -115,20 +116,20 @@ instance Serialize Config
 data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod = Arithmetic | Rewrite | AllMethods 
+data ProofMethod = Arithmetic | Rewrite | AllMethods
   deriving (Eq, Data, Typeable, Generic)
 
 
-allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool 
+allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
 allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
 
 allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
-                              || autoInstantiate cfg == LiquidInstancesLocal 
+                              || autoInstantiate cfg == LiquidInstancesLocal
 
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
-allowRewrite, allowArithmetic :: Config -> Bool 
+allowRewrite, allowArithmetic :: Config -> Bool
 allowRewrite    cfg = proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods
 allowArithmetic cfg = proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods
 
@@ -140,7 +141,7 @@ instance Default ProofMethod where
 instance Show ProofMethod where
   show Arithmetic = "arithmetic"
   show Rewrite    = "rewrite"
-  show AllMethods = "all"  
+  show AllMethods = "all"
 
 
 instance Default Instantiate where
@@ -149,15 +150,17 @@ instance Default Instantiate where
 instance Show Instantiate where
   show NoInstances           = "none"
   show SMTInstances          = "SMT"
-  show LiquidInstancesLocal  = "liquid-local"  
-  show LiquidInstances       = "liquid-global"  
+  show LiquidInstancesLocal  = "liquid-local"
+  show LiquidInstances       = "liquid-global"
 
 
 class HasConfig t where
   getConfig :: t -> Config
 
   patternFlag :: t -> Bool
-  patternFlag = not . noPatternInline . getConfig
+  -- NV: This edit goes with the similar edit in Config.hs
+  patternFlag = const False
+  --   patternFlag = not . noPatternInline . getConfig
 
   higherOrderFlag :: t -> Bool
   higherOrderFlag = higherorder . getConfig

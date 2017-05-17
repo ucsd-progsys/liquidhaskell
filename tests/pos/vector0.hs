@@ -3,6 +3,7 @@ module Vec0 where
 import Language.Haskell.Liquid.Prelude
 
 import Data.Vector hiding (map, concat, zipWith, filter, foldl, foldr, (++))
+import qualified Data.Vector
 
 prop :: Bool
 prop = prop0 && prop1 && prop2 && prop3 && prop4

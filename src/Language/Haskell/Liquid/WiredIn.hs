@@ -2,9 +2,6 @@
 
 module Language.Haskell.Liquid.WiredIn
        (
-       -- propType
-       -- , propTyCon
-       -- , hpropTyCon,
          pdVarReft
        , wiredTyCons
        , wiredDataCons
@@ -13,6 +10,10 @@ module Language.Haskell.Liquid.WiredIn
        -- | Constants for automatic proofs
        , dictionaryVar, dictionaryTyVar, dictionaryBind
        , proofTyConName, combineProofsName
+
+       -- | Built  in Symbols
+       , isWiredIn
+
        ) where
 
 import Prelude                                hiding (error)
@@ -25,8 +26,6 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
 
-
-
 import Language.Fixpoint.Types
 import qualified Language.Fixpoint.Types as F
 
@@ -35,20 +34,46 @@ import DataCon
 import TyCon
 import TysWiredIn
 
-import TypeRep
+import Language.Haskell.Liquid.GHC.TypeRep
 import CoreSyn
 
+-- | Horrible hack to support hardwired symbols like
+--      `head`, `tail`, `fst`, `snd`
+--   and other LH generated symbols that
+--   *do not* correspond to GHC Vars and
+--   *should not* be resolved to GHC Vars.
 
+isWiredIn :: Located Symbol -> Bool
+isWiredIn x = F.tracepp ("isWiredIn x = " ++ show (val x)) $
+                isWiredInLoc x  || isWiredInName x || isWiredInShape x
+
+isWiredInLoc :: Located Symbol -> Bool
+isWiredInLoc x  = l == l' && l == 0 && c == c' && c' == 0
+  where
+    (l , c)  = spe (loc x)
+    (l', c') = spe (locE x)
+    spe l    = (x, y) where (_, x, y) = sourcePosElts l
+
+isWiredInName :: Located Symbol -> Bool
+isWiredInName x = (val x) `elem` wiredInNames
+
+wiredInNames :: [F.Symbol]
+wiredInNames = [ "head", "tail", "fst", "snd", "len" ]
+
+isWiredInShape :: Located Symbol -> Bool
+isWiredInShape x = any (`F.isPrefixOfSym` s) [F.anfPrefix, F.tempPrefix, dcPrefix]
+  where s        = val x
+        dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(Symbol, Sort)]
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
------------------------------------------------------------------------
--- | LH Primitive TyCons ----------------------------------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | LH Primitive TyCons -------------------------------------------------------
+--------------------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (mkTyArg dictionaryTyVar) $ TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"
@@ -71,26 +96,6 @@ combineProofsName = "combineProofs"
 
 proofTyConName :: Symbol
 proofTyConName = "Proof"
-
-
-
-{- ATTENTION: Uniques should be different when defining TyCons
-   otherwise the TyCons are equal and they will all resolve to
-   bool in fixpoint, as propTyCon is a bool
- -}
-
--- propTyCon :: TyCon
--- propTyCon  = symbolTyCon 'w' 25 propConName
-
--- hpropTyCon :: TyCon
--- hpropTyCon = symbolTyCon 'w' 26 hpropConName
-
------------------------------------------------------------------------
--- | LH Primitive Types ----------------------------------------------
------------------------------------------------------------------------
-
--- propType :: Reftable r => RRType r
--- propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
 --------------------------------------------------------------------------------
 -- | Predicate Types for WiredIns ----------------------------------------------
@@ -137,8 +142,8 @@ tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo No
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
     l0            = dummyPos "LH.Bare.tupleTyDataCons"
-    c             = tupleTyCon BoxedTuple n
-    dc            = tupleCon BoxedTuple n
+    c             = tupleTyCon   Boxed n
+    dc            = tupleDataCon Boxed n
     tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"

@@ -21,6 +21,7 @@ cache:
 
 before_install:
 # Download and unpack the stack executable
+    - git submodule update --init --recursive
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
@@ -31,7 +32,7 @@ env:
   global:
   # - STACK=1.0.0.0
   - SMT=z3
-  - GHC=ghc-7.10.3
+  - GHC=ghc-8.0.2
   matrix:
   - TESTS=Unit/
   - TESTS=Benchmarks/text

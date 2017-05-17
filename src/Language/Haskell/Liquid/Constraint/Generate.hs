@@ -31,17 +31,18 @@ import           Pair
 import           CoreSyn
 import           SrcLoc                                 hiding (Located)
 import           Type
+import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Class                                         (className)
 import           Var
 import           IdInfo
 import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
-import           VarSet
+import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ                     hiding (first)
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, fromJust, isJust)
@@ -53,6 +54,7 @@ import qualified Data.Traversable                              as T
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
+-- import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
@@ -72,10 +74,10 @@ import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
-import           Language.Haskell.Liquid.Constraint.Instantiate
 
-import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
+-- import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
 
+-- import System.IO.Unsafe
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -108,14 +110,15 @@ consAct cfg info = do
   let hcs' = if sflag then subsS smap hcs else hcs
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
-  bds <- binds <$> get
-  dcs <- dataConTys <$> get 
-  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs) <$> fcs else  fcs 
+  -- bds <- binds <$> get
+  -- dcs <- dataConTys <$> get
+  -- let fcs' = F.addIds fcs
+  -- let fcs'' = if allowLiquidInstationation (getConfig info) then unsafePerformIO . instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs fcs') <$> fcs' else fcs
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
-                     , fixCs    = fcs'
+                     , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
   where
@@ -298,9 +301,9 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
     where
-      topBind (NonRec v _)  = Just v 
-      topBind (Rec [(v,_)]) = Just v 
-      topBind _             = Nothing 
+      topBind (NonRec v _)  = Just v
+      topBind (Rec [(v,_)]) = Just v
+      topBind _             = Nothing
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
@@ -687,13 +690,13 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
-lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
-lambdaSignleton γ tce x e
+lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
+lambdaSingleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x
-lambdaSignleton _ _ _ _
+lambdaSingleton _ _ _ _
   = mempty
 
 
@@ -785,7 +788,7 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
-       return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+       return $ F.tracepp "STRENGTHENMEETHACK" $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 -- NV END HACK
 
@@ -859,7 +862,7 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton (addArgument γ x) tce x e1
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton (addArgument γ x) tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -1013,7 +1016,7 @@ isClassConCo co
   , [dc]    <- tyConDataCons tc
   , [tm]    <- dataConOrigArgTys dc
                -- tcMatchTy because we have to instantiate the class tyvars
-  , Just _  <- tcMatchTy (mkVarSet $ tyConTyVars tc) tm t1
+  , Just _  <- ruleMatchTyX (mkUniqSet $ tyConTyVars tc) (mkRnEnv2 emptyInScopeSet) emptyTvSubstEnv tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])
 
   | otherwise

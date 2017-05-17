@@ -21,7 +21,7 @@ import           Data.ByteString                       (ByteString)
 import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
 import           Type
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
 import qualified CoreSyn                               as C
@@ -39,13 +39,13 @@ import           Control.Monad.Identity
 import           Language.Fixpoint.Misc                (snd3, mapSnd, mapFst)
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
-import           Language.Haskell.Liquid.GHC.Misc hiding (varSymbol)
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
--- import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.Types.RefType
 
+-- import           Language.Haskell.Liquid.WiredIn
 -- import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
@@ -80,7 +80,7 @@ strengthenResult v
     r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
     r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
     vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
-    f   = dummyLoc $ dropModuleNames $ simplesymbol v
+    f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
     t   = (ofType $ varType v) :: SpecType
     mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
@@ -91,7 +91,7 @@ strengthenResult' v
   = go mkProp [] [1..] t
   | otherwise
   = go mkExpr [] [1..] t
-  where f   = dummyLoc $ dropModuleNames $ simplesymbol v
+  where f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
         -- refine types of meaures: keep going until you find the last data con!
@@ -199,7 +199,8 @@ instance Show C.CoreExpr where
   show = showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
-coreToLogic = coreToLg . normalize
+coreToLogic cb = coreToLg (normalize cb)
+
 
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)
@@ -269,7 +270,7 @@ altToLg de (C.DataAlt d, xs, e)
        let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]
        return (d, subst su p)
   where
-    f x i = let t = EApp (EVar $ makeDataSelector d i) de
+    f x i = let t = EApp (EVar $ makeDataConSelector d i) de
             in [(symbol x, t), (simplesymbol x, t)]
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"
@@ -284,8 +285,9 @@ coreToIte e (efalse, etrue)
        return $ EIte p e2 e1
 
 toPredApp :: C.CoreExpr -> LogicM Expr
-toPredApp p = go . mapFst tomaybesymbol . splitArgs $ p
+toPredApp p = go . mapFst opSym . splitArgs $ p
   where
+    opSym = fmap dropModuleNames . tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg e1 <*> coreToLg e2
@@ -311,20 +313,12 @@ toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e = do
   let (f, es) = splitArgs e
   case f of
-    C.Var x -> do args <- mapM coreToLg es
+    C.Var _ -> do args <- mapM coreToLg es
                   lmap       <- symbolMap <$> getState
                   def        <- (`mkEApp` args) <$> tosymbol f
-                  bbs        <- boolbinds <$> get
-                  (liftBoolBinds x bbs . (\x -> makeApp def lmap x args)) <$> tosymbol' f
-    _       -> do (fe:args) <- mapM coreToLg (f:es)
+                  ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
+    _       -> do (fe : args) <- mapM coreToLg (f:es)
                   return $ foldl EApp fe args
-
-liftBoolBinds :: Var -> [Var] -> Expr -> Expr
-liftBoolBinds x xs e
-  | x `elem` xs
-  = mkProp e
-  | otherwise
-  = e
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
@@ -335,10 +329,12 @@ makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
 
 makeApp def lmap f es
   = eAppWithMap lmap f es def
+  -- where msg = "makeApp f = " ++ show f ++ " es = " ++ show es ++ " def = " ++ show def
 
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap = do
-  f' <- tosymbol' (C.Var x :: C.CoreExpr)
+  f'     <- tosymbol' (C.Var x :: C.CoreExpr)
+  -- let msg = "eVarWithMap x = " ++ show x ++ " f' = " ++ show f'
   return $ eAppWithMap lmap f' [] (varExpr x)
 
 varExpr :: Var -> Expr
@@ -347,7 +343,7 @@ varExpr x
   | otherwise   = EVar s
   where
     t           = varType x
-    s           = varSymbol x
+    s           = symbol x
 
 isPolyCst :: Type -> Bool
 isPolyCst (ForAllTy _ t) = isCst t
@@ -390,8 +386,10 @@ splitArgs e = (f, reverse es)
     go f           = (f, [])
 
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
-tomaybesymbol (C.Var c) | isDataConId  c = Just $ symbol c
-tomaybesymbol (C.Var x) = Just $ simpleSymbolVar x
+-- TODO:reflect-datacons tomaybesymbol (C.Var c) | isDataConId  c = Just $  F.tracepp "reflect-datacons:tomaybe1" $ symbol c
+-- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybe2" $ simpleSymbolVar x
+-- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ simpleSymbolVar' x
+tomaybesymbol (C.Var x) = Just $ symbol x
 tomaybesymbol _         = Nothing
 
 tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
@@ -401,8 +399,8 @@ tosymbol e
     _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
-tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
-tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
+tosymbol' (C.Var x) = return $ dummyLoc $ symbol x -- simpleSymbolVar' x
+tosymbol' e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 makesub :: C.CoreBind -> LogicM (Symbol, Expr)
 makesub (C.NonRec x e) =  (symbol x,) <$> coreToLg e
@@ -431,12 +429,8 @@ mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
-simpleSymbolVar' :: Id -> Symbol
-simpleSymbolVar' = symbol . showPpr . getName
-
-varSymbol :: Var -> Symbol
-varSymbol v | Type.isFunTy (varType v) = simplesymbol v
-varSymbol v                            = symbol v
+_simpleSymbolVar' :: Id -> Symbol
+_simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
 
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)

@@ -36,7 +36,7 @@ import           Prelude                          hiding (error)
 import           SrcLoc
 import           Text.PrettyPrint.HughesPJ
 import           TyCon                            (TyCon)
-import           TypeRep                          hiding (maybeParen)
+import           Language.Haskell.Liquid.GHC.TypeRep                          hiding (maybeParen)
 import           Var                              (Var)
 
 --------------------------------------------------------------------------------

@@ -156,9 +156,13 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- , gradual 
+ , gradual
     = def &= help "Enable gradual refinementtype checking"
           &= name "gradual"
+
+ , ginteractive 
+    = def &= help "Interactive Gradual Solving"
+          &= name "ginteractive"
 
  , totalHaskell
     = def &= help "Check for termination and totality, Overrides no-termination flags"
@@ -276,6 +280,16 @@ config = cmdArgsMode $ Config {
             &= name "elimBound"
             &= help "Maximum chain length for eliminating KVars"
 
+ , noslice
+    = False
+            &= name "noSlice"
+            &= help "Disable non-concrete KVar slicing"
+
+ , noLiftedImport
+    = False
+            &= name "no-lifted-imports"
+            &= help "Disable loading lifted specifications (for legacy libs)"
+
  , json
     = False &= name "json"
             &= help "Print results in JSON (for editor integration)"
@@ -326,11 +340,11 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
           &= name "proof-method"
-  , fuel 
+  , fuel
     = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
         &= name "fuel"
 
-  , debugInstantionation 
+  , debugInstantionation
     = False &= help "Debug Progress in liquid instantiation"
         &= name "debug-instantiation"
  } &= verbosity
@@ -372,13 +386,17 @@ withSmtSolver :: Config -> IO Config
 --------------------------------------------------------------------------------
 withSmtSolver cfg =
   case smtsolver cfg of
-    Just _  -> return cfg
-    Nothing -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
-                  case catMaybes smts of
-                    (s:_) -> return (cfg {smtsolver = Just s})
-                    _     -> panic Nothing noSmtError
+    Just smt -> do found <- findSmtSolver smt
+                   case found of
+                     Just _ -> return cfg
+                     Nothing -> panic Nothing (missingSmtError smt)
+    Nothing  -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
+                   case catMaybes smts of
+                     (s:_) -> return (cfg {smtsolver = Just s})
+                     _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+    missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
@@ -471,7 +489,8 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
-                   , gradual           = False 
+                   , gradual           = False
+                   , ginteractive      = False 
                    , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
@@ -509,13 +528,15 @@ defConfig = Config { files             = def
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
-                   , autoInstantiate   = def 
-                   , proofMethod       = def 
+                   , autoInstantiate   = def
+                   , proofMethod       = def
                    , fuel              = defFuel
-                   , debugInstantionation = False 
+                   , debugInstantionation = False
+                   , noslice              = False
+                   , noLiftedImport       = False
                    }
 
-defFuel :: Int 
+defFuel :: Int
 defFuel = 2
 
 ------------------------------------------------------------------------

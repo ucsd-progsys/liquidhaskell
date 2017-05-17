@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Types.Literals (
        ) where
 
 import Prelude hiding (error)
-import TypeRep
+import Language.Haskell.Liquid.GHC.TypeRep
 import Literal
 import qualified TyCon  as TC
 

@@ -1,9 +1,10 @@
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--totality"       @-}
+{-@ LIQUID "--no-termination"    @-}
+{-@ LIQUID "--totality"          @-}
+{-@ LIQUID "--no-pattern-inline" @-}
 
 module ANF (Op (..), Expr (..), isImm, isAnf, anf) where
 
-import Control.Monad.State.Lazy
+import Control.Monad.Trans.State.Lazy
 
 mkLet :: [(Var, AnfExpr)] -> AnfExpr -> AnfExpr
 imm, immExpr :: Expr -> AnfM ([(Var, AnfExpr)], ImmExpr)

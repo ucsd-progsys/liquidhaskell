@@ -10,12 +10,11 @@ checkPos :: Int -> Int
 {-@ checkPos :: {v:Int | 0 < v} -> {v:Int | 0 < v} @-}
 checkPos x = x 
 
-{-@ check :: {v:Int | ?? } -> {v:Bool | ?? } @-} 
+{-@ assume check :: {v:Int | ?? } -> {v:Bool | ?? } @-} 
 check :: Int -> Bool 
 check x = undefined 
 
 safe x = if check x then checkPos x else checkPos (-x) 
-
 
 a :: Int -> Bool 
 {-@ a :: {v:Int | v < 0} -> Bool @-}

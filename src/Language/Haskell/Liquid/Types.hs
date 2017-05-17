@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE BangPatterns               #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -224,9 +225,9 @@ import Prelude                          hiding  (error)
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
-import TypeRep                          hiding  (maybeParen, pprArrowChain)
+import           Language.Haskell.Liquid.GHC.TypeRep                          hiding  (maybeParen, pprArrowChain)
 import           TysPrim                                (eqPrimTyCon)
-import           TysWiredIn                             (listTyCon, boolTyCon, eqTyCon)
+import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
@@ -253,7 +254,7 @@ import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (Error, SrcSpan, Result, Predicate, R)
 
-
+import qualified Language.Fixpoint.Types as F
 
 
 import           Language.Haskell.Liquid.GHC.Misc
@@ -327,7 +328,7 @@ data GhcSpec = SP {
   , gsInvariants :: ![(Maybe Var, LocSpecType)]  -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   :: ![(LocSpecType, LocSpecType)]-- ^ Data Type Invariant Aliases
-  , gsDconsP     :: ![(DataCon, DataConP)]       -- ^ Predicated Data-Constructors
+  , gsDconsP     :: ![Located DataCon]           -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]           -- ^ Predicated Type-Constructors
                                                  -- eg.  see tests/pos/Map.hs
@@ -350,8 +351,8 @@ data GhcSpec = SP {
   , gsMeasures  :: [Measure SpecType DataCon]
   , gsTyconEnv  :: M.HashMap TyCon RTyCon
   , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from axiomatized functions
-  , gsReflects  :: [Var] -- [HAxiom]              -- ^ Binders for reflected functions
+  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from reflected functions
+  , gsReflects  :: [Var]                          -- ^ Binders for reflected functions
   , gsLogicMap  :: LogicMap
   , gsProofType :: Maybe Type
   , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
@@ -360,9 +361,20 @@ data GhcSpec = SP {
 instance HasConfig GhcSpec where
   getConfig = gsConfig
 
+-- axiom_map ===> lmVarSyms
+
+-- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
+-- each (lifted) `Var` is mapped to its `Symbol` via the `Symbolic Var`
+-- instance. For _generated_ vars, we may want a custom name e.g. see
+--   tests/pos/NatClass.hs
+-- and we maintain that map in `lmVarSyms` with the `Just s` case.
+-- Ideally, this bandaid should be replaced so we don't have these
+-- hacky corner cases.
+
 data LogicMap = LM
-  { logic_map :: M.HashMap Symbol LMap
-  , axiom_map :: M.HashMap Var    Symbol
+  { lmSymDefs  :: M.HashMap Symbol LMap        -- ^ Map from symbols to equations they define
+  , lmVarSyms  :: M.HashMap Var (Maybe Symbol) -- ^ Map from (lifted) Vars to `Symbol`; see:
+                                              --   NOTE:LIFTED-VAR-SYMBOLS and NOTE:REFLECT-IMPORTs
   } deriving (Show)
 
 instance Monoid LogicMap where
@@ -379,17 +391,16 @@ instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t |-> \t" ++ show e
 
 toLogicMap :: [(LocSymbol, [Symbol], Expr)] -> LogicMap
-toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
+toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
   where
     toLMap (x, ys, e) = (val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
   , length xs == length es
-  -- NOPROP , length xs <= length es
   = subst (mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
   , isApp e
   = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
@@ -605,7 +616,7 @@ isClassBTyCon :: BTyCon -> Bool
 isClassBTyCon = btc_class
 
 isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqTyCon)
+isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqPrimTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -672,6 +683,9 @@ instance Show TyConInfo where
 --------------------------------------------------------------------
 type RTVU c tv = RTVar tv (RType c tv ())
 type PVU  c tv = PVar     (RType c tv ())
+
+instance Show tv => Show (RTVU c tv) where
+  show (RTVar t _) = show t
 
 data RType c tv r
   = RVar {
@@ -928,7 +942,7 @@ instance TyConable TyCon where
   isFun      = isFunTyCon
   isList     = (listTyCon ==)
   isTuple    = TyCon.isTupleTyCon
-  isClass c  = isClassTyCon c || c == eqTyCon
+  isClass c  = isClassTyCon c || c == eqPrimTyCon
   isEqual    = (eqPrimTyCon ==)
   ppTycon    = text . showPpr
 
@@ -1027,11 +1041,18 @@ data Axiom b s e = Axiom
   }
 
 type HAxiom = Axiom Var    Type CoreExpr
-data AxiomEq = AxiomEq { axiomName :: Symbol
-                       , axiomArgs :: [Symbol]
-                       , axiomBody :: Expr
-                       , axiomEq   :: Expr
-                       }
+
+data AxiomEq = AxiomEq
+  { axiomName :: Symbol
+  , axiomArgs :: [Symbol]
+  , axiomBody :: Expr
+  , axiomEq   :: Expr
+  } deriving (Generic)
+
+instance B.Binary AxiomEq
+
+instance PPrint AxiomEq where
+  pprintTidy k (AxiomEq n xs b _) = text "axeq" <+> pprint n <+> pprint xs <+> ":=" <+> pprintTidy k b
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
@@ -1043,6 +1064,15 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
+instance Subable AxiomEq where
+  syms   a = syms (axiomBody a) ++ syms (axiomEq a)
+  subst su = mapAxiomEqExpr (subst su)
+  substf f = mapAxiomEqExpr (substf f)
+  substa f = mapAxiomEqExpr (substa f)
+
+mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
+mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
+                       , axiomEq   = f (axiomEq   a) }
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
@@ -1662,19 +1692,25 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
                    }
                 deriving (Eq, Ord, Generic)
 
+instance F.Loc Cinfo where
+  srcSpan = srcSpanFSrcSpan . ci_loc
+
 instance NFData Cinfo
 
 --------------------------------------------------------------------------------
 -- | Module Names --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName deriving (Eq, Ord)
+data ModName = ModName !ModType !ModuleName deriving (Eq, Ord, Show)
 
 instance PPrint ModName where
   pprintTidy _ = text . show
 
-instance Show ModName where
-  show = getModString
+instance Show ModuleName where
+  show = moduleNameString
+
+-- instance Show ModName where
+--   show = getModString
 
 instance Symbolic ModName where
   symbol (ModName _ m) = symbol m
@@ -1682,7 +1718,7 @@ instance Symbolic ModName where
 instance Symbolic ModuleName where
   symbol = symbol . moduleNameFS
 
-data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
+data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord,Show)
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True

@@ -25,8 +25,8 @@ import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
-import           TypeRep
-import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
@@ -38,7 +38,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (intSymbol, anfPrefix)
 
-import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, noPatternInline)
+import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand) -- , noPatternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -79,7 +79,9 @@ expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
 
 patternFlag :: AnfEnv -> Bool
-patternFlag = not . noPatternInline . aeCfg
+patternFlag = const False 
+-- NV: This edit goes with the similar edit in Config.hs
+-- patternFlag = not . noPatternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
@@ -117,10 +119,10 @@ normalizeTyVars (Rec xes)    = Rec xes'
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
   | length as == length as'
-  = mkForAllTys as' $ substTy su bt
+  = mkForAllTys (mkTyArg <$> as') $ substTy su bt
   | otherwise
-  = trace msg $ mkForAllTys as bt
-  where su = mkTopTvSubst $ zip as (mkTyVarTys as')
+  = trace msg $ mkForAllTys (mkTyArg <$> as) bt
+  where su = mkTvSubstPrs $ zip as (mkTyVarTys as')
 
 -- | eta-expand CoreBinds with quantified types
 normalizeForAllTys :: CoreExpr -> CoreExpr

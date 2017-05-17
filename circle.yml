@@ -10,6 +10,7 @@ machine:
 checkout:
   post:
     - git submodule sync
+    - sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
     - git submodule update --init
     - pwd
 
@@ -25,7 +26,6 @@ dependencies:
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack install --fast hlint packdeps cabal-install
     - stack build liquidhaskell --fast --only-dependencies --test --no-run-tests
     
 compile:
@@ -37,7 +37,7 @@ compile:
 test:
   override:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit
-    - stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-j1 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
+    - stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
         timeout: 1800
     - stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
         timeout: 1800

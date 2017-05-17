@@ -2,7 +2,7 @@
 
 -- | A somewhat fancier example demonstrating the use of Abstract Predicates and exist-types
 
-module Ex () where
+module Ex (llen) where
 
 -------------------------------------------------------------------------
 -- | Data types ---------------------------------------------------------
@@ -10,14 +10,14 @@ module Ex () where
 
 data Vec a = Nil | Cons a (Vec a)
 
-{-@ data Vec [llen] a = Nil | Cons (x::a) (xs::(Vec a)) @-}
+{-@ data Vec [llen] a = Nil | Cons { vx::a, vxs :: Vec a } @-}
 
 -- | We can encode the notion of length as an inductive measure @llen@
 
 {-@ measure llen @-}
 llen :: Vec a -> Int
 llen (Nil)       = 0
-llen (Cons x xs) = 1 + llen(xs)
+llen (Cons x xs) = 1 + llen xs
 
 {-@ invariant {v:Vec a | (llen v) >= 0} @-}
 

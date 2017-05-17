@@ -88,7 +88,9 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap LocSymbol Symbol)
+  , defs       :: !(M.HashMap LocSymbol Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
+                                                 --   see tests/pos/NatClass.hs
+  , axeqs      :: ![AxiomEq]                     -- ^ AxiomEqualities used for Proof-By-Evaluation
   } deriving (Generic)
 
 
@@ -161,6 +163,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , dvariance  =           dvariance  s1 ++ dvariance  s2
+           , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = M.union   (embeds   s1)  (embeds   s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
         -- , axioms     = S.union   (axioms s1) (axioms s2)
@@ -207,6 +210,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  = []
            , rinstance  = []
            , dvariance  = []
+           , axeqs      = []
            , bounds     = M.empty
            , defs       = M.empty
            }
@@ -289,7 +293,7 @@ noDummySyms t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
-combineDCTypes :: (Foldable t, PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+combineDCTypes :: (Foldable t, PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                => Type -> t (RType RTyCon RTyVar r) -> RType RTyCon RTyVar r
 combineDCTypes t = foldl' strengthenRefTypeGen (ofType t)
 

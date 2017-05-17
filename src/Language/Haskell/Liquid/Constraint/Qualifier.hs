@@ -176,7 +176,7 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
+refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
             => SEnv Sort
             -> SourcePos
             -> TCEmb TyCon
@@ -188,7 +188,7 @@ refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
-                   , not $ isGradual pa 
+                   , not $ isGradual pa
                    , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
@@ -202,7 +202,7 @@ refTopQuals lEnv l tce t0 γ t
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv
 
-mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
+mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
         => SEnv Sort
         -> SourcePos
         -> TCEmb TyCon
@@ -238,4 +238,4 @@ envSort l lEnv tEnv x i
   | otherwise                   = Just (x, ai)
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
-    msg            = "unknown symbol in qualifier: " ++ show x
+    msg            = "Unknown symbol in qualifier: " ++ show x

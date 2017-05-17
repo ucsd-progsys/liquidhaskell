@@ -99,7 +99,7 @@ instance Show Builder where
 
 --LIQUID instance Eq Builder where
 --LIQUID     a == b = toLazyText a == toLazyText b
---LIQUID 
+--LIQUID
 --LIQUID instance Ord Builder where
 --LIQUID     a <= b = toLazyText a <= toLazyText b
 
@@ -207,10 +207,10 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- length left
 
 {-@ data Buffer s = Buffer
-        (marr :: A.MArray s)
-        (off  :: {v:Nat | v <= (malen marr)})
-        (used :: {v:Nat | (off+v) <= (malen marr)})
-        (left :: {v:Nat | v = ((malen marr) - off - used)})
+        (lbbMarr :: A.MArray s)
+        (lbbOff  :: {v:Nat | v <= (malen lbbMarr)})
+        (lbbUsed :: {v:Nat | (lbbOff + v) <= (malen lbbMarr)})
+        (lbbLeft :: {v:Nat | v = ((malen lbbMarr) - lbbOff - lbbUsed)})
   @-}
 
 {-@ qualif MArrayNE(v:A.MArray s): (malen v) >= 2 @-}

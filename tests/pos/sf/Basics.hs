@@ -1,55 +1,161 @@
-{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--totality"                            @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module Basics (
-  Bool(..),
-  boolAnd, boolOr,
-  Peano(..), toNat,
-  natPlus, natMult
-  ) where
+{- NOTE:
+
+   1. See the TODO:trivial for cases where the instances seems to fail
+
+   2. Would be nice to have case-splitting combinatores,
+      e.g. for thmAndbCom,  thmAndbExch which are super boilerplate-y
+
+   3. For @minsheng: See the rewritten signature for `thmEqBeq`;
+      we don't really need `rewrite` as the SMT
+      does "congruence closure" automatically.
+
+ -}
+
+module Basics where
+
+  -- (
+    -- -- * Booleans
+    -- Bool(..)
+  -- , negb, andb, orb
+--
+    -- -- * Peano numerals
+  -- , Peano(..), toNat
+  -- , plus, mult
+  -- , beq, ble, blt
+  -- )
+  -- where
 
 import           Prelude (Char, Int)
 import qualified Prelude
+import           Language.Haskell.Liquid.ProofCombinators
 
-import Language.Haskell.Liquid.ProofCombinators
+{-@ reflect incr @-}
+incr :: Int -> Int
+incr x = x Prelude.+ 1
+
+--------------------------------------------------------------------------------
+-- | Days ----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- NOTE: clunky to have to redefine this ...
+
+{-@ data Day = Monday
+             | Tuesday
+             | Wednesday
+             | Thursday
+             | Friday
+             | Saturday
+             | Sunday
+  @-}
+
+data Day = Monday
+         | Tuesday
+         | Wednesday
+         | Thursday
+         | Friday
+         | Saturday
+         | Sunday
+
+{-@ reflect nextWeekDay @-}
+nextWeekDay :: Day -> Day
+nextWeekDay Monday    = Tuesday
+nextWeekDay Tuesday   = Wednesday
+nextWeekDay Wednesday = Thursday
+nextWeekDay Thursday  = Friday
+nextWeekDay Friday    = Monday
+nextWeekDay Saturday  = Monday
+nextWeekDay Sunday    = Monday
+
+
+{-@ testNextWeekDay :: { nextWeekDay (nextWeekDay Saturday) == Tuesday } @-}
+testNextWeekDay
+  = trivial
+-- = nextWeekDay (nextWeekDay Saturday) ==. Tuesday *** QED
+
+
+
+--------------------------------------------------------------------------------
+-- | Booleans ------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 {-@ data Bool = True | False @-}
 data Bool = True | False
 
-{-@ reflect boolAnd @-}
-{-@ boolAnd :: Bool -> Bool -> Bool @-}
-boolAnd :: Bool -> Bool -> Bool
-boolAnd True True = True
-boolAnd _    _    = False
+{-@ reflect negb @-}
+negb :: Bool -> Bool
+negb True  = False
+negb False = True
 
-{-@
-  theorem_boolAnd_Commutative :: a : Bool
-                              -> b : Bool
-                              -> { boolAnd a b = boolAnd b a }
-@-}
-theorem_boolAnd_Commutative :: Bool -> Bool -> Proof
-theorem_boolAnd_Commutative a b = ( boolAnd a b, boolAnd b a ) *** QED
+{-@ reflect orb @-}
+orb :: Bool -> Bool -> Bool
+orb False False = False
+orb _     _     = True
 
-{-@ reflect boolOr @-}
-{-@ boolOr :: Bool -> Bool -> Bool @-}
-boolOr :: Bool -> Bool -> Bool
-boolOr False False = False
-boolOr _     _     = True
+{-@ testOr1 :: { orb True True == True } @-}
+testOr1 = trivial -- orb True True *** QED
 
-{-@ example_or1 :: { boolOr True True = True } @-}
-example_or1 :: Proof
-example_or1 = (boolOr True True) *** QED
+{-@ testOr2 :: { orb True False == True } @-}
+testOr2 = trivial -- orb True False *** QED
 
-{-@ example_or2 :: { boolOr True False = True } @-}
-example_or2 :: Proof
-example_or2 = (boolOr True False) *** QED
+{-@ testOr3 :: { orb False True == True } @-}
+testOr3 = trivial -- orb False True *** QED
 
-{-@ example_or3 :: { boolOr False True = True } @-}
-example_or3 :: Proof
-example_or3 = (boolOr False True) *** QED
+{-@ testOr4 :: { orb False False == False } @-}
+testOr4 = trivial -- orb False False *** QED
 
-{-@ example_or4 :: { boolOr False False = False } @-}
-example_or4 :: Proof
-example_or4 = (boolOr False False) *** QED
+{-@ reflect andb @-}
+andb :: Bool -> Bool -> Bool
+andb True True = True
+andb _    _    = False
+
+{-@ andbCom :: a:_ -> b:_ -> { andb a b = andb b a } @-}
+andbCom :: Bool -> Bool -> Proof
+andbCom a b = trivial
+
+-- Exercise 1 ------------------------------------------------------------------
+
+{-@ reflect nandb @-}
+nandb :: Bool -> Bool -> Bool
+nandb a b = negb (andb a b)
+
+{-@ testNand1 :: { nandb True True == False }  @-}
+testNand1 = trivial
+
+{-@ testNand2 :: { nandb True False == True }  @-}
+testNand2 = trivial
+
+{-@ testNand3 :: { nandb False True == True }  @-}
+testNand3 = trivial
+
+{-@ testNand4 :: { nandb False False == True } @-}
+testNand4 = trivial
+
+-- Exercise 2 ------------------------------------------------------------------
+
+{-@ reflect andb3 @-}
+andb3 :: Bool -> Bool -> Bool -> Bool
+andb3 a b c = andb (andb a b) c
+
+{-@ testAnd31 :: { andb3 True True True == True }  @-}
+testAnd31 = trivial
+
+{-@ testAnd32 :: { andb3 False True True == False }  @-}
+testAnd32 = trivial
+
+{-@ testAnd33 :: { andb3 True False True == False }  @-}
+testAnd33 = trivial
+
+{-@ testAnd34 :: { andb3 True True False == False }  @-}
+testAnd34 = trivial
+
+--------------------------------------------------------------------------------
+-- | Peano ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 {-@ data Peano [toNat] = O | S Peano @-}
 data Peano = O | S Peano
@@ -60,95 +166,225 @@ toNat :: Peano -> Int
 toNat O     = 0
 toNat (S n) = 1 Prelude.+ toNat n
 
-{-@ reflect natEven @-}
-{-@ natEven :: Peano -> Bool @-}
-natEven :: Peano -> Bool
-natEven O         = True
-natEven (S O)     = False
-natEven (S (S n)) = natEven n
+{-@ reflect even @-}
+even :: Peano -> Bool
+even O         = True
+even (S O)     = False
+even (S (S n)) = even n
 
-{-@ example_Even4 :: { natEven (S (S (S (S O)))) = True } @-}
-example_Even4 :: Proof
-example_Even4 = ( natEven O
-                , natEven (S (S O))
-                , natEven (S (S (S (S O))))
-                ) *** QED
+{-@ test_Even0 :: { even O == True } @-}
+test_Even0 :: Proof
+test_Even0 = trivial
 
-{-@ example_Even5 :: { natEven (S (S (S (S (S O))))) = False } @-}
-example_Even5 :: Proof
-example_Even5 = ( natEven (S O)
-                , natEven (S (S (S O)))
-                , natEven (S (S (S (S (S O)))))
-                ) *** QED
+-- LH ISSUE #995
+{-@ test_Even4 :: { even (S (S (S (S O)))) == True } @-}
+test_Even4 :: Proof
+test_Even4
+  =   even (S (S (S (S O))))
+  ==. even (S (S O))
+  ==. even O
+  ==. True
+  *** QED
 
-{-@ reflect natPlus @-}
-{-@ natPlus :: Peano -> Peano -> Peano @-}
-natPlus :: Peano -> Peano -> Peano
-natPlus O     n = n
-natPlus (S m) n = S (natPlus m n)
+{-@ test_Even5 :: { even (S (S (S (S (S O))))) = False } @-}
+test_Even5 :: Proof
+test_Even5
+  =   even (S (S (S (S (S O)))))
+  ==. even (((S (S (S O)))))
+  ==. even (((((S O)))))
+  ==. False
+  *** QED
 
-{-@
-  theorem_natPlus_identity :: a : Peano
-                           -> b : { Peano | a = b }
-                           -> { natPlus a a = natPlus b b }
-@-}
-theorem_natPlus_identity :: Peano -> Peano -> Proof
-theorem_natPlus_identity a b = trivial
+-- | Plus & Mult ---------------------------------------------------------------
 
-{-@ reflect natEq @-}
-{-@ natEq :: Peano -> Peano -> Bool @-}
-natEq :: Peano -> Peano -> Bool
-natEq O     O     = True
-natEq (S m) (S n) = natEq m n
-natEq _     _     = False
+{-@ reflect plus @-}
+plus :: Peano -> Peano -> Peano
+plus O     n = n
+plus (S m) n = S (plus m n)
 
--- A difference between Coq and Liquid Haskell is that the latter does not have
--- the rewrite tactic. Therefore, we do not have the signature of the following
--- theorem to be
--- > (m : Peano) -> (n : Peano) -> (eqProof : m = n) -> (natEq m n = True)
--- and apply `eqProof` to rewrite m/n. Instead, the information is supplied
--- through refining `n`.
-
-{-@
-  theorem_natEq_correct :: m : Peano
-                        -> n : { Peano | m = n }
-                        -> { natEq m n = True }
-@-}
-theorem_natEq_correct :: Peano -> Peano -> Proof
-theorem_natEq_correct O     O     = ( natEq O O ) *** QED
-theorem_natEq_correct (S m) (S n) = ( theorem_natEq_correct m n
-                                    , natEq (S m) (S n)
-                                    ) *** QED
-
-{-@ reflect natMult @-}
-{-@ natMult :: Peano -> Peano -> Peano @-}
-natMult :: Peano -> Peano -> Peano
-natMult n m = case n of
+{-@ reflect mult @-}
+mult :: Peano -> Peano -> Peano
+mult n m = case n of
   O    -> O
   S O  -> m
-  S n' -> natPlus m (natMult n' m)
+  S n' -> plus m (mult n' m)
 
-{-@
-  lemma_natPlus_OPlus :: n : Peano
-                      -> { natPlus O n = n }
-@-}
-lemma_natPlus_OPlus :: Peano -> Proof
-lemma_natPlus_OPlus n = ( natPlus O n ) *** QED
+{- TODO:trivial testPlus1 :: { plus (S (S O)) O == (S (S O)) } @-}
+testPlus1 = trivial
 
-{-@
-  theorem_natMult_OPlus :: m : Peano
-                        -> n : Peano
-                        -> { natMult (natPlus O m) n = natMult m n }
-@-}
-theorem_natMult_OPlus :: Peano -> Peano -> Proof
-theorem_natMult_OPlus m n = ( lemma_natPlus_OPlus
-                            , natMult (natPlus O m) n
-                            ) *** QED
+{- TODO:trivial testMult1 :: { mult (S (S O)) (S (S O)) == (S (S (S (S O)))) } @-}
+testMult1 = trivial
 
-{-@
-  theorem_natMult_SOne :: m : Peano
-                       -> n : { Peano | S n = m }
-                       -> { natMult m (S n) = natMult m m }
-@-}
-theorem_natMult_SOne :: Peano -> Peano -> Proof
-theorem_natMult_SOne m n = ( natMult m (S n) ) *** QED
+-- | Factorial -----------------------------------------------------------------
+
+{-@ reflect factorial @-}
+factorial :: Peano -> Peano
+factorial O     = O
+factorial (S O) = S O
+factorial (S n) = mult (S n) (factorial n)
+
+{- TODO:trivial testFactorial1 :: { factorial (S (S (S O)))  == S (S (S (S (S (S O))))) } @-}
+testFactorial1 = trivial
+
+-- | Peano Comparisons ---------------------------------------------------------
+
+{-@ reflect beq @-}
+beq :: Peano -> Peano -> Bool
+beq O     O     = True
+beq (S m) (S n) = beq m n
+beq _     _     = False
+
+{-@ reflect ble @-}
+ble :: Peano -> Peano -> Bool
+ble O     _     = True
+ble (S m) O     = False
+ble (S m) (S n) = ble m n
+
+{-@ testBle1 :: { ble (S (S O)) (S (S O))  == True } @-} -- TODO:trivial
+testBle1
+  =   ble (S (S O)) (S (S O))
+  ==. ble ((S O)) ((S O))
+  ==. ble O O
+  *** QED
+
+{-@ testBle2 :: { ble (S (S O)) (S (S (S O)))  == True } @-} -- TODO:trivial
+testBle2
+  =   ble (S (S O)) (S (S (S O)))
+  ==. ble (S O) (S (S O))
+  ==. ble O (S O)
+  *** QED
+
+{-@ testBle3 :: { ble  (S (S (S O))) (S (S O)) == False } @-} -- TODO:trivial
+testBle3
+  =   ble (S (S (S O))) (S (S O))
+  ==. ble (S (S O)) (S O)
+  ==. ble (S O) O
+  *** QED
+
+-- | Exercise blt --------------------------------------------------------------
+
+{-@ reflect blt @-}
+blt :: Peano -> Peano -> Bool
+blt O     O     = False
+blt O     (S n) = True
+blt (S m) O     = False
+blt (S m) (S n) = blt m n
+
+{-@ testBlt1 :: { blt (S (S O)) (S (S O))  == False } @-} -- TODO:trivial
+testBlt1
+  =   blt (S (S O)) (S (S O))
+  ==. blt ((S O)) ((S O))
+  ==. blt O O
+  *** QED
+
+{-@ testBlt2 :: { ble (S (S O)) (S (S (S O)))  == True } @-} -- TODO:trivial
+testBlt2
+  =   ble (S (S O)) (S (S (S O)))
+  ==. ble (S O) (S (S O))
+  ==. ble O (S O)
+  *** QED
+
+{-@ testBlt3 :: { ble  (S (S (S O))) (S (S O)) == False } @-} -- TODO:trivial
+testBlt3
+  =   ble (S (S (S O))) (S (S O))
+  ==. ble (S (S O)) (S O)
+  ==. ble (S O) O
+  *** QED
+
+-- | Proof by Simplification ---------------------------------------------------
+
+{-@ thmPlus_O_l :: n:Peano -> { plus O n == n } @-}
+thmPlus_O_l :: Peano -> Proof
+thmPlus_O_l n = trivial
+
+{-@ thmPlus_1_N :: n:Peano -> { plus (S O) n = S n } @-}
+thmPlus_1_N :: Peano -> Proof
+thmPlus_1_N n = trivial
+
+{-@ thmMult_0_l :: n:Peano -> { mult O n = O } @-}
+thmMult_0_l :: Peano -> Proof
+thmMult_0_l n = trivial
+
+-- | Proof by Simplification ---------------------------------------------------
+
+{-@ thmPlusId :: a:Peano -> b:Peano -> { a = b => plus a a = plus b b } @-}
+thmPlusId :: Peano -> Peano -> Proof
+thmPlusId a b = trivial
+
+{-@ thmPlusId' :: n:Peano -> m:Peano -> o:Peano -> { n = m => m = o => plus n m = plus m o } @-}
+thmPlusId' :: Peano -> Peano -> Peano -> Proof
+thmPlusId' n m o = trivial
+
+{-@ thmMultOPlus :: n: Peano -> m: Peano -> { mult (plus O n) m = mult n m } @-}
+thmMultOPlus :: Peano -> Peano -> Proof
+thmMultOPlus n m = trivial
+
+{-@ thmMultS1 :: m:Peano -> n:Peano -> { S n = m => mult m (S n) = mult m m } @-}
+thmMultS1 :: Peano -> Peano -> Proof
+thmMultS1 m n = trivial
+
+-- | Proof by Case Analysis ----------------------------------------------------
+
+{-@ thmPlus1Neq0 :: n:Peano -> { beq (plus n (S O)) O = False } @-}
+thmPlus1Neq0 :: Peano -> Proof
+thmPlus1Neq0 O     = trivial
+thmPlus1Neq0 (S n) = trivial
+
+{-@ thmNegbInvolutive :: b:Bool -> { negb (negb b) == b} @-}
+thmNegbInvolutive :: Bool -> Proof
+thmNegbInvolutive True  = trivial
+thmNegbInvolutive False = trivial
+
+{-@ thmAndbCom :: a:Bool -> b:Bool -> {andb a b == andb b a} @-}
+thmAndbCom True  True  = trivial
+thmAndbCom True  False = trivial
+thmAndbCom False True  = trivial
+thmAndbCom False False = trivial
+
+{-@ thmAndbExch :: a:Bool -> b:Bool -> c:Bool
+                -> { andb (andb a b) c == andb (andb a c) b }
+  @-}
+thmAndbExch :: Bool -> Bool -> Bool -> Proof
+thmAndbExch True  True  True  = trivial
+thmAndbExch True  True  False = trivial
+thmAndbExch True  False True  = trivial
+thmAndbExch True  False False = trivial
+thmAndbExch False True  True  = trivial
+thmAndbExch False True  False = trivial
+thmAndbExch False False True  = trivial
+thmAndbExch False False False = trivial
+
+{-@ thmAndbTrueElim2 :: b:Bool -> c:Bool -> { andb b c = True => c = True } @-} -- TODO:trivial
+thmAndbTrueElim2 :: Bool -> Bool -> Proof
+thmAndbTrueElim2 False False = andb False False *** QED
+thmAndbTrueElim2 False True  = andb False True  *** QED
+thmAndbTrueElim2 True  False = andb True  False *** QED
+thmAndbTrueElim2 True  True  = andb True  True  *** QED
+
+{-@ thm0NeqPlus1 :: n:Peano -> { beq O (plus n (S O)) = False } @-}
+thm0NeqPlus1 :: Peano -> Proof
+thm0NeqPlus1 O     = trivial
+thm0NeqPlus1 (S n) = trivial
+
+
+{-@ thmIdTwice :: f:(x:Bool -> {v:Bool | v = x}) -> b:Bool -> { f (f b) = b } @-}
+thmIdTwice :: (Bool -> Bool) -> Bool -> Proof
+thmIdTwice f b
+  =   f (f b)
+  ==. b
+  *** QED
+
+{-@ thmNegTwice :: f:(x:Bool -> {v:Bool | v = negb x}) -> b:Bool -> { f (f b) = b } @-}
+thmNegTwice :: (Bool -> Bool) -> Bool -> Proof
+thmNegTwice f b
+  =   f (f b)
+  ==. b ? thmNegbInvolutive b
+  *** QED
+
+-- RJ: You can rewrite
+--   (m : Peano) -> (n : Peano) -> (eqProof : m = n) -> (beq m n = True)
+
+{-@ thmEqBeq :: m:Peano -> n:Peano -> { v : Proof |  m = n } -> { beq m n = True } @-}
+thmEqBeq :: Peano -> Peano -> Proof -> Proof
+thmEqBeq O O _         = trivial
+thmEqBeq (S m) (S n) _ = thmEqBeq m n trivial
