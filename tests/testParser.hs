@@ -250,8 +250,9 @@ testPredP =
     , testCase "PFalse" $
         show (doParse' predP "test" "false") @?= "POr []" -- pattern for PFalse
 
-    , testCase "PGrad / ??" $
-        show (doParse' predP "test" "??") @?= "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (PAnd [])"
+   --     , testCase "PGrad / ??" $
+   --       show (doParse' predP "test" "??") @?= "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (PAnd [])"
+   --   "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (GradInfo {gsrc = SS {sp_start = \"test\" (line 1, column 3), sp_stop = \"test\" (line 1, column 3)}, gused = Nothing}) (PAnd [])"
 
     , testCase "kvarPred empty" $
         show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\" "

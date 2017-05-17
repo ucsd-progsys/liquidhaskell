@@ -550,7 +550,7 @@ pred0P =  trueP
       <|> (reservedOp "&&" >> pGAnds <$> predsP)
       <|> (reservedOp "||" >> POr  <$> predsP)
 
-makeUniquePGrad :: Parser Expr 
+makeUniquePGrad :: Parser Expr
 makeUniquePGrad
   = do uniquePos <- getPosition
        return $ PGrad (KV $ symbol $ show uniquePos) mempty (srcGradInfo uniquePos) mempty
@@ -669,8 +669,10 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 -- | Axioms for Symbolic Evaluation ---------------------------------
 ---------------------------------------------------------------------
 
+defineP :: Parser Equation
 defineP = Equ <$> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
 
+matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
 
 pairsP :: Parser a -> Parser b -> Parser [(a, b)]

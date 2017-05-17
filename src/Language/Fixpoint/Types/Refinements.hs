@@ -88,10 +88,9 @@ module Language.Fixpoint.Types.Refinements (
   , debruijnIndex
 
   -- * Gradual Type Manipulation
-  , pGAnds, pGAnd  
+  , pGAnds, pGAnd
   , HasGradual (..)
   , srcGradInfo
-  , isGradual
 
   ) where
 
@@ -158,29 +157,29 @@ isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
 
-class HasGradual a where 
+class HasGradual a where
   isGradual :: a -> Bool
-  gVars     :: a -> [KVar] 
-  ungrad    :: a -> a  
+  gVars     :: a -> [KVar]
+  ungrad    :: a -> a
 
 instance HasGradual Expr where
   isGradual (PGrad {}) = True
-  isGradual (PAnd xs)  = any isGradual xs 
-  isGradual _          = False 
+  isGradual (PAnd xs)  = any isGradual xs
+  isGradual _          = False
 
   gVars (PGrad k _ _ _) = [k]
-  gVars (PAnd xs)       = concatMap gVars xs 
+  gVars (PAnd xs)       = concatMap gVars xs
   gVars _               = []
 
   ungrad (PGrad {}) = PTrue
-  ungrad (PAnd xs)  = PAnd (ungrad <$> xs ) 
-  ungrad e          = e 
+  ungrad (PAnd xs)  = PAnd (ungrad <$> xs )
+  ungrad e          = e
 
 
 instance HasGradual Reft where
-  isGradual (Reft (_,r)) = isGradual r  
-  gVars (Reft (_,r))     = gVars r  
-  ungrad (Reft (x,r))    = Reft(x, ungrad r)  
+  isGradual (Reft (_,r)) = isGradual r
+  gVars (Reft (_,r))     = gVars r
+  ungrad (Reft (x,r))    = Reft(x, ungrad r)
 
 instance HasGradual SortedReft where
   isGradual = isGradual . sr_reft
@@ -278,7 +277,7 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
-          | PGrad  !KVar !Subst !GradInfo !Expr  
+          | PGrad  !KVar !Subst !GradInfo !Expr
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr
@@ -340,7 +339,7 @@ debruijnIndex = go
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
-    go (PGrad _ _ _ e) = go e 
+    go (PGrad _ _ _ e) = go e
 
 
 -- | Parsed refinement of @Symbol@ as @Expr@
@@ -758,7 +757,7 @@ reftBind (Reft (x, _)) = x
 pGAnds :: [Expr] -> Expr
 pGAnds = foldl pGAnd PTrue
 
-pGAnd :: Expr -> Expr -> Expr 
+pGAnd :: Expr -> Expr -> Expr
 pGAnd (PGrad k su i p) q = PGrad k su i (pAnd [p, q])
 pGAnd p (PGrad k su i q) = PGrad k su i (pAnd [p, q])
 pGAnd p q              = pAnd [p,q]

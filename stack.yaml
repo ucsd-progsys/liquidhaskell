@@ -9,4 +9,6 @@ extra-deps:
 - intern-0.9.1.4
 - located-base-0.1.1.0
 
-resolver: nightly-2016-05-21
+resolver: lts-8.9
+
+# resolver: nightly-2016-05-21

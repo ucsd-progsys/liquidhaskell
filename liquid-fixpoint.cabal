@@ -47,7 +47,7 @@ Flag devel
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
-  ghc-options:   -threaded -W -fno-warn-missing-methods
+  ghc-options:   -threaded -Werror -W -fno-warn-missing-methods
   if flag(devel)
     ghc-options: -Werror
   hs-source-dirs: bin
