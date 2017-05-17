@@ -78,7 +78,7 @@ Executable liquid
   Main-is: src/Liquid.hs
   ghc-options: -W -threaded
   if flag(devel)
-    ghc-options: -Wall
+    ghc-options: -Werror
   Default-Extensions: PatternGuards
 
 executable target
@@ -258,7 +258,7 @@ Library
    if flag(include)
      hs-source-dirs: devel
    if flag(devel)
-     ghc-options: -Wall
+     ghc-options: -Werror
    Default-Extensions: PatternGuards
 
 test-suite test
@@ -267,7 +267,7 @@ test-suite test
   hs-source-dirs:    tests
   ghc-options:       -W -threaded
   if flag(devel)
-    ghc-options: -Wall
+    ghc-options: -Werror
   main-is:           test.hs
   build-depends:     base >=4.8.1.0 && <5
                ,     containers >= 0.5
