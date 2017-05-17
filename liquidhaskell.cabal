@@ -40,7 +40,9 @@ data-files: include/*.hquals
 
 extra-source-files: tests/pos/*.hs
                   , tests/neg/*.hs
-                  , tests/crash/*.hs
+                  , tests/import/lib/*.hs
+                  , tests/import/client/*.hs
+                  , tests/errors/*.hs
                   , tests/pos/*.hquals
                   , tests/ffi-include/foo.c
                   , tests/ffi-include/foo.h
