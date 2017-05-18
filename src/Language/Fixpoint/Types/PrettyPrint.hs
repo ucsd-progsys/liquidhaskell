@@ -88,16 +88,9 @@ showpp = render . pprint
 showTable :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> String
 showTable k = render . pprintKVs k
 
-
-debugOn :: Bool 
-debugOn = False 
-
+-- | Please do not alter this.
 tracepp :: (PPrint a) => String -> a -> a
-tracepp s x
-  | debugOn 
-  = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
-  | otherwise 
-  = x 
+tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
 notracepp :: (PPrint a) => String -> a -> a
 notracepp _ x = x
