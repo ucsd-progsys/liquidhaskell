@@ -1,24 +1,66 @@
 GHC-8 integration
 ==================
 
+## RJ
 
-## RJ 
-
-Pattern Inlines in 
+Pattern Inlines in
 
 - `tests/todo/NoInlines.hs`
 - `tests/pos/monad1.hs`,
 - `tests/pos/TemplateHaskell.hs`,
 - `tests/pos/dropWhile.hs`
 - `tests/todo/NoInlines.hs`
+
 - `Map2.hs`:                                OK (50.02s)
 - `Map0.hs`:                                OK (43.76s)
 - `Map.hs`:                                 OK (46.71s)
-- `LambdaEval.hs`:                             OK (83.86s)
+- `LambdaEval.hs`:                          OK (83.86s)
 
-## NV 
+```haskell
+let x : T =
+  let t1 = ...
+  let t2 = ...
+  e
 
-## ES 
+check (let t1 = e1 in e2) T
+  = check e2 T
+
+check letrec   
+```
+
+HEREHEREHEREHERE >>> can we get LetRecStack.hs to generate 0 cut vars?
+
+Modiy consgen with the following rules 
+
+    G |- e <= T
+    ------------------------
+    G |- let x = e in x <= T  
+
+
+    G, x:T |- e <= T
+    ------------------------
+    G |- let rec x = e in x <= T  
+
+
+
+
+See
+
+1. tests/todo/LetRecStack.hs
+2. tests/todo/LetRecNoStack.hs
+
+If you see the .fq file, then
+in (1) we generate cut kvars,
+but not in (2), thanks to the
+the signature. Can you think
+of a bidirectional typing rule
+that will allow us to push the
+sigs inside?
+
+
+## NV
+
+## ES
 
 - [ ] fix Target
 

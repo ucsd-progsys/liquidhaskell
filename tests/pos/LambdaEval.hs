@@ -10,6 +10,10 @@ import Language.Haskell.Liquid.Prelude
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------
 
+{-@ diverge :: a -> b @-}
+diverge :: a -> b
+diverge x = diverge x
+
 type Bndr
   = Int
 
@@ -78,7 +82,7 @@ evalVar x ((y,v):sto)
   = evalVar x sto
 
 evalVar x []
-  = error "unbound variable"
+  = diverge "unbound variable"
 
 
 {-@ decrease eval 2 @-}
@@ -94,14 +98,14 @@ eval sto (Plus e1 e2)
         (_, e2') = eval sto e2
     in case (e1, e2) of
          (Const i1, Const i2) -> (sto, Const (i1 + i2))
-         _                    -> error "non-integer addition"
+         _                    -> diverge "non-integer addition"
 
 eval sto (App e1 e2)
   = let (_,    v2 ) = eval sto e2
         (sto1, e1') = eval sto e1
     in case e1' of
          (Lam x e) -> eval ((x, v2): sto1) e
-         _         -> error "non-function application"
+         _         -> diverge "non-function application"
 
 eval sto (Lam x e)
   = (sto, Lam x e)
@@ -115,13 +119,13 @@ eval sto (Fst e)
   = let (sto', e') = eval sto e in
     case e' of
       Pair v _ -> (sto', v)
-      _        -> error "non-tuple fst"
+      _        -> diverge "non-tuple fst"
 
 eval sto (Snd e)
   = let (sto', e') = eval sto e in
     case e' of
       Pair _ v -> (sto', v)
-      _        -> error "non-tuple snd"
+      _        -> diverge "non-tuple snd"
 
 ---------------------------------------------------------------------
 -------------------------- Value Checker ----------------------------
@@ -141,6 +145,7 @@ check (Plus _ _)   = liquidAssertB False
 -------------------------- Unit Tests -------------------------------
 ---------------------------------------------------------------------
 
+{-
 tests =
   let (f,g,x) = (0,1,2)
       e1      = Lam x (Var x)
@@ -155,3 +160,4 @@ tests =
       e10     = Snd e9
       vs      = map (snd . eval []) [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10]
   in map check vs
+  -}

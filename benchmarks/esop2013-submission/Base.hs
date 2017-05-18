@@ -265,7 +265,7 @@ module Data.Map.Base (
             , filterLt
             ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Prelude hiding (error, lookup,map,filter,foldr,foldl,null)
 -- LIQUID import qualified Data.Set.Base as Set
 -- LIQUID import Data.StrictPair
 import Data.Monoid (Monoid(..))
@@ -290,6 +290,11 @@ import Data.Data
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 #define STRICT_1_OF_4(fn) fn arg _ _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
+
+{-@ lazy error @-} 
+{-@ error :: a -> b @-} 
+error :: a -> b 
+error x = error x
 
 {--------------------------------------------------------------------
   Operators

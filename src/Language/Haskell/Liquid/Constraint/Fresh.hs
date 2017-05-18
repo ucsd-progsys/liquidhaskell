@@ -129,13 +129,13 @@ trueRefType (REx _ t t')
   = REx <$> fresh <*> true t <*> true t'
 
 trueRefType t@(RExprArg _)
-  = return t 
+  = return t
 
 trueRefType t@(RHole _)
-  = return t 
+  = return t
 
 trueRefType (RAllS _ t)
-  = RAllS <$> fresh <*> true t  
+  = RAllS <$> fresh <*> true t
 
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
@@ -331,7 +331,7 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
      ks'     = S.fromList $ specTypeKVars t
      ks
        | S.null ks' = ks'
-       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
+       | otherwise  = F.tracepp ("addKuts: " ++ showpp _x) ks'
 
 -- addKvPack :: SpecType -> CG ()
 -- addKvPack t = modify $ \s -> s { kvPacks = ks : kvPacks s}

@@ -34,7 +34,7 @@ import           VarEnv                           (VarEnv, emptyVarEnv, extendVa
 import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
 import           Control.Monad.State.Lazy
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenNormal) --, whenLoud)
 import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (intSymbol, anfPrefix)
 
@@ -57,14 +57,15 @@ import           Data.List                        (sortBy, (\\))
 --------------------------------------------------------------------------------
 anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
-anormalize cfg hscEnv modGuts
-  = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
-                     putStrLn "***************************** REC CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) orig_cbs
-                     putStrLn "***************************** RWR CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) rwr_cbs
-       (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
+anormalize cfg hscEnv modGuts = do
+  whenNormal $ do
+    putStrLn "***************************** GHC CoreBinds ***************************"
+    putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
+    putStrLn "***************************** REC CoreBinds ***************************"
+    putStrLn $ showCBs (untidyCore cfg) orig_cbs
+    putStrLn "***************************** RWR CoreBinds ***************************"
+    putStrLn $ showCBs (untidyCore cfg) rwr_cbs
+  (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
@@ -79,7 +80,7 @@ expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
 
 patternFlag :: AnfEnv -> Bool
-patternFlag = const False 
+patternFlag = const False
 -- NV: This edit goes with the similar edit in Config.hs
 -- patternFlag = not . noPatternInline . aeCfg
 
