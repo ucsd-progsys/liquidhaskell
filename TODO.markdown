@@ -30,7 +30,7 @@ check letrec
 
 HEREHEREHEREHERE >>> can we get LetRecStack.hs to generate 0 cut vars?
 
-Modiy consgen with the following rules 
+Modify consgen with the following rules
 
     G |- e <= T
     ------------------------

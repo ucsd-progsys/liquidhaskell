@@ -78,7 +78,7 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 -- import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
 
 -- import System.IO.Unsafe
--- import Debug.Trace (trace)
+import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -605,21 +605,24 @@ cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 cconsE g e t = do
   -- Note: tracing goes here
   -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
-  cconsE' g e t
+  cconsE' g (traceShow "cconsE" e) t
 
 --------------------------------------------------------------------------------
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
-cconsE' γ (Let (Rec [(x, e)]) (Var y)) t
-  | x == y
-  = void $ consBind True γ (x, e, Asserted t) 
+cconsE' γ e t
+  | Just (Rs.PatSelfBind _ e') <- Rs.lift e
+  = cconsE' γ e' t
+
+  | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
+  = void $ consBind True γ (x, e', Asserted t)
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
        if (x `S.member` sp)
          then cconsLazyLet γ e t
          else do γ'  <- consCBLet γ b
-                 cconsE γ' ee t
+                 cconsE γ' (trace ("cconsE' skipping through 1: " ++ show x) ee) t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
@@ -933,6 +936,13 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
   return t
+
+consPattern γ (Rs.PatSelfBind _ e) =
+  consE γ e
+
+consPattern γ p@(Rs.PatSelfRecBind {}) =
+  cconsFreshE LetE γ (Rs.lower p)
+
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy

@@ -35,12 +35,12 @@ import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenNormal) --, whenLoud)
-import           Language.Fixpoint.Misc             (fst3)
-import           Language.Fixpoint.Types            (intSymbol, anfPrefix)
+import qualified Language.Fixpoint.Misc     as F
+import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand) -- , noPatternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showCBs, showPpr, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
@@ -267,7 +267,12 @@ stitch γ e
        e'    <- normalize γ e
        bs    <- st_binds <$> get
        put bs'
-       return $ mkCoreLets bs e'
+       return $ mkCoreLets' bs e'
+
+mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
+mkCoreLets' bs e = mkCoreLets bs1 e1
+  where
+    (e1, bs1)    = tracePpr "MKCORELETS" (e, bs)
 
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
@@ -284,6 +289,13 @@ normalizePattern γ p@(Rs.PatReturn {}) = do
 
 normalizePattern _ p@(Rs.PatProject {}) =
   return (Rs.lower p)
+
+normalizePattern γ p@(Rs.PatSelfBind {}) = do
+  normalize γ (Rs.patE p)
+
+normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
+  e'    <- normalize γ (Rs.patE p)
+  return $ Rs.lower p { Rs.patE = e' }
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
@@ -322,7 +334,7 @@ cloneCase γ argτs e d
        return (DataAlt d, xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
-sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
+sortCases = sortBy (\x y -> cmpAltCon (F.fst3 x) (F.fst3 y))
 
 
 --------------------------------------------------------------------------------
@@ -340,7 +352,7 @@ freshNormalVar γ t = do
   return (mkUserLocal (anfOcc i) u t sp)
 
 anfOcc :: Int -> OccName
-anfOcc = mkVarOccFS . symbolFastString . intSymbol anfPrefix
+anfOcc = mkVarOccFS . symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id

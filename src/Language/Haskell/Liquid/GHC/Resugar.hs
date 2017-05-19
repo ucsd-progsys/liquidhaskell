@@ -66,6 +66,37 @@ data Pattern
     , patIdx   :: !Int       -- ^ i :: NatLT {len patBinds}
     }
 
+  | PatSelfBind              -- let x = e in x
+    { patX     :: !Var       -- ^ x
+    , patE     :: !CoreExpr  -- ^ e
+    }
+
+  | PatSelfRecBind           -- letrec x = e in x
+    { patX     :: !Var       -- ^ x
+    , patE     :: !CoreExpr  -- ^ e
+    }
+
+
+mbId :: CoreExpr -> Maybe Var
+mbId (Var x)    = Just x
+mbId (Tick _ e) = mbId e
+mbId _          = Nothing
+
+-- eqVar :: (PPrint a) => Var -> Var -> a -> Bool
+-- eqVar x y t = F.tracepp ("eqVar " ++ msg) $ x == y
+  -- where
+    -- msg      = "x = " ++ show x ++ " y = " ++ show y ++ " :: " ++ showpp t
+
+{-
+cconsE' γ (Let (NonRec x e) e') t
+  | Just y <- mbId e', eqVar x y (0::Int, t)
+  = void $ consBind False γ (x, e, Asserted t)
+
+cconsE' γ (Let (Rec [(x, e)]) e') t
+  | Just y <- mbId e', eqVar x y (1::Int, t)
+  = void $ consBind True γ (x, e, Asserted t)
+-}
+
 --------------------------------------------------------------------------------
 -- | Lift expressions into High-level patterns ---------------------------------
 --------------------------------------------------------------------------------
@@ -86,6 +117,14 @@ exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
   | Just i <- y `L.elemIndex` ys
   = Just (PatProject xe x t c ys i)
 
+exprArgs (Let (NonRec x e) e') _
+  | Just y <- mbId e', x == y
+  = Just (PatSelfBind x e)
+
+exprArgs (Let (Rec [(x, e)]) e') _
+  | Just y <- mbId e', x == y
+  = Just (PatSelfRecBind x e)
+
 exprArgs _ _
   = Nothing
 
@@ -105,3 +144,9 @@ lower (PatReturn e m d t op)
 
 lower (PatProject xe x t c ys i)
   = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i
+
+lower (PatSelfBind x e)
+  = Let (NonRec x e) (Var x)
+
+lower (PatSelfRecBind x e)
+  = Let (Rec [(x, e)]) (Var x)
