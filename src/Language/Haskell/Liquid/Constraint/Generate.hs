@@ -616,8 +616,9 @@ cconsE' γ e t
 
   | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
   -- = void $ consBind True γ (x, e', Asserted $ F.tracepp ("SELF-REC-BIND " ++ show x) t)
-  = void $ "HEREHEREHEREHERE- γ = γ ++ (x::t)" consCBLet γ' (Rec [(x, e)])
-
+  -- = void $ "HEREHEREHEREHERE- γ = γ ++ (x::t)"
+  = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
+    in void $ consCBLet γ' (Rec [(x, e')])
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
