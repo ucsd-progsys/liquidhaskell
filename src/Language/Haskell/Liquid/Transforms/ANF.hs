@@ -80,9 +80,7 @@ expandFlag :: AnfEnv -> Bool
 expandFlag = not . nocaseexpand . aeCfg
 
 patternFlag :: AnfEnv -> Bool
-patternFlag = const False
--- NV: This edit goes with the similar edit in Config.hs
--- patternFlag = not . noPatternInline . aeCfg
+patternFlag = not . noPatternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
