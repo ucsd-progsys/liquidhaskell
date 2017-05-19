@@ -38,7 +38,7 @@ import           System.Console.CmdArgs.Verbosity (whenNormal) --, whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
-import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand) -- , noPatternInline)
+import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, noPatternInline)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -265,10 +265,10 @@ stitch γ e
        e'    <- normalize γ e
        bs    <- st_binds <$> get
        put bs'
-       return $ mkCoreLets' bs e'
+       return $ mkCoreLets bs e'
 
-mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
-mkCoreLets' bs e = mkCoreLets bs1 e1
+_mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
+_mkCoreLets' bs e = mkCoreLets bs1 e1
   where
     (e1, bs1)    = tracePpr "MKCORELETS" (e, bs)
 

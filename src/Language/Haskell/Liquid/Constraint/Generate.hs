@@ -605,17 +605,19 @@ cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 cconsE g e t = do
   -- Note: tracing goes here
   -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
-  cconsE' g (traceShow "cconsE" e) t
+  cconsE' g e t
 
 --------------------------------------------------------------------------------
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE' γ e t
-  | Just (Rs.PatSelfBind _ e') <- Rs.lift e
-  = cconsE' γ e' t
+  | Just (Rs.PatSelfBind x e') <- Rs.lift e
+  = cconsE' γ e' (F.tracepp ("SELF-BIND " ++ show x) t)
 
   | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
-  = void $ consBind True γ (x, e', Asserted t)
+  -- = void $ consBind True γ (x, e', Asserted $ F.tracepp ("SELF-REC-BIND " ++ show x) t)
+  = void $ "HEREHEREHEREHERE- γ = γ ++ (x::t)" consCBLet γ' (Rec [(x, e)])
+
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
