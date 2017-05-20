@@ -316,7 +316,6 @@ freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
                      when (isKut k) $ addKuts k t
-                     -- when (True)    $ addKvPack t
   where
      ks         = F.KS $ S.fromList $ specTypeKVars t
 
@@ -331,12 +330,7 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
      ks'     = S.fromList $ specTypeKVars t
      ks
        | S.null ks' = ks'
-       | otherwise  = F.tracepp ("addKuts: " ++ showpp _x) ks'
-
--- addKvPack :: SpecType -> CG ()
--- addKvPack t = modify $ \s -> s { kvPacks = ks : kvPacks s}
-  -- where
-    -- ks      = S.fromList $ specTypeKVars t
+       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []

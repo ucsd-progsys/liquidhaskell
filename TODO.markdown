@@ -3,60 +3,63 @@ GHC-8 integration
 
 ## RJ
 
-Pattern Inlines in
+Currently failing tests in `pattern-inline`
 
-- `tests/todo/NoInlines.hs`
-- `tests/pos/monad1.hs`,
-- `tests/pos/TemplateHaskell.hs`,
-- `tests/pos/dropWhile.hs`
-- `tests/todo/NoInlines.hs`
+### Reused WfC?
 
-- `Map2.hs`:                                OK (50.02s)
-- `Map0.hs`:                                OK (43.76s)
-- `Map.hs`:                                 OK (46.71s)
-- `LambdaEval.hs`:                          OK (83.86s)
+(probably caused by self-rec-bind)
 
-```haskell
-let x : T =
-  let t1 = ...
-  let t2 = ...
-  e
+* LocalHole.hs - in Tests Unit pos
+* LocalTermExpr.hs - in Tests Unit pos
+  - multiple WfCs with same kvar
 
-check (let t1 = e1 in e2) T
-  = check e2 T
+### Unbound Vars
 
-check letrec   
-```
+(probably caused by self-rec-bind)
 
-HEREHEREHEREHERE >>> can we get LetRecStack.hs to generate 0 cut vars?
+* Termination.lhs - in Tests Unit pos
+  - Constraint with free vars  [ink, joe]
 
-Modify consgen with the following rules
+### Malformed Constraint
 
-    G |- e <= T
-    ------------------------
-    G |- let x = e in x <= T  
+(probably caused by T866 workaround NOT working in GHC8)
 
+* T866.hs - in Tests Unit pos
+* elim00.hs - in Tests Unit pos
+* risers.hs - in Tests Unit pos
+* zipper.hs - in Tests Unit pos
+* zipper0.hs - in Tests Unit pos
+* zipper000.hs - in Tests Unit pos
+* Data/Text/Lazy.hs - in Tests Benchmarks text
+  - https://github.com/ucsd-progsys/liquidhaskell/issues/866
 
-    G, x:T |- e <= T
-    ------------------------
-    G |- let rec x = e in x <= T  
+### Monad Patterns
 
+These are all "working" now?
 
+* `tests/todo/NoInlines.hs`
+* `tests/pos/monad1.hs`,
+* `tests/pos/TemplateHaskell.hs`,
+* `tests/pos/dropWhile.hs`
+  - seems to work
 
+### CallStack/Error
 
-See
+The use of `Prelude.error` gives a crazy performance hit
+apparently even without cutvars being generated
+  - same number of cutvars in LambdaEval
 
-1. tests/todo/LetRecStack.hs
-2. tests/todo/LetRecNoStack.hs
+                 Prelude.error -> dummyError (no call-stack)
+  LambdaEval.hs  11  -> 4
+  Map0.hs        27  -> 13
+  Map2.hs        ""
+  Map.hs         ""
+  Base           103 -> 76.18
 
-If you see the .fq file, then
-in (1) we generate cut kvars,
-but not in (2), thanks to the
-the signature. Can you think
-of a bidirectional typing rule
-that will allow us to push the
-sigs inside?
+Does all that `PatSelfBind` stuff help at all with these benchmarks?
 
+- Or do we need to really use a different `error`?
+- If not, REMOVE IT.
 
 ## NV
 

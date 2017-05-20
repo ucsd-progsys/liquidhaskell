@@ -10,9 +10,11 @@ import Language.Haskell.Liquid.Prelude
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------
 
-{-@ diverge :: a -> b @-}
-diverge :: a -> b
-diverge x = diverge x
+import Prelude hiding (error)
+
+{-@ error :: a -> b @-}
+error :: a -> b
+error x = error x
 
 type Bndr
   = Int
@@ -82,7 +84,7 @@ evalVar x ((y,v):sto)
   = evalVar x sto
 
 evalVar x []
-  = diverge "unbound variable"
+  = error "unbound variable"
 
 
 {-@ decrease eval 2 @-}
@@ -98,14 +100,14 @@ eval sto (Plus e1 e2)
         (_, e2') = eval sto e2
     in case (e1, e2) of
          (Const i1, Const i2) -> (sto, Const (i1 + i2))
-         _                    -> diverge "non-integer addition"
+         _                    -> error "non-integer addition"
 
 eval sto (App e1 e2)
   = let (_,    v2 ) = eval sto e2
         (sto1, e1') = eval sto e1
     in case e1' of
          (Lam x e) -> eval ((x, v2): sto1) e
-         _         -> diverge "non-function application"
+         _         -> error "non-function application"
 
 eval sto (Lam x e)
   = (sto, Lam x e)
@@ -119,13 +121,13 @@ eval sto (Fst e)
   = let (sto', e') = eval sto e in
     case e' of
       Pair v _ -> (sto', v)
-      _        -> diverge "non-tuple fst"
+      _        -> error "non-tuple fst"
 
 eval sto (Snd e)
   = let (sto', e') = eval sto e in
     case e' of
       Pair _ v -> (sto', v)
-      _        -> diverge "non-tuple snd"
+      _        -> error "non-tuple snd"
 
 ---------------------------------------------------------------------
 -------------------------- Value Checker ----------------------------

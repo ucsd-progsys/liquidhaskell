@@ -34,7 +34,7 @@ import           VarEnv                           (VarEnv, emptyVarEnv, extendVa
 import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
 import           Control.Monad.State.Lazy
-import           System.Console.CmdArgs.Verbosity (whenNormal) --, whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
@@ -58,7 +58,7 @@ import           Data.List                        (sortBy, (\\))
 anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
-  whenNormal $ do
+  whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
     putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
     putStrLn "***************************** REC CoreBinds ***************************"

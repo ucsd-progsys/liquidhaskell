@@ -75,10 +75,7 @@ import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
--- import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
-
--- import System.IO.Unsafe
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -611,12 +608,10 @@ cconsE g e t = do
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE' γ e t
-  | Just (Rs.PatSelfBind x e') <- Rs.lift e
-  = cconsE' γ e' (F.tracepp ("SELF-BIND " ++ show x) t)
+  | Just (Rs.PatSelfBind _x e') <- Rs.lift e
+  = cconsE' γ e' t
 
   | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
-  -- = void $ consBind True γ (x, e', Asserted $ F.tracepp ("SELF-REC-BIND " ++ show x) t)
-  -- = void $ "HEREHEREHEREHERE- γ = γ ++ (x::t)"
   = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
     in void $ consCBLet γ' (Rec [(x, e')])
 
@@ -625,7 +620,7 @@ cconsE' γ e@(Let b@(NonRec x _) ee) t
        if (x `S.member` sp)
          then cconsLazyLet γ e t
          else do γ'  <- consCBLet γ b
-                 cconsE γ' (trace ("cconsE' skipping through 1: " ++ show x) ee) t
+                 cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
