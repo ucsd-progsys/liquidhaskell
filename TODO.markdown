@@ -7,18 +7,16 @@ Currently failing tests in `pattern-inline`
 
 ### Reused WfC?
 
-(probably caused by self-rec-bind)
+HYPOTHESIS: probably caused by self-rec-bind
+- These work when we disable the `Resugar.PatSelf*Bind`
 
 * LocalHole.hs - in Tests Unit pos
 * LocalTermExpr.hs - in Tests Unit pos
   - multiple WfCs with same kvar
 
-### Unbound Vars
-
-(probably caused by self-rec-bind)
-
 * Termination.lhs - in Tests Unit pos
   - Constraint with free vars  [ink, joe]
+
 
 ### Malformed Constraint
 
@@ -50,14 +48,14 @@ apparently even without cutvars being generated
   - same number of cutvars in LambdaEval
 
                  Prelude.error -> dummyError (no call-stack)
-  LambdaEval.hs  11  -> 4
-  Map0.hs        27  -> 13
-  Map2.hs        ""
+  LambdaEval.hs  11  -> 4   -> 4
+  Map0.hs        27  -> 13  -> 13
+  Map2.hs        ""         
   Map.hs         ""
-  Base           103 -> 76.18
+  Base           103 -> 76.18 -> 68
 
 Does all that `PatSelfBind` stuff help at all with these benchmarks?
-
+- NO.
 - Or do we need to really use a different `error`?
 - If not, REMOVE IT.
 
