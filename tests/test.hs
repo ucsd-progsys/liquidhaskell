@@ -249,7 +249,6 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
-<<<<<<< HEAD
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
               , "DataBase.hs"
@@ -279,8 +278,6 @@ negIgnored = [ "Lib.hs"
              , "LibSpec.hs"
              ]
 
-=======
->>>>>>> 11dda7f7b887cbba42f2d6603739fb8a8c39be07
 textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
