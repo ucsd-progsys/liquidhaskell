@@ -22,15 +22,15 @@ import Helper
 data Identity a = Identity a
 
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> Identity a -> Identity b
 fmap f (Identity x) = Identity (f x)
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 

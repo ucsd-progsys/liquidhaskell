@@ -20,16 +20,16 @@ import Helper
 
 
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> Maybe a -> Maybe b
 fmap f Nothing  = Nothing
 fmap f (Just x) = Just (f x)
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
@@ -43,13 +43,11 @@ fmap_id' = abstract (fmap id) id fmap_id
 fmap_id :: Maybe a -> Proof
 fmap_id Nothing
   =   fmap id Nothing
-  ==. Nothing
   ==. id Nothing
   *** QED
 fmap_id (Just x)
   = fmap id (Just x)
   ==. Just (id x)
-  ==. Just x
   ==. id (Just x)
   *** QED
 
@@ -69,7 +67,7 @@ fmap_distrib' f g
                -> { fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
 fmap_distrib :: (b -> c) -> (a -> b) -> Maybe a -> Proof
 fmap_distrib f g Nothing
-  = 
+  =
       (compose (fmap f) (fmap g)) Nothing
         ==. (fmap f) ((fmap g) Nothing)
         ==. fmap f (fmap g Nothing)

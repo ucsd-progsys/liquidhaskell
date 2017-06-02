@@ -4,6 +4,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--eliminate=all"   @-}
 
 module FoldrUniversal where
 
@@ -11,7 +12,7 @@ import Proves
 import Prelude hiding (foldr)
 
 -- | foldrUniversal
-{-@ axiomatize foldr @-}
+{-@ reflect foldr @-}
 foldr :: (a -> b -> b) -> b -> L a -> b
 foldr f b xs
   | llen xs > 0
@@ -101,7 +102,7 @@ fuse_base h f e
   ==. h e
   *** QED
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) ->  a -> c
 compose f g x = f (g x)
 
