@@ -17,6 +17,7 @@ import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.List (isInfixOf)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
@@ -59,9 +60,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, benchTests ]
-    -- tests = group "Tests" [ benchTests ]
-    -- tests = group "Tests" [ selfTests ]
+    tests = group "Tests" [ aecBenchTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
 instance IsOption SmtSolver where
@@ -123,11 +122,22 @@ benchTests
      , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       proverIgnored             ExitSuccess
      ]
 
-selfTests :: IO TestTree
-selfTests
-  = group "Self" [
-      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
-  ]
+aecBenchTests :: IO TestTree
+aecBenchTests
+  = group "Benchmarks" [
+       testGroup "DATA-STRUCT" <$> dirTests "benchmarks/icfp17/data-structs"              [] ExitSuccess
+     , testGroup "VEC-ALGOS"   <$> dirTests "benchmarks/icfp17/vector-algorithms-0.5.4.2" [] ExitSuccess
+     , testGroup "BYTESTRING"  <$> dirTests "benchmarks/icfp17/bytestring-0.9.2.1"        [] ExitSuccess
+     , testGroup "TEXT"        <$> dirTests "benchmarks/icfp17/text-0.11.2.3"             textIgnored ExitSuccess
+     , testGroup "ARITH"       <$> dirTests "benchmarks/icfp17/arith"                     [] ExitSuccess
+     , testGroup "FOLD"        <$> dirTests "benchmarks/icfp17/fold"                      [] ExitSuccess
+     , testGroup "MONOID"      <$> dirTests "benchmarks/icfp17/monoid"                    [] ExitSuccess
+     , testGroup "FUNCTOR"     <$> dirTests "benchmarks/icfp17/functor"                   [] ExitSuccess
+     , testGroup "APPLICATIVE" <$> dirTests "benchmarks/icfp17/applicative"               [] ExitSuccess
+     , testGroup "MONAD"       <$> dirTests "benchmarks/icfp17/monad"                     [] ExitSuccess
+     , testGroup "SAT-SOLVER"  <$> dirTests "benchmarks/icfp17/sat-solver"                [] ExitSuccess
+     , testGroup "UNIFICATION" <$> dirTests "benchmarks/icfp17/unification"               [] ExitSuccess
+     ]
 
 ---------------------------------------------------------------------------
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
@@ -146,10 +156,10 @@ mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest code dir file
   = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
-      if test `elem` knownToFail smt
+      if test `elem` knownToFail opts
       then do
-        printf "%s is known to fail with %s: SKIPPING" test (show smt)
-        assertEqual "" True True
+        printf "%s is known to timeout without FUSION; skipping." test
+        assertEqual "" True False
       else do
         createDirectoryIfMissing True $ takeDirectory log
         bin <- binPath "liquid"
@@ -172,6 +182,7 @@ binPath pkgName = do
   testPath <- getExecutablePath
   return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
+<<<<<<< HEAD
 knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/RealProps.hs"
@@ -188,6 +199,11 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
 knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
+=======
+knownToFail :: LiquidOpts -> [FilePath]
+knownToFail (LO opts) | "eliminate" `isInfixOf` opts = ["benchmarks/icfp17/applicative/ApplicativeReader.hs"]
+                      | otherwise = []
+>>>>>>> 11dda7f7b887cbba42f2d6603739fb8a8c39be07
 
 --------------------------------------------------------------------------------
 extraOptions :: FilePath -> FilePath -> LiquidOpts
@@ -195,14 +211,32 @@ extraOptions :: FilePath -> FilePath -> LiquidOpts
 extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
-      [ ( "benchmarks/bytestring-0.9.2.1"
+      [ ( "benchmarks/icfp17/bytestring-0.9.2.1"
         , "-iinclude --c-files=cbits/fpstring.c"
         )
-      , ( "benchmarks/text-0.11.2.3"
-        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+      , ( "benchmarks/icfp17/text-0.11.2.3"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../../include --c-files=cbits/cbits.c"
         )
-      , ( "benchmarks/vector-0.10.0.1"
-        , "-i."
+      , ( "benchmarks/icfp17/applicative"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/arith"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/fold"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/functor"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monad"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monoid"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/unification"
+        , "-i../include"
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
@@ -220,6 +254,7 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
+<<<<<<< HEAD
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
               , "DataBase.hs" 
@@ -249,6 +284,8 @@ negIgnored = [ "Lib.hs"
              , "LibSpec.hs" 
              ]
 
+=======
+>>>>>>> 11dda7f7b887cbba42f2d6603739fb8a8c39be07
 textIgnored :: [FilePath]
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
@@ -277,15 +314,6 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
               ]
-
-demosIgnored :: [FilePath]
-demosIgnored = [ "Composition.hs"
-               , "Eval.hs"
-               , "Inductive.hs"
-               , "Loop.hs"
-               , "TalkingAboutSets.hs"
-               , "refinements101reax.hs"
-               ]
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
