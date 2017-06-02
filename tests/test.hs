@@ -59,9 +59,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, benchTests ]
-    -- tests = group "Tests" [ benchTests ]
-    -- tests = group "Tests" [ selfTests ]
+    tests = group "Tests" [ aecBenchTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
 instance IsOption SmtSolver where
@@ -123,11 +121,22 @@ benchTests
      , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       proverIgnored             ExitSuccess
      ]
 
-selfTests :: IO TestTree
-selfTests
-  = group "Self" [
-      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
-  ]
+aecBenchTests :: IO TestTree
+aecBenchTests
+  = group "Benchmarks" [
+       testGroup "DATA-STRUCT" <$> dirTests "benchmarks/icfp17/data-structs"              [] ExitSuccess
+     , testGroup "VEC-ALGOS"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" [] ExitSuccess
+     , testGroup "BYTESTRING"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        [] ExitSuccess
+     , testGroup "TEXT"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored ExitSuccess
+     , testGroup "ARITH"       <$> dirTests "benchmarks/icfp17/arith"                     [] ExitSuccess
+     , testGroup "FOLD"        <$> dirTests "benchmarks/icfp17/fold"                      [] ExitSuccess
+     , testGroup "MONOID"      <$> dirTests "benchmarks/icfp17/monoid"                    [] ExitSuccess
+     , testGroup "FUNCTOR"     <$> dirTests "benchmarks/icfp17/functor"                   [] ExitSuccess
+     , testGroup "APPLICATIVE" <$> dirTests "benchmarks/icfp17/applicative"               [] ExitSuccess
+     , testGroup "MONAD"       <$> dirTests "benchmarks/icfp17/monad"                     [] ExitSuccess
+     , testGroup "SAT-SOLVER"  <$> dirTests "benchmarks/icfp17/sat-solver"                [] ExitSuccess
+     , testGroup "UNIFICATION" <$> dirTests "benchmarks/icfp17/unification"               [] ExitSuccess
+     ]
 
 ---------------------------------------------------------------------------
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
@@ -201,8 +210,26 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
       , ( "benchmarks/text-0.11.2.3"
         , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
-      , ( "benchmarks/vector-0.10.0.1"
-        , "-i."
+      , ( "benchmarks/icfp17/applicative"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/arith"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/fold"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/functor"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monad"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/monoid"
+        , "-i../include"
+        )
+      , ( "benchmarks/icfp17/unification"
+        , "-i../include"
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
@@ -222,14 +249,14 @@ testCmd bin dir file smt (LO opts)
 
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
-              , "DataBase.hs" 
+              , "DataBase.hs"
               ]
 
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-                 
+
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
@@ -246,7 +273,7 @@ hscIgnored = [ "HsColour.hs"
 
 negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
-             , "LibSpec.hs" 
+             , "LibSpec.hs"
              ]
 
 textIgnored :: [FilePath]
