@@ -156,7 +156,7 @@ mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest code dir file
   = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
-      if test `elem` knownToFail opts
+      if test `elem` knownToFail smt
       then do
         printf "%s is known to timeout without FUSION; skipping." test
         assertEqual "" True False
@@ -182,7 +182,6 @@ binPath pkgName = do
   testPath <- getExecutablePath
   return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
-<<<<<<< HEAD
 knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
                    , "tests/pos/RealProps.hs"
@@ -199,11 +198,7 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
 knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
-=======
-knownToFail :: LiquidOpts -> [FilePath]
-knownToFail (LO opts) | "eliminate" `isInfixOf` opts = ["benchmarks/icfp17/applicative/ApplicativeReader.hs"]
-                      | otherwise = []
->>>>>>> 11dda7f7b887cbba42f2d6603739fb8a8c39be07
+
 
 --------------------------------------------------------------------------------
 extraOptions :: FilePath -> FilePath -> LiquidOpts
@@ -257,14 +252,14 @@ testCmd bin dir file smt (LO opts)
 <<<<<<< HEAD
 icfpIgnored :: [FilePath]
 icfpIgnored = [ "RIO.hs"
-              , "DataBase.hs" 
+              , "DataBase.hs"
               ]
 
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-                 
+
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
@@ -281,7 +276,7 @@ hscIgnored = [ "HsColour.hs"
 
 negIgnored :: [FilePath]
 negIgnored = [ "Lib.hs"
-             , "LibSpec.hs" 
+             , "LibSpec.hs"
              ]
 
 =======
