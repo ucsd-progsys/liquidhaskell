@@ -59,7 +59,7 @@ benchmarks = {
 'benchmarks/icfp17/fold' : [
  'FoldrUniversal.hs'
 ],
-'benchmarks/icfp17/vector-algorithms-0.5.4.2' : [
+'benchmarks/vector-algorithms-0.5.4.2' : [
  'Data/Vector/Algorithms/AmericanFlag.hs'
 , 'Data/Vector/Algorithms/Combinators.hs'
 , 'Data/Vector/Algorithms/Common.hs'
@@ -79,7 +79,7 @@ benchmarks = {
 'benchmarks/icfp17/sat-solver' : [
  'Solver.hs'
 ],
-'benchmarks/icfp17/bytestring-0.9.2.1' : [
+'benchmarks/bytestring-0.9.2.1' : [
  'Data/ByteString/Char8.hs'
 , 'Data/ByteString/Fusion.hs'
 , 'Data/ByteString/Fusion.T.hs'
@@ -100,9 +100,9 @@ benchmarks = {
 
 benchmarksNames = {
 'benchmarks/icfp17/data-structs' : "DATA-STRUCT",
-'benchmarks/icfp17/vector-algorithms-0.5.4.2' : "VEC-ALGOS",
-'benchmarks/icfp17/bytestring-0.9.2.1' : "BYTESTRING",
-'benchmarks/icfp17/text-0.11.2.3' : "TEXT",
+'benchmarks/vector-algorithms-0.5.4.2' : "VEC-ALGOS",
+'benchmarks/bytestring-0.9.2.1' : "BYTESTRING",
+'benchmarks/text-0.11.2.3' : "TEXT",
 'benchmarks/icfp17/arith' : "ARITH",
 'benchmarks/icfp17/fold' : "FOLD",
 'benchmarks/icfp17/monoid' : "MONOID",
@@ -115,9 +115,9 @@ benchmarksNames = {
 
 benchmarksOrdered = [
 'benchmarks/icfp17/data-structs',
-'benchmarks/icfp17/vector-algorithms-0.5.4.2',
-'benchmarks/icfp17/bytestring-0.9.2.1',
-'benchmarks/icfp17/text-0.11.2.3',
+'benchmarks/vector-algorithms-0.5.4.2',
+'benchmarks/bytestring-0.9.2.1',
+'benchmarks/text-0.11.2.3',
 'benchmarks/icfp17/arith',
 'benchmarks/icfp17/fold',
 'benchmarks/icfp17/monoid',
@@ -166,7 +166,7 @@ def main():
     with open('tests/logs/cur/summary-FUSION.csv', 'r') as timeFile:
         timeDictF = mkTimeDict(timeFile)
 
-    subprocess.call('stack test liquidhaskell --test-arguments="--liquid-opts \"--no-eliminate\""', shell=True)
+    subprocess.call('stack test liquidhaskell --test-arguments="--liquid-opts --eliminate=none"', shell=True)
     subprocess.call('mv tests/logs/cur/summary.csv tests/logs/cur/summary-LIQUID.csv', shell=True)
     with open('tests/logs/cur/summary-LIQUID.csv', 'r') as timeFile:
         timeDictL = mkTimeDict(timeFile)

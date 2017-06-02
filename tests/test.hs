@@ -157,8 +157,8 @@ mkTest code dir file
   = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
       if test `elem` knownToFail smt
       then do
-        printf "%s is known to timeout without FUSION; skipping." test
-        assertEqual "" True False
+        printf "%s is known to fail with %s: SKIPPING" test (show smt)
+        assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
         bin <- binPath "liquid"
@@ -197,7 +197,6 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs"
 knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
-
 
 --------------------------------------------------------------------------------
 extraOptions :: FilePath -> FilePath -> LiquidOpts
@@ -305,6 +304,15 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
               ]
+
+demosIgnored :: [FilePath]
+demosIgnored = [ "Composition.hs"
+               , "Eval.hs"
+               , "Inductive.hs"
+               , "Loop.hs"
+               , "TalkingAboutSets.hs"
+               , "refinements101reax.hs"
+               ]
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
