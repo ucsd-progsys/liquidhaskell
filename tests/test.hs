@@ -17,7 +17,6 @@ import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.List (isInfixOf)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
@@ -126,9 +125,9 @@ aecBenchTests :: IO TestTree
 aecBenchTests
   = group "Benchmarks" [
        testGroup "DATA-STRUCT" <$> dirTests "benchmarks/icfp17/data-structs"              [] ExitSuccess
-     , testGroup "VEC-ALGOS"   <$> dirTests "benchmarks/icfp17/vector-algorithms-0.5.4.2" [] ExitSuccess
-     , testGroup "BYTESTRING"  <$> dirTests "benchmarks/icfp17/bytestring-0.9.2.1"        [] ExitSuccess
-     , testGroup "TEXT"        <$> dirTests "benchmarks/icfp17/text-0.11.2.3"             textIgnored ExitSuccess
+     , testGroup "VEC-ALGOS"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" [] ExitSuccess
+     , testGroup "BYTESTRING"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        [] ExitSuccess
+     , testGroup "TEXT"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored ExitSuccess
      , testGroup "ARITH"       <$> dirTests "benchmarks/icfp17/arith"                     [] ExitSuccess
      , testGroup "FOLD"        <$> dirTests "benchmarks/icfp17/fold"                      [] ExitSuccess
      , testGroup "MONOID"      <$> dirTests "benchmarks/icfp17/monoid"                    [] ExitSuccess
@@ -206,11 +205,11 @@ extraOptions :: FilePath -> FilePath -> LiquidOpts
 extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
-      [ ( "benchmarks/icfp17/bytestring-0.9.2.1"
+      [ ( "benchmarks/bytestring-0.9.2.1"
         , "-iinclude --c-files=cbits/fpstring.c"
         )
-      , ( "benchmarks/icfp17/text-0.11.2.3"
-        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../../include --c-files=cbits/cbits.c"
+      , ( "benchmarks/text-0.11.2.3"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/icfp17/applicative"
         , "-i../include"

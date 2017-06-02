@@ -11,7 +11,6 @@ benchmarks = {
 'benchmarks/icfp17/applicative' : [
  'ApplicativeId.hs'
 , 'ApplicativeMaybe.hs'
-, 'ApplicativeReader.hs'
 ],
 'benchmarks/icfp17/arith' : [
  'Ackermann.hs'
@@ -31,9 +30,8 @@ benchmarks = {
  'MonadId.hs'
 , 'MonadList.hs'
 , 'MonadMaybe.hs'
-, 'MonadReader.hs'
 ],
-'benchmarks/icfp17/text-0.11.2.3' : [
+'benchmarks/text-0.11.2.3' : [
  'Data/Text/Array.hs'
 , 'Data/Text/Encoding.hs'
 , 'Data/Text/Foreign.hs'
@@ -57,8 +55,6 @@ benchmarks = {
  'FunctorId.hs'
 , 'FunctorList.hs'
 , 'FunctorMaybe.hs'
-, 'FunctorReader.hs'
-, 'FunctorReader.NoExtensionality.hs'
 ],
 'benchmarks/icfp17/fold' : [
  'FoldrUniversal.hs'

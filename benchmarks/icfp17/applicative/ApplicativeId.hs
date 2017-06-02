@@ -21,23 +21,23 @@ import Helper
 -- | interchange   u <*> pure y = pure ($ y) <*> u
 
 
-{-@ axiomatize pure @-}
+{-@ reflect pure @-}
 pure :: a -> Identity a
 pure x = Identity x
 
-{-@ axiomatize seq @-}
+{-@ reflect seq @-}
 seq :: Identity (a -> b) -> Identity a -> Identity b
 seq (Identity f) (Identity x) = Identity (f x)
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize idollar @-}
+{-@ reflect idollar @-}
 idollar :: a -> (a -> b) -> b
 idollar x f = f x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
