@@ -15,15 +15,14 @@ Currently failing tests in `pattern-inline`
 ### Reused WfC?
 
 HYPOTHESIS: probably caused by self-rec-bind
+
 - These work when we disable the `Resugar.PatSelf*Bind`
 
 * LocalHole.hs - in Tests Unit pos
 * LocalTermExpr.hs - in Tests Unit pos
   - multiple WfCs with same kvar
-
 * Termination.lhs - in Tests Unit pos
   - Constraint with free vars  [ink, joe]
-
 
 ### Malformed Constraint
 

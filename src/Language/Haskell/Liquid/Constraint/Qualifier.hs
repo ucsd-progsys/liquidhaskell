@@ -60,11 +60,13 @@ useSigQuals i = useQuals i && not (useAlsQuals i)
 
 -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
 useAlsQuals :: (HasConfig t) => t -> Bool
-useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag
+useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag && not (needQuals i)
 
 useQuals :: (HasConfig t) => t -> Bool
 useQuals = not . (FC.All == ) . eliminate . getConfig
 
+needQuals :: (HasConfig t) => t -> Bool
+needQuals = (FC.None == ) . eliminate . getConfig
 
 --------------------------------------------------------------------------------
 alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]

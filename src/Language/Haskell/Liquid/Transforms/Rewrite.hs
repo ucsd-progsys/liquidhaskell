@@ -371,9 +371,9 @@ replaceIrrefutPat _ e
 
 replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
 replaceIrrefutPat' t e
-  | (Var x, _:args) <- collectArgs e
+  | (Var x, rep:_:args) <- collectArgs e
   , isIrrefutErrorVar x
-  = Just (MkCore.mkCoreApps (Var x) (Type t : args))
+  = Just (MkCore.mkCoreApps (Var x) (rep : Type t : args))
   | otherwise
   = Nothing
 
