@@ -4,7 +4,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--eliminate=all"   @-}
+{- LIQUID "--eliminate=all"   @-}
 
 module FoldrUniversal where
 
