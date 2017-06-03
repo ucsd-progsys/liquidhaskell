@@ -12,7 +12,7 @@ LiquidHaskell+FUSION is run using `stack exec -- liquid FILE`. Try this with the
 
 The output will end in "**** RESULT: SAFE ****", indicating that the tool has determined the code meets its specification. Next, re-run the command with FUSION disabled:
 
-    stack exec -- liquid Fig2Examples.hs --no-eliminate
+    stack exec -- liquid Fig2Examples.hs --eliminate=none
 
 This time it will say UNSAFE because regular liquid inference is insufficient to verify any of the examples. (You'll see that our examples 1 and 2 are slightly different from the paper - this is because we have to prevent ghc from simplifying those on its own).
 
@@ -26,9 +26,23 @@ Try modifying the examples. For example, if you change `inc` to `dec` on line 30
     python scripts/metrics.py
     cat metrics.csv
 
-This should take ~40 minutes. It will run LiquidHaskell on all the benchmarks twice - first with FUSION turned on and then with it off. Note that in the run without FUSION, some benchmarks will FAIL (including ApplicativeReader, which is set to automatically fail so you don't have to wait for it to time out). The table produced at the end will still have times recorded for the failing benchmarks; in Table 1 of the paper we replaced these time-to-fail values with asterisks.
+This should take ~40 minutes. It will run LiquidHaskell on all the benchmarks twice - first with FUSION turned on and then with it off. Note that in the run without FUSION, some benchmarks will FAIL. The table produced at the end will still have times recorded for the failing benchmarks; we replace these time-to-fail values with asterisks below.
 
-You will see a discrepancy between the "Code" value you get for the TEXT benchmark and the one in the paper: in preparing this artifact, we noticed that the paper's value incorrectly counts some extra files; this value will be fixed in the final version.
+You will see several discrepancies between the table you just generated and Table 1 from the original paper submission. This is because several tests were deprecated and also the code was optimized between then and now; the table appearing in the final version of the paper (and the metrics.csv file you produce) should look more like this:
+
+Benchmark, Files, Code, Spec, Time (L), Time (F)
+DATA-STRUCT, 8, 1818, 408, 137, 99
+VEC-ALGOS, 11, 1252, 279, 79, 62
+BYTESTRING, 11, 4811, 726, 357, 193
+TEXT, 17, 3157, 818, 397, 256
+ARITH, 2, 270, 46, *, 7
+FOLD, 1, 73, 29, 1, 1
+MONOID, 2, 85, 16, 1, 1
+FUNCTOR, 3, 137, 28, 2, 2
+APPLICATIVE, 2, 146, 36, *, 2
+MONAD, 3, 180, 42, 3, 3
+SAT-SOLVER, 1, 98, 31, *, 1
+UNIFICATION, 1, 144, 53, 3, 3
 
 ## Replicating the qualifier results in Table 1
 
@@ -56,4 +70,4 @@ Then run `--minimizeqs` on each `.bfq` file that was produced:
 
 This gets you the results with then without FUSION.
 
-(The code still calls FUSION by its original working name `eliminate`. It is ON by default in `liquid` and OFF by default in `fixpoint` - hence the respective flags `--no-eliminate` and `--eliminate` appearing in this document.)
+(The code still calls FUSION by its original working name `eliminate`. It is ON by default in `liquid` and OFF by default in `fixpoint` - hence the flags that appear in this document include liquid's flag `--eliminate=none` to turn it off, and fixpoint's flag `--eliminate` to turn it on.)
