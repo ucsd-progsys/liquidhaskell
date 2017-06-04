@@ -1941,4 +1941,8 @@ emptyError :: String -> a
 emptyError fun = liquidError $ "Data.Text." ++ fun ++ ": empty input"
 
 overflowError :: String -> a
-overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"
+overflowError fun = error $ "Data.Text." ++ fun ++ ": size overflow"
+
+{-@ lazy error @-}
+error :: String -> a
+error s = error s

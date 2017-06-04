@@ -160,7 +160,7 @@ config = cmdArgsMode $ Config {
     = def &= help "Enable gradual refinementtype checking"
           &= name "gradual"
 
- , ginteractive 
+ , ginteractive
     = def &= help "Interactive Gradual Solving"
           &= name "ginteractive"
 
@@ -434,7 +434,7 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
 
 -- [NOTE:searchpath]
 -- 1. not convinced we should add the file's directory to the search path
@@ -490,7 +490,7 @@ defConfig = Config { files             = def
                    , noCheckUnknown    = def
                    , notermination     = def
                    , gradual           = False
-                   , ginteractive      = False 
+                   , ginteractive      = False
                    , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def

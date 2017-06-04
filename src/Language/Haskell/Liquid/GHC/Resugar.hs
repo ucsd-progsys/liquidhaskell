@@ -30,8 +30,8 @@ import qualified MkCore
 import qualified PrelNames as PN
 import           Name         (Name, getName)
 import qualified Data.List as L
-
--- import           Debug.Trace
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
+import           Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Data type for high-level patterns -----------------------------------------
@@ -91,8 +91,11 @@ lift e = exprArgs e (collectArgs e)
 
 exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
 exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
-  | op `is` PN.bindMName
+  | trace msg isBindName
   = Just (PatBind e1 x e2 m d a b op)
+  where
+    isBindName = op `is` PN.bindMName
+    msg        = "isBindName " ++ GM.showPpr op ++ " = " ++ show isBindName
 
 exprArgs _e (Var op, [Type m, d, Type t, e])
   | op `is` PN.returnMName

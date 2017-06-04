@@ -11,5 +11,3 @@ data P a = P a
 
 mallocByteString :: a -> IO (P a)
 mallocByteString l = undefined
-
-

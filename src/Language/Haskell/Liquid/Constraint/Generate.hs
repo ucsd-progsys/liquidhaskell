@@ -906,7 +906,7 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
   γ' <- γ += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
   mt <- consE γ' e2
-  return mt
+  return (F.tracepp "AHA: PATBIND" mt)
   where
     msg = "This expression has a refined monadic type; run with --no-pattern-inline: "
 
