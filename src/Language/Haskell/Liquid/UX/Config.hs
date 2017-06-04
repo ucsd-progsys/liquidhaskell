@@ -12,6 +12,9 @@ module Language.Haskell.Liquid.UX.Config (
    , hasOpt
    , totalityCheck
    , terminationCheck
+   , patternFlag
+   , expandFlag
+   , higherOrderFlag
 
    , Instantiate (..)
    , allowSMTInstationation
@@ -25,24 +28,10 @@ module Language.Haskell.Liquid.UX.Config (
    ) where
 
 import Prelude hiding (error)
-
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
--- import Data.Typeable  (Typeable)
--- import Data.Generics  (Data)
 import GHC.Generics
-
 import System.Console.CmdArgs
-
-
-totalityCheck :: Config -> Bool
-totalityCheck config
-  = totality config || totalHaskell config
-
-terminationCheck :: Config -> Bool
-terminationCheck config
-  = totalHaskell config || not (notermination config)
-
 
 -- NOTE: adding strictness annotations breaks the help message
 data Config = Config {
@@ -157,17 +146,29 @@ instance Show Instantiate where
 class HasConfig t where
   getConfig :: t -> Config
 
-  patternFlag :: t -> Bool
-  patternFlag = not . noPatternInline . getConfig
+instance HasConfig Config where
+  getConfig x = x
 
-  higherOrderFlag :: t -> Bool
-  higherOrderFlag = higherorder . getConfig
+patternFlag :: (HasConfig t) => t -> Bool
+patternFlag = not . noPatternInline . getConfig
 
+higherOrderFlag :: (HasConfig t) => t -> Bool
+higherOrderFlag = higherorder . getConfig
 
-
+expandFlag :: (HasConfig t) => t -> Bool
+expandFlag = not . nocaseexpand . getConfig
 
 hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)
 
-instance HasConfig Config where
-  getConfig = id
+totalityCheck :: (HasConfig t) => t -> Bool
+totalityCheck = totalityCheck' . getConfig
+
+terminationCheck :: (HasConfig t) => t -> Bool
+terminationCheck = terminationCheck' . getConfig
+
+totalityCheck' :: Config -> Bool
+totalityCheck' cfg = totality cfg || totalHaskell cfg
+
+terminationCheck' :: Config -> Bool
+terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)

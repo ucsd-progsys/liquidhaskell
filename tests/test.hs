@@ -335,16 +335,15 @@ icfpIgnored = [ "RIO.hs"
               , "CopyRec.hs"
               , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
               ]
+              
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
                 , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
-
                 , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
 
@@ -389,8 +388,6 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
               , "Data/Text/Encoding.hs"
-
-            --   , "Data/Text/Fusion.hs"               -- GHC 8
               ]
 
 demosIgnored :: [FilePath]

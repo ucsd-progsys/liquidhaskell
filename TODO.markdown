@@ -7,7 +7,6 @@ GHC-8 integration
  Timestamp: 2017-05-02 08:02:43 +0530
  Epoch Timestamp: 1493692363
 
-
 ## RJ
 
 Currently failing tests in `pattern-inline`

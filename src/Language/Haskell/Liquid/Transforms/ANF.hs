@@ -38,7 +38,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
-import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, noPatternInline)
+import           Language.Haskell.Liquid.UX.Config  as UX -- (Config, untidyCore, expandFlag, patternFlag)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -55,18 +55,19 @@ import           Data.List                        (sortBy, (\\))
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
 --------------------------------------------------------------------------------
-anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
+anormalize :: UX.Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
-    putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
+    putStrLn $ showCBs untidy (mgi_binds modGuts)
     putStrLn "***************************** REC CoreBinds ***************************"
-    putStrLn $ showCBs (untidyCore cfg) orig_cbs
+    putStrLn $ showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
-    putStrLn $ showCBs (untidyCore cfg) rwr_cbs
+    putStrLn $ showCBs untidy rwr_cbs
   (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
+      untidy   = UX.untidyCore cfg
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
@@ -75,12 +76,6 @@ anormalize cfg hscEnv modGuts = do
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
-
-expandFlag :: AnfEnv -> Bool
-expandFlag = not . nocaseexpand . aeCfg
-
-patternFlag :: AnfEnv -> Bool
-patternFlag = not . noPatternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
@@ -208,7 +203,7 @@ normalizeLiteral γ e =
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 normalize γ e
-  | patternFlag γ
+  | UX.patternFlag γ
   , Just p <- Rs.lift e
   = normalizePattern γ p
 
@@ -301,7 +296,7 @@ expandDefaultCase :: AnfEnv
                   -> [(AltCon, [Id], CoreExpr)]
                   -> DsM [(AltCon, [Id], CoreExpr)]
 --------------------------------------------------------------------------------
-expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandFlag γ
+expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | UX.expandFlag γ
   = expandDefaultCase' γ tyapp zs
 
 expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
@@ -355,10 +350,13 @@ anfOcc = mkVarOccFS . symbolFastString . F.intSymbol F.anfPrefix
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
   , aeSrcSpan :: Sp.SpanStack
-  , aeCfg     :: Config
+  , aeCfg     :: UX.Config
   }
 
-emptyAnfEnv :: Config -> AnfEnv
+instance UX.HasConfig AnfEnv where
+  getConfig = aeCfg
+
+emptyAnfEnv :: UX.Config -> AnfEnv
 emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
