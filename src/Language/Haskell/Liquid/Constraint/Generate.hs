@@ -75,9 +75,6 @@ import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 
--- import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
-
--- import System.IO.Unsafe
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -92,14 +89,10 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
-  γ'    <- initEnv      info
+  γ     <- initEnv      info
   sflag <- scheck   <$> get
-  when (gradual cfg) (mapM_ (addW . WfC γ' . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
-  γ     <- {- NOPROVER if expandProofsMode then addCombine τProof γ' else -}
-           return  γ'
-  cbs'  <- {- NOPROVER if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else -}
-           return $ cbs info
-  foldM_ (consCBTop cfg info) γ cbs'
+  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
+  foldM_ (consCBTop cfg info) γ (cbs info)
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
   scss  <- sCs   <$> get
@@ -110,10 +103,6 @@ consAct cfg info = do
   let hcs' = if sflag then subsS smap hcs else hcs
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
-  -- bds <- binds <$> get
-  -- dcs <- dataConTys <$> get
-  -- let fcs' = F.addIds fcs
-  -- let fcs'' = if allowLiquidInstationation (getConfig info) then unsafePerformIO . instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs fcs') <$> fcs' else fcs
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
@@ -121,22 +110,6 @@ consAct cfg info = do
                      , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
-  where
-    -- NOPROVER expandProofsMode = autoproofs $ getConfig info
-    -- NOPROVER τProof           = gsProofType $ spec info
-    -- NOPROVER mkSigs γ         = toListREnv (renv  γ) ++
-                       -- NOPROVER toListREnv (assms γ) ++
-                       -- NOPROVER toListREnv (intys γ) ++
-                       -- NOPROVER toListREnv (grtys γ)
-
--- NOPROVER addCombine :: Maybe Type -> CGEnv -> CG CGEnv
--- NOPROVER addCombine τ γ
-  -- NOPROVER = do t <- trueTy combineType
-       -- NOPROVER γ += ("combineProofs", combineSymbol, t)
-    -- NOPROVER where
-       -- NOPROVER combineType   = makeCombineType τ
-       -- NOPROVER combineVar    = makeCombineVar  combineType
-       -- NOPROVER combineSymbol = F.symbol combineVar
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
@@ -631,7 +604,17 @@ cconsE g e t = do
   -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
   cconsE' g e t
 
+--------------------------------------------------------------------------------
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
+--------------------------------------------------------------------------------
+cconsE' γ e t
+  | Just (Rs.PatSelfBind _x e') <- Rs.lift e
+  = cconsE' γ e' t
+
+  | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
+  = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
+    in void $ consCBLet γ' (Rec [(x, e')])
+
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
        if (x `S.member` sp)
@@ -951,6 +934,13 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
   return t
+
+consPattern γ (Rs.PatSelfBind _ e) =
+  consE γ e
+
+consPattern γ p@(Rs.PatSelfRecBind {}) =
+  cconsFreshE LetE γ (Rs.lower p)
+
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy

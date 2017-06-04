@@ -1,65 +1,40 @@
 GHC-8 integration
 ==================
 
+## Last GHC7 commit
 
-## RJ 
+ (HEAD) : 1aba981fe855028c5ccd572fe8672cbc482f612e
+ Timestamp: 2017-05-02 08:02:43 +0530
+ Epoch Timestamp: 1493692363
 
-Pattern Inlines in 
 
-- `tests/todo/NoInlines.hs`
-- `tests/pos/monad1.hs`,
-- `tests/pos/TemplateHaskell.hs`,
-- `tests/pos/dropWhile.hs`
-- `tests/todo/NoInlines.hs`
-- `Map2.hs`:                                OK (50.02s)
-- `Map0.hs`:                                OK (43.76s)
-- `Map.hs`:                                 OK (46.71s)
-- `LambdaEval.hs`:                             OK (83.86s)
+### CallStack/Error
 
-## NV 
+The use of `Prelude.error` gives a crazy performance hit
+apparently even without cutvars being generated, this is 
+because of some bizarro GHC transforms, that thwart eliminate.
+This is because GHC now threads `callstack` through such 
+computations, which make a top-level signature no longer top-level.
 
-## ES 
+                 Prelude.error -> dummyError (no call-stack)
+  LambdaEval.hs  11  -> 4   -> 4
+  Map0.hs        27  -> 13  -> 13
+  Map2.hs        ""         
+  Map.hs         ""
+  Base           103 -> 76.18 -> 68
 
-- [ ] fix Target
+Not clear 
+Does all that `PatSelfBind` stuff help at all with these benchmarks?
+- NO.
+- Or do we need to really use a different `error`?
+- If not, REMOVE IT.
 
-- [ ] bring back bench
+- [ ] ES:fix Target
+- [ ] ES:bring back bench
 - [ ] NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`
 - [ ] NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
-
-
-```
-showTy' :: Type -> String
-showTy' (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy' <$> ts) ++ ")"
-showTy' (AppTy t1 t2)   = "(TAppTy " ++ (showTy' t1 ++ " " ++ showTy' t2) ++ ")"
-showTy' t@(TyVarTy v)     = "[" ++ show (isKind t) ++ " " ++ showPpr (varType v) ++ "](RVar " ++ showPpr v ++ ")"
-showTy' (ForAllTy v t)  = "ForAllTy " ++ showPpr v ++ "." ++  showTy' t
-showTy' (CastTy _ _)    = "CastTy"
-showTy' (CoercionTy _)  = "CoercionTy"
-showTy' (LitTy _)       = "LitTy"
-
-
-showTy :: ( PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-          => RType RTyCon RTyVar r -> String
-showTy t@(RApp c ts _ _)  = "[" ++ show (isKind $ toType t) ++ "](RApp   " ++ show c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
-showTy (RAppTy t1 t2 _) = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")"
-showTy t@(RVar v _) = "[" ++ show (isKind $ toType t) ++ "](RVar " ++ show v ++ ")"
-showTy (RFun _ _ _ _) = "RFun"
-showTy (RAllT v t) = "RAllT " ++ show v ++ "." ++ showTy t
-showTy (RAllP _ _) = "RAllP"
-showTy (RAllS _ _) = "RAllS"
-showTy (RAllE _ _ _) = "RAllE"
-showTy (REx _ _ _) = "REx"
-showTy (RExprArg _) = "RExprArg"
-showTy (RRTy _ _ _ _) = "RRTy"
-showTy (RHole _) = "RHole"
-
-sep' :: String -> [String] -> String
-sep' _ [] = []
-sep' _ [x] = x
-sep' s (x:xs) = x ++ s ++ sep' s xs
-```
 
 - Reader
   - Applicative crashing
@@ -69,34 +44,6 @@ sep' s (x:xs) = x ++ s ++ sep' s xs
 
 TODO
 ====
-
-
-Computing Result
-UNSAT id 20 False
-LHS: (VV##F##20 == GHC.Tuple.()##70
-      && int_apply_##1 len GHC.Types.[]##6m == 0
-      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
-      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 is_Cons ReflectLib3.Nil##rOq <=> false)
-      && (bool_apply_##1 is_Nil ReflectLib3.Nil##rOq <=> true)
-      && int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq)
-RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
-RESULT: Safe
-
-
-
-
-LHS: (VV##F##12 == GHC.Tuple.()##70
-      && int_apply_##1 len GHC.Types.[]##6m == 0
-      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
-      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
-      && int_apply_##1 gapp ReflectLib3.Nil##rOq == (if bool_apply_##1 is_Nil ReflectLib3.Nil##rOq then ReflectLib3.Nil##rOq else int_apply_##1 ReflectLib3.Cons##rOr (int_apply_##1 select_Cons_1 ReflectLib3.Nil##rOq)))
-RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
-RESULT: Unsafe [Just 12]
-
-
 
 
 Prune Unsorted Refs

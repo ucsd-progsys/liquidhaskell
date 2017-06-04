@@ -188,7 +188,7 @@ benchTests
      , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-     , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       proverIgnored             ExitSuccess
+     , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
      ]
 
 
@@ -335,18 +335,19 @@ icfpIgnored = [ "RIO.hs"
               , "CopyRec.hs"
               , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
               ]
+
 proverIgnored  :: [FilePath]
 proverIgnored = [ "OverviewListInfix.hs"
                 , "Proves.hs"
                 , "Helper.hs"
-
                 , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
                 , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
-
-                , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
+                -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
+
+autoIgnored = "Fibonacci.hs" : proverIgnored
 
 
 hscIgnored :: [FilePath]
@@ -389,8 +390,6 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               , "Data/Text/Fusion-debug.hs"
               , "Data/Text/Encoding.hs"
-
-            --   , "Data/Text/Fusion.hs"               -- GHC 8
               ]
 
 demosIgnored :: [FilePath]

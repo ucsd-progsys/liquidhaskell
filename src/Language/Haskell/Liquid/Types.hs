@@ -23,6 +23,11 @@ module Language.Haskell.Liquid.Types (
     Config (..)
   , HasConfig (..)
   , hasOpt
+  , totalityCheck
+  , terminationCheck
+  , patternFlag
+  , expandFlag
+  , higherOrderFlag
 
   -- * Ghc Information
   , GhcInfo (..)
