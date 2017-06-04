@@ -11,7 +11,7 @@
 --
 -- Functional array fusion for ByteStrings.
 --
--- Originally based on code from the Data Parallel Haskell project, 
+-- Originally based on code from the Data Parallel Haskell project,
 --      <http://www.cse.unsw.edu.au/~chak/project/dph>
 --
 
@@ -32,7 +32,7 @@ module Data.ByteString.Fusion (
     loopWrapper, loopWrapperLE, sequenceLoops,
     doUpLoop, doDownLoop, doNoAccLoop, doMapLoop, doFilterLoop,
 
-    -- | These are the special fusion cases for combining each loop form perfectly. 
+    -- | These are the special fusion cases for combining each loop form perfectly.
     fuseAccAccEFL, fuseAccNoAccEFL, fuseNoAccAccEFL, fuseNoAccNoAccEFL,
     fuseMapAccEFL, fuseAccMapEFL, fuseMapNoAccEFL, fuseNoAccMapEFL,
     fuseMapMapEFL, fuseAccFilterEFL, fuseFilterAccEFL, fuseNoAccFilterEFL,
@@ -54,33 +54,34 @@ import Data.Word                (Word8)
 import System.IO.Unsafe         (unsafePerformIO)
 
 -- LIQUID
-import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert) 
+import Prelude hiding (undefined)
+-- import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
 
 {-@ qualif PlusOnePos(v: int): 0 <= (v + 1)              @-}
 {-@ qualif LePlusOne(v: int, x: int): v <= (x + 1)       @-}
-{-@ qualif LeDiff(v: int, x: int, y:int): v <= (x - y)         @-}
+{-@ qualif LeDiff(v: int, x: int, y:int): v <= (x - y)   @-}
 {-@ qualif PlenEq(v: Ptr a, x: int): x <= (plen v)       @-}
 {-@ qualif BlenEq(v: int, x:ByteString): v = (bLength x) @-}
 {-@ qualif PSnd(v: a, x:b): v = (psnd x)                 @-}
 
 {-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)  @-}
 
-{-@ measure pfst :: (PairS a b) -> a 
-    pfst ((:*:) x y) = x 
-  @-} 
+{-@ measure pfst :: (PairS a b) -> a
+    pfst ((:*:) x y) = x
+  @-}
 
-{-@ measure psnd :: (PairS a b) -> b 
-    psnd ((:*:) x y) = y 
-  @-} 
+{-@ measure psnd :: (PairS a b) -> b
+    psnd ((:*:) x y) = y
+  @-}
 
 {-@ measure isJustS    :: (MaybeS a) -> Bool
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}
 
-{-@ qualif PlusOne(v:int, x:int): v = x + 1 @-} 
+{-@ qualif PlusOne(v:int, x:int): v = x + 1 @-}
 
-{-@ type MaybeSJ a   = {v: MaybeS a | (isJustS v)}                 @-} 
+{-@ type MaybeSJ a   = {v: MaybeS a | (isJustS v)}                 @-}
 
 {-@ type AccEFLJ acc = acc -> Word8 -> (PairS acc (MaybeSJ Word8)) @-}
 {-@ type NoAccEFLJ   =        Word8 ->             (MaybeSJ Word8) @-}
@@ -95,11 +96,15 @@ liquidCanaryFusion x   = x - 1
 -- Useful macros, until we have bang patterns
 --
 
-#define STRICT1(f) f a | a `seq` False = undefined
-#define STRICT2(f) f a b | a `seq` b `seq` False = undefined
-#define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
-#define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
-#define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
+{-@ lazy undef @-}
+undef :: a -> b
+undef x = undef x
+
+#define STRICT1(f) f a | a `seq` False = undef ()
+#define STRICT2(f) f a b | a `seq` b `seq` False = undef ()
+#define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undef ()
+#define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undef ()
+#define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undef ()
 
 infixl 2 :*:
 
@@ -146,7 +151,7 @@ fuseEFL f g (acc1 :*: acc2) e1 =
 -- * In the case where the accumulator is not needed, it is better to always
 --   explicitly return a value `()', rather than just copy the input to the
 --   output, as the former gives GHC better local information.
--- 
+--
 
 -- | Element function expressing a mapping only
 #if !defined(LOOPNOACC_FUSION)
@@ -281,7 +286,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
                     trans (d-1) (a_off+1) ma_off' acc'
 
 -- a_off = i - d
-{-@ qualif Decr(v:Int, x: Int, y:Int): v = x - y @-} 
+{-@ qualif Decr(v:Int, x: Int, y:Int): v = x - y @-}
 
 #if defined(__GLASGOW_HASKELL__)
 {-# INLINE [1] loopU #-}
@@ -368,17 +373,17 @@ loopFilter f arr = loopWrapperLE (doFilterLoop f NoAcc) arr
 -- the length that was filled in. The loop may also accumulate some
 -- value as it loops over the source array.
 
-{-@ type TripleSLE a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v <= N} @-} 
-{-@ type TripleS   a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v  = N} @-} 
+{-@ type TripleSLE a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v <= N} @-}
+{-@ type TripleS   a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v  = N} @-}
 
 
-{-@ type ImperativeLoopLE acc =  s:(PtrV Word8) 
+{-@ type ImperativeLoopLE acc =  s:(PtrV Word8)
                             -> d:(PtrV Word8)
                             -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
                             -> IO (TripleSLE acc n)
   @-}
 
-{-@ type ImperativeLoop   acc =  s:(PtrV Word8) 
+{-@ type ImperativeLoop   acc =  s:(PtrV Word8)
                               -> d:(PtrV Word8)
                               -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
                               -> IO (TripleS acc n)
@@ -795,4 +800,3 @@ fuseFilterMapEFL f g e1 =
     case f e1 of
         False -> NothingS
         True  -> JustS (g e1)
-
