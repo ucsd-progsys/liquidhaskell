@@ -787,7 +787,7 @@ bTup [(_,t)] _ r
   | isTauto r  = t
   | otherwise  = t `strengthen` (reftUReft r)
 bTup ts rs r
-  | all isNothing (fst <$> ts)   
+  | all isNothing (fst <$> ts) || length ts < 2   
   = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp (mkBTyCon $ dummyLoc tupConName) ((top . snd) <$> ts) rs' (reftUReft r)

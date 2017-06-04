@@ -1127,7 +1127,6 @@ projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
       | j `elem` is       = return t
       | otherwise         = true t
 
-
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]

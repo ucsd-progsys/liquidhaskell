@@ -1,9 +1,9 @@
 module DPairs where
 
 
-{-@ incrPair :: (x::Int, {v:Int | x <= v}) @-}
-incrPair :: (Int, Int)
-incrPair = (2, 3)
+{-@ incrPair :: Int -> (x::Int, {v:Int | x <= v}) @-}
+incrPair :: Int -> (Int, Int)
+incrPair i = (i, i+1)
 
 
 {-@ assertDep :: (Int, Int)<\x -> {v:Int | x <= v}> -> {b:Bool | b} @-}

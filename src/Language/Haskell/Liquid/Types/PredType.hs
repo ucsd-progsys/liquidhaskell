@@ -182,7 +182,7 @@ symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
 -------------------------------------------------------------------------------------
 replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType
 -------------------------------------------------------------------------------------
-replacePreds msg             = foldl' go
+replacePreds msg                 = foldl' go
   where
      go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
      go z (π, t) = substPred msg   (π, t)     z
@@ -222,10 +222,15 @@ substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
 
 substPred msg su (RAllT a t)    = RAllT a (substPred msg su t)
 
-substPred msg su@(π,_ ) (RFun x t t' r)
+substPred msg su@(π,prop) (RFun x t t' r)
+--                        = RFun x (substPred msg su t) (substPred msg su t') r
   | null πs                     = RFun x (substPred msg su t) (substPred msg su t') r
-  | otherwise                   = {-meetListWithPSubs πs πt -}(RFun x t t' r')
+  | otherwise                   = 
+      let sus = (\π -> mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in 
+      foldl (\t su -> t `meet` subst su (rf_body prop)) (RFun x (substPred msg su t) (substPred msg su t') r') sus
   where (r', πs)                = splitRPvar π r
+-- ps has   , pargs :: ![(t, Symbol, Expr)]
+ 
 
 substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
@@ -284,11 +289,12 @@ substPredP :: [Char]
            -> Ref RSort SpecType
 substPredP _ su p@(RProp _ (RHole _))
   = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
-substPredP msg su@(p, RProp ss _) (RProp s t)
-  = RProp ss' $ substPred (msg ++ ": substPredP") su t
+substPredP msg su@(p, RProp ss prop) (RProp s t)
+  = RProp ss' $ substPred (msg ++ ": substPredP") (p, RProp ss' (subst su prop)) t
  where
    ss' = drop n ss ++  s
    n   = length ss - length (freeArgsPs p t)
+   su  = mkSubst (zip (fst <$> ss) (EVar . fst <$> ss'))
 
 
 splitRPvar :: PVar t -> UReft r -> (UReft r, [UsedPVar])
