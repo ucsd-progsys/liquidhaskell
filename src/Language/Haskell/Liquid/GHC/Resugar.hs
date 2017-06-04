@@ -30,8 +30,9 @@ import qualified MkCore
 import qualified PrelNames as PN
 import           Name         (Name, getName)
 import qualified Data.List as L
-import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Debug.Trace
+
+-- import qualified Language.Haskell.Liquid.GHC.Misc as GM
+-- import           Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Data type for high-level patterns -----------------------------------------
