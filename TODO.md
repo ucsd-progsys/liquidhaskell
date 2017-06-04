@@ -7,50 +7,14 @@ GHC-8 integration
  Timestamp: 2017-05-02 08:02:43 +0530
  Epoch Timestamp: 1493692363
 
-## RJ
-
-Currently failing tests in `pattern-inline`
-
-### Reused WfC?
-
-HYPOTHESIS: probably caused by self-rec-bind
-
-- These work when we disable the `Resugar.PatSelf*Bind`
-
-* LocalHole.hs - in Tests Unit pos
-* LocalTermExpr.hs - in Tests Unit pos
-  - multiple WfCs with same kvar
-* Termination.lhs - in Tests Unit pos
-  - Constraint with free vars  [ink, joe]
-
-### Malformed Constraint
-
-(probably caused by T866 workaround NOT working in GHC8)
-
-* T866.hs - in Tests Unit pos
-* elim00.hs - in Tests Unit pos
-* risers.hs - in Tests Unit pos
-* zipper.hs - in Tests Unit pos
-* zipper0.hs - in Tests Unit pos
-* zipper000.hs - in Tests Unit pos
-* Data/Text/Lazy.hs - in Tests Benchmarks text
-  - https://github.com/ucsd-progsys/liquidhaskell/issues/866
-
-### Monad Patterns
-
-These are all "working" now?
-
-* `tests/todo/NoInlines.hs`
-* `tests/pos/monad1.hs`,
-* `tests/pos/TemplateHaskell.hs`,
-* `tests/pos/dropWhile.hs`
-  - seems to work
 
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated
-  - same number of cutvars in LambdaEval
+apparently even without cutvars being generated, this is 
+because of some bizarro GHC transforms, that thwart eliminate.
+This is because GHC now threads `callstack` through such 
+computations, which make a top-level signature no longer top-level.
 
                  Prelude.error -> dummyError (no call-stack)
   LambdaEval.hs  11  -> 4   -> 4
@@ -59,55 +23,18 @@ apparently even without cutvars being generated
   Map.hs         ""
   Base           103 -> 76.18 -> 68
 
+Not clear 
 Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - NO.
 - Or do we need to really use a different `error`?
 - If not, REMOVE IT.
 
-## NV
-
-## ES
-
-- [ ] fix Target
-
-- [ ] bring back bench
+- [ ] ES:fix Target
+- [ ] ES:bring back bench
 - [ ] NV: Termination requires Haskell signature in `tests/pos/Term.hs`
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`
 - [ ] NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
-
-
-```
-showTy' :: Type -> String
-showTy' (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy' <$> ts) ++ ")"
-showTy' (AppTy t1 t2)   = "(TAppTy " ++ (showTy' t1 ++ " " ++ showTy' t2) ++ ")"
-showTy' t@(TyVarTy v)     = "[" ++ show (isKind t) ++ " " ++ showPpr (varType v) ++ "](RVar " ++ showPpr v ++ ")"
-showTy' (ForAllTy v t)  = "ForAllTy " ++ showPpr v ++ "." ++  showTy' t
-showTy' (CastTy _ _)    = "CastTy"
-showTy' (CoercionTy _)  = "CoercionTy"
-showTy' (LitTy _)       = "LitTy"
-
-
-showTy :: ( PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-          => RType RTyCon RTyVar r -> String
-showTy t@(RApp c ts _ _)  = "[" ++ show (isKind $ toType t) ++ "](RApp   " ++ show c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
-showTy (RAppTy t1 t2 _) = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")"
-showTy t@(RVar v _) = "[" ++ show (isKind $ toType t) ++ "](RVar " ++ show v ++ ")"
-showTy (RFun _ _ _ _) = "RFun"
-showTy (RAllT v t) = "RAllT " ++ show v ++ "." ++ showTy t
-showTy (RAllP _ _) = "RAllP"
-showTy (RAllS _ _) = "RAllS"
-showTy (RAllE _ _ _) = "RAllE"
-showTy (REx _ _ _) = "REx"
-showTy (RExprArg _) = "RExprArg"
-showTy (RRTy _ _ _ _) = "RRTy"
-showTy (RHole _) = "RHole"
-
-sep' :: String -> [String] -> String
-sep' _ [] = []
-sep' _ [x] = x
-sep' s (x:xs) = x ++ s ++ sep' s xs
-```
 
 - Reader
   - Applicative crashing
@@ -117,34 +44,6 @@ sep' s (x:xs) = x ++ s ++ sep' s xs
 
 TODO
 ====
-
-
-Computing Result
-UNSAT id 20 False
-LHS: (VV##F##20 == GHC.Tuple.()##70
-      && int_apply_##1 len GHC.Types.[]##6m == 0
-      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
-      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 is_Cons ReflectLib3.Nil##rOq <=> false)
-      && (bool_apply_##1 is_Nil ReflectLib3.Nil##rOq <=> true)
-      && int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq)
-RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
-RESULT: Safe
-
-
-
-
-LHS: (VV##F##12 == GHC.Tuple.()##70
-      && int_apply_##1 len GHC.Types.[]##6m == 0
-      && (bool_apply_##1 null GHC.Types.[]##6m <=> true)
-      && (bool_apply_##1 notIsNull GHC.Types.[]##6m <=> false)
-      && (bool_apply_##1 isNull GHC.Types.[]##6m <=> true)
-      && int_apply_##1 gapp ReflectLib3.Nil##rOq == (if bool_apply_##1 is_Nil ReflectLib3.Nil##rOq then ReflectLib3.Nil##rOq else int_apply_##1 ReflectLib3.Cons##rOr (int_apply_##1 select_Cons_1 ReflectLib3.Nil##rOq)))
-RHS: int_apply_##1 gapp ReflectLib3.Nil##rOq == ReflectLib3.Nil##rOq
-RESULT: Unsafe [Just 12]
-
-
 
 
 Prune Unsorted Refs
