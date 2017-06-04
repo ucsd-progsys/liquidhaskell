@@ -91,11 +91,8 @@ lift e = exprArgs e (collectArgs e)
 
 exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
 exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
-  | trace msg isBindName
+  | op `is` PN.bindMName
   = Just (PatBind e1 x e2 m d a b op)
-  where
-    isBindName = op `is` PN.bindMName
-    msg        = "isBindName " ++ GM.showPpr op ++ " = " ++ show isBindName
 
 exprArgs _e (Var op, [Type m, d, Type t, e])
   | op `is` PN.returnMName
