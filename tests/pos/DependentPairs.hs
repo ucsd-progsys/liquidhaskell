@@ -6,6 +6,10 @@ incrPair :: Int -> (Int, Int)
 incrPair i = (i, i+1)
 
 
+{-@ incrPair3 :: Int -> (x::Int, y::{v:Int | x <= v}, {v:Int | y <= v}) @-}
+incrPair3 :: Int -> (Int, Int, Int)
+incrPair3 i = (i, i+1, i+3)
+
 {-@ assertDep :: (Int, Int)<\x -> {v:Int | x <= v}> -> {b:Bool | b} @-}
 assertDep :: (Int, Int) -> Bool 
 assertDep (x, y) = x <= y
