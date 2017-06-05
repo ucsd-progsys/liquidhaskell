@@ -290,7 +290,7 @@ substPredP :: [Char]
 substPredP _ su p@(RProp _ (RHole _))
   = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
 substPredP msg su@(p, RProp ss prop) (RProp s t)
-  = RProp ss' $ substPred (msg ++ ": substPredP") (p, RProp ss' (subst su prop)) t
+  = RProp ss' $ substPred (msg ++ ": substPredP") (p, RProp ss {- (subst su prop) -} prop ) t
  where
    ss' = drop n ss ++  s
    n   = length ss - length (freeArgsPs p t)
