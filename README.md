@@ -951,6 +951,8 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
+
+
 Abstract and Bounded Refinements
 ================================
 
@@ -968,6 +970,17 @@ is the relevant papers at
 The bounds correspond to Horn implications between abstract refinements,
 which, as in the classical setting, correspond to subtyping constraints
 that must be satisfied by the concrete refinements used at any call-site.
+
+Dependent Pairs
+===============
+Dependent Pairs are expressed by binding the initial tuples of the pair. For example 
+`incrPair` defines an increasing pair.
+
+    {-@ incrPair :: Int -> (x::Int, {v:Int | x <= v}) @-}
+    incrPair i = (i, i+1)
+
+Internally dependent pairs are implemented using abstract refinement types. 
+That is `(x::a, {v:b | p x})` desugars to `(a,b)<\x -> {v:b | p x}>`.
 
 Invariants
 ==========

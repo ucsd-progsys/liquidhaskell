@@ -326,6 +326,17 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftab
   ofReft      = panic Nothing "ofReft on RType"
 
 
+instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
+  isTauto     = isTrivial
+  top t       = mapReft top t 
+  ppTy        = panic Nothing "ppTy RProp Reftable"
+  toReft      = panic Nothing "toReft on RType"
+  params      = panic Nothing "params on RType"
+  bot         = panic Nothing "bot on RType"
+  ofReft      = panic Nothing "ofReft on RType"
+
+
+
 -- MOVE TO TYPES
 instance Fixpoint String where
   toFix = text
