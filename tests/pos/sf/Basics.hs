@@ -75,9 +75,6 @@ nextWeekDay Sunday    = Monday
 {-@ testNextWeekDay :: { nextWeekDay (nextWeekDay Saturday) == Tuesday } @-}
 testNextWeekDay
   = trivial
--- = nextWeekDay (nextWeekDay Saturday) ==. Tuesday *** QED
-
-
 
 --------------------------------------------------------------------------------
 -- | Booleans ------------------------------------------------------------------
@@ -97,16 +94,16 @@ orb False False = False
 orb _     _     = True
 
 {-@ testOr1 :: { orb True True == True } @-}
-testOr1 = trivial -- orb True True *** QED
+testOr1 = trivial
 
 {-@ testOr2 :: { orb True False == True } @-}
-testOr2 = trivial -- orb True False *** QED
+testOr2 = trivial
 
 {-@ testOr3 :: { orb False True == True } @-}
-testOr3 = trivial -- orb False True *** QED
+testOr3 = trivial
 
 {-@ testOr4 :: { orb False False == False } @-}
-testOr4 = trivial -- orb False False *** QED
+testOr4 = trivial
 
 {-@ reflect andb @-}
 andb :: Bool -> Bool -> Bool
@@ -179,21 +176,23 @@ test_Even0 = trivial
 -- LH ISSUE #995
 {-@ test_Even4 :: { even (S (S (S (S O)))) == True } @-}
 test_Even4 :: Proof
-test_Even4
-  =   even (S (S (S (S O))))
-  ==. even (S (S O))
-  ==. even O
-  ==. True
-  *** QED
+test_Even4 = trivial
+
+  -- =   even (S (S (S (S O))))
+  -- ==. even (S (S O))
+  -- ==. even O
+  -- ==. True
+  -- *** QED
 
 {-@ test_Even5 :: { even (S (S (S (S (S O))))) = False } @-}
 test_Even5 :: Proof
-test_Even5
-  =   even (S (S (S (S (S O)))))
-  ==. even (((S (S (S O)))))
-  ==. even (((((S O)))))
-  ==. False
-  *** QED
+test_Even5 = trivial
+
+  -- =   even (S (S (S (S (S O)))))
+  -- ==. even (((S (S (S O)))))
+  -- ==. even (((((S O)))))
+  -- ==. False
+  -- *** QED
 
 -- | Plus & Mult ---------------------------------------------------------------
 
@@ -241,25 +240,27 @@ ble (S m) O     = False
 ble (S m) (S n) = ble m n
 
 {-@ testBle1 :: { ble (S (S O)) (S (S O))  == True } @-} -- TODO:trivial
-testBle1
-  =   ble (S (S O)) (S (S O))
-  ==. ble ((S O)) ((S O))
-  ==. ble O O
-  *** QED
+testBle1 = trivial
+
+  -- =   ble (S (S O)) (S (S O))
+  -- ==. ble ((S O)) ((S O))
+  -- ==. ble O O
+  -- *** QED
 
 {-@ testBle2 :: { ble (S (S O)) (S (S (S O)))  == True } @-} -- TODO:trivial
-testBle2
-  =   ble (S (S O)) (S (S (S O)))
-  ==. ble (S O) (S (S O))
-  ==. ble O (S O)
-  *** QED
+testBle2 = trivial
+
+  -- =   ble (S (S O)) (S (S (S O)))
+  -- ==. ble (S O) (S (S O))
+  -- ==. ble O (S O)
+  -- *** QED
 
 {-@ testBle3 :: { ble  (S (S (S O))) (S (S O)) == False } @-} -- TODO:trivial
-testBle3
-  =   ble (S (S (S O))) (S (S O))
-  ==. ble (S (S O)) (S O)
-  ==. ble (S O) O
-  *** QED
+testBle3 = trivial
+  -- =   ble (S (S (S O))) (S (S O))
+  -- ==. ble (S (S O)) (S O)
+  -- ==. ble (S O) O
+  -- *** QED
 
 -- | Exercise blt --------------------------------------------------------------
 
@@ -271,25 +272,28 @@ blt (S m) O     = False
 blt (S m) (S n) = blt m n
 
 {-@ testBlt1 :: { blt (S (S O)) (S (S O))  == False } @-} -- TODO:trivial
-testBlt1
-  =   blt (S (S O)) (S (S O))
-  ==. blt ((S O)) ((S O))
-  ==. blt O O
-  *** QED
+testBlt1 = trivial
+
+  -- =   blt (S (S O)) (S (S O))
+  -- ==. blt ((S O)) ((S O))
+  -- ==. blt O O
+  -- *** QED
 
 {-@ testBlt2 :: { ble (S (S O)) (S (S (S O)))  == True } @-} -- TODO:trivial
-testBlt2
-  =   ble (S (S O)) (S (S (S O)))
-  ==. ble (S O) (S (S O))
-  ==. ble O (S O)
-  *** QED
+testBlt2 = trivial
+
+  -- =   ble (S (S O)) (S (S (S O)))
+  -- ==. ble (S O) (S (S O))
+  -- ==. ble O (S O)
+  -- *** QED
 
 {-@ testBlt3 :: { ble  (S (S (S O))) (S (S O)) == False } @-} -- TODO:trivial
-testBlt3
-  =   ble (S (S (S O))) (S (S O))
-  ==. ble (S (S O)) (S O)
-  ==. ble (S O) O
-  *** QED
+testBlt3 = trivial
+
+  -- =   ble (S (S (S O))) (S (S O))
+  -- ==. ble (S (S O)) (S O)
+  -- ==. ble (S O) O
+  -- *** QED
 
 -- | Proof by Simplification ---------------------------------------------------
 
