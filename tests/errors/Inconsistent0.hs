@@ -23,8 +23,8 @@ data AstF f = Lit Int    AstIndex
 
 {-@
   data AstF f <ix :: AstIndex -> Bool>
-    = Lit Int    (i :: AstIndex<ix>)
-    | Var String (i :: AstIndex<ix>)
+    = Lit {l1 :: Int, i :: AstIndex<ix>}
+    | Var {v1 :: String, i :: AstIndex<ix>}
     | App (fn :: f) (arg :: f)
     | Paren (ast :: f)
   @-}

@@ -27,6 +27,14 @@ module Language.Haskell.Liquid.ProofCombinators (
   , Arg
 
   , (=*=.)
+
+  -- Conjunction
+  , PAnd (..)
+
+
+  -- Disjunction
+  , POr (..)
+
   ) where
 
 
@@ -256,3 +264,8 @@ class Arg a where
 {-@ assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
 (=*=.) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
 (=*=.) f _ _ = f
+
+
+
+data POr  a b = POrLeft a | POrRight b 
+data PAnd a b = PAnd a b 

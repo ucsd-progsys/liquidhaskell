@@ -288,7 +288,7 @@ ppEnvCurrent :: PPEnv
 ppEnvCurrent    = PP False False False False
 
 _ppEnvPrintPreds :: PPEnv
-_ppEnvPrintPreds = PP False False False False
+_ppEnvPrintPreds = PP True False False False
 
 ppEnvShort :: PPEnv -> PPEnv
 ppEnvShort pp   = pp { ppShort = True }
