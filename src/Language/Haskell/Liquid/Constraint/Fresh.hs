@@ -323,7 +323,7 @@ addKVars !k !t  = do
 
 isKut :: Config -> KVKind -> Bool
 isKut _  (RecBindE _) = True
-isKut cfg ProjectE    = not (higherOrderFlag cfg) 
+isKut cfg ProjectE    = not (higherOrderFlag cfg) -- see ISSUE 1034, tests/pos/T1034.hs
 isKut _    _          = False
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
