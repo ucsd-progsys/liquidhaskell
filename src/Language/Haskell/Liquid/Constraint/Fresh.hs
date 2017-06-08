@@ -28,7 +28,7 @@ import qualified Data.List                      as L
 import qualified Data.HashMap.Strict            as M
 import qualified Data.HashSet                   as S
 import           Data.Hashable
-import           Control.Monad.State            (get, put, modify)
+import           Control.Monad.State            (gets, get, put, modify)
 import           Control.Monad                  (when, (>=>))
 import           Prelude                        hiding (error)
 
@@ -314,15 +314,17 @@ freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
-                     when (isKut k) $ addKuts k t
+addKVars !k !t  = do
+    cfg <- getConfig  <$> gets ghcI
+    when (True)        $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+    when (isKut cfg k) $ addKuts k t
   where
-     ks         = F.KS $ S.fromList $ specTypeKVars t
+    ks         = F.KS $ S.fromList $ specTypeKVars t
 
-isKut              :: KVKind -> Bool
-isKut (RecBindE _) = True
-isKut ProjectE     = True
-isKut _            = False
+isKut :: Config -> KVKind -> Bool
+isKut _  (RecBindE _) = True
+isKut cfg ProjectE    = not (higherOrderFlag cfg) 
+isKut _    _          = False
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }

@@ -35,7 +35,7 @@ qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 qualifiers info lEnv
   =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
-  ++ condNull (tracepp "USE-ALS-QUALS" $ useAlsQuals info) (alsQualifiers  info lEnv)
+  ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -74,8 +74,7 @@ alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 alsQualifiers info lEnv
   = [ q | a <- specAliases info
         , q <- refTypeQuals lEnv (rtPos a) tce (rtBody a)
-        , length (qParams q) <= k + 1
-        , validQual lEnv q
+        , length (qParams q) <= k + 1 && validQual lEnv q
     ]
     where
       k   = maxQualParams info
@@ -162,16 +161,17 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     scrape                    = refTopQuals lEnv l tce t0
     add x t γ                 = insertSEnv x (rTypeSort tce t) γ
     goBind x t γ t'           = go (add x t γ) t'
-    go γ t@(RVar _ _)         = scrape γ t
-    go γ (RAllT _ t)          = go γ t
-    go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
-    go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ scrape γ t
-    go γ (RFun x t t' _)      = go γ t ++ goBind x t γ t'
-    go γ t@(RApp c ts rs _)   = scrape γ t ++ concatMap (go γ') ts ++ goRefs c γ' rs
-                                where γ' = add (rTypeValueVar t) t γ
-    go γ (RAllE x t t')       = go γ t ++ goBind x t γ t'
-    go γ (REx x t t')         = go γ t ++ goBind x t γ t'
-    go _ _                    = []
+    go  γ t                   = scrape γ t ++ go' γ t
+    go' _γ _t@(RVar _ _)      = [] -- scrape γ t
+    go' γ (RAllT _ t)         = go γ t
+    go' γ (RAllP p t)         = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
+    go' γ (RAppTy t1 t2 _)    = go γ t1 ++ go γ t2
+    go' γ (RFun x t t' _)     = go γ t ++ goBind x t γ t'
+    go' γ t@(RApp c ts rs _)  = concatMap (go γ') ts ++ goRefs c γ' rs
+                                  where γ' = add (rTypeValueVar t) t γ
+    go' γ (RAllE x t t')      = go γ t ++ goBind x t γ t'
+    go' γ (REx x t t')        = go γ t ++ goBind x t γ t'
+    go' _ _                   = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
     goRef _ (RProp _ (RHole _)) _ = []
     goRef g (RProp s t)  _    = go (insertsSEnv g s) t
