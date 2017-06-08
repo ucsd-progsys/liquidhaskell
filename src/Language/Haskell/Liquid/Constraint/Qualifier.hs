@@ -35,7 +35,7 @@ qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 qualifiers info lEnv
   =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
-  ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
+  ++ condNull (tracepp "USE-ALS-QUALS" $ useAlsQuals info) (alsQualifiers  info lEnv)
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
