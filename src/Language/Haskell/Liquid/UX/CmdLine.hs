@@ -436,8 +436,18 @@ envCfg = do
 copyright :: String
 copyright = "LiquidHaskell Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
 
--- [NOTE:searchpath]
--- 1. not convinced we should add the file's directory to the search path
+-- NOTE [searchpath]
+-- 1. we used to add the directory containing the file to the searchpath,
+--    but this is bad because GHC does NOT do this, and it causes spurious
+--    "duplicate module" errors in the following scenario
+--      > tree
+--      .
+--      ├── Bar.hs
+--      └── Foo
+--          ├── Bar.hs
+--          └── Goo.hs
+--    If we run `liquid Foo/Goo.hs` and that imports Bar, GHC will not know
+--    whether we mean to import Bar.hs or Foo/Bar.hs
 -- 2. tests fail if you flip order of idirs'
 
 mkOpts :: Config -> IO Config
@@ -445,8 +455,8 @@ mkOpts cfg = do
   let files' = sortNub $ files cfg
   id0       <- getIncludeDir
   return     $ cfg { files       = files'
-                   , idirs       = (dropFileName <$> files')    -- [NOTE:searchpath]
-                                ++ [id0 </> gHC_VERSION, id0]
+                                   -- See NOTE [searchpath]
+                   , idirs       = [id0 </> gHC_VERSION, id0]
                                 ++ idirs cfg
                    }
 
