@@ -1,7 +1,6 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
-{-@ LIQUID "--proof-method=arithmetic" @-}
 
 
 module Fibonacci where
@@ -17,15 +16,35 @@ import Language.Haskell.Liquid.ProofCombinators
 -- | (each time the function fib is applied,
 -- | there is an unfold in the logic)
 
-{-@ fib :: n:Nat -> Nat @-}
-
 {-@ reflect fib @-}
 
-fib :: Int -> Int
-fib n
-  | n == 0    = 0
-  | n == 1    = 1
-  | otherwise = fib (n-1) + fib (n-2)
+fib :: Int -> Int 
+{-@ fib :: i:Nat -> Nat @-}
+fib i | i == 0    = 0 
+      | i == 1    = 1 
+      | otherwise = fib (i-1) + fib (i-2)
+
+-- 0, 1, 2, 3, 4, 5, 6, 7,   8,  9, 10, 11,  12, 13,   14,  15, 16
+-- 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987
+
+{-@ fib1 :: () -> {fib 16 == 987 } @-}
+fib1 :: () -> Proof 
+fib1 _ = trivial 
+
+
+{-
+FStar failing 
+
+val fib: x:int{x>=0} -> Tot int
+let rec fib n = 
+  if n = 0 then 0 
+  else if n = 1 then 1 else fib (n-1) + fib (n-2)
+  
+  
+val prop: x:int -> Tot (v:int {fib 15 = 610})
+let prop x =  0
+
+-}
 
 -- | How to encode proofs:
 -- | ==., <=., and <. stand for the logical ==, <=, < resp.
@@ -34,25 +53,74 @@ fib n
 -- | Note, no inference occurs: logic only reasons about
 -- | linear arithmetic and equalities
 
-lemma_fib :: Int -> Proof
-{-@ lemma_fib :: x:{Nat | 1 < x } -> { 0 < fib x } @-}
-lemma_fib x
-  | x == 2
-  = ((fib 1)*** QED)
-  | 2 < x
-  = lemma_fib (x-1) &&& ((fib x, fib (x-1), fib (x-2)) *** QED)
 
-
-{-@ fib_increasing :: x:Nat -> y:{Nat | x < y} -> { fib x <= fib y } / [x, y] @-}
-fib_increasing :: Int -> Int -> Proof
-fib_increasing x y
-  | x == 0, y == 1
-  = trivial
-  | x == 0
-  = lemma_fib y
-  | x == 1, y == 2
-  = trivial
-  | x == 1, 2 < y
-  = fib_increasing 1 (y-1)
+fibUp :: Int -> Proof 
+{-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}
+fibUp i
+  | i == 0
+  =   trivial 
+  *** QED
+  | i == 1
+  =   fib 2 *** QED 
+  *** QED
   | otherwise
-  = fib_increasing (x-2) (y-2) &&& fib_increasing (x-1) (y-1)
+  =   fibUp (i-1)
+  &&& fibUp (i-2)
+{-
+Explicit Proof 
+fibMonotonic x y 
+  | y == x + 1 
+  =   fib x 
+  <=. fib (x+1) ? fibUp x 
+  <=. fib y 
+  *** QED  
+  | x < y - 1 
+  =   fib x 
+  <=. fib (y-1) ? fibMonotonic x (y-1)
+  <=. fib y     ? fibUp (y-1) 
+  *** QED   
+
+FStar Proof 
+
+val fibUp :i:int{0 <= i} -> Tot (v:int {fib i <= fib (i+1)})
+let rec fibUp i = 
+    if i=0 then 0 else 
+    if i=1 then 1 else (fibUp (i-1) + fibUp (i-2))
+-}
+
+
+fibMonotonic :: Int -> Int -> Proof 
+{-@ fibMonotonic :: x:Nat -> y:{Nat | x < y }  
+     -> {fib x <= fib y}  / [y] @-}
+fibMonotonic x y 
+  | y == x + 1 
+  =   fibUp x 
+  | x < y - 1 
+  =   fibMonotonic x (y-1)
+  &&& fibUp (y-1) 
+
+
+fMono :: (Int -> Int)
+      -> (Int -> Proof)
+      -> Int -> Int -> Proof 
+{-@ fMono :: f:(Nat -> Int)
+          -> fUp:(z:Nat -> {f z <= f (z+1)})
+          -> x:Nat
+          -> y:{Nat|x < y}
+          -> {f x <= f y} / [y] @-}
+fMono f fUp x y  
+  | x + 1 == y
+  = fUp x
+  | x + 1 < y
+  =   fMono f fUp x (y-1)
+  &&& fUp (y-1)
+
+
+fibMonoHO :: Int -> Int -> Proof 
+{-@ fibMonoHO :: n:Nat -> m:{Nat | n < m }  -> {fib n <= fib m} @-}
+fibMonoHO     = fMono fib fibUp
+
+-- forall n:Nat. exists m: (n<m => exists m'. fib n <== m') 
+fibEx :: Int -> (Int, Proof) -> (Int, Proof)
+{-@ fibEx :: n:Nat -> (m::Int, {v:Proof | n < m}) -> (m'::Int, {v:Proof | fib n <= m' }) @-}
+fibEx n (m, pf) = (fib m, fibMonoHO n m)
