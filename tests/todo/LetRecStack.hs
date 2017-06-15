@@ -21,6 +21,9 @@
 
 module Foo (foo) where
 
+die :: String -> a
+die = error
+
 --data Peano a = Z a | S (Peano a) | P (Peano a)
 data Peano = Z | S (Peano ) | P (Peano)
 
@@ -33,7 +36,7 @@ foo =
   let baz p = case p of
                 Z   -> t0
                 S p -> t1 + baz p
-                P p -> error ms
+                P p -> die ms
               where
                 ms = "yikes"
   in

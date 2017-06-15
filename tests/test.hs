@@ -325,7 +325,7 @@ testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
 esopIgnored = [ "Base0.hs"
-              , "Base.hs"                  -- REFLECT-IMPORTS: TODO BLOWUP
+              -- , "Base.hs"                  -- REFLECT-IMPORTS: TODO BLOWUP
               ]
 
 icfpIgnored :: [FilePath]
