@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction  -}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
