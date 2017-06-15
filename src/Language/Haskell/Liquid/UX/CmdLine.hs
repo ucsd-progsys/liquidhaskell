@@ -50,8 +50,7 @@ import System.Console.CmdArgs.Text
 import Data.List                           (nub)
 
 
-import System.FilePath                     (dropFileName, isAbsolute,
-                                            takeDirectory, (</>))
+import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
 -- a   hiding (Config, linear, elimBound, elimStats,
