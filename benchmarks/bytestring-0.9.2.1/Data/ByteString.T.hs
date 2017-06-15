@@ -295,7 +295,7 @@ import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
 import Language.Haskell.Liquid.Foreign 
 
-{-@ include <ByteString.hs.hquals> @-}
+{-@ include <Data/ByteString.hs.hquals> @-}
 
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
