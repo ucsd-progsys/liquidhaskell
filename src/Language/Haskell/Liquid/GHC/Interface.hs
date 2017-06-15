@@ -167,7 +167,7 @@ configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
   moduleGraph     <- depanal [] False
-  let homeModules  = flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
+  let homeModules  = flattenSCCs $ topSortModuleGraph True moduleGraph Nothing
   _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
   return homeModules
 
