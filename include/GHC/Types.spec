@@ -20,5 +20,12 @@ GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> ((v)))}
 
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
+embed GHC.Types.Int      as int
+embed GHC.Types.Bool     as bool
 
-
+measure autolen :: forall a. a -> GHC.Types.Int
+class measure len :: forall f a. f a -> GHC.Types.Int
+instance measure len :: forall a. [a] -> GHC.Types.Int
+len []     = 0
+len (y:ys) = 1 + len ys
+invariant {v: [a] | len v >= 0 }

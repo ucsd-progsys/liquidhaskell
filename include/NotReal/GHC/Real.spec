@@ -1,8 +1,8 @@
-module spec Prelude where
+module spec GHC.Real where
 
 import GHC.Num
-assume GHC.Num.* :: (GHC.Num.Num a) => x:a -> y:a 
-                 -> {v:a | ((((((x = 0) || (y = 0)) => (v = 0))) 
+assume GHC.Num.* :: (GHC.Num.Num a) => x:a -> y:a
+                 -> {v:a | ((((((x = 0) || (y = 0)) => (v = 0)))
                          && (((x > 0) && (y > 0)) => ((v >= x) && (v >= y))))
                          && (((x > 1) && (y > 1)) => ((v > x) && (v > y))))
                     }

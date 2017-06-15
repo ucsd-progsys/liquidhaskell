@@ -87,7 +87,6 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
-import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
@@ -143,8 +142,10 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 , ghcLink      = LinkInMemory
-                 , hscTarget    = HscInterpreted
+                 -- , ghcLink      = LinkInMemory
+                 -- , hscTarget    = HscInterpreted
+                 , ghcLink      = NoLink
+                 , hscTarget    = HscNothing
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -308,7 +309,7 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  -- _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
+  _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
@@ -404,6 +405,7 @@ toGhcSpec :: GhcMonad m
 toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
+  liftIO $ putStrLn $ showPpr impCxt
   _            <- setContext (tgtCxt : impCxt)
   hsc          <- getSession
   let impNames  = map (getModString . fst) impSpecs
@@ -492,37 +494,19 @@ findAndParseSpecFiles :: Config
                       -> ModSummary
                       -> [Module]
                       -> Ghc [(ModName, Ms.BareSpec)]
-findAndParseSpecFiles cfg paths modSummary reachable = do
+findAndParseSpecFiles _cfg paths modSummary reachable = do
   impSumms <- mapM getModSummary (moduleName <$> reachable)
   imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
-  fs'      <- moduleFiles Spec paths imps
+  fs       <- moduleFiles Spec paths imps
   -- liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
   -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
   -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
   -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
-  patSpec  <- getPatSpec paths $ totalityCheck cfg
-  rlSpec   <- getRealSpec paths $ not $ linear cfg
-  let fs    = patSpec ++ rlSpec ++ fs'
   transParseSpecs paths mempty mempty fs
   where
     m2s = moduleNameString . moduleName
-
-getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getPatSpec paths totalitycheck
- | totalitycheck = moduleFiles Spec paths [patErrorName]
- | otherwise     = return []
- where
-  patErrorName   = "PatErr"
-
-getRealSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getRealSpec paths freal
-  | freal     = moduleFiles Spec paths [realSpecName]
-  | otherwise = moduleFiles Spec paths [notRealSpecName]
-  where
-    realSpecName    = "Real"
-    notRealSpecName = "NotReal"
 
 transParseSpecs :: [FilePath]
                 -> S.HashSet FilePath -> [(ModName, Ms.BareSpec)]

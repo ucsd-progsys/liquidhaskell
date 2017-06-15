@@ -456,6 +456,8 @@ mkOpts cfg = do
   return     $ cfg { files       = files'
                                    -- See NOTE [searchpath]
                    , idirs       = [id0 </> gHC_VERSION, id0]
+                                ++ [id0 </> if linear cfg then "NotReal" else "Real"]
+                                ++ if totalityCheck cfg then [id0 </> "Totality"] else []
                                 ++ idirs cfg
                    }
 

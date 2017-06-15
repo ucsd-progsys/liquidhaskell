@@ -1,4 +1,4 @@
-module spec Prelude where
+module spec Control.Exception.Base where
 
 assume Control.Exception.Base.patError :: {v:GHC.Prim.Addr# | false } -> a
 assume Control.Exception.Base.irrefutPatError :: {v:GHC.Prim.Addr# | false} -> a
