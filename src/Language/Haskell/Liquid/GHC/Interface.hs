@@ -309,7 +309,7 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
+  -- _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
