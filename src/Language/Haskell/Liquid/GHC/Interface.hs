@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE NoMonomorphismRestriction  -}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -405,7 +405,7 @@ toGhcSpec :: GhcMonad m
 toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
-  liftIO $ putStrLn $ showPpr impCxt
+  -- liftIO $ putStrLn $ showPpr impCxt
   _            <- setContext (tgtCxt : impCxt)
   hsc          <- getSession
   let impNames  = map (getModString . fst) impSpecs
