@@ -142,10 +142,10 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 -- , ghcLink      = LinkInMemory
-                 -- , hscTarget    = HscInterpreted
-                 , ghcLink      = NoLink
-                 , hscTarget    = HscNothing
+                 , ghcLink      = LinkInMemory
+                 , hscTarget    = HscInterpreted
+                 -- , ghcLink      = NoLink
+                 -- , hscTarget    = HscNothing
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
