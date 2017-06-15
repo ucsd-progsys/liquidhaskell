@@ -167,7 +167,16 @@ configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
   moduleGraph     <- depanal [] False
-  let homeModules  = flattenSCCs $ topSortModuleGraph True moduleGraph Nothing
+                     -- NOTE: drop hs-boot files from the graph.
+                     -- we do it manually rather than using the flag to topSortModuleGraph
+                     -- because otherwise the order of mutually recursive modules depends
+                     -- on the modulename, e.g. given
+                     --   Bar.hs --> Foo.hs --> Bar.hs-boot
+                     -- we'll get
+                     --   [Bar.hs, Foo.hs]
+                     -- wich is backwards..
+  let homeModules  = filter (not . isBootSummary) $
+                     flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
   return homeModules
 
