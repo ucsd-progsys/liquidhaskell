@@ -28,6 +28,8 @@ fib n
 -- | Note, no inference occurs: logic only reasons about
 -- | linear arithmetic and equalities
 
+-- DSL paper in DOS contracts for domain specific languages in Ruby 
+
 lemma_fib :: Int -> Proof
 {-@ lemma_fib :: x:{Nat | 1 < x } -> {v:Proof | 0 < fib x } @-}
 lemma_fib x

@@ -24,12 +24,28 @@ fib i | i == 0    = 0
       | i == 1    = 1 
       | otherwise = fib (i-1) + fib (i-2)
 
--- 0, 1, 2, 3, 4, 5, 6, 7,   8,  9, 10, 11,  12, 13,   14,  15, 16
--- 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987
-
 {-@ fib1 :: () -> {fib 16 == 987 } @-}
 fib1 :: () -> Proof 
 fib1 _ = trivial 
+
+
+fibUp :: Int -> Proof 
+{-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}
+fibUp i
+  | i == 0
+  =   [fib 0, fib 1] *** QED  
+  | i == 1
+  =  [fib 1, fib 0, fib 2] *** QED  
+  | otherwise
+  = [[fib (i+1), fib i] *** QED , fibUp (i-1), fibUp (i-2)] *** QED 
+{- 
+  | otherwise
+  =   fibUp (i-1)
+  &&& fibUp (i-2)
+-}
+
+-- 0, 1, 2, 3, 4, 5, 6, 7,   8,  9, 10, 11,  12, 13,   14,  15, 16
+-- 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987
 
 
 {-
@@ -53,19 +69,18 @@ let prop x =  0
 -- | Note, no inference occurs: logic only reasons about
 -- | linear arithmetic and equalities
 
-
+{- 
 fibUp :: Int -> Proof 
 {-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}
 fibUp i
   | i == 0
   =   trivial 
-  *** QED
   | i == 1
-  =   fib 2 *** QED 
-  *** QED
+  =  trivial --  fib 2 *** QED 
   | otherwise
   =   fibUp (i-1)
   &&& fibUp (i-2)
+-}
 {-
 Explicit Proof 
 fibMonotonic x y 
@@ -122,5 +137,6 @@ fibMonoHO     = fMono fib fibUp
 
 -- forall n:Nat. exists m: (n<m => exists m'. fib n <== m') 
 fibEx :: Int -> (Int, Proof) -> (Int, Proof)
-{-@ fibEx :: n:Nat -> (m::Int, {v:Proof | n < m}) -> (m'::Int, {v:Proof | fib n <= m' }) @-}
+{-@ fibEx :: n:Nat -> (m::Int, {v:Proof | n < m}) 
+         -> (m'::Int, {v:Proof | fib n <= m' }) @-}
 fibEx n (m, pf) = (fib m, fibMonoHO n m)
