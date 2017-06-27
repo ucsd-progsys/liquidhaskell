@@ -1052,7 +1052,7 @@ data AxiomEq = AxiomEq
   , axiomArgs :: [Symbol]
   , axiomBody :: Expr
   , axiomEq   :: Expr
-  } deriving (Generic)
+  } deriving (Generic, Show)
 
 instance B.Binary AxiomEq
 
