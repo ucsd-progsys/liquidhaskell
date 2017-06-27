@@ -36,6 +36,9 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , include/710/Data/*.spec
+          , include/NotReal/GHC/*.spec
+          , include/Real/GHC/*.spec
+          , include/Totality/Control/Exception/*.spec
           , syntax/liquid.css
 
 extra-source-files: CHANGES.md
