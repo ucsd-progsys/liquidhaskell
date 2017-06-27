@@ -44,6 +44,7 @@ import IdInfo
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
+import OccName (occNameString)
 import Serialized
 import TcRnTypes
 import Var
@@ -142,10 +143,10 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 , ghcLink      = LinkInMemory
-                 , hscTarget    = HscInterpreted
-                 -- , ghcLink      = NoLink
-                 -- , hscTarget    = HscNothing
+                 -- , ghcLink      = LinkInMemory
+                 -- , hscTarget    = HscInterpreted
+                 , ghcLink      = NoLink
+                 , hscTarget    = HscNothing
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -320,12 +321,26 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec cfg file -- modName
-  let bareSpec         = commSpec `mappend` liftedSpec
+  let bareSpec'        = commSpec `mappend` liftedSpec
+  let exports          = map (symbol.occNameString.getOccName)
+                       $ modInfoExports $ tm_checked_module_info typechecked
+  -- liftIO $ putStrLn $ showpp exports
+  let bareSpec
+        | isTarget     = bareSpec'
+        | otherwise    = dropLocalSpecs exports bareSpec'
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
                      then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
                      else return Nothing
+
+dropLocalSpecs :: [Symbol] -> Ms.Spec t bndr -> Ms.Spec t bndr
+dropLocalSpecs exps spec = spec
+  { Ms.asmSigs   = filter (\(s, _t) -> val s `elem` exps) (Ms.asmSigs spec)
+  , Ms.sigs      = filter (\(s, _t) -> val s `elem` exps) (Ms.sigs spec)
+  , Ms.localSigs = filter (\(s, _t) -> val s `elem` exps) (Ms.localSigs spec)
+  , Ms.reflSigs  = filter (\(s, _t) -> val s `elem` exps) (Ms.reflSigs spec)
+  }
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
