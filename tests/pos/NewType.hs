@@ -1,3 +1,5 @@
+module NewType where
+
 newtype Foo a = Bar Int  
 
 

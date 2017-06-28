@@ -1,6 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--maxparams=5"     @-}
+module LogicCurry1 where
 
 
 {-@ measure ackF :: Int -> Int -> Int  @-}

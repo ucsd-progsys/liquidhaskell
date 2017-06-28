@@ -1,3 +1,5 @@
+module T675 where
+
 import Data.ByteString
 import Data.ByteString.Unsafe
 

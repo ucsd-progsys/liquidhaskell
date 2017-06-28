@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+module T598 where
 
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData(..))
