@@ -28,7 +28,7 @@ import           Language.Haskell.Liquid.UX.Config ( allowLiquidInstationationGl
                                                    , allowRewrite
                                                    , allowArithmetic
                                                    )
-import           Language.Haskell.Liquid.GHC.Misc  (dropModuleNames, simplesymbol)
+import           Language.Haskell.Liquid.GHC.Misc  (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import           Data.Maybe                        (fromMaybe)
@@ -139,7 +139,7 @@ makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x x
   where
     equationBody x xs e       = F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x sigs)]
     makeEqBody x xs e         = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
-    lookupSpecType x xts      = L.lookup x ((mapFst (dropModuleNames . simplesymbol)) <$> xts)
+    lookupSpecType x xts      = L.lookup x (mapFst simplesymbol <$> xts)
     makeRefBody _ _  Nothing  = F.PTrue
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
     sigs                      = gsTySigs sp
