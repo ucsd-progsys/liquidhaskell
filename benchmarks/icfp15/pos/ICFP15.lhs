@@ -15,7 +15,7 @@ Function Composition: Bringing Everything into Scope!
 
 \begin{code}
 {-@
-(.) :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
+(.) :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>.
        {x::a, w::b<q x> |- c<p w> <: c<r x>}
        (y:b -> c<p y>)
     -> (z:a -> b<q z>)
@@ -108,9 +108,9 @@ filter _ []   = []
 
 
 {-@ measure isPrime :: Int -> Bool @-}
-isPrime :: Int -> Bool
-{-@ isPrime :: n:Int -> {v:Bool | v <=> isPrime n} @-}
-isPrime = undefined
+isPrimeP :: Int -> Bool
+{-@ isPrimeP :: n:Int -> {v:Bool | v <=> isPrime n} @-}
+isPrimeP = undefined
 
 -- | `positives` works by instantiating:
 -- p := \v   -> isPrime v
@@ -118,7 +118,7 @@ isPrime = undefined
 
 
 {-@ primes :: [Int] -> [{v:Int | isPrime v}] @-}
-primes     = filter isPrime
+primes     = filter isPrimeP
 \end{code}
 
 

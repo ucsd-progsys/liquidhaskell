@@ -1064,7 +1064,7 @@ replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
     | n == 1                = t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | otherwise             = let len = mul l n --LIQUID SPECIALIZE l * n
+    | otherwise             = let len = mulF l n --LIQUID SPECIALIZE l * n
                                   x = do arr <- A.new len
                                          {- LIQUID WITNESS -}
                                          let loop (d :: Int) !d' !i
@@ -1091,9 +1091,9 @@ replicate n t@(Text a o l)
 {- qualif Mul(v:int, x:int, y:int): v = (mul x y) @-}
 {-@ invariant {v:Int | (mul v 0) = 0} @-}
 
-{-@ mul :: x:Nat -> y:Nat -> {v:Nat | ((((x > 1) && (y > 1)) => ((v > x) && (v > y))) && (v = (mul x y)))} @-}
-mul :: Int -> Int -> Int
-mul = P.undefined
+{-@ mulF :: x:Nat -> y:Nat -> {v:Nat | ((((x > 1) && (y > 1)) => ((v > x) && (v > y))) && (v = (mul x y)))} @-}
+mulF :: Int -> Int -> Int
+mulF = P.undefined
 
 {-@ axiom_mul :: i:Nat -> n:Nat -> l:Nat -> len0:Nat -> d0:Nat
     -> {v:Bool | (v <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
@@ -1941,4 +1941,8 @@ emptyError :: String -> a
 emptyError fun = liquidError $ "Data.Text." ++ fun ++ ": empty input"
 
 overflowError :: String -> a
-overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"
+overflowError fun = error $ "Data.Text." ++ fun ++ ": size overflow"
+
+{-@ lazy error @-}
+error :: String -> a
+error s = error s

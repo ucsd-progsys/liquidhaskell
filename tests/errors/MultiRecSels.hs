@@ -1,10 +1,10 @@
 {-@ LIQUID "--no-termination" @-}
 module RedBlack  where
 
-data RBTree a = Leaf 
+data RBTree a = Leaf
               | Node Color a !(RBTree a) !(RBTree a)
 
-data Color = B | R 
+data Color = B | R
 
 {-@ ok :: { v: RBTree Int | false} @-}
 ok = Node R (2 :: Int)

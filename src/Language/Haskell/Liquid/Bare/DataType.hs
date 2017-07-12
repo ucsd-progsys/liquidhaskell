@@ -23,16 +23,17 @@ import           Class
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
+import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                (mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
-import           Language.Haskell.Liquid.GHC.Misc       (sourcePos2SrcSpan, symbolTyVar)
+import           Language.Fixpoint.Types                ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Fixpoint.Misc                 (mapSnd)
+import           Language.Fixpoint.Misc                 (groupList, mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
@@ -65,9 +66,9 @@ instanceTyCon = go . is_tys
     go [TyConApp c _] = Just c
     go _              = Nothing
 
------------------------------------------------------------------------
--- Bare Predicate: DataCon Definitions --------------------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Bare Predicate: DataCon Definitions ---------------------------------------
+--------------------------------------------------------------------------------
 
 makeConTypes
   :: (ModName,Ms.Spec ty bndr)
@@ -83,8 +84,8 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
           | tycName d == fst v = (Just d, Just v)  : merge ds vs
           | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
           | otherwise          = (Nothing, Just v) : merge (d:ds) vs
-        merge []     vs  = ((Nothing,) . Just) <$> vs
-        merge ds     []  = ((,Nothing) . Just) <$> ds
+        merge []     vs        = ((Nothing,) . Just) <$> vs
+        merge ds     []        = ((,Nothing) . Just) <$> ds
 
 dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
@@ -93,7 +94,7 @@ dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
     tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
-    sspan z      = sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
@@ -104,14 +105,23 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
 
+checkDataDeclFields ::  (LocSymbol, [(Symbol, BareType)]) -> BareM (LocSymbol, [(Symbol, BareType)])
+checkDataDeclFields (lc, xts)
+  | x : _ <- dups = Ex.throw (err lc x :: UserError)
+  | otherwise     = return (lc, xts)
+    where
+      dups        = [ x | (x, ts) <- groupList xts, 2 <= length ts ]
+
+      err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
-ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
+ofBDataDecl (Just (D tc as ps ls cts0 _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon "ofBDataDecl" tc
+       cts        <- mapM checkDataDeclFields cts0
        cts'       <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
@@ -120,7 +130,7 @@ ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
        let (tvarinfo, pvarinfo) = f defaultPs
        return ((tc', TyConP lc αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc lc') <$> cts'))
     where
-       αs          = RTV . symbolTyVar <$> as
+       αs          = RTV . GM.symbolTyVar <$> as
        n           = length αs
        lc          = loc  tc
        lc'         = locE tc

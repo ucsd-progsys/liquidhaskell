@@ -2,6 +2,13 @@ module Map () where
 
 import Language.Haskell.Liquid.Prelude
 
+import Prelude hiding (error)
+
+{-@ lazy error @-}
+{-@ error :: a -> b @-}
+error :: a -> b
+error x = error x
+
 
 {-@
     data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>

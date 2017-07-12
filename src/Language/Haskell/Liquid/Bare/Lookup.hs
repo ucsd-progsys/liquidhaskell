@@ -32,7 +32,6 @@ import           IfaceEnv
 import           Var hiding (varName)
 import           TysPrim
 import RdrName
-
 -- import PrelNames (ioTyConKey)
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
@@ -44,7 +43,7 @@ import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, le
 import           Language.Fixpoint.Types          (Symbol, Symbolic(..))
 import           Language.Fixpoint.Misc           as F
 import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
-import           Language.Haskell.Liquid.Misc     (firstMaybes)
+import           Language.Haskell.Liquid.Misc     (nubHashOn)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -73,13 +72,13 @@ instance GhcLookup FieldLabel where
 instance Symbolic FieldLabel where
   symbol = symbol . flSelector
 
-lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
+lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
 lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
     msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
 
-lookupGhcThing' :: (GhcLookup a) => TError e -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM (Maybe b)
+lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM (Maybe b)
 lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
@@ -87,7 +86,11 @@ lookupGhcThing' _err f ns x = do
   ns     <- liftIO $ lookupName env (modName be) ns x
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
-  return  $ firstMaybes mts
+  case nubHashOn showpp $ catMaybes mts of
+    []  -> return Nothing
+    [z] -> return (Just z)
+    zs  -> uError $ ErrDupNames (srcSpan x) (pprint (symbol x)) (pprint <$> zs)
+
 
 symbolicString :: Symbolic a => a -> String
 symbolicString = symbolString . symbol

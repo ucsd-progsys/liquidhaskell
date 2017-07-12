@@ -208,10 +208,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
-  | ErrTermSpec { pos :: !SrcSpan
-                , var :: !Doc
-                , exp :: !Expr
-                , msg :: !Doc
+  | ErrTermSpec { pos  :: !SrcSpan
+                , var  :: !Doc
+                , msg  :: !Doc
+                , exp  :: !Expr
+                , msg' :: !Doc
                 } -- ^ sort error in specification
 
   | ErrDupAlias { pos  :: !SrcSpan
@@ -225,12 +226,26 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
-  | ErrDupMeas  { pos :: !SrcSpan
-                , var :: !Doc
+  | ErrDupIMeas { pos   :: !SrcSpan
+                , var   :: !Doc
                 , tycon :: !Doc
-                , locs:: ![SrcSpan]
+                , locs  :: ![SrcSpan]
+                } -- ^ multiple definitions of the same instance measure
+
+  | ErrDupMeas  { pos   :: !SrcSpan
+                , var   :: !Doc
+                , locs  :: ![SrcSpan]
                 } -- ^ multiple definitions of the same measure
 
+  | ErrDupField { pos   :: !SrcSpan
+                , dcon  :: !Doc
+                , field :: !Doc
+                } -- ^ duplicate fields in same datacon
+
+  | ErrDupNames { pos   :: !SrcSpan
+                , var   :: !Doc
+                , names :: ![Doc]
+                } -- ^ name resolves to multiple possible GHC vars
 
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
@@ -272,12 +287,17 @@ data TError t =
                 , var :: !Doc
                 } -- ^ Unbound symbol in specification
 
+  | ErrUnbPred  { pos :: !SrcSpan
+                , var :: !Doc
+                } -- ^ Unbound predicate being applied
+
   | ErrGhc      { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
   | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
                 , var   :: !Doc
+                , msg   :: !Doc
                 , hs    :: !Doc
                 , lqTy  :: !Doc
                 , lqPos :: !SrcSpan -- ^ lq type location
@@ -616,33 +636,38 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
         $+$ dCtx
         $+$ (nest 4 $ pprint e)
 
-ppError' _ dSp _ (ErrTySpec _ v t s)
-  = dSp <+> text "Bad Type Specification"
-        $+$ (pprint v <+> dcolon <+> pprint t)
-        $+$ (nest 4 $ pprint s)
+ppError' _ dSp dCtx (ErrTySpec _ v t s)
+  = dSp <+> text "Illegal type specification for" <+> ppVar v
+        $+$ dCtx
+        $+$ nest 4 (vcat [ pprint v <+> dcolon <+> pprint t
+                         , pprint s
+                         ])
 
-ppError' _ dSp _ (ErrLiftExp _ v)
-  = dSp <+> text "Cannot lift `" <> pprint v <> "` into refinement logic"
+ppError' _ dSp dCtx (ErrLiftExp _ v)
+  = dSp <+> text "Cannot lift" <+> ppVar v <+> "into refinement logic"
+        $+$ dCtx
         $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
 
-ppError' _ dSp _ (ErrBadData _ v s)
+ppError' _ dSp dCtx (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
+        $+$ dCtx
         $+$ (pprint v <+> dcolon <+> pprint s)
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
-  = dSp <+> "Malformed refined data constructor" <+> pprint d
+  = dSp <+> "Malformed refined data constructor" <+> ppVar d
         $+$ dCtx
         $+$ s
 
 ppError' _ dSp dCtx (ErrBadQual _ n d)
-  = dSp <+> text "Bad Qualifier Specification for" <+> n
+  = dSp <+> text "Illegal qualifier specification for" <+> ppVar n
         $+$ dCtx
-        $+$ (pprint d)
+        $+$ pprint d
 
-ppError' _ dSp _ (ErrTermSpec _ v e s)
-  = dSp <+> text "Bad Termination Specification"
-        $+$ (pprint v <+> dcolon <+> pprint e)
-        $+$ (nest 4 $ pprint s)
+ppError' _ dSp dCtx (ErrTermSpec _ v msg e s)
+  = dSp <+> text "Illegal termination specification for" <+> ppVar v
+        $+$ dCtx
+        $+$ (nest 4 $ ((text "Termination metric" <+> pprint e <+> text "is" <+> msg)
+                        $+$ pprint s))
 
 ppError' _ dSp _ (ErrInvt _ t s)
   = dSp <+> text "Bad Invariant Specification"
@@ -660,28 +685,50 @@ ppError' _ dSp _ (ErrMeas _ t s)
   = dSp <+> text "Bad Measure Specification"
         $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
-ppError' _ dSp _ (ErrHMeas _ t s)
-  = dSp <+> text "Cannot promote Haskell function" <+> pprint t <+> text "to logic"
+ppError' _ dSp dCtx (ErrHMeas _ t s)
+  = dSp <+> text "Cannot lift Haskell function" <+> ppVar t <+> text "to logic"
+        $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp _ (ErrDupSpecs _ v ls)
-  = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
-        $+$ (nest 4 $ vcat $ pprint <$> ls)
+ppError' _ dSp dCtx (ErrDupSpecs _ v ls)
+  = dSp <+> text "Multiple specifications for" <+> ppVar v <+> colon
+        $+$ dCtx
+        $+$ ppSrcSpans ls
 
-ppError' _ dSp _ (ErrDupMeas _ v t ls)
-  = dSp <+> text "Multiple Instance Measures for" <+> pprint v
-        <+> text "and" <+> pprint t
-        <> colon
-        $+$ (nest 4 $ vcat $ pprint <$> ls)
 
-ppError' _ dSp _ (ErrDupAlias _ k v ls)
-  = dSp <+> text "Multiple Declarations! "
-    $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    <+> (nest 4 $ vcat $ pprint <$> ls)
+ppError' _ dSp dCtx (ErrDupIMeas _ v t ls)
+  = dSp <+> text "Multiple instance measures" <+> ppVar v <+> text "for type" <+> ppVar t
+        $+$ dCtx
+        $+$ ppSrcSpans ls
+
+ppError' _ dSp dCtx (ErrDupMeas _ v ls)
+  = dSp <+> text "Multiple measures named" <+> ppVar v
+        $+$ dCtx
+        $+$ ppSrcSpans ls
+
+ppError' _ dSp dCtx (ErrDupField _ dc x)
+  = dSp <+> text "Malformed refined data constructor" <+> dc
+        $+$ dCtx
+        $+$ (nest 4 $ text "Duplicated definitions for field" <+> ppVar x)
+
+ppError' _ dSp dCtx (ErrDupNames _ x ns)
+  = dSp <+> text "Ambiguous specification symbol" <+> ppVar x
+        $+$ dCtx
+        $+$ ppNames ns
+
+ppError' _ dSp dCtx (ErrDupAlias _ k v ls)
+  = dSp <+> text "Multiple definitions of" <+> pprint k <+> ppVar v
+        $+$ dCtx
+        $+$ ppSrcSpans ls
 
 ppError' _ dSp dCtx (ErrUnbound _ x)
   = dSp <+> text "Unbound variable" <+> pprint x
         $+$ dCtx
+
+ppError' _ dSp dCtx (ErrUnbPred _ p)
+  = dSp <+> text "Cannot apply unbound abstract refinement" <+> ppVar p
+        $+$ dCtx
+
 
 ppError' _ dSp dCtx (ErrGhc _ s)
   = dSp <+> text "GHC Error"
@@ -689,17 +736,19 @@ ppError' _ dSp dCtx (ErrGhc _ s)
         $+$ (nest 4 $ pprint s)
 
 ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
-  = dSp <+> text "Malformed Predicate Application"
+  = dSp <+> text "Malformed predicate application"
         $+$ dCtx
-        $+$ (nest 4 $ vcat [ "The" <+> text (intToString i) <+> "argument of" <+> c <+> "is predicate" <+> p
-                           , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
-                           , "Abstract predicates cannot be partially applied, see "
-                           , nest 2 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
-                           , "for possible fix."
-                           ])
+        $+$ (nest 4 $ vcat
+                        [ "The" <+> text (intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppVar p
+                        , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
+                        , " "
+                        , "Abstract predicates cannot be partially applied; for a possible fix see:"
+                        , " "
+                        , nest 4 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
+                        ])
 
-ppError' _ dSp dCtx (ErrMismatch _ x τ t hsSp)
-  = dSp <+> "Specified Type Does Not Refine Haskell Type for" <+> pprint x
+ppError' _ dSp dCtx (ErrMismatch _ x msg τ t hsSp)
+  = dSp <+> "Specified type does not refine Haskell type for" <+> ppVar x <+> parens msg
         $+$ dCtx
         $+$ (sepVcat blankLine
               [ "The Liquid type"
@@ -709,27 +758,26 @@ ppError' _ dSp dCtx (ErrMismatch _ x τ t hsSp)
               , "defined at" <+> pprint hsSp
               ])
 
-ppError' _ dSp _ (ErrAliasCycle _ acycle)
-  = dSp <+> text "Cyclic Alias Definitions"
-        $+$ text "The following alias definitions form a cycle:"
-        $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
+ppError' _ dSp dCtx (ErrAliasCycle _ acycle)
+  = dSp <+> text "Cyclic type alias definition for" <+> ppVar n0
+        $+$ dCtx
+        $+$ (nest 4 $ sepVcat blankLine (hdr : map describe acycle))
   where
-    describe (p, n)
-      =   text "Type alias:" <+> pprint n
-      $+$ text "Defined at:" <+> pprint p
+    hdr             = text "The following alias definitions form a cycle:"
+    describe (p, n) = text "*" <+> ppVar n <+> parens (text "defined at:" <+> pprint p)
+    n0              = snd . head $ acycle
 
 ppError' _ dSp dCtx (ErrIllegalAliasApp _ dn dl)
-  = dSp <+> text "Refinement Type Alias cannot be used in this context"
+  = dSp <+> text "Refinement type alias cannot be used in this context"
         $+$ dCtx
         $+$ text "Type alias:" <+> pprint dn
         $+$ text "Defined at:" <+> pprint dl
 
 ppError' _ dSp dCtx (ErrAliasApp _ name dl s)
-  = dSp <+> text "Malformed Type Alias Application"
+  = dSp <+> text "Malformed application of type alias" <+> ppVar name
         $+$ dCtx
-        $+$ text "Type alias:" <+> pprint name
-        $+$ text "Defined at:" <+> pprint dl
-        $+$ s
+        $+$ (nest 4 $ vcat [ text "The alias" <+> ppVar name <+> "defined at:" <+> pprint dl
+                           , s ] )
 
 ppError' _ dSp dCtx (ErrSaved _ name s)
   = dSp <+> name -- <+> "(saved)"
@@ -737,8 +785,9 @@ ppError' _ dSp dCtx (ErrSaved _ name s)
         $+$ {- nest 4 -} s
 
 ppError' _ dSp dCtx (ErrFilePragma _)
-  = dSp <+> text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
+  = dSp <+> text "Illegal pragma"
         $+$ dCtx
+        $+$ text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."
@@ -761,8 +810,22 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       =   text "Refined instance for:" <+> t
       $+$ text "Defined at:" <+> pprint p
 
-ppError' _ dSp _ (ErrTyCon _ msg ty)
-  = dSp <+> text "Bad Data Refinement for " <+> ty
-    $+$ (nest 4 msg)
+ppError' _ dSp dCtx (ErrTyCon _ msg ty)
+  = dSp <+> text "Illegal data refinement for" <+> ppVar ty
+        $+$ dCtx
+        $+$ nest 4 msg
+
 ppVar :: PPrint a => a -> Doc
-ppVar v = text "`" <> pprint v <> text "'"
+ppVar v = text "`" <> pprint v <> text "`"
+
+ppSrcSpans :: [SrcSpan] -> Doc
+ppSrcSpans = ppList (text "Conflicting definitions at")
+
+ppNames :: [Doc] -> Doc
+ppNames ds = ppList
+                (text "Could refer to any of the names")
+                [text "-" <+> d | d <- ds]
+
+ppList :: (PPrint a) => Doc -> [a] -> Doc
+ppList d ls
+  = nest 4 (sepVcat blankLine (d : [ text "*" <+> pprint l | l <- ls ]))

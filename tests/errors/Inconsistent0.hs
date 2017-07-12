@@ -2,7 +2,7 @@
 -- issue #519
 
 {-# LANGUAGE DeriveFunctor #-}
-module Main where
+module Ast where
 
 data AstIndex = IxExpr | IxType
 
@@ -22,9 +22,9 @@ data AstF f = Lit Int    AstIndex
             | Paren f
 
 {-@
-  data AstF f <ix :: AstIndex -> Prop>
-    = Lit Int    (i :: AstIndex<ix>)
-    | Var String (i :: AstIndex<ix>)
+  data AstF f <ix :: AstIndex -> Bool>
+    = Lit {l1 :: Int, i :: AstIndex<ix>}
+    | Var {v1 :: String, i :: AstIndex<ix>}
     | App (fn :: f) (arg :: f)
     | Paren (ast :: f)
   @-}
@@ -50,10 +50,10 @@ astExpr = In (Lit 10 IxExpr)
 astType :: Ast 
 astType = In (Lit 10 IxType)
 
-{-@ app :: forall <p :: AstIndex -> Prop>. Fix (AstF p) -> Fix (AstF p) -> Fix (AstF p) @-}
+{-@ app :: forall <p :: AstIndex -> Bool>. Fix (AstF p) -> Fix (AstF p) -> Fix (AstF p) @-}
 app f x = In $ App f x
 
-{-@ id1 :: forall <p :: AstIndex -> Prop>. Fix (AstF p) -> Fix (AstF p)  @-}
+{-@ id1 :: forall <p :: AstIndex -> Bool>. Fix (AstF p) -> Fix (AstF p)  @-}
 id1 :: Fix AstF -> Fix AstF
 id1 z = z
 

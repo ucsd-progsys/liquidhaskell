@@ -10,6 +10,12 @@ import Language.Haskell.Liquid.Prelude
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------
 
+import Prelude hiding (error)
+
+{-@ error :: a -> b @-}
+error :: a -> b
+error x = error x
+
 type Bndr
   = Int
 
@@ -141,6 +147,7 @@ check (Plus _ _)   = liquidAssertB False
 -------------------------- Unit Tests -------------------------------
 ---------------------------------------------------------------------
 
+{-
 tests =
   let (f,g,x) = (0,1,2)
       e1      = Lam x (Var x)
@@ -155,3 +162,4 @@ tests =
       e10     = Snd e9
       vs      = map (snd . eval []) [e1, e2, e3, e4, e5, e6, e7, e8, e9, e10]
   in map check vs
+  -}

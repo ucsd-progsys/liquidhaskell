@@ -198,7 +198,7 @@ module Data.Text.Lazy
 import Prelude (Char, Bool(..), Maybe(..), String,
                 Eq(..), Ord(..), Ordering(..), Read(..), Show(..),
                 (&&), (||), (+), (-), (.), ($), (++),
-                div, error, flip, fmap, fromIntegral, not, otherwise
+                div, flip, fmap, fromIntegral, not, otherwise
                -- LIQUID
                , Num(..), Integral(..), Integer)
 import qualified Prelude as P
@@ -1802,7 +1802,11 @@ revChunks :: [T.Text] -> Text
 revChunks = L.foldl' (flip chunk) Empty
 
 emptyError :: String -> a
-emptyError fun = P.error ("Data.Text.Lazy." ++ fun ++ ": empty input")
+emptyError fun = error ("Data.Text.Lazy." ++ fun ++ ": empty input")
 
 impossibleError :: String -> a
-impossibleError fun = P.error ("Data.Text.Lazy." ++ fun ++ ": impossible case")
+impossibleError fun = error ("Data.Text.Lazy." ++ fun ++ ": impossible case")
+
+{-@ lazy error @-}
+error :: String -> a
+error z = error z

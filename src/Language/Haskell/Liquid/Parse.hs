@@ -28,6 +28,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Monoid
 import           Data.Data
+import           Data.Maybe (isNothing, fromMaybe)
 
 
 import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
@@ -436,7 +437,7 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP
   =  holeRefP  -- Starts with '_'
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
- <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> parseHelper  -- starts with lower
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
            -- starts with "'" or upper case char
@@ -445,6 +446,12 @@ bbaseP
    parseHelper = do
      l <- lowerIdP
      lowerIdTail l
+
+maybeBind :: Parser a -> Parser (Maybe Symbol, a)
+maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
+  where
+    maybeP' p = try (Just <$> p)
+             <|> return Nothing
 
 lowerIdTail :: Symbol -> Parser (Reft -> BareType)
 lowerIdTail l =
@@ -475,7 +482,7 @@ bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  holeRefP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
- <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
  <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
  <?> "bbaseNoAppP"
@@ -771,14 +778,23 @@ bLst :: Maybe (RType BTyCon tv (UReft r))
 bLst (Just t) rs r        = RApp (mkBTyCon $ dummyLoc listConName) [t] rs (reftUReft r)
 bLst (Nothing) rs r       = RApp (mkBTyCon $ dummyLoc listConName) []  rs (reftUReft r)
 
-bTup :: (PPrint r, Reftable r)
-     => [RType BTyCon tv (UReft r)]
-     -> [RTProp BTyCon tv (UReft r)]
+bTup :: (PPrint r, Reftable r, Reftable (RType BTyCon BTyVar (UReft r)), Reftable (RTProp BTyCon BTyVar (UReft r)))
+     => [(Maybe Symbol, RType BTyCon BTyVar (UReft r))]
+     -> [RTProp BTyCon BTyVar (UReft r)]
      -> r
-     -> RType BTyCon tv (UReft r)
-bTup [t] _ r | isTauto r  = t
-             | otherwise  = t `strengthen` (reftUReft r)
-bTup ts rs r              = RApp (mkBTyCon $ dummyLoc tupConName) ts rs (reftUReft r)
+     -> RType BTyCon BTyVar (UReft r)
+bTup [(_,t)] _ r 
+  | isTauto r  = t
+  | otherwise  = t `strengthen` (reftUReft r)
+bTup ts rs r
+  | all isNothing (fst <$> ts) || length ts < 2   
+  = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
+  | otherwise
+  = RApp (mkBTyCon $ dummyLoc tupConName) ((top . snd) <$> ts) rs' (reftUReft r)
+  where
+    args       = [(fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
+    makeProp i = RProp (take i args) ((snd <$> ts)!!i)
+    rs'        = makeProp <$> [1..(length ts-1)]
 
 
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails

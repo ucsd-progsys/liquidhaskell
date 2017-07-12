@@ -44,7 +44,7 @@ import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
 import Data.Word (Word16)
-import Language.Haskell.Liquid.Prelude
+-- import Language.Haskell.Liquid.Prelude
 
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
@@ -158,11 +158,3 @@ index (Text arr off len) k = A.unsafeIndex arr (off+k)
 index' (Text arr off len) k
     = if k == len then 0
       else A.unsafeIndex arr (off+k)
-
-
-
-
-
-
-
-

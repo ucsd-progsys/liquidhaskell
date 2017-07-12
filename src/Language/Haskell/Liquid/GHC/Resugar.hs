@@ -31,6 +31,7 @@ import qualified PrelNames as PN
 import           Name         (Name, getName)
 import qualified Data.List as L
 
+-- import qualified Language.Haskell.Liquid.GHC.Misc as GM
 -- import           Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -66,6 +67,22 @@ data Pattern
     , patIdx   :: !Int       -- ^ i :: NatLT {len patBinds}
     }
 
+  | PatSelfBind              -- let x = e in x
+    { patX     :: !Var       -- ^ x
+    , patE     :: !CoreExpr  -- ^ e
+    }
+
+  | PatSelfRecBind           -- letrec x = e in x
+    { patX     :: !Var       -- ^ x
+    , patE     :: !CoreExpr  -- ^ e
+    }
+
+
+_mbId :: CoreExpr -> Maybe Var
+_mbId (Var x)    = Just x
+_mbId (Tick _ e) = _mbId e
+_mbId _          = Nothing
+
 --------------------------------------------------------------------------------
 -- | Lift expressions into High-level patterns ---------------------------------
 --------------------------------------------------------------------------------
@@ -86,6 +103,17 @@ exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
   | Just i <- y `L.elemIndex` ys
   = Just (PatProject xe x t c ys i)
 
+{- TEMPORARILY DISBLED
+
+exprArgs (Let (NonRec x e) e') _
+  | Just y <- _mbId e', x == y
+  = Just (PatSelfBind x e)
+
+exprArgs (Let (Rec [(x, e)]) e') _
+  | Just y <- _mbId e', x == y
+  = Just (PatSelfRecBind x e)
+
+-}
 exprArgs _ _
   = Nothing
 
@@ -105,3 +133,9 @@ lower (PatReturn e m d t op)
 
 lower (PatProject xe x t c ys i)
   = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i
+
+lower (PatSelfBind x e)
+  = Let (NonRec x e) (Var x)
+
+lower (PatSelfRecBind x e)
+  = Let (Rec [(x, e)]) (Var x)

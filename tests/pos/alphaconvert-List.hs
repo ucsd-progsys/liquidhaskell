@@ -7,7 +7,7 @@
 -- | An example from "A Relational Framework for Higher-Order Shape Analysis",
 --   by Gowtham Kaki Suresh Jagannathan, ICFP 2014.
 
-module AlphaConvert (subst, alpha, isAbs) where
+module AlphaConvert (subst, alpha, isAbs, maxs) where
 
 import Prelude hiding ((++), elem)
 import Data.Set (Set (..))
@@ -15,7 +15,6 @@ import Language.Haskell.Liquid.Prelude
 
 alpha  :: [Bndr] -> Expr -> Expr
 subst  :: Expr -> Bndr -> Expr -> Expr
-maxs   :: [Int] -> Int
 lemma1 :: Int -> [Int] -> Bool
 fresh  :: [Bndr] -> Bndr
 free   :: Expr -> [Bndr]
@@ -93,15 +92,10 @@ fresh bs = liquidAssert (lemma1 n bs) n
   where
     n    = 1 + maxs bs
 
-{-@ maxs :: xs:_ -> {v:_ | v = maxs xs} @-}
+{-@ measure maxs @-}
+maxs   :: [Int] -> Int
 maxs ([])   = 0
 maxs (x:xs) = if (x > maxs xs) then x else (maxs xs)
-
-
-{-@ measure maxs :: [Int] -> Int
-    maxs ([])   = 0
-    maxs (x:xs) = if (x > maxs xs) then x else (maxs xs)
-  @-}
 
 {-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | v && NotElem x xs} @-}
 lemma1 _ []     = True
