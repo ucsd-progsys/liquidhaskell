@@ -22,7 +22,7 @@ import           Test.QuickCheck.All             (monomorphic)
 import           Text.Printf                     (printf)
 
 import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Smt.Interface 
+import           Language.Fixpoint.Smt.Interface
 import qualified Language.Fixpoint.Types.Config  as F
 
 import           Test.Target.Monad
@@ -35,9 +35,9 @@ import           Test.Target.Util
 -- | Test whether a function inhabits its refinement type by enumerating valid
 -- inputs and calling the function.
 target :: Testable f
-       => f -- ^ the function
-       -> String -- ^ the name of the function
-       -> FilePath -- ^ the path to the module that defines the function
+       => f                 -- ^ the function
+       -> String            -- ^ the name of the function
+       -> FilePath          -- ^ the path to the module that defines the function
        -> IO ()
 target f name path
   = targetWith f name path defaultOpts

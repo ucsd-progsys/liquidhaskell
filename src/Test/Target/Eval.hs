@@ -62,7 +62,7 @@ evalPred (PIff p q)      m = and <$> sequence [ evalPred (p `imp` q) m
                                               ]
 evalPred (PAtom b e1 e2) m = evalBrel b <$> evalExpr e1 m <*> evalExpr e2 m
 evalPred e@(splitEApp_maybe -> Just (f, es))    m
-  | f == "Set_emp" || f == "Set_sng" || f `M.member` theorySymbols
+  | f == "Set_emp" || f == "Set_sng" || f `memberSEnv` theorySymbols
   = mapM (`evalExpr` m) es >>= \es' -> fromExpr <$> evalSet f es'
   | otherwise
   = filter ((==f) . val . name) <$> gets measEnv >>= \case
@@ -96,7 +96,7 @@ evalExpr' (EVar x)       m = return $! -- traceShow (x,m)
 evalExpr' (ESym s)       _ = return $! VX s
 evalExpr' (EBin b e1 e2) m = evalBop b <$> evalExpr' e1 m <*> evalExpr' e2 m
 evalExpr' (splitEApp_maybe -> Just (f, es))    m
-  | f == "Set_emp" || f == "Set_sng" || f `M.member` theorySymbols
+  | f == "Set_emp" || f == "Set_sng" || f `memberSEnv` theorySymbols
   = mapM (`evalExpr'` m) es >>= \es' -> evalSet f es'
   | otherwise
   = filter ((==f) . val . name) <$> gets measEnv >>= \case

@@ -23,7 +23,7 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Reader
 import           Control.Monad.State
-import qualified Data.HashMap.Strict             as M
+-- import qualified Data.HashMap.Strict             as M
 import qualified Data.HashSet                    as S
 import qualified Data.List                       as L
 import           Data.Proxy
@@ -197,7 +197,7 @@ setup = {-# SCC "setup" #-} do
    let defFun x t = io $ smtWrite ctx $ Builder.toLazyText (makeDecl x t)
    forM_ ms $ \m -> do
      let x = val (name m)
-     unless (x `M.member` theorySymbols) $
+     unless (x `memberSEnv` theorySymbols) $
        defFun x (rTypeSort emb (sort m))
    -- assert constraints
    cs <- gets constraints
