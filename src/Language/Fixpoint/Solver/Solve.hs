@@ -389,7 +389,7 @@ getMergePartition n = do
   putStrLn "Which two partition to merge? (i, j)"
   ic <- getLine
   let (i,j) = read ic :: (Int, Int)
-  if (i < 1 || n < i || j < 1 || n < j)
+  if i < 1 || n < i || j < 1 || n < j
     then do putStrLn ("Invalid Partition numbers, write (i,j) with 1 <= i <= " ++ show n)
             getMergePartition n
     else return (i,j)
@@ -398,7 +398,7 @@ mergePartitions :: Int -> Int -> [(Int, F.SInfo a)] -> [(Int, F.SInfo a)]
 mergePartitions i j fis
   = zip [1..] ((takei i `mappend` (takei j){F.bs = mempty}):rest)
   where
-    takei i = snd ((fis L.!! (i-1)))
+    takei i = snd (fis L.!! (i - 1))
     rest = snd <$> filter (\(k,_) -> (k /= i && k /= j)) fis
 
 partitionInfo :: (Int, F.SInfo a) -> String
@@ -407,6 +407,6 @@ partitionInfo (i, fi)
     "Defined ?? " ++ show defs    ++ "\n" ++
     "Used ?? "    ++ show uses
   where
-    gs   = F.wloc . snd <$> (L.filter (F.isGWfc . snd) $ M.toList (F.ws fi))
+    gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)
