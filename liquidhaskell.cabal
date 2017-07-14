@@ -247,7 +247,6 @@ Library
                     Test.Target.Eval,
                     Test.Target.Expr,
                     Test.Target.Monad,
-                    Test.Target.Serialize,
                     Test.Target.Targetable,
                     Test.Target.Targetable.Function,
                     Test.Target.Testable,

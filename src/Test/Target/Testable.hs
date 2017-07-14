@@ -30,11 +30,12 @@ import           Data.Proxy
 import qualified Data.Text                       as ST
 import qualified Data.Text.Lazy.Builder          as Builder
 import           Data.Text.Format                hiding (print)
+import           Data.Monoid
 import           Text.Printf
 
-import           Language.Fixpoint.Smt.Interface hiding (SMTLIB2(..))
+import           Language.Fixpoint.Smt.Interface -- hiding (SMTLIB2(..))
 -- import           Language.Fixpoint.Smt.Serialize
-import           Language.Fixpoint.Smt.Theories  (theorySymbols)
+import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Types         hiding (Result)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types   hiding (env, var, Only)
@@ -43,7 +44,7 @@ import           Test.Target.Targetable          hiding (apply)
 -- import           Test.Target.Eval
 import           Test.Target.Expr
 import           Test.Target.Monad
-import           Test.Target.Serialize
+-- import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
@@ -126,6 +127,13 @@ process f ctx vs xts to = go 0 =<< io (command ctx CheckSat)
         then go n =<< io (command ctx CheckSat)
         else return (Failed $ show xs)
 
+
+{-# INLINE smt2many #-}
+smt2many :: [Builder.Builder] -> Builder.Builder
+smt2many []     = mempty
+smt2many [b]    = b
+smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+
 -- | A class of functions that Target can test. A function is @Testable@ /iff/
 -- all of its component types are 'Targetable' and all of its argument types are
 -- 'Show'able.
@@ -162,6 +170,18 @@ instance {-# OVERLAPPING #-}
   mkExprs _ _ _    = []
 
 
+smt2Sort :: Sort -> Builder.Builder
+smt2Sort s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
+smt2Sort FInt                    = "Int"
+smt2Sort FReal                   = "Real"
+smt2Sort t
+      | t == boolSort            = "Bool"
+smt2Sort t
+      | Just d <- Thy.smt2Sort t = d
+smt2Sort (FObj s)                = Builder.fromText $ symbolSafeText s
+smt2Sort _                       = "Int"
+
+
 func :: Sort -> Bool
 func (FAbs  _ s) = func s
 func (FFunc _ _) = True
@@ -169,42 +189,42 @@ func _           = False
 
 setup :: Target ()
 setup = {-# SCC "setup" #-} do
-   ctx <- gets smtContext
-   emb <- gets embEnv
-
-   -- declare sorts
+   ctx  <- gets smtContext
+   emb  <- gets embEnv
+   let sEnv = ctxSymEnv ctx
+    -- declare sorts
    ss  <- S.toList <$> gets sorts
    let defSort b e = io $ smtWrite ctx $ Builder.toLazyText
                    $ build "(define-sort {} () {})" (b,e)
    defSort ("CHOICE" :: Builder.Builder) ("Bool" :: Builder.Builder)
           -- FIXME: shouldn't need the nub, wtf?
-   forM_ (L.nub (map smt2 ss)) $ \s ->
+   forM_ (L.nub (smt2Sort <$> ss)) $ \s ->
      defSort s ("Int" :: Builder.Builder)
 
    -- declare constructors
    cts <- gets constructors
    mapM_ (\ (c,t) -> do
-             io $ smtWrite ctx . Builder.toLazyText $ makeDecl (symbol c) t) cts
+             io $ smtWrite ctx . Builder.toLazyText $ smt2 sEnv $ makeDecl (symbol c) t) cts
    let nullary = [var c | (c,t) <- cts, not (func t)]
    unless (null nullary) $
-     void $ io $ smtWrite ctx . Builder.toLazyText $ smt2 $ Distinct nullary
+     void $ io $ smtWrite ctx . Builder.toLazyText $ smt2 sEnv $ Distinct nullary
    -- declare variables
    vs <- gets variables
-   let defVar (x,t) = io $ smtWrite ctx $ Builder.toLazyText (makeDecl x (arrowize t))
+   let defVar (x,t) = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl x (arrowize t)
    mapM_ defVar vs
    -- declare measures
    ms <- gets measEnv
-   let defFun x t = io $ smtWrite ctx $ Builder.toLazyText (makeDecl x t)
+   let defFun x t    = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl x t
    forM_ ms $ \m -> do
      let x = val (name m)
-     unless (x `memberSEnv` theorySymbols) $
+     unless (x `memberSEnv` (seTheory sEnv)) $
        defFun x (rTypeSort emb (sort m))
    -- assert constraints
    cs <- gets constraints
    --mapM_ (\c -> do {i <- gets seed; modify $ \s@(GS {..}) -> s { seed = seed + 1 };
    --                 io . command ctx $ Assert (Just i) c})
    --  cs
-   mapM_ (io . smtWrite ctx . Builder.toLazyText . smt2 . Assert Nothing) cs
+   mapM_ (io . smtWrite ctx . Builder.toLazyText . smt2 sEnv . Assert Nothing) cs
    -- deps <- V.fromList . map (symbol *** symbol) <$> gets deps
    -- io $ generateDepGraph "deps" deps cs
    -- return (ctx,vs,deps)

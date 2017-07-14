@@ -8,6 +8,7 @@
 {-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+
 module Test.Target.Util where
 
 
@@ -16,8 +17,6 @@ import           Data.List
 import           Data.Maybe
 
 import           Data.Generics                   (everywhere, mkT)
-import           Data.Text.Format                hiding (print)
-import           Data.Text.Lazy.Builder          (Builder)
 import           Debug.Trace
 
 import qualified DynFlags as GHC
@@ -31,14 +30,13 @@ import qualified HscTypes as GHC
 -- import           Language.Fixpoint.Smt.Serialize
 
 
+import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types          hiding (prop)
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Types.PredType
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types    hiding (var)
-
-import           Test.Target.Serialize
 
 
 type Depth = Int
@@ -95,14 +93,15 @@ type family Res a where
 -- smt2Sort s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
 -- smt2Sort _           = "Int"
 
-makeDecl :: Symbol -> Sort -> Builder
--- FIXME: hack..
+makeDecl :: Symbol -> Sort -> Command -- Builder
 makeDecl x t
   | Just (_, ts, t) <- functionSort t
-  = build "(declare-fun {} ({}) {})"
-          (smt2 x, smt2s ts, smt2 t)
+  = Declare x ts t
+  -- build "(declare-fun {} ({}) {})"
+  --        (smt2 env x, smt2s env ts, smt2 env t)
 makeDecl x t
-  = build "(declare-const {} {})" (smt2 x, smt2 t)
+  = Declare x [] t
+  -- build "(declare-const {} {})" (smt2 env x, smt2 env t)
 
 safeFromJust :: String -> Maybe a -> a
 safeFromJust msg Nothing  = error $ "safeFromJust: " ++ msg
