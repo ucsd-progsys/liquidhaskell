@@ -65,7 +65,7 @@ solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a)
 solveGradual cfg fi = do
   -- graphStatistics cfg $ G.uniquify fi
   let fis = zip [1..] $ partition' Nothing $ G.uniquify fi
-  if (ginteractive cfg)
+  if ginteractive cfg
     then snd . traceShow "FINAL SOLUTION\n"  <$> iSolveGradual cfg fis
     else snd . traceShow "FINAL SOLUTION\n" . mconcat <$> parallel (solveGradualOne cfg <$> fis)
 
@@ -374,7 +374,7 @@ donePhase' msg = lift $ do
 _iMergePartitions :: [(Int, F.SInfo a)] -> IO [(Int, F.SInfo a)]
 _iMergePartitions ifis = do
   putStrLn "Current Partitions are: "
-  putStrLn $ unlines $ (partitionInfo <$> ifis)
+  putStrLn $ unlines (partitionInfo <$> ifis)
   putStrLn "Merge Partitions? Y/N"
   c <- getChar
   if c == 'N'

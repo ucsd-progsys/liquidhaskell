@@ -20,15 +20,13 @@ module Language.Fixpoint.Solver.Instantiate (
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config as FC
-import qualified Language.Fixpoint.Smt.Theories as FT
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
-
-import Language.Fixpoint.Smt.Interface          ( smtPop, smtPush
-                                                , smtDecls, smtAssert
-                                                , checkValid', Context(..) )
-import Language.Fixpoint.Defunctionalize        (defuncAny, makeLamArg)
-import Language.Fixpoint.SortCheck              (elaborate)
+import qualified Language.Fixpoint.Smt.Interface as SMT
+--        ( smtPop, smtPush, smtDecls, smtAssert, checkValid', Context(..) )
+import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
+import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
+import           Language.Fixpoint.SortCheck       (elaborate)
 
 import Control.Monad.State
 
@@ -49,18 +47,22 @@ import           Data.Foldable        (foldlM)
     -- traceM $ showpp _str ++ " : " ++ showpp _e ++ showpp e'
     return (η e')
 
----------------------
--- Instantiate Axioms
----------------------
-instantiateFInfo :: Config -> Context -> FInfo c -> IO (FInfo c)
-instantiateFInfo cfg ctx fi = do
-    cm' <- sequence $ M.mapWithKey instantiateOne (cm fi)
-    return $ fi { cm = cm' }
-  where instantiateOne = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
-instantiateAxioms :: Config -> Context -> BindEnv -> SEnv Sort -> AxiomEnv
-                     -> Integer -> SubC c
-                     -> IO (SubC c)
+-------------------------------------------------------------------------------
+-- | Instantiate Axioms
+-------------------------------------------------------------------------------
+instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
+instantiateFInfo cfg fi = do
+    ctx <- SMT.makeContextWithSEnv cfg (srcFile cfg ++ ".evals") (symbolEnv cfg fi)
+    SMT.smtPush ctx
+    cm' <- sequence $ M.mapWithKey (instantiateOne ctx) (cm fi)
+    return $ fi { cm = cm' }
+  where
+    instantiateOne ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
+
+instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
+                  -> Integer -> SubC c
+                  -> IO (SubC c)
 instantiateAxioms _ _ _ _ aenv sid sub
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
@@ -96,12 +98,12 @@ data Knowledge
        , knEqs     :: ![(Expr, Expr)]
        , knSims    :: ![Rewrite]
        , knAms     :: ![Equation]
-       , knContext :: IO Context
-       , knPreds   :: !([(Symbol, Sort)] -> Expr -> Context -> IO Bool)
+       , knContext :: IO SMT.Context
+       , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
        , knLams    :: [(Symbol, Sort)]
        }
 
-emptyKnowledge :: IO Context -> Knowledge
+emptyKnowledge :: IO SMT.Context -> Knowledge
 emptyKnowledge cxt = KN [] [] [] [] cxt (\_ _ _ -> return False) []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr
@@ -117,7 +119,7 @@ lookupKnowledge γ e
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
 
-makeKnowledge :: Config -> Context -> AxiomEnv -> SEnv Sort
+makeKnowledge :: Config -> SMT.Context -> AxiomEnv -> SEnv Sort
                  -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
 makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
@@ -129,18 +131,17 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      }
   where
     (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
-    fbinds = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-    senv = fromListSEnv fbinds
-
-    context :: IO Context
+    fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
+    senv     = symEnv (fromListSEnv fbinds) thySyms
+    thySyms  = seTheory (SMT.ctxSymEnv ctx)
+    context :: IO SMT.Context
     context = do
-      smtPop ctx
-      smtPush ctx
-      smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds
-                                            , not (memberSEnv x FT.theorySymbols)]
-      smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                           ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
-                          ))
+      SMT.smtPop ctx
+      SMT.smtPush ctx
+      SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
+      SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
+                               ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
+                              ))
       return ctx
 
     -- This creates the rewrite rule e1 -> e2
@@ -161,26 +162,23 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
     eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
-                        -- AT: no test needs this
-                        --, EVar x /= ex
                         ]
 
-    toSMT xs = defuncAny cfg (insertSEnv xv sv senv) .
-               elaborate "symbolic evaluation"
-               (foldl (\env (x,s) -> insertSEnv x s (deleteSEnv x env))
-                      (insertSEnv xv sv senv)
-                      xs)
+    toSMT xs = defuncAny cfg senv0
+             . elaborate "symbolic evaluation" (elabEnv xs)
+    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv0
+    senv0    = insertSymEnv xv sv senv
 
     -- AT: Non-obvious needed invariant: askSMT True is always the
     -- totality-effecting one
-    askSMT :: Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+    askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
     askSMT cxt xss e
       | isTautoPred  e = return True
       | isContraPred e = return False
       | null (kvars e) = do
-          smtPush cxt
-          b <- checkValid' cxt [] PTrue (toSMT xss e)
-          smtPop cxt
+          SMT.smtPush cxt
+          b <- SMT.checkValid' cxt [] PTrue (toSMT xss e)
+          SMT.smtPop cxt
           return b
       | otherwise      = return False
 
@@ -188,7 +186,6 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
     isProof (_, RR s _) =  showpp s == "Tuple"
-
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
@@ -265,7 +262,7 @@ assertSelectors γ e = do
 addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
 addSMTEquality γ e1 e2 =
   return $ do ctx <- knContext γ
-              smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
+              SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
 -------------------------------
 -- Symbolic Evaluation with SMT
@@ -277,7 +274,7 @@ data EvalEnv = EvalEnv { evId        :: Int
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Config -> Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv
+evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv
             -> [Expr]
             -> IO [(Expr, Expr)]
 evaluate cfg ctx facts fenv aenv einit

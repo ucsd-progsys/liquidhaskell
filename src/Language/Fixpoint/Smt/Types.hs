@@ -9,8 +9,7 @@
 module Language.Fixpoint.Smt.Types (
 
     -- * Serialized Representation
-      Raw
-    , symbolBuilder
+      symbolBuilder
 
     -- * Commands
     , Command  (..)
@@ -25,26 +24,20 @@ module Language.Fixpoint.Smt.Types (
     -- * SMTLIB2 Process Context
     , Context (..)
 
-    -- * Theory Symbol
-    , TheorySymbol (..)
-    , SymbolSem (..)
-    , SMTEnv
     ) where
 
 import           Language.Fixpoint.Types
--- import           Language.Fixpoint.Misc   (traceShow)
 import qualified Data.Text                as T
-import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
 import           Text.PrettyPrint.HughesPJ
 
 import           System.IO                (Handle)
 import           System.Process
+-- import           Language.Fixpoint.Misc   (traceShow)
 
 --------------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
-type Raw          = LT.Text
 
 symbolBuilder :: Symbol -> LT.Builder
 symbolBuilder = LT.fromText . symbolSafeText
@@ -97,35 +90,15 @@ data Context = Ctx
   , ctxAeq     :: !Bool              -- ^ flag to enable lambda a-equivalence axioms
   , ctxBeq     :: !Bool              -- ^ flag to enable lambda b-equivalence axioms
   , ctxNorm    :: !Bool              -- ^ flag to enable lambda normal form equivalence axioms
-  , ctxSmtEnv  :: !SMTEnv
+  , ctxSymEnv  :: !SymEnv
   }
-
-type SMTEnv = SEnv Sort
-
--- | Theory Symbol
-data TheorySymbol  = Thy
-  { tsSym    :: !Symbol          -- ^ name
-  , tsRaw    :: !Raw             -- ^ serialized SMTLIB2 name
-  , tsSort   :: !Sort            -- ^ sort
-  , tsInterp :: !SymbolSem       -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
-  }
-  deriving (Eq, Ord, Show)
-
--- | 'SymbolSem' describes the SMT semantics for a given symbol
-
-data SymbolSem
-  = Uninterp                     -- ^ for UDF: `len`, `height`, `append`
-  | Data                         -- ^ for ADT ctors & accessor: `cons`, `nil`, `head`
-  | Theory                       -- ^ for theory ops: mem, cup, select
-  deriving (Eq, Ord, Show)
-
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------
 --------------------------------------------------------------------------------
 
 class SMTLIB2 a where
-  smt2 :: a -> LT.Builder
+  smt2 :: SymEnv -> a -> LT.Builder
 
-runSmt2 :: (SMTLIB2 a) => a -> LT.Builder
+runSmt2 :: (SMTLIB2 a) => SymEnv -> a -> LT.Builder
 runSmt2 = smt2

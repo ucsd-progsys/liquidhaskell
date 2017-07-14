@@ -52,7 +52,7 @@ module Language.Fixpoint.Smt.Interface (
     , checkValid'
     , checkValidWithContext
     , checkValids
-    , makeSmtContext
+  --   , makeSmtContext
 
     ) where
 
@@ -66,7 +66,6 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , stringTheory)
 import           Language.Fixpoint.Misc         (errorstar)
 import           Language.Fixpoint.Types.Errors
--- import           Language.Fixpoint.SortCheck    (elaborate)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
@@ -94,6 +93,7 @@ import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
+
 {-
 runFile f
   = readFile f >>= runString
@@ -109,16 +109,22 @@ runCommands cmds
 -}
 
 
--- TODO take makeContext's Bool from caller instead of always using False?
-makeSmtContext :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
-makeSmtContext cfg f xts = do
-  me <- makeContextWithSEnv cfg f $ fromListSEnv xts
-  smtDecls me theoryDecls
-  smtDecls me xts
-  return me
+-- makeSmtContext :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
+-- makeSmtContext cfg f xts = do
+  -- let env = makeSmtEnv xts
+  -- me     <- makeContextWithSEnv cfg f env
+  -- smtDecls me (theoryDecls env)
+  -- smtDecls me xts
+  -- return me
+--
+-- makeSmtEnv :: [(Symbol, Sort)] -> SymEnv
+-- makeSmtEnv xts = SymEnv (fromListSEnv xts) (Thy.theorySymbols ())
 
-theoryDecls :: [(Symbol, Sort)]
-theoryDecls = [ (x, tsSort ty) | (x, ty) <- toListSEnv Thy.theorySymbols, Uninterp == tsInterp ty]
+-- theoryDecls :: SymEnv -> [(Symbol, Sort)]
+-- theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
+  -- where
+    -- theorySyms  = toListSEnv (smtThyEnv env)
+
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
@@ -163,7 +169,8 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd       = say cmd >> hear cmd
   where
-    say               = smtWrite me . Builder.toLazyText . runSmt2
+    env               = ctxSymEnv me
+    say               = smtWrite me . Builder.toLazyText . runSmt2 env
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -254,9 +261,9 @@ makeContext cfg f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath -> SMTEnv -> IO Context
+makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
 makeContextWithSEnv cfg f env
-  = (\cxt -> cxt {ctxSmtEnv = env}) <$> makeContext cfg f
+  = (\cxt -> cxt {ctxSymEnv = env}) <$> makeContext cfg f
   -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
@@ -279,7 +286,7 @@ makeProcess cfg
                   , ctxAeq     = alphaEquivalence cfg
                   , ctxBeq     = betaEquivalence  cfg
                   , ctxNorm    = normalForm       cfg
-                  , ctxSmtEnv  = tsSort <$> Thy.theorySymbols -- Thy.theorySEnv
+                  , ctxSymEnv  = mempty -- tsSort <$> Thy.theorySymbols -- Thy.theorySEnv
                   }
 
 --------------------------------------------------------------------------

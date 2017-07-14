@@ -39,7 +39,6 @@ import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.Smt.Types (tsInterp, SymbolSem (..))
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
@@ -97,15 +96,14 @@ runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"
-    return $ fst res
+    return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = declare initEnv lts {- ess -} >> assumesAxioms (F.asserts fi) >> act
+    act'     = declare initEnv lts >> assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
     lts      = F.toListSEnv (F.dLits fi)
-    -- ess   = distinctLiterals fi
     be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
@@ -249,7 +247,7 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)] -> SolveM ()
+declare :: F.SymEnv -> [(F.Symbol, F.Sort)] -> SolveM ()
 --------------------------------------------------------------------------------
 declare env lts = withContext $ \me -> do
   forM_ thyXTs $ uncurry $ smtDecl     me
@@ -262,8 +260,8 @@ declare env lts = withContext $ \me -> do
     axs        = Thy.axiomLiterals lts
     thyXTs     =               filter (isKind 1) xts
     qryXTs     = mapSnd tx <$> filter (isKind 2) xts
-    isKind n   = (n ==)  . symKind . fst
-    xts        = F.toListSEnv           env
+    isKind n   = (n ==)  . symKind env . fst
+    xts        = F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
 
 -- | 'symKind' returns {0, 1, 2} where:
@@ -271,12 +269,12 @@ declare env lts = withContext $ \me -> do
 --   1 = Theory-Declaration,
 --   2 = Query-Binder
 
-symKind :: F.Symbol -> Int
-symKind x = case tsInterp <$> F.lookupSEnv x Thy.theorySymbols of
-              Just Theory   -> 0
-              Just Data     -> 0
-              Just Uninterp -> 1
-              Nothing       -> 2
+symKind :: F.SymEnv -> F.Symbol -> Int
+symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
+                  Just F.Theory   -> 0
+                  Just F.Data     -> 0
+                  Just F.Uninterp -> 1
+                  Nothing         -> 2
               -- Just t  -> if tsInterp t then 0 else 1
 
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()

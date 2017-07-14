@@ -30,7 +30,7 @@ module Language.Fixpoint.Types.Solutions (
   , eQual
   , trueEqual
 
-  -- * Gradual Solution elements   
+  -- * Gradual Solution elements
   , qbToGb, gbToQbs, gbEquals, equalsGb, emptyGMap, qbExprs
 
   -- * Solution Candidates (move to SolverMonad?)
@@ -78,6 +78,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types.Theories
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
@@ -122,11 +123,11 @@ type GSolution = Sol (((Symbol, Sort), Expr), GBind) QBind
 newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic, Eq)
 newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
 
-emptyGMap :: GSolution -> GSolution 
+emptyGMap :: GSolution -> GSolution
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
 
 updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
-updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs } 
+updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs }
 
 qb :: [EQual] -> QBind
 qb = QB
@@ -141,17 +142,17 @@ qbToGb :: QBind -> GBind
 qbToGb (QB xs) = GB $ map (:[]) xs
 
 gbToQbs :: GBind -> [QBind]
-gbToQbs (GB [])  = [QB [trueEqual]] 
+gbToQbs (GB [])  = [QB [trueEqual]]
 gbToQbs (GB ess) = QB <$> ess
 
 gbEquals :: GBind -> [[EQual]]
-gbEquals (GB eqs) = eqs 
+gbEquals (GB eqs) = eqs
 
 equalsGb :: [[EQual]] -> GBind
-equalsGb = GB 
+equalsGb = GB
 
 gbFilterM :: Monad m => ([EQual] -> m Bool) -> GBind -> m GBind
-gbFilterM f (GB eqs) = GB <$> filterM f eqs 
+gbFilterM f (GB eqs) = GB <$> filterM f eqs
 
 qbSize :: QBind -> Int
 qbSize = length . qbEQuals
@@ -170,19 +171,18 @@ instance PPrint QBind where
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
 data Sol b a = Sol
-  { sEnv  :: !(SEnv Sort)                -- ^ Environment used to elaborate solutions
+  { sEnv  :: !SymEnv                     -- ^ Environment used to elaborate solutions
   , sMap  :: !(M.HashMap KVar a)         -- ^ Actual solution (for cut kvar)
-  , gMap  :: !(M.HashMap KVar b)         -- ^ Solution for gradual variables 
+  , gMap  :: !(M.HashMap KVar b)         -- ^ Solution for gradual variables
   , sHyp  :: !(M.HashMap KVar Hyp)       -- ^ Defining cubes  (for non-cut kvar)
-  -- , sBot  :: !(M.HashMap KVar ())        -- ^ set of BOT (cut kvars)
   , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
   }
 
-updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a 
+updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a
 updateGMap sol gmap = sol {gMap = gmap}
 
 
-mapGMap :: Sol b a -> (b -> b) -> Sol b a 
+mapGMap :: Sol b a -> (b -> b) -> Sol b a
 mapGMap sol f = sol {gMap = M.map f (gMap sol)}
 
 
@@ -197,7 +197,7 @@ instance Monoid (Sol a b) where
                       }
 
 instance Functor (Sol a) where
-  fmap f (Sol e s m1 m2 m3) = Sol e (f <$> s) m1 m2 m3 
+  fmap f (Sol e s m1 m2 m3) = Sol e (f <$> s) m1 m2 m3
 
 instance (PPrint a, PPrint b) => PPrint (Sol a b) where
   pprintTidy k = pprintTidy k . sMap
@@ -230,15 +230,15 @@ result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
 resultGradual :: GSolution -> M.HashMap KVar (Expr, [Expr])
 --------------------------------------------------------------------------------
 resultGradual s = fmap go' (gMap s)
-  where 
-    go' ((_,e), GB eqss) 
+  where
+    go' ((_,e), GB eqss)
      = (e, [PAnd $ fmap eqPred eqs | eqs <- eqss])
 
 
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SEnv Sort -> [(KVar, a)] -> [(KVar, b)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a b
+fromList :: SymEnv -> [(KVar, a)] -> [(KVar, b)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a b
 fromList env kGs kXs kYs = Sol env kXm kGm kYm -- kBm
   where
     kXm              = M.fromList   kXs
@@ -316,7 +316,7 @@ data EQual = EQL
   } deriving (Eq, Show, Data, Typeable, Generic)
 
 trueEqual :: EQual
-trueEqual = EQL trueQual mempty [] 
+trueEqual = EQL trueQual mempty []
 
 instance PPrint EQual where
   pprintTidy k = pprintTidy k . eqPred

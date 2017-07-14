@@ -32,7 +32,7 @@ import           Data.Maybe (fromMaybe)
 --   smt2 _                       = "Int"
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 c@(sym, t) = build "({} {})" (smt2 sym, smt2Sort c t)
+  smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2Sort c t)
 
 smt2Sort :: (PPrint a) => a -> Sort -> Builder.Builder
 smt2Sort msg = go
@@ -46,76 +46,77 @@ smt2Sort msg = go
       | Just d <- Thy.smt2Sort t = d
     go _                         = "Int"
 
+
 instance SMTLIB2 Symbol where
-  smt2 s
-    | Just t <- Thy.smt2Symbol s = t
-  smt2 s                         = Builder.fromText $ symbolSafeText  s
+  smt2 env s
+    | Just t <- Thy.smt2Symbol env s = t
+  smt2 _ s                           = Builder.fromText $ symbolSafeText  s
 
 instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
+  smt2 env = smt2 env . symbol
 
 instance SMTLIB2 Constant where
-  smt2 (I n)   = build "{}" (Only n)
-  smt2 (R d)   = build "{}" (Only d)
-  smt2 (L t _) = build "{}" (Only t)
+  smt2 _ (I n)   = build "{}" (Only n)
+  smt2 _ (R d)   = build "{}" (Only d)
+  smt2 _ (L t _) = build "{}" (Only t)
 
 instance SMTLIB2 LocSymbol where
-  smt2 = smt2 . val
+  smt2 env = smt2 env . val
 
 instance SMTLIB2 Bop where
-  smt2 Plus   = "+"
-  smt2 Minus  = "-"
-  smt2 Times  = Builder.fromText $ symbolSafeText mulFuncName
-  smt2 Div    = Builder.fromText $ symbolSafeText divFuncName
-  smt2 RTimes = "*"
-  smt2 RDiv   = "/"
-  smt2 Mod    = "mod"
+  smt2 _ Plus   = "+"
+  smt2 _ Minus  = "-"
+  smt2 _ Times  = Builder.fromText $ symbolSafeText mulFuncName
+  smt2 _ Div    = Builder.fromText $ symbolSafeText divFuncName
+  smt2 _ RTimes = "*"
+  smt2 _ RDiv   = "/"
+  smt2 _ Mod    = "mod"
 
 instance SMTLIB2 Brel where
-  smt2 Eq    = "="
-  smt2 Ueq   = "="
-  smt2 Gt    = ">"
-  smt2 Ge    = ">="
-  smt2 Lt    = "<"
-  smt2 Le    = "<="
-  smt2 _     = errorstar "SMTLIB2 Brel"
+  smt2 _ Eq    = "="
+  smt2 _ Ueq   = "="
+  smt2 _ Gt    = ">"
+  smt2 _ Ge    = ">="
+  smt2 _ Lt    = "<"
+  smt2 _ Le    = "<="
+  smt2 _ _     = errorstar "SMTLIB2 Brel"
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 z
-  smt2 (ECon c)         = smt2 c
-  smt2 (EVar x)         = smt2 x
-  smt2 e@(EApp _ _)     = smt2App e
-  smt2 (ENeg e)         = build "(- {})" (Only $ smt2 e)
-  smt2 (EBin o e1 e2)   = build "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
-  smt2 (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
-  smt2 (ECst e _)       = smt2 e
-  smt2 (PTrue)          = "true"
-  smt2 (PFalse)         = "false"
-  smt2 (PAnd [])        = "true"
-  smt2 (PAnd ps)        = build "(and {})"   (Only $ smt2s ps)
-  smt2 (POr [])         = "false"
-  smt2 (POr ps)         = build "(or  {})"   (Only $ smt2s ps)
-  smt2 (PNot p)         = build "(not {})"   (Only $ smt2  p)
-  smt2 (PImp p q)       = build "(=> {} {})" (smt2 p, smt2 q)
-  smt2 (PIff p q)       = build "(= {} {})"  (smt2 p, smt2 q)
-  smt2 (PExist [] p)    = smt2 p
-  smt2 (PExist bs p)    = build "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PAll   [] p)    = smt2 p
-  smt2 (PAll   bs p)    = build "(forall ({}) {})"  (smt2s bs, smt2 p)
+  smt2 env (ESym z)         = smt2 env z
+  smt2 env (ECon c)         = smt2 env c
+  smt2 env (EVar x)         = smt2 env x
+  smt2 env e@(EApp _ _)     = smt2App env e
+  smt2 env (ENeg e)         = build "(- {})" (Only $ smt2 env e)
+  smt2 env (EBin o e1 e2)   = build "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
+  smt2 env (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
+  smt2 env (ECst e _)       = smt2 env e
+  smt2 _   (PTrue)          = "true"
+  smt2 _   (PFalse)         = "false"
+  smt2 _   (PAnd [])        = "true"
+  smt2 env (PAnd ps)        = build "(and {})"   (Only $ smt2s env ps)
+  smt2 _   (POr [])         = "false"
+  smt2 env (POr ps)         = build "(or  {})"   (Only $ smt2s env ps)
+  smt2 env (PNot p)         = build "(not {})"   (Only $ smt2  env p)
+  smt2 env (PImp p q)       = build "(=> {} {})" (smt2 env p, smt2 env q)
+  smt2 env (PIff p q)       = build "(= {} {})"  (smt2 env p, smt2 env q)
+  smt2 env (PExist [] p)    = smt2 env p
+  smt2 env (PExist bs p)    = build "(exists ({}) {})"  (smt2s env bs, smt2 env p)
+  smt2 env (PAll   [] p)    = smt2 env p
+  smt2 env (PAll   bs p)    = build "(forall ({}) {})"  (smt2s env bs, smt2 env p)
 
-  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 (ELam (x, _) e)  = smt2Lam x e
-  smt2  e               = errorstar ("smtlib2 Pred  " ++ show e)
+  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
+  smt2 env (ELam (x, _) e)  = smt2Lam env x e
+  smt2 _   e                = errorstar ("smtlib2 Pred  " ++ show e)
 
 
-smt2Lam :: Symbol -> Expr -> Builder.Builder
-smt2Lam x e = build "({} {} {})" (smt2 lambdaName, smt2 x, smt2 e)
+smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
+smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
 
-smt2App :: Expr -> Builder.Builder
-smt2App e = fromMaybe (build "({} {})" (smt2 f, smt2s es)) $ Thy.smt2App (eliminate f) $ map smt2 es
+smt2App :: SymEnv -> Expr -> Builder.Builder
+smt2App env e = fromMaybe (build "({} {})" (smt2 env f, smt2s env es)) $ Thy.smt2App env (eliminate f) (smt2 env <$> es)
   where
-    (f, es) = splitEApp' e
+    (f, es)   = splitEApp' e
 
 
 splitEApp' :: Expr -> (Expr, [Expr])
@@ -129,47 +130,44 @@ eliminate :: Expr -> Expr
 eliminate (ECst e _) = eliminate e
 eliminate e          = e
 
-mkRel :: Brel -> Expr -> Expr -> Builder.Builder
-mkRel Ne  e1 e2 = mkNe e1 e2
-mkRel Une e1 e2 = mkNe e1 e2
-mkRel r   e1 e2 = build "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
+mkRel :: SymEnv -> Brel -> Expr -> Expr -> Builder.Builder
+mkRel env Ne  e1 e2 = mkNe env e1 e2
+mkRel env Une e1 e2 = mkNe env e1 e2
+mkRel env r   e1 e2 = build "({} {} {})" (smt2 env r, smt2 env e1, smt2 env e2)
 
-mkNe :: Expr -> Expr -> Builder.Builder
-mkNe  e1 e2              = build "(not (= {} {}))" (smt2 e1, smt2 e2)
+mkNe :: SymEnv -> Expr -> Expr -> Builder.Builder
+mkNe env e1 e2      = build "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  -- NIKI TODO: formalize this transformation
-  smt2 c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 x, smt2many (smt2Sort c <$> ts), smt2Sort c t) -- HEREHEREHERE (smt2 x, smt2s ts, smt2 t)
-  smt2 c@(Define t)        = build "(declare-sort {})"            (Only $ smt2Sort c t)
-  smt2 (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 p)
-  smt2 (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 p, i)
-  smt2 (Distinct az)
-    -- Distinct must have at least 2 arguments
-    | length az < 2        = ""
-    | otherwise            = build "(assert (distinct {}))"       (Only $ smt2s az)
-  smt2 (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2 t)
-  smt2 (Push)              = "(push 1)"
-  smt2 (Pop)               = "(pop 1)"
-  smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = "(get-value (" <> smt2s xs <> "))"
-  smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
+  smt2 env c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2Sort c <$> ts), smt2Sort c t)
+  smt2 _   c@(Define t)        = build "(declare-sort {})"            (Only $ smt2Sort c t)
+  smt2 env (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 env p)
+  smt2 env (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 env p, i)
+  smt2 env (Distinct az)
+    | length az < 2            = ""
+    | otherwise                = build "(assert (distinct {}))"       (Only $ smt2s env az)
+  smt2 env (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2  env t)
+  smt2 _   (Push)              = "(push 1)"
+  smt2 _   (Pop)               = "(pop 1)"
+  smt2 _   (CheckSat)          = "(check-sat)"
+  smt2 env (GetValue xs)       = "(get-value (" <> smt2s env xs <> "))"
+  smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)
 
 instance SMTLIB2 (Triggered Expr) where
-  smt2 (TR NoTrigger e)       = smt2 e  
-  smt2 (TR _ (PExist [] p))   = smt2 p
-  smt2 t@(TR _ (PExist bs p)) = build "(exists ({}) (! {} :pattern({})))"  (smt2s bs, smt2 p, smt2s $ makeTriggers t)
-  smt2 (TR _ (PAll   [] p))   = smt2 p
-  smt2 t@(TR _ (PAll   bs p)) = build "(forall ({}) (! {} :pattern({})))"  (smt2s bs, smt2 p, smt2s $ makeTriggers t)
-  smt2 (TR _ e)               = smt2 e
-
+  smt2 env (TR NoTrigger e)       = smt2 env e
+  smt2 env (TR _ (PExist [] p))   = smt2 env p
+  smt2 env t@(TR _ (PExist bs p)) = build "(exists ({}) (! {} :pattern({})))"  (smt2s env bs, smt2 env p, smt2s env (makeTriggers t))
+  smt2 env (TR _ (PAll   [] p))   = smt2 env p
+  smt2 env t@(TR _ (PAll   bs p)) = build "(forall ({}) (! {} :pattern({})))"  (smt2s env bs, smt2 env p, smt2s env (makeTriggers t))
+  smt2 env (TR _ e)               = smt2 env e
 
 
 {-# INLINE smt2s #-}
-smt2s    :: SMTLIB2 a => [a] -> Builder.Builder
-smt2s as = smt2many (map smt2 as)
+smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder.Builder
+smt2s env as = smt2many (smt2 env <$> as)
 
+{-# INLINE smt2many #-}
 smt2many :: [Builder.Builder] -> Builder.Builder
 smt2many []     = mempty
 smt2many [b]    = b
 smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
-{-# INLINE smt2many #-}
