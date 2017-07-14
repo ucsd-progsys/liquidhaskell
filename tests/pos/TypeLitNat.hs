@@ -20,13 +20,13 @@ data MI (s :: Nat)
 
 {-@ Small :: forall (s :: Nat). {v:Int | s ~~ v } -> MI s @-}
 
-data Vector a n where
-  VNil  :: Vector a 0
-  VCons :: a -> Vector a n -> Vector a (1 + n)
+-- data Vector a n where
+--  VNil  :: Vector a 0
+--  VCons :: a -> Vector a n -> Vector a (1 + n)
 
-fromList        :: [a] -> forall (n :: Nat). Vector a n
-fromList []     = VNil
-fromList (x:xs) = VCons x (fromList xs)
+-- fromList        :: [a] -> forall (n :: Nat). Vector a n
+-- fromList []     = VNil
+-- fromList (x:xs) = VCons x (fromList xs)
 
 
 -- OR
