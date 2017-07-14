@@ -21,7 +21,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Theory Symbols
      , theorySymbols
-     , theorySEnv
+     -- , theorySEnv
 
      -- * String
      -- , string
@@ -42,7 +42,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
-import qualified Data.HashMap.Strict      as M
+-- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes, isJust)
 import           Data.Monoid
 import qualified Data.Text.Lazy           as T
@@ -220,7 +220,7 @@ stringPreamble _
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
 smt2Symbol :: Symbol -> Maybe Builder.Builder
-smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
+smt2Symbol x = Builder.fromLazyText . tsRaw <$> lookupSEnv x theorySymbols
 
 smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
@@ -240,7 +240,7 @@ smt2App (EVar f) [d]
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
 smt2App (EVar f) (d:ds)
-  | Just s <- M.lookup f theorySymbols
+  | Just s <- lookupSEnv f theorySymbols
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
@@ -253,7 +253,7 @@ isSmt2App (EVar f) [_]
   | f == setEmp   = True
   | f == setSng   = True
 isSmt2App (EVar f) _
-  =  isJust $ M.lookup f theorySymbols
+  =  isJust $ lookupSEnv f theorySymbols
 isSmt2App _ _
   = False
 
@@ -300,13 +300,13 @@ castWith s = eAppC intSort (EVar s)
 --   to avoid duplicate SMT definitions.  `uninterpSEnv` is for uninterpreted
 --   symbols, and `interpSEnv` is for interpreted symbols.
 --------------------------------------------------------------------------------
-theorySEnv :: SEnv Sort
-theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
+-- theorySEnv :: SEnv Sort
+-- theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: M.HashMap Symbol TheorySymbol
-theorySymbols = M.fromList $ uninterpSymbols ++ interpSymbols
+theorySymbols :: SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+theorySymbols = fromListSEnv $ uninterpSymbols ++ interpSymbols
 
 -- isTheorySymbol :: Symbol -> Bool
 -- isTheorySymbol x = M.member x theorySymbols

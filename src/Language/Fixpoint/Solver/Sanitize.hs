@@ -22,6 +22,7 @@ import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
+import qualified Language.Fixpoint.Smt.Types                       as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
@@ -269,7 +270,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 -- | symbol |-> sort for EVERY variable in the FInfo
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SEnv F.Sort
-symbolEnv cfg si = Thy.theorySEnv
+symbolEnv cfg si = (Thy.tsSort <$> Thy.theorySymbols)
                    `mappend`
                    F.fromListSEnv (symbolSorts cfg si)
 

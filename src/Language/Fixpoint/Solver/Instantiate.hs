@@ -137,7 +137,7 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
       smtPop ctx
       smtPush ctx
       smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds
-                                            , not (M.member x FT.theorySymbols)]
+                                            , not (memberSEnv x FT.theorySymbols)]
       smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
                            ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
                           ))

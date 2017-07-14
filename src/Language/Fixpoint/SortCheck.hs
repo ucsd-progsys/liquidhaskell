@@ -57,6 +57,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import           Language.Fixpoint.Types.Visitor  (mapExpr, stripCasts, foldSort)
 import qualified Language.Fixpoint.Smt.Theories   as Thy
+import qualified Language.Fixpoint.Smt.Types      as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -94,7 +95,7 @@ instance (Elaborate e) => (Elaborate (Triggered e)) where
   elaborate x env t = fmap (elaborate x env) t
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
-  elaborate x env t = fmap (elaborate x env) t  
+  elaborate x env t = fmap (elaborate x env) t
 
 instance Elaborate Sort where
   elaborate _ _ = go
@@ -156,7 +157,7 @@ elabExpr msg γ e
       Right s  -> fst s
     where
       f   = (`lookupSEnvWithDistance` γ')
-      γ'  = γ `mappend` Thy.theorySEnv
+      γ'  = γ `mappend` (Thy.tsSort <$> Thy.theorySymbols)
       d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
                  , nest 4 (pprint e)
                  , "with error"
@@ -420,8 +421,8 @@ elab _ e@(ECon (L _ s)) =
 elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab f (PGrad k su i e) = 
-  ((, boolSort) . PGrad k su i . fst) <$> elab f e 
+elab f (PGrad k su i e) =
+  ((, boolSort) . PGrad k su i . fst) <$> elab f e
 
 elab f e@(EVar x) =
   (e,) <$> checkSym f x
@@ -633,8 +634,8 @@ elabAppSort f e1 e2 s1 s2 = do
   let e = Just (EApp e1 e2)
   case s1' of
     FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    FVar i     -> do j <- refresh 0 
-                     k <- refresh 0 
+    FVar i     -> do j <- refresh 0
+                     k <- refresh 0
                      (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
     _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
@@ -928,8 +929,8 @@ sortMap f t             = f t
 checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
 checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
-checkFunSort (FVar i)      = do j <- refresh 0 
-                                k <- refresh 0 
+checkFunSort (FVar i)      = do j <- refresh 0
+                                k <- refresh 0
                                 return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
 checkFunSort t             = throwError $ errNonFunction 1 t
 

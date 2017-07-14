@@ -91,7 +91,7 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
-import qualified Data.HashMap.Strict      as M
+-- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
 {-
@@ -118,7 +118,7 @@ makeSmtContext cfg f xts = do
   return me
 
 theoryDecls :: [(Symbol, Sort)]
-theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, Uninterp == tsInterp ty]
+theoryDecls = [ (x, tsSort ty) | (x, ty) <- toListSEnv Thy.theorySymbols, Uninterp == tsInterp ty]
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
@@ -279,7 +279,7 @@ makeProcess cfg
                   , ctxAeq     = alphaEquivalence cfg
                   , ctxBeq     = betaEquivalence  cfg
                   , ctxNorm    = normalForm       cfg
-                  , ctxSmtEnv  = Thy.theorySEnv
+                  , ctxSmtEnv  = tsSort <$> Thy.theorySymbols -- Thy.theorySEnv
                   }
 
 --------------------------------------------------------------------------

@@ -272,7 +272,7 @@ declare env lts = withContext $ \me -> do
 --   2 = Query-Binder
 
 symKind :: F.Symbol -> Int
-symKind x = case tsInterp <$> M.lookup x Thy.theorySymbols of
+symKind x = case tsInterp <$> F.lookupSEnv x Thy.theorySymbols of
               Just Theory   -> 0
               Just Data     -> 0
               Just Uninterp -> 1
