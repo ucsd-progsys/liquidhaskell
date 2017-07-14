@@ -27,6 +27,7 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Theory Symbol
     , TheorySymbol (..)
+    , SymbolSem (..)
     , SMTEnv
     ) where
 
@@ -35,7 +36,7 @@ import           Language.Fixpoint.Types
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as LT
-import           Text.PrettyPrint.HughesPJ 
+import           Text.PrettyPrint.HughesPJ
 
 import           System.IO                (Handle)
 import           System.Process
@@ -103,12 +104,21 @@ type SMTEnv = SEnv Sort
 
 -- | Theory Symbol
 data TheorySymbol  = Thy
-  { tsSym    :: !Symbol    -- ^ name
-  , tsRaw    :: !Raw       -- ^ serialized SMTLIB2 name
-  , tsSort   :: !Sort      -- ^ sort
-  , tsInterp :: !Bool      -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
+  { tsSym    :: !Symbol          -- ^ name
+  , tsRaw    :: !Raw             -- ^ serialized SMTLIB2 name
+  , tsSort   :: !Sort            -- ^ sort
+  , tsInterp :: !SymbolSem       -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
   }
   deriving (Eq, Ord, Show)
+
+-- | 'SymbolSem' describes the SMT semantics for a given symbol
+
+data SymbolSem
+  = Uninterp                     -- ^ for UDF: `len`, `height`, `append`
+  | Data                         -- ^ for ADT ctors & accessor: `cons`, `nil`, `head`
+  | Theory                       -- ^ for theory ops: mem, cup, select
+  deriving (Eq, Ord, Show)
+
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------

@@ -39,7 +39,7 @@ import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.Smt.Types (tsInterp)
+import           Language.Fixpoint.Smt.Types (tsInterp, SymbolSem (..))
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
@@ -202,7 +202,7 @@ filterValid_ p qs me = catMaybes <$> do
 
 --------------------------------------------------------------------------------
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
--- | for some p in the list ps 
+-- | for some p in the list ps
 --------------------------------------------------------------------------------
 filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
@@ -217,12 +217,12 @@ filterValidGradual p qs = do
   return qs'
 
 filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
-filterValidGradual_ ps qs me 
+filterValidGradual_ ps qs me
   = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
   where
     partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
-    partitionCandidates (ok, candidates) p = do 
-      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me 
+    partitionCandidates (ok, candidates) p = do
+      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me
       let (valids, invalids) = (fst <$> valids', fst <$> invalids')
       return (ok ++ valids, invalids)
 
@@ -266,15 +266,18 @@ declare env lts = withContext $ \me -> do
     xts        = F.toListSEnv           env
     tx         = elaborate    "declare" env
 
--- | symKind returns {0, 1, 2} where:
+-- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,
 --   1 = Theory-Declaration,
 --   2 = Query-Binder
 
 symKind :: F.Symbol -> Int
-symKind x = case M.lookup x Thy.theorySymbols of
-              Just t  -> if tsInterp t then 0 else 1
-              Nothing -> 2
+symKind x = case tsInterp <$> M.lookup x Thy.theorySymbols of
+              Just Theory   -> 0
+              Just Data     -> 0
+              Just Uninterp -> 1
+              Nothing       -> 2
+              -- Just t  -> if tsInterp t then 0 else 1
 
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
 assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me

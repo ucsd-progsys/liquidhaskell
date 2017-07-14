@@ -118,7 +118,7 @@ makeSmtContext cfg f xts = do
   return me
 
 theoryDecls :: [(Symbol, Sort)]
-theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, not (tsInterp ty)]
+theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, Uninterp == tsInterp ty]
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =

@@ -91,13 +91,6 @@ strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
--- NOPROP genLen :: Symbol
--- NOPROP genLen = "len"
-
--- NOPROP strlen, strsubstr, strconcat :: Raw
--- NOPROP strlen    = "strLen"
--- NOPROP strsubstr = "subString"
--- NOPROP strconcat = "concatString"
 
 z3strlen, z3strsubstr, z3strconcat :: Raw
 z3strlen    = "str.len"
@@ -352,7 +345,7 @@ interpSymbols =
 
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
-interpSym x n t = (x, Thy x n t True)
+interpSym x n t = (x, Thy x n t Theory)
 
 isConName :: Symbol -> FTycon -> Bool
 isConName s = (s ==) . val . fTyconSymbol
@@ -369,7 +362,7 @@ uninterpSymbols :: [(Symbol, TheorySymbol)]
 uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
 
 uninterpSym :: Symbol -> Sort -> TheorySymbol
-uninterpSym x t =  Thy x (lt x) t False
+uninterpSym x t =  Thy x (lt x) t Uninterp
   where
     lt           = T.fromStrict . symbolSafeText
 
