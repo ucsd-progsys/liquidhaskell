@@ -194,7 +194,8 @@ data DataCtor = DCtor
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data DataDecl = DDecl
-  { ddVars  :: !Int               -- ^ Number of type variables
+  { ddTyCon :: !FTycon            -- ^ Name of defined datatype
+  , ddVars  :: !Int               -- ^ Number of type variables
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 

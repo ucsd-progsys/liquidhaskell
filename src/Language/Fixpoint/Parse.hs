@@ -516,7 +516,7 @@ fTyConP
   =   (reserved "int"     >> return intFTyCon)
   <|> (reserved "Integer" >> return intFTyCon)
   <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon) -- TODO:AZ duplicate?
+  -- <|> (reserved "int"     >> return intFTyCon) -- TODO:AZ duplicate?
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
@@ -641,9 +641,24 @@ refP       = refBindP bindP refaP
 refDefP :: Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refDefP x  = refBindP (optBindP x)
 
----------------------------------------------------------------------
--- | Parsing Qualifiers ---------------------------------------------
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Parsing Data Declarations -------------------------------------------------
+--------------------------------------------------------------------------------
+
+dataFieldP :: Parser DataField
+dataFieldP = DField <$> locLowerIdP <* colon <*> sortP
+
+dataCtorP :: Parser DataCtor
+dataCtorP  = DCtor <$> locUpperIdP
+                   <*> braces (sepBy dataFieldP comma)
+
+dataDeclP :: Parser DataDecl
+dataDeclP  = DDecl <$> fTyConP <*> intP <* (reservedOp "=")
+                   <*> brackets (sepBy dataCtorP (char '|'))
+
+--------------------------------------------------------------------------------
+-- | Parsing Qualifiers --------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Qualifiers
 qualifierP :: Parser Sort -> Parser Qualifier
@@ -732,9 +747,6 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Syms   <$> (reserved "syms"       >> intP)
     <|> Adt    <$> (reserved "data"       >> dataDeclP)
 
-
-dataDeclP :: Parser DataDecl
-dataDeclP = error "_fixmeHEREHEREHERE_dataDeclP"
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))

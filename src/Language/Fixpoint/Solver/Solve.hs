@@ -103,7 +103,7 @@ gradualLoop cfg fi (Just (s:ss))
 
 makeSolutions :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (Maybe [G.GSol])
 makeSolutions cfg fi
-  = (G.makeSolutions cfg fi) <$> (makeLocalLattice cfg fi $ GS.init fi)
+  = G.makeSolutions cfg fi <$> makeLocalLattice cfg fi (GS.init fi)
 
 
 
@@ -128,14 +128,14 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
     sEnv = symbolEnv cfg fi
     makeLattice acc new elems
       | null new
-      = return $ {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
+      = return {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
       | otherwise
       = do let cands = [e:es |e<-elems, es<-new]
            localCans <- filterM (isLocal e) cands
            newElems  <- filterM (notTrivial (new ++ acc)) localCans
            makeLattice (acc ++ new) newElems elems
     _showElem :: F.Expr -> String
-    _showElem e = showpp $ F.subst (F.mkSubst $ [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e]) e
+    _showElem e1 = showpp $ F.subst (F.mkSubst [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e1]) e1
     _showElems = unlines . map _showElem
     _showElemss = unlines. map _showElems
 
