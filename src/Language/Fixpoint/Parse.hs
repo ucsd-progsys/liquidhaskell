@@ -734,7 +734,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
 
 
 dataDeclP :: Parser DataDecl
-dataDeclP = _fixmeHEREHEREHERE_dataDeclP
+dataDeclP = error "_fixmeHEREHEREHERE_dataDeclP"
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
