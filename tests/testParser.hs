@@ -2,9 +2,11 @@
 
 module Main where
 
+import Language.Fixpoint.Types (showFix)
 import Language.Fixpoint.Parse
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.List (intercalate)
 
 main :: IO ()
 main = defaultMain $ parserTests
@@ -12,11 +14,11 @@ main = defaultMain $ parserTests
 parserTests :: TestTree
 parserTests =
   testGroup "Tests"
-    [
-      testSortP
+    [ testSortP
     , testFunAppP
     , testExpr0P
     , testPredP
+    , testDeclP
     ]
 
 -- ---------------------------------------------------------------------
@@ -123,7 +125,7 @@ exprFunSemis =
 
 exprFunCommas =
 
-simpleApp = 
+simpleApp =
 -}
 testFunAppP :: TestTree
 testFunAppP =
@@ -240,6 +242,38 @@ predr = expr brel expr
 brelP = '==' | '=' | '~~' | '!=' | '/=' | '!~' | '<' | '<=' | '>' | '>='
 
 -}
+
+{-
+
+data Vec 1 = [
+    Nil {}
+  | Cons { vHead : @(0), vTail : Vec @(0)}
+  ]
+
+-}
+
+testDeclP :: TestTree
+testDeclP = testGroup "dataDeclP"
+  [ mkT "fld0"  dataFieldP fld0
+  , mkT "fld1"  dataFieldP fld1
+  , mkT "fld2"  dataFieldP fld2
+  , mkT "ctor0" dataCtorP  ctor0
+  , mkT "ctor1" dataCtorP  ctor1
+  , mkT "decl0" dataDeclP decl0
+  ]
+  where
+    mkT name p t = testCase name $ showFix (doParse' p "test" t) @?= t
+    fld0    = "vHead : int"
+    fld1    = "vHead : @(0)"
+    fld2    = "vTail : (Vec @(0))"
+    ctor0   = "Nil {}"
+    ctor1   = "Cons {vHead : @(0), vTail : (Vec @(0))}"
+    decl0   = intercalate "\n"
+                [ "Vec 1 = ["
+                , "  | Nil {}"
+                , "  | Cons {vHead : @(0), vTail : (Vec @(0))}"
+                , "]"
+                ]
 
 testPredP :: TestTree
 testPredP =

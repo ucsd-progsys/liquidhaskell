@@ -278,8 +278,10 @@ newtype Sub = Sub [(Int, Sort)] deriving (Generic)
 instance Fixpoint Sort where
   toFix = toFixSort
 
+
+
 toFixSort :: Sort -> Doc
-toFixSort (FVar i)     = text "@"   <> parens (toFix i)
+toFixSort (FVar i)     = text "@" <> parens (toFix i)
 toFixSort FInt         = text "int"
 toFixSort FReal        = text "real"
 toFixSort FFrac        = text "frac"
@@ -301,10 +303,24 @@ toFixFApp            :: ListNE Sort -> Doc
 toFixFApp [t]        = toFixSort t
 toFixFApp [FTC c, t]
   | isListTC c       = brackets $ toFixSort t
-toFixFApp ts         = parens $ intersperse space (toFixSort <$> ts)
+toFixFApp ts         = parens $ intersperse (text "") (toFixSort <$> ts)
 
 instance Fixpoint FTycon where
   toFix (TC s _)       = toFix s
+
+instance Fixpoint DataField where
+  toFix (DField x t) = toFix x <+> text ":" <+> toFix t
+
+instance Fixpoint DataCtor where
+  toFix (DCtor x flds) = toFix x <+> braces (intersperse comma (toFix <$> flds))
+
+instance Fixpoint DataDecl where
+  toFix (DDecl tc n ctors) = vcat ([header] ++ body ++ [footer])
+    where
+      header               = {- text "data" <+> -} toFix tc <+> toFix n <+> text "= ["
+      body                 = [nest 2 (text "|" <+> toFix ct) | ct <- ctors]
+      footer               = text "]"
+
 
 -------------------------------------------------------------------------
 -- | Exported Basic Sorts -----------------------------------------------

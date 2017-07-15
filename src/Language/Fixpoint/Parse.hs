@@ -76,6 +76,10 @@ module Language.Fixpoint.Parse (
 
   -- * For testing
   , expr0P
+  , dataFieldP
+  , dataCtorP
+  , dataDeclP
+
   ) where
 
 import qualified Data.HashMap.Strict         as M
@@ -654,7 +658,7 @@ dataCtorP  = DCtor <$> locUpperIdP
 
 dataDeclP :: Parser DataDecl
 dataDeclP  = DDecl <$> fTyConP <*> intP <* (reservedOp "=")
-                   <*> brackets (sepBy dataCtorP (char '|'))
+                   <*> brackets (many (reservedOp "|" *> dataCtorP))
 
 --------------------------------------------------------------------------------
 -- | Parsing Qualifiers --------------------------------------------------------
