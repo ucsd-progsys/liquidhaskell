@@ -52,14 +52,13 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
-    ctx <- SMT.makeContextWithSEnv cfg file env lts
+    ctx <- SMT.makeContextWithSEnv cfg file env
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
   where
     file      = srcFile cfg ++ ".evals"
     env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
-    lts       = toListSEnv (dLits fi)
     inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
 instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
