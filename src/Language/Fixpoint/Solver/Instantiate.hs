@@ -23,7 +23,7 @@ import           Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import qualified Language.Fixpoint.Smt.Theories  as Thy
+-- import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
 import           Language.Fixpoint.SortCheck       (elaborate)
 
@@ -52,13 +52,14 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
-    ctx <- SMT.makeContextWithSEnv cfg file env
+    -- ctx <- SMT.makeContextWithSEnv cfg file env
+    ctx <- SMT.makeSmtContext cfg file []
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
   where
     file      = srcFile cfg ++ ".evals"
-    env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
+    -- env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
     inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
 instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
