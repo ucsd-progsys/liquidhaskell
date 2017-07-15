@@ -189,6 +189,7 @@ benchTests
      , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
      , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
+     , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
      ]
 
 
