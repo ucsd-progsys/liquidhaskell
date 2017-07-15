@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (dataDeclP, angles, refBindP, refP, refDefP)
 
 import Control.Monad.State
 
