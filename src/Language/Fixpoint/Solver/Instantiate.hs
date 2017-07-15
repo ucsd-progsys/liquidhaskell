@@ -53,12 +53,15 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
-    ctx <- SMT.makeContextWithSEnv cfg (srcFile cfg ++ ".evals") (symbolEnv cfg fi)
+    ctx <- SMT.makeContextWithSEnv cfg file env lts
     SMT.smtPush ctx
-    cm' <- sequence $ M.mapWithKey (instantiateOne ctx) (cm fi)
+    cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
   where
-    instantiateOne ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
+    file      = srcFile cfg ++ ".evals"
+    env       = symbolEnv cfg fi
+    lts       = toListSEnv (dLits fi)
+    inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
 instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
                   -> Integer -> SubC c

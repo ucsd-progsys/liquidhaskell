@@ -64,13 +64,15 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , betaEquivalence
                                                 , normalForm
                                                 , stringTheory)
-import           Language.Fixpoint.Misc         (errorstar)
+import qualified Language.Fixpoint.Misc  as Misc
+import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
+import           Language.Fixpoint.SortCheck
 
 import           Control.Applicative      ((<|>))
 import           Control.Monad
@@ -184,7 +186,7 @@ smtRead me = {-# SCC "smtRead" #-}
     do ln  <- smtReadRaw me
        res <- A.parseWith (smtReadRaw me) responseP ln
        case A.eitherResult res of
-         Left e  -> errorstar $ "SMTREAD:" ++ e
+         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
          Right r -> do
            maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
            -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
@@ -261,9 +263,12 @@ makeContext cfg f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
-makeContextWithSEnv cfg f env
-  = (\cxt -> cxt {ctxSymEnv = env}) <$> makeContext cfg f
+makeContextWithSEnv :: Config -> FilePath -> SymEnv -> [(Symbol, Sort)]-> IO Context
+makeContextWithSEnv cfg f env lts = do
+  ctx   <- makeContext cfg f
+  declare ctx env lts
+  return $ ctx {ctxSymEnv = env}
+
   -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
@@ -340,7 +345,7 @@ versionGreaterEq (x:xs) (y:ys)
   | x <  y = False
 versionGreaterEq _  [] = True
 versionGreaterEq [] _  = False
-versionGreaterEq _ _ = errorstar "Interface.versionGreater called with bad arguments"
+versionGreaterEq _ _ = Misc.errorstar "Interface.versionGreater called with bad arguments"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
@@ -417,3 +422,50 @@ z3_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
     , "(set-option :model-partial false)"]
+
+
+--------------------------------------------------------------------------------
+declare :: Context -> F.SymEnv -> [(F.Symbol, F.Sort)] -> IO ()
+--------------------------------------------------------------------------------
+declare me env lts = do
+  forM_ thyXTs $ uncurry $ smtDecl     me
+  forM_ qryXTs $ uncurry $ smtDecl     me
+  forM_ ess    $           smtDistinct me
+  forM_ axs    $           smtAssert   me
+  return ()
+  where
+    ess        = distinctLiterals  lts
+    axs        = Thy.axiomLiterals lts
+    thyXTs     =               filter (isKind 1) xts
+    qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
+    isKind n   = (n ==)  . symKind env . fst
+    xts        = F.toListSEnv           (F.seSort env)
+    tx         = elaborate    "declare" env
+
+-- | 'symKind' returns {0, 1, 2} where:
+--   0 = Theory-Definition,
+--   1 = Theory-Declaration,
+--   2 = Query-Binder
+
+symKind :: F.SymEnv -> F.Symbol -> Int
+symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
+                  Just F.Theory   -> 0
+                  Just F.Data     -> 0
+                  Just F.Uninterp -> 1
+                  Nothing         -> 2
+              -- Just t  -> if tsInterp t then 0 else 1
+
+
+-- assumes :: [F.Expr] -> SolveM ()
+-- assumes es = withContext $ \me -> forM_  es $ smtAssert me
+
+-- | `distinctLiterals` is used solely to determine the set of literals
+--   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
+--   or string literals "cat", "dog", "mouse". These should only include
+--   non-function sorted values.
+distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
+distinctLiterals xts = [ es | (_, es) <- tess ]
+   where
+    tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
+    notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
+    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
