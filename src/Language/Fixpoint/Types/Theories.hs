@@ -24,10 +24,12 @@ module Language.Fixpoint.Types.Theories (
 
     ) where
 
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Environments
 
+import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
 
 -- import           Language.Fixpoint.Misc   (traceShow)
@@ -74,7 +76,8 @@ data TheorySymbol  = Thy
   }
   deriving (Eq, Ord, Show)
 
-
+instance PPrint TheorySymbol where
+  pprintTidy _ = text . show
 
 --------------------------------------------------------------------------------
 -- | 'Sem' describes the SMT semantics for a given symbol

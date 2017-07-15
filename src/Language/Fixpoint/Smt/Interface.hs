@@ -95,7 +95,7 @@ import           Text.PrettyPrint.HughesPJ (text)
 
 -- import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
--- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
+import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
 {-
 runFile f
@@ -131,7 +131,7 @@ makeSmtEnv xts = SymEnv (fromListSEnv xts) (Thy.theorySymbols ())
 theoryDecls :: SymEnv -> [(Symbol, Sort)]
 theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
   where
-    theorySyms  = toListSEnv (seTheory env)
+    theorySyms  = tracepp "THEORYSYMS" $ toListSEnv (seTheory env)
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
