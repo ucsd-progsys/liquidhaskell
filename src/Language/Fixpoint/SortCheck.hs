@@ -57,6 +57,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import           Language.Fixpoint.Types.Visitor  (mapExpr, stripCasts, foldSort)
 import qualified Language.Fixpoint.Smt.Theories   as Thy
+-- import qualified Language.Fixpoint.Smt.Types      as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -81,7 +82,7 @@ isMono             = null . foldSort fv []
 --   to `int` and `bool`.
 --------------------------------------------------------------------------------
 class Elaborate a where
-  elaborate :: String -> SEnv Sort -> a -> a
+  elaborate :: String -> SymEnv -> a -> a
 
 instance Elaborate (SInfo a) where
   elaborate x senv si = si
@@ -94,7 +95,7 @@ instance (Elaborate e) => (Elaborate (Triggered e)) where
   elaborate x env t = fmap (elaborate x env) t
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
-  elaborate x env t = fmap (elaborate x env) t  
+  elaborate x env t = fmap (elaborate x env) t
 
 instance Elaborate Sort where
   elaborate _ _ = go
@@ -108,7 +109,7 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-  elaborate msg env = elabNumeric . elabApply . elabExpr msg env
+    elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x,) (elaborate msg env s)
@@ -134,7 +135,7 @@ instance Elaborate SortedReft where
   elaborate x env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
       e'   = elaborate x env' e
-      env' = insertSEnv v s env
+      env' = insertSymEnv v s env
 
 instance Elaborate BindEnv where
   elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
@@ -149,28 +150,29 @@ instance Elaborate (SimpC a) where
                       -- , qBody   = elaborate [env ++ qParams] (qBody q)
                       -- }
 
-elabExpr :: String -> SEnv Sort -> Expr -> Expr
-elabExpr msg γ e
+elabExpr :: String -> SymEnv -> Expr -> Expr
+elabExpr msg env e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
       Right s  -> fst s
     where
-      f   = (`lookupSEnvWithDistance` γ')
-      γ'  = γ `mappend` Thy.theorySEnv
-      d m = vcat [ "elaborate" <+> text msg <+> "failed on:"
+      sEnv = seSort env
+      f    = (`lookupSEnvWithDistance` sEnv)
+      -- γ'  = γ `mappend` (Thy.tsSort <$> Thy.theorySymbols)
+      d m  = vcat [ "elaborate" <+> text msg <+> "failed on:"
                  , nest 4 (pprint e)
                  , "with error"
                  , nest 4 (text m)
                  , "in environment"
-                 , nest 4 (pprint $ subEnv γ' e)
+                 , nest 4 (pprint $ subEnv sEnv e)
                  ]
 
-elabApply :: Expr -> Expr
-elabApply = go
+elabApply :: SymEnv -> Expr -> Expr
+elabApply env = go
   where
     go e                  = case splitArgs e of
                              (e', []) -> step e'
-                             (f , es) -> defuncEApp (go f) (mapFst go <$> es)
+                             (f , es) -> defuncEApp env (go f) (mapFst go <$> es)
     step (PAnd [])        = PTrue
     step (POr [])         = PFalse
     step (ENeg e)         = ENeg (go  e)
@@ -420,8 +422,8 @@ elab _ e@(ECon (L _ s)) =
 elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab f (PGrad k su i e) = 
-  ((, boolSort) . PGrad k su i . fst) <$> elab f e 
+elab f (PGrad k su i e) =
+  ((, boolSort) . PGrad k su i . fst) <$> elab f e
 
 elab f e@(EVar x) =
   (e,) <$> checkSym f x
@@ -534,9 +536,9 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
-defuncEApp :: Expr -> [(Expr, Sort)] -> Expr
-defuncEApp e es
-  | Thy.isSmt2App (stripCasts e) es
+defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
+defuncEApp env e es
+  | Thy.isSmt2App (seTheory env) (stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
@@ -633,8 +635,8 @@ elabAppSort f e1 e2 s1 s2 = do
   let e = Just (EApp e1 e2)
   case s1' of
     FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    FVar i     -> do j <- refresh 0 
-                     k <- refresh 0 
+    FVar i     -> do j <- refresh 0
+                     k <- refresh 0
                      (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
     _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
@@ -928,8 +930,8 @@ sortMap f t             = f t
 checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
 checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
-checkFunSort (FVar i)      = do j <- refresh 0 
-                                k <- refresh 0 
+checkFunSort (FVar i)      = do j <- refresh 0
+                                k <- refresh 0
                                 return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
 checkFunSort t             = throwError $ errNonFunction 1 t
 

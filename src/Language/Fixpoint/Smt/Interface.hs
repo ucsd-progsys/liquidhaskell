@@ -30,6 +30,7 @@ module Language.Fixpoint.Smt.Interface (
     , makeContext
     , makeContextNoLog
     , makeContextWithSEnv
+    , makeSmtContext
     , cleanupContext
 
     -- * Execute Queries
@@ -52,7 +53,6 @@ module Language.Fixpoint.Smt.Interface (
     , checkValid'
     , checkValidWithContext
     , checkValids
-    , makeSmtContext
 
     ) where
 
@@ -64,15 +64,13 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , betaEquivalence
                                                 , normalForm
                                                 , stringTheory)
-import           Language.Fixpoint.Misc         (errorstar)
+import qualified Language.Fixpoint.Misc  as Misc
 import           Language.Fixpoint.Types.Errors
--- import           Language.Fixpoint.SortCheck    (elaborate)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
-
 import           Control.Applicative      ((<|>))
 import           Control.Monad
 import           Control.Exception
@@ -91,9 +89,14 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
-import qualified Data.HashMap.Strict      as M
+-- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
+
+-- import           Language.Fixpoint.SortCheck
+-- import qualified Language.Fixpoint.Types as F
+-- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
+
 {-
 runFile f
   = readFile f >>= runString
@@ -109,16 +112,26 @@ runCommands cmds
 -}
 
 
--- TODO take makeContext's Bool from caller instead of always using False?
+-- TODO: DEPRECATE `makeSmtContext`; instead use just `makeContextWithSEnv`
+--       which should call `declare` inside it. Currently broken as the use
+--       case is in `instantiate` which needs it BEFORE we `Sanitize` and
+--       hence before we can call `symbolEnv` to find the set of all symbols etc...
+
 makeSmtContext :: Config -> FilePath -> [(Symbol, Sort)] -> IO Context
 makeSmtContext cfg f xts = do
-  me <- makeContextWithSEnv cfg f $ fromListSEnv xts
-  smtDecls me theoryDecls
+  let env = makeSmtEnv xts
+  me     <- makeContextWithSEnv cfg f env
+  smtDecls me (theoryDecls env)
   smtDecls me xts
   return me
 
-theoryDecls :: [(Symbol, Sort)]
-theoryDecls = [ (x, tsSort ty) | (x, ty) <- M.toList Thy.theorySymbols, not (tsInterp ty)]
+makeSmtEnv :: [(Symbol, Sort)] -> SymEnv
+makeSmtEnv xts = SymEnv (fromListSEnv xts) (Thy.theorySymbols ())
+
+theoryDecls :: SymEnv -> [(Symbol, Sort)]
+theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
+  where
+    theorySyms  = toListSEnv (seTheory env)
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
@@ -163,7 +176,8 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd       = say cmd >> hear cmd
   where
-    say               = smtWrite me . Builder.toLazyText . runSmt2
+    env               = ctxSymEnv me
+    say               = smtWrite me . Builder.toLazyText . runSmt2 env
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -177,7 +191,7 @@ smtRead me = {-# SCC "smtRead" #-}
     do ln  <- smtReadRaw me
        res <- A.parseWith (smtReadRaw me) responseP ln
        case A.eitherResult res of
-         Left e  -> errorstar $ "SMTREAD:" ++ e
+         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
          Right r -> do
            maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
            -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
@@ -254,9 +268,10 @@ makeContext cfg f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath -> SMTEnv -> IO Context
-makeContextWithSEnv cfg f env
-  = (\cxt -> cxt {ctxSmtEnv = env}) <$> makeContext cfg f
+makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
+makeContextWithSEnv cfg f env = do
+  ctx   <- makeContext cfg f
+  return $ ctx {ctxSymEnv = env}
   -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
@@ -279,7 +294,7 @@ makeProcess cfg
                   , ctxAeq     = alphaEquivalence cfg
                   , ctxBeq     = betaEquivalence  cfg
                   , ctxNorm    = normalForm       cfg
-                  , ctxSmtEnv  = Thy.theorySEnv
+                  , ctxSymEnv  = mempty -- tsSort <$> Thy.theorySymbols -- Thy.theorySEnv
                   }
 
 --------------------------------------------------------------------------
@@ -333,7 +348,7 @@ versionGreaterEq (x:xs) (y:ys)
   | x <  y = False
 versionGreaterEq _  [] = True
 versionGreaterEq [] _  = False
-versionGreaterEq _ _ = errorstar "Interface.versionGreater called with bad arguments"
+versionGreaterEq _ _ = Misc.errorstar "Interface.versionGreater called with bad arguments"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------

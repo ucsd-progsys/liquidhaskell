@@ -31,20 +31,19 @@ module Language.Fixpoint.Solver.Monad
 import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
-import           Language.Fixpoint.Misc    (mapSnd, groupList)
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)
 import qualified Language.Fixpoint.Types   as F
+import qualified Language.Fixpoint.Misc    as Misc
+import           Language.Fixpoint.SortCheck
 import qualified Language.Fixpoint.Types.Solutions as F
 import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
-import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.Smt.Types (tsInterp)
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
+import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Solver.Sanitize
-import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 -- import           Data.Maybe           (catMaybes)
@@ -97,21 +96,65 @@ runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     smtWrite ctx "(exit)"
-    return $ fst res
+    return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = declare initEnv lts {- ess -} >> assumesAxioms (F.asserts fi) >> act
+    act'     = declare initEnv lts >> assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
     lts      = F.toListSEnv (F.dLits fi)
-    -- ess   = distinctLiterals fi
     be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
+
+--------------------------------------------------------------------------------
+declare :: F.SymEnv -> [(F.Symbol, F.Sort)] -> SolveM ()
+--------------------------------------------------------------------------------
+declare env lts = withContext $ \me -> do
+  forM_ thyXTs $ uncurry $ smtDecl     me
+  forM_ qryXTs $ uncurry $ smtDecl     me
+  forM_ ess    $           smtDistinct me
+  forM_ axs    $           smtAssert   me
+  where
+    ess        = distinctLiterals  lts
+    axs        = Thy.axiomLiterals lts
+    thyXTs     =                    filter (isKind 1) xts
+    qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
+    isKind n   = (n ==)  . symKind env . fst
+    xts        = F.toListSEnv           (F.seSort env)
+    tx         = elaborate    "declare" env
+
+-- | 'symKind' returns {0, 1, 2} where:
+--   0 = Theory-Definition,
+--   1 = Theory-Declaration,
+--   2 = Query-Binder
+
+symKind :: F.SymEnv -> F.Symbol -> Int
+symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
+                  Just F.Theory   -> 0
+                  Just F.Data     -> 0
+                  Just F.Uninterp -> 1
+                  Nothing         -> 2
+              -- Just t  -> if tsInterp t then 0 else 1
+
+
+-- assumes :: [F.Expr] -> SolveM ()
+-- assumes es = withContext $ \me -> forM_  es $ smtAssert me
+
+-- | `distinctLiterals` is used solely to determine the set of literals
+--   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
+--   or string literals "cat", "dog", "mouse". These should only include
+--   non-function sorted values.
+distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
+distinctLiterals xts = [ es | (_, es) <- tess ]
+   where
+    tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
+    notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
+    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
 
 --------------------------------------------------------------------------------
@@ -202,7 +245,7 @@ filterValid_ p qs me = catMaybes <$> do
 
 --------------------------------------------------------------------------------
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
--- | for some p in the list ps 
+-- | for some p in the list ps
 --------------------------------------------------------------------------------
 filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
@@ -217,12 +260,12 @@ filterValidGradual p qs = do
   return qs'
 
 filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
-filterValidGradual_ ps qs me 
+filterValidGradual_ ps qs me
   = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
   where
     partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
-    partitionCandidates (ok, candidates) p = do 
-      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me 
+    partitionCandidates (ok, candidates) p = do
+      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me
       let (valids, invalids) = (fst <$> valids', fst <$> invalids')
       return (ok ++ valids, invalids)
 
@@ -249,49 +292,10 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)] -> SolveM ()
---------------------------------------------------------------------------------
-declare env lts = withContext $ \me -> do
-  forM_ thyXTs $ uncurry $ smtDecl     me
-  forM_ qryXTs $ uncurry $ smtDecl     me
-  forM_ ess    $           smtDistinct me
-  forM_ axs    $           smtAssert   me
-  return ()
-  where
-    ess        = distinctLiterals  lts
-    axs        = Thy.axiomLiterals lts
-    thyXTs     =               filter (isKind 1) xts
-    qryXTs     = mapSnd tx <$> filter (isKind 2) xts
-    isKind n   = (n ==)  . symKind . fst
-    xts        = F.toListSEnv           env
-    tx         = elaborate    "declare" env
-
--- | symKind returns {0, 1, 2} where:
---   0 = Theory-Definition,
---   1 = Theory-Declaration,
---   2 = Query-Binder
-
-symKind :: F.Symbol -> Int
-symKind x = case M.lookup x Thy.theorySymbols of
-              Just t  -> if tsInterp t then 0 else 1
-              Nothing -> 2
-
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
+--------------------------------------------------------------------------------
 assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
 
--- assumes :: [F.Expr] -> SolveM ()
--- assumes es = withContext $ \me -> forM_  es $ smtAssert me
-
--- | `distinctLiterals` is used solely to determine the set of literals
---   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
---   or string literals "cat", "dog", "mouse". These should only include
---   non-function sorted values.
-distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
-distinctLiterals xts = [ es | (_, es) <- tess ]
-   where
-    tess             = groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
-    notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats

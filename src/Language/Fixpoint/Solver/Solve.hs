@@ -65,7 +65,7 @@ solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a)
 solveGradual cfg fi = do
   -- graphStatistics cfg $ G.uniquify fi
   let fis = zip [1..] $ partition' Nothing $ G.uniquify fi
-  if (ginteractive cfg)
+  if ginteractive cfg
     then snd . traceShow "FINAL SOLUTION\n"  <$> iSolveGradual cfg fis
     else snd . traceShow "FINAL SOLUTION\n" . mconcat <$> parallel (solveGradualOne cfg <$> fis)
 
@@ -103,7 +103,7 @@ gradualLoop cfg fi (Just (s:ss))
 
 makeSolutions :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (Maybe [G.GSol])
 makeSolutions cfg fi
-  = (G.makeSolutions cfg fi) <$> (makeLocalLattice cfg fi $ GS.init fi)
+  = G.makeSolutions cfg fi <$> makeLocalLattice cfg fi (GS.init fi)
 
 
 
@@ -128,14 +128,14 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
     sEnv = symbolEnv cfg fi
     makeLattice acc new elems
       | null new
-      = return $ {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
+      = return {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
       | otherwise
       = do let cands = [e:es |e<-elems, es<-new]
            localCans <- filterM (isLocal e) cands
            newElems  <- filterM (notTrivial (new ++ acc)) localCans
            makeLattice (acc ++ new) newElems elems
     _showElem :: F.Expr -> String
-    _showElem e = showpp $ F.subst (F.mkSubst $ [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e]) e
+    _showElem e1 = showpp $ F.subst (F.mkSubst [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e1]) e1
     _showElems = unlines . map _showElem
     _showElemss = unlines. map _showElems
 
@@ -374,7 +374,7 @@ donePhase' msg = lift $ do
 _iMergePartitions :: [(Int, F.SInfo a)] -> IO [(Int, F.SInfo a)]
 _iMergePartitions ifis = do
   putStrLn "Current Partitions are: "
-  putStrLn $ unlines $ (partitionInfo <$> ifis)
+  putStrLn $ unlines (partitionInfo <$> ifis)
   putStrLn "Merge Partitions? Y/N"
   c <- getChar
   if c == 'N'
@@ -389,7 +389,7 @@ getMergePartition n = do
   putStrLn "Which two partition to merge? (i, j)"
   ic <- getLine
   let (i,j) = read ic :: (Int, Int)
-  if (i < 1 || n < i || j < 1 || n < j)
+  if i < 1 || n < i || j < 1 || n < j
     then do putStrLn ("Invalid Partition numbers, write (i,j) with 1 <= i <= " ++ show n)
             getMergePartition n
     else return (i,j)
@@ -398,7 +398,7 @@ mergePartitions :: Int -> Int -> [(Int, F.SInfo a)] -> [(Int, F.SInfo a)]
 mergePartitions i j fis
   = zip [1..] ((takei i `mappend` (takei j){F.bs = mempty}):rest)
   where
-    takei i = snd ((fis L.!! (i-1)))
+    takei i = snd (fis L.!! (i - 1))
     rest = snd <$> filter (\(k,_) -> (k /= i && k /= j)) fis
 
 partitionInfo :: (Int, F.SInfo a) -> String
@@ -407,6 +407,6 @@ partitionInfo (i, fi)
     "Defined ?? " ++ show defs    ++ "\n" ++
     "Used ?? "    ++ show uses
   where
-    gs   = F.wloc . snd <$> (L.filter (F.isGWfc . snd) $ M.toList (F.ws fi))
+    gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)

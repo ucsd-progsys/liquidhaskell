@@ -417,7 +417,7 @@ existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
 gradIntSymbol :: Integer -> Symbol
-gradIntSymbol = intSymbol gradPrefix 
+gradIntSymbol = intSymbol gradPrefix
 
 tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix  :: Symbol
 tempPrefix   = "lq_tmp$"
