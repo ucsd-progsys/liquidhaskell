@@ -38,7 +38,7 @@ import           Data.List                              (foldl', partition)
 import           Data.Maybe                             (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types                hiding (R, SrcSpan)
+import           Language.Fixpoint.Types                hiding (R, DataDecl, SrcSpan)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
 import           Language.Haskell.Liquid.Types.RefType
