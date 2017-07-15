@@ -699,6 +699,7 @@ data Def a
   | Fuel ![(Int,Int)]
   | Expand ![(Int,Bool)]
   | Syms !Int
+  | Adt  !DataDecl
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
@@ -723,12 +724,17 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> IBind <$> (reserved "bind"       >> intP)
               <*> symbolP
               <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
-    <|> Opt   <$> (reserved "fixpoint"   >> stringLiteral)
-    <|> Def   <$> (reserved "define"     >> defineP)
-    <|> Mat   <$> (reserved "match"      >> matchP)
-    <|> Fuel  <$> (reserved "fuel"       >> pairsP intP intP)
-    <|> Expand <$> (reserved "expand"    >> pairsP intP boolP)
-    <|> Syms  <$> (reserved "syms"       >> intP)
+    <|> Opt    <$> (reserved "fixpoint"   >> stringLiteral)
+    <|> Def    <$> (reserved "define"     >> defineP)
+    <|> Mat    <$> (reserved "match"      >> matchP)
+    <|> Fuel   <$> (reserved "fuel"       >> pairsP intP intP)
+    <|> Expand <$> (reserved "expand"     >> pairsP intP boolP)
+    <|> Syms   <$> (reserved "syms"       >> intP)
+    <|> Adt    <$> (reserved "data"       >> dataDeclP)
+
+
+dataDeclP :: Parser DataDecl
+dataDeclP = _fixmeHEREHEREHERE_dataDeclP
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -787,7 +793,7 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty ae
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs binfo adts mempty mempty ae
   where
     cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
     ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
@@ -795,8 +801,8 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty m
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
-    -- pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
     qs         =                    [q                  | Qul q       <- defs]
+    binfo      = mempty
     fuel       = M.fromList         [(fromIntegral i, f)| Fuel fs     <- defs, (i,f) <- fs]
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
     syms       = sum                [s                  | Syms s      <- defs]
@@ -804,6 +810,7 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty m
     rews       =                    [r                  | Mat r       <- defs]
     cid        = fromJust . sid
     ae         = AEnv syms eqs rews fuel expand
+    adts       =                    [d                  | Adt d       <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
 ---------------------------------------------------------------------

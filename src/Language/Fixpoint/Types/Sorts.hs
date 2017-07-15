@@ -21,6 +21,7 @@ module Language.Fixpoint.Types.Sorts (
 
   -- * Embedding to Fixpoint Types
     Sort (..)
+
   , Sub (..)
   , FTycon, TCEmb
   , sortFTycon
@@ -42,6 +43,12 @@ module Language.Fixpoint.Types.Sorts (
   , bkFFunc
 
   , isNumeric, isReal, isString
+
+  -- * User-defined ADTs
+  , DataField (..)
+  , DataCtor (..)
+  , DataDecl (..)
+
   ) where
 
 import qualified Data.Binary as B
@@ -161,10 +168,9 @@ functionSort s
     go vs ss (FFunc s1 s2) = go vs (s1:ss) s2
     go vs ss t             = (reverse vs, reverse ss, t)
 
-----------------------------------------------------------------------
-------------------------------- Sorts --------------------------------
-----------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Sorts ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 data Sort = FInt
           | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
@@ -175,11 +181,25 @@ data Sort = FInt
           | FAbs  !Int !Sort     -- ^ type-abstraction
           | FTC   !FTycon
           | FApp  !Sort !Sort    -- ^ constructed type
-              deriving (Eq, Ord, Show, Data, Typeable, Generic)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+data DataField = DField
+  { dfName :: !LocSymbol          -- ^ Field Name
+  , dfSort :: !Sort               -- ^ Field Sort
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+data DataCtor = DCtor
+  { dcName   :: !LocSymbol        -- ^ Ctor Name
+  , dcFields :: ![DataField]      -- ^ Ctor Fields
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+data DataDecl = DDecl
+  { ddVars  :: !Int               -- ^ Number of type variables
+  , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 
 isFirstOrder, isFunction :: Sort -> Bool
-
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
 isFirstOrder (FAbs _ s)   = isFirstOrder s
 isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
@@ -328,11 +348,17 @@ sortSubst _  t            = t
 instance B.Binary FTycon
 instance B.Binary TCInfo
 instance B.Binary Sort
+instance B.Binary DataField
+instance B.Binary DataCtor
+instance B.Binary DataDecl
 instance B.Binary Sub
 
 instance NFData FTycon
 instance NFData TCInfo
 instance NFData Sort
+instance NFData DataField
+instance NFData DataCtor
+instance NFData DataDecl
 instance NFData Sub
 
 
