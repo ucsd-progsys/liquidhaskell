@@ -131,7 +131,7 @@ makeSmtEnv xts = SymEnv (fromListSEnv xts) (Thy.theorySymbols ())
 theoryDecls :: SymEnv -> [(Symbol, Sort)]
 theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
   where
-    theorySyms  = tracepp "THEORYSYMS" $ toListSEnv (seTheory env)
+    theorySyms  = toListSEnv (seTheory env)
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
