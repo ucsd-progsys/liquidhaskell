@@ -21,7 +21,7 @@ import qualified Data.Text.Lazy.Builder          as Builder
 import           System.IO.Unsafe
 
 import qualified GHC
-import           Language.Fixpoint.Smt.Interface hiding (SMTLIB2(..))
+import           Language.Fixpoint.Smt.Interface -- hiding (SMTLIB2(..))
 import           Language.Fixpoint.Types         hiding (ofReft, reft)
 import           Language.Haskell.Liquid.GHC.Misc (qualifiedNameSymbol)
 import           Language.Haskell.Liquid.Types.RefType (addTyConInfo, rTypeSort)
@@ -31,7 +31,7 @@ import           Test.Target.Targetable
 import           Test.Target.Eval
 import           Test.Target.Expr
 import           Test.Target.Monad
-import           Test.Target.Serialize
+-- import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
@@ -76,17 +76,18 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                --FIXME: better error message
                False -> Ex.throwM $ PreconditionCheckFailed $ show $ zip es tis
                True  -> do
-                 ctx <- gets smtContext
+                 ctx  <- gets smtContext
+                 let sEnv = ctxSymEnv ctx
                  _ <- io $ command ctx Push
                  xes <- zipWithM genExpr es tis
                  let su = mkSubst $ zipWith (\v e -> (v, var e)) vs xes
                  xo <- qquery (Proxy :: Proxy (Res f)) d (subst su to)
                  vs <- gets variables
                  mapM_ (\x -> io . smtWrite ctx . Builder.toLazyText $
-                              makeDecl (symbol x) (snd x)) vs
+                              smt2 sEnv $ makeDecl (symbol x) (snd x)) vs
                  cs <- gets constraints
                  mapM_ (\c -> io . smtWrite ctx . Builder.toLazyText $
-                              smt2 $ Assert Nothing c) cs
+                              smt2 sEnv $ Assert Nothing c) cs
 
                  resp <- io $ command ctx CheckSat
                  when (resp == Unsat) $ Ex.throwM SmtFailedToProduceOutput

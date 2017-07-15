@@ -37,7 +37,7 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
 
-import           Language.Fixpoint.Types                hiding (Error, R, Predicate)
+import           Language.Fixpoint.Types                hiding (DDecl, DataDecl, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)
@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (dataDeclP, angles, refBindP, refP, refDefP)
 
 import Control.Monad.State
 
