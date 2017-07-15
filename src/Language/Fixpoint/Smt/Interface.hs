@@ -95,7 +95,7 @@ import           Text.PrettyPrint.HughesPJ (text)
 
 -- import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Types.PrettyPrint (tracepp)
+-- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
 {-
 runFile f
