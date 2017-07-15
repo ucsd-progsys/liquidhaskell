@@ -23,7 +23,7 @@ import           Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
+import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
 import           Language.Fixpoint.SortCheck       (elaborate)
 
@@ -58,7 +58,7 @@ instantiateFInfo cfg fi = do
     return $ fi { cm = cm' }
   where
     file      = srcFile cfg ++ ".evals"
-    env       = _symbolEnv cfg fi
+    env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
     lts       = toListSEnv (dLits fi)
     inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
