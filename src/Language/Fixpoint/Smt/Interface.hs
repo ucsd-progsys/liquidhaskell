@@ -44,7 +44,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtCheckUnsat
     , smtCheckSat
     , smtBracket
-    , smtDistinct
+    -- , smtDistinct
     , smtPush, smtPop
 
     -- * Check Validity
@@ -432,11 +432,10 @@ declare me env lts = do
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
   forM_ axs    $           smtAssert   me
-  return ()
   where
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
-    thyXTs     =               filter (isKind 1) xts
+    thyXTs     =                    filter (isKind 1) xts
     qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = F.toListSEnv           (F.seSort env)
