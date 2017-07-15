@@ -243,38 +243,6 @@ brelP = '==' | '=' | '~~' | '!=' | '/=' | '!~' | '<' | '<=' | '>' | '>='
 
 -}
 
-{-
-
-data Vec 1 = [
-    Nil {}
-  | Cons { vHead : @(0), vTail : Vec @(0)}
-  ]
-
--}
-
-testDeclP :: TestTree
-testDeclP = testGroup "dataDeclP"
-  [ mkT "fld0"  dataFieldP fld0
-  , mkT "fld1"  dataFieldP fld1
-  , mkT "fld2"  dataFieldP fld2
-  , mkT "ctor0" dataCtorP  ctor0
-  , mkT "ctor1" dataCtorP  ctor1
-  , mkT "decl0" dataDeclP decl0
-  ]
-  where
-    mkT name p t = testCase name $ showFix (doParse' p "test" t) @?= t
-    fld0    = "vHead : int"
-    fld1    = "vHead : @(0)"
-    fld2    = "vTail : (Vec @(0))"
-    ctor0   = "Nil {}"
-    ctor1   = "Cons {vHead : @(0), vTail : (Vec @(0))}"
-    decl0   = intercalate "\n"
-                [ "Vec 1 = ["
-                , "  | Nil {}"
-                , "  | Cons {vHead : @(0), vTail : (Vec @(0))}"
-                , "]"
-                ]
-
 testPredP :: TestTree
 testPredP =
   testGroup "predP"
@@ -341,3 +309,36 @@ testPredP =
     , testCase "|| 2" $
         show (doParse' predP "test" "|| [x;y]") @?= "POr [EVar \"x\",EVar \"y\"]"
     ]
+
+
+{-
+
+data Vec 1 = [
+    Nil {}
+  | Cons { vHead : @(0), vTail : Vec @(0)}
+  ]
+
+-}
+
+testDeclP :: TestTree
+testDeclP = testGroup "dataDeclP"
+  [ mkT "fld0"  dataFieldP fld0
+  , mkT "fld1"  dataFieldP fld1
+  , mkT "fld2"  dataFieldP fld2
+  , mkT "ctor0" dataCtorP  ctor0
+  , mkT "ctor1" dataCtorP  ctor1
+  , mkT "decl0" dataDeclP decl0
+  ]
+  where
+    mkT name p t = testCase name $ showFix (doParse' p "test" t) @?= t
+    fld0    = "vHead : int"
+    fld1    = "vHead : @(0)"
+    fld2    = "vTail : (Vec @(0))"
+    ctor0   = "nil {}"
+    ctor1   = "cons {vHead : @(0), vTail : (Vec @(0))}"
+    decl0   = intercalate "\n"
+                [ "Vec 1 = ["
+                , "  | nil {}"
+                , "  | cons {vHead : @(0), vTail : Vec}"
+                , "]"
+                ]

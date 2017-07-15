@@ -653,7 +653,7 @@ dataFieldP :: Parser DataField
 dataFieldP = DField <$> locLowerIdP <* colon <*> sortP
 
 dataCtorP :: Parser DataCtor
-dataCtorP  = DCtor <$> locUpperIdP
+dataCtorP  = DCtor <$> locLowerIdP
                    <*> braces (sepBy dataFieldP comma)
 
 dataDeclP :: Parser DataDecl

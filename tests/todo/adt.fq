@@ -1,6 +1,8 @@
-data Vec a0 = mu X. nil | cons { head : a0, tail : X}
 
-// (declare-datatypes (A0) ((Vec nil (cons (head A0) (tail Vec)))))
+data Vec 1 = [
+  | nil  { }
+  | cons { head : @(0), tail : Vec }
+]
 
 bind 1 x  : int
 bind 2 y  : int
