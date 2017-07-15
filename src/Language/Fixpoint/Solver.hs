@@ -48,7 +48,15 @@ import           Control.DeepSeq
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg = do
+solveFQ cfg = solveFQ' cfg `catch` errorExit
+
+errorExit :: Error -> IO ExitCode
+errorExit e = do
+  colorStrLn Sad ("Oops, unexpected error: " ++ showpp e)
+  return (ExitFailure 2)
+
+solveFQ' :: Config -> IO ExitCode
+solveFQ' cfg = do
     (fi, opts) <- readFInfo file
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi

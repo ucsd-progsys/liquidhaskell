@@ -53,7 +53,7 @@ import           Data.Foldable        (foldlM)
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file []
+    ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] 
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }

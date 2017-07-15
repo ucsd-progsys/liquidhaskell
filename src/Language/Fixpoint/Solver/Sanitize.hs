@@ -273,7 +273,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv tEnv
   where
-    tEnv         = Thy.theorySymbols si
+    tEnv         = Thy.theorySymbols (F.ddecls si)
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
     xts          = symbolSorts cfg si
 

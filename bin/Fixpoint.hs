@@ -8,4 +8,3 @@ main = do
   writeLoud $  "Options: " ++ show cfg
   e <- solveFQ cfg
   exitWith e
-

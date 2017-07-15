@@ -199,6 +199,11 @@ data DataDecl = DDecl
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance Symbolic DataField where
+  symbol = val . dfName
+
+instance Symbolic DataCtor where
+  symbol = val . dcName
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
