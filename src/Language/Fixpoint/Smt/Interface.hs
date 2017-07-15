@@ -95,6 +95,7 @@ import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
+import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
 {-
 runFile f
@@ -435,8 +436,8 @@ declare me env lts = do
   where
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
-    thyXTs     =                    filter (isKind 1) xts
-    qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
+    thyXTs     = tracepp "THYXTS" $                   filter (isKind 1) xts
+    qryXTs     = tracepp "QRYXTS" $ Misc.mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
