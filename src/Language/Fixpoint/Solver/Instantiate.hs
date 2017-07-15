@@ -23,7 +23,6 @@ import           Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
---        ( smtPop, smtPush, smtDecls, smtAssert, checkValid', Context(..) )
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
 import           Language.Fixpoint.SortCheck       (elaborate)
@@ -59,7 +58,7 @@ instantiateFInfo cfg fi = do
     return $ fi { cm = cm' }
   where
     file      = srcFile cfg ++ ".evals"
-    env       = symbolEnv cfg fi
+    env       = _symbolEnv cfg fi
     lts       = toListSEnv (dLits fi)
     inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 

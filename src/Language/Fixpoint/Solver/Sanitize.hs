@@ -266,9 +266,11 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
                                           , nest 4 (pprint (F.crhs c)) ]
 
 --------------------------------------------------------------------------------
--- | symbol |-> sort for EVERY variable in the FInfo
+-- | symbol |-> sort for EVERY variable in the SInfo; 'symbolEnv' can ONLY be
+--   called with **sanitized** environments (post the uniqification etc.) or
+--   else you get duplicate sorts and other such errors.
 --------------------------------------------------------------------------------
-symbolEnv :: Config -> F.GInfo c a -> F.SymEnv -- SEnv F.Sort
+symbolEnv :: Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv tEnv
   where
     tEnv         = Thy.theorySymbols si
