@@ -10,7 +10,7 @@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize () where
+module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
