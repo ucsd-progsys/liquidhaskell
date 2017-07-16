@@ -9,10 +9,10 @@
 module Language.Fixpoint.Smt.Types (
 
     -- * Serialized Representation
-      symbolBuilder
+    --    symbolBuilder
 
     -- * Commands
-    , Command  (..)
+      Command  (..)
 
     -- * Responses
     , Response (..)
@@ -39,8 +39,8 @@ import           System.Process
 -- | Types ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-symbolBuilder :: Symbol -> LT.Builder
-symbolBuilder = LT.fromText . symbolSafeText
+-- symbolBuilder :: Symbol -> LT.Builder
+-- symbolBuilder = LT.fromText . symbolSafeText
 
 -- | Commands issued to SMT engine
 data Command      = Push

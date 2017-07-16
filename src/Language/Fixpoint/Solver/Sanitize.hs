@@ -271,9 +271,10 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   else you get duplicate sorts and other such errors.
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv
+symbolEnv cfg si = F.symEnv sEnv tEnv ds
   where
-    tEnv         = Thy.theorySymbols (F.ddecls si)
+    tEnv         = Thy.theorySymbols ds
+    ds           = F.ddecls si
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
     xts          = symbolSorts cfg si
 

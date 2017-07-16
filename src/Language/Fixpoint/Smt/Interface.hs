@@ -41,6 +41,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtDecls
     , smtAssert
+    , smtDataDecl
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
@@ -126,7 +127,7 @@ makeSmtContext cfg f dds xts = do
   return me
 
 makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> SymEnv
-makeSmtEnv dds xts = SymEnv (fromListSEnv xts) (Thy.theorySymbols dds)
+makeSmtEnv dds xts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds
 
 theoryDecls :: SymEnv -> [(Symbol, Sort)]
 theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
@@ -365,6 +366,9 @@ smtDecl :: Context -> Symbol -> Sort -> IO ()
 smtDecl me x t = interact' me (Declare x ins out)
   where
     (ins, out) = deconSort t
+
+smtDataDecl :: Context -> DataDecl -> IO ()
+smtDataDecl me d = interact' me (DeclData d)
 
 deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of

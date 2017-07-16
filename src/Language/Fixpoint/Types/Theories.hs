@@ -20,6 +20,7 @@ module Language.Fixpoint.Types.Theories (
     , symEnv
     , symEnvSort
     , symEnvTheory
+    , symEnvData
     , insertSymEnv
 
     ) where
@@ -45,22 +46,29 @@ type Raw          = LT.Text
 data SymEnv = SymEnv
   { seSort   :: SEnv Sort
   , seTheory :: SEnv TheorySymbol
+  , seData   :: SEnv DataDecl
   }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv
-  mappend e1 e2 = SymEnv { seSort   = seSort   e1 `mappend` seSort e2
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv
+  mappend e1 e2 = SymEnv { seSort   = seSort   e1 `mappend` seSort   e2
                          , seTheory = seTheory e1 `mappend` seTheory e2
+                         , seData   = seData   e1 `mappend` seData   e2
                          }
 
-symEnv :: SEnv Sort -> SEnv TheorySymbol -> SymEnv
-symEnv = SymEnv
+symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SymEnv
+symEnv xEnv fEnv ds = SymEnv xEnv fEnv dEnv
+  where
+    dEnv            = fromListSEnv [(symbol d, d) | d <- ds]
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
-symEnvTheory x (SymEnv _ env) = lookupSEnv x env
+symEnvTheory x env = lookupSEnv x (seTheory env)
 
 symEnvSort :: Symbol -> SymEnv -> Maybe Sort
-symEnvSort x (SymEnv env _) = lookupSEnv x env
+symEnvSort   x env = lookupSEnv x (seSort env)
+
+symEnvData :: FTycon -> SymEnv -> Bool
+symEnvData c env = memberSEnv (symbol c) (seData env)
 
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }

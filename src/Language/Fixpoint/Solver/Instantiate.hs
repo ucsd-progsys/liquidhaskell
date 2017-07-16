@@ -53,7 +53,7 @@ import           Data.Foldable        (foldlM)
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] 
+    ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
@@ -134,8 +134,9 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
   where
     (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
     fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-    senv     = symEnv (fromListSEnv fbinds) thySyms
-    thySyms  = seTheory (SMT.ctxSymEnv ctx)
+    senv     = senvCtx { seSort = fromListSEnv fbinds }
+    thySyms  = seTheory senvCtx
+    senvCtx  = SMT.ctxSymEnv ctx
     context :: IO SMT.Context
     context = do
       SMT.smtPop ctx

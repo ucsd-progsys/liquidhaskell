@@ -4,22 +4,19 @@
 
 ```
 $ stack exec -- fixpoint tests/todo/adt.fq
+$ z3 adt.fq
 
-> stack exec -- fixpoint tests/todo/adt.fq
-
-
-Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.
-All Rights Reserved.
-
-
-**** DONE:  Uniqify & Rename ***************************************************
-
-Working  40% [==========================.......................................]
-Crash!: :1:1-1:1: Error
-  crash: SMTLIB2 respSat = Error "line 94 column 29: unknown function/constant cons"
-
-
+(error "line 16 column 48: invalid function application for cons, sort mismatch on argument at position 2, expected Vec but given Int")
 ```
+
+HEREHEREHEREHERE
+
+- Don't embed `Vec Int` as just `Int` -- use actual SMTLIB interpretations
+for sorts with declared ADT.
+- Should be easy to fix by treating `Vec` as an interpreted sort?
+
+
+
 
 ### Refactoring
 
@@ -45,10 +42,8 @@ Crash!: :1:1-1:1: Error
 
 ### ToSmt
 
-HEREHEREHEREHERE
-
-- `instance SMTLIB2 DataDecl`
-- Do NOT define functions if `tsInterp == Data`
++ [OK] `instance SMTLIB2 DataDecl`
++ [OK] Do NOT define functions if `tsInterp == Data`
 
 
 ```fq

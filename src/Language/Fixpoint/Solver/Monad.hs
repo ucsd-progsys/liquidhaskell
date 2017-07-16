@@ -99,11 +99,12 @@ runSolverM cfg sI act =
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = declare initEnv lts >> assumesAxioms (F.asserts fi) >> act
+    act'     = declare initEnv ds lts >> assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
     lts      = F.toListSEnv (F.dLits fi)
+    ds       = F.ddecls fi
     be       = F.SolEnv (F.bs fi)
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
@@ -112,9 +113,10 @@ runSolverM cfg sI act =
 
 
 --------------------------------------------------------------------------------
-declare :: F.SymEnv -> [(F.Symbol, F.Sort)] -> SolveM ()
+declare :: F.SymEnv -> [F.DataDecl] -> [(F.Symbol, F.Sort)] -> SolveM ()
 --------------------------------------------------------------------------------
-declare env lts = withContext $ \me -> do
+declare env ds lts = withContext $ \me -> do
+  forM_ ds     $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me

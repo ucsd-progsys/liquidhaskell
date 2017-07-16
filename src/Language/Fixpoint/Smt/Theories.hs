@@ -221,17 +221,24 @@ stringPreamble _
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
-smt2Sort :: Sort -> Maybe Builder.Builder
-smt2Sort (FApp (FTC c) _)
-  | isConName setConName c      = Just $ build "{}" (Only set)
-smt2Sort (FApp (FApp (FTC c) _) _)
-  | isConName mapConName c      = Just $ build "{}" (Only map)
-smt2Sort (FApp (FTC bv) (FTC s))
+smt2Sort :: SymEnv -> Sort -> Maybe (Builder.Builder, [Sort])
+smt2Sort env t = smt2Sort' env ct ts
+  where
+    (ct:ts)    = fApp' t
+
+smt2Sort' :: SymEnv -> Sort -> [Sort] -> Maybe (Builder.Builder, [Sort])
+smt2Sort' _ (FTC c) _
+  | isConName setConName c  = Just (build "{}" (Only set), [])
+smt2Sort' _ (FTC c) _
+  | isConName mapConName c  = Just (build "{}" (Only map), [])
+smt2Sort' _ (FTC bv) [FTC s]
   | isConName bitVecName bv
-  , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
-smt2Sort s
-  | isString s                  = Just $ build "{}" (Only string)
-smt2Sort _                      = Nothing
+  , Just n <- sizeBv s      = Just (build "(_ BitVec {})" (Only n), [])
+smt2Sort' _ s []
+  | isString s              = Just (build "{}" (Only string), [])
+smt2Sort' env (FTC c) ts
+  | symEnvData c env        = Just (symbolBuilder c, ts)
+smt2Sort' _ _ _             = Nothing
 
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App _ (EVar f) [d]

@@ -141,6 +141,7 @@ fApp = foldl' FApp
 fAppTC :: FTycon -> [Sort] -> Sort
 fAppTC = fApp . fTyconSort
 
+-- | fApp' (FApp (FApp "Map" key) val) ===> ["Map", key, val]
 fApp' :: Sort -> ListNE Sort
 fApp' = go []
   where
@@ -200,6 +201,9 @@ data DataDecl = DDecl
   , ddVars  :: !Int               -- ^ Number of type variables
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance Symbolic DataDecl where
+  symbol = symbol . ddTyCon
 
 instance Symbolic DataField where
   symbol = val . dfName

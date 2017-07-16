@@ -30,7 +30,8 @@ module Language.Fixpoint.Types.Names (
   , symbolSafeString
   , symbolText
   , symbolString
-
+  , symbolBuilder
+  
   -- Predicates
   , isPrefixOfSym
   , isSuffixOfSym
@@ -122,10 +123,10 @@ import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
+import qualified Data.Text.Lazy.Builder      as Builder
 import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
-
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -482,6 +483,9 @@ instance Symbolic String where
 
 instance Symbolic Symbol where
   symbol = id
+
+symbolBuilder :: (Symbolic a) => a -> Builder.Builder
+symbolBuilder = Builder.fromText . symbolSafeText . symbol
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
