@@ -72,6 +72,8 @@ import qualified Data.HashMap.Strict       as M
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 type TCEmb a  = M.HashMap a FTycon
 
+instance Symbolic FTycon where
+  symbol (TC s _) = symbol s
 
 instance Eq FTycon where
   (TC s _) == (TC s' _) = val s == val s'
@@ -326,6 +328,14 @@ instance Fixpoint DataDecl where
       body                 = [nest 2 (text "|" <+> toFix ct) | ct <- ctors]
       footer               = text "]"
 
+instance PPrint DataField where
+  pprintTidy _ = toFix
+
+instance PPrint DataCtor where
+  pprintTidy _ = toFix
+
+instance PPrint DataDecl where
+  pprintTidy _ = toFix
 
 -------------------------------------------------------------------------
 -- | Exported Basic Sorts -----------------------------------------------

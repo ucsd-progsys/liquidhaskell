@@ -4,6 +4,21 @@
 
 ```
 $ stack exec -- fixpoint tests/todo/adt.fq
+
+> stack exec -- fixpoint tests/todo/adt.fq
+
+
+Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.
+All Rights Reserved.
+
+
+**** DONE:  Uniqify & Rename ***************************************************
+
+Working  40% [==========================.......................................]
+Crash!: :1:1-1:1: Error
+  crash: SMTLIB2 respSat = Error "line 94 column 29: unknown function/constant cons"
+
+
 ```
 
 ### Refactoring

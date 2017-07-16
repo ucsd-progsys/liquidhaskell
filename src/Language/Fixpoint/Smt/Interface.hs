@@ -382,9 +382,8 @@ smtCheckSat me p
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
 
-
 smtAssertAxiom :: Context -> Triggered Expr -> IO ()
-smtAssertAxiom me p  = interact' me (AssertAxiom p)
+smtAssertAxiom me p  = interact' me (AssertAx p)
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)

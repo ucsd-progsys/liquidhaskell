@@ -21,36 +21,54 @@ import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar)
 import           Data.Maybe (fromMaybe)
 
--- instance SMTLIB2 Sort where
---   smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ showpp s
---   smt2 FInt                    = "Int"
---   smt2 FReal                   = "Real"
---   smt2 t
---     | t == boolSort            = "Bool"
---   smt2 t
---     | Just d <- Thy.smt2Sort t = d
---   smt2 _                       = "Int"
-
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2Sort c t)
+  smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c t)
 
-smt2Sort :: (PPrint a) => a -> Sort -> Builder.Builder
-smt2Sort msg = go
+
+smt2SortMono, smt2SortPoly :: (PPrint a) => a -> Sort -> Builder.Builder
+smt2SortMono = smt2Sort False
+smt2SortPoly = smt2Sort True
+
+-- | 'smt2Sort True  msg t' serializes a sort 't' using type variables,
+--   'smt2Sort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
+smt2Sort :: (PPrint a) => Bool -> a -> Sort -> Builder.Builder
+smt2Sort poly msg = go
   where
     go s@(FFunc _ _)             = errorstar $ unwords ["smt2 FFunc:", showpp msg, showpp s]
     go FInt                      = "Int"
     go FReal                     = "Real"
-    go t
-      | t == boolSort            = "Bool"
+    go (FVar i) | poly           = smt2TVar i
+    go t | t == boolSort         = "Bool"
     go t
       | Just d <- Thy.smt2Sort t = d
     go _                         = "Int"
 
+smt2TVar :: Int -> Builder.Builder
+smt2TVar n = build "T{}" (Only n)
+
+smt2data :: SymEnv -> DataDecl -> Builder.Builder
+smt2data env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
+  where
+    tvars                    = smt2many (smt2TVar <$> [0..(n-1)])
+    name                     = smt2 env (symbol tc)
+    ctors                    = smt2many (smt2ctor env <$> cs)
+
+smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
+smt2ctor env (DCtor c [])  = smt2 env c
+smt2ctor env (DCtor c fs)  = build "({} {})" (smt2 env c, fields)
+  where
+    fields                 = smt2many (smt2field env <$> fs)
+
+smt2field :: SymEnv -> DataField -> Builder.Builder
+smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d t)
 
 instance SMTLIB2 Symbol where
   smt2 env s
     | Just t <- Thy.smt2Symbol env s = t
   smt2 _ s                           = Builder.fromText $ symbolSafeText  s
+
+instance SMTLIB2 LocSymbol where
+  smt2 env = smt2 env . val
 
 instance SMTLIB2 SymConst where
   smt2 env = smt2 env . symbol
@@ -60,8 +78,6 @@ instance SMTLIB2 Constant where
   smt2 _ (R d)   = build "{}" (Only d)
   smt2 _ (L t _) = build "{}" (Only t)
 
-instance SMTLIB2 LocSymbol where
-  smt2 env = smt2 env . val
 
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
@@ -139,14 +155,15 @@ mkNe :: SymEnv -> Expr -> Expr -> Builder.Builder
 mkNe env e1 e2      = build "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 env c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2Sort c <$> ts), smt2Sort c t)
-  smt2 _   c@(Define t)        = build "(declare-sort {})"            (Only $ smt2Sort c t)
+  smt2 env (DeclData d)        = build "(declare-datatypes {})"       (Only $ smt2data env d)
+  smt2 env c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2SortMono c <$> ts), smt2SortMono c t)
+  smt2 _   c@(Define t)        = build "(declare-sort {})"            (Only $ smt2SortMono c t)
   smt2 env (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 env p)
   smt2 env (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 env p, i)
   smt2 env (Distinct az)
     | length az < 2            = ""
     | otherwise                = build "(assert (distinct {}))"       (Only $ smt2s env az)
-  smt2 env (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2  env t)
+  smt2 env (AssertAx t)        = build "(assert {})"                  (Only $ smt2  env t)
   smt2 _   (Push)              = "(push 1)"
   smt2 _   (Pop)               = "(pop 1)"
   smt2 _   (CheckSat)          = "(check-sat)"
