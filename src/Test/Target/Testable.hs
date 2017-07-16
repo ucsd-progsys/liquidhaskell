@@ -34,8 +34,8 @@ import           Data.Monoid
 import           Text.Printf
 
 import           Language.Fixpoint.Smt.Interface -- hiding (SMTLIB2(..))
--- import           Language.Fixpoint.Smt.Serialize
-import qualified Language.Fixpoint.Smt.Theories  as Thy
+import           Language.Fixpoint.Smt.Serialize (smt2SortMono)
+-- import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Types         hiding (Result)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types   hiding (env, var, Only)
@@ -170,22 +170,25 @@ instance {-# OVERLAPPING #-}
   mkExprs _ _ _    = []
 
 
-smt2Sort :: Sort -> Builder.Builder
-smt2Sort s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
-smt2Sort FInt                    = "Int"
-smt2Sort FReal                   = "Real"
-smt2Sort t
-      | t == boolSort            = "Bool"
-smt2Sort t
-      | Just d <- Thy.smt2Sort t = d
-smt2Sort (FObj s)                = Builder.fromText $ symbolSafeText s
-smt2Sort _                       = "Int"
+-- smt2Sort :: Sort -> Builder.Builder
+-- smt2Sort s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
+-- smt2Sort FInt                    = "Int"
+-- smt2Sort FReal                   = "Real"
+-- smt2Sort t
+      -- | t == boolSort            = "Bool"
+-- smt2Sort t
+      -- | Just d <- Thy.smt2Sort t = d
+-- smt2Sort (FObj s)                = Builder.fromText $ symbolSafeText s
+-- smt2Sort _                       = "Int"
 
 
 func :: Sort -> Bool
 func (FAbs  _ s) = func s
 func (FFunc _ _) = True
 func _           = False
+
+mySmt2Sort :: SymEnv -> Sort -> Builder.Builder
+mySmt2Sort sEnv s = smt2SortMono s sEnv s
 
 setup :: Target ()
 setup = {-# SCC "setup" #-} do
@@ -198,7 +201,7 @@ setup = {-# SCC "setup" #-} do
                    $ build "(define-sort {} () {})" (b,e)
    defSort ("CHOICE" :: Builder.Builder) ("Bool" :: Builder.Builder)
           -- FIXME: shouldn't need the nub, wtf?
-   forM_ (L.nub (smt2Sort <$> ss)) $ \s ->
+   forM_ (L.nub (mySmt2Sort sEnv <$> ss)) $ \s ->
      defSort s ("Int" :: Builder.Builder)
 
    -- declare constructors
