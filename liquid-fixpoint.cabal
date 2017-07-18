@@ -64,6 +64,7 @@ Library
                    Language.Fixpoint.Types.Errors,
                    Language.Fixpoint.Types.Config,
                    Language.Fixpoint.Types.Visitor,
+                   Language.Fixpoint.Types.Theories,
                    Language.Fixpoint.Types.PrettyPrint,
                    Language.Fixpoint.Types.Spans,
                    Language.Fixpoint.Types.Sorts,

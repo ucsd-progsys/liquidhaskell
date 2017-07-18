@@ -125,18 +125,18 @@ data GWInfo = GWInfo { gsym  :: Symbol
               deriving (Eq, Generic)
 
 gwInfo :: WfC a -> GWInfo
-gwInfo (GWfC _ (x,s,_) _ e i) 
+gwInfo (GWfC _ (x,s,_) _ e i)
   = GWInfo x s e i
-gwInfo _ 
+gwInfo _
   = errorstar "gwInfo"
 
 updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
 updateWfCExpr _ w@(WfC {})  = w
 updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 
-isGWfc :: WfC a -> Bool 
-isGWfc (GWfC {}) = True 
-isGWfc (WfC  {}) = False 
+isGWfc :: WfC a -> Bool
+isGWfc (GWfC {}) = True
+isGWfc (WfC  {}) = False
 
 type SubcId = Integer
 
@@ -221,12 +221,12 @@ instance Monoid (Result a) where
       soln      = mappend (resSolution r1)  (resSolution r2)
       gsoln     = mappend (gresSolution r1) (gresSolution r2)
 
-unsafe, safe :: Result a 
+unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
 safe   = mempty {resStatus = Safe}
 
 isUnsafe :: Result a -> Bool
-isUnsafe r | Unsafe _ <- resStatus r 
+isUnsafe r | Unsafe _ <- resStatus r
   = True
 isUnsafe _ = False
 
@@ -336,11 +336,11 @@ wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x = if all isEmptySubst (sus ) -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
-                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ] 
+                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
                   ++ [GWfC be (v, sr_sort sr, k) x e i | (k, e, i) <- gs ]
                 else errorstar msg
   where
-    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show (sus ++ gsus) 
+    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show (sus ++ gsus)
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
     (gs, gsus)      = unzip $ go' ras
@@ -350,7 +350,7 @@ wfC be sr x = if all isEmptySubst (sus ) -- ++ gsus)
     go _            = []
 
     go' (PGrad k su i e) = [((k, e, i), su)]
-    go' (PAnd es)      = concatMap go' es 
+    go' (PAnd es)      = concatMap go' es
     go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
@@ -510,8 +510,9 @@ fi :: [SubC a]
    -> Bool
    -> [Triggered Expr]
    -> AxiomEnv
+   -> [DataDecl]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es axe
+fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -523,6 +524,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe
        , hoInfo   = HOI aHO aHOq
        , asserts  = es
        , ae       = axe
+       , ddecls   = adts
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -547,15 +549,15 @@ allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
 data GInfo c a =
-  FI { cm       :: !(M.HashMap SubcId (c a)) -- ^ cst id |-> Horn Constraint
+  FI { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
      , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
      , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
-  --    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+     , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
      , hoInfo   :: !HOInfo                    -- ^ Higher Order info
      , asserts  :: ![Triggered Expr]
      , ae       :: AxiomEnv
@@ -569,19 +571,19 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
                      , gLits    = mappend (gLits i1)    (gLits i2)
                      , dLits    = mappend (dLits i1)    (dLits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
-                     -- , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
+                     , ddecls   = mappend (ddecls i1)   (ddecls i2)
                      , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      , asserts  = mappend (asserts i1)  (asserts i2)
-                     , ae  = mappend (ae i1)  (ae i2)
+                     , ae       = mappend (ae i1)       (ae i2)
                      }
 
 instance PTable (SInfo a) where
@@ -727,7 +729,7 @@ data Equation = Equ { eqName :: Symbol
   deriving (Eq, Show, Generic)
 
 instance PPrint Equation where
-  pprintTidy k (Equ f xs e) = "def" <+> pprint f <+> intersperse " " (pprint <$> xs) <+> ":=" <+> pprintTidy k e 
+  pprintTidy k (Equ f xs e) = "def" <+> pprint f <+> intersperse " " (pprint <$> xs) <+> ":=" <+> pprintTidy k e
 
 
 -- eg  SMeasure (f D [x1..xn] e)

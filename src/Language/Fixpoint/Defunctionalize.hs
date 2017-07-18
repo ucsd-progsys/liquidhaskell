@@ -5,6 +5,7 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 
+
 --------------------------------------------------------------------------------
 -- | `defunctionalize` traverses the query to:
 --      1. "normalize" lambda terms by renaming binders,
@@ -37,7 +38,7 @@ import           Language.Fixpoint.Types.Visitor   (mapMExpr, stripCasts)
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
 defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
 
-defuncAny :: Defunc a => Config -> SEnv Sort -> a -> a 
+defuncAny :: Defunc a => Config -> SymEnv -> a -> a
 defuncAny cfg env e = evalState (defunc e) (makeDFState cfg env emptyIBindEnv)
 
 
@@ -76,8 +77,8 @@ makeAxioms = do
   env     <- gets dfEnv
   return   $ filter (validAxiom env) (alphEqs ++ betaEqs)
 
-validAxiom :: SEnv Sort -> Expr -> Bool
-validAxiom env = isJust . checkSortExpr env
+validAxiom :: SymEnv -> Expr -> Bool
+validAxiom env = isJust . checkSortExpr (seSort env)
 
 --------------------------------------------------------------------------------
 -- | Alpha Equivalence ---------------------------------------------------------
@@ -202,7 +203,7 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
     gLits' <- defunc $ gLits fi
     dLits' <- defunc $ dLits fi
     bs'    <- defunc $ bs    fi
-    ass'   <- defunc $ asserts fi 
+    ass'   <- defunc $ asserts fi
     -- NOPROP quals' <- defunc $ quals fi
     axioms <- makeAxioms
     return $ fi { cm      = cm'
@@ -211,11 +212,11 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
                 , dLits   = dLits'
                 , bs      = bs'
                 -- NOPROP , quals   = quals'
-                , asserts = (noTrigger <$> axioms) ++ ass' 
+                , asserts = (noTrigger <$> axioms) ++ ass'
                 }
 
 instance (Defunc a) => Defunc (Triggered a) where
-  defunc (TR t e) = TR t <$> defunc e 
+  defunc (TR t e) = TR t <$> defunc e
 
 instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc
@@ -276,8 +277,8 @@ instance (Defunc a, Eq k, Hashable k) => Defunc (M.HashMap k a) where
 type DF    = State DFST
 
 data DFST = DFST
-  { dfFresh   :: !Int
-  , dfEnv   :: !(SEnv Sort)
+  { dfFresh :: !Int
+  , dfEnv   :: !SymEnv
   , dfBEnv  :: !IBindEnv
   , dfLam   :: !Bool        -- ^ normalize lams
   , dfExt   :: !Bool        -- ^ enable extensionality axioms
@@ -292,13 +293,13 @@ data DFST = DFST
   }
 
 
-makeDFState :: Config -> SEnv Sort -> IBindEnv -> DFST
-makeDFState cfg senv ibind = DFST
+makeDFState :: Config -> SymEnv -> IBindEnv -> DFST
+makeDFState cfg env ibind = DFST
   { dfFresh = 0
-  , dfEnv   = senv 
+  , dfEnv   = env
   , dfBEnv  = ibind
   , dfLam   = True
-  , dfExt   = False 
+  , dfExt   = False
   , dfAEq   = alphaEquivalence cfg
   , dfBEq   = betaEquivalence  cfg
   , dfNorm  = normalForm       cfg
@@ -312,9 +313,9 @@ makeDFState cfg senv ibind = DFST
 
 
 makeInitDFState :: Config -> SInfo a -> DFST
-makeInitDFState cfg si 
-  = makeDFState cfg 
-         (symbolEnv cfg si) 
+makeInitDFState cfg si
+  = makeDFState cfg
+         (symbolEnv cfg si)
          (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
 
 --------------------------------------------------------------------------------

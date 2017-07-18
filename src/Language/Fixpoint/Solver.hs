@@ -41,7 +41,6 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiateFInfo)
-import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -172,11 +171,8 @@ solveNative' !cfg !fi0 = do
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
   -- whenLoud $ print qs
-  -- TODO: make this less of a hack
-  ctx <- makeSmtContext cfg (srcFile cfg ++ ".evals") []
-  smtPush ctx
-  fi1 <- instantiateFInfo cfg ctx $ fi0 { quals = remakeQual <$> quals fi0 }
   -- whenLoud $ putStrLn $ showFix (quals fi1)
+  fi1      <- instantiateFInfo cfg $ fi0 { quals = remakeQual <$> quals fi0 }
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"

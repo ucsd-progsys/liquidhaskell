@@ -1,0 +1,41 @@
+data Vec a0 = mu X. nil | cons { head : a0, tail : X}
+
+// (declare-datatypes (A0) ((Vec nil (cons (head A0) (tail Vec)))))
+
+bind 1 x  : int
+bind 2 y  : int
+bind 3 xs : List int
+bind 4 ys : List int
+bind 5 l1 : {v: List int | v = cons x xs }
+bind 6 l2 : {v: List int | v = cons y ys }
+bind 7 l3 : List int
+
+constraint:
+  env [1;2;3;4;5;6]
+  lhs {v : int | l1 = l2 }
+  rhs {v : int | x = y }
+  id 1 tag []
+
+constraint:
+  env [1;2;3;4;5;6]
+  lhs {v : int | l1 = l2 }
+  rhs {v : int | xs = ys }
+  id 2 tag []
+
+constraint:
+  env [1;3;5;7]
+  lhs {v : int | l1 = l3  }
+  rhs {v : int | cons? l3 }
+  id 3 tag []
+
+constraint:
+  env [1;3;5;7]
+  lhs {v : int | l1 = l3 }
+  rhs {v : int | x = head l3 }
+  id 4 tag []
+
+constraint:
+  env [1;3;5;7]
+  lhs {v : int | l1  = l3 }
+  rhs {v : int | nil = tail l3 }
+  id 5 tag []

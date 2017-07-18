@@ -21,7 +21,6 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Theory Symbols
      , theorySymbols
-     , theorySEnv
 
      -- * String
      -- , string
@@ -41,8 +40,8 @@ import           Prelude hiding (map)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Smt.Types
-import qualified Data.HashMap.Strict      as M
+-- import           Language.Fixpoint.Smt.Types
+-- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes, isJust)
 import           Data.Monoid
 import qualified Data.Text.Lazy           as T
@@ -91,13 +90,6 @@ strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
--- NOPROP genLen :: Symbol
--- NOPROP genLen = "len"
-
--- NOPROP strlen, strsubstr, strconcat :: Raw
--- NOPROP strlen    = "strLen"
--- NOPROP strsubstr = "subString"
--- NOPROP strconcat = "concatString"
 
 z3strlen, z3strsubstr, z3strconcat :: Raw
 z3strlen    = "str.len"
@@ -226,8 +218,8 @@ stringPreamble _
 -------------------------------------------------------------------------------
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
-smt2Symbol :: Symbol -> Maybe Builder.Builder
-smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
+smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
+smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
 smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
@@ -241,27 +233,27 @@ smt2Sort s
   | isString s                  = Just $ build "{}" (Only string)
 smt2Sort _                      = Nothing
 
-smt2App :: Expr -> [Builder.Builder] -> Maybe Builder.Builder
-smt2App (EVar f) [d]
+smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
+smt2App _ (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
-smt2App (EVar f) (d:ds)
-  | Just s <- M.lookup f theorySymbols
+smt2App env (EVar f) (d:ds)
+  | Just s <- symEnvTheory f env
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-smt2App _ _           = Nothing
+smt2App _ _ _     = Nothing
 
 -- isSmt2App :: Expr -> [a] -> Bool
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
 
-isSmt2App :: Expr -> [a] -> Bool
-isSmt2App (EVar f) [_]
+isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
+isSmt2App _ (EVar f) [_]
   | f == setEmpty = True
   | f == setEmp   = True
   | f == setSng   = True
-isSmt2App (EVar f) _
-  =  isJust $ M.lookup f theorySymbols
-isSmt2App _ _
+isSmt2App thyEnv (EVar f) _
+  =  isJust $ lookupSEnv f thyEnv
+isSmt2App _ _ _
   = False
 
 
@@ -307,16 +299,13 @@ castWith s = eAppC intSort (EVar s)
 --   to avoid duplicate SMT definitions.  `uninterpSEnv` is for uninterpreted
 --   symbols, and `interpSEnv` is for interpreted symbols.
 --------------------------------------------------------------------------------
-theorySEnv :: SEnv Sort
-theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
+-- theorySEnv :: SEnv Sort
+-- theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: M.HashMap Symbol TheorySymbol
-theorySymbols = M.fromList $ uninterpSymbols ++ interpSymbols
-
--- isTheorySymbol :: Symbol -> Bool
--- isTheorySymbol x = M.member x theorySymbols
+theorySymbols :: a -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+theorySymbols _ = fromListSEnv $ uninterpSymbols ++ interpSymbols
 
 interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
@@ -352,7 +341,7 @@ interpSymbols =
 
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
-interpSym x n t = (x, Thy x n t True)
+interpSym x n t = (x, Thy x n t Theory)
 
 isConName :: Symbol -> FTycon -> Bool
 isConName s = (s ==) . val . fTyconSymbol
@@ -369,7 +358,7 @@ uninterpSymbols :: [(Symbol, TheorySymbol)]
 uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
 
 uninterpSym :: Symbol -> Sort -> TheorySymbol
-uninterpSym x t =  Thy x (lt x) t False
+uninterpSym x t =  Thy x (lt x) t Uninterp
   where
     lt           = T.fromStrict . symbolSafeText
 
