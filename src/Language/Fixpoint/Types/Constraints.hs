@@ -743,21 +743,26 @@ data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $++$ text "syms" <+> text (show (aenvSyms axe))
-              $++$ text "fuel" <+> hsep (pairdoc <$> M.toList (aenvFuel axe))
-              $++$ text "expand" <+> hsep (pairdoc <$> M.toList(aenvExpand axe))
-    where pairdoc (x,y) = text $ show x ++ ":" ++ show y
+              $+$ text "syms" <+> text (show (aenvSyms axe))
+              $+$ text "fuel" <+> toFix (pairdoc <$> M.toList (aenvFuel axe))
+              $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+    where pairdoc (x,y) = text $ show x ++ " : " ++ show y
 
+-- teehee
+instance Fixpoint Doc where
+  toFix = id
 
 instance Fixpoint Equation where
   toFix (Equ f xs e)  = text "define"
-                     <+> toFix f <+> hsep (toFix <$> xs) <+> toFix e
+                     <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
+                     <+> lparen <> toFix e <> rparen
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> lparen <> toFix d <> hsep (toFix <$> xs) <> rparen
-   <+> toFix e
+   <+> toFix d <> hsep (toFix <$> xs)
+   <+> text " = "
+   <+> lparen <> toFix e <> rparen
 
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))

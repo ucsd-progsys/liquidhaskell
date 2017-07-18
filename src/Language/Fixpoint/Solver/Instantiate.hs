@@ -295,15 +295,18 @@ evaluate cfg ctx facts fenv aenv einit
       (e', st) <- runStateT (eval γ e) initEvalSt
       if e' == e then return [] else return ((e, e'):evSequence st)
 
+-- Don't evaluate under Lam, App, Ite, or constants
 grepTopApps :: Expr -> [Expr]
 grepTopApps (PAnd es) = concatMap grepTopApps es
+grepTopApps (POr es) = concatMap grepTopApps es
 grepTopApps (PAtom _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (PIff e1 e2) = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (PImp e1 e2) = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (PNot e) = grepTopApps e
+grepTopApps (EBin  _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (ENeg e) = grepTopApps e
 grepTopApps e@(EApp _ _) = [e]
 grepTopApps _ = []
--- POr    ![Expr]
--- PNot   !Expr
--- PImp   !Expr !Expr
--- PIff   !Expr !Expr
 
 -- AT: I think makeLam is the adjoint of splitEApp?
 makeLam :: Knowledge -> Expr -> Expr
