@@ -1,12 +1,9 @@
-// prop :: a -> b
-measure prop : func(2, [@(0), @(1)])  
+constant prop : func(2, [@(0); @(1)])
 
-// relation Bin
 data Bin 0 = [
   | Bin { _ : Int }
 ]
 
-// data Binary
 data Binary 0 = [
   | B0 { }
   | B1 { }
