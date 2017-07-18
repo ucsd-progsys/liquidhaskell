@@ -421,7 +421,7 @@ axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isStrin
 -- | Constructors, Selectors and Tests from 'DataDecl'arations.
 --------------------------------------------------------------------------------
 dataDeclSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
-dataDeclSymbols d = ctorSymbols d ++ testSymbols d ++ selectSymbols d
+dataDeclSymbols d = tracepp "dataDeclSymbols" $ ctorSymbols d ++ testSymbols d ++ selectSymbols d
 
 -- | 'selfSort d' returns the _self-sort_ of 'd' :: 'DataDecl'.
 --   See [NOTE:DataDecl] for details.
@@ -445,11 +445,13 @@ theorify (x, t) = (x, Thy x (symbolRaw x) t Data)
 --------------------------------------------------------------------------------
 ctorSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
-ctorSymbols d = theorify . ctorSort d <$> ddCtors d
+ctorSymbols d = ctorSort d <$> ddCtors d
 
-ctorSort :: DataDecl -> DataCtor -> (Symbol, Sort)
-ctorSort d ctor = (symbol ctor, mkFFunc n (ts ++ [selfSort d]))
+ctorSort :: DataDecl -> DataCtor -> (Symbol, TheorySymbol)
+ctorSort d ctor = (x, Thy x (symbolRaw x) t Data)
   where
+    x           = symbol ctor
+    t           = mkFFunc n (ts ++ [selfSort d])
     n           = ddVars d
     ts          = fldSort d . dfSort <$> dcFields ctor
 
@@ -461,8 +463,9 @@ testSymbols d = testTheory t . symbol <$> ddCtors d
     t         = mkFFunc (ddVars d) [selfSort d, boolSort]
 
 testTheory :: Sort -> Symbol -> (Symbol, TheorySymbol)
-testTheory t x = (testSymbol x, Thy (testSymbol x) raw t Data)
+testTheory t x = (sx, Thy sx raw t Data)
   where
+    sx         = testSymbol x
     raw        = "is-" <> symbolRaw x
 
 symbolRaw :: Symbol -> T.Text

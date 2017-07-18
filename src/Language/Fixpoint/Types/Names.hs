@@ -31,13 +31,13 @@ module Language.Fixpoint.Types.Names (
   , symbolText
   , symbolString
   , symbolBuilder
-  
+
   -- Predicates
   , isPrefixOfSym
   , isSuffixOfSym
   , isNonSymbol
   , isLitSymbol
-  , isTestSymbol
+  , isTestSymbol, isCtorSymbol
   , isNontrivialVV
   , isDummy
 
@@ -57,7 +57,7 @@ module Language.Fixpoint.Types.Names (
   -- * Widely used prefixes
   , anfPrefix
   , tempPrefix
-  , testPrefix
+  -- , testPrefix
   , vv
   , symChars
 
@@ -69,7 +69,7 @@ module Language.Fixpoint.Types.Names (
 
   -- * Wrapping Symbols
   , litSymbol
-  , testSymbol
+  , testSymbol, ctorSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
@@ -396,6 +396,12 @@ vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
 
+ctorSymbol :: Symbol -> Symbol
+ctorSymbol s = ctorPrefix `mappendSym` s
+
+isCtorSymbol :: Symbol -> Bool
+isCtorSymbol = isPrefixOfSym ctorPrefix
+
 testSymbol :: Symbol -> Symbol
 testSymbol s = testPrefix `mappendSym` s
 
@@ -438,6 +444,9 @@ gradPrefix   = "grad$"
 
 testPrefix  :: Symbol
 testPrefix   = "is$"
+
+ctorPrefix  :: Symbol
+ctorPrefix   = "mk$"
 
 kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"
