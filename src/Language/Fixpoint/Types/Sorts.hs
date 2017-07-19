@@ -209,7 +209,7 @@ instance Symbolic DataField where
   symbol = val . dfName
 
 instance Symbolic DataCtor where
-  symbol = ctorSymbol . val . dcName
+  symbol = val . dcName
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s

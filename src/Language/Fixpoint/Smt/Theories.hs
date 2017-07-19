@@ -450,7 +450,7 @@ ctorSymbols d = ctorSort d <$> ddCtors d
 ctorSort :: DataDecl -> DataCtor -> (Symbol, TheorySymbol)
 ctorSort d ctor = (x, Thy x (symbolRaw x) t Data)
   where
-    x           = symbol ctor
+    x           = ctorSymbol (symbol ctor)
     t           = mkFFunc n (ts ++ [selfSort d])
     n           = ddVars d
     ts          = fldSort d . dfSort <$> dcFields ctor

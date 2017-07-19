@@ -84,8 +84,11 @@ data TheorySymbol  = Thy
   }
   deriving (Eq, Ord, Show)
 
-instance PPrint TheorySymbol where
+instance PPrint Sem where
   pprintTidy _ = text . show
+  
+instance PPrint TheorySymbol where
+  pprintTidy k (Thy x _ t d) = text "TheorySymbol" <+> pprintTidy k (x, t) <+> parens (pprint d)
 
 --------------------------------------------------------------------------------
 -- | 'Sem' describes the SMT semantics for a given symbol
