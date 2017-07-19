@@ -78,8 +78,8 @@ isMono             = null . foldSort fv []
 -- | Elaborate: make polymorphic instantiation explicit via casts,
 --   make applications monomorphic for SMTLIB. This deals with
 --   polymorphism by `elaborate`-ing all refinements except for
---   KVars. THIS IS NOW MANDATORY as sort-variables can be instantiated
---   to `int` and `bool`.
+--   KVars. THIS IS NOW MANDATORY as sort-variables can be
+--   instantiated to `int` and `bool`.
 --------------------------------------------------------------------------------
 class Elaborate a where
   elaborate :: String -> SymEnv -> a -> a
@@ -154,7 +154,7 @@ elabExpr :: String -> SymEnv -> Expr -> Expr
 elabExpr msg env e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
-      Right s  -> fst s
+      Right s  -> fst (tracepp "elabExpr" s)
     where
       sEnv = seSort env
       f    = (`lookupSEnvWithDistance` sEnv)
@@ -401,11 +401,11 @@ elab f e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s e1' (ECst e2' s2), s)
+  return (tracepp "EAPPC1" $  eAppC s e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s (ECst e1' s1) (ECst e2' s2), s)
+  return (tracepp "EAPPC2" $ eAppC s (ECst e1' s1) (ECst e2' s2), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -531,7 +531,7 @@ elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- elabAppSort f e1 e2 s1 s2
-  return      (e1', s1, e2', s2, s)
+  return       (e1', s1, e2', s2, s)
 
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
@@ -547,12 +547,13 @@ defuncEApp env e es
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
   where
-    f                      = makeFunSymbol (spec s)
+    f                      = makeFunSymbol (unAbs s)
     e2'                    = Thy.toInt e2 (exprSort "makeApplication" e2)
     -- s                      = fromMaybe (resultType e1 e2) sO
-    spec                 :: Sort -> Sort
-    spec (FAbs _ s)      = spec s
-    spec s               = s
+
+unAbs :: Sort -> Sort
+unAbs (FAbs _ s) = unAbs s
+unAbs s          = s
 
 makeFunSymbol :: Sort -> Symbol
 makeFunSymbol s

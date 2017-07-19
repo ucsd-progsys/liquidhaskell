@@ -1,14 +1,14 @@
 data Vec 1 = [
-  | Nil  { }
-  | Cons { head : @(0), tail : Vec }
+  | mkNil  { }
+  | mkCons { head : @(0), tail : Vec }
 ]
 
 bind 1 x  : {v : int | true}
 bind 2 y  : {v : int | true}
-bind 3 xs : {v : Vec int | v = mk$Nil }
+bind 3 xs : {v : Vec int | v = mkNil }
 bind 4 ys : {v : Vec int | true}
-bind 5 l1 : {v : Vec int | v = mk$Cons x xs }
-bind 6 l2 : {v : Vec int | v = mk$Cons y ys }
+bind 5 l1 : {v : Vec int | v = mkCons x xs }
+bind 6 l2 : {v : Vec int | v = mkCons y ys }
 bind 7 l3 : {v : Vec int | true }
 
 constraint:
@@ -16,4 +16,3 @@ constraint:
   lhs {v : int | l1 = l3 }
   rhs {v : int | y = head l3 }
   id 4 tag []
-

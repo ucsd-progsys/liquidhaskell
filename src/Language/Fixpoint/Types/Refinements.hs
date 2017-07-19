@@ -312,7 +312,7 @@ splitEApp = go []
     go acc e          = (e, acc)
 
 eAppC :: Sort -> Expr -> Expr -> Expr
-eAppC s e1 e2 = ECst (EApp e1 e2) s
+eAppC s e1 e2 = tracepp "eAppC" $ ECst (EApp e1 e2) s
 
 
 
@@ -562,8 +562,9 @@ instance PPrint Expr where
                                    "else" <+> pprintPrec (zi+1) k e2
     where zi = 1
 
-  -- pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> const (text "...") (pprintTidy k so)
-  pprintPrec z k (ECst e _)      = pprintPrec z k e
+  -- RJ: DO NOT DELETE!
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  -- pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $
