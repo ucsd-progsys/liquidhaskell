@@ -421,7 +421,7 @@ axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isStrin
 -- | Constructors, Selectors and Tests from 'DataDecl'arations.
 --------------------------------------------------------------------------------
 dataDeclSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
-dataDeclSymbols d = tracepp "dataDeclSymbols" $ ctorSymbols d ++ testSymbols d ++ selectSymbols d
+dataDeclSymbols d = {- tracepp "dataDeclSymbols" $ -} ctorSymbols d ++ testSymbols d ++ selectSymbols d
 
 -- | 'selfSort d' returns the _self-sort_ of 'd' :: 'DataDecl'.
 --   See [NOTE:DataDecl] for details.

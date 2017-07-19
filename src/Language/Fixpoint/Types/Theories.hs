@@ -3,6 +3,8 @@
 {- LANGUAGE NoMonomorphismRestriction #-}
 {- LANGUAGE OverloadedStrings         #-}
 {- LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 
 -- | This module contains the types defining an SMTLIB2 interface.
 
@@ -25,6 +27,11 @@ module Language.Fixpoint.Types.Theories (
 
     ) where
 
+
+import           Data.Generics             (Data)
+import           Data.Typeable             (Typeable)
+import           GHC.Generics              (Generic)
+import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -32,6 +39,7 @@ import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
+import qualified Data.Binary as B
 
 -- import           Language.Fixpoint.Misc   (traceShow)
 
@@ -48,6 +56,10 @@ data SymEnv = SymEnv
   , seTheory :: SEnv TheorySymbol
   , seData   :: SEnv DataDecl
   }
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance NFData   SymEnv
+instance B.Binary SymEnv
 
 instance Monoid SymEnv where
   mempty        = SymEnv emptySEnv emptySEnv emptySEnv
@@ -82,11 +94,18 @@ data TheorySymbol  = Thy
   , tsSort   :: !Sort            -- ^ sort
   , tsInterp :: !Sem             -- ^ TRUE = defined (interpreted), FALSE = declared (uninterpreted)
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance NFData Sem
+instance NFData TheorySymbol
+instance B.Binary TheorySymbol
 
 instance PPrint Sem where
   pprintTidy _ = text . show
-  
+
+instance Fixpoint TheorySymbol where
+  toFix (Thy x _ t d) = text "TheorySymbol" <+> pprint (x, t) <+> parens (pprint d)
+
 instance PPrint TheorySymbol where
   pprintTidy k (Thy x _ t d) = text "TheorySymbol" <+> pprintTidy k (x, t) <+> parens (pprint d)
 
@@ -98,4 +117,6 @@ data Sem
   = Uninterp                     -- ^ for UDF: `len`, `height`, `append`
   | Data                         -- ^ for ADT ctors & accessor: `cons`, `nil`, `head`
   | Theory                       -- ^ for theory ops: mem, cup, select
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance B.Binary Sem

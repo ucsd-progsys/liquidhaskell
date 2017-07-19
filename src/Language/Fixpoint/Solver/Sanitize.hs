@@ -208,18 +208,25 @@ initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
 banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
-    fi = mapKVars (const $ Just F.PTrue) fi0
-    bads = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi c]]
+    fi      = mapKVars (const $ Just F.PTrue) fi0
+    bads    = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi k c]]
+    k       = known fi
 
-cNoFreeVars :: F.SInfo a -> F.SimpC a -> Maybe [F.Symbol]
-cNoFreeVars fi c = if S.null fv then Nothing else Just (S.toList fv)
+known :: F.SInfo a -> F.Symbol -> Bool
+known fi  = \x -> F.memberSEnv x lits || F.memberSEnv x prims
+  where
+    lits  = F.gLits fi
+    prims = Thy.theorySymbols . F.ddecls $ fi
+
+cNoFreeVars :: F.SInfo a -> (F.Symbol -> Bool) -> F.SimpC a -> Maybe [F.Symbol]
+cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
-    lits = fst <$> F.toListSEnv (F.gLits fi)
+    -- lits = fst <$> F.toListSEnv (F.gLits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
-    fv   = cRng `nubDiff` (lits ++ cDom ++ F.prims)
+    fv   = (`nubDiff` cDom) . filter (not . known) $ cRng -- `nubDiff` (lits ++ cDom ++ prims fi)
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
@@ -277,7 +284,6 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds
     ds           = F.ddecls si
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
     xts          = symbolSorts cfg si
-
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
