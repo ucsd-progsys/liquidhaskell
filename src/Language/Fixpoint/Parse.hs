@@ -248,15 +248,15 @@ blanks  = many (satisfy (`elem` [' ', '\t']))
 
 -- | Integer
 integer :: Parser Integer
-integer = posInteger
+integer = (Token.natural lexer <* spaces) --posInteger
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
-posInteger :: Parser Integer
-posInteger = toI <$> (many1 digit <* spaces)
-  where
-    toI :: String -> Integer
-    toI = read
+-- posInteger :: Parser Integer
+-- posInteger = toI <$> (many1 digit <* spaces)
+--  where
+--    toI :: String -> Integer
+--    toI = read
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -319,6 +319,7 @@ symbolP = symbol <$> symCharsP
 constantP :: Parser Constant
 constantP =  try (R <$> double)
          <|> I <$> integer
+
 
 symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
