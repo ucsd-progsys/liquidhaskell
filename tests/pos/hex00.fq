@@ -1,0 +1,9 @@
+bind 0 a : {a : int | a = 0x8 }
+bind 1 b : {b : int | b = 0x7 } 
+
+constraint:
+  env [0; 1]
+  lhs {v:int | v = a + b}
+  rhs {v:int | v = 0xF }
+  id 1 tag []
+
