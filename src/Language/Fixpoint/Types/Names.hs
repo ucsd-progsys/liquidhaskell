@@ -37,7 +37,8 @@ module Language.Fixpoint.Types.Names (
   , isSuffixOfSym
   , isNonSymbol
   , isLitSymbol
-  , isTestSymbol, isCtorSymbol
+  , isTestSymbol
+  -- , isCtorSymbol
   , isNontrivialVV
   , isDummy
 
@@ -69,7 +70,8 @@ module Language.Fixpoint.Types.Names (
 
   -- * Wrapping Symbols
   , litSymbol
-  , testSymbol, ctorSymbol
+  , testSymbol
+  -- , ctorSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
@@ -396,11 +398,11 @@ vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
 
-ctorSymbol :: Symbol -> Symbol
-ctorSymbol s = ctorPrefix `mappendSym` s
+-- ctorSymbol :: Symbol -> Symbol
+-- ctorSymbol s = ctorPrefix `mappendSym` s
 
-isCtorSymbol :: Symbol -> Bool
-isCtorSymbol = isPrefixOfSym ctorPrefix
+-- isCtorSymbol :: Symbol -> Bool
+-- isCtorSymbol = isPrefixOfSym ctorPrefix
 
 testSymbol :: Symbol -> Symbol
 testSymbol s = testPrefix `mappendSym` s
@@ -445,8 +447,8 @@ gradPrefix   = "grad$"
 testPrefix  :: Symbol
 testPrefix   = "is$"
 
-ctorPrefix  :: Symbol
-ctorPrefix   = "mk$"
+-- ctorPrefix  :: Symbol
+-- ctorPrefix   = "mk$"
 
 kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"
