@@ -317,7 +317,7 @@ toFixFApp [FTC c, t]
 toFixFApp ts         = parens $ intersperse (text "") (toFixSort <$> ts)
 
 instance Fixpoint FTycon where
-  toFix (TC s _)       = toFix s
+  toFix (TC s _)       = toFix (val s)
 
 instance Fixpoint DataField where
   toFix (DField x t) = toFix x <+> text ":" <+> toFix t

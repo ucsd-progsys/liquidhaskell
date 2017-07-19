@@ -1,6 +1,8 @@
-// constant prop : func(2, [@(0); @(1)])
+constant prop : func(2, [@(0); @(1)])
+constant gibber : func(0, [int; int; int])
 
-constant prop : func(0, [Binary; Bin])
+
+// constant prop : func(0, [Binary; Bin])
 
 data Bin 0 = [
   | mkBin { nBin : Int }
@@ -11,7 +13,7 @@ data Binary 0 = [
   | mkB1 { }
 ]
 
-bind 0 n : {n:Int | true}
+bind 0 n : {n:Int | gibber 2 3 = 4 }
 bind 1 p : {p:Binary | prop p = mkBin n && prop p = mkBin 0}
 bind 2 p : {p:Binary | prop p = mkBin n && prop p = mkBin 1}
 
@@ -25,3 +27,4 @@ constraint:
   env [0; 2]
   lhs {v:int | true}
   rhs {v:int | n == 0 || n == 1}
+  id 2 tag []

@@ -401,11 +401,11 @@ elab f e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (tracepp "EAPPC1" $  eAppC s e1' (ECst e2' s2), s)
+  return (eAppC s e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (tracepp "EAPPC2" $ eAppC s (ECst e1' s1) (ECst e2' s2), s)
+  return (eAppC s (ECst e1' s1) (ECst e2' s2), s)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -504,14 +504,15 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
--- elabAs :: Env -> Sort -> Expr -> CheckM Expr
--- elabAs f t e = tracepp msg <$> elabAs' f t e
---  where
---    msg  = "elabAs: t = " ++ show t ++ " e = " ++ show e
-
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
-elabAs f _ e            = fst <$> elab f e
+elabAs f t e = tracepp msg <$> elabAs' f t e
+  where
+    msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
+
+-- HEREHEREHERE
+elabAs' :: Env -> Sort -> Expr -> CheckM Expr
+elabAs' f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs' f _ e            = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
