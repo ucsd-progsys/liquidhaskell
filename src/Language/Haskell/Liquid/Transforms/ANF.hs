@@ -61,8 +61,8 @@ anormalize cfg hscEnv modGuts = do
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
     putStrLn $ showCBs untidy (mgi_binds modGuts)
-    putStrLn "***************************** REC CoreBinds ***************************"
-    putStrLn $ showCBs untidy orig_cbs
+    -- putStrLn "***************************** REC CoreBinds ***************************"
+    -- putStrLn $ showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ showCBs untidy rwr_cbs
   (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
@@ -73,7 +73,8 @@ anormalize cfg hscEnv modGuts = do
       tEnv     = modGutsTypeEnv modGuts
       act      = concatMapM (normalizeTopBind γ0) rwr_cbs
       rwr_cbs  = rewriteBinds cfg orig_cbs
-      orig_cbs = transformRecExpr $ mgi_binds modGuts
+      orig_cbs = -- transformRecExpr $
+        mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
 
