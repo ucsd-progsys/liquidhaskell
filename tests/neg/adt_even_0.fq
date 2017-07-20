@@ -28,6 +28,6 @@ constraint:
 
 constraint:
   env [0; 2; 3; 4]
-  lhs {v:Even | v = q}
+  lhs {v:Even | true }
   rhs {v:Even | prop v = mkEv n}
   id 2 tag []

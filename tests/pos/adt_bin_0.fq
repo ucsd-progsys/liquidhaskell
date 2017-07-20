@@ -1,8 +1,5 @@
-constant prop : func(2, [@(0); @(1)])
+constant prop   : func(2, [@(0); @(1)])
 constant gibber : func(0, [int; int; int])
-
-
-// constant prop : func(0, [Binary; Bin])
 
 data Bin 0 = [
   | mkBin { nBin : Int }
