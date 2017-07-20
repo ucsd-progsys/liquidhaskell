@@ -1,3 +1,5 @@
+fixpoint "--rewrite"
+
 constant prop : func(2, [@(0); @(1)])
 constant gibber : func(0, [int; int; int])
 

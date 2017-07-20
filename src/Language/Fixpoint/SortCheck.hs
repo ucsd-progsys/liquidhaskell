@@ -156,7 +156,7 @@ elabExpr :: String -> SymEnv -> Expr -> Expr
 elabExpr msg env e
   = case runCM0 $ elab f e of
       Left msg -> die $ err dummySpan (d msg)
-      Right s  -> fst (tracepp "elabExpr" s)
+      Right s  -> fst s
     where
       sEnv = seSort env
       f    = (`lookupSEnvWithDistance` sEnv)
@@ -506,15 +506,14 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
-elabAs :: Env -> Sort -> Expr -> CheckM Expr
-elabAs f t e = tracepp msg <$> elabAs' f t e
-  where
-    msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
+-- elabAs :: Env -> Sort -> Expr -> CheckM Expr
+-- elabAs f t e = tracepp msg <$> elabAs' f t e
+  -- where
+    -- msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
 
--- HEREHEREHERE
-elabAs' :: Env -> Sort -> Expr -> CheckM Expr
-elabAs' f t (EApp e1 e2) = elabAppAs f t e1 e2
-elabAs' f _ e            = fst <$> elab f e
+elabAs :: Env -> Sort -> Expr -> CheckM Expr
+elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
+elabAs f _ e            = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do

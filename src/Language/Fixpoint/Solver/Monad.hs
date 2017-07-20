@@ -134,7 +134,7 @@ declare env ds lts = withContext $ \me -> do
     ats        = applyVars env
 
 applyVars :: F.SymEnv -> [(F.Symbol, F.Sort)]
-applyVars env = F.tracepp "applyVars" [(F.applyAtName env t, applySort t) | t@(F.FFunc {}) <- ts]
+applyVars env = [(F.applyAtName env t, applySort t) | t@(F.FFunc {}) <- ts]
   where
     ts        = M.keys (F.seAppls env)
 
@@ -143,7 +143,7 @@ applySort (F.FFunc t1 t2) = F.mkFFunc 0 [F.intSort, fo t1, fo t2]
   where
     fo (F.FFunc {})       = F.intSort
     fo s                  = s
-applySort t               = t 
+applySort t               = t
 
 -- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,
