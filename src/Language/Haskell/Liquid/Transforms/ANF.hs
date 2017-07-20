@@ -41,7 +41,7 @@ import qualified Language.Fixpoint.Types    as F
 import           Language.Haskell.Liquid.UX.Config  as UX -- (Config, untidyCore, expandFlag, patternFlag)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
-import           Language.Haskell.Liquid.Transforms.Rec
+-- import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 
