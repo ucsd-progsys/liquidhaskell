@@ -34,8 +34,11 @@ module Language.Fixpoint.Types.Sorts (
   , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
-  , fApp, fApp', fAppTC
+  , fApp
+  , fAppTC
   , fObj
+  , unFApp
+  , unAbs
 
   , sortSubst
   , functionSort
@@ -142,11 +145,18 @@ fAppTC :: FTycon -> [Sort] -> Sort
 fAppTC = fApp . fTyconSort
 
 -- | fApp' (FApp (FApp "Map" key) val) ===> ["Map", key, val]
-fApp' :: Sort -> ListNE Sort
-fApp' = go []
+--   That is, `fApp'` is used to split a type application into
+--   the FTyCon and its args.
+
+unFApp :: Sort -> ListNE Sort
+unFApp = go []
   where
     go acc (FApp t1 t2) = go (t2 : acc) t1
     go acc t            = t : acc
+
+unAbs :: Sort -> Sort
+unAbs (FAbs _ s) = unAbs s
+unAbs s          = s
 
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . (`TC` defTcInfo)
@@ -301,7 +311,7 @@ toFixSort FNum         = text "num"
 toFixSort t@(FAbs _ _) = toFixAbsApp t
 toFixSort t@(FFunc _ _)= toFixAbsApp t
 toFixSort (FTC c)      = toFix c
-toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
+toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
 toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)

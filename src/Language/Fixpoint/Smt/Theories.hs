@@ -224,7 +224,7 @@ smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 smt2Sort :: SymEnv -> Sort -> Maybe (Builder.Builder, [Sort])
 smt2Sort env t = smt2Sort' env ct ts
   where
-    (ct:ts)    = fApp' t
+    (ct:ts)    = unFApp t
 
 smt2Sort' :: SymEnv -> Sort -> [Sort] -> Maybe (Builder.Builder, [Sort])
 smt2Sort' _ (FTC c) _
@@ -240,6 +240,7 @@ smt2Sort' env (FTC c) ts
   | symEnvData c env        = Just (symbolBuilder c, ts)
 smt2Sort' _ _ _             = Nothing
 
+
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App _ (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
@@ -248,7 +249,7 @@ smt2App _ (EVar f) [d]
 smt2App env (EVar f) (d:ds)
   | Just s <- symEnvTheory f env
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-smt2App _ _ _     = Nothing
+smt2App _ _ _    = Nothing
 
 -- isSmt2App :: Expr -> [a] -> Bool
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
@@ -312,10 +313,9 @@ castWith s = eAppC intSort (EVar s)
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
 theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols dds = fromListSEnv $  uninterpSymbols
-                                 ++ interpSymbols
-                                 ++ concatMap dataDeclSymbols dds
-
+theorySymbols ds = fromListSEnv $  uninterpSymbols
+                               ++ interpSymbols
+                               ++ concatMap dataDeclSymbols ds
 
 --------------------------------------------------------------------------------
 interpSymbols :: [(Symbol, TheorySymbol)]

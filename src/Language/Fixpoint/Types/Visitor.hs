@@ -157,7 +157,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
-    step c (PGrad k su i e) = PGrad k su i <$> vE c e 
+    step c (PGrad k su i e) = PGrad k su i <$> vE c e
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -220,7 +220,7 @@ mapKVarSubsts f          = trans kvVis () []
     txK _ (PKVar k su)   = PKVar k (f k su)
     txK _ (PGrad k su i e) = PGrad k (f k su) i e
     txK _ p              = p
-  
+
 newtype MInt = MInt Integer
 
 instance Monoid MInt where
@@ -280,7 +280,7 @@ isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
 isKvar (PKVar {}) = True
-isKvar (PGrad {}) = True 
+isKvar (PGrad {}) = True
 isKvar _          = False
 
 isConc :: Expr -> Bool

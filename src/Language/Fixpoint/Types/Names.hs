@@ -108,6 +108,7 @@ module Language.Fixpoint.Types.Names (
   -- * Casting function names
   , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
+  , applyName
 
   , lambdaName
   , intArgName
@@ -525,12 +526,15 @@ boolApplyName   = intSymbol "bool_apply_"
 realApplyName   = intSymbol "real_apply_"
 intApplyName    = intSymbol "int_apply_"
 
+applyName :: Symbol
+applyName = "apply"
 
 preludeName, dummyName, boolConName, funConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
+
 
 listConName, listLConName, tupConName, _propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"

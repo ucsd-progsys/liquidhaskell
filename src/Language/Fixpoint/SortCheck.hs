@@ -39,6 +39,7 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Sort-Directed Transformations
   , Elaborate (..)
+  , applySymbols
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -50,12 +51,13 @@ import           Control.Monad
 import           Control.Monad.Except      (MonadError(..))
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
+import           Data.Hashable
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
-import           Language.Fixpoint.Types.Visitor  (mapExpr, stripCasts, foldSort)
+import qualified Language.Fixpoint.Types.Visitor  as Vis
 import qualified Language.Fixpoint.Smt.Theories   as Thy
 -- import qualified Language.Fixpoint.Smt.Types      as Thy
 import           Text.PrettyPrint.HughesPJ
@@ -68,7 +70,7 @@ import           Text.Printf
 --------------------------------------------------------------------------------
 isMono :: Sort -> Bool
 --------------------------------------------------------------------------------
-isMono             = null . foldSort fv []
+isMono             = null . Vis.foldSort fv []
   where
     fv vs (FVar i) = i : vs
     fv vs _        = vs
@@ -118,7 +120,7 @@ instance Elaborate a => Elaborate [a]  where
   elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
-elabNumeric = mapExpr go
+elabNumeric = Vis.mapExpr go
   where
     go (ETimes e1 e2)
       | exprSort "txn1" e1 == FReal
@@ -539,25 +541,38 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
 defuncEApp env e es
-  | Thy.isSmt2App (seTheory env) (stripCasts e) es
+  | Thy.isSmt2App (seTheory env) (Vis.stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
 
--- e1 e2 => App (App runFun e1) (toInt e2)
 makeApplication :: Expr -> (Expr, Sort) -> Expr
-makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
+makeApplication e1 (e2, s) = ECst (EApp (EApp app e1) e2) s
   where
-    f                      = makeFunSymbol (unAbs s)
-    e2'                    = Thy.toInt e2 (exprSort "makeApplication" e2)
-    -- s                      = fromMaybe (resultType e1 e2) sO
+    app                    = ECst (EVar applyName) (FFunc s2 s)
+    s2                     = exprSort "makeAppl" e2
 
-unAbs :: Sort -> Sort
-unAbs (FAbs _ s) = unAbs s
-unAbs s          = s
+-- makeApplySymbol :: Sort -> Sort -> Symbol
+-- makeApplySymbol sIn sOut = intsSymbol "apply" [hash sIn, hash sOut]
+  -- where
+    -- intsSymbol :: Symbol -> [Int] -> Symbol
+    -- intsSymbol = L.foldl' intSymbol
 
-makeFunSymbol :: Sort -> Symbol
-makeFunSymbol s
+-- e1 e2 => App (App runFun e1) (toInt e2)
+
+-- | 'makeApplication e1 (e2, s)' does the apply-ification for '(e1 e2) : s'
+--   i.e. when the output type is 's'.
+_makeApplication :: Expr -> (Expr, Sort) -> Expr
+_makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
+  where
+    f                       = _makeApplySymbol (unAbs s)
+    e2'                     = Thy.toInt e2 s2
+    s2                      = exprSort "makeApplication" e2
+
+
+
+_makeApplySymbol :: Sort -> Symbol
+_makeApplySymbol s
   | (FApp (FTC c) _) <- s
   , Thy.isConName setConName c
   = setApplyName 1
@@ -582,6 +597,20 @@ splitArgs = go []
     go _   e@EApp{}             = errorstar $ "UNEXPECTED: splitArgs: EApp without output type: " ++ showpp e
     -- go acc (ECst e _)           = go acc e
     go acc e                    = (e, acc)
+
+--------------------------------------------------------------------------------
+applySymbols :: SInfo a -> [(Symbol, Sort)]
+--------------------------------------------------------------------------------
+applySymbols = _fixmeapplySymbols
+
+applySorts :: Vis.Visitable t => t -> [Sort]
+applySorts = Vis.fold vis () []
+  where
+    vis    = (defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
+    go _ (EApp (ECst (EVar f) t) _)
+           | f == applyName
+           = [t]
+    go _ _ = []
 
 --------------------------------------------------------------------------------
 -- | Expressions sort  ---------------------------------------------------------

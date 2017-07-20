@@ -131,10 +131,23 @@ smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
 smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
-smt2App env e = fromMaybe (build "({} {})" (smt2 env f, smt2s env es)) $ Thy.smt2App env (eliminate f) (smt2 env <$> es)
+smt2App env (EApp (EApp (ECst (EVar f) (FFunc s t)) e1) e2)
+  | f == applyName
+  = build "({} {})" (smt2ApplyName env s t, smt2s env [e1, e2])
+smt2App env e
+  | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
+  = b
+  | otherwise
+  = build "({} {})" (smt2 env f, smt2s env es)
   where
     (f, es)   = splitEApp' e
 
+smt2ApplyName :: SymEnv -> Sort -> Sort -> Builder.Builder
+smt2ApplyName = _smt2ApplyName
+
+unCast :: Expr -> Expr
+unCast (ECst e _) = unCast e
+unCast e          = e
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
@@ -142,10 +155,6 @@ splitEApp'            = go []
     go acc (EApp f e) = go (e:acc) f
     go acc (ECst e _) = go acc e
     go acc e          = (e, acc)
-
-eliminate :: Expr -> Expr
-eliminate (ECst e _) = eliminate e
-eliminate e          = e
 
 mkRel :: SymEnv -> Brel -> Expr -> Expr -> Builder.Builder
 mkRel env Ne  e1 e2 = mkNe env e1 e2
