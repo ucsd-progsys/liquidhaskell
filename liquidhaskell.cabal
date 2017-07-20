@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.0.0
+Version:             0.8.0.1
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -87,7 +87,7 @@ executable target
 
 Library
    Default-Language: Haskell98
-   Build-Depends: base
+   Build-Depends: base >= 4.9 && < 5
                 , ghc == 8.0.2 
                 , ghc-boot == 8.0.2
                 , template-haskell >= 2.9
@@ -226,10 +226,12 @@ Library
                     Test.Target.Types,
                     Test.Target.Util
 
-   ghc-options: -W -fwarn-missing-signatures -Werror
+   ghc-options: -W -fwarn-missing-signatures
+   if flag(devel)
+     ghc-options: -Werror
    if flag(include)
      hs-source-dirs: devel
-   ghc-prof-options: -fprof-auto
+   --ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
 test-suite test
