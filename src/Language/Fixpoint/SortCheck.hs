@@ -39,7 +39,8 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Sort-Directed Transformations
   , Elaborate (..)
-  , applySymbols
+  , applySorts
+  , unApplyAt
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -51,7 +52,6 @@ import           Control.Monad
 import           Control.Monad.Except      (MonadError(..))
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
-import           Data.Hashable
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -547,19 +547,19 @@ defuncEApp env e es
   = L.foldl' makeApplication e es
 
 makeApplication :: Expr -> (Expr, Sort) -> Expr
-makeApplication e1 (e2, s) = ECst (EApp (EApp app e1) e2) s
+makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
-    app                    = ECst (EVar applyName) (FFunc s2 s)
-    s2                     = exprSort "makeAppl" e2
+    f                      = applyAt (exprSort "makeAppl" e2) s
 
--- makeApplySymbol :: Sort -> Sort -> Symbol
--- makeApplySymbol sIn sOut = intsSymbol "apply" [hash sIn, hash sOut]
-  -- where
-    -- intsSymbol :: Symbol -> [Int] -> Symbol
-    -- intsSymbol = L.foldl' intSymbol
+applyAt :: Sort -> Sort -> Expr
+applyAt s t = ECst (EVar applyName) (FFunc s t)
+
+unApplyAt :: Expr -> Maybe Sort
+unApplyAt (ECst (EVar f) t@(FFunc {}))
+  | f == applyName = Just t
+unApplyAt _        = Nothing
 
 -- e1 e2 => App (App runFun e1) (toInt e2)
-
 -- | 'makeApplication e1 (e2, s)' does the apply-ification for '(e1 e2) : s'
 --   i.e. when the output type is 's'.
 _makeApplication :: Expr -> (Expr, Sort) -> Expr
@@ -568,8 +568,6 @@ _makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
     f                       = _makeApplySymbol (unAbs s)
     e2'                     = Thy.toInt e2 s2
     s2                      = exprSort "makeApplication" e2
-
-
 
 _makeApplySymbol :: Sort -> Symbol
 _makeApplySymbol s
@@ -599,14 +597,36 @@ splitArgs = go []
     go acc e                    = (e, acc)
 
 --------------------------------------------------------------------------------
-applySymbols :: SInfo a -> [(Symbol, Sort)]
---------------------------------------------------------------------------------
-applySymbols = _fixmeapplySymbols
+{- | [NOTE:apply-monomorphization]
 
+     Because SMTLIB does not support higher-order functions,
+     all _non-theory_ function applications
+
+        EApp e1 e2
+
+     are represented, in SMTLIB, as
+
+        (Eapp (EApp apply e1) e2)
+
+     where 'apply' is 'ECst (EVar "apply") t' and
+           't'     is 'FFunc a b'
+           'a','b' are the sorts of 'e2' and 'e1 e2' respectively.
+
+     Note that *all polymorphism* goes through this machinery.
+
+     Just before sending to the SMT solver, we use the cast 't'
+     to generate a special 'apply_at_t' symbol.
+
+     To let us do the above, we populate 'SymEnv' with the _set_
+     of all sorts at which 'apply' is used, computed by 'applySorts'.
+ -}
+
+--------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
+--------------------------------------------------------------------------------
 applySorts = Vis.fold vis () []
   where
-    vis    = (defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
+    vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
     go _ (EApp (ECst (EVar f) t) _)
            | f == applyName
            = [t]

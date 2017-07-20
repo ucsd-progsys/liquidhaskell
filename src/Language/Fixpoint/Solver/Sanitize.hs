@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Sanitize
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
-import           Language.Fixpoint.SortCheck     (isFirstOrder)
+import           Language.Fixpoint.SortCheck     (applySorts, isFirstOrder)
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
@@ -278,10 +278,11 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   else you get duplicate sorts and other such errors.
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv ds
+symbolEnv cfg si = F.symEnv sEnv tEnv ds ts
   where
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
+    ts           = applySorts si
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
     xts          = symbolSorts cfg si
 

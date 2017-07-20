@@ -127,7 +127,7 @@ makeSmtContext cfg f dds xts = do
   return me
 
 makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> SymEnv
-makeSmtEnv dds xts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds
+makeSmtEnv dds xts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds []
 
 theoryDecls :: SymEnv -> [(Symbol, Sort)]
 theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]

@@ -12,6 +12,7 @@
 
 module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
+import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -19,11 +20,9 @@ import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar)
-import           Data.Maybe (fromMaybe)
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)
-
 
 smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder.Builder
 smt2SortMono = smt2Sort False
@@ -66,7 +65,7 @@ smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t
 instance SMTLIB2 Symbol where
   smt2 env s
     | Just t <- Thy.smt2Symbol env s = t
-  smt2 _ s                           = Builder.fromText $ symbolSafeText  s
+  smt2 _ s                           = symbolBuilder s -- Builder.fromText $ symbolSafeText  s
 
 instance SMTLIB2 LocSymbol where
   smt2 env = smt2 env . val
@@ -83,8 +82,8 @@ instance SMTLIB2 Constant where
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
   smt2 _ Minus  = "-"
-  smt2 _ Times  = Builder.fromText $ symbolSafeText mulFuncName
-  smt2 _ Div    = Builder.fromText $ symbolSafeText divFuncName
+  smt2 _ Times  = {- Builder.fromText $ symbolSafeText -} symbolBuilder mulFuncName
+  smt2 _ Div    = {- Builder.fromText $ symbolSafeText -} symbolBuilder divFuncName
   smt2 _ RTimes = "*"
   smt2 _ RDiv   = "/"
   smt2 _ Mod    = "mod"
@@ -131,9 +130,9 @@ smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
 smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
-smt2App env (EApp (EApp (ECst (EVar f) (FFunc s t)) e1) e2)
-  | f == applyName
-  = build "({} {})" (smt2ApplyName env s t, smt2s env [e1, e2])
+smt2App env (EApp (EApp f e1) e2)
+  | Just t <- unApplyAt f
+  = build "({} {})" (symbolBuilder (applyAtName env t), smt2s env [e1, e2])
 smt2App env e
   | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
   = b
@@ -141,9 +140,6 @@ smt2App env e
   = build "({} {})" (smt2 env f, smt2s env es)
   where
     (f, es)   = splitEApp' e
-
-smt2ApplyName :: SymEnv -> Sort -> Sort -> Builder.Builder
-smt2ApplyName = _smt2ApplyName
 
 unCast :: Expr -> Expr
 unCast (ECst e _) = unCast e

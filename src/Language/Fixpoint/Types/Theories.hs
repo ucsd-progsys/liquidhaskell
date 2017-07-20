@@ -24,6 +24,7 @@ module Language.Fixpoint.Types.Theories (
     , symEnvTheory
     , symEnvData
     , insertSymEnv
+    , applyAtName
 
     ) where
 
@@ -39,8 +40,8 @@ import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
-import qualified Data.Binary as B
-
+import qualified Data.Binary              as B
+import qualified Data.HashMap.Strict      as M
 -- import           Language.Fixpoint.Misc   (traceShow)
 
 --------------------------------------------------------------------------------
@@ -52,26 +53,34 @@ type Raw          = LT.Text
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
 data SymEnv = SymEnv
-  { seSort   :: SEnv Sort
-  , seTheory :: SEnv TheorySymbol
-  , seData   :: SEnv DataDecl
+  { seSort    :: SEnv Sort              -- ^ Sorts of *all* defined symbols
+  , seTheory  :: SEnv TheorySymbol      -- ^ Information about theory-specific Symbols
+  , seData    :: SEnv DataDecl          -- ^ User-defined data-declarations
+  , seAppls   :: M.HashMap FuncSort Int -- ^ Types at which `apply` was used;
+                                        --   see [NOTE:apply-monomorphization]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
+
+{-@ type FuncSort = {v:Sort | isFFunc v} @-}
+type FuncSort = Sort
+
 
 instance NFData   SymEnv
 instance B.Binary SymEnv
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv mempty
   mappend e1 e2 = SymEnv { seSort   = seSort   e1 `mappend` seSort   e2
                          , seTheory = seTheory e1 `mappend` seTheory e2
                          , seData   = seData   e1 `mappend` seData   e2
+                         , seAppls  = seAppls  e1 `mappend` seAppls  e2
                          }
 
-symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SymEnv
-symEnv xEnv fEnv ds = SymEnv xEnv fEnv dEnv
+symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> [Sort] -> SymEnv
+symEnv xEnv fEnv ds ts = SymEnv xEnv fEnv dEnv sortMap
   where
-    dEnv            = fromListSEnv [(symbol d, d) | d <- ds]
+    dEnv               = fromListSEnv [(symbol d, d) | d <- ds]
+    sortMap            = M.fromList (zip ts [0..])
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -85,6 +94,8 @@ symEnvData c env = memberSEnv (symbol c) (seData env)
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
+applyAtName :: SymEnv -> Sort -> Symbol
+applyAtName env t = intSymbol applyName (M.lookupDefault 0 t (seAppls env))
 --------------------------------------------------------------------------------
 -- | 'TheorySymbol' represents the information about each interpreted 'Symbol'
 --------------------------------------------------------------------------------

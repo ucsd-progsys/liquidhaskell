@@ -99,11 +99,10 @@ runSolverM cfg sI act =
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = declare initEnv ds ats lts >> assumesAxioms (F.asserts fi) >> act
+    act'     = declare initEnv ds lts >> assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
-    ats      = applySymbols fi
     lts      = F.toListSEnv (F.dLits fi)
     ds       = F.ddecls fi
     be       = F.SolEnv (F.bs fi)
@@ -115,10 +114,9 @@ runSolverM cfg sI act =
 
 
 --------------------------------------------------------------------------------
-declare :: F.SymEnv -> [F.DataDecl] -> [(F.Symbol, F.Sort)] -> [(F.Symbol, F.Sort)]
-        -> SolveM ()
+declare :: F.SymEnv -> [F.DataDecl] -> [(F.Symbol, F.Sort)] -> SolveM ()
 --------------------------------------------------------------------------------
-declare env ds ats lts = withContext $ \me -> do
+declare env ds lts = withContext $ \me -> do
   forM_ ds     $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
@@ -133,6 +131,19 @@ declare env ds ats lts = withContext $ \me -> do
     isKind n   = (n ==)  . symKind env . fst
     xts        = F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
+    ats        = applyVars env
+
+applyVars :: F.SymEnv -> [(F.Symbol, F.Sort)]
+applyVars env = F.tracepp "applyVars" [(F.applyAtName env t, applySort t) | t@(F.FFunc {}) <- ts]
+  where
+    ts        = M.keys (F.seAppls env)
+
+applySort :: F.Sort -> F.Sort
+applySort (F.FFunc t1 t2) = F.mkFFunc 0 [F.intSort, fo t1, fo t2]
+  where
+    fo (F.FFunc {})       = F.intSort
+    fo s                  = s
+applySort t               = t 
 
 -- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,
