@@ -38,7 +38,9 @@ data-files: include/*.hquals
           , include/710/Data/*.spec
           , syntax/liquid.css
 
-extra-source-files: tests/pos/*.hs
+extra-source-files: CHANGES.md
+                  , README.md
+                  , tests/pos/*.hs
                   , tests/neg/*.hs
                   , tests/import/lib/*.hs
                   , tests/import/client/*.hs
