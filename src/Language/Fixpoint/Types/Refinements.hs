@@ -312,7 +312,7 @@ splitEApp = go []
     go acc e          = (e, acc)
 
 eAppC :: Sort -> Expr -> Expr -> Expr
-eAppC s e1 e2 = tracepp "eAppC" $ ECst (EApp e1 e2) s
+eAppC s e1 e2 = ECst (EApp e1 e2) s
 
 --------------------------------------------------------------------------------
 debruijnIndex :: Expr -> Int
