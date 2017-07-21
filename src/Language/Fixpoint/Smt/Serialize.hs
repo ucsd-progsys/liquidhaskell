@@ -28,23 +28,7 @@ smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder.Build
 smt2SortMono = smt2Sort False
 smt2SortPoly = smt2Sort True
 
--- | 'smt2Sort True  msg t' serializes a sort 't' using type variables,
---   'smt2Sort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
-smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder.Builder
-smt2Sort poly msg = go
-  where
-    go _ s@(FFunc _ _)     = errorstar $ unwords ["smt2 FFunc:", showpp msg, showpp s]
-    go _ FInt              = "Int"
-    go _ FReal             = "Real"
-    go _ (FVar i) | poly   = smt2TVar i
-    go _ t | t == boolSort = "Bool"
-    go env t               = case Thy.smt2Sort env t of
-                               Just (d, []) -> d
-                               Just (d, ts) -> build "({} {})" (d, smt2many (go env <$> ts))
-                               Nothing      -> "Int"
 
-smt2TVar :: Int -> Builder.Builder
-smt2TVar n = build "T{}" (Only n)
 
 smt2data :: SymEnv -> DataDecl -> Builder.Builder
 smt2data env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
@@ -184,13 +168,10 @@ instance SMTLIB2 (Triggered Expr) where
   smt2 env t@(TR _ (PAll   bs p)) = build "(forall ({}) (! {} :pattern({})))"  (smt2s env bs, smt2 env p, smt2s env (makeTriggers t))
   smt2 env (TR _ e)               = smt2 env e
 
-
 {-# INLINE smt2s #-}
 smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder.Builder
 smt2s env as = smt2many (smt2 env <$> as)
 
 {-# INLINE smt2many #-}
 smt2many :: [Builder.Builder] -> Builder.Builder
-smt2many []     = mempty
-smt2many [b]    = b
-smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+smt2many = buildMany

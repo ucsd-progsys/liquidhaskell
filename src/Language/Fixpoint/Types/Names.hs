@@ -31,6 +31,7 @@ module Language.Fixpoint.Types.Names (
   , symbolText
   , symbolString
   , symbolBuilder
+  , buildMany
 
   -- Predicates
   , isPrefixOfSym
@@ -119,6 +120,7 @@ import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
 import           Data.Maybe                  (fromMaybe)
+import           Data.Monoid                 ((<>)) 
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -499,6 +501,11 @@ instance Symbolic Symbol where
 symbolBuilder :: (Symbolic a) => a -> Builder.Builder
 symbolBuilder = Builder.fromText . symbolSafeText . symbol
 
+{-# INLINE buildMany #-}
+buildMany :: [Builder.Builder] -> Builder.Builder
+buildMany []     = mempty
+buildMany [b]    = b
+buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------

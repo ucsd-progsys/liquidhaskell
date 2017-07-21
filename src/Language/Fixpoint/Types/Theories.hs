@@ -17,6 +17,9 @@ module Language.Fixpoint.Types.Theories (
     , TheorySymbol (..)
     , Sem (..)
 
+    -- * Theory Sorts
+    , SmtSort (..)
+
     -- * Symbol Environments
     , SymEnv (..)
     , symEnv
@@ -131,3 +134,18 @@ data Sem
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance B.Binary Sem
+
+
+--------------------------------------------------------------------------------
+-- | A Refinement of 'Sort' that describes SMTLIB Sorts
+--------------------------------------------------------------------------------
+data SmtSort
+  = SInt
+  | SBool
+  | SReal
+  | SString
+  | SSet
+  | SMap
+  | SBitVec Int
+  | SVar    Int
+  | SData   FTycon [SmtSort]
