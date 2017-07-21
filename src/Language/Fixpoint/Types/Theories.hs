@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Theories (
 
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
+import           Data.Hashable
 import           GHC.Generics              (Generic)
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
@@ -64,8 +65,8 @@ data SymEnv = SymEnv
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
-{-@ type FuncSort = {v:Sort | isFFunc v} @-}
-type FuncSort = Sort
+{- type FuncSort = {v:Sort | isFFunc v} @-}
+type FuncSort = (SmtSort, SmtSort)
 
 
 instance NFData   SymEnv
@@ -149,3 +150,6 @@ data SmtSort
   | SBitVec Int
   | SVar    Int
   | SData   FTycon [SmtSort]
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance Hashable SmtSort
