@@ -169,19 +169,6 @@ instance {-# OVERLAPPING #-}
   apply f _        = f
   mkExprs _ _ _    = []
 
-
--- smt2Sort :: Sort -> Builder.Builder
--- smt2Sort s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
--- smt2Sort FInt                    = "Int"
--- smt2Sort FReal                   = "Real"
--- smt2Sort t
-      -- | t == boolSort            = "Bool"
--- smt2Sort t
-      -- | Just d <- Thy.smt2Sort t = d
--- smt2Sort (FObj s)                = Builder.fromText $ symbolSafeText s
--- smt2Sort _                       = "Int"
-
-
 func :: Sort -> Bool
 func (FAbs  _ s) = func s
 func (FFunc _ _) = True

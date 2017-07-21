@@ -77,22 +77,6 @@ type family Res a where
   Res (a -> b) = Res b
   Res a        = a
 
--- liquid-fixpoint started encoding `FObj s` as `Int` in 0.3.0.0, but we
--- want to preserve the type aliases for easier debugging.. so here's a
--- copy of the SMTLIB2 Sort instance..
--- smt2Sort :: Sort -> T.Text
--- smt2Sort s = case s of
---   FObj s' -> smt2 s'
---   _       -> smt2 s
--- smt2Sort s           | Just t <- Thy.smt2Sort s = t
--- smt2Sort FInt        = "Int"
--- smt2Sort (FApp t []) | t == intFTyCon = "Int"
--- smt2Sort (FApp t []) | t == boolFTyCon = "Bool"
--- --smt2Sort (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
--- smt2Sort (FObj s)    = smt2 s
--- smt2Sort s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
--- smt2Sort _           = "Int"
-
 makeDecl :: Symbol -> Sort -> Command -- Builder
 makeDecl x t
   | Just (_, ts, t) <- functionSort t
