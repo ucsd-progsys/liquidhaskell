@@ -47,7 +47,8 @@ data Command      = Push
                   | Pop
                   | CheckSat
                   | DeclData !DataDecl
-                  | Declare  !Symbol [Sort] !Sort
+-- /                  | Declare  !Symbol [Sort] !Sort
+                  | Declare  !Symbol [SmtSort] !SmtSort
                   | Define   !Sort
                   | Assert   !(Maybe Int) !Expr
                   | AssertAx !(Triggered Expr)

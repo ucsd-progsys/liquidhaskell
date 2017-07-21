@@ -31,6 +31,7 @@ module Language.Fixpoint.Types.Sorts (
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
+  , sizeBv
   , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
@@ -120,6 +121,14 @@ isListConName x = c == listConName || c == listLConName --"List"
 
 isListTC :: FTycon -> Bool
 isListTC (TC z _) = isListConName z
+
+sizeBv :: FTycon -> Maybe Int
+sizeBv tc
+  | s == size32Name = Just 32
+  | s == size64Name = Just 64
+  | otherwise       = Nothing
+  where
+    s               = val $ fTyconSymbol tc
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s _) = s

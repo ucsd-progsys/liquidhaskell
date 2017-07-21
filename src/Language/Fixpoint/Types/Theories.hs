@@ -4,6 +4,7 @@
 {- LANGUAGE OverloadedStrings         #-}
 {- LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 
 -- | This module contains the types defining an SMTLIB2 interface.
@@ -19,16 +20,17 @@ module Language.Fixpoint.Types.Theories (
 
     -- * Theory Sorts
     , SmtSort (..)
+    , sortSmtSort
 
     -- * Symbol Environments
     , SymEnv (..)
     , symEnv
     , symEnvSort
     , symEnvTheory
-    , symEnvData
+    -- , symEnvData
     , insertSymEnv
     , applyAtName
-
+    , applyAtSmtName
     ) where
 
 
@@ -68,7 +70,6 @@ data SymEnv = SymEnv
 {- type FuncSort = {v:Sort | isFFunc v} @-}
 type FuncSort = (SmtSort, SmtSort)
 
-
 instance NFData   SymEnv
 instance B.Binary SymEnv
 
@@ -84,7 +85,9 @@ symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> [Sort] -> SymEnv
 symEnv xEnv fEnv ds ts = SymEnv xEnv fEnv dEnv sortMap
   where
     dEnv               = fromListSEnv [(symbol d, d) | d <- ds]
-    sortMap            = M.fromList (zip ts [0..])
+    sortMap            = M.fromList (zip smts [0..])
+    smts               = (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+    tx                 = applySmtSort dEnv
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -92,14 +95,28 @@ symEnvTheory x env = lookupSEnv x (seTheory env)
 symEnvSort :: Symbol -> SymEnv -> Maybe Sort
 symEnvSort   x env = lookupSEnv x (seSort env)
 
-symEnvData :: FTycon -> SymEnv -> Bool
-symEnvData c env = memberSEnv (symbol c) (seData env)
-
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
 applyAtName :: SymEnv -> Sort -> Symbol
-applyAtName env t = intSymbol applyName (M.lookupDefault 0 t (seAppls env))
+applyAtName env = applyAtSmtName env . ffuncSort env
+
+applyAtSmtName :: SymEnv -> FuncSort -> Symbol
+applyAtSmtName env z = intSymbol applyName n
+  where
+    n                = M.lookupDefault 0 z (seAppls env)
+
+ffuncSort :: SymEnv -> Sort -> FuncSort
+ffuncSort env t      = (tx t1, tx t2)
+  where
+    tx               = applySmtSort (seData env)
+    (t1, t2)         = args t
+    args (FFunc a b) = (a, b)
+    args _           = (FInt, FInt)
+
+applySmtSort :: SEnv a -> Sort -> SmtSort
+applySmtSort = sortSmtSort False
+
 --------------------------------------------------------------------------------
 -- | 'TheorySymbol' represents the information about each interpreted 'Symbol'
 --------------------------------------------------------------------------------
@@ -153,3 +170,40 @@ data SmtSort
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable SmtSort
+instance NFData   SmtSort
+instance B.Binary SmtSort
+
+-- | 'smtSort True  msg t' serializes a sort 't' using type variables,
+--   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
+
+sortSmtSort :: Bool -> SEnv a -> Sort -> SmtSort
+sortSmtSort poly env  = go
+  where
+    go (FFunc _ _)    = SInt
+    go FInt           = SInt
+    go FReal          = SReal
+    go t
+      | t == boolSort = SBool
+    go (FVar i)
+      | poly          = SVar i
+      | otherwise     = SInt
+    go t              = fappSmtSort poly env ct ts where (ct:ts)= unFApp t
+
+fappSmtSort :: Bool -> SEnv a -> Sort -> [Sort] -> SmtSort
+fappSmtSort poly env = go
+  where
+    go (FTC c) _
+      | setConName == symbol c  = SSet
+    go (FTC c) _
+      | mapConName == symbol c  = SMap
+    go (FTC bv) [FTC s]
+      | bitVecName == symbol bv
+      , Just n <- sizeBv s      = SBitVec n
+    go s []
+      | isString s              = SString
+    go (FTC c) ts
+      | symEnvData c env        = SData c (sortSmtSort poly env <$> ts)
+    go _ _                      = SInt
+
+symEnvData :: (Symbolic x) => x -> SEnv a -> Bool
+symEnvData = memberSEnv . symbol

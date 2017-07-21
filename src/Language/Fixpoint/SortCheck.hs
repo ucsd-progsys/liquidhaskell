@@ -571,13 +571,13 @@ _makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
 _makeApplySymbol :: Sort -> Symbol
 _makeApplySymbol s
   | (FApp (FTC c) _) <- s
-  , Thy.isConName setConName c
+  , setConName == symbol c
   = setApplyName 1
   | (FApp (FApp (FTC c) _) _) <- s
-  , Thy.isConName mapConName c
+  , mapConName == symbol c
   = mapApplyName 1
   | (FApp (FTC bv) (FTC s))   <- s
-  , Thy.isConName bitVecName bv
+  , bitVecName == symbol bv
   , Just _ <- Thy.sizeBv s
   = bitVecApplyName 1
   | FTC c <- s, c == boolFTyCon

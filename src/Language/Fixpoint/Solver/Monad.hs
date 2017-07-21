@@ -120,7 +120,7 @@ declare env ds lts = withContext $ \me -> do
   forM_ ds     $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
-  forM_ ats    $ uncurry $ smtDecl     me
+  forM_ ats    $ uncurry $ smtFuncDecl me
   forM_ ess    $           smtDistinct me
   forM_ axs    $           smtAssert   me
   where
@@ -133,17 +133,12 @@ declare env ds lts = withContext $ \me -> do
     tx         = elaborate    "declare" env
     ats        = applyVars env
 
-applyVars :: F.SymEnv -> [(F.Symbol, F.Sort)]
-applyVars env = [(F.applyAtName env t, applySort t) | t@(F.FFunc {}) <- ts]
+applyVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
+applyVars env    = [(F.applyAtSmtName env t, aSort t) | t <- ts]
   where
-    ts        = M.keys (F.seAppls env)
+    ts           = M.keys (F.seAppls env)
+    aSort (s, t) = ([F.SInt, s], t)
 
-applySort :: F.Sort -> F.Sort
-applySort (F.FFunc t1 t2) = F.mkFFunc 0 [F.intSort, fo t1, fo t2]
-  where
-    fo (F.FFunc {})       = F.intSort
-    fo s                  = s
-applySort t               = t
 
 -- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,

@@ -921,10 +921,11 @@ commandP
  <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
 cmdVarP :: Parser Command
-cmdVarP = do
-  x <- bindP
-  t <- sortP
-  return $ Declare x [] t
+cmdVarP = error "UNIMPLEMENTED: cmdVarP"
+-- do
+  -- x <- bindP
+  -- t <- sortP
+  -- return $ Declare x [] t
 
 ---------------------------------------------------------------------
 -- Bundling Parsers into a Typeclass --------------------------------

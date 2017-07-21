@@ -9,7 +9,6 @@ module Language.Fixpoint.Smt.Theories
        -- * Convert theory applications TODO: merge with smt2symbol
        smt2App
        -- * Convert theory sorts
-     , smt2SmtSort
      , sortSmtSort
 
        -- * Convert theory symbols
@@ -34,7 +33,6 @@ module Language.Fixpoint.Smt.Theories
 
       -- * Query Theories
      , isSmt2App
-     , isConName
      , axiomLiterals
      ) where
 
@@ -42,7 +40,7 @@ import           Prelude hiding (map)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
--- import           Language.Fixpoint.Smt.Types
+import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes, isJust)
 import           Data.Monoid
@@ -223,27 +221,9 @@ stringPreamble _
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
--- smt2SortTT :: SymEnv -> Sort -> Maybe (Builder.Builder, [Sort])
--- smt2SortTT env t = smt2Sort' env ct ts
-  -- where
-    -- (ct:ts)    = unFApp t
---
--- smt2Sort' :: SymEnv -> Sort -> [Sort] -> Maybe (Builder.Builder, [Sort])
--- smt2Sort' _ (FTC c) _
-  -- | isConName setConName c  = Just (build "{}" (Only set), [])
--- smt2Sort' _ (FTC c) _
-  -- | isConName mapConName c  = Just (build "{}" (Only map), [])
--- smt2Sort' _ (FTC bv) [FTC s]
-  -- | isConName bitVecName bv
-  -- , Just n <- sizeBv s      = Just (build "(_ BitVec {})" (Only n), [])
--- smt2Sort' _ s []
-  -- | isString s              = Just (build "{}" (Only string), [])
--- smt2Sort' env (FTC c) ts
-  -- | symEnvData c env        = Just (symbolBuilder c, ts)
--- smt2Sort' _ _ _             = Nothing
+instance SMTLIB2 SmtSort where
+  smt2 _ = smt2SmtSort
 
--- | 'smt2Sort True  t' serializes a sort 't' using type variables,
---   'smt2Sort False t' serializes a sort 't' using 'Int' instead of tyvars.
 smt2SmtSort :: SmtSort -> Builder.Builder
 smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
@@ -257,38 +237,6 @@ smt2SmtSort (SData c []) = symbolBuilder c
 smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c, args)
   where args             = buildMany (smt2SmtSort <$> ts)
 
-
--- | 'smtSort True  msg t' serializes a sort 't' using type variables,
---   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
-
-sortSmtSort :: Bool -> SymEnv -> Sort -> SmtSort
-sortSmtSort poly env  = go
-  where
-    go (FFunc _ _)    = SInt
-    go FInt           = SInt
-    go FReal          = SReal
-    go t
-      | t == boolSort = SBool
-    go (FVar i)
-      | poly          = SVar i
-      | otherwise     = SInt
-    go t              = fappSmtSort poly env ct ts where (ct:ts)= unFApp t
-
-fappSmtSort :: Bool -> SymEnv -> Sort -> [Sort] -> SmtSort
-fappSmtSort poly env = go
-  where
-    go (FTC c) _
-      | isConName setConName c  = SSet
-    go (FTC c) _
-      | isConName mapConName c  = SMap
-    go (FTC bv) [FTC s]
-      | isConName bitVecName bv
-      , Just n <- sizeBv s      = SBitVec n
-    go s []
-      | isString s              = SString
-    go (FTC c) ts
-      | symEnvData c env        = SData c (sortSmtSort poly env <$> ts)
-    go _ _                      = SInt
 
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App _ (EVar f) [d]
@@ -330,13 +278,13 @@ preamble u _    = smtlibPreamble u
 toInt :: Expr -> Sort -> Expr
 toInt e s
   |  (FApp (FTC c) _) <- s
-  , isConName setConName c
+  , setConName == symbol c
   = castWith setToIntName e
   | (FApp (FApp (FTC c) _) _) <- s
-  , isConName mapConName c
+  , mapConName == symbol c
   = castWith mapToIntName e
   | (FApp (FTC bv) (FTC s)) <- s
-  , isConName bitVecName bv
+  , bitVecName == symbol bv
   , Just _ <- sizeBv s
   = castWith bitVecToIntName e
   | FTC c <- s
@@ -403,17 +351,6 @@ interpSymbols =
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
-
-isConName :: Symbol -> FTycon -> Bool
-isConName s = (s ==) . val . fTyconSymbol
-
-sizeBv :: FTycon -> Maybe Int
-sizeBv tc
-  | s == size32Name = Just 32
-  | s == size64Name = Just 64
-  | otherwise       = Nothing
-  where
-    s               = val $ fTyconSymbol tc
 
 uninterpSymbols :: [(Symbol, TheorySymbol)]
 uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']

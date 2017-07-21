@@ -42,6 +42,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecls
     , smtAssert
     , smtDataDecl
+    , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
@@ -363,9 +364,15 @@ smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
 smtDecls = mapM_ . uncurry . smtDecl
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
-smtDecl me x t = interact' me (Declare x ins out)
+smtDecl me x t = interact' me (Declare x ins' out')
   where
+    ins'       = sortSmtSort False env <$> ins
+    out'       = sortSmtSort False env     out
     (ins, out) = deconSort t
+    env        = seData (ctxSymEnv me)
+
+smtFuncDecl :: Context -> Symbol -> ([SmtSort],  SmtSort) -> IO ()
+smtFuncDecl me x (ts, t) = interact' me (Declare x ts t)
 
 smtDataDecl :: Context -> DataDecl -> IO ()
 smtDataDecl me d = interact' me (DeclData d)
