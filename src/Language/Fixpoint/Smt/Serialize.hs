@@ -28,14 +28,17 @@ smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder.Build
 smt2SortMono = smt2Sort False
 smt2SortPoly = smt2Sort True
 
-
+smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder.Builder
+smt2Sort poly _ env t = Thy.smt2SmtSort (Thy.sortSmtSort poly env t)
 
 smt2data :: SymEnv -> DataDecl -> Builder.Builder
 smt2data env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
   where
-    tvars                    = smt2many (smt2TVar <$> [0..(n-1)])
+    tvars                    = smt2many (smt2TV <$> [0..(n-1)])
     name                     = smt2 env (symbol tc)
     ctors                    = smt2many (smt2ctor env <$> cs)
+    smt2TV                   = Thy.smt2SmtSort . SVar
+
 
 smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
 smt2ctor env (DCtor c [])  = smt2 env c

@@ -9,7 +9,9 @@ module Language.Fixpoint.Smt.Theories
        -- * Convert theory applications TODO: merge with smt2symbol
        smt2App
        -- * Convert theory sorts
-     , smt2SortTT
+     , smt2SmtSort
+     , sortSmtSort
+
        -- * Convert theory symbols
      , smt2Symbol
        -- * Preamble to initialize SMT
@@ -221,25 +223,24 @@ stringPreamble _
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
-smt2SortTT :: SymEnv -> Sort -> Maybe (Builder.Builder, [Sort])
-smt2SortTT env t = smt2Sort' env ct ts
-  where
-    (ct:ts)    = unFApp t
-
-smt2Sort' :: SymEnv -> Sort -> [Sort] -> Maybe (Builder.Builder, [Sort])
-smt2Sort' _ (FTC c) _
-  | isConName setConName c  = Just (build "{}" (Only set), [])
-smt2Sort' _ (FTC c) _
-  | isConName mapConName c  = Just (build "{}" (Only map), [])
-smt2Sort' _ (FTC bv) [FTC s]
-  | isConName bitVecName bv
-  , Just n <- sizeBv s      = Just (build "(_ BitVec {})" (Only n), [])
-smt2Sort' _ s []
-  | isString s              = Just (build "{}" (Only string), [])
-smt2Sort' env (FTC c) ts
-  | symEnvData c env        = Just (symbolBuilder c, ts)
-smt2Sort' _ _ _             = Nothing
-
+-- smt2SortTT :: SymEnv -> Sort -> Maybe (Builder.Builder, [Sort])
+-- smt2SortTT env t = smt2Sort' env ct ts
+  -- where
+    -- (ct:ts)    = unFApp t
+--
+-- smt2Sort' :: SymEnv -> Sort -> [Sort] -> Maybe (Builder.Builder, [Sort])
+-- smt2Sort' _ (FTC c) _
+  -- | isConName setConName c  = Just (build "{}" (Only set), [])
+-- smt2Sort' _ (FTC c) _
+  -- | isConName mapConName c  = Just (build "{}" (Only map), [])
+-- smt2Sort' _ (FTC bv) [FTC s]
+  -- | isConName bitVecName bv
+  -- , Just n <- sizeBv s      = Just (build "(_ BitVec {})" (Only n), [])
+-- smt2Sort' _ s []
+  -- | isString s              = Just (build "{}" (Only string), [])
+-- smt2Sort' env (FTC c) ts
+  -- | symEnvData c env        = Just (symbolBuilder c, ts)
+-- smt2Sort' _ _ _             = Nothing
 
 -- | 'smt2Sort True  t' serializes a sort 't' using type variables,
 --   'smt2Sort False t' serializes a sort 't' using 'Int' instead of tyvars.
@@ -256,21 +257,22 @@ smt2SmtSort (SData c []) = symbolBuilder c
 smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c, args)
   where args             = buildMany (smt2SmtSort <$> ts)
 
+
 -- | 'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SymEnv -> Sort -> SmtSort
-sortSmtSort poly env = go
+sortSmtSort poly env  = go
   where
-    go s@(FFunc _ _) = SInt
-    go FInt              = SInt
-    go FReal             = SReal
+    go (FFunc _ _)    = SInt
+    go FInt           = SInt
+    go FReal          = SReal
     go t
-      | t == boolSort    = SBool
+      | t == boolSort = SBool
     go (FVar i)
-      | poly             = SVar i
-      | otherwise        = SInt
-    go t                 = fappSmtSort poly env ct ts where (ct:ts)= unFApp t
+      | poly          = SVar i
+      | otherwise     = SInt
+    go t              = fappSmtSort poly env ct ts where (ct:ts)= unFApp t
 
 fappSmtSort :: Bool -> SymEnv -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly env = go
