@@ -191,6 +191,7 @@ setup = {-# SCC "setup" #-} do
    forM_ (L.nub (mySmt2Sort sEnv <$> ss)) $ \s ->
      defSort s ("Int" :: Builder.Builder)
 
+
    -- declare constructors
    cts <- gets constructors
    mapM_ (\ (c,t) -> do
