@@ -84,7 +84,7 @@ stitchFun _ (bkArrowDeep . stripQuals -> (vs, tis, _, to))
                  xo <- qquery (Proxy :: Proxy (Res f)) d (subst su to)
                  vs <- gets variables
                  mapM_ (\x -> io . smtWrite ctx . Builder.toLazyText $
-                              smt2 sEnv $ makeDecl (symbol x) (snd x)) vs
+                              smt2 sEnv $ makeDecl (seData sEnv) (symbol x) (snd x)) vs
                  cs <- gets constraints
                  mapM_ (\c -> io . smtWrite ctx . Builder.toLazyText $
                               smt2 sEnv $ Assert Nothing c) cs

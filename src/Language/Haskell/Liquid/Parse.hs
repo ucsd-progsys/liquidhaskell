@@ -37,7 +37,7 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
 
-import           Language.Fixpoint.Types                hiding (DDecl, DataDecl, Error, R, Predicate)
+import           Language.Fixpoint.Types                hiding (SVar, DDecl, DataDecl, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)
@@ -783,11 +783,11 @@ bTup :: (PPrint r, Reftable r, Reftable (RType BTyCon BTyVar (UReft r)), Reftabl
      -> [RTProp BTyCon BTyVar (UReft r)]
      -> r
      -> RType BTyCon BTyVar (UReft r)
-bTup [(_,t)] _ r 
+bTup [(_,t)] _ r
   | isTauto r  = t
   | otherwise  = t `strengthen` (reftUReft r)
 bTup ts rs r
-  | all isNothing (fst <$> ts) || length ts < 2   
+  | all isNothing (fst <$> ts) || length ts < 2
   = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp (mkBTyCon $ dummyLoc tupConName) ((top . snd) <$> ts) rs' (reftUReft r)

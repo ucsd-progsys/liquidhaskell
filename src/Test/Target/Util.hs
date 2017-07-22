@@ -77,15 +77,24 @@ type family Res a where
   Res (a -> b) = Res b
   Res a        = a
 
-makeDecl :: Symbol -> Sort -> Command -- Builder
-makeDecl x t
-  | Just (_, ts, t) <- functionSort t
-  = Declare x ts t
-  -- build "(declare-fun {} ({}) {})"
-  --        (smt2 env x, smt2s env ts, smt2 env t)
-makeDecl x t
-  = Declare x [] t
-  -- build "(declare-const {} {})" (smt2 env x, smt2 env t)
+-- makeDecl :: Symbol -> Sort -> Command -- Builder
+-- makeDecl x t
+  -- / | Just (_, ts, t) <- functionSort t
+  -- = Declare x ts t
+-- makeDecl x t
+  -- = Declare x [] t
+
+makeDecl :: SEnv a -> Symbol -> Sort -> Command
+makeDecl env x t = Declare x ins' out'
+  where
+    ins'        = sortSmtSort False env <$> ins
+    out'        = sortSmtSort False env     out
+    (ins, out)  = deconSort t
+
+deconSort :: Sort -> ([Sort], Sort)
+deconSort t = case functionSort t of
+  Just (_, ins, out) -> (ins, out)
+  Nothing            -> ([] , t  )
 
 safeFromJust :: String -> Maybe a -> a
 safeFromJust msg Nothing  = error $ "safeFromJust: " ++ msg

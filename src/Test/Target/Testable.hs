@@ -194,17 +194,17 @@ setup = {-# SCC "setup" #-} do
    -- declare constructors
    cts <- gets constructors
    mapM_ (\ (c,t) -> do
-             io $ smtWrite ctx . Builder.toLazyText $ smt2 sEnv $ makeDecl (symbol c) t) cts
+             io $ smtWrite ctx . Builder.toLazyText $ smt2 sEnv $ makeDecl (seData sEnv) (symbol c) t) cts
    let nullary = [var c | (c,t) <- cts, not (func t)]
    unless (null nullary) $
      void $ io $ smtWrite ctx . Builder.toLazyText $ smt2 sEnv $ Distinct nullary
    -- declare variables
    vs <- gets variables
-   let defVar (x,t) = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl x (arrowize t)
+   let defVar (x,t) = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl (seData sEnv) x (arrowize t)
    mapM_ defVar vs
    -- declare measures
    ms <- gets measEnv
-   let defFun x t    = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl x t
+   let defFun x t    = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl (seData sEnv) x t
    forM_ ms $ \m -> do
      let x = val (name m)
      unless (x `memberSEnv` (seTheory sEnv)) $
