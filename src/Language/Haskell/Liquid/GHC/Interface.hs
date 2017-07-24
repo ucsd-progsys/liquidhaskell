@@ -322,12 +322,13 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec cfg file -- modName
   let bareSpec'        = commSpec `mappend` liftedSpec
-  let exports          = map (symbol.occNameString.getOccName)
-                       $ modInfoExports $ tm_checked_module_info typechecked
+  let exports          = map symbol $ modInfoExports $ tm_checked_module_info typechecked
   -- liftIO $ putStrLn $ showpp exports
+  -- liftIO $ putStrLn $ showpp $ Ms.sigs bareSpec'
   let bareSpec
         | isTarget     = bareSpec'
         | otherwise    = dropLocalSpecs exports bareSpec'
+  -- liftIO $ putStrLn $ showpp $ Ms.sigs bareSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget

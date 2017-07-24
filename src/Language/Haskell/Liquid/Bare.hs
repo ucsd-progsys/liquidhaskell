@@ -287,7 +287,7 @@ makeGhcSpec'
   -> BareM GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
-  -- liftIO $ dumpSigs specs0
+  -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
