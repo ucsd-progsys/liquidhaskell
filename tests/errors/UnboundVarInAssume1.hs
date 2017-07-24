@@ -1,3 +1,5 @@
+module UnboundVarInAssume1 where
+
 a :: Int
 a = 0
 
