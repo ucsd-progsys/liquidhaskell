@@ -50,7 +50,8 @@ import           Data.Foldable        (foldlM)
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi) -- _fixme_need_apply_sorts_here
+    ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
+            (tracepp "APPLY-SORTS" $ applySorts fi) -- _fixme_need_apply_sorts_here
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
