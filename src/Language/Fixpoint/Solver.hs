@@ -40,7 +40,7 @@ import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
-import           Language.Fixpoint.Solver.Instantiate (instantiateFInfo)
+import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ solveNative' !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
-  fi1      <- instantiateFInfo cfg $ fi0 { quals = remakeQual <$> quals fi0 }
+  fi1      <- instantiate cfg $ fi0 { quals = remakeQual <$> quals fi0 }
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"

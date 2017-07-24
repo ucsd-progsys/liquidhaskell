@@ -12,10 +12,7 @@
 --------------------------------------------------------------------------------
 
 module Language.Fixpoint.Solver.Instantiate (
-
-  instantiateAxioms,
-  instantiateFInfo,
-
+  instantiate
   ) where
 
 import           Language.Fixpoint.Types
@@ -47,8 +44,8 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 -- | Instantiate Axioms
 -------------------------------------------------------------------------------
-instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
-instantiateFInfo cfg fi = do
+instantiate :: Config -> FInfo c -> IO (FInfo c)
+instantiate cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
     ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
             (tracepp "APPLY-SORTS" $ applySorts fi) -- _fixme_need_apply_sorts_here
@@ -58,15 +55,15 @@ instantiateFInfo cfg fi = do
   where
     file      = srcFile cfg ++ ".evals"
     -- env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
-    inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
+    inst1 ctx = instAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
-instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
+instAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
                   -> Integer -> SubC c
                   -> IO (SubC c)
-instantiateAxioms _ _ _ _ aenv sid sub
+instAxioms _ _ _ _ aenv sid sub
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return sub
-instantiateAxioms cfg ctx bds fenv aenv sid sub
+instAxioms cfg ctx bds fenv aenv sid sub
   = flip strengthenLhs sub . pAnd . (is0 ++) .
     (if arithmeticAxioms cfg then (is ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
