@@ -23,11 +23,9 @@ import           Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
 import           Language.Fixpoint.Misc          (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
--- import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
-import           Language.Fixpoint.SortCheck       (elaborate)
-
-import Control.Monad.State
+import           Language.Fixpoint.SortCheck       (applySorts, elaborate)
+import           Control.Monad.State
 
 -- AT: I've inlined this, but we should have a more elegant solution
 --     (track predicates instead of selectors!)
@@ -38,7 +36,6 @@ import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
 import           Data.Foldable        (foldlM)
--- import           Data.Monoid          ((<>))
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_e,_str) ~> e' = do
@@ -53,7 +50,7 @@ import           Data.Foldable        (foldlM)
 instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
 instantiateFInfo cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
+    ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi) -- _fixme_need_apply_sorts_here
     SMT.smtPush ctx
     cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
     return $ fi { cm = cm' }
@@ -90,10 +87,10 @@ instantiateAxioms cfg ctx bds fenv aenv sid sub
     as         = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
     maxNumber  = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
-------------------------------
--- Knowledge (SMT Interaction)
-------------------------------
--- AT:@TODO: knSels and knEqs should reall just be the same thing. In this way,
+--------------------------------------------------------------------------------
+-- | Knowledge (SMT Interaction)
+--------------------------------------------------------------------------------
+-- AT:@TODO: knSels and knEqs should really just be the same thing. In this way,
 -- we should also unify knSims and knAms, as well as their analogues in AxiomEnv
 data Knowledge
   = KN { knSels    :: ![(Expr, Expr)]
@@ -238,9 +235,9 @@ splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
 splitPAnd e         = [e]
 
-------------------------
--- Creating Measure Info
-------------------------
+--------------------------------------------------------------------------------
+-- | Creating Measure Info
+--------------------------------------------------------------------------------
 -- AT@TODO do this for all reflected functions, not just DataCons
 
 -- Insert measure info for every constructor
@@ -267,9 +264,9 @@ addSMTEquality γ e1 e2 =
   return $ do ctx <- knContext γ
               SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
--------------------------------
--- Symbolic Evaluation with SMT
--------------------------------
+--------------------------------------------------------------------------------
+-- | Symbolic Evaluation with SMT
+--------------------------------------------------------------------------------
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
                        , _evAEnv     :: AxiomEnv

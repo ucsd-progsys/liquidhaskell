@@ -119,16 +119,17 @@ runCommands cmds
 --       case is in `instantiate` which needs it BEFORE we `Sanitize` and
 --       hence before we can call `symbolEnv` to find the set of all symbols etc...
 
-makeSmtContext :: Config -> FilePath -> [DataDecl] -> [(Symbol, Sort)] -> IO Context
-makeSmtContext cfg f dds xts = do
-  let env = makeSmtEnv dds xts
+makeSmtContext :: Config -> FilePath -> [DataDecl] -> [(Symbol, Sort)] -> [Sort]
+               -> IO Context
+makeSmtContext cfg f dds xts ts = do
+  let env = makeSmtEnv dds xts ts
   me     <- makeContextWithSEnv cfg f env
   smtDecls me (theoryDecls env)
   smtDecls me xts
   return me
 
-makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> SymEnv
-makeSmtEnv dds xts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds []
+makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> [Sort] -> SymEnv
+makeSmtEnv dds xts ts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds ts
 
 theoryDecls :: SymEnv -> [(Symbol, Sort)]
 theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]

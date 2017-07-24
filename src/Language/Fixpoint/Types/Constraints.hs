@@ -636,11 +636,11 @@ sEnvDoc d       = vcat . map kvD . toListSEnv
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Query Conversions: FInfo to SInfo
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
   where
     fi'          = M.foldlWithKey' blowOutVV fi $ cm fi
