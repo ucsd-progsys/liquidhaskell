@@ -44,41 +44,46 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 -- | Instantiate Axioms
 -------------------------------------------------------------------------------
-instantiate :: Config -> FInfo c -> IO (FInfo c)
-instantiate cfg fi = do
+instantiate :: Config -> SInfo a -> IO (SInfo a)
+instantiate cfg fi
+  | rewriteAxioms cfg = instantiate' cfg fi
+  | otherwise         = return fi
+
+instantiate' :: Config -> SInfo a -> IO (SInfo a)
+instantiate' cfg fi = do
     -- ctx <- SMT.makeContextWithSEnv cfg file env
     ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
-            (tracepp "APPLY-SORTS" $ applySorts fi) -- _fixme_need_apply_sorts_here
+            (tracepp "APPLY-SORTS" $ applySorts fi)
     SMT.smtPush ctx
-    cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
-    return $ fi { cm = cm' }
+    ips <- forM cstrs $ \(i, c) ->
+             (i,) <$> instSimpC cfg ctx (bs fi) (gLits fi) (ae fi) i c
+    return (strengthenHyp fi ips)
   where
+    cstrs     = M.toList (cm fi)
     file      = srcFile cfg ++ ".evals"
     -- env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
-    inst1 ctx = instAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
 
-instAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
-                  -> Integer -> SubC c
-                  -> IO (SubC c)
-instAxioms _ _ _ _ aenv sid sub
+instSimpC :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
+          -> Integer -> SimpC a
+          -> IO Expr
+instSimpC _ _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
-  = return sub
-instAxioms cfg ctx bds fenv aenv sid sub
-  = flip strengthenLhs sub . pAnd . (is0 ++) .
-    (if arithmeticAxioms cfg then (is ++) else id) <$>
+  = return PTrue
+instSimpC cfg ctx bds fenv aenv sid sub
+  = pAnd . (is0 ++) .
+    (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
-    is               = instances maxNumber aenv initOccurences
+    is1              = instances maxNumber aenv initOccurences
     evalEqs          =
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
-       evaluate cfg ctx ((vv Nothing, slhs sub):binds) fenv aenv initExpressions
-    initExpressions  = expr (slhs sub) : expr (srhs sub) : (expr <$> binds)
+       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) fenv aenv initExpressions
+    initExpressions  = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds            = envCs bds (senv sub)
     initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
-
-    eqs = aenvEqs aenv
+    eqs              = aenvEqs aenv
 
     -- fuel calculated and used only by `instances` arith rewrite method
     fuelNumber = M.lookupDefault 0 sid (aenvFuel aenv)

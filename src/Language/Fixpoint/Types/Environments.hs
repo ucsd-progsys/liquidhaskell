@@ -189,7 +189,7 @@ elemsIBindEnv :: IBindEnv -> [BindId]
 elemsIBindEnv (FB s) = S.toList s
 
 fromListIBindEnv :: [BindId] -> IBindEnv
-fromListIBindEnv = FB . S.fromList 
+fromListIBindEnv = FB . S.fromList
 
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)

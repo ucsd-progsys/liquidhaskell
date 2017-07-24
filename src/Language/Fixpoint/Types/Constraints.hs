@@ -36,7 +36,8 @@ module Language.Fixpoint.Types.Constraints (
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
-  , strengthenLhs
+  -- , strengthenLhs
+  , strengthenHyp
 
   -- * Accessing Constraints
   , addIds
@@ -160,10 +161,41 @@ data SimpC a = SimpC
   }
   deriving (Generic, Functor)
 
-strengthenLhs :: Expr -> SubC a -> SubC a
-strengthenLhs e subc = subc {slhs = go (slhs subc)}
+
+strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
+strengthenHyp si ies = strengthenBinds si bindExprs
   where
-    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
+    bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
+
+subcBind :: SInfo a -> Integer -> BindId
+subcBind si i
+  | Just c <- M.lookup i (cm si)
+  = _cbind c
+  | otherwise
+  = errorstar $ "Unknown subcId in subcBind: " ++ show i
+
+
+strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> SInfo a
+strengthenBinds si m = si { bs = mapBindEnv f (bs si) }
+  where
+    f i (x, sr)      = case M.lookup i m of
+                         Nothing -> (x, sr)
+                         Just e  -> (x, strengthenSortedReft sr e)
+
+strengthenSortedReft :: SortedReft -> Expr -> SortedReft
+strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
+
+
+
+{-
+  [(Int, Expr)]  ==> [(BindId, Expr)]
+
+ -}
+
+-- strengthenLhs :: Expr -> SubC a -> SubC a
+-- strengthenLhs e subc = subc {slhs = go (slhs subc)}
+--  where
+--    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
