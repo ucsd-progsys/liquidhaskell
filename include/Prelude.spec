@@ -11,6 +11,7 @@ import Data.Foldable
 import Data.Maybe
 import GHC.Exts
 
+import Control.Exception.Base
 
 GHC.Types.D# :: x:_ -> {v:_ | v = x}
 

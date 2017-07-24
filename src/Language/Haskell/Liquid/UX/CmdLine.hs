@@ -456,9 +456,15 @@ mkOpts cfg = do
   return     $ cfg { files       = files'
                                    -- See NOTE [searchpath]
                    , idirs       = [id0 </> gHC_VERSION, id0]
-                                ++ [id0 </> if linear cfg then "NotReal" else "Real"]
-                                ++ if totalityCheck cfg then [id0 </> "Totality"] else []
                                 ++ idirs cfg
+                   }
+
+finalizeConfig :: Config -> IO Config
+finalizeConfig cfg = do
+  id0       <- getIncludeDir
+  return     $ cfg { idirs       = [id0 </> if linear cfg then "NotReal" else "Real"]
+                                ++ if totalityCheck cfg then [id0 </> "Totality"] else []
+                                                                                                             ++ idirs cfg
                    }
 
 --------------------------------------------------------------------------------
@@ -474,7 +480,7 @@ canonConfig cfg = cfg
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 --------------------------------------------------------------------------------
 withPragmas cfg fp ps
-  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (finalizeConfig . canonConfig)
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
