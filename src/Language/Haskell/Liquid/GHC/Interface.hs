@@ -142,10 +142,6 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : packageFlags df'
                  -- , profAuto     = ProfAutoCalls
-                 -- , ghcLink      = LinkInMemory
-                 -- , hscTarget    = HscInterpreted
-                 , ghcLink      = NoLink
-                 , hscTarget    = HscNothing
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
@@ -160,8 +156,14 @@ configureDynFlags cfg tmp = do
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
-  _ <- setSessionDynFlags df''
-  return df''
+  let df''' =
+        if TemplateHaskell `xopt` df''
+        then df'' { hscTarget    = HscInterpreted
+                  , ghcLink      = LinkInMemory }
+        else df'' { hscTarget    = HscNothing
+                  , ghcLink      = NoLink }
+  _ <- setSessionDynFlags df'''
+  return df'''
 
 configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
@@ -358,7 +360,12 @@ loadModule' tm = loadModule tm'
     pm   = tm_parsed_module tm
     ms   = pm_mod_summary pm
     df   = ms_hspp_opts ms
-    df'  = df { hscTarget = HscNothing, ghcLink = NoLink }
+    df'  =
+      if TemplateHaskell `xopt` df
+      then df { hscTarget    = HscInterpreted
+              , ghcLink      = LinkInMemory }
+      else df { hscTarget    = HscNothing
+              , ghcLink      = NoLink }
     ms'  = ms { ms_hspp_opts = df' }
     pm'  = pm { pm_mod_summary = ms' }
     tm'  = tm { tm_parsed_module = pm' }
