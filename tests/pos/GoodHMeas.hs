@@ -1,3 +1,4 @@
+module GoodHMeas where
 
 {-@ measure foo @-}
 bar, foo :: [(Int, Int)] -> Int

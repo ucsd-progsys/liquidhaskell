@@ -1,3 +1,5 @@
+module HigherOrder where
+
 {-@ LIQUID "--higherorder" @-}
 
 

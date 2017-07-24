@@ -1,3 +1,5 @@
+module FunctionRef where
+
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--totality"        @-}
 

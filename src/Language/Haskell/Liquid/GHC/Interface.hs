@@ -44,7 +44,6 @@ import IdInfo
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
-import OccName (occNameString)
 import Serialized
 import TcRnTypes
 import Var

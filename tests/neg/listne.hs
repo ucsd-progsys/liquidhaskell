@@ -1,3 +1,4 @@
+module ListNE where
 
 {-@ type ListNE a = {v:[a] | 0 < len v} @-}
 
