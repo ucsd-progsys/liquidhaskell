@@ -199,8 +199,8 @@ dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
 --        m  <- getModule
 --        return $ Tick (srcSpanTick m loc) ce
 
-srcSpanTick :: Module -> SrcSpan -> Tickish a
-srcSpanTick m loc
+_srcSpanTick :: Module -> SrcSpan -> Tickish a
+_srcSpanTick m loc
   = ProfNote (AllCafsCC m loc) False True
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
