@@ -79,17 +79,20 @@ instSimpC cfg ctx bds fenv aenv sid sub
     evalEqs          =
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
-       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) fenv aenv initExpressions
-    initExpressions  = tracepp "initExpressions" $ {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
-    binds            = envCs bds (senv sub)
-    initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
+       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) fenv aenv iExprs
+    initOccurences   = concatMap (makeInitOccurences as eqs) iExprs
     eqs              = aenvEqs aenv
-
+    (binds, iExprs)  = cstrBindExprs bds sub
     -- fuel calculated and used only by `instances` arith rewrite method
-    fuelNumber = M.lookupDefault 0 sid (aenvFuel aenv)
-    as         = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
-    maxNumber  = (aenvSyms aenv * length initOccurences) ^ fuelNumber
+    fuelNumber       = M.lookupDefault 0 sid (aenvFuel aenv)
+    as               = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
+    maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
+cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
+cstrBindExprs bds sub = (binds, es)
+  where
+    es                = tracepp "initExpressions" $ {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
+    binds             = envCs bds (senv sub)
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
