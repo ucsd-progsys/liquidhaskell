@@ -349,7 +349,9 @@ deSugar hsc_env
         ; endPassIO hsc_env print_unqual CoreDesugar final_pgm rules_for_imps
 #endif
         ; (ds_binds, ds_rules_for_imps, ds_vects)
-            <- simpleOptPgm dflags mod final_pgm rules_for_imps vects0
+               -- NOTE LIQUID: we flag all binders as "exported" so
+               -- the simplifier doesn't inline and kill any of them
+            <- simpleOptPgm dflags mod (exportAllBinders final_pgm) rules_for_imps vects0
                          -- The simpleOptPgm gets rid of type
                          -- bindings plus any stupid dead code
 
@@ -393,6 +395,14 @@ deSugar hsc_env
               }
         ; return (msgs, Just mod_guts)
         }}}}
+
+exportAllBinders :: [CoreBind] -> [CoreBind]
+exportAllBinders = map exportBinds
+  where
+  exportBinds (NonRec v e) = NonRec (setIdExported v) e
+  exportBinds (Rec bs)     = Rec (map exportBind bs)
+
+  exportBind (v, e)        = (setIdExported v, e)
 
 mkFileSrcSpan :: ModLocation -> SrcSpan
 mkFileSrcSpan mod_loc

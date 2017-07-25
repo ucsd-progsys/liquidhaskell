@@ -338,11 +338,14 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
 
 dropLocalSpecs :: [Symbol] -> Ms.Spec t bndr -> Ms.Spec t bndr
 dropLocalSpecs exps spec = spec
-  { Ms.asmSigs   = filter (\(s, _t) -> val s `elem` exps) (Ms.asmSigs spec)
-  , Ms.sigs      = filter (\(s, _t) -> val s `elem` exps) (Ms.sigs spec)
-  , Ms.localSigs = filter (\(s, _t) -> val s `elem` exps) (Ms.localSigs spec)
-  , Ms.reflSigs  = filter (\(s, _t) -> val s `elem` exps) (Ms.reflSigs spec)
+  { Ms.asmSigs   = filter p (Ms.asmSigs spec)
+  , Ms.sigs      = filter p (Ms.sigs spec)
+  , Ms.localSigs = filter p (Ms.localSigs spec)
+  , Ms.reflSigs  = filter p (Ms.reflSigs spec)
   }
+  where
+  p (s, _t)
+    = val s `elem` exps
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
