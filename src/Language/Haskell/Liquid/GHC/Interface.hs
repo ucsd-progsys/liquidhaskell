@@ -394,21 +394,23 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
                  (\b -> case (b :: HsBind Id) of
                          FunBind {fun_id=id} ->
                            unitNameSet (getName (unLoc id))
-                         _ -> emptyNameSet))
-               --(tcg_binds (fst (tm_internals_ typechecked)))
-               (tm_typechecked_source typechecked)
-             `unionNameSet`
-             everything
-               unionNameSet
-               (mkQ emptyNameSet $
-                 getTypeSigNames
-                 -- (\s -> case (s :: Sig Id) of
-                 --          TypeSig ids _ ->
-                 --            mkNameSet (map (getName.unLoc) ids)
-                 --          _ -> emptyNameSet)
+                         _ -> emptyNameSet)
+                 `extQ` getTypeSigNames
                )
                --(tcg_binds (fst (tm_internals_ typechecked)))
                (tm_typechecked_source typechecked)
+             -- `unionNameSet`
+             -- everything
+             --   unionNameSet
+             --   (mkQ emptyNameSet $
+             --     getTypeSigNames
+             --     -- (\s -> case (s :: Sig Id) of
+             --     --          TypeSig ids _ ->
+             --     --            mkNameSet (map (getName.unLoc) ids)
+             --     --          _ -> emptyNameSet)
+             --   )
+             --   --(tcg_binds (fst (tm_internals_ typechecked)))
+             --   (tm_typechecked_source typechecked)
   liftIO $ putStrLn $ showPpr defs
   let src' = everywhere
                (mkT $
