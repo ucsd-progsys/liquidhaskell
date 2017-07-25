@@ -71,7 +71,7 @@ instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
 instSimpC cfg ctx bds aenv sid sub
-  = pAnd . (is0 ++) . -- tracepp ("instSimpC" ++ show sid) .
+  = tracepp ("instSimpC" ++ show sid) . pAnd . (is0 ++) .
     (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
