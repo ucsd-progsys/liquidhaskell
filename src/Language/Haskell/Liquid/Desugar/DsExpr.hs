@@ -193,15 +193,15 @@ unliftedMatchOnly _ = False -- I hope!  Checked immediately by caller in fact
 -}
 
 dsLExpr :: LHsExpr Id -> DsM CoreExpr
--- dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
-dsLExpr (L loc e)
-  = do ce <- putSrcSpanDs loc $ dsExpr e
-       m  <- getModule
-       return $ Tick (srcSpanTick m loc) ce
+dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
+-- dsLExpr (L loc e)
+--   = do ce <- putSrcSpanDs loc $ dsExpr e
+--        m  <- getModule
+--        return $ Tick (srcSpanTick m loc) ce
 
 srcSpanTick :: Module -> SrcSpan -> Tickish a
 srcSpanTick m loc
-  = ProfNote (AllCafsCC m loc) True True
+  = ProfNote (AllCafsCC m loc) False True
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
 dsExpr (HsPar e)              = dsLExpr e

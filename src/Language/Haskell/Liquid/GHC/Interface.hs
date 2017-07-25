@@ -151,11 +151,13 @@ configureDynFlags cfg tmp = do
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
                  , stubDir      = Just tmp
+                 , debugLevel   = 2
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
+                   -- `dopt_set` Opt_D_dump_ds
   let df''' =
         if TemplateHaskell `xopt` df''
         then df'' { hscTarget    = HscInterpreted
