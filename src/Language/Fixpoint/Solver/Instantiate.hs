@@ -73,7 +73,7 @@ instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
 instSimpC cfg ctx bds aenv sid sub
-  = -- tracepp ("instSimpC" ++ show sid) . 
+  = -- tracepp ("instSimpC" ++ show sid) .
     pAnd . (is0 ++) .
     (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
@@ -126,7 +126,7 @@ data Knowledge
        }
 
 emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge cxt = KN [] [] [] [] cxt (\_ _ _ -> return False) []
+emptyKnowledge ctx = KN [] [] [] [] ctx (\_ _ _ -> return False) []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr
 lookupKnowledge γ e
@@ -149,7 +149,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
                                      , knAms    = aenvEqs aenv
-                                     , knPreds  = \_bs e c -> askSMT c e
+                                     , knPreds  = \bs e c -> askSMT c bs e
                                      }
   where
     -- (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
@@ -162,8 +162,8 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
       SMT.smtPop ctx
       SMT.smtPush ctx
       -- SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
-      SMT.smtAssert ctx (pAnd ([toSMT (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null . Vis.kvars) ((toSMT . expr) <$> es)
+      SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
+                               ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
                               ))
       return ctx
 
@@ -187,18 +187,19 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                         , x == a
                         ]
 
-    toSMT = defuncAny cfg senv . elaborate "makeKnowledge" senv
+    toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
+    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
 
     -- AT: Non-obvious needed invariant: askSMT True is always the
     -- totality-effecting one
-    askSMT :: SMT.Context -> Expr -> IO Bool
-    askSMT cxt e
+    askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+    askSMT ctx bs e
       | isTautoPred  e = return True
       | isContraPred e = return False
       | null (Vis.kvars e) = do
-          SMT.smtPush cxt
-          b <- SMT.checkValid' cxt [] PTrue (toSMT e)
-          SMT.smtPop cxt
+          SMT.smtPush ctx
+          b <- SMT.checkValid' ctx [] PTrue (toSMT bs e)
+          SMT.smtPop ctx
           return b
       | otherwise      = return False
 
