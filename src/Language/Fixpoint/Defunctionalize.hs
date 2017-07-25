@@ -341,7 +341,7 @@ putLam _           = return ()
 putRedex :: Expr -> DF ()
 putRedex e@(EApp f _)
   | ELam _ _ <- stripCasts f
-  = modify $ \s -> s { dfRedex = e : dfRedex s }
+  = modify $ \s -> s { dfRedex = (tracepp "putRedex" e) : dfRedex s }
 putRedex _
   = return ()
 
