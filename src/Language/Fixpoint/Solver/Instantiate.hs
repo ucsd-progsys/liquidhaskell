@@ -89,9 +89,9 @@ instSimpC cfg ctx bds fenv aenv sid sub
     maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrBindExprs bds sub = (unElab <$> binds, unElab <$> es)
+cstrBindExprs bds sub = tracepp "initExpressions" (unElab <$> binds, unElab <$> es)
   where
-    es                = tracepp "initExpressions" $ {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
+    es                = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds             = envCs bds (senv sub)
 
 unElab :: (Vis.Visitable t) => t -> t
