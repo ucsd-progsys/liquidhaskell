@@ -65,6 +65,19 @@ import           Text.Printf
 
 -- import Debug.Trace
 
+
+{-
+EApp (EApp apply e1) e2
+  ===> EApp e1 e2
+
+((foo x) y)
+  ===> (EApp (EApp foo x) y)
+
+EApp (EApp apply (EApp (EApp apply foo) x)) y
+  ===> EApp (EApp (EApp apply foo) x) y
+  ===> EApp (Eapp foo x) y
+-}
+
 --------------------------------------------------------------------------------
 -- | Predicates on Sorts -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -114,7 +127,7 @@ instance Elaborate Expr where
     elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
-  elaborate msg env (x, s) = (x,) (elaborate msg env s)
+  elaborate msg env (x, s) = (x, elaborate msg env s)
 
 instance Elaborate a => Elaborate [a]  where
   elaborate msg env xs = elaborate msg env <$> xs

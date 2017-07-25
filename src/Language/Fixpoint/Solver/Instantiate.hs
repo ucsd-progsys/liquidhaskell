@@ -16,9 +16,9 @@ module Language.Fixpoint.Solver.Instantiate (
   ) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Config as FC
-import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
-import           Language.Fixpoint.Misc          (mapFst)
+import           Language.Fixpoint.Types.Config  as FC
+import qualified Language.Fixpoint.Types.Visitor as Vis
+import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
 import           Language.Fixpoint.SortCheck       (applySorts, elaborate)
@@ -89,10 +89,19 @@ instSimpC cfg ctx bds fenv aenv sid sub
     maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrBindExprs bds sub = (binds, es)
+cstrBindExprs bds sub = (unElab <$> binds, unElab <$> es)
   where
     es                = tracepp "initExpressions" $ {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds             = envCs bds (senv sub)
+
+unElab :: (Vis.Visitable t) => t -> t
+unElab = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
+  where
+    go (ECst (EApp (EApp (EVar f) e1) e2) _)
+      | f == applyName = EApp e1 e2
+    go e               = e
+
+
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
@@ -146,7 +155,7 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
       SMT.smtPush ctx
       SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
       SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
+                               ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
                               ))
       return ctx
 
@@ -181,7 +190,7 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
     askSMT cxt xss e
       | isTautoPred  e = return True
       | isContraPred e = return False
-      | null (kvars e) = do
+      | null (Vis.kvars e) = do
           SMT.smtPush cxt
           b <- SMT.checkValid' cxt [] PTrue (toSMT xss e)
           SMT.smtPop cxt
@@ -217,8 +226,8 @@ getDCEquality e1 e2
     | otherwise
     = Nothing
   where
-    (f1, es1) = mapFst getDC $ splitEApp e1
-    (f2, es2) = mapFst getDC $ splitEApp e2
+    (f1, es1) = Misc.mapFst getDC $ splitEApp e1
+    (f2, es2) = Misc.mapFst getDC $ splitEApp e2
 
     -- TODO: Stringy hacks
     getDC (EVar x)
@@ -253,7 +262,7 @@ assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
    EvalEnv _ _ evaenv <- get
    let sims = aenvSimpl evaenv
-   _ <- foldlM (\_ s -> mapMExpr (go s) e) e sims
+   _ <- foldlM (\_ s -> Vis.mapMExpr (go s) e) e sims
    return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
@@ -513,14 +522,14 @@ findNewEqs ((e, f):xss) es
 
 makeInitOccurences :: [(Symbol, Fuel)] -> [Equation] -> Expr -> [Occurence]
 makeInitOccurences xs eqs e
-  = [Occ x es xs | (EVar x, es) <- splitEApp <$> eapps e
+  = [Occ x es xs | (EVar x, es) <- splitEApp <$> Vis.eapps e
                  , Equ x' xs' _ <- eqs, x == x'
                  , length xs' == length es]
 
 grepOccurences :: [Equation] -> (Expr, FuelMap) -> [Occurence]
 grepOccurences eqs (e, fs)
   = filter (goodFuelMap . ofuel)
-           [Occ x es fs | (EVar x, es) <- splitEApp <$> eapps e
+           [Occ x es fs | (EVar x, es) <- splitEApp <$> Vis.eapps e
                         , Equ x' xs' _ <- eqs, x == x'
                         , length xs' == length es]
 
