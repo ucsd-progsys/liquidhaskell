@@ -397,8 +397,8 @@ deSugar hsc_env
         ; return (msgs, Just mod_guts)
         }}}}
 
-exportAllBinders :: [CoreBind] -> [CoreBind]
-exportAllBinders = map exportBinds
+_exportAllBinders :: [CoreBind] -> [CoreBind]
+_exportAllBinders = map exportBinds
   where
   exportBinds (NonRec v e) = NonRec (setIdExported v) e
   exportBinds (Rec bs)     = Rec (map exportBind bs)
