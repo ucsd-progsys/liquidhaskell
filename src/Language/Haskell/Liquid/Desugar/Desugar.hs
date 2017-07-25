@@ -351,7 +351,8 @@ deSugar hsc_env
         ; (ds_binds, ds_rules_for_imps, ds_vects)
                -- NOTE LIQUID: we flag all binders as "exported" so
                -- the simplifier doesn't inline and kill any of them
-            <- simpleOptPgm dflags mod (exportAllBinders final_pgm) rules_for_imps vects0
+            <- simpleOptPgm dflags mod (-- exportAllBinders
+                                        final_pgm) rules_for_imps vects0
                          -- The simpleOptPgm gets rid of type
                          -- bindings plus any stupid dead code
 
