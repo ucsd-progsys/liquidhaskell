@@ -21,7 +21,8 @@ import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
-import           Language.Fixpoint.SortCheck       (applySorts, elaborate)
+import           Language.Fixpoint.SortCheck       -- (unapplySorts, elaborate)
+import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
 
 -- AT: I've inlined this, but we should have a more elegant solution
@@ -51,9 +52,8 @@ instantiate cfg fi
 
 instantiate' :: Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = do
-    -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file (ddecls fi) []
-            (tracepp "APPLY-SORTS" $ applySorts fi)
+    ctx <- SMT.makeContextWithSEnv cfg file env
+    -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
     SMT.smtPush ctx
     ips <- forM cstrs $ \(i, c) ->
              (i,) <$> instSimpC cfg ctx (bs fi) (gLits fi) (ae fi) i c
@@ -61,7 +61,7 @@ instantiate' cfg fi = do
   where
     cstrs     = M.toList (cm fi)
     file      = srcFile cfg ++ ".evals"
-    -- env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
+    env       = symbolEnv cfg fi
 
 instSimpC :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
           -> Integer -> SimpC a
@@ -89,17 +89,21 @@ instSimpC cfg ctx bds fenv aenv sid sub
     maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrBindExprs bds sub = tracepp "initExpressions" (unElab <$> binds, unElab <$> es)
+cstrBindExprs bds sub = tracepp "initExpressions" (unElab <$> binds, tx <$> es)
   where
     es                = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds             = envCs bds (senv sub)
+    tx e              = tracepp ("UNELAB e = " ++ showpp e) (unElab e)
 
 unElab :: (Vis.Visitable t) => t -> t
-unElab = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
+unElab = Vis.stripCasts . unApply
+
+unApply :: (Vis.Visitable t) => t -> t
+unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
   where
-    go (ECst (EApp (EApp (EVar f) e1) e2) _)
-      | f == applyName = EApp e1 e2
-    go e               = e
+    go (ECst (EApp (EApp f e1) e2) _)
+      | Just _ <- unApplyAt f = EApp e1 e2
+    go e                      = e
 
 
 --------------------------------------------------------------------------------

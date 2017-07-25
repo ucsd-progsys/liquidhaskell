@@ -66,6 +66,7 @@ import           Text.Printf
 -- import Debug.Trace
 
 
+
 {-
 EApp (EApp apply e1) e2
   ===> EApp e1 e2

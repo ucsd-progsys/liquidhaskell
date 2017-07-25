@@ -286,11 +286,17 @@ isKvar _          = False
 isConc :: Expr -> Bool
 isConc = null . kvars
 
-stripCasts :: Expr -> Expr
-stripCasts = mapExpr go
+stripCasts :: (Visitable t) => t -> t
+stripCasts = trans (defaultVisitor { txExpr = const go }) () []
   where
     go (ECst e _) = e
     go e          = e
+
+-- stripCasts :: Expr -> Expr
+-- stripCasts = mapExpr go
+--  where
+--    go (ECst e _) = e
+--    go e          = e
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

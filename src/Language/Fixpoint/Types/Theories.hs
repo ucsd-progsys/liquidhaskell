@@ -59,11 +59,12 @@ type Raw          = LT.Text
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
 data SymEnv = SymEnv
-  { seSort    :: SEnv Sort              -- ^ Sorts of *all* defined symbols
-  , seTheory  :: SEnv TheorySymbol      -- ^ Information about theory-specific Symbols
-  , seData    :: SEnv DataDecl          -- ^ User-defined data-declarations
-  , seAppls   :: M.HashMap FuncSort Int -- ^ Types at which `apply` was used;
-                                        --   see [NOTE:apply-monomorphization]
+  { seSort    :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
+  , seTheory  :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
+  , seData    :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
+  , seLits    :: !(SEnv Sort)              -- ^ Distinct Constant symbols
+  , seAppls   :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
+                                           --   see [NOTE:apply-monomorphization]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -74,20 +75,21 @@ instance NFData   SymEnv
 instance B.Binary SymEnv
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv mempty
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
   mappend e1 e2 = SymEnv { seSort   = seSort   e1 `mappend` seSort   e2
                          , seTheory = seTheory e1 `mappend` seTheory e2
                          , seData   = seData   e1 `mappend` seData   e2
+                         , seLits   = seLits   e1 `mappend` seLits   e2
                          , seAppls  = seAppls  e1 `mappend` seAppls  e2
                          }
 
-symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ts = SymEnv xEnv fEnv dEnv sortMap
+symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
+symEnv xEnv fEnv ds ls ts = SymEnv xEnv fEnv dEnv ls sortMap
   where
-    dEnv               = fromListSEnv [(symbol d, d) | d <- ds]
-    sortMap            = M.fromList (zip smts [0..])
-    smts               = (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
-    tx                 = applySmtSort dEnv
+    dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
+    sortMap               = M.fromList (zip smts [0..])
+    smts                  = (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+    tx                    = applySmtSort dEnv
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)

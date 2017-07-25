@@ -30,7 +30,7 @@ module Language.Fixpoint.Smt.Interface (
     , makeContext
     , makeContextNoLog
     , makeContextWithSEnv
-    , makeSmtContext
+    -- , makeSmtContext
     , cleanupContext
 
     -- * Execute Queries
@@ -70,6 +70,7 @@ import qualified Language.Fixpoint.Misc  as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types hiding (allowHO)
+import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
@@ -77,6 +78,7 @@ import           Control.Applicative      ((<|>))
 import           Control.Monad
 import           Control.Exception
 import           Data.Char
+import qualified Data.HashMap.Strict      as M
 import           Data.Monoid
 import qualified Data.Text                as T
 import           Data.Text.Format
@@ -94,8 +96,7 @@ import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
-
--- import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
@@ -119,20 +120,20 @@ runCommands cmds
 --       case is in `instantiate` which needs it BEFORE we `Sanitize` and
 --       hence before we can call `symbolEnv` to find the set of all symbols etc...
 
-makeSmtContext :: Config -> FilePath -> [DataDecl] -> [(Symbol, Sort)] -> [Sort]
-               -> IO Context
-makeSmtContext cfg f dds xts ts = do
-  let env = makeSmtEnv dds xts ts
-  me     <- makeContextWithSEnv cfg f env
-  smtDecls me (theoryDecls env)
-  smtDecls me xts
-  return me
+-- makeSmtContext :: Config -> FilePath -> [DataDecl] -> [(Symbol, Sort)] -> [Sort]
+--                -> IO Context
+-- makeSmtContext cfg f dds xts ts = do
+  -- let env = makeSmtEnv dds xts ts
+  -- me     <- makeContextWithSEnv cfg f env
+  -- smtDecls me (theoryDecls env)
+  -- smtDecls me xts
+  -- return me
 
-makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> [Sort] -> SymEnv
-makeSmtEnv dds xts ts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds ts
+-- makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> [Sort] -> SymEnv
+-- makeSmtEnv dds xts ts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds ts
 
-theoryDecls :: SymEnv -> [(Symbol, Sort)]
-theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
+_theoryDecls :: SymEnv -> [(Symbol, Sort)]
+_theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
   where
     theorySyms  = toListSEnv (seTheory env)
 
@@ -273,8 +274,10 @@ makeContext cfg f
 
 makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
 makeContextWithSEnv cfg f env = do
-  ctx   <- makeContext cfg f
-  return $ ctx {ctxSymEnv = env}
+  ctx     <- makeContext cfg f
+  let ctx' = ctx {ctxSymEnv = env}
+  declare ctx'
+  return ctx'
   -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
@@ -436,3 +439,63 @@ z3_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
     , "(set-option :model-partial false)"]
+
+
+
+--------------------------------------------------------------------------------
+declare :: Context -> IO () -- SolveM ()
+--------------------------------------------------------------------------------
+declare me = do
+  forM_ ds     $           smtDataDecl me
+  forM_ thyXTs $ uncurry $ smtDecl     me
+  forM_ qryXTs $ uncurry $ smtDecl     me
+  forM_ ats    $ uncurry $ smtFuncDecl me
+  forM_ ess    $           smtDistinct me
+  forM_ axs    $           smtAssert   me
+  where
+    env        = ctxSymEnv me
+    ds         = map snd . F.toListSEnv . F.seData $ env
+    lts        =           F.toListSEnv . F.seLits $ env
+    ess        = distinctLiterals  lts
+    axs        = Thy.axiomLiterals lts
+    thyXTs     =                    filter (isKind 1) xts
+    qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
+    isKind n   = (n ==)  . symKind env . fst
+    xts        = F.toListSEnv           (F.seSort env)
+    tx         = elaborate    "declare" env
+    ats        = applyVars env
+
+applyVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
+applyVars env    = [(F.applyAtSmtName env t, aSort t) | t <- ts]
+  where
+    ts           = M.keys (F.seAppls env)
+    aSort (s, t) = ([F.SInt, s], t)
+
+
+-- | 'symKind' returns {0, 1, 2} where:
+--   0 = Theory-Definition,
+--   1 = Theory-Declaration,
+--   2 = Query-Binder
+
+symKind :: F.SymEnv -> F.Symbol -> Int
+symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
+                  Just F.Theory   -> 0
+                  Just F.Data     -> 0
+                  Just F.Uninterp -> 1
+                  Nothing         -> 2
+              -- Just t  -> if tsInterp t then 0 else 1
+
+
+-- assumes :: [F.Expr] -> SolveM ()
+-- assumes es = withContext $ \me -> forM_  es $ smtAssert me
+
+-- | `distinctLiterals` is used solely to determine the set of literals
+--   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,
+--   or string literals "cat", "dog", "mouse". These should only include
+--   non-function sorted values.
+distinctLiterals :: [(F.Symbol, F.Sort)] -> [[F.Expr]]
+distinctLiterals xts = [ es | (_, es) <- tess ]
+   where
+    tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
+    notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
+    -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
