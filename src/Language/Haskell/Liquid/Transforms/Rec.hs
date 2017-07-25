@@ -8,7 +8,8 @@
 
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
-     , outerScTr , innerScTr 
+     , outerScTr , innerScTr
+     , isIdTRecBound, setIdTRecBound
      ) where
 
 import           Bag
@@ -20,6 +21,7 @@ import           CoreUtils
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
 import           ErrUtils
+import           Id
 import           IdInfo
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
@@ -220,11 +222,26 @@ mkFreshIds :: [TyVar]
            -> State TrEnv ([Var], Id)
 mkFreshIds tvs ids x
   = do ids'  <- mapM fresh ids
-       let t  = mkForAllTys ((`Named` Visible) <$> tvs) $ mkType (reverse ids') $ varType x
+       let ids'' = map setIdTRecBound ids'
+       let t  = mkForAllTys ((`Named` Visible) <$> tvs) $ mkType (reverse ids'') $ varType x
        let x' = setVarType x t
-       return (ids', x')
+       return (ids'', x')
   where
     mkType ids ty = foldl (\t x -> ForAllTy (Anon $ varType x) t) ty ids
+
+-- This is an ugly hack..
+-- We don't want to select a binder created by TransformRec as the
+-- decreasing parameter, since the user didn't write it. So we need
+-- a way to signal to L.H.L.Constraint.Generate that we should ignore
+-- these Vars. The easiest way to do that is to set a flag on the Var
+-- that we know won't be set, and it just so happens GHC has a bunch
+-- of optional flags that can be set by various Core analyses that we
+-- don't run...
+setIdTRecBound :: Id -> Id
+setIdTRecBound = modifyIdInfo (`setCafInfo` NoCafRefs)
+
+isIdTRecBound :: Id -> Bool
+isIdTRecBound = not . mayHaveCafRefs . cafInfo . idInfo
 
 class Freshable a where
   fresh :: a -> TE a
