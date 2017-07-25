@@ -146,10 +146,10 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
                                      , knAms    = aenvEqs aenv
-                                     , knPreds  = \bs e c -> askSMT c bs e
+                                     , knPreds  = \_bs e c -> askSMT c e
                                      }
   where
-    (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
+    -- (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
     -- fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
     -- senv     = senvCtx { seSort = fromListSEnv fbinds }
     -- thySyms  = seTheory senvCtx
@@ -159,8 +159,8 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
       SMT.smtPop ctx
       SMT.smtPush ctx
       -- SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
-      SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
+      SMT.smtAssert ctx (pAnd ([toSMT (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
+                               ++ filter (null . Vis.kvars) ((toSMT . expr) <$> es)
                               ))
       return ctx
 
@@ -184,20 +184,17 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                         , x == a
                         ]
 
-    toSMT xs = defuncAny cfg senv0
-             . elaborate "symbolic evaluation" (elabEnv xs)
-    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv0
-    senv0    = insertSymEnv xv sv senv
+    toSMT = defuncAny cfg senv . elaborate "makeKnowledge" senv
 
     -- AT: Non-obvious needed invariant: askSMT True is always the
     -- totality-effecting one
-    askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-    askSMT cxt xss e
+    askSMT :: SMT.Context -> Expr -> IO Bool
+    askSMT cxt e
       | isTautoPred  e = return True
       | isContraPred e = return False
       | null (Vis.kvars e) = do
           SMT.smtPush cxt
-          b <- SMT.checkValid' cxt [] PTrue (toSMT xss e)
+          b <- SMT.checkValid' cxt [] PTrue (toSMT e)
           SMT.smtPop cxt
           return b
       | otherwise      = return False
