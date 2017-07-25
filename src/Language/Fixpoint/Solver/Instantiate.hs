@@ -71,7 +71,7 @@ instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
 instSimpC cfg ctx bds aenv sid sub
-  = pAnd . (is0 ++) . tracepp ("instSimpC" ++ show sid) .
+  = pAnd . (is0 ++) . -- tracepp ("instSimpC" ++ show sid) .
     (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
@@ -90,11 +90,11 @@ instSimpC cfg ctx bds aenv sid sub
     maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrBindExprs bds sub = tracepp "initExpressions" (unElab <$> binds, tx <$> es)
+cstrBindExprs bds sub = {- tracepp "initExpressions" -} (unElab <$> binds, unElab <$> es)
   where
     es                = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds             = envCs bds (senv sub)
-    tx e              = tracepp ("UNELAB e = " ++ showpp e) (unElab e)
+    _tx e              = tracepp ("UNELAB e = " ++ showpp e) (unElab e)
 
 unElab :: (Vis.Visitable t) => t -> t
 unElab = Vis.stripCasts . unApply
