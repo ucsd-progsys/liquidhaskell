@@ -229,15 +229,23 @@ mkFreshIds tvs ids x
   where
     mkType ids ty = foldl (\t x -> ForAllTy (Anon $ varType x) t) ty ids
 
--- This is an ugly hack..
+-- NOTE [Don't choose transform-rec binders as decreasing params]
+-- --------------------------------------------------------------
+--
 -- We don't want to select a binder created by TransformRec as the
--- decreasing parameter, since the user didn't write it. So we need
--- a way to signal to L.H.L.Constraint.Generate that we should ignore
--- these Vars. The easiest way to do that is to set a flag on the Var
--- that we know won't be set, and it just so happens GHC has a bunch
--- of optional flags that can be set by various Core analyses that we
--- don't run...
+-- decreasing parameter, since the user didn't write it. Furthermore,
+-- consider T1065. There we have an inner loop that decreases on the
+-- sole list parameter. But TransformRec prepends the parameters to the
+-- outer `groupByFB` to the inner `groupByFBCore`, and now the first
+-- decreasing parameter is the constant `xs0`. Disaster!
+--
+-- So we need a way to signal to L.H.L.Constraint.Generate that we
+-- should ignore these copied Vars. The easiest way to do that is to set
+-- a flag on the Var that we know won't be set, and it just so happens
+-- GHC has a bunch of optional flags that can be set by various Core
+-- analyses that we don't run...
 setIdTRecBound :: Id -> Id
+-- This is an ugly hack..
 setIdTRecBound = modifyIdInfo (`setCafInfo` NoCafRefs)
 
 isIdTRecBound :: Id -> Bool
