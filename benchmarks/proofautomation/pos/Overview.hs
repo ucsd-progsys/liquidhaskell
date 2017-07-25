@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.ProofCombinators
 import Helper
 
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
-{- LIQUID "--proof-method=arithmetic" @-}
+{-@ LIQUID "--proof-method=arithmetic" @-}
 
 fib :: Int -> Int
 fib n
