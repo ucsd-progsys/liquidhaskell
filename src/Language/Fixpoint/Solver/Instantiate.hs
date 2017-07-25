@@ -70,7 +70,7 @@ instSimpC _ _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
 instSimpC cfg ctx bds fenv aenv sid sub
-  = pAnd . (is0 ++) .
+  = pAnd . (is0 ++) . tracepp ("instSimpC" ++ show sid) .
     (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
@@ -80,7 +80,7 @@ instSimpC cfg ctx bds fenv aenv sid sub
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
        evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) fenv aenv initExpressions
-    initExpressions  = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
+    initExpressions  = tracepp "initExpressions" $ {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
     binds            = envCs bds (senv sub)
     initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
     eqs              = aenvEqs aenv
