@@ -56,7 +56,7 @@ instantiate' cfg fi = do
     -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
     SMT.smtPush ctx
     ips <- forM cstrs $ \(i, c) -> do
-             p <- instSimpC cfg ctx (bs fi) (gLits fi) (ae fi) i c
+             p <- instSimpC cfg ctx (bs fi) (ae fi) i c
              return (i, elaborate "PLE-instantiate" env p)
     return (strengthenHyp fi ips)
   where
@@ -64,13 +64,13 @@ instantiate' cfg fi = do
     file      = srcFile cfg ++ ".evals"
     env       = symbolEnv cfg fi
 
-instSimpC :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
+instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> Integer -> SimpC a
           -> IO Expr
-instSimpC _ _ _ _ aenv sid _
+instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
-instSimpC cfg ctx bds fenv aenv sid sub
+instSimpC cfg ctx bds aenv sid sub
   = pAnd . (is0 ++) . tracepp ("instSimpC" ++ show sid) .
     (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
@@ -80,7 +80,7 @@ instSimpC cfg ctx bds fenv aenv sid sub
     evalEqs          =
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
-       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) fenv aenv iExprs
+       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) aenv iExprs
     initOccurences   = concatMap (makeInitOccurences as eqs) iExprs
     eqs              = aenvEqs aenv
     (binds, iExprs)  = cstrBindExprs bds sub
@@ -138,10 +138,10 @@ lookupKnowledge γ e
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
 
-makeKnowledge :: Config -> SMT.Context -> AxiomEnv -> SEnv Sort
+makeKnowledge :: Config -> SMT.Context -> AxiomEnv
                  -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
-makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
+makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      { knSels   = sels
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
@@ -150,15 +150,15 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      }
   where
     (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
-    fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-    senv     = senvCtx { seSort = fromListSEnv fbinds }
-    thySyms  = seTheory senvCtx
-    senvCtx  = SMT.ctxSymEnv ctx
+    -- fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
+    -- senv     = senvCtx { seSort = fromListSEnv fbinds }
+    -- thySyms  = seTheory senvCtx
+    senv = SMT.ctxSymEnv ctx
     context :: IO SMT.Context
     context = do
       SMT.smtPop ctx
       SMT.smtPush ctx
-      SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
+      -- SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
       SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
                                ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
                               ))
@@ -294,15 +294,15 @@ data EvalEnv = EvalEnv { evId        :: Int
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv
+evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
             -> [Expr]
             -> IO [(Expr, Expr)]
-evaluate cfg ctx facts fenv aenv einit
+evaluate cfg ctx facts aenv einit
   = (eqs ++) <$>
     (fmap join . sequence)
     (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge cfg ctx aenv fenv facts
+    (eqs, γ) = makeKnowledge cfg ctx aenv facts
     initEvalSt = EvalEnv 0 [] aenv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
