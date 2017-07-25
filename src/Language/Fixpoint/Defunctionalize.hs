@@ -73,7 +73,7 @@ makeLamArg _ = intArgName
 makeAxioms :: DF [Expr]
 makeAxioms = do
   alphEqs <- concatMap makeAlphaAxioms <$> getLams
-  betaEqs <- concatMap makeBetaAxioms  <$> getRedexes
+  betaEqs <- concatMap makeBetaAxioms  <$> (tracepp "getRedexes" <$> getRedexes)
   env     <- gets dfEnv
   return   $ filter (validAxiom env) (alphEqs ++ betaEqs)
 
