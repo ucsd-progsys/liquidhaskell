@@ -644,7 +644,10 @@ desugarModule tcm = do
   -- let ms = modSummary tcm
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  let hsc_env_tmp = hsc_env { hsc_dflags = (ms_hspp_opts ms)
+                                           -- for breakpoint ticks
+                                           {hscTarget=HscInterpreted}
+                            }
   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
   return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 

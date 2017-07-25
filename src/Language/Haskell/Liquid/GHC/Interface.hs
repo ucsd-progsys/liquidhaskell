@@ -29,7 +29,6 @@ import GHC.Paths (libdir)
 
 import Annotations
 import Bag
-import BasicTypes
 import Class
 import CoreMonad
 import CoreSyn
@@ -48,7 +47,6 @@ import Module
 import Panic (throwGhcExceptionIO)
 import Serialized
 import TcRnTypes
-import TcEnv
 import Var
 import NameSet
 import FastString
@@ -63,8 +61,8 @@ import Data.List hiding (intersperse)
 import Data.Maybe
 -- import Data.IORef
 
-import Data.Generics.Aliases (mkT, mkQ, extQ)
-import Data.Generics.Schemes (everywhere, everything)
+import Data.Generics.Aliases (mkT)
+import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet as S
 import qualified Data.Map as M
@@ -388,49 +386,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modSummary     = pm_mod_summary $ tm_parsed_module typechecked
   let mod            = ms_mod modSummary
   let modName        = ModName Target $ moduleName mod
-  let defs = everything
-               unionNameSet
-               (mkQ emptyNameSet $
-                 (\b -> case (b :: HsBind Id) of
-                         FunBind {fun_id=id} ->
-                           unitNameSet (getName (unLoc id))
-                         _ -> emptyNameSet)
-                 `extQ` getTypeSigNames
-               )
-               --(tcg_binds (fst (tm_internals_ typechecked)))
-               (tm_typechecked_source typechecked)
-             -- `unionNameSet`
-             -- everything
-             --   unionNameSet
-             --   (mkQ emptyNameSet $
-             --     getTypeSigNames
-             --     -- (\s -> case (s :: Sig Id) of
-             --     --          TypeSig ids _ ->
-             --     --            mkNameSet (map (getName.unLoc) ids)
-             --     --          _ -> emptyNameSet)
-             --   )
-             --   --(tcg_binds (fst (tm_internals_ typechecked)))
-             --   (tm_typechecked_source typechecked)
-  liftIO $ putStrLn $ showPpr defs
-  let src' = everywhere
-               (mkT $
-                 \v -> if getName v `elemNameSet` defs
-                       then v `setInlineActivation` NeverActive
-                       else v
-                 -- \b -> case (b :: HsBind Id) of
-                 --         FunBind {fun_id=id} ->
-                 --           -- b { fun_id = fmap (`setInlineActivation` NeverActive) id }
-                 --           b { fun_id = fmap (Id.setIdExported) id }
-                 --         _ -> b
-               )
-               --(tcg_binds (fst (tm_internals_ typechecked)))
-               (tm_typechecked_source typechecked)
-  -- liftIO $ putStrLn . showPpr =<< readIORef (tcg_keep (fst (tm_internals_ typechecked)))
-  -- liftIO $ modifyIORef (tcg_keep (fst (tm_internals_ typechecked)))
-  --   (`unionNameSet` defs)
-  -- liftIO $ putStrLn . showPpr =<< readIORef (tcg_keep (fst (tm_internals_ typechecked)))
-  desugared         <- desugarModule (typechecked{tm_typechecked_source=src'
-                                                 ,tm_internals_ = ((fst (tm_internals_ typechecked)){tcg_binds=src'}, snd (tm_internals_ typechecked))})
+  desugared         <- desugarModule typechecked
   let modGuts        = makeMGIModGuts desugared
   hscEnv            <- getSession
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
