@@ -1,6 +1,6 @@
 {-@ LIQUID "--totality"                            @-}
 {-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{- LIQUID "--automatic-instances=liquidinstances" @-}
 
 module ReflectClient3 where
 
