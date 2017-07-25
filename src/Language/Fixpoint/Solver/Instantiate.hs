@@ -55,8 +55,9 @@ instantiate' cfg fi = do
     ctx <- SMT.makeContextWithSEnv cfg file env
     -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
     SMT.smtPush ctx
-    ips <- forM cstrs $ \(i, c) ->
-             (i,) <$> instSimpC cfg ctx (bs fi) (gLits fi) (ae fi) i c
+    ips <- forM cstrs $ \(i, c) -> do
+             p <- instSimpC cfg ctx (bs fi) (gLits fi) (ae fi) i c
+             return (i, elaborate "PLE-instantiate" env p)
     return (strengthenHyp fi ips)
   where
     cstrs     = M.toList (cm fi)
