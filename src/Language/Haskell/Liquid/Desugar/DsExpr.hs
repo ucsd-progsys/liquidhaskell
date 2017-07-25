@@ -201,7 +201,7 @@ dsLExpr (L loc e)
 
 srcSpanTick :: Module -> SrcSpan -> Tickish a
 srcSpanTick m loc
-  = ProfNote (AllCafsCC m loc) False True
+  = ProfNote (AllCafsCC m loc) True True
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
 dsExpr (HsPar e)              = dsLExpr e
