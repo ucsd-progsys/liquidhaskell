@@ -277,7 +277,7 @@ normalizePattern γ p@(Rs.PatBind {}) = do
   return $ Rs.lower p { Rs.patE1 = e1', Rs.patE2 = e2' }
 
 normalizePattern γ p@(Rs.PatReturn {}) = do
-  e'    <- normalize γ (Rs.patE p)
+  e'    <- normalizeName γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
 normalizePattern _ p@(Rs.PatProject {}) =
