@@ -57,7 +57,7 @@ defuncExpr = mapMExpr reBind
          >=> mapMExpr (fM normalizeLams)
 
 reBind :: Expr -> DF Expr
-reBind (ELam (x, s) e) = (\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s
+reBind (ELam (x, s) e) = tracepp "reBind" <$> ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
 reBind e               = return e
 
 maxLamArg :: Int
@@ -332,18 +332,29 @@ logLam :: Expr -> DF Expr
 logLam e = whenM (gets dfAEq) (putLam e) >> return e
 
 logRedex :: Expr -> DF Expr
-logRedex e = whenM (gets dfBEq) (putRedex e) >> return e
+logRedex e = do
+  whenM (gets dfBEq) $
+    when (tracepp ("isRedex:" ++ showpp e) $ isRedex e)
+      (modify $ \s -> s { dfRedex = (tracepp "putRedex" e) : dfRedex s })
+  return e
+
+  -- (putRedex (tracepp "isRedex" e)) >> return e
 
 putLam :: Expr -> DF ()
 putLam e@(ELam {}) = modify $ \s -> s { dfLams = e : dfLams s}
 putLam _           = return ()
 
-putRedex :: Expr -> DF ()
-putRedex e@(EApp f _)
-  | ELam _ _ <- stripCasts f
-  = modify $ \s -> s { dfRedex = (tracepp "putRedex" e) : dfRedex s }
-putRedex _
-  = return ()
+isRedex :: Expr -> Bool
+isRedex e@(EApp f _)
+  | ELam _ _ <- stripCasts f = True
+isRedex _                    = False
+
+
+-- putRedex :: Expr -> DF ()
+-- putRedex e@(EApp f _) = case stripCasts f of
+                          -- ELam _ _ -> modify $ \s -> s { dfRedex = (tracepp "putRedex" e) : dfRedex s }
+                          -- e'       -> return  $ tracepp ("SKIP-Redex" ++ showpp e') ()
+-- putRedex _            = return ()
 
 
 -- | getLams and getRedexes return the (previously seen) lambdas and redexes,
