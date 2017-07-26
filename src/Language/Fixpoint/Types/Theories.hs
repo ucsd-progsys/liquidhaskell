@@ -209,3 +209,15 @@ fappSmtSort poly env = go
 
 symEnvData :: (Symbolic x) => x -> SEnv a -> Bool
 symEnvData = memberSEnv . symbol
+
+
+instance PPrint SmtSort where
+  pprintTidy _ SInt         = text "Int"
+  pprintTidy _ SBool        = text "Bool"
+  pprintTidy _ SReal        = text "Real"
+  pprintTidy _ SString      = text "Str"
+  pprintTidy _ SSet         = text "Set"
+  pprintTidy _ SMap         = text "Map"
+  pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
+  pprintTidy _ (SVar i)     = text "@" <> int i
+  pprintTidy k (SData c ts) = parens (pprintTidy k c <+> pprintTidy k ts) 
