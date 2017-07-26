@@ -639,7 +639,7 @@ applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
 applySorts = (defs ++) . Vis.fold vis () []
   where
-    def    = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
+    defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
     go _ (EApp (ECst (EVar f) t) _)
            | f == applyName
