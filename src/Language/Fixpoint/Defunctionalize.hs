@@ -69,7 +69,6 @@ makeLamArg :: Sort -> Int -> Symbol
 makeLamArg _ = intArgName
 
 --------------------------------------------------------------------------------
-
 makeAxioms :: DF [Expr]
 makeAxioms = do
   alphEqs <- concatMap makeAlphaAxioms <$> getLams
@@ -292,7 +291,6 @@ data DFST = DFST
   , dfBinds :: !(SEnv Sort) -- ^ sorts of new lambda-binders
   }
 
-
 makeDFState :: Config -> SymEnv -> IBindEnv -> DFST
 makeDFState cfg env ibind = DFST
   { dfFresh = 0
@@ -311,12 +309,11 @@ makeDFState cfg env ibind = DFST
   , dfBinds = mempty
   }
 
-
 makeInitDFState :: Config -> SInfo a -> DFST
 makeInitDFState cfg si
   = makeDFState cfg
-         (symbolEnv cfg si)
-         (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
+      (symbolEnv cfg si)
+      (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
 
 --------------------------------------------------------------------------------
 -- | Low level monad manipulation ----------------------------------------------

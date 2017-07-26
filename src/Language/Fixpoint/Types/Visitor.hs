@@ -195,7 +195,7 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go (PGrad k su i e) = f =<< (PGrad k su i <$>  go e                     )
+    go (PGrad k s i e) = f =<< (PGrad k s i <$>  go e                     )
     go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
     go (PNot p)        = f =<< (PNot        <$>  go p                     )
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )

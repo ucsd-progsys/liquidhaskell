@@ -66,6 +66,34 @@ instantiate' cfg fi = do
     file      = srcFile cfg ++ ".evals"
     env       = symbolEnv cfg fi
 
+
+{-
+[NOTE:HEREHERE]
+instantiate' cfg fi = do
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  SMT.smtPush ctx
+  ips            <- forM cstrs $ \(i, c) ->
+                        (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+  let (ips', axs) = defuncAxioms env ips
+  let ips''       = [(i, elaborate "PLE" env p) | (i, p) <- ips' ]
+  let fi'         = fi { asserts = axs ++ asserts fi }
+  return          $ strengthenHyp fi' ips
+
+-- | 'defuncAxioms' can be made by generalizing 'defuncAny'
+defuncAxioms :: (Defunc a) => Config -> SymEnv -> a -> (a, [Triggered Expr])
+defuncAxioms xes = runState ... $ do
+  xes'  <- forM xes $ \(x, e) -> (x,) <$> defunc e
+  axs   <- map noTrigger <$> makeAxioms
+  return (xes', axs)
+
+-}
+
+-- Add the following to Defunctionalize
+--
+
+
+
+
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> Integer -> SimpC a
           -> IO Expr
@@ -334,7 +362,7 @@ eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
    = (e, "Knowledge") ~> e'
 eval γ (ELam (x,s) e)
-  = do let x' = makeLamArg s (1+ length (knLams γ))
+  = do let x' = makeLamArg s (1 + length (knLams γ))
        e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
        return $ ELam (x,s) $ subst1 e' (x', EVar x)
 eval γ e@(EIte b e1 e2)
