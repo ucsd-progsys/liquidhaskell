@@ -27,7 +27,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, strFTyCon, setFTyCon  -- TODO: hide these
 
-  , intSort, realSort, boolSort, strSort, funcSort
+  , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
@@ -392,6 +392,9 @@ fTyconSort c
   | c == realFTyCon = FReal
   | c == numFTyCon  = FNum
   | otherwise       = FTC c
+
+basicSorts :: [Sort]
+basicSorts = [FInt, boolSort, setSort, mapSort, bitVecSort]
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort

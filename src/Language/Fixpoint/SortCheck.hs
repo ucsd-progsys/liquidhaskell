@@ -637,9 +637,9 @@ splitArgs = go []
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
-applySorts = (def :) . Vis.fold vis () []
+applySorts = (defs ++) . Vis.fold vis () []
   where
-    def    = FFunc FInt FInt
+    def    = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
     go _ (EApp (ECst (EVar f) t) _)
            | f == applyName
