@@ -19,7 +19,13 @@
 --   `EApp` and `ELam` to determine the lambdas and redexes.
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Defunctionalize (defunctionalize, Defunc(..), defuncAny, makeLamArg) where
+module Language.Fixpoint.Defunctionalize
+  ( defunctionalize
+  , Defunc(..)
+  , defuncAny
+  , defuncAxioms
+  , makeLamArg
+  ) where
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
@@ -41,6 +47,11 @@ defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
 defuncAny :: Defunc a => Config -> SymEnv -> a -> a
 defuncAny cfg env e = evalState (defunc e) (makeDFState cfg env emptyIBindEnv)
 
+defuncAxioms :: (Defunc a) => Config -> SymEnv -> a -> (a, [Triggered Expr])
+defuncAxioms z = flip evalState (makeDFState cfg env emptyIBindEnv) $ do
+  z' <- defunc z
+  as <- map noTrigger <$> makeAxioms
+  return (z', as)
 
 --------------------------------------------------------------------------------
 -- | Expressions defunctionalization -------------------------------------------

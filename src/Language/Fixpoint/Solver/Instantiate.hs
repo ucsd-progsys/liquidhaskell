@@ -52,47 +52,32 @@ instantiate cfg fi
   where
     inst      = rewriteAxioms cfg || arithmeticAxioms cfg
 
-instantiate' :: Config -> SInfo a -> IO (SInfo a)
+-- instantiate' :: Config -> SInfo a -> IO (SInfo a)
+-- instantiate' cfg fi = do
+    -- ctx <- SMT.makeContextWithSEnv cfg file env
+    -- -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
+    -- SMT.smtPush ctx
+    -- ips <- forM cstrs $ \(i, c) -> do
+             -- p <- instSimpC cfg ctx (bs fi) (ae fi) i c
+             -- return (i, elaborate "PLE-instantiate" env p)
+    -- return (strengthenHyp fi ips)
+
 instantiate' cfg fi = do
-    ctx <- SMT.makeContextWithSEnv cfg file env
-    -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
-    SMT.smtPush ctx
-    ips <- forM cstrs $ \(i, c) -> do
-             p <- instSimpC cfg ctx (bs fi) (ae fi) i c
-             return (i, elaborate "PLE-instantiate" env p)
-    return (strengthenHyp fi ips)
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
+  SMT.smtPush ctx
+  ips           <- forM cstrs $ \(i, c) ->
+                      (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+  let (is, ps)   = unzip ips
+  let (ps', axs) = defuncAxioms env ps
+  let ps''       = elaborate "PLE1" env <$> ps'
+  let axs'       = elaborate "PLE2" env <$> axs
+  let fi'        = fi { asserts = axs' ++ asserts fi }
+  return         $ strengthenHyp fi' (zip is ps'')
   where
     cstrs     = M.toList (cm fi)
     file      = srcFile cfg ++ ".evals"
     env       = symbolEnv cfg fi
-
-
-{-
-[NOTE:HEREHERE]
-instantiate' cfg fi = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
-  SMT.smtPush ctx
-  ips            <- forM cstrs $ \(i, c) ->
-                        (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
-  let (ips', axs) = defuncAxioms env ips
-  let ips''       = [(i, elaborate "PLE" env p) | (i, p) <- ips' ]
-  let fi'         = fi { asserts = axs ++ asserts fi }
-  return          $ strengthenHyp fi' ips
-
--- | 'defuncAxioms' can be made by generalizing 'defuncAny'
-defuncAxioms :: (Defunc a) => Config -> SymEnv -> a -> (a, [Triggered Expr])
-defuncAxioms xes = runState ... $ do
-  xes'  <- forM xes $ \(x, e) -> (x,) <$> defunc e
-  axs   <- map noTrigger <$> makeAxioms
-  return (xes', axs)
-
--}
-
--- Add the following to Defunctionalize
---
-
-
-
 
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> Integer -> SimpC a
