@@ -48,7 +48,7 @@ defuncAny :: Defunc a => Config -> SymEnv -> a -> a
 defuncAny cfg env e = evalState (defunc e) (makeDFState cfg env emptyIBindEnv)
 
 defuncAxioms :: (Defunc a) => Config -> SymEnv -> a -> (a, [Triggered Expr])
-defuncAxioms z = flip evalState (makeDFState cfg env emptyIBindEnv) $ do
+defuncAxioms cfg env z = flip evalState (makeDFState cfg env emptyIBindEnv) $ do
   z' <- defunc z
   as <- map noTrigger <$> makeAxioms
   return (z', as)

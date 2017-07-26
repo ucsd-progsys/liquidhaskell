@@ -20,7 +20,7 @@ import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
+import           Language.Fixpoint.Defunctionalize -- (defuncAny, makeLamArg)
 import           Language.Fixpoint.SortCheck       -- (unapplySorts, elaborate)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
@@ -69,15 +69,15 @@ instantiate' cfg fi = do
   ips           <- forM cstrs $ \(i, c) ->
                       (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
   let (is, ps)   = unzip ips
-  let (ps', axs) = defuncAxioms env ps
+  let (ps', axs) = defuncAxioms cfg env ps
   let ps''       = elaborate "PLE1" env <$> ps'
   let axs'       = elaborate "PLE2" env <$> axs
   let fi'        = fi { asserts = axs' ++ asserts fi }
   return         $ strengthenHyp fi' (zip is ps'')
   where
-    cstrs     = M.toList (cm fi)
-    file      = srcFile cfg ++ ".evals"
-    env       = symbolEnv cfg fi
+    cstrs        = M.toList (cm fi)
+    file         = srcFile cfg ++ ".evals"
+    env          = symbolEnv cfg fi
 
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> Integer -> SimpC a
