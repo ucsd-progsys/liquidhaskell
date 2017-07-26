@@ -48,7 +48,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
--- import           Language.Fixpoint.Misc   (traceShow)
+import           Language.Fixpoint.Misc   (errorstar) -- traceShow)
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
