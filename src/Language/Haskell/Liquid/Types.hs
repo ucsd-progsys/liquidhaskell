@@ -34,16 +34,17 @@ module Language.Haskell.Liquid.Types (
   , GhcSpec (..)
   , TargetVars (..)
 
-  -- * Located Things
-  , Located (..)
-  , dummyLoc
+  -- * F.Located Things
+  , F.Located (..)
+  , F.dummyLoc
 
   -- * Symbols
-  , LocSymbol
-  , LocText
+  , F.LocSymbol
+  , F.LocText
 
   -- * Default unknown name
-  , dummyName, isDummy
+  , F.dummyName
+  , F.isDummy
 
   -- * Bare Type Constructors and Variables
   , BTyCon(..)
@@ -148,8 +149,9 @@ module Language.Haskell.Liquid.Types (
   , topRTypeBase
 
   -- * Class for values that can be pretty printed
-  , PPrint (..), pprint
-  , showpp
+  , F.PPrint (..)
+  , F.pprint
+  , F.showpp
 
   -- * Printer Configuration
   , PPEnv (..)
@@ -257,7 +259,7 @@ import           Text.PrettyPrint.HughesPJ              hiding (first)
 import           Text.Printf
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types                hiding (DataDecl, Error, SrcSpan, Result, Predicate, R)
+-- import           Language.Fixpoint.Types                hiding (SmtSort (..), DataDecl, Error, SrcSpan, Result, Predicate, R)
 
 import qualified Language.Fixpoint.Types as F
 
@@ -318,6 +320,9 @@ instance HasConfig GhcInfo where
   getConfig = getConfig . spec
 
 
+type Expr      = F.Expr
+type Symbol    = F.Symbol
+type Qualifier = F.Qualifier
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 
@@ -333,19 +338,19 @@ data GhcSpec = SP {
   , gsInvariants :: ![(Maybe Var, LocSpecType)]  -- ^ Data Type Invariants that came from the definition of var measure
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   :: ![(LocSpecType, LocSpecType)]-- ^ Data Type Invariant Aliases
-  , gsDconsP     :: ![Located DataCon]           -- ^ Predicated Data-Constructors
+  , gsDconsP     :: ![F.Located DataCon]           -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]           -- ^ Predicated Type-Constructors
                                                  -- eg.  see tests/pos/Map.hs
   , gsFreeSyms   :: ![(Symbol, Var)]             -- ^ List of `Symbol` free in spec and corresponding GHC var
                                                  -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , gsTcEmbeds   :: TCEmb TyCon                  -- ^ How to embed GHC Tycons into fixpoint sorts
+  , gsTcEmbeds   :: F.TCEmb TyCon                  -- ^ How to embed GHC Tycons into fixpoint sorts
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsQualifiers :: ![Qualifier]                 -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
-  , gsTexprs     :: ![(Var, [Located Expr])]     -- ^ Lexicographically ordered expressions for termination
+  , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
@@ -387,7 +392,7 @@ instance Monoid LogicMap where
   mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
 
 data LMap = LMap
-  { lmVar  :: LocSymbol
+  { lmVar  :: F.LocSymbol
   , lmArgs :: [Symbol]
   , lmExpr :: Expr
   }
@@ -395,34 +400,34 @@ data LMap = LMap
 instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t |-> \t" ++ show e
 
-toLogicMap :: [(LocSymbol, [Symbol], Expr)] -> LogicMap
+toLogicMap :: [(F.LocSymbol, [Symbol], Expr)] -> LogicMap
 toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
   where
-    toLMap (x, ys, e) = (val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
+    toLMap (x, ys, e) = (F.val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
-eAppWithMap :: LogicMap -> Located Symbol -> [Expr] -> Expr -> Expr
+eAppWithMap :: LogicMap -> F.Located Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
+  | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
   , length xs == length es
-  = subst (mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (val f) (lmSymDefs lmap)
+  = F.subst (F.mkSubst $ zip xs es) e
+  | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
   , isApp e
-  = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
+  = F.subst (F.mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = def
 
 dropApp :: Expr -> Int -> Expr
 dropApp e i | i <= 0 = e
-dropApp (EApp e _) i = dropApp e (i-1)
+dropApp (F.EApp e _) i = dropApp e (i-1)
 dropApp _ _          = errorstar "impossible"
 
 isApp :: Expr -> Bool
-isApp (EApp (EVar _) (EVar _)) = True
-isApp (EApp e (EVar _))        = isApp e
+isApp (F.EApp (F.EVar _) (F.EVar _)) = True
+isApp (F.EApp e (F.EVar _))        = isApp e
 isApp _                        = False
 
 data TyConP = TyConP
-  { ty_loc       :: !SourcePos
+  { ty_loc       :: !F.SourcePos
   , freeTyVarsTy :: ![RTyVar]
   , freePredTy   :: ![PVar RSort]
   , freeLabelTy  :: ![Symbol]
@@ -432,14 +437,14 @@ data TyConP = TyConP
   } deriving (Generic, Data, Typeable)
 
 data DataConP = DataConP
-  { dc_loc     :: !SourcePos
+  { dc_loc     :: !F.SourcePos
   , freeTyVars :: ![RTyVar]
   , freePred   :: ![PVar RSort]
   , freeLabels :: ![Symbol]
   , tyConsts   :: ![SpecType]             -- FIXME: WHAT IS THIS??
   , tyArgs     :: ![(Symbol, SpecType)]   -- FIXME: These are backwards, why??
   , tyRes      :: !SpecType
-  , dc_locE    :: !SourcePos
+  , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
 
@@ -515,27 +520,27 @@ pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars :: Predicate -> [UsedPVar]
 pvars (Pr pvs) = pvs
 
-instance Subable UsedPVar where
-  syms pv         = [ y | (_, x, EVar y) <- pargs pv, x /= y ]
-  subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }
-  substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }
-  substa f pv     = pv { pargs = mapThd3 (substa f) <$> pargs pv }
+instance F.Subable UsedPVar where
+  syms pv         = [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
+  subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
+  substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
+  substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
 
 
-instance Subable Predicate where
-  syms (Pr pvs)     = concatMap syms pvs
-  subst s (Pr pvs)  = Pr (subst s <$> pvs)
-  substf f (Pr pvs) = Pr (substf f <$> pvs)
-  substa f (Pr pvs) = Pr (substa f <$> pvs)
+instance F.Subable Predicate where
+  syms     (Pr pvs) = concatMap F.syms   pvs
+  subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
+  substf f (Pr pvs) = Pr (F.substf f <$> pvs)
+  substa f (Pr pvs) = Pr (F.substa f <$> pvs)
 
-instance Subable Qualifier where
-  syms   = syms . qBody
-  subst  = mapQualBody . subst
-  substf = mapQualBody . substf
-  substa = mapQualBody . substa
+instance F.Subable Qualifier where
+  syms   = F.syms . F.qBody
+  subst  = mapQualBody . F.subst
+  substf = mapQualBody . F.substf
+  substa = mapQualBody . F.substa
 
 mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
-mapQualBody f q = q { qBody = f (qBody q) }
+mapQualBody f q = q { F.qBody = f (F.qBody q) }
 
 instance NFData r => NFData (UReft r)
 
@@ -558,14 +563,14 @@ instance Hashable BTyVar
 instance NFData   BTyVar
 instance NFData   RTyVar
 
-instance Symbolic BTyVar where
+instance F.Symbolic BTyVar where
   symbol (BTV tv) = tv
 
-instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol . getName $ tv
+instance F.Symbolic RTyVar where
+  symbol (RTV tv) = F.symbol . getName $ tv
 
 data BTyCon = BTyCon
-  { btc_tc    :: !LocSymbol    -- ^ TyCon name with location information
+  { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
   , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
   }
@@ -580,8 +585,8 @@ data RTyCon = RTyCon
   }
   deriving (Generic, Data, Typeable)
 
-instance Symbolic BTyCon where
-  symbol = val . btc_tc
+instance F.Symbolic BTyCon where
+  symbol = F.val . btc_tc
 
 instance NFData BTyCon
 
@@ -591,19 +596,19 @@ rtyVarUniqueSymbol  :: RTyVar -> Symbol
 rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 
 tyVarUniqueSymbol :: TyVar -> Symbol
-tyVarUniqueSymbol tv = symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
 
-mkBTyCon :: LocSymbol -> BTyCon
+mkBTyCon :: F.LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
 
-mkClassBTyCon :: LocSymbol -> BTyCon
+mkClassBTyCon :: F.LocSymbol -> BTyCon
 mkClassBTyCon x = BTyCon x True False
 
-mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon :: F.LocSymbol -> BTyCon
 mkPromotedBTyCon x = BTyCon x False True
 
 
@@ -743,7 +748,7 @@ data RType c tv r
     , rt_ty     :: !(RType c tv r)
     }
 
-  | RExprArg (Located Expr)                     -- ^ For expression arguments to type aliases
+  | RExprArg (F.Located Expr)                     -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
       rt_arg   :: !(RType c tv r)
@@ -868,7 +873,7 @@ type RSort      = RRType    ()
 type BPVar      = PVar      BSort
 type RPVar      = PVar      RSort
 
-type RReft       = UReft     Reft
+type RReft       = UReft     F.Reft
 type PrType      = RRType    Predicate
 type BareType    = BRType    RReft
 type SpecType    = RRType    RReft
@@ -876,8 +881,8 @@ type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
 
-type LocBareType = Located BareType
-type LocSpecType = Located SpecType
+type LocBareType = F.Located BareType
+type LocSpecType = F.Located SpecType
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
                   deriving (Generic, Data, Typeable, Eq)
@@ -919,8 +924,8 @@ class (Eq c) => TyConable c where
 -- to figure out all the constraints.
 
 type OkRT c tv r = ( TyConable c
-                   , PPrint tv, PPrint c, PPrint r
-                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
+                   , F.PPrint tv, F.PPrint c, F.PPrint r
+                   , F.Reftable r, F.Reftable (RTProp c tv ()), F.Reftable (RTProp c tv r)
                    , Eq c, Eq tv
                    , Hashable tv
                    )
@@ -935,7 +940,7 @@ instance TyConable RTyCon where
   isTuple    = TyCon.isTupleTyCon   . rtc_tc
   isClass    = isClassRTyCon
   isEqual    = (eqPrimTyCon ==) . rtc_tc
-  ppTycon    = toFix
+  ppTycon    = F.toFix
 
   isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
                 (tyConClass_maybe $ rtc_tc c)
@@ -964,16 +969,16 @@ isClassOrSubClass p cls
 
 -- MOVE TO TYPES
 instance TyConable Symbol where
-  isFun   s = funConName == s
-  isList  s = listConName == s
-  isTuple s = tupConName == s
-  ppTycon   = text . symbolString
+  isFun   s = F.funConName == s
+  isList  s = F.listConName == s
+  isTuple s = F.tupConName == s
+  ppTycon   = text . F.symbolString
 
-instance TyConable LocSymbol where
-  isFun   = isFun . val
-  isList  = isList . val
-  isTuple = isTuple . val
-  ppTycon = ppTycon . val
+instance TyConable F.LocSymbol where
+  isFun   = isFun   . F.val
+  isList  = isList  . F.val
+  isTuple = isTuple . F.val
+  ppTycon = ppTycon . F.val
 
 instance TyConable BTyCon where
   isFun   = isFun . btc_tc
@@ -989,26 +994,26 @@ instance Eq RTyCon where
 instance Eq BTyCon where
   x == y = btc_tc x == btc_tc y
 
-instance Fixpoint RTyCon where
+instance F.Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c
 
-instance Fixpoint BTyCon where
-  toFix = text . symbolString . val . btc_tc
+instance F.Fixpoint BTyCon where
+  toFix = text . F.symbolString . F.val . btc_tc
 
-instance Fixpoint Cinfo where
+instance F.Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
 
-instance PPrint RTyCon where
+instance F.PPrint RTyCon where
   pprintTidy _ = text . showPpr . rtc_tc
 
-instance PPrint BTyCon where
-  pprintTidy _ = text . symbolString . val . btc_tc
+instance F.PPrint BTyCon where
+  pprintTidy _ = text . F.symbolString . F.val . btc_tc
 
 instance Show RTyCon where
-  show = showpp
+  show = F.showpp
 
 instance Show BTyCon where
-  show = showpp
+  show = F.showpp
 
 --------------------------------------------------------------------------
 -- | Refined Instances ---------------------------------------------------
@@ -1017,7 +1022,7 @@ instance Show BTyCon where
 data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
-  , risigs  :: [(LocSymbol, RISig t)]
+  , risigs  :: [(F.LocSymbol, RISig t)]
   } deriving (Generic, Functor, Data, Typeable, Show)
 
 data RISig t = RIAssumed t | RISig t
@@ -1056,8 +1061,8 @@ data AxiomEq = AxiomEq
 
 instance B.Binary AxiomEq
 
-instance PPrint AxiomEq where
-  pprintTidy k (AxiomEq n xs b _) = text "axeq" <+> pprint n <+> pprint xs <+> ":=" <+> pprintTidy k b
+instance F.PPrint AxiomEq where
+  pprintTidy k (AxiomEq n xs b _) = text "axeq" <+> F.pprint n <+> F.pprint xs <+> ":=" <+> F.pprintTidy k b
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
@@ -1069,11 +1074,11 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
-instance Subable AxiomEq where
-  syms   a = syms (axiomBody a) ++ syms (axiomEq a)
-  subst su = mapAxiomEqExpr (subst su)
-  substf f = mapAxiomEqExpr (substf f)
-  substa f = mapAxiomEqExpr (substa f)
+instance F.Subable AxiomEq where
+  syms   a = F.syms (axiomBody a) ++ F.syms (axiomEq a)
+  subst su = mapAxiomEqExpr (F.subst su)
+  substf f = mapAxiomEqExpr (F.substf f)
+  substa f = mapAxiomEqExpr (F.substa f)
 
 mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
 mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
@@ -1082,25 +1087,25 @@ mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
 data SizeFun
-  = IdSizeFun            -- ^ \x -> EVar x
-  | SymSizeFun LocSymbol -- ^ \x -> f x
+  = IdSizeFun            -- ^ \x -> F.EVar x
+  | SymSizeFun F.LocSymbol -- ^ \x -> f x
   deriving (Data, Typeable, Generic)
 
 szFun :: SizeFun -> Symbol -> Expr
-szFun IdSizeFun      = EVar
-szFun (SymSizeFun f) = \x -> mkEApp (symbol <$> f) [EVar x]
+szFun IdSizeFun      = F.EVar
+szFun (SymSizeFun f) = \x -> F.mkEApp (F.symbol <$> f) [F.EVar x]
 
 instance NFData   SizeFun
 instance B.Binary SizeFun
 
 -- | Data type refinements
 data DataDecl   = D
-  { tycName   :: LocSymbol                           -- ^ Type  Constructor Name
+  { tycName   :: F.LocSymbol                           -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]                            -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]                        -- ^ PVar  Parameters
   , tycTyLabs :: [Symbol]                            -- ^ PLabel  Parameters
-  , tycDCons  :: [(LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
-  , tycSrcPos :: !SourcePos                          -- ^ Source Position
+  , tycDCons  :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
+  , tycSrcPos :: !F.SourcePos                          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun                       -- ^ Measure that should decrease in recursive calls
   } deriving (Data, Typeable, Generic)
 
@@ -1124,8 +1129,8 @@ data RTAlias x a = RTA
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [x]                -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  , rtPos   :: SourcePos          -- ^ start position
-  , rtPosE  :: SourcePos          -- ^ end   position
+  , rtPos   :: F.SourcePos          -- ^ start position
+  , rtPosE  :: F.SourcePos          -- ^ end   position
   } deriving (Data, Typeable, Generic)
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
@@ -1136,7 +1141,7 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
                      }
 
 lmapEAlias :: LMap -> RTAlias Symbol Expr
-lmapEAlias (LMap v ys e) = RTA (val v) [] ys e (loc v) (loc v)
+lmapEAlias (LMap v ys e) = RTA (F.val v) [] ys e (F.loc v) (F.loc v)
 
 
 --------------------------------------------------------------------------------
@@ -1229,32 +1234,32 @@ rRCls rc ts = RApp rc ts [] mempty
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
-  | isTauto $ ur_reft r' -- null rv
+  | F.isTauto $ ur_reft r' -- null rv
   = t
   | otherwise
   = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
   where
     trep = toRTypeRep t
     tbd  = ty_res trep
-    r    = r' {ur_reft = Reft (v, rx)}
-    su   = (v, EVar x')
+    r    = r' {ur_reft = F.Reft (v, rx)}
+    su   = (v, F.EVar x')
     x'   = "xInv"
-    rx   = PIff (EVar v) $ subst1 rv su
-    Reft(v, rv) = ur_reft r'
+    rx   = F.PIff (F.EVar v) $ F.subst1 rv su
+    F.Reft(v, rv) = ur_reft r'
 
 -------------------------------------------
 
-instance Subable Stratum where
+instance F.Subable Stratum where
   syms (SVar s) = [s]
   syms _        = []
-  subst su (SVar s) = SVar $ subst su s
+  subst su (SVar s) = SVar $ F.subst su s
   subst _ s         = s
-  substf f (SVar s) = SVar $ substf f s
+  substf f (SVar s) = SVar $ F.substf f s
   substf _ s        = s
-  substa f (SVar s) = SVar $ substa f s
+  substa f (SVar s) = SVar $ F.substa f s
   substa _ s        = s
 
-instance Reftable Strata where
+instance F.Reftable Strata where
   isTauto []         = True
   isTauto _          = False
 
@@ -1267,106 +1272,108 @@ instance Reftable Strata where
   ofReft = todo Nothing "TODO: Strata.ofReft"
 
 
-class Reftable r => UReftable r where
-  ofUReft :: UReft Reft -> r
-  ofUReft (MkUReft r _ _) = ofReft r
+class F.Reftable r => UReftable r where
+  ofUReft :: UReft F.Reft -> r
+  ofUReft (MkUReft r _ _) = F.ofReft r
 
 
-instance UReftable (UReft Reft) where
+instance UReftable (UReft F.Reft) where
    ofUReft r = r
 
 instance UReftable () where
    ofUReft _ = mempty
 
-instance (PPrint r, Reftable r) => Reftable (UReft r) where
-  isTauto            = isTauto_ureft
-  ppTy               = ppTy_ureft
-  toReft (MkUReft r ps _)  = toReft r `meet` toReft ps
-  params (MkUReft r _ _)   = params r
-  bot (MkUReft r _ s)      = MkUReft (bot r) (Pr []) (bot s)
-  top (MkUReft r p s)      = MkUReft (top r) (top p) s
+instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
+  isTauto                 = isTauto_ureft
+  ppTy                    = ppTy_ureft
+  toReft (MkUReft r ps _) = F.toReft r `F.meet` F.toReft ps
+  params (MkUReft r _ _)  = F.params r
+  bot (MkUReft r _ s)     = MkUReft (F.bot r) (Pr []) (F.bot s)
+  top (MkUReft r p s)     = MkUReft (F.top r) (F.top p) s
+  ofReft r                = MkUReft (F.ofReft r) mempty mempty
 
-  ofReft r = MkUReft (ofReft r) mempty mempty
-
-instance Expression (UReft ()) where
-  expr = expr . toReft
-
+instance F.Expression (UReft ()) where
+  expr = F.expr . F.toReft
 
 
-isTauto_ureft :: Reftable r => UReft r -> Bool
-isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
 
-ppTy_ureft :: Reftable r => UReft r -> Doc -> Doc
+isTauto_ureft :: F.Reftable r => UReft r -> Bool
+isTauto_ureft u      = F.isTauto (ur_reft u) && F.isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
+
+ppTy_ureft :: F.Reftable r => UReft r -> Doc -> Doc
 ppTy_ureft u@(MkUReft r p s) d
   | isTauto_ureft  u  = d
-  | otherwise         = ppr_reft r (ppTy p d) s
+  | otherwise         = ppr_reft r (F.ppTy p d) s
 
-ppr_reft :: (PPrint [t], Reftable r) => r -> Doc -> [t] -> Doc
-ppr_reft r d s       = braces (pprint v <+> colon <+> d <> ppr_str s <+> text "|" <+> pprint r')
+ppr_reft :: (F.PPrint [t], F.Reftable r) => r -> Doc -> [t] -> Doc
+ppr_reft r d s       = braces (F.pprint v <+> colon <+> d <> ppr_str s <+> text "|" <+> F.pprint r')
   where
-    r'@(Reft (v, _)) = toReft r
+    r'@(F.Reft (v, _)) = F.toReft r
 
-ppr_str :: PPrint [t] => [t] -> Doc
+ppr_str :: F.PPrint [t] => [t] -> Doc
 ppr_str [] = empty
-ppr_str s  = text "^" <> pprint s
+ppr_str s  = text "^" <> F.pprint s
 
-instance Subable r => Subable (UReft r) where
-  syms (MkUReft r p _)     = syms r ++ syms p
-  subst s (MkUReft r z l)  = MkUReft (subst s r) (subst s z) (subst s l)
-  substf f (MkUReft r z l) = MkUReft (substf f r) (substf f z) (substf f l)
-  substa f (MkUReft r z l) = MkUReft (substa f r) (substa f z) (substa f l)
+instance F.Subable r => F.Subable (UReft r) where
+  syms (MkUReft r p _)     = F.syms r ++ F.syms p
+  subst s (MkUReft r z l)  = MkUReft (F.subst s r)  (F.subst s z)  (F.subst s l)
+  substf f (MkUReft r z l) = MkUReft (F.substf f r) (F.substf f z) (F.substf f l)
+  substa f (MkUReft r z l) = MkUReft (F.substa f r) (F.substa f z) (F.substa f l)
 
-instance (Reftable r, TyConable c) => Subable (RTProp c tv r) where
-  syms (RProp  ss r)     = (fst <$> ss) ++ syms r
+instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
+  syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
 
-  subst su (RProp ss (RHole r)) = RProp ss (RHole (subst su r))
-  subst su (RProp  ss t) = RProp ss (subst su <$> t)
+  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
+  subst su (RProp  ss t) = RProp ss (F.subst su <$> t)
 
-  substf f (RProp ss (RHole r)) = RProp ss (RHole (substf f r))
-  substf f (RProp  ss t) = RProp ss (substf f <$> t)
+  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf f r))
+  substf f (RProp  ss t) = RProp ss (F.substf f <$> t)
 
-  substa f (RProp ss (RHole r)) = RProp ss (RHole (substa f r))
-  substa f (RProp  ss t) = RProp ss (substa f <$> t)
+  substa f (RProp ss (RHole r)) = RProp ss (RHole (F.substa f r))
+  substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
 
 
-instance (Subable r, Reftable r, TyConable c) => Subable (RType c tv r) where
-  syms        = foldReft (\_ r acc -> syms r ++ acc) []
-  substa f    = mapReft (substa f)
-  substf f    = emapReft (substf . substfExcept f) []
-  subst su    = emapReft (subst  . substExcept su) []
-  subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
+instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
+  syms        = foldReft (\_ r acc -> F.syms r ++ acc) []
+  substa f    = mapReft  (F.substa f)
+  substf f    = emapReft (F.substf . F.substfExcept f) []
+  subst su    = emapReft (F.subst  . F.substExcept su) []
+  subst1 t su = emapReft (\xs r -> F.subst1Except xs r su) [] t
 
-instance Reftable Predicate where
+instance F.Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
   bot (Pr _)           = panic Nothing "No BOT instance for Predicate"
   -- NV: This does not print abstract refinements....
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
-  ppTy r d | isTauto r        = d
+  ppTy r d | F.isTauto r      = d
            | not (ppPs ppEnv) = d
-           | otherwise        = d <> (angleBrackets $ pprint r)
+           | otherwise        = d <> (angleBrackets $ F.pprint r)
 
-  toReft (Pr ps@(p:_))        = Reft (parg p, pAnd $ pToRef <$> ps)
+  toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
   toReft _                    = mempty
   params                      = todo Nothing "TODO: instance of params for Predicate"
 
   ofReft = todo Nothing "TODO: Predicate.ofReft"
 
-pToRef :: PVar a -> Expr
-pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
+pToRef :: PVar a -> F.Expr
+pToRef p = pApp (pname p) $ (F.EVar $ parg p) : (thd3 <$> pargs p)
 
 pApp      :: Symbol -> [Expr] -> Expr
-pApp p es = mkEApp (dummyLoc $ pappSym $ length es) (EVar p:es)
+pApp p es = F.mkEApp fn (F.EVar p:es)
+  where
+    fn    = F.dummyLoc (pappSym n)
+    n     = length es
 
 pappSym :: Show a => a -> Symbol
-pappSym n  = symbol $ "papp" ++ show n
+pappSym n  = F.symbol $ "papp" ++ show n
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-isTrivial :: (Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft (\_ r b -> isTauto r && b) True t
+isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
+isTrivial t = foldReft (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (\_ -> f) []
@@ -1452,35 +1459,41 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 
 
 --------------------------------------------------------------------------------
--- foldReft :: (Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
+-- foldReft :: (F.Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
--- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv
+-- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (Reftable r, TyConable c) => (SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (F.Reftable r, TyConable c) => (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
 foldReft  f = foldReft' (\_ _ -> False) id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
-foldReft' :: (Reftable r, TyConable c)
+foldReft' :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
           -> (RType c tv r -> b)
-          -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
+          -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind g f = efoldReft logicBind (\_ _ -> []) (\_ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
+foldReft' logicBind g f = efoldReft logicBind
+                            (\_ _ -> [])
+                            (\_ -> [])
+                            g
+                            (\γ t r z -> f γ t r z)
+                            (\_ γ -> γ)
+                            F.emptySEnv
 
 
 
--- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
-efoldReft :: (Reftable r, TyConable c)
+-- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
+efoldReft :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
           -> (RType c tv r -> a)
-          -> (SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
-          -> (PVar (RType c tv ()) -> SEnv a -> SEnv a)
-          -> SEnv a
+          -> (F.SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
+          -> (PVar (RType c tv ()) -> F.SEnv a -> F.SEnv a)
+          -> F.SEnv a
           -> b
           -> RType c tv r
           -> b
@@ -1558,11 +1571,11 @@ mapBindRef f (RProp s t)         = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
-ofRSort ::  Reftable r => RType c tv () -> RType c tv r
+ofRSort ::  F.Reftable r => RType c tv () -> RType c tv r
 ofRSort = fmap mempty
 
 toRSort :: RType c tv r -> RType c tv ()
-toRSort = stripAnnotations . mapBind (const dummySymbol) . fmap (const ())
+toRSort = stripAnnotations . mapBind (const F.dummySymbol) . fmap (const ())
 
 stripAnnotations :: RType c tv r -> RType c tv r
 stripAnnotations (RAllT α t)      = RAllT α (stripAnnotations t)
@@ -1580,15 +1593,17 @@ stripAnnotationsRef :: Ref τ (RType c tv r) -> Ref τ (RType c tv r)
 stripAnnotationsRef (RProp s (RHole r)) = RProp s (RHole r)
 stripAnnotationsRef (RProp s t)         = RProp s $ stripAnnotations t
 
+insertSEnv :: F.Symbol -> a -> F.SEnv a -> F.SEnv a
+insertSEnv = F.insertSEnv
 
-insertsSEnv :: SEnv a -> [(Symbol, a)] -> SEnv a
+insertsSEnv :: F.SEnv a -> [(Symbol, a)] -> F.SEnv a
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (Reftable r) => RType c tv r -> Symbol
-rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
+rTypeValueVar :: (F.Reftable r) => RType c tv r -> Symbol
+rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
-rTypeReft :: (Reftable r) => RType c tv r -> Reft
-rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase
+rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
+rTypeReft = fromMaybe F.trueReft . fmap F.toReft . stripRTypeBase
 
 
 -- stripRTypeBase ::  RType a -> Maybe a
@@ -1604,8 +1619,8 @@ stripRTypeBase (RAppTy _ _ x)
 stripRTypeBase _
   = Nothing
 
-topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
-topRTypeBase = mapRBase top
+topRTypeBase :: (F.Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase F.top
 
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
@@ -1613,7 +1628,6 @@ mapRBase f (RVar a r)       = RVar a $ f r
 mapRBase f (RFun x t1 t2 r) = RFun x t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r) = RAppTy t1 t2 $ f r
 mapRBase _ t                = t
-
 
 
 makeLType :: Stratum -> SpecType -> SpecType
@@ -1632,7 +1646,7 @@ getStrata :: RType t t1 (UReft r) -> [Stratum]
 getStrata = maybe [] ur_strata . stripRTypeBase
 
 -----------------------------------------------------------------------------
--- | PPrint -----------------------------------------------------------------
+-- | F.PPrint -----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
 instance Show Stratum where
@@ -1641,25 +1655,25 @@ instance Show Stratum where
   show SWhnf = "Whnf"
   show (SVar s) = show s
 
-instance PPrint Stratum where
+instance F.PPrint Stratum where
   pprintTidy _ = text . show
 
-instance {-# OVERLAPPING #-} PPrint Strata where
+instance {-# OVERLAPPING #-} F.PPrint Strata where
   pprintTidy _ [] = empty
-  pprintTidy k ss = hsep (pprintTidy k <$> nub ss)
+  pprintTidy k ss = hsep (F.pprintTidy k <$> nub ss)
 
-instance PPrint (PVar a) where
+instance F.PPrint (PVar a) where
   pprintTidy _ = ppr_pvar
 
 ppr_pvar :: PVar a -> Doc
-ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
+ppr_pvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
   where
-    dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y)
+    dargs               = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
 
 
-instance PPrint Predicate where
+instance F.PPrint Predicate where
   pprintTidy _ (Pr [])  = text "True"
-  pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (pprintTidy k <$> pvs)
+  pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (F.pprintTidy k <$> pvs)
 
 
 -- | The type used during constraint generation, used
@@ -1681,7 +1695,7 @@ instance NFData REnv where
 -- | Error Data Type -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-type ErrorResult    = FixResult UserError
+type ErrorResult    = F.FixResult UserError
 type Error          = TError SpecType
 
 
@@ -1708,20 +1722,17 @@ instance NFData Cinfo
 
 data ModName = ModName !ModType !ModuleName deriving (Eq, Ord, Show)
 
-instance PPrint ModName where
+instance F.PPrint ModName where
   pprintTidy _ = text . show
 
 instance Show ModuleName where
   show = moduleNameString
 
--- instance Show ModName where
---   show = getModString
+instance F.Symbolic ModName where
+  symbol (ModName _ m) = F.symbol m
 
-instance Symbolic ModName where
-  symbol (ModName _ m) = symbol m
-
-instance Symbolic ModuleName where
-  symbol = symbol . moduleNameFS
+instance F.Symbolic ModuleName where
+  symbol = F.symbol . moduleNameFS
 
 data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord,Show)
 
@@ -1773,7 +1784,7 @@ data Body
   deriving (Show, Data, Typeable, Generic, Eq)
 
 data Def ty ctor = Def
-  { measure :: LocSymbol
+  { measure :: F.LocSymbol
   , dparams :: [(Symbol, ty)]          -- measure parameters
   , ctor    :: ctor
   , dsort   :: Maybe ty
@@ -1782,7 +1793,7 @@ data Def ty ctor = Def
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
 
 data Measure ty ctor = M
-  { name :: LocSymbol
+  { name :: F.LocSymbol
   , sort :: ty
   , eqns :: [Def ty ctor]
   } deriving (Data, Typeable, Generic, Functor)
@@ -1809,80 +1820,77 @@ instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
 -- deriveBifunctor ''Measure
 
 data CMeasure ty = CM
-  { cName :: LocSymbol
+  { cName :: F.LocSymbol
   , cSort :: ty
   } deriving (Data, Typeable, Generic, Functor)
 
-instance PPrint Body where
-  pprintTidy k (E e)   = pprintTidy k e
-  pprintTidy k (P p)   = pprintTidy k p
-  pprintTidy k (R v p) = braces (pprintTidy k v <+> "|" <+> pprintTidy k p)
+instance F.PPrint Body where
+  pprintTidy k (E e)   = F.pprintTidy k e
+  pprintTidy k (P p)   = F.pprintTidy k p
+  pprintTidy k (R v p) = braces (F.pprintTidy k v <+> "|" <+> F.pprintTidy k p)
 
-instance PPrint a => PPrint (Def t a) where
+instance F.PPrint a => F.PPrint (Def t a) where
   pprintTidy k (Def m p c _ bs body)
-           = pprintTidy k m <+> pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> pprintTidy k body
+           = F.pprintTidy k m <+> F.pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> F.pprintTidy k body
     where
-      cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
+      cbsd = parens (F.pprintTidy k c <> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
-instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprintTidy k (M n s eqs) =  pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> pprintTidy k s
-                              $$ vcat (pprintTidy k `fmap` eqs)
-
-
-instance PPrint (Measure t a) => Show (Measure t a) where
-  show = showpp
-
-instance PPrint t => PPrint (CMeasure t) where
-  pprintTidy k (CM n s) =  pprintTidy k n <+> "::" <+> pprintTidy k s
-
-instance PPrint (CMeasure t) => Show (CMeasure t) where
-  show = showpp
+instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
+  pprintTidy k (M n s eqs) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
+                              $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
-instance Subable (Measure ty ctor) where
-  syms (M _ _ es)      = concatMap syms es
-  substa f  (M n s es) = M n s $ substa f  <$> es
-  substf f  (M n s es) = M n s $ substf f  <$> es
-  subst  su (M n s es) = M n s $ subst  su <$> es
+instance F.PPrint (Measure t a) => Show (Measure t a) where
+  show = F.showpp
 
-instance Subable (Def ty ctor) where
-  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ syms bd
-  substa f  (Def m p c t b bd) = Def m p c t b $ substa f  bd
-  substf f  (Def m p c t b bd) = Def m p c t b $ substf f  bd
-  subst  su (Def m p c t b bd) = Def m p c t b $ subst  su bd
+instance F.PPrint t => F.PPrint (CMeasure t) where
+  pprintTidy k (CM n s) =  F.pprintTidy k n <+> "::" <+> F.pprintTidy k s
 
-instance Subable Body where
-  syms (E e)       = syms e
-  syms (P e)       = syms e
-  syms (R s e)     = s:syms e
+instance F.PPrint (CMeasure t) => Show (CMeasure t) where
+  show = F.showpp
 
-  substa f (E e)   = E $ substa f e
-  substa f (P e)   = P $ substa f e
-  substa f (R s e) = R s $ substa f e
 
-  substf f (E e)   = E $ substf f e
-  substf f (P e)   = P $ substf f e
-  substf f (R s e) = R s $ substf f e
+instance F.Subable (Measure ty ctor) where
+  syms (M _ _ es)      = concatMap F.syms es
+  substa f  (M n s es) = M n s $ F.substa f  <$> es
+  substf f  (M n s es) = M n s $ F.substf f  <$> es
+  subst  su (M n s es) = M n s $ F.subst  su <$> es
 
-  subst su (E e)   = E $ subst su e
-  subst su (P e)   = P $ subst su e
-  subst su (R s e) = R s $ subst su e
+instance F.Subable (Def ty ctor) where
+  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ F.syms bd
+  substa f  (Def m p c t b bd) = Def m p c t b $ F.substa f  bd
+  substf f  (Def m p c t b bd) = Def m p c t b $ F.substf f  bd
+  subst  su (Def m p c t b bd) = Def m p c t b $ F.subst  su bd
 
-instance Subable t => Subable (WithModel t) where
-  syms (NoModel t)     = syms t
-  syms (WithModel _ t) = syms t
+instance F.Subable Body where
+  syms (E e)       = F.syms e
+  syms (P e)       = F.syms e
+  syms (R s e)     = s : F.syms e
 
-  substa f = fmap (substa f)
+  substa f (E e)   = E   (F.substa f e)
+  substa f (P e)   = P   (F.substa f e)
+  substa f (R s e) = R s (F.substa f e)
 
-  substf f = fmap (substf f)
+  substf f (E e)   = E   (F.substf f e)
+  substf f (P e)   = P   (F.substf f e)
+  substf f (R s e) = R s (F.substf f e)
 
-  subst su = fmap (subst su)
+  subst su (E e)   = E   (F.subst su e)
+  subst su (P e)   = P   (F.subst su e)
+  subst su (R s e) = R s (F.subst su e)
+
+instance F.Subable t => F.Subable (WithModel t) where
+  syms (NoModel t)     = F.syms t
+  syms (WithModel _ t) = F.syms t
+  substa f             = fmap (F.substa f)
+  substf f             = fmap (F.substf f)
+  subst su             = fmap (F.subst su)
 
 data RClass ty = RClass
   { rcName    :: BTyCon
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
-  , rcMethods :: [(LocSymbol,ty)]
+  , rcMethods :: [(F.LocSymbol,ty)]
   } deriving (Show, Functor, Data, Typeable, Generic)
 
 
@@ -1960,46 +1968,44 @@ newtype KVProf = KVP (M.HashMap KVKind Int) deriving (Generic)
 emptyKVProf :: KVProf
 emptyKVProf = KVP M.empty
 
-updKVProf :: KVKind -> Kuts -> KVProf -> KVProf
+updKVProf :: KVKind -> F.Kuts -> KVProf -> KVProf
 updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + n) m
   where
     kn                  = M.lookupDefault 0 k m
-    n                   = S.size $ ksVars kvs
-
+    n                   = S.size (F.ksVars kvs)
 
 instance NFData KVKind
 
-instance PPrint KVKind where
+instance F.PPrint KVKind where
   pprintTidy _ = text . show
 
-instance PPrint KVProf where
-  pprintTidy k (KVP m) = pprintTidy k $ M.toList m
+instance F.PPrint KVProf where
+  pprintTidy k (KVP m) = F.pprintTidy k (M.toList m)
 
 instance NFData KVProf
 
 hole :: Expr
-hole = PKVar "HOLE" mempty
+hole = F.PKVar "HOLE" mempty
 
 isHole :: Expr -> Bool
-isHole (PKVar ("HOLE") _) = True
-isHole _                  = False
+isHole (F.PKVar ("HOLE") _) = True
+isHole _                    = False
 
-hasHole :: Reftable r => r -> Bool
-hasHole = any isHole . conjuncts . reftPred . toReft
+hasHole :: F.Reftable r => r -> Bool
+hasHole = any isHole . F.conjuncts . F.reftPred . F.toReft
 
 -- classToRApp :: SpecType -> SpecType
 -- classToRApp (RCls cl ts)
 --   = RApp (RTyCon (classTyCon cl) def def) ts mempty mempty
 
-instance Symbolic DataCon where
-  symbol = symbol . dataConWorkId
+instance F.Symbolic DataCon where
+  symbol = F.symbol . dataConWorkId
 
-
-instance PPrint DataCon where
+instance F.PPrint DataCon where
   pprintTidy _ = text . showPpr
 
 instance Show DataCon where
-  show = showpp
+  show = F.showpp
 
 
 liquidBegin :: String
@@ -2010,8 +2016,8 @@ liquidEnd = ['@', '-', '}']
 
 data MSpec ty ctor = MSpec
   { ctorMap  :: M.HashMap Symbol [Def ty ctor]
-  , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
-  , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
+  , measMap  :: M.HashMap F.LocSymbol (Measure ty ctor)
+  , cmeasMap :: M.HashMap F.LocSymbol (Measure ty ())
   , imeas    :: ![Measure ty ctor]
   } deriving (Data, Typeable, Generic, Functor)
 
@@ -2022,10 +2028,10 @@ instance Bifunctor MSpec   where
                                     (fmap (first f) im)
   second                    = fmap
 
-instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
-  pprintTidy k =  vcat . fmap (pprintTidy k) . fmap snd . M.toList . measMap
+instance (F.PPrint t, F.PPrint a) => F.PPrint (MSpec t a) where
+  pprintTidy k =  vcat . fmap (F.pprintTidy k) . fmap snd . M.toList . measMap
 
-instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
+instance (Show ty, Show ctor, F.PPrint ctor, F.PPrint ty) => Show (MSpec ty ctor) where
   show (MSpec ct m cm im)
     = "\nMSpec:\n" ++
       "\nctorMap:\t "  ++ show ct ++
@@ -2043,8 +2049,8 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
     | otherwise
     = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2) (cm1 `M.union` cm2) (im1 ++ im2)
     where
-      dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
-      err k1 k2 = ErrDupMeas (fSrcSpan k1) (pprint (val k1)) (fSrcSpan <$> [k1, k2])
+      dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, F.val k1 == F.val k2]
+      err k1 k2 = ErrDupMeas (fSrcSpan k1) (F.pprint (F.val k1)) (fSrcSpan <$> [k1, k2])
 
 
 
@@ -2053,10 +2059,10 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
 -- Nasty PP stuff
 --------------------------------------------------------------------------------
 
-instance PPrint BTyVar where
-  pprintTidy _ (BTV α) = text $ symbolString α
+instance F.PPrint BTyVar where
+  pprintTidy _ (BTV α) = text (F.symbolString α)
 
-instance PPrint RTyVar where
+instance F.PPrint RTyVar where
   pprintTidy _ (RTV α)
    | ppTyVar ppEnv  = ppr_tyvar α
    | otherwise      = ppr_tyvar_short α
@@ -2067,13 +2073,13 @@ instance PPrint RTyVar where
      ppr_tyvar_short :: TyVar -> Doc
      ppr_tyvar_short = text . showPpr
 
-instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprintTidy k (RProp ss s) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
+instance (F.PPrint r, F.Reftable r, F.PPrint t, F.PPrint (RType c tv r)) => F.PPrint (Ref t (RType c tv r)) where
+  pprintTidy k (RProp ss s) = ppRefArgs k (fst <$> ss) <+> F.pprintTidy k s
 
-ppRefArgs :: Tidy -> [Symbol] -> Doc
+ppRefArgs :: F.Tidy -> [Symbol] -> Doc
 ppRefArgs _ [] = empty
-ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [vv Nothing]) <+> "->"
+ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [F.vv Nothing]) <+> "->"
 
-ppRefSym :: (Eq a, IsString a, PPrint a) => Tidy -> a -> Doc
+ppRefSym :: (Eq a, IsString a, F.PPrint a) => F.Tidy -> a -> Doc
 ppRefSym _ "" = text "_"
-ppRefSym k s  = pprintTidy k s
+ppRefSym k s  = F.pprintTidy k s

@@ -74,6 +74,7 @@ import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
+import           Language.Haskell.Liquid.Transforms.Rec
 
 -- import Debug.Trace (trace)
 
@@ -114,21 +115,21 @@ consAct cfg info = do
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
-makeDecrIndex :: (Var, Template SpecType)-> CG [Int]
-makeDecrIndex (x, Assumed t)
-  = do dindex <- makeDecrIndexTy x t
+makeDecrIndex :: (Var, Template SpecType, [Var]) -> CG [Int]
+makeDecrIndex (x, Assumed t, args)
+  = do dindex <- makeDecrIndexTy x t args
        case dindex of
          Left _  -> return []
          Right i -> return i
-makeDecrIndex (x, Asserted t)
-  = do dindex <- makeDecrIndexTy x t
+makeDecrIndex (x, Asserted t, args)
+  = do dindex <- makeDecrIndexTy x t args
        case dindex of
          Left msg -> addWarning msg >> return []
          Right i  -> return i
 makeDecrIndex _ = return []
 
-makeDecrIndexTy :: Var -> SpecType -> CG (Either (TError t) [Int])
-makeDecrIndexTy x t
+makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
+makeDecrIndexTy x t args
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
        hint   <- checkHint' autosz (L.lookup x $ spDecr)
@@ -137,8 +138,10 @@ makeDecrIndexTy x t
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
        ts         = ty_args trep
+       tvs        = zip ts args
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
-       dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
+       dindex     = \autosz -> L.findIndex (p autosz) tvs
+       p autosz (t, v) = isDecreasing autosz cenv t && not (isIdTRecBound v)
        msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
@@ -299,7 +302,7 @@ consCBSizedTys γ xes
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
        ts'      <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
-       is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
+       is       <- mapM makeDecrIndex (zip3 xs ts' vs) >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
