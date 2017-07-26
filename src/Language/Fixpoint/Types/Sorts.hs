@@ -351,6 +351,9 @@ instance Fixpoint DataDecl where
       body                 = [nest 2 (text "|" <+> toFix ct) | ct <- ctors]
       footer               = text "]"
 
+instance PPrint FTycon where
+  pprintTidy _ = toFix
+
 instance PPrint DataField where
   pprintTidy _ = toFix
 
