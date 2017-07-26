@@ -68,7 +68,7 @@ defuncExpr = mapMExpr reBind
          >=> mapMExpr (fM normalizeLams)
 
 reBind :: Expr -> DF Expr
-reBind (ELam (x, s) e) = tracepp "reBind" <$> ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
+reBind (ELam (x, s) e) = {- tracepp "reBind" <$> -} ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
 reBind e               = return e
 
 maxLamArg :: Int
@@ -83,7 +83,7 @@ makeLamArg _ = intArgName
 makeAxioms :: DF [Expr]
 makeAxioms = do
   alphEqs <- concatMap makeAlphaAxioms <$> getLams
-  betaEqs <- concatMap makeBetaAxioms  <$> (tracepp "getRedexes" <$> getRedexes)
+  betaEqs <- concatMap makeBetaAxioms  <$> ({- tracepp "getRedexes" <$> -} getRedexes)
   env     <- gets dfEnv
   return   $ filter (validAxiom env) (alphEqs ++ betaEqs)
 
@@ -342,8 +342,8 @@ logLam e = whenM (gets dfAEq) (putLam e) >> return e
 logRedex :: Expr -> DF Expr
 logRedex e = do
   whenM (gets dfBEq) $
-    when (tracepp ("isRedex:" ++ showpp e) $ isRedex e)
-      (modify $ \s -> s { dfRedex = (tracepp "putRedex" e) : dfRedex s })
+    when ({- tracepp ("isRedex:" ++ showpp e) $ -} isRedex e)
+      (modify $ \s -> s { dfRedex = ({- tracepp "putRedex" -} e) : dfRedex s })
   return e
 
   -- (putRedex (tracepp "isRedex" e)) >> return e
