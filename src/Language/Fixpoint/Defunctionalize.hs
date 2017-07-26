@@ -353,7 +353,7 @@ putLam e@(ELam {}) = modify $ \s -> s { dfLams = e : dfLams s}
 putLam _           = return ()
 
 isRedex :: Expr -> Bool
-isRedex e@(EApp f _)
+isRedex (EApp f _)
   | ELam _ _ <- stripCasts f = True
 isRedex _                    = False
 
