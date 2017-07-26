@@ -2,36 +2,15 @@
 
 ## Proper Encoding of DataTypes
 
-```
-(declare-datatypes (T) ((LL lnil (lcons (lhd T) (ltl LL)))))
-(declare-fun l1 () (LL Int))
-(declare-fun l2 () (LL Int))
-(declare-fun l3 () (LL Int))
-(declare-fun x  () Int)
-(declare-fun zzz () Int)
+* https://github.com/ucsd-progsys/liquidhaskell/issues/1048
 
-(assert (not (= l1 (as lnil (LL Int)))))
-(assert (not (= l2 (as lnil (LL Int)))))
+  - fix `symEnv` constructor
+  -
 
-(assert (= (lhd l1) (lhd l2)))
-(assert (not (= l1 l2)))
-(assert (= l3 (lcons x l2)))
-(assert (> x 100))
-(check-sat)
+* DEPRECATE `makeSmtContext`, `makeSmtEnv` and `symEnv`
+  - all that instantiate stuff should work on SInfo
+  - OR at the VC level.
 
-(get-model)
-
-
-(declare-fun xs () (LL Int))
-(declare-fun ys () (LL Int))
-(declare-fun y  () Int)
-
-(assert (= xs (as lnil (LL Int))))
-(assert (= ys (lcons y ys)))
-(assert (= xs ys))
-(check-sat)
-
-
-;; (assert (= (ltl l1) (ltl l2)))
-;; (check-sat)
-```
+* We need to add stuff to the LHS of an SimpC
+  - tricky as there _is_ no LHS.
+  - lets add reftBind field.

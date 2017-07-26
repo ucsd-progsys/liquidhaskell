@@ -654,7 +654,7 @@ dataFieldP :: Parser DataField
 dataFieldP = DField <$> locLowerIdP <* colon <*> sortP
 
 dataCtorP :: Parser DataCtor
-dataCtorP  = DCtor <$> locUpperIdP
+dataCtorP  = DCtor <$> locLowerIdP
                    <*> braces (sepBy dataFieldP comma)
 
 dataDeclP :: Parser DataDecl
@@ -921,10 +921,11 @@ commandP
  <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
 cmdVarP :: Parser Command
-cmdVarP = do
-  x <- bindP
-  t <- sortP
-  return $ Declare x [] t
+cmdVarP = error "UNIMPLEMENTED: cmdVarP"
+-- do
+  -- x <- bindP
+  -- t <- sortP
+  -- return $ Declare x [] t
 
 ---------------------------------------------------------------------
 -- Bundling Parsers into a Typeclass --------------------------------

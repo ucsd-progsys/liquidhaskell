@@ -157,7 +157,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p
-    step c (PGrad k su i e) = PGrad k su i <$> vE c e 
+    step c (PGrad k su i e) = PGrad k su i <$> vE c e
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -195,7 +195,7 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go (PGrad k su i e) = f =<< (PGrad k su i <$>  go e                     )
+    go (PGrad k s i e) = f =<< (PGrad k s i <$>  go e                     )
     go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
     go (PNot p)        = f =<< (PNot        <$>  go p                     )
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
@@ -220,7 +220,7 @@ mapKVarSubsts f          = trans kvVis () []
     txK _ (PKVar k su)   = PKVar k (f k su)
     txK _ (PGrad k su i e) = PGrad k (f k su) i e
     txK _ p              = p
-  
+
 newtype MInt = MInt Integer
 
 instance Monoid MInt where
@@ -280,17 +280,23 @@ isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
 isKvar (PKVar {}) = True
-isKvar (PGrad {}) = True 
+isKvar (PGrad {}) = True
 isKvar _          = False
 
 isConc :: Expr -> Bool
 isConc = null . kvars
 
-stripCasts :: Expr -> Expr
-stripCasts = mapExpr go
+stripCasts :: (Visitable t) => t -> t
+stripCasts = trans (defaultVisitor { txExpr = const go }) () []
   where
     go (ECst e _) = e
     go e          = e
+
+-- stripCasts :: Expr -> Expr
+-- stripCasts = mapExpr go
+--  where
+--    go (ECst e _) = e
+--    go e          = e
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

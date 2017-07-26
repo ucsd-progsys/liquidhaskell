@@ -1,0 +1,19 @@
+
+data Vec 1 = [
+  | mkNil  { }
+  | mkCons { head : @(0), tail : Vec }
+]
+
+bind 1 x  : {v : int | true}
+bind 2 y  : {v : int | true}
+bind 3 xs : {v : Vec int | true}
+bind 4 ys : {v : Vec int | true}
+bind 5 l1 : {v : Vec int | v = mkCons x xs }
+bind 6 l2 : {v : Vec int | v = mkCons y ys }
+bind 7 l3 : {v : Vec int | true }
+
+constraint:
+  env [1;2;3;4;5;6]
+  lhs {v : int | true }
+  rhs {v : int | x = y }
+  id 1 tag []

@@ -208,6 +208,8 @@ sortNub = nubOrd . L.sort
       | otherwise = x : nubOrd t
     nubOrd xs     = xs
 
+duplicates :: (Eq k, Hashable k) => [k] -> [k]
+duplicates xs = [ x | (x, n) <- count xs, 1 < n ]
 
 #ifdef MIN_VERSION_located_base
 safeZip :: (?callStack :: CallStack) => String -> [a] -> [b] -> [(a,b)]
@@ -241,14 +243,21 @@ safeLast   :: (?callStack :: CallStack) => String -> ListNE a -> a
 safeInit   :: (?callStack :: CallStack) => String -> ListNE a -> [a]
 safeUncons :: (?callStack :: CallStack) => String -> ListNE a -> (a, [a])
 safeUnsnoc :: (?callStack :: CallStack) => String -> ListNE a -> ([a], a)
+safeFromList :: (?callStack :: CallStack, Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
 #else
 safeHead   :: String -> ListNE a -> a
 safeLast   :: String -> ListNE a -> a
 safeInit   :: String -> ListNE a -> [a]
 safeUncons :: String -> ListNE a -> (a, [a])
 safeUnsnoc :: String -> ListNE a -> ([a], a)
+safeFromList :: (Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
 #endif
 
+safeFromList msg kvs = applyNonNull (M.fromList kvs) err (dups kvs)
+  where
+    dups             = duplicates . fmap fst  
+    err              = errorstar . wrap "safeFromList with duplicates" msg . show
+    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
 
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg

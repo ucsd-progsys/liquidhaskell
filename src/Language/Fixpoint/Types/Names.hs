@@ -30,12 +30,16 @@ module Language.Fixpoint.Types.Names (
   , symbolSafeString
   , symbolText
   , symbolString
+  , symbolBuilder
+  , buildMany
 
   -- Predicates
   , isPrefixOfSym
   , isSuffixOfSym
   , isNonSymbol
   , isLitSymbol
+  , isTestSymbol
+  -- , isCtorSymbol
   , isNontrivialVV
   , isDummy
 
@@ -55,6 +59,7 @@ module Language.Fixpoint.Types.Names (
   -- * Widely used prefixes
   , anfPrefix
   , tempPrefix
+  -- , testPrefix
   , vv
   , symChars
 
@@ -66,6 +71,8 @@ module Language.Fixpoint.Types.Names (
 
   -- * Wrapping Symbols
   , litSymbol
+  , testSymbol
+  -- , ctorSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
@@ -102,6 +109,7 @@ module Language.Fixpoint.Types.Names (
   -- * Casting function names
   , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
+  , applyName
 
   , lambdaName
   , intArgName
@@ -112,6 +120,7 @@ import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
 import           Data.Maybe                  (fromMaybe)
+import           Data.Monoid                 ((<>)) 
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -119,10 +128,10 @@ import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
+import qualified Data.Text.Lazy.Builder      as Builder
 import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
-
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -392,6 +401,18 @@ vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
 
+-- ctorSymbol :: Symbol -> Symbol
+-- ctorSymbol s = ctorPrefix `mappendSym` s
+
+-- isCtorSymbol :: Symbol -> Bool
+-- isCtorSymbol = isPrefixOfSym ctorPrefix
+
+testSymbol :: Symbol -> Symbol
+testSymbol s = testPrefix `mappendSym` s
+
+isTestSymbol :: Symbol -> Bool
+isTestSymbol = isPrefixOfSym testPrefix
+
 litSymbol :: Symbol -> Symbol
 litSymbol s = litPrefix `mappendSym` s
 
@@ -419,12 +440,18 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix  :: Symbol
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 gradPrefix   = "grad$"
+
+testPrefix  :: Symbol
+testPrefix   = "is$"
+
+-- ctorPrefix  :: Symbol
+-- ctorPrefix   = "mk$"
 
 kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"
@@ -471,6 +498,14 @@ instance Symbolic String where
 instance Symbolic Symbol where
   symbol = id
 
+symbolBuilder :: (Symbolic a) => a -> Builder.Builder
+symbolBuilder = Builder.fromText . symbolSafeText . symbol
+
+{-# INLINE buildMany #-}
+buildMany :: [Builder.Builder] -> Builder.Builder
+buildMany []     = mempty
+buildMany [b]    = b
+buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
@@ -498,12 +533,15 @@ boolApplyName   = intSymbol "bool_apply_"
 realApplyName   = intSymbol "real_apply_"
 intApplyName    = intSymbol "int_apply_"
 
+applyName :: Symbol
+applyName = "apply"
 
 preludeName, dummyName, boolConName, funConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
+
 
 listConName, listLConName, tupConName, _propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"

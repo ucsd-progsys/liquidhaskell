@@ -27,15 +27,19 @@ module Language.Fixpoint.Types.Sorts (
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, strFTyCon, setFTyCon  -- TODO: hide these
 
-  , intSort, realSort, boolSort, strSort, funcSort
+  , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
+  , sizeBv
   , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
-  , fApp, fApp', fAppTC
+  , fApp
+  , fAppTC
   , fObj
+  , unFApp
+  , unAbs
 
   , sortSubst
   , functionSort
@@ -72,6 +76,8 @@ import qualified Data.HashMap.Strict       as M
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 type TCEmb a  = M.HashMap a FTycon
 
+instance Symbolic FTycon where
+  symbol (TC s _) = symbol s
 
 instance Eq FTycon where
   (TC s _) == (TC s' _) = val s == val s'
@@ -116,6 +122,14 @@ isListConName x = c == listConName || c == listLConName --"List"
 isListTC :: FTycon -> Bool
 isListTC (TC z _) = isListConName z
 
+sizeBv :: FTycon -> Maybe Int
+sizeBv tc
+  | s == size32Name = Just 32
+  | s == size64Name = Just 64
+  | otherwise       = Nothing
+  where
+    s               = val $ fTyconSymbol tc
+
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s _) = s
 
@@ -139,11 +153,19 @@ fApp = foldl' FApp
 fAppTC :: FTycon -> [Sort] -> Sort
 fAppTC = fApp . fTyconSort
 
-fApp' :: Sort -> ListNE Sort
-fApp' = go []
+-- | fApp' (FApp (FApp "Map" key) val) ===> ["Map", key, val]
+--   That is, `fApp'` is used to split a type application into
+--   the FTyCon and its args.
+
+unFApp :: Sort -> ListNE Sort
+unFApp = go []
   where
     go acc (FApp t1 t2) = go (t2 : acc) t1
     go acc t            = t : acc
+
+unAbs :: Sort -> Sort
+unAbs (FAbs _ s) = unAbs s
+unAbs s          = s
 
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . (`TC` defTcInfo)
@@ -199,6 +221,14 @@ data DataDecl = DDecl
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance Symbolic DataDecl where
+  symbol = symbol . ddTyCon
+
+instance Symbolic DataField where
+  symbol = val . dfName
+
+instance Symbolic DataCtor where
+  symbol = val . dcName
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
@@ -290,7 +320,7 @@ toFixSort FNum         = text "num"
 toFixSort t@(FAbs _ _) = toFixAbsApp t
 toFixSort t@(FFunc _ _)= toFixAbsApp t
 toFixSort (FTC c)      = toFix c
-toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
+toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
 toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)
@@ -306,7 +336,7 @@ toFixFApp [FTC c, t]
 toFixFApp ts         = parens $ intersperse (text "") (toFixSort <$> ts)
 
 instance Fixpoint FTycon where
-  toFix (TC s _)       = toFix s
+  toFix (TC s _)       = toFix (val s)
 
 instance Fixpoint DataField where
   toFix (DField x t) = toFix x <+> text ":" <+> toFix t
@@ -321,6 +351,17 @@ instance Fixpoint DataDecl where
       body                 = [nest 2 (text "|" <+> toFix ct) | ct <- ctors]
       footer               = text "]"
 
+instance PPrint FTycon where
+  pprintTidy _ = toFix
+
+instance PPrint DataField where
+  pprintTidy _ = toFix
+
+instance PPrint DataCtor where
+  pprintTidy _ = toFix
+
+instance PPrint DataDecl where
+  pprintTidy _ = toFix
 
 -------------------------------------------------------------------------
 -- | Exported Basic Sorts -----------------------------------------------
@@ -351,6 +392,9 @@ fTyconSort c
   | c == realFTyCon = FReal
   | c == numFTyCon  = FNum
   | otherwise       = FTC c
+
+basicSorts :: [Sort]
+basicSorts = [FInt, boolSort] -- , setSort, mapSort, bitVecSort]
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort

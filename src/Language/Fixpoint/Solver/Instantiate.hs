@@ -12,22 +12,18 @@
 --------------------------------------------------------------------------------
 
 module Language.Fixpoint.Solver.Instantiate (
-
-  instantiateAxioms,
-  instantiateFInfo,
-
+  instantiate
   ) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Config as FC
-import           Language.Fixpoint.Types.Visitor (eapps, kvars, mapMExpr)
-import           Language.Fixpoint.Misc          (mapFst)
+import           Language.Fixpoint.Types.Config  as FC
+import qualified Language.Fixpoint.Types.Visitor as Vis
+import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
--- import qualified Language.Fixpoint.Smt.Theories  as Thy
-import           Language.Fixpoint.Defunctionalize (defuncAny, makeLamArg)
-import           Language.Fixpoint.SortCheck       (elaborate)
-
-import Control.Monad.State
+import           Language.Fixpoint.Defunctionalize -- (defuncAny, makeLamArg)
+import           Language.Fixpoint.SortCheck       -- (unapplySorts, elaborate)
+import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
+import           Control.Monad.State
 
 -- AT: I've inlined this, but we should have a more elegant solution
 --     (track predicates instead of selectors!)
@@ -38,7 +34,6 @@ import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
 import           Data.Foldable        (foldlM)
--- import           Data.Monoid          ((<>))
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_e,_str) ~> e' = do
@@ -50,50 +45,88 @@ import           Data.Foldable        (foldlM)
 -------------------------------------------------------------------------------
 -- | Instantiate Axioms
 -------------------------------------------------------------------------------
-instantiateFInfo :: Config -> FInfo c -> IO (FInfo c)
-instantiateFInfo cfg fi = do
-    -- ctx <- SMT.makeContextWithSEnv cfg file env
-    ctx <- SMT.makeSmtContext cfg file []
-    SMT.smtPush ctx
-    cm' <- sequence $ M.mapWithKey (inst1 ctx) (cm fi)
-    return $ fi { cm = cm' }
+instantiate :: Config -> SInfo a -> IO (SInfo a)
+instantiate cfg fi
+  | inst      = instantiate' cfg fi
+  | otherwise = return fi
   where
-    file      = srcFile cfg ++ ".evals"
-    -- env       = symEnv mempty (Thy.theorySymbols fi) -- _symbolEnv cfg fi
-    inst1 ctx = instantiateAxioms cfg ctx (bs fi) (gLits fi) (ae fi)
+    inst      = rewriteAxioms cfg || arithmeticAxioms cfg
 
-instantiateAxioms :: Config -> SMT.Context -> BindEnv -> SEnv Sort -> AxiomEnv
-                  -> Integer -> SubC c
-                  -> IO (SubC c)
-instantiateAxioms _ _ _ _ aenv sid sub
+-- instantiate' :: Config -> SInfo a -> IO (SInfo a)
+-- instantiate' cfg fi = do
+    -- ctx <- SMT.makeContextWithSEnv cfg file env
+    -- -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
+    -- SMT.smtPush ctx
+    -- ips <- forM cstrs $ \(i, c) -> do
+             -- p <- instSimpC cfg ctx (bs fi) (ae fi) i c
+             -- return (i, elaborate "PLE-instantiate" env p)
+    -- return (strengthenHyp fi ips)
+
+instantiate' cfg fi = do
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
+  SMT.smtPush ctx
+  ips           <- forM cstrs $ \(i, c) ->
+                      (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+  let (is, ps)   = unzip ips
+  let (ps', axs) = defuncAxioms cfg env ps
+  let ps''       = elaborate "PLE1" env <$> ps'
+  let axs'       = elaborate "PLE2" env <$> axs
+  let fi'        = fi { asserts = axs' ++ asserts fi }
+  return         $ strengthenHyp fi' (zip is ps'')
+  where
+    cstrs        = M.toList (cm fi)
+    file         = srcFile cfg ++ ".evals"
+    env          = symbolEnv cfg fi
+
+instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
+          -> Integer -> SimpC a
+          -> IO Expr
+instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
-  = return sub
-instantiateAxioms cfg ctx bds fenv aenv sid sub
-  = flip strengthenLhs sub . pAnd . (is0 ++) .
-    (if arithmeticAxioms cfg then (is ++) else id) <$>
+  = return PTrue
+instSimpC cfg ctx bds aenv sid sub
+  = -- tracepp ("instSimpC " ++ show sid) .
+    pAnd . (is0 ++) .
+    (if arithmeticAxioms cfg then (is1 ++) else id) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
-    is               = instances maxNumber aenv initOccurences
+    is1              = instances maxNumber aenv initOccurences
     evalEqs          =
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
-       evaluate cfg ctx ((vv Nothing, slhs sub):binds) fenv aenv initExpressions
-    initExpressions  = expr (slhs sub) : expr (srhs sub) : (expr <$> binds)
-    binds            = envCs bds (senv sub)
-    initOccurences   = concatMap (makeInitOccurences as eqs) initExpressions
-
-    eqs = aenvEqs aenv
-
+       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) aenv iExprs
+    initOccurences   = concatMap (makeInitOccurences as eqs) iExprs
+    eqs              = aenvEqs aenv
+    (binds, iExprs)  = cstrBindExprs bds sub
     -- fuel calculated and used only by `instances` arith rewrite method
-    fuelNumber = M.lookupDefault 0 sid (aenvFuel aenv)
-    as         = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
-    maxNumber  = (aenvSyms aenv * length initOccurences) ^ fuelNumber
+    fuelNumber       = M.lookupDefault 0 sid (aenvFuel aenv)
+    as               = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
+    maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
-------------------------------
--- Knowledge (SMT Interaction)
-------------------------------
--- AT:@TODO: knSels and knEqs should reall just be the same thing. In this way,
+cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
+cstrBindExprs bds sub = {- tracepp "initExpressions" -} (unElab <$> binds, unElab <$> es)
+  where
+    es                = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
+    binds             = envCs bds (senv sub)
+  --   _tx e              = tracepp ("UNELAB e = " ++ showpp e) (unElab e)
+
+unElab :: (Vis.Visitable t) => t -> t
+unElab = Vis.stripCasts . unApply
+
+unApply :: (Vis.Visitable t) => t -> t
+unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
+  where
+    go (ECst (EApp (EApp f e1) e2) _)
+      | Just _ <- unApplyAt f = EApp e1 e2
+    go e                      = e
+
+
+--------------------------------------------------------------------------------
+-- | Knowledge (SMT Interaction)
+--------------------------------------------------------------------------------
+-- AT:@TODO: knSels and knEqs should really just be the same thing. In this way,
 -- we should also unify knSims and knAms, as well as their analogues in AxiomEnv
 data Knowledge
   = KN { knSels    :: ![(Expr, Expr)]
@@ -106,7 +139,7 @@ data Knowledge
        }
 
 emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge cxt = KN [] [] [] [] cxt (\_ _ _ -> return False) []
+emptyKnowledge ctx = KN [] [] [] [] ctx (\_ _ _ -> return False) []
 
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr
 lookupKnowledge γ e
@@ -121,10 +154,10 @@ lookupKnowledge γ e
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
 
-makeKnowledge :: Config -> SMT.Context -> AxiomEnv -> SEnv Sort
+makeKnowledge :: Config -> SMT.Context -> AxiomEnv
                  -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
-makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
+makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      { knSels   = sels
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
@@ -132,17 +165,18 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      , knPreds  = \bs e c -> askSMT c bs e
                                      }
   where
-    (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
-    fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-    senv     = symEnv (fromListSEnv fbinds) thySyms
-    thySyms  = seTheory (SMT.ctxSymEnv ctx)
+    -- (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
+    -- fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
+    -- senv     = senvCtx { seSort = fromListSEnv fbinds }
+    -- thySyms  = seTheory senvCtx
+    senv = SMT.ctxSymEnv ctx
     context :: IO SMT.Context
     context = do
       SMT.smtPop ctx
       SMT.smtPush ctx
-      SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
+      -- SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
       SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null.kvars) ((toSMT [] . expr) <$> es)
+                               ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
                               ))
       return ctx
 
@@ -166,21 +200,19 @@ makeKnowledge cfg ctx aenv fenv es = (simpleEqs,) $ (emptyKnowledge context)
                         , x == a
                         ]
 
-    toSMT xs = defuncAny cfg senv0
-             . elaborate "symbolic evaluation" (elabEnv xs)
-    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv0
-    senv0    = insertSymEnv xv sv senv
+    toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
+    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
 
     -- AT: Non-obvious needed invariant: askSMT True is always the
     -- totality-effecting one
     askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-    askSMT cxt xss e
+    askSMT ctx bs e
       | isTautoPred  e = return True
       | isContraPred e = return False
-      | null (kvars e) = do
-          SMT.smtPush cxt
-          b <- SMT.checkValid' cxt [] PTrue (toSMT xss e)
-          SMT.smtPop cxt
+      | null (Vis.kvars e) = do
+          SMT.smtPush ctx
+          b <- SMT.checkValid' ctx [] PTrue (toSMT bs e)
+          SMT.smtPop ctx
           return b
       | otherwise      = return False
 
@@ -213,8 +245,8 @@ getDCEquality e1 e2
     | otherwise
     = Nothing
   where
-    (f1, es1) = mapFst getDC $ splitEApp e1
-    (f2, es2) = mapFst getDC $ splitEApp e2
+    (f1, es1) = Misc.mapFst getDC $ splitEApp e1
+    (f2, es2) = Misc.mapFst getDC $ splitEApp e2
 
     -- TODO: Stringy hacks
     getDC (EVar x)
@@ -237,9 +269,9 @@ splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
 splitPAnd e         = [e]
 
-------------------------
--- Creating Measure Info
-------------------------
+--------------------------------------------------------------------------------
+-- | Creating Measure Info
+--------------------------------------------------------------------------------
 -- AT@TODO do this for all reflected functions, not just DataCons
 
 -- Insert measure info for every constructor
@@ -249,7 +281,7 @@ assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
    EvalEnv _ _ evaenv <- get
    let sims = aenvSimpl evaenv
-   _ <- foldlM (\_ s -> mapMExpr (go s) e) e sims
+   _ <- foldlM (\_ s -> Vis.mapMExpr (go s) e) e sims
    return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
@@ -266,9 +298,9 @@ addSMTEquality γ e1 e2 =
   return $ do ctx <- knContext γ
               SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
--------------------------------
--- Symbolic Evaluation with SMT
--------------------------------
+--------------------------------------------------------------------------------
+-- | Symbolic Evaluation with SMT
+--------------------------------------------------------------------------------
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
                        , _evAEnv     :: AxiomEnv
@@ -276,15 +308,15 @@ data EvalEnv = EvalEnv { evId        :: Int
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> SEnv Sort -> AxiomEnv
+evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
             -> [Expr]
             -> IO [(Expr, Expr)]
-evaluate cfg ctx facts fenv aenv einit
+evaluate cfg ctx facts aenv einit
   = (eqs ++) <$>
     (fmap join . sequence)
     (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge cfg ctx aenv fenv facts
+    (eqs, γ) = makeKnowledge cfg ctx aenv facts
     initEvalSt = EvalEnv 0 [] aenv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
@@ -315,7 +347,7 @@ eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
    = (e, "Knowledge") ~> e'
 eval γ (ELam (x,s) e)
-  = do let x' = makeLamArg s (1+ length (knLams γ))
+  = do let x' = makeLamArg s (1 + length (knLams γ))
        e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
        return $ ELam (x,s) $ subst1 e' (x', EVar x)
 eval γ e@(EIte b e1 e2)
@@ -509,14 +541,14 @@ findNewEqs ((e, f):xss) es
 
 makeInitOccurences :: [(Symbol, Fuel)] -> [Equation] -> Expr -> [Occurence]
 makeInitOccurences xs eqs e
-  = [Occ x es xs | (EVar x, es) <- splitEApp <$> eapps e
+  = [Occ x es xs | (EVar x, es) <- splitEApp <$> Vis.eapps e
                  , Equ x' xs' _ <- eqs, x == x'
                  , length xs' == length es]
 
 grepOccurences :: [Equation] -> (Expr, FuelMap) -> [Occurence]
 grepOccurences eqs (e, fs)
   = filter (goodFuelMap . ofuel)
-           [Occ x es fs | (EVar x, es) <- splitEApp <$> eapps e
+           [Occ x es fs | (EVar x, es) <- splitEApp <$> Vis.eapps e
                         , Equ x' xs' _ <- eqs, x == x'
                         , length xs' == length es]
 

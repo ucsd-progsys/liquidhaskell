@@ -121,6 +121,22 @@ instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
                                      pprintTidy k z
 
 
+
+instance (PPrint a, PPrint b, PPrint c, PPrint d) => PPrint (a, b, c, d) where
+  pprintTidy k (w, x, y, z)  = parens $ pprintTidy k w <> "," <+>
+                                        pprintTidy k x <> "," <+>
+                                        pprintTidy k y <> "," <+>
+                                        pprintTidy k z
+
+instance (PPrint a, PPrint b, PPrint c, PPrint d, PPrint e) => PPrint (a, b, c, d, e) where
+  pprintTidy k (v, w, x, y, z)  = parens $ pprintTidy k v <> "," <+>
+                                           pprintTidy k w <> "," <+>
+                                           pprintTidy k x <> "," <+>
+                                           pprintTidy k y <> "," <+>
+                                           pprintTidy k z
+
+
+
 instance (PPrint a, PPrint b) => PPrint (a,b) where
   pprintTidy k (x, y)  = pprintTidy k x <+> ":" <+> pprintTidy k y
 

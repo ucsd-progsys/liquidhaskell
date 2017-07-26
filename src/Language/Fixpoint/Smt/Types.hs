@@ -9,10 +9,10 @@
 module Language.Fixpoint.Smt.Types (
 
     -- * Serialized Representation
-      symbolBuilder
+    --    symbolBuilder
 
     -- * Commands
-    , Command  (..)
+      Command  (..)
 
     -- * Responses
     , Response (..)
@@ -39,20 +39,22 @@ import           System.Process
 -- | Types ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-symbolBuilder :: Symbol -> LT.Builder
-symbolBuilder = LT.fromText . symbolSafeText
+-- symbolBuilder :: Symbol -> LT.Builder
+-- symbolBuilder = LT.fromText . symbolSafeText
 
 -- | Commands issued to SMT engine
 data Command      = Push
                   | Pop
                   | CheckSat
-                  | Declare   !Symbol [Sort] !Sort
-                  | Define    !Sort
-                  | Assert    !(Maybe Int) !Expr
-                  | AssertAxiom  !(Triggered Expr)
-                  | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
-                  | GetValue  [Symbol]
-                  | CMany [Command]
+                  | DeclData !DataDecl
+-- /                  | Declare  !Symbol [Sort] !Sort
+                  | Declare  !Symbol [SmtSort] !SmtSort
+                  | Define   !Sort
+                  | Assert   !(Maybe Int) !Expr
+                  | AssertAx !(Triggered Expr)
+                  | Distinct [Expr] -- {v:[Expr] | 2 <= len v}
+                  | GetValue [Symbol]
+                  | CMany    [Command]
                   deriving (Eq, Show)
 
 instance PPrint Command where
@@ -62,10 +64,11 @@ ppCmd :: Command -> Doc
 ppCmd Push          = text "Push"
 ppCmd Pop           = text "Pop"
 ppCmd CheckSat      = text "CheckSat"
+ppCmd (DeclData d)  = text "Data" <+> pprint d
 ppCmd (Declare {})  = text "Declare ..."
 ppCmd (Define {})   = text "Define ..."
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
-ppCmd (AssertAxiom _) = text "AssertAxiom ..."
+ppCmd (AssertAx _)  = text "AssertAxiom ..."
 ppCmd (Distinct {}) = text "Distinct ..."
 ppCmd (GetValue {}) = text "GetValue ..."
 ppCmd (CMany {})    = text "CMany ..."

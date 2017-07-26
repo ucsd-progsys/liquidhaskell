@@ -39,6 +39,8 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Sort-Directed Transformations
   , Elaborate (..)
+  , applySorts
+  , unApplyAt
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -55,7 +57,7 @@ import           Data.Maybe                (mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
-import           Language.Fixpoint.Types.Visitor  (mapExpr, stripCasts, foldSort)
+import qualified Language.Fixpoint.Types.Visitor  as Vis
 import qualified Language.Fixpoint.Smt.Theories   as Thy
 -- import qualified Language.Fixpoint.Smt.Types      as Thy
 import           Text.PrettyPrint.HughesPJ
@@ -63,12 +65,26 @@ import           Text.Printf
 
 -- import Debug.Trace
 
+
+
+{-
+EApp (EApp apply e1) e2
+  ===> EApp e1 e2
+
+((foo x) y)
+  ===> (EApp (EApp foo x) y)
+
+EApp (EApp apply (EApp (EApp apply foo) x)) y
+  ===> EApp (EApp (EApp apply foo) x) y
+  ===> EApp (Eapp foo x) y
+-}
+
 --------------------------------------------------------------------------------
 -- | Predicates on Sorts -------------------------------------------------------
 --------------------------------------------------------------------------------
 isMono :: Sort -> Bool
 --------------------------------------------------------------------------------
-isMono             = null . foldSort fv []
+isMono             = null . Vis.foldSort fv []
   where
     fv vs (FVar i) = i : vs
     fv vs _        = vs
@@ -78,8 +94,8 @@ isMono             = null . foldSort fv []
 -- | Elaborate: make polymorphic instantiation explicit via casts,
 --   make applications monomorphic for SMTLIB. This deals with
 --   polymorphism by `elaborate`-ing all refinements except for
---   KVars. THIS IS NOW MANDATORY as sort-variables can be instantiated
---   to `int` and `bool`.
+--   KVars. THIS IS NOW MANDATORY as sort-variables can be
+--   instantiated to `int` and `bool`.
 --------------------------------------------------------------------------------
 class Elaborate a where
   elaborate :: String -> SymEnv -> a -> a
@@ -112,13 +128,13 @@ instance Elaborate Expr where
     elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
-  elaborate msg env (x, s) = (x,) (elaborate msg env s)
+  elaborate msg env (x, s) = (x, elaborate msg env s)
 
 instance Elaborate a => Elaborate [a]  where
   elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
-elabNumeric = mapExpr go
+elabNumeric = Vis.mapExpr go
   where
     go (ETimes e1 e2)
       | exprSort "txn1" e1 == FReal
@@ -506,8 +522,8 @@ elab _ (ETAbs _ _) =
 
 -- elabAs :: Env -> Sort -> Expr -> CheckM Expr
 -- elabAs f t e = tracepp msg <$> elabAs' f t e
---  where
---    msg  = "elabAs: t = " ++ show t ++ " e = " ++ show e
+  -- where
+    -- msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
 
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
 elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
@@ -531,39 +547,51 @@ elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- elabAppSort f e1 e2 s1 s2
-  return      (e1', s1, e2', s2, s)
+  return       (e1', s1, e2', s2, s)
 
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
 defuncEApp env e es
-  | Thy.isSmt2App (seTheory env) (stripCasts e) es
+  | Thy.isSmt2App (seTheory env) (Vis.stripCasts e) es
   = eApps e (fst <$> es)
   | otherwise
   = L.foldl' makeApplication e es
 
--- e1 e2 => App (App runFun e1) (toInt e2)
 makeApplication :: Expr -> (Expr, Sort) -> Expr
-makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
+makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
-    f                      = makeFunSymbol (spec s)
-    e2'                    = Thy.toInt e2 (exprSort "makeApplication" e2)
-    -- s                      = fromMaybe (resultType e1 e2) sO
-    spec                 :: Sort -> Sort
-    spec (FAbs _ s)      = spec s
-    spec s               = s
+    f                      = applyAt (exprSort "makeAppl" e2) s
 
-makeFunSymbol :: Sort -> Symbol
-makeFunSymbol s
+applyAt :: Sort -> Sort -> Expr
+applyAt s t = ECst (EVar applyName) (FFunc s t)
+
+unApplyAt :: Expr -> Maybe Sort
+unApplyAt (ECst (EVar f) t@(FFunc {}))
+  | f == applyName = Just t
+unApplyAt _        = Nothing
+
+-- e1 e2 => App (App runFun e1) (toInt e2)
+-- | 'makeApplication e1 (e2, s)' does the apply-ification for '(e1 e2) : s'
+--   i.e. when the output type is 's'.
+_makeApplication :: Expr -> (Expr, Sort) -> Expr
+_makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
+  where
+    f                       = _makeApplySymbol (unAbs s)
+    e2'                     = Thy.toInt e2 s2
+    s2                      = exprSort "makeApplication" e2
+
+_makeApplySymbol :: Sort -> Symbol
+_makeApplySymbol s
   | (FApp (FTC c) _) <- s
-  , Thy.isConName setConName c
+  , setConName == symbol c
   = setApplyName 1
   | (FApp (FApp (FTC c) _) _) <- s
-  , Thy.isConName mapConName c
+  , mapConName == symbol c
   = mapApplyName 1
   | (FApp (FTC bv) (FTC s))   <- s
-  , Thy.isConName bitVecName bv
+  , bitVecName == symbol bv
   , Just _ <- Thy.sizeBv s
   = bitVecApplyName 1
   | FTC c <- s, c == boolFTyCon
@@ -580,6 +608,43 @@ splitArgs = go []
     go _   e@EApp{}             = errorstar $ "UNEXPECTED: splitArgs: EApp without output type: " ++ showpp e
     -- go acc (ECst e _)           = go acc e
     go acc e                    = (e, acc)
+
+--------------------------------------------------------------------------------
+{- | [NOTE:apply-monomorphization]
+
+     Because SMTLIB does not support higher-order functions,
+     all _non-theory_ function applications
+
+        EApp e1 e2
+
+     are represented, in SMTLIB, as
+
+        (Eapp (EApp apply e1) e2)
+
+     where 'apply' is 'ECst (EVar "apply") t' and
+           't'     is 'FFunc a b'
+           'a','b' are the sorts of 'e2' and 'e1 e2' respectively.
+
+     Note that *all polymorphism* goes through this machinery.
+
+     Just before sending to the SMT solver, we use the cast 't'
+     to generate a special 'apply_at_t' symbol.
+
+     To let us do the above, we populate 'SymEnv' with the _set_
+     of all sorts at which 'apply' is used, computed by 'applySorts'.
+ -}
+
+--------------------------------------------------------------------------------
+applySorts :: Vis.Visitable t => t -> [Sort]
+--------------------------------------------------------------------------------
+applySorts = (defs ++) . Vis.fold vis () []
+  where
+    defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
+    vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
+    go _ (EApp (ECst (EVar f) t) _)
+           | f == applyName
+           = [t]
+    go _ _ = []
 
 --------------------------------------------------------------------------------
 -- | Expressions sort  ---------------------------------------------------------

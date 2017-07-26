@@ -10,8 +10,9 @@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize () where
+module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
+import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -19,38 +20,42 @@ import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (errorstar)
-import           Data.Maybe (fromMaybe)
-
--- instance SMTLIB2 Sort where
---   smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ showpp s
---   smt2 FInt                    = "Int"
---   smt2 FReal                   = "Real"
---   smt2 t
---     | t == boolSort            = "Bool"
---   smt2 t
---     | Just d <- Thy.smt2Sort t = d
---   smt2 _                       = "Int"
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2Sort c t)
+  smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)
 
-smt2Sort :: (PPrint a) => a -> Sort -> Builder.Builder
-smt2Sort msg = go
+smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder.Builder
+smt2SortMono = smt2Sort False
+smt2SortPoly = smt2Sort True
+
+smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder.Builder
+smt2Sort poly _ env t = smt2 env (Thy.sortSmtSort poly (seData env) t)
+
+smt2data :: SymEnv -> DataDecl -> Builder.Builder
+smt2data env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
   where
-    go s@(FFunc _ _)             = errorstar $ unwords ["smt2 FFunc:", showpp msg, showpp s]
-    go FInt                      = "Int"
-    go FReal                     = "Real"
-    go t
-      | t == boolSort            = "Bool"
-    go t
-      | Just d <- Thy.smt2Sort t = d
-    go _                         = "Int"
+    tvars                    = smt2many (smt2TV <$> [0..(n-1)])
+    name                     = smt2 env (symbol tc)
+    ctors                    = smt2many (smt2ctor env <$> cs)
+    smt2TV                   = smt2 env . SVar
 
+
+smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
+smt2ctor env (DCtor c [])  = smt2 env c
+smt2ctor env (DCtor c fs)  = build "({} {})" (smt2 env c, fields)
+  where
+    fields                 = smt2many (smt2field env <$> fs)
+
+smt2field :: SymEnv -> DataField -> Builder.Builder
+smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t)
 
 instance SMTLIB2 Symbol where
   smt2 env s
     | Just t <- Thy.smt2Symbol env s = t
-  smt2 _ s                           = Builder.fromText $ symbolSafeText  s
+  smt2 _ s                           = symbolBuilder s -- Builder.fromText $ symbolSafeText  s
+
+instance SMTLIB2 LocSymbol where
+  smt2 env = smt2 env . val
 
 instance SMTLIB2 SymConst where
   smt2 env = smt2 env . symbol
@@ -60,14 +65,12 @@ instance SMTLIB2 Constant where
   smt2 _ (R d)   = build "{}" (Only d)
   smt2 _ (L t _) = build "{}" (Only t)
 
-instance SMTLIB2 LocSymbol where
-  smt2 env = smt2 env . val
 
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
   smt2 _ Minus  = "-"
-  smt2 _ Times  = Builder.fromText $ symbolSafeText mulFuncName
-  smt2 _ Div    = Builder.fromText $ symbolSafeText divFuncName
+  smt2 _ Times  = {- Builder.fromText $ symbolSafeText -} symbolBuilder mulFuncName
+  smt2 _ Div    = {- Builder.fromText $ symbolSafeText -} symbolBuilder divFuncName
   smt2 _ RTimes = "*"
   smt2 _ RDiv   = "/"
   smt2 _ Mod    = "mod"
@@ -114,10 +117,20 @@ smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
 smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
-smt2App env e = fromMaybe (build "({} {})" (smt2 env f, smt2s env es)) $ Thy.smt2App env (eliminate f) (smt2 env <$> es)
+smt2App env (EApp (EApp f e1) e2)
+  | Just t <- unApplyAt f
+  = build "({} {})" (symbolBuilder (applyAtName env t), smt2s env [e1, e2])
+smt2App env e
+  | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
+  = b
+  | otherwise
+  = build "({} {})" (smt2 env f, smt2s env es)
   where
     (f, es)   = splitEApp' e
 
+unCast :: Expr -> Expr
+unCast (ECst e _) = unCast e
+unCast e          = e
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
@@ -125,10 +138,6 @@ splitEApp'            = go []
     go acc (EApp f e) = go (e:acc) f
     go acc (ECst e _) = go acc e
     go acc e          = (e, acc)
-
-eliminate :: Expr -> Expr
-eliminate (ECst e _) = eliminate e
-eliminate e          = e
 
 mkRel :: SymEnv -> Brel -> Expr -> Expr -> Builder.Builder
 mkRel env Ne  e1 e2 = mkNe env e1 e2
@@ -139,14 +148,15 @@ mkNe :: SymEnv -> Expr -> Expr -> Builder.Builder
 mkNe env e1 e2      = build "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 env c@(Declare x ts t)  = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2Sort c <$> ts), smt2Sort c t)
-  smt2 _   c@(Define t)        = build "(declare-sort {})"            (Only $ smt2Sort c t)
+  smt2 env (DeclData d)        = build "(declare-datatypes {})"       (Only $ smt2data env d)
+  smt2 env (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2 env <$> ts), smt2 env t)
+  smt2 env c@(Define t)        = build "(declare-sort {})"            (Only $ smt2SortMono c env t)
   smt2 env (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 env p)
   smt2 env (Assert (Just i) p) = build "(assert (! {} :named p-{}))"  (smt2 env p, i)
   smt2 env (Distinct az)
     | length az < 2            = ""
     | otherwise                = build "(assert (distinct {}))"       (Only $ smt2s env az)
-  smt2 env (AssertAxiom t)     = build "(assert {})"                  (Only $ smt2  env t)
+  smt2 env (AssertAx t)        = build "(assert {})"                  (Only $ smt2  env t)
   smt2 _   (Push)              = "(push 1)"
   smt2 _   (Pop)               = "(pop 1)"
   smt2 _   (CheckSat)          = "(check-sat)"
@@ -161,13 +171,10 @@ instance SMTLIB2 (Triggered Expr) where
   smt2 env t@(TR _ (PAll   bs p)) = build "(forall ({}) (! {} :pattern({})))"  (smt2s env bs, smt2 env p, smt2s env (makeTriggers t))
   smt2 env (TR _ e)               = smt2 env e
 
-
 {-# INLINE smt2s #-}
 smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder.Builder
 smt2s env as = smt2many (smt2 env <$> as)
 
 {-# INLINE smt2many #-}
 smt2many :: [Builder.Builder] -> Builder.Builder
-smt2many []     = mempty
-smt2many [b]    = b
-smt2many (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+smt2many = buildMany

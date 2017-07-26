@@ -36,7 +36,8 @@ module Language.Fixpoint.Types.Constraints (
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
-  , strengthenLhs
+  -- , strengthenLhs
+  , strengthenHyp
 
   -- * Accessing Constraints
   , addIds
@@ -140,27 +141,61 @@ isGWfc (WfC  {}) = False
 
 type SubcId = Integer
 
-data SubC a = SubC { _senv  :: !IBindEnv
-                   , slhs   :: !SortedReft
-                   , srhs   :: !SortedReft
-                   , _sid   :: !(Maybe SubcId)
-                   , _stag  :: !Tag
-                   , _sinfo :: !a
-                   }
-              deriving (Eq, Generic, Functor)
+data SubC a = SubC
+  { _senv  :: !IBindEnv
+  , slhs   :: !SortedReft
+  , srhs   :: !SortedReft
+  , _sid   :: !(Maybe SubcId)
+  , _stag  :: !Tag
+  , _sinfo :: !a
+  }
+  deriving (Eq, Generic, Functor)
 
-data SimpC a = SimpC { _cenv  :: !IBindEnv
-                     , _crhs  :: !Expr
-                     , _cid   :: !(Maybe Integer)
-                     , _ctag  :: !Tag
-                     , _cinfo :: !a
-                     }
-              deriving (Generic, Functor)
+data SimpC a = SimpC
+  { _cenv  :: !IBindEnv
+  , _crhs  :: !Expr
+  , _cid   :: !(Maybe Integer)
+  , _cbind :: !BindId               -- ^ Id of lhs/rhs binder
+  , _ctag  :: !Tag
+  , _cinfo :: !a
+  }
+  deriving (Generic, Functor)
 
-strengthenLhs :: Expr -> SubC a -> SubC a
-strengthenLhs e subc = subc {slhs = go (slhs subc)}
+
+strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
+strengthenHyp si ies = strengthenBinds si bindExprs
   where
-    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
+    bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
+
+subcBind :: SInfo a -> Integer -> BindId
+subcBind si i
+  | Just c <- M.lookup i (cm si)
+  = _cbind c
+  | otherwise
+  = errorstar $ "Unknown subcId in subcBind: " ++ show i
+
+
+strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> SInfo a
+strengthenBinds si m = si { bs = mapBindEnv f (bs si) }
+  where
+    f i (x, sr)      = case M.lookup i m of
+                         Nothing -> (x, sr)
+                         Just e  -> (x, strengthenSortedReft sr e)
+
+strengthenSortedReft :: SortedReft -> Expr -> SortedReft
+strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
+
+
+
+{-
+  [(Int, Expr)]  ==> [(BindId, Expr)]
+
+ -}
+
+-- strengthenLhs :: Expr -> SubC a -> SubC a
+-- strengthenLhs e subc = subc {slhs = go (slhs subc)}
+--  where
+--    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
@@ -636,33 +671,37 @@ sEnvDoc d       = vcat . map kvD . toListSEnv
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Query Conversions: FInfo to SInfo
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
----------------------------------------------------------------------------
-convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
+--------------------------------------------------------------------------------
+convertFormat fi = fi' { cm = subcToSimpc bindm <$> cm fi' }
   where
-    fi'          = M.foldlWithKey' blowOutVV fi $ cm fi
+    (bindm, fi') = M.foldlWithKey' outVV (M.empty, fi) $ cm fi
 
-subcToSimpc :: SubC a -> SimpC a
-subcToSimpc s = SimpC
-  { _cenv     = senv s
-  , _crhs     = reftPred $ sr_reft $ srhs s
-  , _cid      = sid s
-  , _ctag     = stag s
-  , _cinfo    = sinfo s
+subcToSimpc :: BindM -> SubC a -> SimpC a
+subcToSimpc m s = SimpC
+  { _cenv       = senv s
+  , _crhs       = reftPred $ sr_reft $ srhs s
+  , _cid        = sid s
+  , _cbind      = safeLookup "subcToSimpc" (subcId s) m
+  , _ctag       = stag s
+  , _cinfo      = sinfo s
   }
 
-blowOutVV :: FInfo a -> Integer -> SubC a -> FInfo a
-blowOutVV fi i subc = fi { bs = be', cm = cm' }
+outVV :: (BindM, FInfo a) -> Integer -> SubC a -> (BindM, FInfo a)
+outVV (m, fi) i c = (m', fi')
   where
-    sr            = slhs subc
+    fi'           = fi { bs = be', cm = cm' }
+    m'            = M.insert i bId m
+    (bId, be')    = insertBindEnv x sr $ bs fi
+    cm'           = M.insert i c' $ cm fi
+    c'            = c { _senv = insertsIBindEnv [bId] $ senv c }
+    sr            = slhs c
     x             = reftBind $ sr_reft sr
-    (bindId, be') = insertBindEnv x sr $ bs fi
-    subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
-    cm'           = M.insert i subc' $ cm fi
 
+type BindM = M.HashMap Integer BindId
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------

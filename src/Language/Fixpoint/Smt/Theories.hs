@@ -9,7 +9,8 @@ module Language.Fixpoint.Smt.Theories
        -- * Convert theory applications TODO: merge with smt2symbol
        smt2App
        -- * Convert theory sorts
-     , smt2Sort
+     , sortSmtSort
+
        -- * Convert theory symbols
      , smt2Symbol
        -- * Preamble to initialize SMT
@@ -32,7 +33,6 @@ module Language.Fixpoint.Smt.Theories
 
       -- * Query Theories
      , isSmt2App
-     , isConName
      , axiomLiterals
      ) where
 
@@ -40,7 +40,7 @@ import           Prelude hiding (map)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
--- import           Language.Fixpoint.Smt.Types
+import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes, isJust)
 import           Data.Monoid
@@ -221,17 +221,22 @@ stringPreamble _
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
-smt2Sort :: Sort -> Maybe Builder.Builder
-smt2Sort (FApp (FTC c) _)
-  | isConName setConName c      = Just $ build "{}" (Only set)
-smt2Sort (FApp (FApp (FTC c) _) _)
-  | isConName mapConName c      = Just $ build "{}" (Only map)
-smt2Sort (FApp (FTC bv) (FTC s))
-  | isConName bitVecName bv
-  , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
-smt2Sort s
-  | isString s                  = Just $ build "{}" (Only string)
-smt2Sort _                      = Nothing
+instance SMTLIB2 SmtSort where
+  smt2 _ = smt2SmtSort
+
+smt2SmtSort :: SmtSort -> Builder.Builder
+smt2SmtSort SInt         = "Int"
+smt2SmtSort SReal        = "Real"
+smt2SmtSort SBool        = "Bool"
+smt2SmtSort SString      = build "{}" (Only string)
+smt2SmtSort SSet         = build "{}" (Only set)
+smt2SmtSort SMap         = build "{}" (Only map)
+smt2SmtSort (SBitVec n)  = build "(_ BitVec {})" (Only n)
+smt2SmtSort (SVar n)     = build "T{}" (Only n)
+smt2SmtSort (SData c []) = symbolBuilder c
+smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c, args)
+  where args             = buildMany (smt2SmtSort <$> ts)
+
 
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App _ (EVar f) [d]
@@ -241,7 +246,7 @@ smt2App _ (EVar f) [d]
 smt2App env (EVar f) (d:ds)
   | Just s <- symEnvTheory f env
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-smt2App _ _ _     = Nothing
+smt2App _ _ _    = Nothing
 
 -- isSmt2App :: Expr -> [a] -> Bool
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
@@ -273,13 +278,13 @@ preamble u _    = smtlibPreamble u
 toInt :: Expr -> Sort -> Expr
 toInt e s
   |  (FApp (FTC c) _) <- s
-  , isConName setConName c
+  , setConName == symbol c
   = castWith setToIntName e
   | (FApp (FApp (FTC c) _) _) <- s
-  , isConName mapConName c
+  , mapConName == symbol c
   = castWith mapToIntName e
   | (FApp (FTC bv) (FTC s)) <- s
-  , isConName bitVecName bv
+  , bitVecName == symbol bv
   , Just _ <- sizeBv s
   = castWith bitVecToIntName e
   | FTC c <- s
@@ -304,10 +309,14 @@ castWith s = eAppC intSort (EVar s)
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: a -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols _ = fromListSEnv $ uninterpSymbols ++ interpSymbols
+theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+theorySymbols ds = fromListSEnv $  uninterpSymbols
+                               ++ interpSymbols
+                               ++ concatMap dataDeclSymbols ds
 
+--------------------------------------------------------------------------------
 interpSymbols :: [(Symbol, TheorySymbol)]
+--------------------------------------------------------------------------------
 interpSymbols =
   [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
@@ -343,24 +352,13 @@ interpSymbols =
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
-isConName :: Symbol -> FTycon -> Bool
-isConName s = (s ==) . val . fTyconSymbol
-
-sizeBv :: FTycon -> Maybe Int
-sizeBv tc
-  | s == size32Name = Just 32
-  | s == size64Name = Just 64
-  | otherwise       = Nothing
-  where
-    s               = val $ fTyconSymbol tc
-
 uninterpSymbols :: [(Symbol, TheorySymbol)]
 uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
 
+--------------------------------------------------------------------------------
 uninterpSym :: Symbol -> Sort -> TheorySymbol
-uninterpSym x t =  Thy x (lt x) t Uninterp
-  where
-    lt           = T.fromStrict . symbolSafeText
+--------------------------------------------------------------------------------
+uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
 
 uninterpSymbols' :: [(Symbol, Sort)]
 uninterpSymbols' =
@@ -404,3 +402,100 @@ axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isStrin
   where
     lenAxiom l n  = EEq (EApp (expr (strLen :: Symbol)) (expr l)) (expr n `ECst` intSort)
     litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol
+
+--------------------------------------------------------------------------------
+-- | Constructors, Selectors and Tests from 'DataDecl'arations.
+--------------------------------------------------------------------------------
+dataDeclSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
+dataDeclSymbols d = {- tracepp "dataDeclSymbols" $ -} ctorSymbols d ++ testSymbols d ++ selectSymbols d
+
+-- | 'selfSort d' returns the _self-sort_ of 'd' :: 'DataDecl'.
+--   See [NOTE:DataDecl] for details.
+
+selfSort :: DataDecl -> Sort
+selfSort (DDecl c n _) = fAppTC c (FVar <$> [0..(n-1)])
+
+-- | 'fldSort d t' returns the _real-sort_ of 'd' if 't' is the _self-sort_
+--   and otherwise returns 't'. See [NOTE:DataDecl] for details.
+
+fldSort :: DataDecl -> Sort -> Sort
+fldSort d (FTC c)
+  | c == ddTyCon d = selfSort d
+fldSort _ s        = s
+
+-- | 'theorify' converts the 'Sort' into a full 'TheorySymbol'
+
+theorify :: (Symbol, Sort) -> (Symbol, TheorySymbol)
+theorify (x, t) = (x, Thy x (symbolRaw x) t Data)
+
+--------------------------------------------------------------------------------
+ctorSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
+--------------------------------------------------------------------------------
+ctorSymbols d = ctorSort d <$> ddCtors d
+
+ctorSort :: DataDecl -> DataCtor -> (Symbol, TheorySymbol)
+ctorSort d ctor = (x, Thy x (symbolRaw x) t Data)
+  where
+    x           = symbol ctor
+    t           = mkFFunc n (ts ++ [selfSort d])
+    n           = ddVars d
+    ts          = fldSort d . dfSort <$> dcFields ctor
+
+--------------------------------------------------------------------------------
+testSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
+--------------------------------------------------------------------------------
+testSymbols d = testTheory t . symbol <$> ddCtors d
+  where
+    t         = mkFFunc (ddVars d) [selfSort d, boolSort]
+
+testTheory :: Sort -> Symbol -> (Symbol, TheorySymbol)
+testTheory t x = (sx, Thy sx raw t Data)
+  where
+    sx         = testSymbol x
+    raw        = "is-" <> symbolRaw x
+
+symbolRaw :: Symbol -> T.Text
+symbolRaw = T.fromStrict . symbolSafeText
+
+--------------------------------------------------------------------------------
+selectSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
+--------------------------------------------------------------------------------
+selectSymbols d = theorify <$> concatMap (ctorSelectors d) (ddCtors d)
+
+ctorSelectors :: DataDecl -> DataCtor -> [(Symbol, Sort)]
+ctorSelectors d ctor = fieldSelector d <$> dcFields ctor
+
+fieldSelector :: DataDecl -> DataField -> (Symbol, Sort)
+fieldSelector d f = (symbol f, mkFFunc n [selfSort d, ft])
+  where
+    ft            = fldSort d $ dfSort f
+    n             = ddVars  d
+
+{- | [NOTE:DataDecl]  This note explains the set of symbols generated
+     for the below data-declaration:
+
+  data Vec 1 = [
+    | nil  { }
+    | cons { vHead : @(0), vTail : Vec}
+  ]
+
+We call 'Vec' the _self-sort_ of the data-type, and we want to ensure that
+in all constructors, tests and selectors, the _self-sort_ is replaced with
+the actual sort, namely, 'Vec @(0)'.
+
+Constructors  // ctor : (fld-sorts) => me
+
+        nil   : func(1, [Vec @(0)])
+        cons  : func(1, [@(0); Vec @(0); Vec @(0)])
+
+Tests         // is#ctor : (me) => bool
+
+      is#nil  : func(1, [Vec @(0); bool])
+      is#cons : func(1, [Vec @(0); bool])
+
+Selectors     // fld : (me) => fld-sort
+
+      vHead   : func(1, [Vec @(0); @(0)])
+      vTail   : func(1, [Vec @(0); Vec @(0)])
+
+-}

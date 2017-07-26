@@ -40,7 +40,7 @@ import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
-import           Language.Fixpoint.Solver.Instantiate (instantiateFInfo)
+import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -48,7 +48,15 @@ import           Control.DeepSeq
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg = do
+solveFQ cfg = solveFQ' cfg `catch` errorExit
+
+errorExit :: Error -> IO ExitCode
+errorExit e = do
+  colorStrLn Sad ("Oops, unexpected error: " ++ showpp e)
+  return (ExitFailure 2)
+
+solveFQ' :: Config -> IO ExitCode
+solveFQ' cfg = do
     (fi, opts) <- readFInfo file
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi
@@ -172,11 +180,11 @@ solveNative' !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
-  fi1      <- instantiateFInfo cfg $ fi0 { quals = remakeQual <$> quals fi0 }
+  let fi1   = fi0 { quals = remakeQual <$> quals fi0 }
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1 = either die id $ {-# SCC "sanitize" #-} sanitize $!! si0
+  let si1   = either die id $ {-# SCC "sanitize" #-} sanitize $!! si0
   -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
@@ -189,7 +197,8 @@ solveNative' !cfg !fi0 = do
   loudDump 2 cfg si4
   let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si5
+  si6 <- {-# SCC "Sol.inst"  #-} instantiate cfg $!! si5
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
