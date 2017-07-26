@@ -77,31 +77,24 @@ type family Res a where
   Res (a -> b) = Res b
   Res a        = a
 
--- liquid-fixpoint started encoding `FObj s` as `Int` in 0.3.0.0, but we
--- want to preserve the type aliases for easier debugging.. so here's a
--- copy of the SMTLIB2 Sort instance..
--- smt2Sort :: Sort -> T.Text
--- smt2Sort s = case s of
---   FObj s' -> smt2 s'
---   _       -> smt2 s
--- smt2Sort s           | Just t <- Thy.smt2Sort s = t
--- smt2Sort FInt        = "Int"
--- smt2Sort (FApp t []) | t == intFTyCon = "Int"
--- smt2Sort (FApp t []) | t == boolFTyCon = "Bool"
--- --smt2Sort (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
--- smt2Sort (FObj s)    = smt2 s
--- smt2Sort s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
--- smt2Sort _           = "Int"
+-- makeDecl :: Symbol -> Sort -> Command -- Builder
+-- makeDecl x t
+  -- / | Just (_, ts, t) <- functionSort t
+  -- = Declare x ts t
+-- makeDecl x t
+  -- = Declare x [] t
 
-makeDecl :: Symbol -> Sort -> Command -- Builder
-makeDecl x t
-  | Just (_, ts, t) <- functionSort t
-  = Declare x ts t
-  -- build "(declare-fun {} ({}) {})"
-  --        (smt2 env x, smt2s env ts, smt2 env t)
-makeDecl x t
-  = Declare x [] t
-  -- build "(declare-const {} {})" (smt2 env x, smt2 env t)
+makeDecl :: SEnv a -> Symbol -> Sort -> Command
+makeDecl env x t = Declare x ins' out'
+  where
+    ins'        = sortSmtSort False env <$> ins
+    out'        = sortSmtSort False env     out
+    (ins, out)  = deconSort t
+
+deconSort :: Sort -> ([Sort], Sort)
+deconSort t = case functionSort t of
+  Just (_, ins, out) -> (ins, out)
+  Nothing            -> ([] , t  )
 
 safeFromJust :: String -> Maybe a -> a
 safeFromJust msg Nothing  = error $ "safeFromJust: " ++ msg
