@@ -394,7 +394,7 @@ fTyconSort c
   | otherwise       = FTC c
 
 basicSorts :: [Sort]
-basicSorts = [FInt, boolSort, setSort, mapSort, bitVecSort]
+basicSorts = [FInt, boolSort] -- , setSort, mapSort, bitVecSort]
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort

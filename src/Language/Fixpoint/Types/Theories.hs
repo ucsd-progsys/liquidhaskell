@@ -106,7 +106,8 @@ applyAtName env = applyAtSmtName env . ffuncSort env
 applyAtSmtName :: SymEnv -> FuncSort -> Symbol
 applyAtSmtName env z = intSymbol applyName n
   where
-    n                = M.lookupDefault 0 (tracepp "applyAtSmtName:" z) (seAppls env)
+    n                = M.lookupDefault err (tracepp "applyAtSmtName:" z) (seAppls env)
+    err              = errorstar "PANIC: Unknown apply-sort, please file an issue!"
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = (tx t1, tx t2)
