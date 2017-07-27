@@ -347,13 +347,13 @@ makeExactDataCons _n flag vs spec
   | otherwise = return spec
   where
     xts       = makeExact <$> filter f vs
-    f v       = GM.isDataConId v -- TODO:reflect-datacons && varInModule _n v
+    f v       = GM.isDataConId v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, LocSpecType)
-makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
     t    = ofType $ varType x
@@ -362,7 +362,7 @@ makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
 
     res  = ty_res trep `strengthen` MkUReft ref mempty mempty
     vv   = vv_
-    x'   = symbol x --  simpleSymbolVar x
+    x'   = symbol x
     ref  = Reft (vv, PAtom Eq (EVar vv) eq)
     eq   | null (ty_vars trep) && null xs = EVar x'
          | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
@@ -374,9 +374,6 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
 
 getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
 getAxiomEqs = concatMap (Ms.axeqs . snd)
-
-_getReflSigs :: [(ModName, Ms.BareSpec)] -> [(LocSymbol, LocBareType)]
-_getReflSigs = concatMap (Ms.reflSigs . snd)
 
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms

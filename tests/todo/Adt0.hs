@@ -13,5 +13,6 @@ prop :: Vec a -> a -> Vec a -> () -> ()
 prop x y zs _ = ()
 
 {-@ zop :: x:a -> xs:Vec a -> { Cons x xs /= Nil } @-}
+p
 zop :: a -> Vec a -> ()
 zop x xs = ()
