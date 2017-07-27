@@ -206,6 +206,7 @@ module Data.ByteString (
 
   ) where
 
+import Language.Haskell.Liquid.Prelude
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,length,map,lines,foldl,foldr,unlines
@@ -288,7 +289,7 @@ import GHC.Handle
 #define assert  assertS "__FILE__ : __LINE__"
 assertS :: String -> Bool -> a -> a
 assertS _ True  = id
-assertS s False = error ("assertion failed at "++s)
+assertS s False = unsafeError ("assertion failed at "++s)
 #endif
 
 -- LIQUID

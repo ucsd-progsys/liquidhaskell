@@ -226,7 +226,7 @@ member x t = case split x t of
 
 {-@ minimum :: OSplay a -> MinEqSPair a @-}
 minimum :: Splay a -> (a, Splay a)
-minimum Leaf = error "minimum"
+minimum Leaf = unsafeError "minimum"
 minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 
 {-| Finding the maximum element.
@@ -239,7 +239,7 @@ minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 
 {-@ maximum :: OSplay a -> MaxEqSPair a @-}
 maximum :: Splay a -> (a, Splay a)
-maximum Leaf = error "maximum"
+maximum Leaf = unsafeError "maximum"
 maximum t = let (x,mt) = deleteMax t in (x, Node x mt Leaf)
 
 ----------------------------------------------------------------
@@ -254,7 +254,7 @@ True
 
 {-@ deleteMin :: OSplay a -> MinSPair a @-}
 deleteMin :: Splay a -> (a, Splay a)
-deleteMin Leaf                          = error "deleteMin"
+deleteMin Leaf                          = unsafeError "deleteMin"
 deleteMin (Node x Leaf r)               = (x,r)
 deleteMin (Node x (Node lx Leaf lr) r)  = (lx, Node x lr r)
 deleteMin (Node x (Node lx ll lr) r)    = let (k,mt) = deleteMin ll
@@ -271,7 +271,7 @@ True
 
 {-@ deleteMax :: OSplay a -> MaxSPair a @-}
 deleteMax :: Splay a -> (,) a (Splay a)
-deleteMax Leaf                          = error "deleteMax"
+deleteMax Leaf                          = unsafeError "deleteMax"
 deleteMax (Node x l Leaf)               = (x,l)
 deleteMax (Node x l (Node rx rl Leaf))  = (rx, Node x l rl)
 deleteMax (Node x l (Node rx rl rr))    = let (k,mt) = deleteMax rr

@@ -198,4 +198,4 @@ isEmpty _         = False
 
 {-@ overflowError :: Nat @-}
 overflowError :: Int
-overflowError = error "Data.Text.Fusion.Size: size overflow"
+overflowError = unsafeError "Data.Text.Fusion.Size: size overflow"

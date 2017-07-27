@@ -1,5 +1,6 @@
 
 {-@ LIQUID "--no-termination"   @-}
+{-@ LIQUID "--no-totality"      @-}
 
 module Foo (add, remove, deleteMin, deleteMin') where
 

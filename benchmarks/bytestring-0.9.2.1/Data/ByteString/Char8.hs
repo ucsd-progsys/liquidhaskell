@@ -1,4 +1,5 @@
 {-@ LIQUID "--notermination" @-}
+{-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 

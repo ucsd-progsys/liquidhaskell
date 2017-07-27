@@ -1,5 +1,6 @@
 
 {-@ LIQUID "--no-termination"   @-}
+{-@ LIQUID "--no-totality"      @-}
 
 module RedBlackTree where
 
