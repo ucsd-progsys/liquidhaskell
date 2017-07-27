@@ -50,7 +50,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
-import           Language.Fixpoint.Types                    hiding (Error)
+import           Language.Fixpoint.Types                    hiding (DataDecl, Error)
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (nubHashOn)
@@ -77,11 +77,14 @@ import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 
+-- import Debug.Trace (trace)
+
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> FilePath
             -> ModName
             -> [CoreBind]
+            -> [TyCon]
             -> Maybe [ClsInst]
             -> [Var]
             -> [Var]
@@ -91,12 +94,12 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> IO GhcSpec
 --------------------------------------------------------------------------------
-makeGhcSpec cfg file name cbs instenv vars defVars exports env lmap specs = do
+makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
   sp      <- throwLeft =<< execBare act initEnv
   let renv =  ghcSpecEnv sp
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
-    act       = makeGhcSpec' cfg file cbs instenv vars defVars exports specs
+    act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
     axs       = initAxSymbols name defVars specs
@@ -173,14 +176,18 @@ ghcSpecEnv sp = fromListSEnv binds
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
 --------------------------------------------------------------------------------
 
-makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM Ms.BareSpec
-makeLiftedSpec0 embs cbs mySpec = do
+makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
+                -> BareM Ms.BareSpec
+makeLiftedSpec0 embs cbs tcs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
-  return  $ mempty { Ms.ealiases = lmapEAlias . snd <$> xils
-                   , Ms.measures = ms
-                   , Ms.reflects = Ms.reflects mySpec
+  return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
+                   , Ms.measures  = ms
+                   , Ms.reflects  = Ms.reflects mySpec
+                   , Ms.dataDecls = makeHaskellDataDecls embs tcs mySpec
                    }
+
+
 
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq]
@@ -282,16 +289,16 @@ checkDisjoint xs ys
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
-  :: Config -> FilePath -> [CoreBind] -> Maybe [ClsInst] -> [Var] -> [Var]
+  :: Config -> FilePath -> [CoreBind] -> [TyCon] -> Maybe [ClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
   -> BareM GhcSpec
 --------------------------------------------------------------------------------
-makeGhcSpec' cfg file cbs instenv vars defVars exports specs0 = do
-  -- liftIO $ dumpSigs specs0
+makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
+  -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  lSpec0         <- makeLiftedSpec0 embs cbs mySpec
+  lSpec0         <- makeLiftedSpec0 embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
@@ -346,14 +353,14 @@ makeExactDataCons _n flag vs spec
   | flag      = return $ spec { gsTySigs = gsTySigs spec ++ xts}
   | otherwise = return spec
   where
-    xts       = makeExact <$> filter f vs
+    xts       = makeDataConCtor <$> filter f vs
     f v       = GM.isDataConId v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
-makeExact :: Var -> (Var, LocSpecType)
-makeExact x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
+makeDataConCtor :: Var -> (Var, LocSpecType)
+makeDataConCtor x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
     t    = ofType $ varType x
@@ -536,8 +543,8 @@ makeGhcSpec2 invs ntys ialias measures su syms sp
 makeGhcSpec3 :: [(DataCon, DataConP)] -> [(TyCon, TyConP)] -> TCEmb TyCon -> [(Symbol, Var)]
              -> GhcSpec -> BareM GhcSpec
 makeGhcSpec3 datacons tycons embs syms sp = do
-  tcEnv  <- tcEnv    <$> get
-  return  $ sp { gsTyconEnv = tcEnv
+  tce    <- tcEnv    <$> get
+  return  $ sp { gsTyconEnv = tce
                , gsDconsP   = [ Loc (dc_loc z) (dc_locE z) dc | (dc, z) <- datacons]
                , gsTcEmbeds = embs
                , gsTconsP   = [(tc, qualifyTyConP (qualifySymbol syms) tcp) | (tc, tcp) <- tycons]
@@ -562,7 +569,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   asize'    <- S.fromList <$> makeASize
   hmeas     <- mkThing makeHMeas
   hinls     <- mkThing makeHInlines
-  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas -- HEREHEREHERE #1030
+  mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas
   mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hinls
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
@@ -575,7 +582,6 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   gsInvarnts' <- expand $ gsInvariants sp
   gsCtors'    <- expand $ gsCtors      sp
   gsIaliases' <- expand $ gsIaliases   sp
-  -- gsDconsP'   <- expand $ gsDconsP     sp
   return   $ sp { gsQualifiers = subst su quals
                 , gsDecr       = decr'
                 , gsLvars      = lvars'
@@ -591,7 +597,6 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
                 , gsInvariants = gsInvarnts'
                 , gsCtors      = gsCtors'
                 , gsIaliases   = gsIaliases'
-                -- , gsDconsP     = gsDconsP'
                 }
   where
     mkThing mk      = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
@@ -601,7 +606,6 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
 
 insertHMeasLogicEnv :: (Located Var, LocSymbol) -> BareM ()
 insertHMeasLogicEnv (x, s)
-  -- / | isBool res
   = insertLogicEnv "insertHMeasLogicENV" s (fst <$> vxs) $ mkEApp s ((EVar . fst) <$> vxs)
   where
     -- res = ty_res rep
@@ -609,8 +613,6 @@ insertHMeasLogicEnv (x, s)
     t   = (ofType $ varType $ val x) :: SpecType
     xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
     vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
--- insertHMeasLogicEnv _
---   = return ()
 
 makeGhcSpecCHOP1
   :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon -> [(Symbol, Var)]
@@ -621,7 +623,7 @@ makeGhcSpecCHOP1
            , M.HashMap TyCon RTyCon     )
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
-  let tycons       = tcs        ++ wiredTyCons
+  let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons

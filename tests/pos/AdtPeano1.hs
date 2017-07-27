@@ -13,6 +13,6 @@ data Influx = Silly { goo :: Int }
 test1 :: Int -> Int -> () -> Int
 test1 n m z = moo (Silly n) + moo (Silly m)
 
-{-@ reflect moo @-}
+{- reflect moo @-}
 moo :: Influx -> Int
 moo (Silly a) = a

@@ -2,8 +2,12 @@
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TupleSections    #-}
 
-module Language.Haskell.Liquid.Bare.Measure (
-    makeHaskellMeasures
+-- | This module contains (most of) the code needed to lift Haskell entitites,
+--   . code- (CoreBind), and data- (Tycon) definitions into the spec level.
+
+module Language.Haskell.Liquid.Bare.Measure
+  ( makeHaskellDataDecls
+  , makeHaskellMeasures
   , makeHaskellInlines
   , makeHaskellBounds
   , makeMeasureSpec
@@ -67,8 +71,30 @@ import           Language.Haskell.Liquid.Bare.OfType
 import           Language.Haskell.Liquid.Bare.Resolve
 import           Language.Haskell.Liquid.Bare.ToBare
 
+
+--------------------------------------------------------------------------------
+makeHaskellDataDecls :: F.TCEmb TyCon -> [TyCon] -> Ms.BareSpec -> [DataDecl]
+--------------------------------------------------------------------------------
+makeHaskellDataDecls tce tcs spec = _fixme_HEREHEREHERE
+
+{-
+  Use the below from the GHC API
+
+    algTyConRhs     :: TyCon -> AlgTyConRhs
+    isAlgTyConRhs   :: TyCon -> Bool
+    visibleDataCons :: AlgTyConRhs -> [DataCon]
+
+  To convert a haskell datatype declaration (TyCon) into a LH.DataDecl.
+
+  Of course, only do so for those 'TyCon' for which we
+  *do not already have* a 'DataDecl' inside 'spec'.
+
+-}
+
+--------------------------------------------------------------------------------
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
                     -> BareM [Measure (Located BareType) LocSymbol]
+--------------------------------------------------------------------------------
 makeHaskellMeasures tce cbs spec = do
     lmap <- gets logicEnv
     ms   <- mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
@@ -78,7 +104,10 @@ makeHaskellMeasures tce cbs spec = do
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> BareM [(LocSymbol, LMap)]
+--------------------------------------------------------------------------------
+makeHaskellInlines :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
+                   -> BareM [(LocSymbol, LMap)]
+--------------------------------------------------------------------------------
 makeHaskellInlines tce cbs spec = do
   lmap <- gets logicEnv
   mapM (makeMeasureInline tce lmap cbs') (S.toList $ Ms.inlines spec)
@@ -87,7 +116,10 @@ makeHaskellInlines tce cbs spec = do
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol -> BareM (LocSymbol, LMap)
+--------------------------------------------------------------------------------
+makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol
+                  -> BareM (LocSymbol, LMap)
+--------------------------------------------------------------------------------
 makeMeasureInline tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
     chomp (v, def)               = (vx, ) <$> coreToFun' tce lmap vx v def (ok vx)
@@ -108,11 +140,6 @@ makeMeasureDefinition tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) c
     mkErr :: String -> Error
     mkErr str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     err       = throwError $ mkErr "Cannot extract measure from haskell function"
-
--- reflect-datacons varSymbol :: Var -> Symbol
--- reflect-datacons varSymbol v
-  -- reflect-datacons | Type.isFunTy (varType v) = GM.simplesymbol v
-  -- reflect-datacons | otherwise                = symbol v
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
@@ -135,14 +162,13 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  =    (if autoselectors then checker : catMaybes (go' <$> zip (reverse xts) [1..]) else [])
-    ++ (if autofields    then catMaybes (go <$> zip (reverse xts) [1..])            else [])
+  =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) -- ^ internal measures, needed for reflection
+    ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) -- ^ user-visible measures.
   where
-    autoselectors = exactDC cfg
     autofields    = not (noMeasureFields cfg)
-    go ((x,t), i)
+    go ((x, t), i)
       -- do not make selectors for functional fields
-      | isFunTy t && not (higherOrderFlag cfg) -- HEREHEREHERE
+      | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
@@ -150,12 +176,13 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     go' ((_,t), i)
       = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector dc i)) (dty t) dc n i
 
-    dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
-    scheck        = foldr RAllT  (RFun dummySymbol r bareBool mempty) (makeRTVar <$> vs)
-    n             = length xts
-    bareBool      = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
+    fields   = zip (reverse xts) [1..]
+    dty t    = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) (makeRTVar <$> vs)
+    n        = length xts
+    checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
+    scheck   = foldr RAllT  (RFun dummySymbol r bareBool        mempty) (makeRTVar <$> vs)
+    bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
-    checker       = makeMeasureChecker (dummyLoc $ makeDataConChecker dc) scheck dc n
 
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor

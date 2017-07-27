@@ -387,7 +387,8 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
             , hqFiles   = hqualsFiles
             , imports   = imps
             , includes  = incs
-            , spec      = spc                }
+            , spec      = spc
+            }
 
 toGhcSpec :: GhcMonad m
           => Config
@@ -410,7 +411,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_tcs mgi) (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath

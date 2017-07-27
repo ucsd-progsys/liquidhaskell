@@ -301,19 +301,20 @@ ppEnvShort pp   = pp { ppShort = True }
 -- | GHC Information :  Code & Spec ------------------------------
 ------------------------------------------------------------------
 
-data GhcInfo = GI {
-    target   :: !FilePath
-  , targetMod:: !ModuleName
-  , env      :: !HscEnv
-  , cbs      :: ![CoreBind]
+data GhcInfo = GI
+  { target   :: !FilePath       -- ^ Source file for module
+  , targetMod:: !ModuleName     -- ^ Name for module
+  , env      :: !HscEnv         -- ^ GHC Env used to resolve names for module
+  , cbs      :: ![CoreBind]     -- ^ Source Code
   , derVars  :: ![Var]          -- ^ ?
-  , impVars  :: ![Var]
-  , defVars  :: ![Var]
-  , useVars  :: ![Var]
-  , hqFiles  :: ![FilePath]
-  , imports  :: ![String]
-  , includes :: ![FilePath]
-  , spec     :: !GhcSpec
+  , impVars  :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
+  , defVars  :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
+  , useVars  :: ![Var]          -- ^ Binders that are _read_ in module
+--   , tyCons   :: ![TyCon]        -- ^ Types that are defined inside module
+  , hqFiles  :: ![FilePath]     -- ^ Imported .hqual files
+  , imports  :: ![String]       -- ^ ??? dead?
+  , includes :: ![FilePath]     -- ^ ??? dead?
+  , spec     :: !GhcSpec        -- ^ All specification information for module
   }
 
 instance HasConfig GhcInfo where
@@ -351,7 +352,7 @@ data GhcSpec = SP {
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
-  , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
+  , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
   , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
@@ -438,12 +439,12 @@ data TyConP = TyConP
 
 data DataConP = DataConP
   { dc_loc     :: !F.SourcePos
-  , freeTyVars :: ![RTyVar]
-  , freePred   :: ![PVar RSort]
-  , freeLabels :: ![Symbol]
-  , tyConsts   :: ![SpecType]             -- FIXME: WHAT IS THIS??
-  , tyArgs     :: ![(Symbol, SpecType)]   -- FIXME: These are backwards, why??
-  , tyRes      :: !SpecType
+  , freeTyVars :: ![RTyVar]               -- ^ Type parameters
+  , freePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
+  , freeLabels :: ![Symbol]               -- ^ ? strata stuff
+  , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
+  , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
+  , tyRes      :: !SpecType               -- ^ Result type
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
@@ -1083,9 +1084,9 @@ instance F.Subable AxiomEq where
 mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
 mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
                        , axiomEq   = f (axiomEq   a) }
---------------------------------------------------------------------------
--- | Values Related to Specifications ------------------------------------
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Values Related to Specifications ------------------------------------------
+--------------------------------------------------------------------------------
 data SizeFun
   = IdSizeFun            -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
@@ -1101,12 +1102,12 @@ instance B.Binary SizeFun
 -- | Data type refinements
 data DataDecl   = D
   { tycName   :: F.LocSymbol                           -- ^ Type  Constructor Name
-  , tycTyVars :: [Symbol]                            -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]                        -- ^ PVar  Parameters
-  , tycTyLabs :: [Symbol]                            -- ^ PLabel  Parameters
+  , tycTyVars :: [Symbol]                              -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]                          -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]                              -- ^ PLabel  Parameters
   , tycDCons  :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
   , tycSrcPos :: !F.SourcePos                          -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun                       -- ^ Measure that should decrease in recursive calls
+  , tycSFun   :: Maybe SizeFun                         -- ^ Measure that should decrease in recursive calls
   } deriving (Data, Typeable, Generic)
 
 instance B.Binary DataDecl

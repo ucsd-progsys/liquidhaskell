@@ -85,7 +85,7 @@ data Spec ty bndr  = Spec
   , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
   , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
-  , dvariance  :: ![(LocSymbol, [Variance])]
+  , dvariance  :: ![(LocSymbol, [Variance])]     -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap LocSymbol Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                  --   see tests/pos/NatClass.hs

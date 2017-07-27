@@ -27,7 +27,7 @@ import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import           Language.Fixpoint.Types                ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
+import qualified Language.Fixpoint.Types                as F -- ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
@@ -43,22 +43,22 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 
+-- import           Debug.Trace (trace)
 
-
-makeNumericInfo :: Maybe [ClsInst] -> TCEmb TyCon -> TCEmb TyCon
+makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeNumericInfo Nothing x   = x
 makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
 
-makeNumericInfoOne :: TCEmb TyCon -> ClsInst -> TCEmb TyCon
+makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendFTC) tc (ftc tc True True) m
+  = M.insertWith (flip F.mappendFTC) tc (ftc tc True True) m
   | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendFTC) tc (ftc tc True False) m
+  = M.insertWith (flip F.mappendFTC) tc (ftc tc True False) m
   | otherwise
   = m
   where
-    ftc c = symbolNumInfoFTyCon (dummyLoc $ tyConName c)
+    ftc c = F.symbolNumInfoFTyCon (dummyLoc $ tyConName c)
 
 instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys
@@ -69,23 +69,23 @@ instanceTyCon = go . is_tys
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-
 makeConTypes
-  :: (ModName,Ms.Spec ty bndr)
-  -> BareM ([(TyCon,TyConP)],[[(DataCon,Located DataConP)]])
-makeConTypes (name,spec) = inModule name $ makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
+  :: (ModName, Ms.Spec ty bndr)
+  -> BareM ([(TyCon,TyConP)],[[(DataCon, Located DataConP)]])
+makeConTypes (name, spec) = inModule name $ makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
 
 makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
-makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
+makeConTypes' dcs vdcs     = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
   where
-        group ds vs = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs)
+    _msg                   = F.showpp (tycName <$> dcs)
+    group ds vs            = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs)
 
-        merge (d:ds) (v:vs)
-          | tycName d == fst v = (Just d, Just v)  : merge ds vs
-          | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
-          | otherwise          = (Nothing, Just v) : merge (d:ds) vs
-        merge []     vs        = ((Nothing,) . Just) <$> vs
-        merge ds     []        = ((,Nothing) . Just) <$> ds
+    merge (d:ds) (v:vs)
+      | tycName d == fst v = (Just d, Just v)  : merge ds vs
+      | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
+      | otherwise          = (Nothing, Just v) : merge (d:ds) vs
+    merge []     vs        = ((Nothing,) . Just) <$> vs
+    merge ds     []        = ((,Nothing) . Just) <$> ds
 
 dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
@@ -105,7 +105,7 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
 
-checkDataDeclFields ::  (LocSymbol, [(Symbol, BareType)]) -> BareM (LocSymbol, [(Symbol, BareType)])
+checkDataDeclFields ::  (LocSymbol, [(F.Symbol, BareType)]) -> BareM (LocSymbol, [(F.Symbol, BareType)])
 checkDataDeclFields (lc, xts)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
   | otherwise     = return (lc, xts)
@@ -149,7 +149,7 @@ ofBDataDecl Nothing (Just (tc, is))
        return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing), [])
   where
     (tcov, tcontr) = (is, [])
-    srcpos = dummyPos "LH.DataType.Variance"
+    srcpos = F.dummyPos "LH.DataType.Variance"
 
 ofBDataDecl Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
@@ -185,9 +185,9 @@ ofBDataCon :: SourcePos
            -> TyCon
            -> [RTyVar]
            -> [PVar BSort]
-           -> [Symbol]
+           -> [F.Symbol]
            -> [PVar RSort]
-           -> (Located Symbol,[(Symbol,BareType)])
+           -> (LocSymbol,[(F.Symbol, BareType)])
            -> BareM (DataCon, DataConP)
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
@@ -200,11 +200,11 @@ ofBDataCon l l' tc αs ps ls πs (c, xts)
        rs       = [rVar α | RTV α <- αs]
 
 
-makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (TCEmb TyCon)
+makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
 
-makeTyConEmbeds' :: TCEmb (Located Symbol) -> BareM (TCEmb TyCon)
+makeTyConEmbeds' :: F.TCEmb LocSymbol -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
@@ -223,14 +223,14 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
     where
     ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
-                               (dropPreds (subst su t `strengthen` mt)))
+                               (dropPreds (F.subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
            , let vv = rTypeValueVar t
              -- the measure singleton refinement, eg `v = getBar foo`
-           , let mt = uReft (vv, PAtom Eq (EVar vv) (EApp (EVar x) (EVar z)))
+           , let mt = uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
            ]
 
-    su   = mkSubst $ [ (x, EApp (EVar x) (EVar z)) | x <- xs ]
+    su   = F.mkSubst $ [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- xs ]
     args = tyArgs dcp
     xs   = map fst args
     z    = "lq$recSel"
