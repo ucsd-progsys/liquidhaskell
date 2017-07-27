@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--short-names"  @-}
 
 module Elim where

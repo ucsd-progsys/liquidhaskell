@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Zipper (getUp, getDown) where
 
 import Data.Set

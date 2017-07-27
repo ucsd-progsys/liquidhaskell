@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-|
   Purely functional top-down splay sets.
 

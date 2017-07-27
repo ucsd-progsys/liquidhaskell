@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 
 {-# LANGUAGE QuasiQuotes #-}
 

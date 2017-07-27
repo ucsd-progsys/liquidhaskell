@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Zog () where
 
 import Language.Haskell.Liquid.Prelude

@@ -11,5 +11,5 @@ data Map k a  = Tip
   @-}
 
 trim :: Map k a
-trim = error "TODO"
+trim = undefined 
 

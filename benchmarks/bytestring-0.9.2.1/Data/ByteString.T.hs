@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-totality" @-}
 
 -- #prune
 

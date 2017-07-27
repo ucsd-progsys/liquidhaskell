@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality"    @-}
+
 module Term where
 
 

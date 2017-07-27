@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
 -- |

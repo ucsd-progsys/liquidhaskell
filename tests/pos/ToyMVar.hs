@@ -1,6 +1,7 @@
 {-# LANGUAGE MagicHash     #-}
 {-# LANGUAGE UnboxedTuples #-}
 
+{-@ LIQUID "--no-totality"       @-}
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--no-pattern-inline" @-}
 

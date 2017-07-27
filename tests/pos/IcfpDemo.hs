@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module IcfpDemo where
 
 import Prelude hiding (gcd, map, repeat, take)

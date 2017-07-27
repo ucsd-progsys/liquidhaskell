@@ -4,6 +4,7 @@ module ICFP15 where
 import Prelude hiding ((.), (++),  filter)
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--short-names" @-}
 
 \end{code}

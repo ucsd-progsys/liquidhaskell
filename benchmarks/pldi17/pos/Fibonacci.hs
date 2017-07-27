@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 
 module Fibonacci where
 import Proves

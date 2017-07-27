@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--no-termination"   @-}
 
 module Foo where
