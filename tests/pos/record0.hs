@@ -20,4 +20,4 @@ bk (BXYZ n xs) = liquidAssert (length xs == n) n
 
 {-@ clone :: x:a -> n:Int -> {v:[a]| (len v) = n} @-}
 clone :: a -> Int -> [a]
-clone = error "FOO"
+clone = unsafeError "FOO"
