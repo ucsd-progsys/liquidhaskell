@@ -100,13 +100,13 @@ deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMi
 lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
 lbalS k l (Node B y a b)              = let t = rbal k l (Node R y a b) in t 
 lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
-lbalS k l r                           = error "nein"
+lbalS k l r                           = unsafeError "nein"
 
 {-@ rbalS                             :: k:a -> l:RBT a -> r:ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
 rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
 rbalS k (Node B x a b) r              = let t = lbal k (Node R x a b) r in t 
 rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
-rbalS k l r                           = error "nein" 
+rbalS k l r                           = unsafeError "nein" 
 
 {-@ lbal                              :: k:a -> l:ARBT a -> RBT a -> RBT a @-}
 lbal k (Node R y (Node R x a b) c) r  = Node R y (Node B x a b) (Node B k c r)
@@ -126,7 +126,7 @@ rbal x l r                            = Node B x l r
 
 {-@ makeRed :: l:BlackRBT a -> ARBT a @-}
 makeRed (Node B x l r) = Node R x l r
-makeRed _              = error "nein" 
+makeRed _              = unsafeError "nein" 
 
 {-@ makeBlack :: ARBT a -> RBT a @-}
 makeBlack Leaf           = Leaf

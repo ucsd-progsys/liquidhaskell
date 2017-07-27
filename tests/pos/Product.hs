@@ -1,6 +1,3 @@
-{-@ LIQUID "--totality" @-}
-
-
 module Vectors where
 
 import Prelude hiding (sum, product, zipWith)
