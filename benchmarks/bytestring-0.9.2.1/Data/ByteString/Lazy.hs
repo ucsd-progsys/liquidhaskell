@@ -205,7 +205,7 @@ module Data.ByteString.Lazy (
 
   ) where
 
-import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude
 import Prelude hiding
     (reverse,head,tail,last,init,null,length,map,lines,foldl,foldr,unlines

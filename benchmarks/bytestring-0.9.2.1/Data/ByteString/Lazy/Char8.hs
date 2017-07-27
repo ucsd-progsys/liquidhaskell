@@ -188,6 +188,8 @@ module Data.ByteString.Lazy.Char8 (
 
   ) where
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
+
 -- Functions transparently exported
 import Data.ByteString.Lazy 
         (ByteString, fromChunks, toChunks

@@ -3,6 +3,8 @@ module ICFP15 where
 
 import Prelude hiding ((.), (++),  filter)
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
+
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--short-names" @-}
@@ -74,7 +76,7 @@ main i = app (check i) i
 {-@ check :: x:Int -> {y:Int | x <= y} -> () @-}
 check :: Int -> Int -> ()
 check x y | x < y     = ()
-          | otherwise = error "oups!"
+          | otherwise = unsafeError "oups!"
 \end{code}
 
 

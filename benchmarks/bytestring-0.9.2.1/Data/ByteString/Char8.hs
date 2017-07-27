@@ -1060,7 +1060,7 @@ readInteger as
   @-}
 {-@ decrease combine1 2 @-}
 combine1 :: Integer -> [Integer] -> Integer
-combine1 _ []  = error "impossible"
+combine1 _ []  = unsafeError "impossible"
 combine1 _ [n] = n
 combine1 b ns  = combine1 (b*b) $ combine2 b ns
 
