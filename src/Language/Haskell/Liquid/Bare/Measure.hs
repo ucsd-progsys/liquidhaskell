@@ -77,7 +77,9 @@ makeHaskellDataDecls :: F.TCEmb TyCon -> [TyCon] -> Ms.BareSpec -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls tce tcs spec = _fixme_HEREHEREHERE
 
+
 {-
+
   Use the below from the GHC API
 
     algTyConRhs     :: TyCon -> AlgTyConRhs
