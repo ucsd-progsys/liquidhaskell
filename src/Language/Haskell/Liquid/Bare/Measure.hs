@@ -73,10 +73,27 @@ import           Language.Haskell.Liquid.Bare.ToBare
 
 
 --------------------------------------------------------------------------------
-makeHaskellDataDecls :: F.TCEmb TyCon -> [TyCon] -> Ms.BareSpec -> [DataDecl]
+makeHaskellDataDecls :: F.TCEmb TyCon -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls tce tcs spec = _fixme_HEREHEREHERE
+makeHaskellDataDecls tce spec = map    (tyConDataDecl tce)
+                              . filter (not . hasDataDecl spec)
+                              . filter isAlgTyCon
 
+hasDataDecl :: Ms.BareSpec -> TyCon -> Bool
+hasDataDecl spec = \tc -> M.member (symbol tc) decls
+  where
+    decls        = M.fromList [ (symbol d, ()) | d <- Ms.dataDecls spec ]
+
+tyConDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl
+tyConDataDecl _tce tc = D
+  { tycName   = symbol <$> GM.locNamedThing tc
+  , tycTyVars = symbol <$> tyConTyVars      tc
+  , tycPVars  = []
+  , tycTyLabs = []
+  , tycDCons  = _fixme5 -- :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
+  , tycSrcPos = GM.getSourcePos tc
+  , tycSFun   = Nothing
+  }
 
 {-
 

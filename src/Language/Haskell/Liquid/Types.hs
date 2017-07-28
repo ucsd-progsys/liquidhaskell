@@ -1124,6 +1124,10 @@ instance Show DataDecl where
               (show $ tycName   dd)
               (show $ tycTyVars dd)
 
+-- | Name of the data-type
+instance F.Symbolic DataDecl where
+  symbol =  F.symbol . tycName
+
 -- | Refinement Type Aliases
 data RTAlias x a = RTA
   { rtName  :: Symbol             -- ^ name of the alias
@@ -1728,6 +1732,7 @@ instance F.PPrint ModName where
 
 instance Show ModuleName where
   show = moduleNameString
+
 
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m
