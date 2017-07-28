@@ -255,7 +255,7 @@ instance Hashable Loc where
 instance Hashable SrcSpan where
   hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
   hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
-  
+
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
@@ -336,7 +336,7 @@ locNamedThing x = F.Loc l lE x
     lE         = getSourcePosE x
 
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
-namedLocSymbol d = dropModuleNamesAndUnique . F.symbol <$> locNamedThing d
+namedLocSymbol d = {- dropModuleNamesAndUnique . -} F.symbol <$> locNamedThing d
 
 varLocInfo :: (Type -> a) -> Var -> F.Located a
 varLocInfo f x = f . varType <$> locNamedThing x

@@ -349,7 +349,7 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsQualifiers :: ![Qualifier]                 -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
-  , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions 
+  , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
@@ -438,6 +438,7 @@ data TyConP = TyConP
   , sizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
+-- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dc_loc     :: !F.SourcePos
   , freeTyVars :: ![RTyVar]               -- ^ Type parameters
