@@ -82,6 +82,10 @@ liquidAssumeB p x | p x = x
                   | otherwise = error "liquidAssumeB fails"
 
 
+{-# NOINLINE unsafeError #-}
+unsafeError :: String -> a
+unsafeError = error
+
 
 {-@ assume liquidError :: {v:String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}

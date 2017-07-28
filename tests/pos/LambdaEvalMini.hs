@@ -1,4 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality" @-}
 
 module LambdaEvalMini () where
 
@@ -51,7 +52,7 @@ evalVar x ((y, v):sto)
   = evalVar x sto
 
 evalVar x []
-  = error "unbound variable"
+  = unsafeError "unbound variable"
 
 -- A "value" is simply: {v: Expr | isValue v } *)
 
@@ -66,7 +67,7 @@ eval sto (App e1 e2)
         (sto1XXX, e1') = eval sto e1
     in case e1' of
          (Lam x e) -> eval ((x, v2): sto1XXX) e
-         _         -> error "non-function application"
+         _         -> unsafeError "non-function application"
 
 eval sto (Lam x e)
   = (sto, Lam x e)

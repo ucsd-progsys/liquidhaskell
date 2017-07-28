@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-totality" @-}
 
 module DropWhile where
 

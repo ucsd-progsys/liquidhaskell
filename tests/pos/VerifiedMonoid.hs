@@ -2,7 +2,6 @@ module Data.Monoid where
 
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--totality" @-}
 
 import Prelude hiding (Monoid (..))
 

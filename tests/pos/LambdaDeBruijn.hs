@@ -6,8 +6,6 @@ module LambdaDeBruijn where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ LIQUID "--totality" @-}
-
 type Var = Int
 {-@ type EVar = {v:Expr| isEVar v} @-}
 

@@ -1,4 +1,3 @@
-{-@ LIQUID "--totality" @-}
 {-# LANGUAGE EmptyDataDecls #-}
 
 module BoolMeasure where

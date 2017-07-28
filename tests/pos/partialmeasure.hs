@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Head where
 
 -- Note: `partialmeasureOld.hs` works fine 

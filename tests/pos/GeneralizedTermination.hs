@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module GenTerm () where
 
 import Prelude hiding (reverse)

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
@@ -204,6 +205,7 @@ module Data.ByteString.Lazy (
 
   ) where
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude
 import Prelude hiding
     (reverse,head,tail,last,init,null,length,map,lines,foldl,foldr,unlines
@@ -1648,7 +1650,7 @@ errorEmptyList fun = moduleError fun "empty ByteString"
 
 {-@ moduleError :: String -> String -> a @-}
 moduleError :: String -> String -> a
-moduleError fun msg = error ("Data.ByteString.Lazy." ++ fun ++ ':':' ':msg)
+moduleError fun msg = unsafeError ("Data.ByteString.Lazy." ++ fun ++ ':':' ':msg)
 
 
 -- reverse a list of non-empty chunks into a lazy ByteString

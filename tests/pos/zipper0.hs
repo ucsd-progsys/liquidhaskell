@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Zipper (getUp, getDown, getFocus) where
 
 import Prelude hiding (reverse)

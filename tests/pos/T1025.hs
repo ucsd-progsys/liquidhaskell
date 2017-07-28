@@ -1,6 +1,6 @@
 {-@ LIQUID "--exactdc"     @-}                                                            
 {-@ LIQUID "--higherorder" @-}                                                            
-{-@ LIQUID "--totality"    @-}                                                            
+
 module Bug where                                                                          
                                                                                           
 import Language.Haskell.Liquid.ProofCombinators                                           

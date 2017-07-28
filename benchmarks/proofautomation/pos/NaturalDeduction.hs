@@ -6,7 +6,6 @@
 module Examples where
 
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--totality" @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 

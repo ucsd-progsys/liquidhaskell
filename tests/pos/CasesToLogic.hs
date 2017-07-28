@@ -1,4 +1,3 @@
-{-@ LIQUID "--totality"          @-}
 {-@ LIQUID "--exact-data-cons"     @-}
 {-@ LIQUID "--higherorder"        @-}
 

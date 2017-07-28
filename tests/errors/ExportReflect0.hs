@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--exactdc"     @-}
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--totality"    @-}
 
 module Bug (foo, zogbert) where
 

@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--totality"       @-}
 {-@ LIQUID "--exactdc"        @-}
 
 module ReflectLib7 where

@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 
 module FunctionAbstraction where
 import Language.Haskell.Liquid.ProofCombinators

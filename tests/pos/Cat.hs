@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 {-# LANGUAGE GADTs #-}
 import Control.Category
 import Prelude hiding ((.), id)

@@ -61,7 +61,7 @@ data Config = Config {
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
-  , totality       :: Bool       -- ^ check totality in definitions
+  , nototality     :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
   , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
@@ -168,7 +168,7 @@ terminationCheck :: (HasConfig t) => t -> Bool
 terminationCheck = terminationCheck' . getConfig
 
 totalityCheck' :: Config -> Bool
-totalityCheck' cfg = totality cfg || totalHaskell cfg
+totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
 terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)

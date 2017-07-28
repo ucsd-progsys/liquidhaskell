@@ -1,6 +1,8 @@
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality" @-}
 
 module LambdaEvalMini () where
+import Language.Haskell.Liquid.Prelude 
 
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
@@ -46,7 +48,7 @@ data Expr [elen]
 
 {-@ evalVar :: Bndr -> Store -> Value @-}
 evalVar :: Bndr -> LL (Pair Bndr Expr) -> Expr
-evalVar = error "HIDEME"
+evalVar = unsafeError "HIDEME"
 
 {-@ eval :: Store -> e:Expr -> (Pair Store Value) @-}
 {-@ decrease eval 2 @-}
@@ -58,7 +60,7 @@ eval sto (App e1 e2)
         (P sto1 e1') = eval sto e1
     in case e1' of
          (Lam x e) -> eval (Cons (P x v2) sto1) e
-         _         -> error "non-function application"
+         _         -> unsafeError "non-function application"
 
 eval sto (Lam x e)
   = P sto (Lam x e)
