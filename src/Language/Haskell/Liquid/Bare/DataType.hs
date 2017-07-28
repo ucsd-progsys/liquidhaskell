@@ -89,7 +89,7 @@ makeDataCtor tce (dc, fts) = F.DCtor
 makeDataField ::  F.TCEmb TyCon -> (F.Symbol, BareType) -> F.DataField
 makeDataField tce (x, t) = F.DField
   { F.dfName = _fixme4 x
-  , F.dfSort = rTypeSort tce t
+  , F.dfSort = rTypeSort tce t -- HEREHERE, maybe have 'makeConTypes' return the Sorts?
   }
 
 --------------------------------------------------------------------------------
