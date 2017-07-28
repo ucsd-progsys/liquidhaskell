@@ -1,19 +1,25 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
 
-module Fixme where
+module Basics where
 
-import Prelude hiding (map, concatMap)
+{-@ data Peano [toNat] = O | S Peano @-}
+data Peano = O | S Peano
 
-{-@ reflect bob @-}
-bob :: L a -> Int 
-bob Emp     = 0
-bob (Goo x) = 1 
+{-@ measure toNat @-}
+{-@ toNat :: Peano -> Nat @-}
+toNat :: Peano -> Int
+toNat O     = 0
+toNat (S n) = 1 + toNat n
 
-{-@ goo :: x:{L Int | x = Emp} -> { bob x = bob Emp} @-}
-goo :: L Int -> () 
-goo x = ()
+{-@ reflect evn @-}
+evn :: Peano -> Bool
+evn O         = True
+evn (S O)     = False
+evn (S (S n)) = evn n
 
-data L a = Emp | Goo a 
-{-@ data L a = Emp | Goo { lHd :: a } @-}
+{-@ reflect plus @-}
+plus :: Peano -> Peano -> Peano
+plus O     n = n
+plus (S m) n = S (plus m n)
 
