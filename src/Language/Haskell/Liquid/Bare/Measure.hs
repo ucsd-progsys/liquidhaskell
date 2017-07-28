@@ -57,7 +57,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.Misc
 import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (findVarDef, varLocInfo, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
-import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
+import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, bareOfType, uRType, typeSort)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
@@ -71,44 +71,39 @@ import           Language.Haskell.Liquid.Bare.OfType
 import           Language.Haskell.Liquid.Bare.Resolve
 import           Language.Haskell.Liquid.Bare.ToBare
 
-
 --------------------------------------------------------------------------------
-makeHaskellDataDecls :: F.TCEmb TyCon -> Ms.BareSpec -> [TyCon] -> [DataDecl]
+makeHaskellDataDecls :: Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls tce spec = map    (tyConDataDecl tce)
-                              . filter (not . hasDataDecl spec)
-                              . filter isAlgTyCon
+makeHaskellDataDecls spec
+  = map    tyConDataDecl
+  . filter (not . hasDataDecl spec)
+  . filter isAlgTyCon
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> Bool
 hasDataDecl spec = \tc -> M.member (symbol tc) decls
   where
     decls        = M.fromList [ (symbol d, ()) | d <- Ms.dataDecls spec ]
 
-tyConDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl
-tyConDataDecl _tce tc = D
+{-@ tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> DataDecl @-}
+tyConDataDecl :: TyCon -> DataDecl
+tyConDataDecl tc = D
   { tycName   = symbol <$> GM.locNamedThing tc
   , tycTyVars = symbol <$> tyConTyVars      tc
   , tycPVars  = []
   , tycTyLabs = []
-  , tycDCons  = _fixme5 -- :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
+  , tycDCons  = decls tc
   , tycSrcPos = GM.getSourcePos tc
   , tycSFun   = Nothing
   }
+  where decls = map dataConDecl . tyConDataCons -- visibleDataCons .  algTyConRhs
 
-{-
-
-  Use the below from the GHC API
-
-    algTyConRhs     :: TyCon -> AlgTyConRhs
-    isAlgTyConRhs   :: TyCon -> Bool
-    visibleDataCons :: AlgTyConRhs -> [DataCon]
-
-  To convert a haskell datatype declaration (TyCon) into a LH.DataDecl.
-
-  Of course, only do so for those 'TyCon' for which we
-  *do not already have* a 'DataDecl' inside 'spec'.
-
--}
+dataConDecl :: DataCon -> (F.LocSymbol, [(Symbol, BareType)])
+dataConDecl d  = (dx, xts)
+  where
+    xts        = [(makeDataConSelector d i, bareOfType t) | (i, t) <- its ]
+    dx         = symbol <$> GM.locNamedThing d
+    its        = zip [1..] ts
+    (_,_,ts,_) = dataConSig d
 
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
