@@ -62,6 +62,7 @@ instantiate cfg fi
              -- return (i, elaborate "PLE-instantiate" env p)
     -- return (strengthenHyp fi ips)
 
+instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = do
   ctx <- SMT.makeContextWithSEnv cfg file env
   -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
