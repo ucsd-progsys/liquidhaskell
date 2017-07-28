@@ -2,8 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 
-module Language.Haskell.Liquid.Bare.DataType (
-    makeConTypes
+module Language.Haskell.Liquid.Bare.DataType
+  ( makeADTs
+  , makeConTypes
   , makeTyConEmbeds
   , makeRecordSelectorSigs
   , dataConSpec
@@ -30,7 +31,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Language.Fixpoint.Types                as F -- ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import           Language.Haskell.Liquid.Types.RefType  (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
+import           Language.Haskell.Liquid.Types.RefType  as RT -- (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
 import           Language.Fixpoint.Misc                 (groupList, mapSnd)
@@ -42,6 +43,8 @@ import qualified Language.Haskell.Liquid.Measure        as Ms
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
+
+-- import           Debug.Trace (trace)
 
 makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeNumericInfo Nothing x   = x
@@ -63,6 +66,31 @@ instanceTyCon = go . is_tys
   where
     go [TyConApp c _] = Just c
     go _              = Nothing
+
+--------------------------------------------------------------------------------
+-- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
+--------------------------------------------------------------------------------
+makeADTs :: F.TCEmb TyCon -> [(ModName, Ms.Spec ty bndr)] -> [F.DataDecl]
+makeADTs tce specs = [ makeDataDecl tce d | (_, sp) <- specs, d <- Ms.dataDecls sp ]
+
+makeDataDecl :: F.TCEmb TyCon -> DataDecl -> F.DataDecl
+makeDataDecl tce dd = F.DDecl
+  { F.ddTyCon = F.symbolFTycon    $ tycName   dd
+  , F.ddVars  = length            $ tycTyVars dd
+  , F.ddCtors = makeDataCtor tce <$> tycDCons dd
+  }
+
+makeDataCtor :: F.TCEmb TyCon -> (F.LocSymbol, [(F.Symbol, BareType)]) -> F.DataCtor
+makeDataCtor tce (dc, fts) = F.DCtor
+  { F.dcName   = dc
+  , F.dcFields = makeDataField tce <$> fts
+  }
+
+makeDataField ::  F.TCEmb TyCon -> (F.Symbol, BareType) -> F.DataField
+makeDataField tce (x, t) = F.DField
+  { F.dfName = _fixme4 x
+  , F.dfSort = rTypeSort tce t
+  }
 
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
@@ -219,7 +247,7 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return $ zip fs ts
     where
-    ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
+    ts = [ Loc l l' (mkArrow (makeRTVar <$> RT.freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
                                (dropPreds (F.subst su t `strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct

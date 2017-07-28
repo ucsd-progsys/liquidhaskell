@@ -328,7 +328,7 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftab
 
 instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
   isTauto     = isTrivial
-  top t       = mapReft top t 
+  top t       = mapReft top t
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
   params      = panic Nothing "params on RType"

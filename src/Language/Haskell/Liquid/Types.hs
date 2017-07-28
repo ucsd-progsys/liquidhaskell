@@ -349,6 +349,7 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsQualifiers :: ![Qualifier]                 -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
+  , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions 
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
@@ -358,15 +359,15 @@ data GhcSpec = SP {
   , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
   , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
   , gsConfig     :: !Config                      -- ^ Configuration Options
-  , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
-  , gsMeasures  :: [Measure SpecType DataCon]
-  , gsTyconEnv  :: M.HashMap TyCon RTyCon
-  , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from reflected functions
-  , gsReflects  :: [Var]                          -- ^ Binders for reflected functions
-  , gsLogicMap  :: LogicMap
-  , gsProofType :: Maybe Type
-  , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
+  , gsExports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , gsMeasures   :: [Measure SpecType DataCon]
+  , gsTyconEnv   :: M.HashMap TyCon RTyCon
+  , gsDicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , gsAxioms     :: [AxiomEq]                      -- ^ Axioms from reflected functions
+  , gsReflects   :: [Var]                          -- ^ Binders for reflected functions
+  , gsLogicMap   :: LogicMap
+  , gsProofType  :: Maybe Type
+  , gsRTAliases  :: !RTEnv                         -- ^ Refinement type aliases
   }
 
 instance HasConfig GhcSpec where

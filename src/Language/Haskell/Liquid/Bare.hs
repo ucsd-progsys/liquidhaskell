@@ -51,6 +51,7 @@ import           System.Directory                           (doesFileExist)
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error)
+import qualified Language.Fixpoint.Types                    as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (nubHashOn)
@@ -187,8 +188,6 @@ makeLiftedSpec0 cfg embs cbs tcs mySpec = do
                    , Ms.dataDecls = makeHaskellDataDecls cfg mySpec tcs
                    }
 
-
-
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq]
   -> BareM ()
@@ -324,7 +323,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
-  makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
+  makeGhcSpec0 cfg defVars exports name (makeADTs embs specs) (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su syms
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
@@ -429,6 +428,7 @@ emptySpec cfg = SP
   , gsFreeSyms   = mempty
   , gsTcEmbeds   = mempty
   , gsQualifiers = mempty
+  , gsADTs       = mempty
   , gsTgtVars    = mempty
   , gsDecr       = mempty
   , gsTexprs     = mempty
@@ -454,13 +454,16 @@ makeGhcSpec0 :: Config
              -> [Var]
              -> NameSet
              -> ModName
+             -> [F.DataDecl]
              -> GhcSpec
              -> BareM GhcSpec
-makeGhcSpec0 cfg defVars exports name sp
+makeGhcSpec0 cfg defVars exports name adts sp
   = do targetVars <- makeTargetVars name defVars $ checks cfg
        return      $ sp { gsConfig  = cfg
                         , gsExports = exports
-                        , gsTgtVars = targetVars }
+                        , gsTgtVars = targetVars
+                        , gsADTs    = adts
+                        }
 
 makeGhcSpec1 :: [(Symbol, Var)]
              -> [Var]
@@ -620,7 +623,8 @@ makeGhcSpecCHOP1
            , [(DataCon,DataConP)]
            , [Measure SpecType DataCon]
            , [(Var, Located SpecType)]
-           , M.HashMap TyCon RTyCon     )
+           , M.HashMap TyCon RTyCon
+           )
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
   let tycons       = tcs ++ wiredTyCons

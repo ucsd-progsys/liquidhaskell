@@ -261,6 +261,7 @@ initCGI cfg info = CGInfo {
   , kvPacks    = mempty
   , cgLits     = infoLits gsMeas   (const True) info
   , cgConsts   = infoLits gsLits notFn info
+  , cgADTs     = gsADTs spc
   , termExprs  = M.fromList $ gsTexprs spc
   , specDecr   = gsDecr spc
   , specLVars  = gsLvars spc
