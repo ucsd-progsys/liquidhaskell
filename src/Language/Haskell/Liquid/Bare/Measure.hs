@@ -72,12 +72,13 @@ import           Language.Haskell.Liquid.Bare.Resolve
 import           Language.Haskell.Liquid.Bare.ToBare
 
 --------------------------------------------------------------------------------
-makeHaskellDataDecls :: Ms.BareSpec -> [TyCon] -> [DataDecl]
+makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls spec
-  = map    tyConDataDecl
-  . filter (not . hasDataDecl spec)
-  . filter isAlgTyCon
+makeHaskellDataDecls cfg spec
+  | exactDC cfg = map    tyConDataDecl
+                . filter (not . hasDataDecl spec)
+                . filter isAlgTyCon
+  | otherwise   = const []
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> Bool
 hasDataDecl spec = \tc -> M.member (symbol tc) decls
@@ -95,7 +96,7 @@ tyConDataDecl tc = D
   , tycSrcPos = GM.getSourcePos tc
   , tycSFun   = Nothing
   }
-  where decls = map dataConDecl . tyConDataCons -- visibleDataCons .  algTyConRhs
+  where decls = map dataConDecl . tyConDataCons
 
 dataConDecl :: DataCon -> (F.LocSymbol, [(Symbol, BareType)])
 dataConDecl d  = (dx, xts)

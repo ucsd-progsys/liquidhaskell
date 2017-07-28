@@ -176,15 +176,15 @@ ghcSpecEnv sp = fromListSEnv binds
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
 --------------------------------------------------------------------------------
 
-makeLiftedSpec0 :: TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
+makeLiftedSpec0 :: Config -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
                 -> BareM Ms.BareSpec
-makeLiftedSpec0 embs cbs tcs mySpec = do
+makeLiftedSpec0 cfg embs cbs tcs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
                    , Ms.measures  = ms
                    , Ms.reflects  = Ms.reflects mySpec
-                   , Ms.dataDecls = makeHaskellDataDecls mySpec tcs
+                   , Ms.dataDecls = makeHaskellDataDecls cfg mySpec tcs
                    }
 
 
@@ -298,7 +298,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  lSpec0         <- makeLiftedSpec0 embs cbs tcs mySpec
+  lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0

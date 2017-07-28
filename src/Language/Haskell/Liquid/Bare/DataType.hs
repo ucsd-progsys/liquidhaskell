@@ -43,8 +43,6 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 
--- import           Debug.Trace (trace)
-
 makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeNumericInfo Nothing x   = x
 makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
@@ -71,7 +69,7 @@ instanceTyCon = go . is_tys
 --------------------------------------------------------------------------------
 makeConTypes
   :: (ModName, Ms.Spec ty bndr)
-  -> BareM ([(TyCon,TyConP)],[[(DataCon, Located DataConP)]])
+  -> BareM ([(TyCon, TyConP)],[[(DataCon, Located DataConP)]])
 makeConTypes (name, spec) = inModule name $ makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
 
 makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
