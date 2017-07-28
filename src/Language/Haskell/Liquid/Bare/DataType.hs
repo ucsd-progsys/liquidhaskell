@@ -30,7 +30,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Language.Fixpoint.Types                as F -- ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
-import           Language.Haskell.Liquid.Types.RefType  as RT -- (mkDataConIdsTy, ofType, rApp, rVar, strengthen, uPVar, uReft, tyConName)
+import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
 import           Language.Fixpoint.Misc                 (mapFst, groupList, mapSnd)
@@ -58,7 +58,7 @@ makeNumericInfoOne m is
   | otherwise
   = m
   where
-    ftc c = F.symbolNumInfoFTyCon (dummyLoc $ tyConName c)
+    ftc c = F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c)
 
 instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys
@@ -89,7 +89,7 @@ makeDataCtor tce (d, dp) = F.DCtor
 makeDataField ::  F.TCEmb TyCon -> (F.LocSymbol, SpecType) -> F.DataField
 makeDataField tce (x, t) = F.DField
   { F.dfName = x
-  , F.dfSort = rTypeSort tce t -- HEREHERE, maybe have 'makeConTypes' return the Sorts?
+  , F.dfSort = RT.rTypeSort tce t
   }
 
 --------------------------------------------------------------------------------
@@ -124,7 +124,7 @@ dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
+    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
@@ -156,7 +156,7 @@ ofBDataDecl tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
        cts           <- mapM checkDataDeclFields cts0
        cts'          <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
-       let initmap    = zip (uPVar <$> πs) [0..]
+       let initmap    = zip (RT.uPVar <$> πs) [0..]
        let varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
@@ -182,6 +182,7 @@ ofBDataDecl _ Nothing (Just (tc, is))
 ofBDataDecl _ Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
+varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance
 varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
                                 []       -> Invariant
                                 [(_, b)] -> if b then Covariant else Contravariant
@@ -210,7 +211,7 @@ getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
 addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
-  where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
+  where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
 -- TODO:EFFECTS:ofBDataCon
 ofBDataCon :: SourcePos
@@ -225,12 +226,12 @@ ofBDataCon :: SourcePos
 ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
-       let cs   = map ofType (dataConStupidTheta c')
-       let t0   = rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+       let cs   = map RT.ofType (dataConStupidTheta c')
+       let t0   = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0 l')
     where
        (xs, ts) = unzip xts
-       rs       = [rVar α | RTV α <- αs]
+       rs       = [RT.rVar α | RTV α <- αs]
 
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
@@ -254,13 +255,14 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
         return $ zip fs ts
     where
-    ts = [ Loc l l' (mkArrow (makeRTVar <$> RT.freeTyVars dcp) [] (freeLabels dcp)
+    ts :: [ LocSpecType ]
+    ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
                                [(z, res, mempty)]
-                               (dropPreds (F.subst su t `strengthen` mt)))
+                               (dropPreds (F.subst su t `RT.strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
            , let vv = rTypeValueVar t
              -- the measure singleton refinement, eg `v = getBar foo`
-           , let mt = uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
+           , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
            ]
 
     su   = F.mkSubst $ [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- xs ]

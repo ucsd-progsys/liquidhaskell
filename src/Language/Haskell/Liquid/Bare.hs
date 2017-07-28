@@ -305,7 +305,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   let expSyms     = S.toList (exportedSymbols mySpec)
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
-  (tycons, datacons, dcSs, recSs, tyi) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
+  (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
 
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
 
@@ -323,7 +323,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
-  makeGhcSpec0 cfg defVars exports name (makeADTs embs specs) (emptySpec cfg)
+  makeGhcSpec0 cfg defVars exports name adts (emptySpec cfg)
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su syms
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
@@ -624,15 +624,18 @@ makeGhcSpecCHOP1
            , [Measure SpecType DataCon]
            , [(Var, Located SpecType)]
            , M.HashMap TyCon RTyCon
+           , [F.DataDecl]
            )
 makeGhcSpecCHOP1 cfg specs embs syms = do
-  (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
+  (tcDds, dcs)    <- mconcat <$> mapM (makeConTypes embs) specs
+  let tcs          = [(x, y) | (x, y,_)       <- tcDds]
+  let adts         = [ d     | (_, _, Just d) <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons
-  return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi)
+  return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 
 makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]
