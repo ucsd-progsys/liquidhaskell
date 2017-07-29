@@ -77,13 +77,19 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 makeHaskellDataDecls cfg spec
   | exactDC cfg = map    tyConDataDecl
                 . filter (not . hasDataDecl spec)
-                . filter isAlgTyCon
+                . filter isVanillaAlgTyCon
   | otherwise   = const []
 
+-- isLiftableTycon :: Ms.BareSpec -> TyCon -> Bool
+-- isLiftableTycon spec tc
+  -- =  (not (hasDataDecl spec tc))
+  -- && (F.tracepp ("ISALGTYCON: " ++ F.showpp (symbol tc)) $ isVanillaAlgTyCon tc)
+
 hasDataDecl :: Ms.BareSpec -> TyCon -> Bool
-hasDataDecl spec = \tc -> M.member (symbol tc) decls
+hasDataDecl spec = \tc -> {- F.tracepp ("HAS-DATA-DECL: " ++ F.showpp (tcSym tc)) $ -} M.member (tcSym tc) decls
   where
-    decls        = M.fromList [ (symbol d, ()) | d <- Ms.dataDecls spec ]
+    tcSym        = GM.dropModuleNamesAndUnique . symbol
+    decls        = {- F.tracepp "KNOWN-DATA-DECLS" $ -} M.fromList [ (symbol d, ()) | d <- Ms.dataDecls spec ]
 
 {-@ tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> DataDecl @-}
 tyConDataDecl :: TyCon -> DataDecl

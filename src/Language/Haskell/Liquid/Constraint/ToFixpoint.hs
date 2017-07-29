@@ -81,14 +81,14 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
+    adts             = cgADTs   cgi
     qs               = qualifiers info (fEnv cgi)
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
     es               = makeAxioms info
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
-    adts             = F.tracepp ("TYCONINFO " ++ msg cgi) mempty
-    msg              = show . map F.symbol . M.keys . tyConInfo
+    -- msg              = show . map F.symbol . M.keys . tyConInfo
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
