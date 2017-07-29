@@ -57,7 +57,8 @@ makeDataConChecker d
   | consDataCon == d
   = F.symbol "notIsNull"
   | otherwise
-  = dcMeasure "is" d Nothing
+  = F.testSymbol (F.symbol d)
+  -- = _dcMeasure "is" d Nothing
 
 --------------------------------------------------------------------------------
 -- | 'makeDataConSelector d' creates the selector `select$d$i`

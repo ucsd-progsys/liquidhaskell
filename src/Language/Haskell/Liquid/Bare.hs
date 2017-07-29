@@ -331,7 +331,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
     -- The lifted-spec is saved in the next step
     >>= makeGhcAxioms file name embs cbs su specs lSpec0
     >>= makeLogicMap
-    >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
+    >>= return . makeExactDataCons name cfg (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
@@ -347,13 +347,13 @@ addRTEnv spec = do
   rt <- rtEnv <$> get
   return $ spec { gsRTAliases = rt }
 
-makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
-makeExactDataCons _n flag vs spec
-  | flag      = return $ spec { gsTySigs = gsTySigs spec ++ xts}
-  | otherwise = return spec
+makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> GhcSpec
+makeExactDataCons _n cfg vs spec
+  | exactDC cfg = spec { gsTySigs = gsTySigs spec ++ xts}
+  | otherwise   = spec
   where
-    xts       = makeDataConCtor <$> filter f vs
-    f v       = GM.isDataConId v
+    xts         = makeDataConCtor <$> filter f vs
+    f v         = GM.isDataConId v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
