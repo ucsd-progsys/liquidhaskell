@@ -236,7 +236,7 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
     dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
 
 --------------------------------------------------------------------------------
--- | symbolVarMap resolves each Symbol occuring in the spec to its Var;---------
+-- | symbolVarMap resolves each Symbol occuring in the spec to its Var ---------
 --------------------------------------------------------------------------------
 
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
@@ -244,8 +244,10 @@ symbolVarMap f vs xs' = do
   let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
   let xs    = xs0
   syms1    <- M.fromList <$> makeSymbols f vs (val <$> xs)
-  syms2    <- lookupIds True [ (lx, ()) | lx <- xs, not (M.member (val lx) syms1) ]
-  return $ (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2]) -- ++ syms3)
+  syms2    <- lookupIds True [ (lx, ()) | lx@(Loc _ _ x) <- xs
+                                        , not (M.member x syms1)
+                                        , not (isTestSymbol x)    ]
+  return $ (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2])
 
 -- `liftedVarMap` is a special case of `symbolVarMap` that checks that all
 -- lifted binders are in fact exported by the given module. We cannot use
@@ -331,7 +333,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
     -- The lifted-spec is saved in the next step
     >>= makeGhcAxioms file name embs cbs su specs lSpec0
     >>= makeLogicMap
-    >>= return . makeExactDataCons name cfg (snd <$> syms)
+    >>= makeExactDataCons name cfg (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
@@ -347,10 +349,10 @@ addRTEnv spec = do
   rt <- rtEnv <$> get
   return $ spec { gsRTAliases = rt }
 
-makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> GhcSpec
+makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> BareM GhcSpec
 makeExactDataCons _n cfg vs spec
-  | exactDC cfg = spec { gsTySigs = gsTySigs spec ++ xts}
-  | otherwise   = spec
+  | exactDC cfg = return $ spec { gsTySigs = gsTySigs spec ++ xts}
+  | otherwise   = return   spec
   where
     xts         = makeDataConCtor <$> filter f vs
     f v         = GM.isDataConId v
@@ -627,7 +629,7 @@ makeGhcSpecCHOP1
            , [F.DataDecl]
            )
 makeGhcSpecCHOP1 cfg specs embs syms = do
-  (tcDds, dcs)    <- mconcat <$> mapM (makeConTypes embs) specs
+  (tcDds, dcs)    <- mconcat <$> mapM (makeConTypes cfg embs) specs
   let tcs          = [(x, y) | (x, y,_)       <- tcDds]
   let adts         = [ d     | (_, _, Just d) <- tcDds]
   let tycons       = tcs ++ wiredTyCons

@@ -69,47 +69,55 @@ instanceTyCon = go . is_tys
 --------------------------------------------------------------------------------
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
 --------------------------------------------------------------------------------
--- makeADTs :: F.TCEmb TyCon -> [(ModName, Ms.Spec ty bndr)] -> [F.DataDecl]
--- makeADTs tce specs = [ makeDataDecl tce d | (_, sp) <- specs, d <- Ms.dataDecls sp ]
+makeDataDecl :: Config -> F.TCEmb TyCon -> DataDecl -> [(DataCon, DataConP)]
+             -> Maybe F.DataDecl
+makeDataDecl cfg tce dd ctors
+  | exactDC cfg = F.tracepp "makeDataDecl" $ Just $ F.DDecl
+    { F.ddTyCon = F.symbolFTycon    $ tycName   dd
+    , F.ddVars  = length            $ tycTyVars dd
+    , F.ddCtors = makeDataCtor tce <$> ctors
+    }
+  | otherwise   = Nothing
 
-makeDataDecl :: F.TCEmb TyCon -> DataDecl -> [(DataCon, DataConP)] -> F.DataDecl
-makeDataDecl tce dd ctors = F.DDecl
-  { F.ddTyCon = F.symbolFTycon    $ tycName   dd
-  , F.ddVars  = length            $ tycTyVars dd
-  , F.ddCtors = makeDataCtor tce <$> ctors
-  }
+-- HEREHEREHERE -- makeDataConCtor
+-- we need to POST-PROCESS the 'Sort' so that:
+-- 1. The poly tyvars are replaced with debruijn
+--    versions e.g. 'List a_a1m' becomes 'List @(1)'
+-- 2. The "self" type is replaced with just itself
+--    (i.e. without any type applications.)
 
 makeDataCtor :: F.TCEmb TyCon -> (DataCon, DataConP) -> F.DataCtor
 makeDataCtor tce (d, dp) = F.DCtor
   { F.dcName   = GM.namedLocSymbol d
-  , F.dcFields = makeDataField tce . mapFst loc <$> tyArgs dp
+  , F.dcFields = makeDataField tce . mapFst loc <$> reverse (tyArgs dp)
   }
   where loc    = Loc (dc_loc dp) (dc_locE dp)
 
 makeDataField ::  F.TCEmb TyCon -> (F.LocSymbol, SpecType) -> F.DataField
 makeDataField tce (x, t) = F.DField
   { F.dfName = x
-  , F.dfSort = RT.rTypeSort tce t
+  , F.dfSort = F.tracepp ("MAKEDATAFIELD: " ++ showpp t) $ RT.rTypeSort tce t
   }
 
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
 makeConTypes
-  :: F.TCEmb TyCon
+  :: Config
+  -> F.TCEmb TyCon
   -> (ModName, Ms.Spec ty bndr)
   -> BareM ( [(TyCon, TyConP, Maybe F.DataDecl)]
            , [[(DataCon, Located DataConP)]]   )
-makeConTypes tce (name, spec) = inModule name $
-  makeConTypes' tce (Ms.dataDecls spec) (Ms.dvariance spec)
+makeConTypes cfg tce (name, spec) = inModule name $
+  makeConTypes' cfg tce (Ms.dataDecls spec) (Ms.dvariance spec)
 
-makeConTypes' :: F.TCEmb TyCon -> [DataDecl] -> [(LocSymbol, [Variance])]
+makeConTypes' :: Config -> F.TCEmb TyCon -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(TyCon, TyConP, Maybe F.DataDecl)]
                        , [[(DataCon, Located DataConP)]])
-makeConTypes' tce dcs vdcs = unzip <$> mapM (uncurry (ofBDataDecl tce)) (group dcs vdcs)
+makeConTypes' cfg tce dcs vdcs = unzip <$> mapM (uncurry (ofBDataDecl cfg tce)) (group dcs vdcs)
   where
-    _msg                   = F.showpp (tycName <$> dcs)
-    group ds vs            = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs)
+    _msg                     = F.showpp (tycName <$> dcs)
+    group ds vs              = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs)
 
     merge (d:ds) (v:vs)
       | tycName d == fst v = (Just d, Just v)  : merge ds vs
@@ -146,11 +154,12 @@ checkDataDeclFields (lc, xts)
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
 -- FIXME: ES: why the maybes?
-ofBDataDecl :: F.TCEmb TyCon
+ofBDataDecl :: Config
+            -> F.TCEmb TyCon
             -> Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((TyCon, TyConP, Maybe F.DataDecl), [(DataCon, Located DataConP)])
-ofBDataDecl tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
+ofBDataDecl cfg tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        cts           <- mapM checkDataDeclFields cts0
@@ -161,8 +170,8 @@ ofBDataDecl tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
-       let adt        = makeDataDecl tce dd cts'
-       return ((tc', tcp, Just adt), (mapSnd (Loc lc lc') <$> cts'))
+       let adt        = makeDataDecl cfg tce dd cts'
+       return ((tc', tcp, adt), (mapSnd (Loc lc lc') <$> cts'))
     where
        αs          = RTV . GM.symbolTyVar <$> as
        n           = length αs
@@ -172,14 +181,14 @@ ofBDataDecl tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
                       { Nothing -> ([], defPs);
                         Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
 
-ofBDataDecl _ Nothing (Just (tc, is))
+ofBDataDecl _ _ Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon "ofBDataDecl" tc
        return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing, Nothing), [])
   where
     (tcov, tcontr) = (is, [])
     srcpos = F.dummyPos "LH.DataType.Variance"
 
-ofBDataDecl _ Nothing Nothing
+ofBDataDecl _ _ Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance

@@ -204,13 +204,12 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
     scheck   = foldr RAllT  (RFun dummySymbol r bareBool        mempty) (makeRTVar <$> vs)
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
-
 makeMeasureSelector :: (Enum a, Num a, Show a, Show a1)
                     => LocSymbol -> ty -> ctor -> a -> a1 -> Measure ty ctor
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-  where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
-        mkx j = symbol ("xx" ++ show j)
-
+  where
+    eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
+    mkx j = symbol ("xx" ++ show j)
 
 -- tyConDataCons
 makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon

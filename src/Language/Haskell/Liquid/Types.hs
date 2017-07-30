@@ -1898,7 +1898,7 @@ data RClass ty = RClass
   { rcName    :: BTyCon
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
-  , rcMethods :: [(F.LocSymbol,ty)]
+  , rcMethods :: [(F.LocSymbol, ty)]
   } deriving (Show, Functor, Data, Typeable, Generic)
 
 
