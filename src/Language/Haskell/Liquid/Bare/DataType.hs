@@ -70,15 +70,18 @@ instanceTyCon = go . is_tys
 --------------------------------------------------------------------------------
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
 --------------------------------------------------------------------------------
-makeDataDecl :: Config -> F.TCEmb TyCon -> DataDecl -> [(DataCon, DataConP)]
+makeDataDecl :: Config -> F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
              -> Maybe F.DataDecl
-makeDataDecl cfg tce dd ctors
+makeDataDecl cfg tce tc dd ctors
   | exactDC cfg = F.tracepp "makeDataDecl" $ Just $ F.DDecl
-    { F.ddTyCon = F.symbolFTycon    $ tycName   dd
+    { F.ddTyCon = F.symbolFTycon $ F.atLoc (tycName dd) (F.symbol tc) 
+      -- F.symbolFTycon    $ GM.namedLocSymbol tc
+      --   $ F.tracepp ("TYCNAME:" ++ show (F.symbol tc)) -- $ tycName   dd
     , F.ddVars  = length            $ tycTyVars dd
     , F.ddCtors = makeDataCtor tce <$> ctors
     }
   | otherwise   = Nothing
+  where
 
 -- HEREHEREHERE -- makeDataConCtor
 -- we need to POST-PROCESS the 'Sort' so that:
@@ -178,7 +181,7 @@ ofBDataDecl cfg tce (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
-       let adt        = makeDataDecl cfg tce dd cts'
+       let adt        = makeDataDecl cfg tce tc' dd cts'
        return ((tc', tcp, adt), (mapSnd (Loc lc lc') <$> cts'))
     where
        αs          = RTV . GM.symbolTyVar <$> as
