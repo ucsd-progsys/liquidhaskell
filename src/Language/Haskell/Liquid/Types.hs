@@ -601,7 +601,6 @@ rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
-
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
 

@@ -1,3 +1,5 @@
+{-@ LIQUID "--exact-data-cons" @-}
+
 module Rec0 () where
 
 import Language.Haskell.Liquid.Prelude
@@ -12,7 +14,7 @@ data LL a = BXYZ { size  :: Int
                  }
 
 {-@ mk :: a -> Int -> LL a @-}
-mk x n | n > 0     = BXYZ n (clone x n) 
+mk x n | n > 0     = BXYZ n (clone x n)
        | otherwise = BXYZ 1 [x]
 
 {-@ bk :: LL a -> {v: Int | v > 0} @-}

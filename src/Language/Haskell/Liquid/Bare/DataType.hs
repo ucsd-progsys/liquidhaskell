@@ -66,6 +66,7 @@ instanceTyCon = go . is_tys
     go [TyConApp c _] = Just c
     go _              = Nothing
 
+
 --------------------------------------------------------------------------------
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
 --------------------------------------------------------------------------------
@@ -89,14 +90,21 @@ makeDataDecl cfg tce dd ctors
 makeDataCtor :: F.TCEmb TyCon -> (DataCon, DataConP) -> F.DataCtor
 makeDataCtor tce (d, dp) = F.DCtor
   { F.dcName   = GM.namedLocSymbol d
-  , F.dcFields = makeDataField tce . mapFst loc <$> reverse (tyArgs dp)
+  , F.dcFields = makeDataField tce su . mapFst loc <$> reverse (tyArgs dp)
   }
-  where loc    = Loc (dc_loc dp) (dc_locE dp)
+  where
+    su         = zip as [0..]
+    as         = rtyVarUniqueSymbol <$> freeTyVars dp
+    loc        = Loc (dc_loc dp) (dc_locE dp)
 
-makeDataField ::  F.TCEmb TyCon -> (F.LocSymbol, SpecType) -> F.DataField
-makeDataField tce (x, t) = F.DField
+
+makeDataField :: F.TCEmb TyCon -> [(F.Symbol, Int)] -> (F.LocSymbol, SpecType)
+              -> F.DataField
+makeDataField tce su (x, t) = F.DField
   { F.dfName = x
-  , F.dfSort = F.tracepp ("MAKEDATAFIELD: " ++ showpp t) $ RT.rTypeSort tce t
+  , F.dfSort = F.tracepp ("MAKEDATAFIELD: " ++ showpp t)
+                 $ F.substVars su
+                 $ RT.rTypeSort tce t
   }
 
 --------------------------------------------------------------------------------
