@@ -59,7 +59,6 @@ module Language.Fixpoint.Types.Names (
   -- * Widely used prefixes
   , anfPrefix
   , tempPrefix
-  -- , testPrefix
   , vv
   , symChars
 
@@ -120,7 +119,7 @@ import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
 import           Data.Maybe                  (fromMaybe)
-import           Data.Monoid                 ((<>)) 
+import           Data.Monoid                 ((<>))
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -407,6 +406,7 @@ dummySymbol = dummyName
 -- isCtorSymbol :: Symbol -> Bool
 -- isCtorSymbol = isPrefixOfSym ctorPrefix
 
+-- | 'testSymbol c' creates the `is-c` symbol for the adt-constructor named 'c'.
 testSymbol :: Symbol -> Symbol
 testSymbol s = testPrefix `mappendSym` s
 

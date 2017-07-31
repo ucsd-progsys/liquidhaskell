@@ -71,6 +71,9 @@ module Language.Fixpoint.Types.Constraints (
   , Equation (..)
   , Rewrite  (..)
   , getEqBody
+
+  -- * Misc  [should be elsewhere but here due to dependencies]
+  , substVars
   ) where
 
 import qualified Data.Binary as B
