@@ -35,7 +35,8 @@ module Language.Fixpoint.Types.Visitor (
   , isConcC , isKvarC
 
   -- * Sorts
-  , foldSort, mapSort
+  , foldSort
+  , mapSort
 
 
   ) where
@@ -315,7 +316,7 @@ mapSort f = step
   where
     step             = go . f
     go (FFunc t1 t2) = FFunc (step t1) (step t2)
-    go (FApp t1 t2)  = FApp (step t1) (step t2)
+    go (FApp t1 t2)  = FApp  (step t1) (step t2)
     go (FAbs i t)    = FAbs i (step t)
     go t             = t
 
