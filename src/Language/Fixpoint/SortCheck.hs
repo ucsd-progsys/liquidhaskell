@@ -418,7 +418,7 @@ elab f e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s e1' (ECst e2' s2), s)
+  return (eAppC s e1'           (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
@@ -705,12 +705,15 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 elabAppSort f e1 e2 s1 s2 = do
   s1'  <- instantiate s1
   let e = Just (EApp e1 e2)
-  case s1' of
-    FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    FVar i     -> do j <- refresh 0
-                     k <- refresh 0
-                     (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
-    _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
+  (sIn, sOut, su) <- checkFunSort s1'
+  (`apply` sOut) <$> unifyMany f e su [sIn] [s2]
+
+  -- case s1' of
+    -- FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
+    -- FVar i     -> do j <- refresh 0
+                     -- k <- refresh 0
+                     -- (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
+    -- _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
