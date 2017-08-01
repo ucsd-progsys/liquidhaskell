@@ -93,7 +93,7 @@ instance SMTLIB2 Expr where
   smt2 env (ENeg e)         = build "(- {})" (Only $ smt2 env e)
   smt2 env (EBin o e1 e2)   = build "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   smt2 env (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
-  smt2 env (ECst e _)       = smt2 env e
+  smt2 env (ECst e t)       = smt2Cast env e t
   smt2 _   (PTrue)          = "true"
   smt2 _   (PFalse)         = "false"
   smt2 _   (PAnd [])        = "true"
@@ -112,6 +112,32 @@ instance SMTLIB2 Expr where
   smt2 env (ELam (x, _) e)  = smt2Lam env x e
   smt2 _   e                = errorstar ("smtlib2 Pred  " ++ show e)
 
+-- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
+--   like Nil, see `tests/pos/adt_list_1.fq`
+
+smt2Cast :: SymEnv -> Expr -> Sort -> Builder.Builder
+smt2Cast env (EVar x) t = smt2Var env x t
+smt2Cast env e        _ = smt2    env e
+
+smt2Var :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smt2Var env x t
+  | Just s <- symEnvSort x env
+  , isPolyInst s t
+  = smt2VarAs env x t
+  | otherwise
+  = smt2 env x
+
+smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smt2VarAs env x t = build "(as {} {})" (smt2 env x, smt2SortMono x env t)
+
+isPolyInst :: Sort -> Sort -> Bool
+isPolyInst s t = isPoly s && not (isPoly t)
+
+isPoly :: Sort -> Bool
+isPoly (FAbs {}) = True
+isPoly _         = False
+
+
 
 smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
 smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
@@ -126,7 +152,7 @@ smt2App env e
   | otherwise
   = build "({} {})" (smt2 env f, smt2s env es)
   where
-    (f, es)   = splitEApp' e
+    (f, es)   =  splitEApp' e
 
 unCast :: Expr -> Expr
 unCast (ECst e _) = unCast e

@@ -8,8 +8,7 @@ bind 0 n : {n:int | true}
 bind 1 m : {m:int | true}
 
 constraint:
-  env [0; 1]
-  lhs {v:int | (con m emp) = (con n emp) }
+  env [1; 2; 3]
+  lhs {v:int | (con n (con m emp) = con m (con n emp)) }
   rhs {v:int | m = n }
-  id 1 tag []
-
+  id 0 tag []

@@ -412,12 +412,13 @@ elab :: Env -> Expr -> CheckM (Expr, Sort)
 elab f e@(EBin o e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
-  s         <- checkExpr f e
+  -- s         <- checkExpr f e
+  s <- checkOpTy f e s1 s2
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s e1' (ECst e2' s2), s)
+  return (eAppC s e1'           (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
@@ -449,10 +450,10 @@ elab f (ENeg e) = do
   return (ENeg e', s)
 
 elab f (EIte p e1 e2) = do
-  (p', _)  <- elab f p
-  (e1', _) <- elab f e1
-  (e2', _) <- elab f e2
-  s <- checkIte f p e1 e2
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
+  s         <- checkIteTy f p e1' e2' s1 s2
   return (EIte p' e1' e2', s)
 
 elab f (ECst e t) = do
@@ -529,9 +530,10 @@ elabAs :: Env -> Sort -> Expr -> CheckM Expr
 elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
 elabAs f _ e            = fst <$> elab f e
 
+-- DUPLICATION with `checkApp'`
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
-  gT       <- generalize =<< checkExpr f g
+  gT       <- checkExpr f g -- >>= instantiate                         -- NO-INSTANTIATE
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
@@ -673,7 +675,7 @@ unite f e t1 t2 = do
 checkSym :: Env -> Symbol -> CheckM Sort
 checkSym f x
   = case f x of
-     Found s -> return s
+     Found s -> instantiate s
      Alts xs -> throwError $ errUnboundAlts x xs
 
 -- | Helper for checking if-then-else expressions
@@ -682,9 +684,15 @@ checkIte f p e1 e2 = do
   checkPred f p
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+  checkIteTy f p e1 e2 t1 t2
+
+--  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+
+checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
+checkIteTy f p e1 e2 t1 t2
+  = ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
   where
-    e' = Just (EIte  p e1 e2)
+    e' = Just (EIte p e1 e2)
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -695,15 +703,20 @@ checkCst f t e
        ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` (errCast e t' t)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
-elabAppSort f e1 e2 s1 s2 = do
-  s1'  <- generalize s1
-  let e = Just (EApp e1 e2)
-  case s1' of
-    FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    FVar i     -> do j <- refresh 0
-                     k <- refresh 0
-                     (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
-    _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
+elabAppSort f e1 e2 s1' s2 = do
+  -- s1'             <- instantiate s1                 -- NO-INSTANTIATE
+  (sIn, sOut, su) <- checkFunSort s1'
+  (`apply` sOut) <$> unifyMany f e su [sIn] [s2]
+  where
+    e = Just (EApp e1 e2)
+
+
+  -- case s1' of
+    -- FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
+    -- FVar i     -> do j <- refresh 0
+                     -- k <- refresh 0
+                     -- (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
+    -- _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -718,42 +731,26 @@ checkExprAs f t e
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
--- | Checking function application should be curried,
--- | consider checking
+-- | Checking function application should be curried, e.g.
 -- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x
+--   RJ: The above comment makes no sense to me :(
 
+-- DUPLICATION with 'elabAppAs'
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
-  gt       <- checkExpr f g >>= generalize
+  gt       <- checkExpr f g -- >>= instantiate        NO-INSTANTIATE
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  θ        <- unifyMany f ge isu [it] [et]
-  let t     = apply θ ot
+  su        <- unifyMany f ge isu [it] [et]
+  let t     = apply su ot
   case to of
-    Nothing    -> return (θ, t)
-    Just t'    -> do θ' <- unifyMany f ge θ [t] [t']
+    Nothing    -> return (su, t)
+    Just t'    -> do θ' <- unifyMany f ge su [t] [t']
                      let ti = apply θ' et
                      _ <- checkExprAs f ti e
                      return (θ', apply θ' t)
 
-{-
-checkApp' f to g' e
-  = do gt           <- checkExpr f g
-       gt'          <- generalize gt
-       (its, ot)    <- sortFunction (length es) gt'
-       ets          <- mapM (checkExpr f) es
-       θ            <- unifys f its ets
-       let t         = apply θ ot
-       case to of
-         Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ts = apply θ' <$> ets
-                          _ <- zipWithM (checkExprAs f) ts es
-                          return (θ', apply θ' t)
-  where
-    (g, es) = splitEApp $ EApp g' e
--}
 
 -- | Helper for checking binary (numeric) operations
 checkNeg :: Env -> Expr -> CheckM Sort
@@ -805,7 +802,6 @@ checkNumeric _ s
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
 --------------------------------------------------------------------------------
-
 checkPred                  :: Env -> Expr -> CheckM ()
 checkPred f e = checkExpr f e >>= checkBoolSort e
 
@@ -907,10 +903,10 @@ unify1 _ _ θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2
   = return θ
 unify1 f e θ t1@(FAbs _ _) t2 = do
-  t1'<- generalize t1
+  t1'<- instantiate t1
   unifyMany f e θ [t1'] [t2]
 unify1 f e θ t1 t2@(FAbs _ _) = do
-  t2' <- generalize t2
+  t2' <- instantiate t2
   unifyMany f e θ [t1] [t2']
 unify1 _ _ θ s1 s2
   | isString s1, isString s2
@@ -949,13 +945,13 @@ subst (j,tj) (FAbs i t)
   | otherwise = FAbs i $ subst (j,tj) t
 subst _  s             = s
 
-
-generalize :: Sort -> CheckM Sort
-generalize (FAbs i t) = do
+--------------------------------------------------------------------------------
+instantiate :: Sort -> CheckM Sort
+--------------------------------------------------------------------------------
+instantiate (FAbs i t) = do
   v      <- refresh 0
-  let sub = (i, FVar v)
-  subst sub <$> generalize t
-generalize t =
+  subst (i, FVar v) <$> instantiate t
+instantiate t =
   return t
 
 unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
@@ -975,23 +971,30 @@ unifyVar f e θ i t
 --------------------------------------------------------------------------------
 apply :: TVSubst -> Sort -> Sort
 --------------------------------------------------------------------------------
-apply θ          = sortMap f
+apply θ          = Vis.mapSort f -- _sortMap
   where
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
 
+_applyExpr :: TVSubst -> Expr -> Expr
+_applyExpr θ      = Vis.mapExpr f
+  where
+    f (ECst e t) = ECst e (apply θ t)
+    f e          = e
+
 --------------------------------------------------------------------------------
-sortMap :: (Sort -> Sort) -> Sort -> Sort
+_sortMap :: (Sort -> Sort) -> Sort -> Sort
 --------------------------------------------------------------------------------
-sortMap f (FAbs i t)    = FAbs i (sortMap f t)
-sortMap f (FFunc t1 t2) = FFunc (sortMap f t1) (sortMap f t2)
-sortMap f (FApp t1 t2)  = FApp  (sortMap f t1) (sortMap f t2)
-sortMap f t             = f t
+_sortMap f = go
+  where
+    go (FAbs i t)    = FAbs i (go t)
+    go (FFunc t1 t2) = FFunc  (go t1) (go t2)
+    go (FApp t1 t2)  = FApp   (go t1) (go t2)
+    go t             = f t
 
 --------------------------------------------------------------------------------
 -- | Deconstruct a function-sort -----------------------------------------------
 --------------------------------------------------------------------------------
-
 checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
 checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)

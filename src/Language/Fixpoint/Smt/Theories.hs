@@ -23,9 +23,6 @@ module Language.Fixpoint.Smt.Theories
        -- * Theory Symbols
      , theorySymbols
 
-     -- * String
-     -- , string
-     -- , genLen
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
@@ -244,7 +241,7 @@ smt2App _ (EVar f) [d]
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
 smt2App env (EVar f) (d:ds)
-  | Just s <- symEnvTheory f env
+  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _ _    = Nothing
 
