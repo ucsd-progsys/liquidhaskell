@@ -27,13 +27,14 @@ import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 
-import qualified Language.Fixpoint.Types                as F -- ({- tracepp, -} mappendFTC, Symbol, TCEmb, mkSubst, Expr(..), Brel(..), subst, symbolNumInfoFTyCon, dummyPos)
+import qualified Language.Fixpoint.Types.Visitor        as V
+import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Fixpoint.Misc                 (mapFst, groupList, mapSnd)
+import           Language.Fixpoint.Misc                 (groupList, mapSnd)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
@@ -74,14 +75,15 @@ makeDataDecl :: Config -> F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataC
              -> Maybe F.DataDecl
 makeDataDecl cfg tce tc dd ctors
   | exactDC cfg = F.tracepp "makeDataDecl" $ Just $ F.DDecl
-    { F.ddTyCon = F.symbolFTycon $ F.atLoc (tycName dd) (F.symbol tc) 
-      -- F.symbolFTycon    $ GM.namedLocSymbol tc
-      --   $ F.tracepp ("TYCNAME:" ++ show (F.symbol tc)) -- $ tycName   dd
-    , F.ddVars  = length            $ tycTyVars dd
-    , F.ddCtors = makeDataCtor tce <$> ctors
+    { F.ddTyCon = ftc
+    , F.ddVars  = length                $ tycTyVars dd
+    , F.ddCtors = makeDataCtor tce ftc <$> ctors
     }
   | otherwise   = Nothing
   where
+    ftc = F.symbolFTycon $ F.atLoc (tycName dd) (F.symbol tc)
+      -- F.symbolFTycon    $ GM.namedLocSymbol tc
+      --   $ F.tracepp ("TYCNAME:" ++ show (F.symbol tc)) -- $ tycName   dd
 
 -- HEREHEREHERE -- makeDataConCtor
 -- we need to POST-PROCESS the 'Sort' so that:
@@ -90,25 +92,36 @@ makeDataDecl cfg tce tc dd ctors
 -- 2. The "self" type is replaced with just itself
 --    (i.e. without any type applications.)
 
-makeDataCtor :: F.TCEmb TyCon -> (DataCon, DataConP) -> F.DataCtor
-makeDataCtor tce (d, dp) = F.DCtor
+makeDataCtor :: F.TCEmb TyCon -> F.FTycon -> (DataCon, DataConP) -> F.DataCtor
+makeDataCtor tce c (d, dp) = F.DCtor
   { F.dcName   = GM.namedLocSymbol d
-  , F.dcFields = makeDataField tce su . mapFst loc <$> reverse (tyArgs dp)
+  , F.dcFields = makeDataField tce c su <$> xts
   }
   where
     su         = zip as [0..]
     as         = rtyVarUniqueSymbol <$> freeTyVars dp
+    xts        = [ (loc x, t) | (x, t) <- reverse (tyArgs dp) ]
     loc        = Loc (dc_loc dp) (dc_locE dp)
 
 
-makeDataField :: F.TCEmb TyCon -> [(F.Symbol, Int)] -> (F.LocSymbol, SpecType)
+makeDataField :: F.TCEmb TyCon -> F.FTycon -> [(F.Symbol, Int)] -> (F.LocSymbol, SpecType)
               -> F.DataField
-makeDataField tce su (x, t) = F.DField
+makeDataField tce c su (x, t) = F.DField
   { F.dfName = x
   , F.dfSort = F.tracepp ("MAKEDATAFIELD: " ++ showpp t)
+                 $ muSort c su
                  $ F.substVars su
                  $ RT.rTypeSort tce t
   }
+
+muSort :: F.FTycon -> [(F.Symbol, Int)] -> F.Sort -> F.Sort
+muSort c su = V.mapSort tx
+  where
+    ct      = F.FTC c
+    cts     = ct : [ F.FVar i | (_, i) <- su ]
+    tx t    = if F.unFApp t == cts then ct else t
+
+
 
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
