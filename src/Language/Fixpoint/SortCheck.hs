@@ -450,10 +450,10 @@ elab f (ENeg e) = do
   return (ENeg e', s)
 
 elab f (EIte p e1 e2) = do
-  (p', _)  <- elab f p
-  (e1', _) <- elab f e1
-  (e2', _) <- elab f e2
-  s <- checkIte f p e1 e2
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
+  s         <- checkIteTy f p e1' e2' s1 s2
   return (EIte p' e1' e2', s)
 
 elab f (ECst e t) = do
@@ -683,9 +683,15 @@ checkIte f p e1 e2 = do
   checkPred f p
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+  checkIteTy f p e1 e2 t1 t2
+
+--  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+
+checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
+checkIteTy f p e1 e2 t1 t2
+  = ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
   where
-    e' = Just (EIte  p e1 e2)
+    e' = Just (EIte p e1 e2)
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
