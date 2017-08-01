@@ -14,3 +14,8 @@ test1 _ _ _ = ()
 sz :: LL a -> Int 
 sz Emp         = 0 
 sz (Cons x xs) = 1 + sz xs
+
+
+app :: LL a -> LL a -> LL a 
+app Emp z         = z 
+app (Cons x xs) z = Cons x (app xs z)
