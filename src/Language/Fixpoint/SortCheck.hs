@@ -530,9 +530,10 @@ elabAs :: Env -> Sort -> Expr -> CheckM Expr
 elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
 elabAs f _ e            = fst <$> elab f e
 
+-- DUPLICATION with `checkApp'`
 elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs f t g e = do
-  gT       <- instantiate =<< checkExpr f g
+  gT       <- checkExpr f g -- >>= instantiate                         -- NO-INSTANTIATE
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
@@ -674,7 +675,7 @@ unite f e t1 t2 = do
 checkSym :: Env -> Symbol -> CheckM Sort
 checkSym f x
   = case f x of
-     Found s -> return s
+     Found s -> instantiate s
      Alts xs -> throwError $ errUnboundAlts x xs
 
 -- | Helper for checking if-then-else expressions
@@ -702,11 +703,13 @@ checkCst f t e
        ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` (errCast e t' t)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
-elabAppSort f e1 e2 s1 s2 = do
-  s1'  <- instantiate s1
-  let e = Just (EApp e1 e2)
+elabAppSort f e1 e2 s1' s2 = do
+  -- s1'             <- instantiate s1                 -- NO-INSTANTIATE
   (sIn, sOut, su) <- checkFunSort s1'
   (`apply` sOut) <$> unifyMany f e su [sIn] [s2]
+  where
+    e = Just (EApp e1 e2)
+
 
   -- case s1' of
     -- FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
@@ -728,42 +731,26 @@ checkExprAs f t e
        return $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
--- | Checking function application should be curried,
--- | consider checking
+-- | Checking function application should be curried, e.g.
 -- | fromJust :: Maybe a -> a, f :: Maybe (b -> b), x: c |- fromJust f x
+--   RJ: The above comment makes no sense to me :(
 
+-- DUPLICATION with 'elabAppAs'
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
-  gt       <- checkExpr f g >>= instantiate
+  gt       <- checkExpr f g -- >>= instantiate        NO-INSTANTIATE
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  θ        <- unifyMany f ge isu [it] [et]
-  let t     = apply θ ot
+  su        <- unifyMany f ge isu [it] [et]
+  let t     = apply su ot
   case to of
-    Nothing    -> return (θ, t)
-    Just t'    -> do θ' <- unifyMany f ge θ [t] [t']
+    Nothing    -> return (su, t)
+    Just t'    -> do θ' <- unifyMany f ge su [t] [t']
                      let ti = apply θ' et
                      _ <- checkExprAs f ti e
                      return (θ', apply θ' t)
 
-{-
-checkApp' f to g' e
-  = do gt           <- checkExpr f g
-       gt'          <- instantiate gt
-       (its, ot)    <- sortFunction (length es) gt'
-       ets          <- mapM (checkExpr f) es
-       θ            <- unifys f its ets
-       let t         = apply θ ot
-       case to of
-         Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ts = apply θ' <$> ets
-                          _ <- zipWithM (checkExprAs f) ts es
-                          return (θ', apply θ' t)
-  where
-    (g, es) = splitEApp $ EApp g' e
--}
 
 -- | Helper for checking binary (numeric) operations
 checkNeg :: Env -> Expr -> CheckM Sort
@@ -963,8 +950,7 @@ instantiate :: Sort -> CheckM Sort
 --------------------------------------------------------------------------------
 instantiate (FAbs i t) = do
   v      <- refresh 0
-  let sub = (i, FVar v)
-  subst sub <$> instantiate t
+  subst (i, FVar v) <$> instantiate t
 instantiate t =
   return t
 
