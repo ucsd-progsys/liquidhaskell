@@ -152,7 +152,7 @@ smt2App env e
   | otherwise
   = build "({} {})" (smt2 env f, smt2s env es)
   where
-    (f, es)   =  splitEApp' $ tracepp "SPLITEAPP: " e
+    (f, es)   =  splitEApp' e
 
 unCast :: Expr -> Expr
 unCast (ECst e _) = unCast e
