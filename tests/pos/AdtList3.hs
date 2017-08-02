@@ -11,6 +11,7 @@ test1 :: Int -> Int -> () -> ()
 test1 _ _ _ = ()
 
 {-@ measure sz @-}
+{-@ sz :: LL a -> Nat @-}
 sz :: LL a -> Int 
 sz Emp         = 0 
 sz (Cons x xs) = 1 + sz xs
