@@ -454,7 +454,7 @@ elab f (EIte p e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- checkIteTy f p e1' e2' s1 s2
-  return (EIte p' e1' e2', s)
+  return (EIte p' (cast e1' s) (cast e2' s), s)
 
 elab f (ECst e t) = do
   (e', _) <- elab f e
@@ -488,7 +488,7 @@ elab f e@(PAtom Eq e1 e2) = do
   (t1',t2') <- unite f e  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
-  return (PAtom Eq (ECst e1' t1') (ECst e2' t2'), boolSort)
+  return (PAtom Eq (ECst e1' t1') (ECst e2' t2') , boolSort)
 
 elab f (PAtom r e1 e2)
   | r == Ueq || r == Une = do
@@ -520,6 +520,10 @@ elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
+
+cast :: Expr -> Sort -> Expr
+cast (ECst e _) t = ECst e t
+cast e          t = ECst e t
 
 -- elabAs :: Env -> Sort -> Expr -> CheckM Expr
 -- elabAs f t e = tracepp msg <$> elabAs' f t e
