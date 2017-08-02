@@ -289,7 +289,10 @@ assertSelectors γ e = do
     go (SMeasure f dc xs bd) e@(EApp _ _)
       | (EVar dc', es) <- splitEApp e
       , dc == dc', length xs == length es
-      = addSMTEquality γ (EApp (EVar f) e) (subst (mkSubst $ zip xs es) bd)
+      = let e1 = EApp (EVar f) e
+            e2 = subst (mkSubst $ zip xs es) bd
+      in addSMTEquality γ e1 e2
+      >> modify (\st -> st { evSequence = (e1,e2):evSequence st })
       >> return e
     go _ e
       = return e
@@ -324,7 +327,7 @@ evaluate cfg ctx facts aenv einit
     -- TODO: add a flag to enable it
     evalOne :: Expr -> IO [(Expr, Expr)]
     evalOne e = do
-      (e', st) <- runStateT (eval γ e) initEvalSt
+      (e', st) <- runStateT (mapM_ (assertSelectors γ) einit >> eval γ e) initEvalSt
       if e' == e then return [] else return ((e, e'):evSequence st)
 
 -- Don't evaluate under Lam, App, Ite, or constants
