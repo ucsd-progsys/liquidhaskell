@@ -466,7 +466,7 @@ declare me = do
     ats        = applyVars env
 
 applyVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
-applyVars env    = [(F.applyAtSmtName env t, aSort t) | t <- ts]
+applyVars env    = [(F.applyAtSmtName env () t, aSort t) | t <- ts]
   where
     ts           = M.keys (F.seAppls env)
     aSort (s, t) = ([F.SInt, s], t)

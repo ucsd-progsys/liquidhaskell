@@ -143,9 +143,9 @@ smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
 smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
-smt2App env (EApp (EApp f e1) e2)
+smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = build "({} {})" (symbolBuilder (applyAtName env t), smt2s env [e1, e2])
+  = build "({} {})" (symbolBuilder (applyAtName env e t), smt2s env [e1, e2])
 smt2App env e
   | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
   = b

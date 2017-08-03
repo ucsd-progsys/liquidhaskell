@@ -6,15 +6,15 @@ data Vec 1 = [
 ]
 
 constant len: (func(1, [(Vec @(0)); int]))
-constant hen: (func(1, [(Vec bool); int]))
+constant hen: (func(1, [Vec @(0); int]))
 
 match len VNil       = 0
-match len VCons x xs = hen true 
+match len VCons x xs = (hen xs)
 
 constraint:
   env []
   lhs {v : int | len (VCons 1 VNil) = 3}
-  rhs {v : int | true }
+  rhs {v : int | len (VCons 1 VNil) = 3}
   id 1 tag []
 
 expand [1 : True]

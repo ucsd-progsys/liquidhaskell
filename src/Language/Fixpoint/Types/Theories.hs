@@ -100,17 +100,17 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
-applyAtName :: SymEnv -> Sort -> Symbol
-applyAtName env = applyAtSmtName env . ffuncSort env
+applyAtName :: (PPrint a) => SymEnv -> a -> Sort -> Symbol
+applyAtName env e = applyAtSmtName env e . ffuncSort env
 
-applyAtSmtName :: SymEnv -> FuncSort -> Symbol
-applyAtSmtName env z = intSymbol applyName n
+applyAtSmtName :: (PPrint a) => SymEnv -> a -> FuncSort -> Symbol
+applyAtSmtName env e z = intSymbol applyName n
   where
-    n                = M.lookupDefault err ({- tracepp "applyAtSmtName:" -} z) (seAppls env)
-    err              = errorstar $ unlines [ "PANIC: Unknown apply-sort"
-                                           , "  " ++ showpp z
-                                           , "please file an issue!"
-                                           ]
+    n                  = M.lookupDefault err ({- tracepp "applyAtSmtName:" -} z) (seAppls env)
+    err                = errorstar $ unlines [ "PANIC: Unknown apply-sort: " ++ showpp z
+                                             , "  in application: " ++ showpp e
+                                             , "please file an issue!"
+                                             ]
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = (tx t1, tx t2)
