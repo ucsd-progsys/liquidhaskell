@@ -1,0 +1,13 @@
+
+data Bin 0 = [
+  | mkBin { nBin : Int }
+]
+
+bind 0 b : {b:Bin | true} 
+
+constraint:
+  env [0]
+  lhs {v:int | (lam x. x) b == (lam x. x) b }
+  rhs {v:int | true}
+  id 1 tag []
+

@@ -1,0 +1,20 @@
+fixpoint "--rewrite"
+
+data Vec 1 = [
+  | VNil  { }
+  | VCons { head : @(0), tail : Vec }
+]
+
+constant len: (func(1, [(Vec @(0)); int]))
+constant hen: (func(1, [(Vec bool); int]))
+
+match len VNil       = 0
+match len VCons x xs = hen true 
+
+constraint:
+  env []
+  lhs {v : int | len (VCons 1 VNil) = 3}
+  rhs {v : int | true }
+  id 1 tag []
+
+expand [1 : True]
