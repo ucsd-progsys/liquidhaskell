@@ -46,7 +46,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
-    , smtBracket
+    , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
 
@@ -405,6 +405,10 @@ smtDistinct me az = interact' me (Distinct az)
 
 smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
+
+smtBracketAt :: SrcSpan -> Context -> String -> IO a -> IO a
+smtBracketAt sp x y z = smtBracket x y z `catch` dieAt sp
+
 
 smtBracket :: Context -> String -> IO a -> IO a
 smtBracket me _msg a   = do

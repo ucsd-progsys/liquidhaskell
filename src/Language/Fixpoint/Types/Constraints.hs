@@ -802,7 +802,7 @@ instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> toFix d <> hsep (toFix <$> xs)
+   <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> lparen <> toFix e <> rparen
 

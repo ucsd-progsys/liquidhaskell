@@ -48,7 +48,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
-import           Language.Fixpoint.Misc   (errorstar) -- traceShow)
+import qualified Language.Fixpoint.Misc   as Misc -- (sortNub, errorstar) -- traceShow)
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
@@ -88,8 +88,37 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv fEnv dEnv ls sortMap
   where
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
-    smts                  = (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
-    tx                    = applySmtSort dEnv
+    smts                  = funcSorts dEnv ts -- tracepp "smt-apply-sorts" $ Misc.sortNub $ (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+
+-- | 'smtSorts' attempts to compute a list of all the input-output sorts
+--   at which applications occur. This is a gross hack; as during unfolding
+--   we may create _new_ terms with wierd new sorts. Ideally, we MUST allow
+--   for EXTENDING the apply-sorts with those newly created terms.
+--   the solution is perhaps to *preface* each VC query of the form
+--
+--      push
+--      assert p
+--      check-sat
+--      pop
+--
+--   with the declarations needed to make 'p' well-sorted under SMT, i.e.
+--   change the above to
+--
+--      declare apply-sorts
+--      push
+--      assert p
+--      check-sat
+--      pop
+--
+--   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
+--   [TODO]: dynamic-apply-declaration
+
+funcSorts :: SEnv a -> [Sort] -> [FuncSort]
+funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
+  where
+    smts         = Misc.sortNub $ concat [ [tx t1, tx t2] | FFunc t1 t2 <- ts]
+    tx           = applySmtSort dEnv
+
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -107,10 +136,11 @@ applyAtSmtName :: (PPrint a) => SymEnv -> a -> FuncSort -> Symbol
 applyAtSmtName env e z = intSymbol applyName n
   where
     n                  = M.lookupDefault err ({- tracepp "applyAtSmtName:" -} z) (seAppls env)
-    err                = errorstar $ unlines [ "PANIC: Unknown apply-sort: " ++ showpp z
-                                             , "  in application: " ++ showpp e
-                                             , "please file an issue!"
-                                             ]
+    err                = Misc.errorstar $ unlines
+                           [ "PANIC: Unknown apply-sort: " ++ showpp z
+                           , "  in application: " ++ showpp e
+                           , "please file an issue!"
+                           ]
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = (tx t1, tx t2)
@@ -223,4 +253,5 @@ instance PPrint SmtSort where
   pprintTidy _ SMap         = text "Map"
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <> int i
-  pprintTidy k (SData c ts) = parens (pprintTidy k c <+> pprintTidy k ts)
+  pprintTidy k (SData c ts) = -- parens (pprintTidy k c <+> pprintTidy k ts)
+                              parens $ Misc.intersperse (text "") (pprintTidy k c : (pprintTidy k <$> ts))

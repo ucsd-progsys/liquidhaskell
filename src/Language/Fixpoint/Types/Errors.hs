@@ -39,6 +39,7 @@ module Language.Fixpoint.Types.Errors (
 
   -- * Fatal Exit
   , die
+  , dieAt
   , exit
 
   -- * Some popular errors
@@ -48,7 +49,6 @@ module Language.Fixpoint.Types.Errors (
   ) where
 
 import           Control.Exception
--- import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Typeable
@@ -131,6 +131,11 @@ err sp d = Error [Error1 sp d]
 die :: Error -> a
 ---------------------------------------------------------------------
 die = throw
+
+---------------------------------------------------------------------
+dieAt :: SrcSpan -> Error -> a
+---------------------------------------------------------------------
+dieAt sp (Error es) = die (Error [ e {errLoc = sp} | e <- es])
 
 ---------------------------------------------------------------------
 exit :: a -> IO a -> IO a
