@@ -68,7 +68,7 @@ instantiate' cfg fi = do
   -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
   SMT.smtPush ctx
   ips           <- forM cstrs $ \(i, c) ->
-                      (i,) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                      ((i,) . tracepp "INSTANTATIATE: " ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
   let (is, ps)   = unzip ips
   let (ps', axs) = defuncAxioms cfg env ps
   let ps''       = elaborate "PLE1" env <$> ps'
