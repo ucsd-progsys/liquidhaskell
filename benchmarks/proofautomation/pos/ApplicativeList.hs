@@ -113,8 +113,7 @@ seq_prop _ _ = trivial
 
 
 data L a = N | C a (L a)
-{-@ data L [llen]
-    = N | C {x :: a, xs :: L a } @-}
+{-@ data L [llen] @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int

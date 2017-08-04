@@ -61,10 +61,11 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    -- tests = group "Tests" [ unitTests]
     tests = group "Tests" [ unitTests, errorTests, benchTests ]
+    -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
-    -- tests = group "Tests" [ selfTests ]
+    -- tests = group "Tests" [ selfTests  ]
+    -- tests = group "Tests" [ errorTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
 
@@ -157,7 +158,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List`"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List2`"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
-
+  , errorTest "tests/errors/BadDatadecl.hs"         2 "Illegal refined data type for `L`"    
   ]
 
 unitTests :: IO TestTree
