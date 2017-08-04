@@ -27,10 +27,9 @@ module Language.Fixpoint.Types.Theories (
     , symEnv
     , symEnvSort
     , symEnvTheory
-    -- , symEnvData
     , insertSymEnv
-    , applyAtName
-    , applyAtSmtName
+    , symbolAtName
+    , symbolAtSmtName
     ) where
 
 
@@ -42,6 +41,7 @@ import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ
@@ -129,18 +129,16 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
-applyAtName :: (PPrint a) => SymEnv -> a -> Sort -> Symbol
-applyAtName env e = applyAtSmtName env e . ffuncSort env
+symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Symbol
+symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
 
-applyAtSmtName :: (PPrint a) => SymEnv -> a -> FuncSort -> Symbol
-applyAtSmtName env e z = intSymbol applyName n
+symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Symbol
+symbolAtSmtName mkSym env e = intSymbol mkSym . funcSortIndex env e
+
+funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
+funcSortIndex env e z = M.lookupDefault err z (seAppls env)
   where
-    n                  = M.lookupDefault err ({- tracepp "applyAtSmtName:" -} z) (seAppls env)
-    err                = Misc.errorstar $ unlines
-                           [ "PANIC: Unknown apply-sort: " ++ showpp z
-                           , "  in application: " ++ showpp e
-                           , "please file an issue!"
-                           ]
+    err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = (tx t1, tx t2)

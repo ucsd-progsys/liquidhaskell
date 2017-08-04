@@ -111,7 +111,8 @@ module Language.Fixpoint.Types.Names (
   , applyName
 
   , lambdaName
-  , intArgName
+  , lamArgSymbol
+  , isLamArgSymbol
 
 ) where
 
@@ -513,8 +514,14 @@ buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 lambdaName :: Symbol
 lambdaName = "smt_lambda"
 
-intArgName :: Int -> Symbol
-intArgName = intSymbol "lam_int_arg"
+lamArgPrefix :: Symbol
+lamArgPrefix = "lam_arg"
+
+lamArgSymbol :: Int -> Symbol
+lamArgSymbol = intSymbol lamArgPrefix
+
+isLamArgSymbol :: Symbol -> Bool
+isLamArgSymbol = isPrefixOfSym lamArgPrefix
 
 setToIntName, bitVecToIntName, mapToIntName, realToIntName :: Symbol
 setToIntName    = "set_to_int"

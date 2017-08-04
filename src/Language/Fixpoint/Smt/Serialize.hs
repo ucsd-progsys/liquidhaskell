@@ -108,10 +108,9 @@ instance SMTLIB2 Expr where
   smt2 env (PExist bs p)    = build "(exists ({}) {})"  (smt2s env bs, smt2 env p)
   smt2 env (PAll   [] p)    = smt2 env p
   smt2 env (PAll   bs p)    = build "(forall ({}) {})"  (smt2s env bs, smt2 env p)
-
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam (x, _) e)  = smt2Lam env x e
-  smt2 _   e                = errorstar ("smtlib2 Pred  " ++ show e)
+  smt2 env (ELam b e)       = smt2Lam env b e
+  smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
 
 -- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
 --   like Nil, see `tests/pos/adt_list_1.fq`
@@ -138,15 +137,18 @@ isPoly :: Sort -> Bool
 isPoly (FAbs {}) = True
 isPoly _         = False
 
+smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder.Builder
+smt2Lam env (x, xT) (ECst e eT) = build "({} {} {})" (smt2 env lambda, smt2 env x, smt2 env e)
+  where
+    lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
 
-
-smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
-smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
+smt2Lam _ _ e
+  = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
 smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = build "({} {})" (symbolBuilder (applyAtName env e t), smt2s env [e1, e2])
+  = build "({} {})" (symbolBuilder (symbolAtName applyName env e t), smt2s env [e1, e2])
 smt2App env e
   | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
   = b

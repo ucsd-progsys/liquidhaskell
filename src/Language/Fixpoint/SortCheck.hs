@@ -205,7 +205,7 @@ elabApply env = go
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
     step (ELam b e)       = ELam b (go e)
-    step (PGrad k su i e)   = PGrad k su i (go e)
+    step (PGrad k su i e) = PGrad k su i (go e)
     step e@(PKVar {})     = e
     step e@(ESym {})      = e
     step e@(ECon {})      = e
@@ -512,9 +512,9 @@ elab f (PAll bs e) = do
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
-  (e', s) <- elab (addEnv f [(x,t)]) e
+  (e', s) <- elab (addEnv f [(x, t)]) e
   let t' = elaborate "ELam Arg" mempty t
-  return (ELam (x,t') (ECst e' s), FFunc t s)
+  return (ELam (x, t') (ECst e' s), FFunc t s)
 
 elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
@@ -578,11 +578,11 @@ defuncEApp env e es = L.foldl' makeApplication e' es'
     (e', es')       = takeArgs (seTheory env) e es
 
 takeArgs :: SEnv TheorySymbol -> Expr -> [(Expr, a)] -> (Expr, [(Expr, a)])
-takeArgs env e es = case Thy.isSmt2App env (Vis.stripCasts e) of
-                        Just n  -> let (es1, es2) = splitAt n es
-                                   in (eApps e (fst <$> es1), es2)
-                        Nothing -> (e, es)
-
+takeArgs env e es =
+  case Thy.isSmt2App env (Vis.stripCasts e) of
+    Just n  -> let (es1, es2) = splitAt n es
+               in (eApps e (fst <$> es1), es2)
+    Nothing -> (e, es)
 
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s

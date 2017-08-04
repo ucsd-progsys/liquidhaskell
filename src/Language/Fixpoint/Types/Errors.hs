@@ -38,6 +38,7 @@ module Language.Fixpoint.Types.Errors (
   , catErrors
 
   -- * Fatal Exit
+  , panic
   , die
   , dieAt
   , exit
@@ -126,6 +127,14 @@ catErrors = foldr1 catError
 err :: SrcSpan -> Doc -> Error
 ---------------------------------------------------------------------
 err sp d = Error [Error1 sp d]
+
+---------------------------------------------------------------------
+panic :: String -> a
+---------------------------------------------------------------------
+panic = die . err dummySpan . text . (panicMsg ++)
+
+panicMsg :: String
+panicMsg = "PANIC: Please file an issue at https://github.com/ucsd-progsys/liquid-fixpoint \n"
 
 ---------------------------------------------------------------------
 die :: Error -> a

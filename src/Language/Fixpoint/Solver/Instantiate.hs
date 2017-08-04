@@ -20,8 +20,8 @@ import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Defunctionalize -- (defuncAny, makeLamArg)
-import           Language.Fixpoint.SortCheck       -- (unapplySorts, elaborate)
+import           Language.Fixpoint.Defunctionalize
+import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
 
@@ -346,11 +346,16 @@ makeLam γ e = foldl (flip ELam) e (knLams γ)
 
 eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
-   = (e, "Knowledge") ~> e'
+  = (e, "Knowledge") ~> e'
 eval γ (ELam (x,s) e)
-  = do let x' = makeLamArg s (1 + length (knLams γ))
-       e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
-       return $ ELam (x,s) $ subst1 e' (x', EVar x)
+  -- SHIFTLAM (assuming this shifting is redundant if DEFUNC has already happened)
+  -- = do let x' = lamArgSymbol (1 + length (knLams γ))
+       -- e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
+       -- return $ ELam (x,s) $ subst1 e' (x', EVar x)
+
+  = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
+       return $ ELam (x, s) e'
+
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2

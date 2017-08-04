@@ -322,7 +322,7 @@ castWith s = eAppC intSort (EVar s)
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
 theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols ds = fromListSEnv $  uninterpSymbols
+theorySymbols ds = fromListSEnv $  [] -- SHIFTLAM: uninterpSymbols
                                ++ interpSymbols
                                ++ concatMap dataDeclSymbols ds
 
@@ -364,50 +364,49 @@ interpSymbols =
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
-uninterpSymbols :: [(Symbol, TheorySymbol)]
-uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
+-- SHIFTLAM  uninterpSymbols :: [(Symbol, TheorySymbol)]
+-- SHIFTLAM  uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
+-- SHIFTLAM
+-- SHIFTLAM  --------------------------------------------------------------------------------
+-- SHIFTLAM  uninterpSym :: Symbol -> Sort -> TheorySymbol
+-- SHIFTLAM  --------------------------------------------------------------------------------
+-- SHIFTLAM  uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
+-- SHIFTLAM
+-- SHIFTLAM  uninterpSymbols' :: [(Symbol, Sort)]
+-- SHIFTLAM  uninterpSymbols' =
+  -- SHIFTLAM  [ (setToIntName,    FFunc (setSort intSort)   intSort)
+  -- SHIFTLAM  , (bitVecToIntName, FFunc bitVecSort intSort)
+  -- SHIFTLAM  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
+  -- SHIFTLAM  , (realToIntName,   FFunc realSort   intSort)
+  -- SHIFTLAM  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
+  -- SHIFTLAM  ]
+  -- SHIFTLAM  ++ concatMap makeApplies [1..maxLamArg]
+  -- SHIFTLAM  ++ [(lamArgSymbol i, s) | i <- [1..maxLamArg], s <- sorts]
+-- SHIFTLAM
+-- SHIFTLAM  -- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
+-- SHIFTLAM  maxLamArg :: Int
+-- SHIFTLAM  maxLamArg = 7
 
---------------------------------------------------------------------------------
-uninterpSym :: Symbol -> Sort -> TheorySymbol
---------------------------------------------------------------------------------
-uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
-
-uninterpSymbols' :: [(Symbol, Sort)]
-uninterpSymbols' =
-  [ (setToIntName,    FFunc (setSort intSort)   intSort)
-  , (bitVecToIntName, FFunc bitVecSort intSort)
-  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
-  ]
-  ++ concatMap makeApplies [1..maxLamArg]
-  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
-
--- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
-maxLamArg :: Int
-maxLamArg = 7
-
-sorts :: [Sort]
-sorts = [intSort]
+-- SHIFTLAM sorts :: [Sort]
+-- SHIFTLAM sorts = [intSort]
 
 -- NIKI TODO: allow non integer lambda arguments
 -- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
+-- makeLamArg :: Sort -> Int  -> Symbol
+-- makeLamArg _ = intArgName
 
-makeLamArg :: Sort -> Int  -> Symbol
-makeLamArg _ = intArgName
-
-makeApplies :: Int -> [(Symbol, Sort)]
-makeApplies i =
-  [ (intApplyName i,    go i intSort)
-  , (setApplyName i,    go i (setSort intSort))
-  , (bitVecApplyName i, go i bitVecSort)
-  , (mapApplyName i,    go i $ mapSort intSort intSort)
-  , (realApplyName i,   go i realSort)
-  , (boolApplyName i,   go i boolSort)
-  ]
-  where
-    go 0 s = FFunc intSort s
-    go i s = FFunc intSort $ go (i-1) s
+-- SHIFTLAM makeApplies :: Int -> [(Symbol, Sort)]
+-- SHIFTLAM makeApplies i =
+  -- SHIFTLAM [ (intApplyName i,    go i intSort)
+  -- SHIFTLAM , (setApplyName i,    go i (setSort intSort))
+  -- SHIFTLAM , (bitVecApplyName i, go i bitVecSort)
+  -- SHIFTLAM , (mapApplyName i,    go i $ mapSort intSort intSort)
+  -- SHIFTLAM , (realApplyName i,   go i realSort)
+  -- SHIFTLAM , (boolApplyName i,   go i boolSort)
+  -- SHIFTLAM ]
+  -- SHIFTLAM where
+    -- SHIFTLAM go 0 s = FFunc intSort s
+    -- SHIFTLAM go i s = FFunc intSort $ go (i-1) s
 
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
 axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]

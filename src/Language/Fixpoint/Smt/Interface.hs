@@ -467,13 +467,16 @@ declare me = do
     isKind n   = (n ==)  . symKind env . fst
     xts        = F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
-    ats        = applyVars env
+    ats        = funcSortVars env
 
-applyVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
-applyVars env    = [(F.applyAtSmtName env () t, aSort t) | t <- ts]
+funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
+funcSortVars env  = [(var applyName  t, appSort t) | t <- ts]
+                 ++ [(var lambdaName t, lamSort t) | t <- ts]
   where
-    ts           = M.keys (F.seAppls env)
-    aSort (s, t) = ([F.SInt, s], t)
+    var n         = F.symbolAtSmtName n env ()
+    ts            = M.keys (F.seAppls env)
+    appSort (s,t) = ([F.SInt, s], t)
+    lamSort (s,t) = ([s, t], F.SInt)
 
 
 -- | 'symKind' returns {0, 1, 2} where:
