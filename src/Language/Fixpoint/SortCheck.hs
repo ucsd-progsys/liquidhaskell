@@ -558,6 +558,10 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
+{-
+
+NO-CURRY
+
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
 defuncEApp env e es
   | Thy.isSmt2App (seTheory env) (Vis.stripCasts e) es
@@ -565,32 +569,20 @@ defuncEApp env e es
   | otherwise
   = L.foldl' makeApplication e es
 
-{-
 
-HEREHEREHEREHEREHERE
+-}
 
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
 defuncEApp env e es = L.foldl' makeApplication e' es'
   where
     (e', es')       = takeArgs (seTheory env) e es
 
-takeArgs :: SymEnv -> Expr -> [(Expr, Sort)] -> (Expr, [(Expr, Sort)])
+takeArgs :: SEnv TheorySymbol -> Expr -> [(Expr, a)] -> (Expr, [(Expr, a)])
 takeArgs env e es = case Thy.isSmt2App env (Vis.stripCasts e) of
                         Just n  -> let (es1, es2) = splitAt n es
                                    in (eApps e (fst <$> es1), es2)
                         Nothing -> (e, es)
 
-Thy.isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
-isSmt2App _ (EVar f)
-  | f == setEmpty    = Just 1
-  | f == setEmp      = Just 1
-  | f == setSng      = Just 1
-isSmt2App g (EVar f) = do t  <- tsSort <$> lookupSEnv f g
-                          ts <- snd    <$> bkFFunc t
-                          Just (length ts - 1)
-isSmt2App _ _        = Nothing
-
- -}
 
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s

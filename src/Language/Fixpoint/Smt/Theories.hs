@@ -39,7 +39,7 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
-import           Data.Maybe (catMaybes, isJust)
+import           Data.Maybe (catMaybes)
 import           Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
@@ -250,16 +250,28 @@ smt2App _ _ _    = Nothing
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
 
 --------------------------------------------------------------------------------
-isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
+-- / isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
+-- / --------------------------------------------------------------------------------
+-- / isSmt2App _ (EVar f) [_]
+  -- / | f == setEmpty = True
+  -- / | f == setEmp   = True
+  -- / | f == setSng   = True
+-- / isSmt2App env (EVar f) _
+  -- / =  isJust (lookupSEnv f env)
+-- / isSmt2App _ _ _
+  -- / = False
+
 --------------------------------------------------------------------------------
-isSmt2App _ (EVar f) [_]
-  | f == setEmpty = True
-  | f == setEmp   = True
-  | f == setSng   = True
-isSmt2App env (EVar f) _
-  =  isJust (lookupSEnv f env) 
-isSmt2App _ _ _
-  = False
+isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
+--------------------------------------------------------------------------------
+isSmt2App _ (EVar f)
+  | f == setEmpty    = Just 1
+  | f == setEmp      = Just 1
+  | f == setSng      = Just 1
+isSmt2App g (EVar f) = do t  <- tsSort <$> lookupSEnv f g
+                          ts <- snd    <$> bkFFunc t
+                          Just (length ts - 1)
+isSmt2App _ _        = Nothing
 
 
 preamble :: Config -> SMTSolver -> [T.Text]
