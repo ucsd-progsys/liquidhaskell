@@ -1,13 +1,14 @@
+fixpoint "--allowho"
 
 data Bin 0 = [
   | mkBin { nBin : Int }
 ]
 
-bind 0 b : {b:Bin | true} 
+bind 0 b : {b:Bin | true}
+bind 1 f : {f:func(0, [Bin; Bin]) | f = (\x:Bin -> x) }
 
 constraint:
-  env [0]
-  lhs {v:int | (lam x. x) b == (lam x. x) b }
-  rhs {v:int | true}
+  env [0; 1]
+  lhs {v:int | f b == b }
+  rhs {v:int | b == f b }
   id 1 tag []
-
