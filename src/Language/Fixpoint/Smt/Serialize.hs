@@ -52,7 +52,8 @@ smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t
 instance SMTLIB2 Symbol where
   smt2 env s
     | Just t <- Thy.smt2Symbol env s = t
-  smt2 _ s                           = symbolBuilder s -- Builder.fromText $ symbolSafeText  s
+  smt2 _ s                           = symbolBuilder s
+
 
 instance SMTLIB2 LocSymbol where
   smt2 env = smt2 env . val
@@ -69,8 +70,8 @@ instance SMTLIB2 Constant where
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
   smt2 _ Minus  = "-"
-  smt2 _ Times  = {- Builder.fromText $ symbolSafeText -} symbolBuilder mulFuncName
-  smt2 _ Div    = {- Builder.fromText $ symbolSafeText -} symbolBuilder divFuncName
+  smt2 _ Times  = symbolBuilder mulFuncName
+  smt2 _ Div    = symbolBuilder divFuncName
   smt2 _ RTimes = "*"
   smt2 _ RDiv   = "/"
   smt2 _ Mod    = "mod"

@@ -212,9 +212,9 @@ stringPreamble _
 
 
 
--------------------------------------------------------------------------------
--- | Exported API -------------------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Exported API --------------------------------------------------------------
+--------------------------------------------------------------------------------
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
@@ -234,8 +234,9 @@ smt2SmtSort (SData c []) = symbolBuilder c
 smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c, args)
   where args             = buildMany (smt2SmtSort <$> ts)
 
-
+--------------------------------------------------------------------------------
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
+--------------------------------------------------------------------------------
 smt2App _ (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
@@ -248,13 +249,15 @@ smt2App _ _ _    = Nothing
 -- isSmt2App :: Expr -> [a] -> Bool
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
 
+--------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
+--------------------------------------------------------------------------------
 isSmt2App _ (EVar f) [_]
   | f == setEmpty = True
   | f == setEmp   = True
   | f == setSng   = True
-isSmt2App thyEnv (EVar f) _
-  =  isJust $ lookupSEnv f thyEnv
+isSmt2App env (EVar f) _
+  =  isJust (lookupSEnv f env) 
 isSmt2App _ _ _
   = False
 
