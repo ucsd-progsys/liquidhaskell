@@ -121,10 +121,14 @@ smt2Cast env e        _ = smt2    env e
 
 smt2Var :: SymEnv -> Symbol -> Sort -> Builder.Builder
 smt2Var env x t
-  | isLamArgSymbol x            = symbolBuilder (symbolAtName x env () t)
+  | isLamArgSymbol x            = smtLamArg env x t
   | Just s <- symEnvSort x env
   , isPolyInst s t              = smt2VarAs env x t
   | otherwise                   = smt2 env x
+
+smtLamArg :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smtLamArg env x t = symbolBuilder $ symbolAtName x env () (FFunc t FInt)
+  -- symbolBuilder (symbolAtName x env () t)
 
 smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder.Builder
 smt2VarAs env x t = build "(as {} {})" (smt2 env x, smt2SortMono x env t)
@@ -137,9 +141,9 @@ isPoly (FAbs {}) = True
 isPoly _         = False
 
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder.Builder
-smt2Lam env (x, xT) (ECst e eT) = build "({} {} {})" (smt2 env lambda, smt2 env x', smt2 env e)
+smt2Lam env (x, xT) (ECst e eT) = build "({} {} {})" (smt2 env lambda, x', smt2 env e)
   where
-    x'                          = symbolAtName x env () xT
+    x'                          = smtLamArg env x xT
     lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
 
 smt2Lam _ _ e
