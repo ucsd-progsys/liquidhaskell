@@ -88,9 +88,8 @@ fmap_distrib f g (C x xs)
        ==. (fmap f) ((fmap g) (C x xs))
        ==. (compose (fmap f) (fmap g)) (C x xs)
 
-
-data L a = N | C a (L a)
 {-@ data L [llen] @-}
+data L a = N | C a (L a)
 
 {-@ measure nill @-}
 nill :: L a -> Bool

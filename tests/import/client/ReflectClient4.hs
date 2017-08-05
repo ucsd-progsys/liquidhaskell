@@ -1,4 +1,6 @@
 
+
+{-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--totality"                            @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
@@ -42,23 +44,22 @@ test5 =   app (Cons 1 Nil) (Cons 2 (Cons 3 Nil))
       ==. Cons 1 (Cons 2 (Cons 3 Nil))
       *** QED
 
-{-@ thmAppLen :: xs:List a -> ys:List a ->
-      { llen (app xs ys) == llen xs + llen ys}
-  @-}
-
--- thmAppLen :: List a -> List a -> Proof
-
+{-@ thmAppLen :: xs:List a -> ys:List a -> { llen (app xs ys) == llen xs + llen ys} @-}
+thmAppLen :: List a -> List a -> Proof
 thmAppLen Nil ys
-  =   llen (app Nil ys)
-  ==. llen ys
-  ==. llen Nil + llen ys
-  *** QED
+  =  ()
+  --  llen (app Nil ys)
+  -- ==. llen ys
+  -- ==. llen Nil + llen ys
+  -- *** QED
 
 thmAppLen (Cons x xs) ys
-  =   llen (app (Cons x xs) ys)
-  ==. llen (Cons x (app xs ys))
-  ==. 1 + llen (app xs ys)
-      ? thmAppLen xs ys
-  ==. 1 + llen xs + llen ys
-  ==. llen (Cons x xs) + llen ys
-  *** QED
+  = thmAppLen xs ys
+
+  -- =   llen (app (Cons x xs) ys)
+  -- ==. llen (Cons x (app xs ys))
+  -- ==. 1 + llen (app xs ys)
+      -- ? thmAppLen xs ys
+  -- ==. 1 + llen xs + llen ys
+  -- ==. llen (Cons x xs) + llen ys
+  -- *** QED
