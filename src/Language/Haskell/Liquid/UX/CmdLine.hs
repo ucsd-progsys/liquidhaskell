@@ -63,7 +63,7 @@ import qualified Language.Fixpoint.Types.Config as FC
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
+import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config

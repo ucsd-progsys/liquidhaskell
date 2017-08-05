@@ -26,7 +26,7 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
 
 import BasicTypes

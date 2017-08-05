@@ -73,7 +73,7 @@ import System.IO.Temp
 import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ hiding (first)
 
-import Language.Fixpoint.Types hiding (Error, Result, Expr)
+import Language.Fixpoint.Types hiding (panic, Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Bare

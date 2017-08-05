@@ -110,7 +110,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (shiftVV, Predicate, isNumeric)
+import Language.Fixpoint.Types hiding (panic, shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 

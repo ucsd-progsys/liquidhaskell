@@ -18,7 +18,7 @@ import qualified Data.HashMap.Strict as M
 import           Debug.Trace (trace)
 import           TyCon
 import           Var (Var)
-import           Language.Fixpoint.Types                  hiding (mkQual)
+import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Bare
