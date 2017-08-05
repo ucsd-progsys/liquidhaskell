@@ -470,14 +470,15 @@ declare me = do
     ats        = funcSortVars env
 
 funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
-funcSortVars env  = [(var applyName  t, appSort t) | t <- ts]
-                 ++ [(var lambdaName t, lamSort t) | t <- ts]
+funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
+                 ++ [(var lambdaName t       , lamSort t) | t <- ts]
+                 ++ [(var (lamArgSymbol i) t , argSort t) | t <- ts, i <- [1..Thy.maxLamArg] ]
   where
     var n         = F.symbolAtSmtName n env ()
     ts            = M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
-
+    argSort (s,_) = ([]    , s)
 
 -- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,

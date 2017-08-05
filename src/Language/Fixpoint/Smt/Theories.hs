@@ -31,6 +31,7 @@ module Language.Fixpoint.Smt.Theories
       -- * Query Theories
      , isSmt2App
      , axiomLiterals
+     , maxLamArg
      ) where
 
 import           Prelude hiding (map)
@@ -384,8 +385,9 @@ interpSym x n t = (x, Thy x n t Theory)
   -- SHIFTLAM  ++ [(lamArgSymbol i, s) | i <- [1..maxLamArg], s <- sorts]
 -- SHIFTLAM
 -- SHIFTLAM  -- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
--- SHIFTLAM  maxLamArg :: Int
--- SHIFTLAM  maxLamArg = 7
+
+maxLamArg :: Int
+maxLamArg = 7
 
 -- SHIFTLAM sorts :: [Sort]
 -- SHIFTLAM sorts = [intSort]
