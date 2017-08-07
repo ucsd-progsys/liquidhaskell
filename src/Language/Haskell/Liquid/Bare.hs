@@ -629,15 +629,18 @@ makeGhcSpecCHOP1
            , [F.DataDecl]
            )
 makeGhcSpecCHOP1 cfg specs embs syms = do
-  (tcDds, dcs)    <- mconcat <$> mapM (makeConTypes cfg embs) specs
+  (tcDds, dcs)    <- mconcat <$> mapM makeConTypes specs
   let tcs          = [(x, y) | (x, y,_)       <- tcDds]
-  let adts         = [ d     | (_, _, Just d) <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+  let tds          = [(tc, dd) | (tc,_,Just dd) <- tcDds]
+  let adts         = makeDataDecls cfg embs tds datacons
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
+
+
 
 makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]

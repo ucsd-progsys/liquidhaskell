@@ -275,7 +275,6 @@ sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
     (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
--- sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
 sourcePosSrcSpan p = sourcePos2SrcSpan p (incSourceColumn p 1)
 
 sourcePosSrcLoc    :: SourcePos -> SrcLoc

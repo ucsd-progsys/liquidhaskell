@@ -450,6 +450,8 @@ data DataConP = DataConP
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
+instance F.Loc DataConP where
+  srcSpan d = F.SS (dc_loc d) (dc_locE d)
 
 -- | Which Top-Level Binders Should be Verified
 data TargetVars = AllVars | Only ![Var]

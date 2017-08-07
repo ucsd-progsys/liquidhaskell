@@ -89,7 +89,6 @@ data HasDataDecl
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
-                -- \tc -> (tc,) <$> M.lookup (tcSym tc) decls
   where
     def          = NoDecl Nothing
     tcSym        = GM.dropModuleNamesAndUnique . symbol
