@@ -1,6 +1,8 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exactdc"         @-}
+{-@ LIQUID "--higherorder" @-}
+{-@ LIQUID "--totality"    @-}
+{-@ LIQUID "--exactdc"     @-}
+{-@ LIQUID "--no-adt"      @-} -- TODO: embed HKTs in SMTLIB2 ADTs (e.g. `Rec`)
+
 {-# LANGUAGE RankNTypes #-}
 
 module Bug where

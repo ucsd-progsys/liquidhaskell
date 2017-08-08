@@ -251,6 +251,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
+ , noADT
+    = def &= help "Do not generate ADT representations in refinement logic"
+          &= name "no-adt"
+
  , noMeasureFields
     = def &= help "Do not automatically lift data constructor fields into measures"
           &= name "no-measure-fields"
@@ -511,6 +515,7 @@ defConfig = Config { files             = def
                    , totality          = def
                    , pruneUnsorted     = def
                    , exactDC           = def
+                   , noADT             = def
                    , noMeasureFields   = def
                    , cores             = def
                    , minPartSize       = FC.defaultMinPartSize

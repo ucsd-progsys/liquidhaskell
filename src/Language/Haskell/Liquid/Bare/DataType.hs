@@ -77,9 +77,11 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> [(TyCon, DataDecl)]
               -> [F.DataDecl]
 
 makeDataDecls cfg tce tds ds
-  | exactDC cfg = [ makeDataDecl tce tc dd ctors
+  | makeDecls = [ makeDataDecl tce tc dd ctors
                       | (tc, (dd, ctors)) <- groupDataCons tds ds ]
-  | otherwise   = []
+  | otherwise = []
+  where
+    makeDecls = exactDC cfg && not (noADT cfg)
 
 groupDataCons :: [(TyCon, DataDecl)] -> [(DataCon, Located DataConP)]
               -> [(TyCon, (DataDecl, [(DataCon, DataConP)]))]
