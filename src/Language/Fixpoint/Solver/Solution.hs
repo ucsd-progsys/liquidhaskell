@@ -23,7 +23,7 @@ import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Smt.Theories       as Thy
+-- import qualified Language.Fixpoint.Smt.Theories       as Thy
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
@@ -278,8 +278,8 @@ mkSubst x tx ey ty
   where
     msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
-    ex'         = Thy.toInt ex tx
-    ey'         = Thy.toInt ey ty
+    ex'         = So.toInt ex tx
+    ey'         = So.toInt ey ty
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

@@ -41,6 +41,7 @@ module Language.Fixpoint.SortCheck  (
   , Elaborate (..)
   , applySorts
   , unApplyAt
+  , toInt
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -497,8 +498,8 @@ elab f (PAtom r e1 e2)
   return (PAtom r e1' e2', boolSort)
 
 elab f (PAtom r e1 e2) = do
-  e1' <- uncurry Thy.toInt <$> elab f e1
-  e2' <- uncurry Thy.toInt <$> elab f e2
+  e1' <- uncurry toInt <$> elab f e1
+  e2' <- uncurry toInt <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
 elab f (PExist bs e) = do
@@ -569,7 +570,6 @@ defuncEApp env e es
   | otherwise
   = L.foldl' makeApplication e es
 
-
 -}
 
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
@@ -592,6 +592,15 @@ makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)
 
+-- TODO: proper toInt
+toInt :: Expr -> Sort -> Expr
+toInt e s = ECst (EApp f (ECst e s)) FInt
+  where
+    f     = toIntAt s
+
+toIntAt :: Sort -> Expr
+toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
+
 unApplyAt :: Expr -> Maybe Sort
 unApplyAt (ECst (EVar f) t@(FFunc {}))
   | f == applyName = Just t
@@ -604,7 +613,7 @@ _makeApplication :: Expr -> (Expr, Sort) -> Expr
 _makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
   where
     f                       = _makeApplySymbol (unAbs s)
-    e2'                     = Thy.toInt e2 s2
+    e2'                     = toInt e2 s2
     s2                      = exprSort "makeApplication" e2
 
 _makeApplySymbol :: Sort -> Symbol
@@ -662,7 +671,7 @@ splitArgs = go []
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
-applySorts = (defs ++) . Vis.fold vis () []
+applySorts = tracepp "applySorts" . (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
@@ -863,16 +872,10 @@ checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` (errNonNumeric s
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` (errNonNumeric s1)
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` (errNonFractional s2)
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractional s1)
+checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 
--- checkRelTy _ e Eq t1 t2
---   | t1 == boolSort || t2 == boolSort = throwError $ errRel e t1 t2
--- checkRelTy _ e Ne t1 t2
---   | t1 == boolSort || t2 == boolSort = throwError $ errRel e t1 t2
-
-checkRelTy f e Eq t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
-checkRelTy f e Ne t1 t2            = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
-
-checkRelTy _ e _  t1 t2            = unless (t1 == t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwError $ errRel e t1 t2)
 
 --------------------------------------------------------------------------------
 -- | Sort Unification

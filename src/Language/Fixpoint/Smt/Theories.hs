@@ -18,7 +18,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Bit Vector Operations
      , sizeBv
-     , toInt
+       -- , toInt
 
        -- * Theory Symbols
      , theorySymbols
@@ -291,8 +291,8 @@ preamble u _    = smtlibPreamble u
   -- where
     -- msg   = "toInt e = " ++ show e ++ ", t = " ++ show s
 
-toInt :: Expr -> Sort -> Expr
-toInt e s
+_toInt :: Expr -> Sort -> Expr
+_toInt e s
   |  (FApp (FTC c) _) <- s
   , setConName == symbol c
   = castWith setToIntName e

@@ -104,7 +104,7 @@ module Language.Fixpoint.Types.Names (
   , divFuncName
 
   -- * Casting function names
-  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
+  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName, toIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
   , applyName
 
@@ -521,11 +521,12 @@ lamArgSymbol = intSymbol lamArgPrefix
 isLamArgSymbol :: Symbol -> Bool
 isLamArgSymbol = isPrefixOfSym lamArgPrefix
 
-setToIntName, bitVecToIntName, mapToIntName, realToIntName :: Symbol
+setToIntName, bitVecToIntName, mapToIntName, realToIntName, toIntName :: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
 realToIntName   = "real_to_int"
+toIntName       = "cast_as_int"
 
 boolToIntName :: (IsString a) => a
 boolToIntName   = "bool_to_int"

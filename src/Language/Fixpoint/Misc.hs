@@ -200,6 +200,9 @@ groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
 allMap p = L.foldl' (\a v -> a && p v) True
 
+hashNub :: (Eq k, Hashable k) => [k] -> [k]
+hashNub = M.keys . M.fromList . fmap (, ())
+
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
   where
@@ -255,7 +258,7 @@ safeFromList :: (Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k 
 
 safeFromList msg kvs = applyNonNull (M.fromList kvs) err (dups kvs)
   where
-    dups             = duplicates . fmap fst  
+    dups             = duplicates . fmap fst
     err              = errorstar . wrap "safeFromList with duplicates" msg . show
     wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
 
