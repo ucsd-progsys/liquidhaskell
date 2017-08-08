@@ -198,9 +198,10 @@ data SmtSort
   | SString
   | SSet
   | SMap
-  | SBitVec Int
-  | SVar    Int
-  | SData   FTycon [SmtSort]
+  | SBitVec !Int
+  | SVar    !Int
+  | SData   !FTycon ![SmtSort]
+  | SApp            ![SmtSort]           -- ^ Representing HKT
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable SmtSort
@@ -226,6 +227,7 @@ sortSmtSort poly env  = go
 fappSmtSort :: Bool -> SEnv a -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly env = go
   where
+    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
     go (FTC c) _
       | setConName == symbol c  = SSet
     go (FTC c) _
@@ -251,5 +253,8 @@ instance PPrint SmtSort where
   pprintTidy _ SMap         = text "Map"
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <> int i
-  pprintTidy k (SData c ts) = -- parens (pprintTidy k c <+> pprintTidy k ts)
-                              parens $ Misc.intersperse (text "") (pprintTidy k c : (pprintTidy k <$> ts))
+  pprintTidy k (SApp ts)    = ppParens k (pprintTidy k tyAppName) ts
+  pprintTidy k (SData c ts) = ppParens k (pprintTidy k c)         ts
+
+ppParens :: (PPrint d) => Tidy -> Doc -> [d] -> Doc
+ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds))

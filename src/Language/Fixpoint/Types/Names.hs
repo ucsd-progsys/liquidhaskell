@@ -71,7 +71,6 @@ module Language.Fixpoint.Types.Names (
   -- * Wrapping Symbols
   , litSymbol
   , testSymbol
-  -- , ctorSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
@@ -90,8 +89,6 @@ module Language.Fixpoint.Types.Names (
   , tupConName
   , setConName
   , mapConName
-  -- , propConName
-  -- , hpropConName
   , strConName
   , nilName
   , consName
@@ -101,6 +98,7 @@ module Language.Fixpoint.Types.Names (
   , bitVecName
   , bvAndName
   , bvOrName
+  , tyAppName
   , prims
   , mulFuncName
   , divFuncName
@@ -576,6 +574,9 @@ size64Name   = "Size64"
 bitVecName   = "BitVec"
 bvOrName     = "bvor"
 bvAndName    = "bvand"
+
+tyAppName :: Symbol
+tyAppName    = "LF-App"
 
 mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"
