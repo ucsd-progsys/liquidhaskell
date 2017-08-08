@@ -84,11 +84,20 @@ instance Monoid SymEnv where
                          }
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv fEnv dEnv ls sortMap
+symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
   where
+    xEnv'                 = unionSEnv xEnv wiredInEnv
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
     smts                  = funcSorts dEnv ts -- tracepp "smt-apply-sorts" $ Misc.sortNub $ (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+
+-- | These are "BUILT-in" polymorphic functions which are
+--   UNININTERPRETED but POLYMORPHIC, hence need to go through
+--   the apply-defunc stuff.
+
+wiredInEnv :: M.HashMap Symbol Sort
+wiredInEnv = M.fromList [(toIntName, mkFFunc 1 [FVar 0, FInt])]
+
 
 -- | 'smtSorts' attempts to compute a list of all the input-output sorts
 --   at which applications occur. This is a gross hack; as during unfolding

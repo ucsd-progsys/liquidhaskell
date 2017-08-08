@@ -559,19 +559,6 @@ elabEApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
-{-
-
-NO-CURRY
-
-defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
-defuncEApp env e es
-  | Thy.isSmt2App (seTheory env) (Vis.stripCasts e) es
-  = eApps e (fst <$> es)
-  | otherwise
-  = L.foldl' makeApplication e es
-
--}
-
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
 defuncEApp env e es = L.foldl' makeApplication e' es'
   where
@@ -584,6 +571,7 @@ takeArgs env e es =
                in (eApps e (fst <$> es1), es2)
     Nothing -> (e, es)
 
+-- 'e1' is the function, 'e2' is the argument, 's' is the OUTPUT TYPE
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
@@ -592,13 +580,9 @@ makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)
 
-elabToInt :: Expr -> Sort -> Expr
-elabToInt
--- makeApplication toIntAt
-
 -- JUST make "toInt" call "makeApplication" also, so they are wrapped in apply
 -- MAY CAUSE CRASH (apply-on-apply) so rig `isSmt2App` to treat `apply` as SPECIAL.
--- 
+--
 -- TODO: proper toInt
 toInt :: Expr -> Sort -> Expr
 toInt e s = case unFApp s of
@@ -609,7 +593,8 @@ ftcToInt :: FTycon -> Sort -> Expr -> Expr
 ftcToInt c s e
   | c == strFTyCon  = e
   | c == boolFTyCon = castWith boolToIntName e
-  | otherwise       = ECst (EApp f (ECst e s)) FInt
+  | otherwise       = -- makeApplication f (ECst e s, FInt)
+                      ECst (EApp f (ECst e s)) FInt
   where
     f               = toIntAt s
 
@@ -663,6 +648,8 @@ splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
   where
     go acc (ECst (EApp e1 e) s) = go ((e, s) : acc) e1
+    -- go acc e@(EApp f _)
+    --    | Just _ <- unApplyAt f   = (e, acc)
     go _   e@EApp{}             = errorstar $ "UNEXPECTED: splitArgs: EApp without output type: " ++ showpp e
     -- go acc (ECst e _)           = go acc e
     go acc e                    = (e, acc)

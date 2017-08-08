@@ -326,8 +326,8 @@ castWith s = eAppC intSort (EVar s)
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
 theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols ds = fromListSEnv $  [] -- SHIFTLAM: uninterpSymbols
-                               ++ interpSymbols
+theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
+                                  interpSymbols
                                ++ concatMap dataDeclSymbols ds
 
 --------------------------------------------------------------------------------
@@ -368,16 +368,17 @@ interpSymbols =
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
--- SHIFTLAM  uninterpSymbols :: [(Symbol, TheorySymbol)]
--- SHIFTLAM  uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
+-- SHIFTLAM _uninterpSymbols :: [(Symbol, TheorySymbol)]
+-- SHIFTLAM _uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- _uninterpSymbols']
 -- SHIFTLAM
--- SHIFTLAM  --------------------------------------------------------------------------------
--- SHIFTLAM  uninterpSym :: Symbol -> Sort -> TheorySymbol
--- SHIFTLAM  --------------------------------------------------------------------------------
--- SHIFTLAM  uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
+-- SHIFTLAM --------------------------------------------------------------------------------
+-- SHIFTLAM _uninterpSym :: Symbol -> Sort -> TheorySymbol
+-- SHIFTLAM --------------------------------------------------------------------------------
+-- SHIFTLAM _uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
 -- SHIFTLAM
--- SHIFTLAM  uninterpSymbols' :: [(Symbol, Sort)]
--- SHIFTLAM  uninterpSymbols' =
+-- SHIFTLAM _uninterpSymbols' :: [(Symbol, Sort)]
+-- SHIFTLAM _uninterpSymbols' = [] -- [ (toIntName,  mkFFunc 1 [FVar 0, FInt]) ]
+
   -- SHIFTLAM  [ (setToIntName,    FFunc (setSort intSort)   intSort)
   -- SHIFTLAM  , (bitVecToIntName, FFunc bitVecSort intSort)
   -- SHIFTLAM  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
