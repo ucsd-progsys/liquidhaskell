@@ -1,0 +1,16 @@
+
+data Zob 0 = [
+  | boo { choo : int } 
+]
+
+data LL 0 = [
+  | emp { }
+  | con { lHead : Zob, lTail : LL }
+]
+
+constraint:
+  env []
+  lhs {v:int | true }
+  rhs {v:int | emp = (if (1 < 2) then emp else emp) }
+  id 1 tag []
+
