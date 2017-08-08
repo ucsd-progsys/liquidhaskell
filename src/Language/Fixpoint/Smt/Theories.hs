@@ -233,7 +233,7 @@ smt2SmtSort (SBitVec n)  = build "(_ BitVec {})" (Only n)
 smt2SmtSort (SVar n)     = build "T{}" (Only n)
 smt2SmtSort (SData c []) = symbolBuilder c
 smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c        , smt2SmtSorts ts)
-smt2SmtSort (SApp ts)    = build "({} {})" (symbolBuilder tyAppName, smt2SmtSorts ts)
+-- smt2SmtSort (SApp ts)    = build "({} {})" (symbolBuilder tyAppName, smt2SmtSorts ts)
 
 smt2SmtSorts :: [SmtSort] -> Builder.Builder
 smt2SmtSorts = buildMany . fmap smt2SmtSort

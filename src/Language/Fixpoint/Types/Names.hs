@@ -98,7 +98,7 @@ module Language.Fixpoint.Types.Names (
   , bitVecName
   , bvAndName
   , bvOrName
-  , tyAppName
+  -- HKT , tyAppName
   , prims
   , mulFuncName
   , divFuncName
@@ -575,8 +575,8 @@ bitVecName   = "BitVec"
 bvOrName     = "bvor"
 bvAndName    = "bvand"
 
-tyAppName :: Symbol
-tyAppName    = "LF-App"
+-- HKT tyAppName :: Symbol
+-- HKT tyAppName    = "LF-App"
 
 mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"
