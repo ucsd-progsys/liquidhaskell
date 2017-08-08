@@ -274,12 +274,12 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
 mkSubst :: F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = F.notracepp msg (F.EEq ex' ey')
+  | otherwise   = F.tracepp msg (F.EEq ex' ey')
   where
     msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
-    ex'         = So.toInt ex tx
-    ey'         = So.toInt ey ty
+    ex'         = So.elabToInt ex tx
+    ey'         = So.elabToInt ey ty
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

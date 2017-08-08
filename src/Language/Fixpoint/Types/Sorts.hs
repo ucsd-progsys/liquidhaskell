@@ -25,7 +25,13 @@ module Language.Fixpoint.Types.Sorts (
   , Sub (..)
   , FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon, strFTyCon, setFTyCon  -- TODO: hide these
+  , intFTyCon
+  , boolFTyCon
+  , realFTyCon
+  , numFTyCon
+  , strFTyCon
+  , setFTyCon
+  , mapFTyCon -- TODO: hide these
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort
@@ -103,7 +109,8 @@ defNumInfo  = False
 defRealInfo = False
 defStrInfo  = False
 
-charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon, setFTyCon :: FTycon
+charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon :: FTycon
+strFTyCon, listFTyCon, mapFTyCon, setFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
 boolFTyCon = TC (dummyLoc "bool"     ) defTcInfo
 realFTyCon = TC (dummyLoc "real"     ) realTcInfo
@@ -113,6 +120,7 @@ strFTyCon  = TC (dummyLoc strConName ) strTcInfo
 listFTyCon = TC (dummyLoc listConName) defTcInfo
 charFTyCon = TC (dummyLoc "Char"     ) defTcInfo
 setFTyCon  = TC (dummyLoc setConName ) defTcInfo
+mapFTyCon  = TC (dummyLoc mapConName ) defTcInfo
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"

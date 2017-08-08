@@ -592,11 +592,35 @@ makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)
 
+elabToInt :: Expr -> Sort -> Expr
+elabToInt
+-- makeApplication toIntAt
+
+-- JUST make "toInt" call "makeApplication" also, so they are wrapped in apply
+-- MAY CAUSE CRASH (apply-on-apply) so rig `isSmt2App` to treat `apply` as SPECIAL.
+-- 
 -- TODO: proper toInt
 toInt :: Expr -> Sort -> Expr
-toInt e s = ECst (EApp f (ECst e s)) FInt
+toInt e s = case unFApp s of
+              FTC c : _ -> ftcToInt c s e
+              _         -> e
+
+ftcToInt :: FTycon -> Sort -> Expr -> Expr
+ftcToInt c s e
+  | c == strFTyCon  = e
+  | c == boolFTyCon = castWith boolToIntName e
+  | otherwise       = ECst (EApp f (ECst e s)) FInt
   where
-    f     = toIntAt s
+    f               = toIntAt s
+
+  -- / | c == setConName = castWith setToIntName e
+  -- / | c == mapConName = castWith mapToIntName e
+  -- / | c == bitVecName = castWith bitVecToIntName e
+  -- / | c == realFTyCon = castWith realToIntName e
+-- /
+
+castWith :: Symbol -> Expr -> Expr
+castWith s = eAppC intSort (EVar s)
 
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
