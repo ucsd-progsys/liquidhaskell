@@ -17,6 +17,7 @@ test1 _ _ _ = ()
 {-@ app :: xs:LL a -> ys:LL a -> {v:LL a | sz v = sz xs + sz ys} @-} 
 app = go 
   where 
+    {-@ go :: xs:LL a -> ys:LL a -> {v:LL a | sz v = sz xs + sz ys} @-} 
     go Emp ys         = ys 
     go (Cons x xs) ys = Cons x (go xs ys)
 
