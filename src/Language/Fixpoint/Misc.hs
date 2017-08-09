@@ -328,6 +328,25 @@ componentsWith eF x = map (fst3 . f) <$> vss
     (g,f,_)         = G.graphFromEdges . eF $ x
     vss             = T.flatten <$> G.components g
 
+topoSortWith :: (Ord v) => (a -> (v, [v])) -> [a] -> [a]
+topoSortWith vF xs = fst3 . f <$> G.topSort g
+  where
+    (g, f, _)      = G.graphFromEdges es
+    es             = [ (x, ux, vxs) | x <- xs, let (ux, vxs) = vF x ]
+
+-- >>> λ> exTopo
+-- >>> [1,2,4,6,5,3]
+exTopo  :: [Int]
+exTopo  = topoSortWith f [1,2,3,4,5,6]
+  where
+    f 1 = (1, [2, 3])
+    f 2 = (2, [3, 4])
+    f 3 = (3, []    )
+    f 4 = (4, [5, 6])
+    f 5 = (5, []    )
+    f 6 = (6, [3]   )
+    f n = (n, []    )
+
 
 type EqHash a = (Eq a, Ord a, Hashable a)
 
