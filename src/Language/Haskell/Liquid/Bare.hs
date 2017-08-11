@@ -635,7 +635,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-  let tds          = [(tc, dd) | (tc,_,Just dd) <- tcDds]
+  let tds          = [(tc, dd) | (tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons

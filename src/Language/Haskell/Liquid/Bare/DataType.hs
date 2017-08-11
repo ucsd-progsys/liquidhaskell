@@ -36,6 +36,7 @@ import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
 import qualified Language.Fixpoint.Misc                 as Misc
+import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
@@ -164,11 +165,26 @@ makeConTypes (name, spec) = inModule name $
 makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(TyCon, TyConP, Maybe DataDecl)]
                        , [[(DataCon, Located DataConP)]])
-makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
-  where
-    _msg                     = F.showpp (tycName <$> dcs)
-    group ds vs              = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs)
+makeConTypes' dcs vdcs = do
+  dcs' <- canonizeDecls dcs
+  unzip <$> mapM (uncurry ofBDataDecl) (groupVariances dcs' vdcs)
 
+-- | 'canonizeDecls ds' returns a subset of 'ds' where duplicates, e.g. arising
+--   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
+--   lifted versions appear LATER in the input list, and always use those instead
+--   of the unlifted versions.
+
+canonizeDecls :: [DataDecl] -> BareM [DataDecl]
+canonizeDecls = Misc.nubHashLastM key
+  where
+    key       = fmap F.symbol . lookupGhcTyCon "canonizeDecls" . tycName
+
+groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
+               -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
+groupVariances dcs vdcs    = F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
+                               merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+  where
+    _msg                   = F.showpp (tycName <$> dcs)
     merge (d:ds) (v:vs)
       | tycName d == fst v = (Just d, Just v)  : merge ds vs
       | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
@@ -203,6 +219,7 @@ checkDataDeclFields (lc, xts)
 
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
+
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
@@ -218,7 +235,6 @@ ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
-       -- let adt        = makeDataDecl cfg tce tc' dd cts'
        return ((tc', tcp, Just dd), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
        αs          = RTV . GM.symbolTyVar <$> as

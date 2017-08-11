@@ -1091,9 +1091,13 @@ mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
 -- | Values Related to Specifications ------------------------------------------
 --------------------------------------------------------------------------------
 data SizeFun
-  = IdSizeFun            -- ^ \x -> F.EVar x
+  = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
   deriving (Data, Typeable, Generic)
+
+instance Show SizeFun where
+  show IdSizeFun      = "IdSizeFun"
+  show (SymSizeFun x) = "SymSizeFun " ++ show x
 
 szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
@@ -1121,11 +1125,20 @@ instance Eq DataDecl where
 instance Ord DataDecl where
   compare d1 d2 = compare (tycName d1) (tycName d2)
 
+instance F.Loc DataDecl where
+  srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
+
 -- | For debugging.
 instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s"
-              (show $ tycName   dd)
+  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s [at: %s]"
+              (show $ F.symbol  dd)
               (show $ tycTyVars dd)
+              (show $ tycSFun   dd)
+              (show $ F.srcSpan dd)
+              -- (show $ F.loc $ tycName dd)
+
+instance F.PPrint DataDecl where
+  pprintTidy _ = text . show
 
 -- | Name of the data-type
 instance F.Symbolic DataDecl where

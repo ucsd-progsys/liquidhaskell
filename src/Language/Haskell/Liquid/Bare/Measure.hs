@@ -108,7 +108,7 @@ tyConDataDecl (_, HasDecl)
 tyConDataDecl (tc, NoDecl szF)
   = Just $ D
       { tycName   = symbol <$> GM.locNamedThing tc
-      , tycTyVars = symbol <$> tyConTyVars      tc
+      , tycTyVars = F.tracepp "OHO: TYCON" (symbol <$> tyConTyVars      tc)
       , tycPVars  = []
       , tycTyLabs = []
       , tycDCons  = decls tc
