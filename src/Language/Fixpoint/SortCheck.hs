@@ -169,7 +169,7 @@ instance Elaborate (SimpC a) where
 
 elabExpr :: String -> SymEnv -> Expr -> Expr
 elabExpr msg env e
-  = case runCM0 $ elab f e of
+  = case runCM0 $ elab (env, f) e of
       Left msg -> die $ err dummySpan (d msg)
       Right s  -> fst s
     where
@@ -257,7 +257,7 @@ type StateM = Int
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
 
 type Env      = Symbol -> SESearch Sort
-
+type ElabEnv  = (SymEnv, Env)
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -408,13 +408,13 @@ addEnv f bs x
 --------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------
-elab :: Env -> Expr -> CheckM (Expr, Sort)
+elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
-elab f e@(EBin o e1 e2) = do
+elab f@(_, g) e@(EBin o e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   -- s         <- checkExpr f e
-  s <- checkOpTy f e s1 s2
+  s <- checkOpTy g e s1 s2
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
@@ -443,18 +443,18 @@ elab _ e@(PKVar _ _) =
 elab f (PGrad k su i e) =
   ((, boolSort) . PGrad k su i . fst) <$> elab f e
 
-elab f e@(EVar x) =
+elab (_, f) e@(EVar x) =
   (e,) <$> checkSym f x
 
 elab f (ENeg e) = do
   (e', s) <- elab f e
   return (ENeg e', s)
 
-elab f (EIte p e1 e2) = do
+elab f@(_,g) (EIte p e1 e2) = do
   (p', _)   <- elab f p
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
-  s         <- checkIteTy f p e1' e2' s1 s2
+  s         <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (cast e1' s) (cast e2' s), s)
 
 elab f (ECst e t) = do
@@ -483,10 +483,10 @@ elab f (POr ps) = do
   ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f e@(PAtom Eq e1 e2) = do
-  t1        <- checkExpr f e1
-  t2        <- checkExpr f e2
-  (t1',t2') <- unite f e  t1 t2 `withError` (errElabExpr e)
+elab f@(_,g) e@(PAtom Eq e1 e2) = do
+  t1        <- checkExpr g e1
+  t2        <- checkExpr g e2
+  (t1',t2') <- unite g e  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   return (PAtom Eq (ECst e1' t1') (ECst e2' t2') , boolSort)
@@ -497,23 +497,23 @@ elab f (PAtom r e1 e2)
   (e2', _) <- elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f (PAtom r e1 e2) = do
-  e1' <- uncurry toInt <$> elab f e1
-  e2' <- uncurry toInt <$> elab f e2
+elab f@(env, _) (PAtom r e1 e2) = do
+  e1' <- uncurry (toInt env) <$> elab f e1
+  e2' <- uncurry (toInt env) <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
 elab f (PExist bs e) = do
-  (e', s) <- elab (addEnv f bs) e
+  (e', s) <- elab (elabAddEnv f bs) e
   let bs' = elaborate "PExist Args" mempty bs
   return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
-  (e', s) <- elab (addEnv f bs) e
+  (e', s) <- elab (elabAddEnv f bs) e
   let bs' = elaborate "PAll Args" mempty bs
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
-  (e', s) <- elab (addEnv f [(x, t)]) e
+  (e', s) <- elab (elabAddEnv f [(x, t)]) e
   let t' = elaborate "ELam Arg" mempty t
   return (ELam (x, t') (ECst e' s), FFunc t s)
 
@@ -521,6 +521,8 @@ elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
+
+elabAddEnv (g, f) bs = (g, addEnv f bs)
 
 cast :: Expr -> Sort -> Expr
 cast (ECst e _) t = ECst e t
@@ -531,29 +533,29 @@ cast e          t = ECst e t
   -- where
     -- msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
 
-elabAs :: Env -> Sort -> Expr -> CheckM Expr
+elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
 elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
 elabAs f _ e            = fst <$> elab f e
 
 -- DUPLICATION with `checkApp'`
-elabAppAs :: Env -> Sort -> Expr -> Expr -> CheckM Expr
-elabAppAs f t g e = do
+elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
+elabAppAs env@(_, f) t g e = do
   gT       <- checkExpr f g -- >>= instantiate                         -- NO-INSTANTIATE
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
   su       <- unifyMany f ge isu [oT, iT] [t, eT]
   let tg    = apply su gT
-  g'       <- elabAs f tg g
+  g'       <- elabAs env tg g
   let te    = apply su eT
-  e'       <- elabAs f te e
+  e'       <- elabAs env te e
   return    $ EApp (ECst g' tg) (ECst e' te)
 
-elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
-elabEApp f e1 e2 = do
+elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
+elabEApp f@(_, g) e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
-  s         <- elabAppSort f e1 e2 s1 s2
+  s         <- elabAppSort g e1 e2 s1 s2
   return       (e1', s1, e2', s2, s)
 
 --------------------------------------------------------------------------------
@@ -582,30 +584,44 @@ applyAt s t = ECst (EVar applyName) (FFunc s t)
 
 -- JUST make "toInt" call "makeApplication" also, so they are wrapped in apply
 -- MAY CAUSE CRASH (apply-on-apply) so rig `isSmt2App` to treat `apply` as SPECIAL.
---
+
+
 -- TODO: proper toInt
-toInt :: Expr -> Sort -> Expr
-toInt e s = case unFApp s of
-              FTC c : _ -> ftcToInt c s e
-              _         -> e
-
-ftcToInt :: FTycon -> Sort -> Expr -> Expr
-ftcToInt c s e
-  | c == strFTyCon  = e
-  | c == boolFTyCon = castWith boolToIntName e
-  | otherwise       = -- makeApplication f (ECst e s, FInt)
-                      ECst (EApp f (ECst e s)) FInt
+toInt :: SymEnv -> Expr -> Sort -> Expr
+toInt env e s
+  | isSmtInt  = e
+  | otherwise = ECst (EApp f (ECst e s)) FInt
   where
-    f               = toIntAt s
+    isSmtInt  = isInt env s
+    f         = toIntAt s
 
-  -- / | c == setConName = castWith setToIntName e
-  -- / | c == mapConName = castWith mapToIntName e
-  -- / | c == bitVecName = castWith bitVecToIntName e
-  -- / | c == realFTyCon = castWith realToIntName e
--- /
+isInt :: SymEnv -> Sort -> Bool
+isInt env s = case sortSmtSort False (seData env) s of
+  SInt    -> True
+  SString -> True
+  _       -> False
 
-castWith :: Symbol -> Expr -> Expr
-castWith s = eAppC intSort (EVar s)
+-- toInt env e s =
+--  case unFApp s of
+--    FTC c : _ -> ftcToInt env c s e
+--    _         -> e
+
+-- // ftcToInt :: SymEnv -> FTycon -> Sort -> Expr -> Expr
+-- // ftcToInt env c s e
+  -- // | c == strFTyCon  = e
+  -- // | c == boolFTyCon = castWith boolToIntName e
+-- //
+  -- // -- / | c == setConName = castWith setToIntName e
+  -- // -- / | c == mapConName = castWith mapToIntName e
+  -- // -- / | c == bitVecName = castWith bitVecToIntName e
+  -- // -- / | c == realFTyCon = castWith realToIntName e
+-- //
+  -- // | otherwise       = ECst (EApp f (ECst e s)) FInt
+  -- // where
+    -- // f               = toIntAt s
+
+-- // castWith :: Symbol -> Expr -> Expr
+-- // castWith s = eAppC intSort (EVar s)
 
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
@@ -618,31 +634,31 @@ unApplyAt _        = Nothing
 -- e1 e2 => App (App runFun e1) (toInt e2)
 -- | 'makeApplication e1 (e2, s)' does the apply-ification for '(e1 e2) : s'
 --   i.e. when the output type is 's'.
-_makeApplication :: Expr -> (Expr, Sort) -> Expr
-_makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
-  where
-    f                       = _makeApplySymbol (unAbs s)
-    e2'                     = toInt e2 s2
-    s2                      = exprSort "makeApplication" e2
-
-_makeApplySymbol :: Sort -> Symbol
-_makeApplySymbol s
-  | (FApp (FTC c) _) <- s
-  , setConName == symbol c
-  = setApplyName 1
-  | (FApp (FApp (FTC c) _) _) <- s
-  , mapConName == symbol c
-  = mapApplyName 1
-  | (FApp (FTC bv) (FTC s))   <- s
-  , bitVecName == symbol bv
-  , Just _ <- Thy.sizeBv s
-  = bitVecApplyName 1
-  | FTC c <- s, c == boolFTyCon
-  = boolApplyName 1
-  | s == FReal
-  = realApplyName 1
-  | otherwise
-  = intApplyName 1
+-- // _makeApplication :: Expr -> (Expr, Sort) -> Expr
+-- // _makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
+  -- // where
+    -- // f                       = _makeApplySymbol (unAbs s)
+    -- // e2'                     = toInt e2 s2
+    -- // s2                      = exprSort "makeApplication" e2
+-- //
+-- // _makeApplySymbol :: Sort -> Symbol
+-- // _makeApplySymbol s
+  -- // | (FApp (FTC c) _) <- s
+  -- // , setConName == symbol c
+  -- // = setApplyName 1
+  -- // | (FApp (FApp (FTC c) _) _) <- s
+  -- // , mapConName == symbol c
+  -- // = mapApplyName 1
+  -- // | (FApp (FTC bv) (FTC s))   <- s
+  -- // , bitVecName == symbol bv
+  -- // , Just _ <- Thy.sizeBv s
+  -- // = bitVecApplyName 1
+  -- // | FTC c <- s, c == boolFTyCon
+  -- // = boolApplyName 1
+  -- // | s == FReal
+  -- // = realApplyName 1
+  -- // | otherwise
+  -- // = intApplyName 1
 
 splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
@@ -870,6 +886,7 @@ checkRel f r  e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
   checkRelTy f (PAtom r e1 e2) r t1 t2
+
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy _ _ Ueq _ _             = return ()

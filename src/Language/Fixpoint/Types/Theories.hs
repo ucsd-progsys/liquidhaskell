@@ -21,6 +21,7 @@ module Language.Fixpoint.Types.Theories (
     -- * Theory Sorts
     , SmtSort (..)
     , sortSmtSort
+    , isIntSmtSort
 
     -- * Symbol Environments
     , SymEnv (..)
@@ -30,6 +31,8 @@ module Language.Fixpoint.Types.Theories (
     , insertSymEnv
     , symbolAtName
     , symbolAtSmtName
+
+
     ) where
 
 
@@ -159,6 +162,9 @@ ffuncSort env t      = (tx t1, tx t2)
 
 applySmtSort :: SEnv a -> Sort -> SmtSort
 applySmtSort = sortSmtSort False
+
+isIntSmtSort :: SEnv a -> Sort -> Bool
+isIntSmtSort env s = SInt == applySmtSort env s
 
 --------------------------------------------------------------------------------
 -- | 'TheorySymbol' represents the information about each interpreted 'Symbol'

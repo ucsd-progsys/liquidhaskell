@@ -282,7 +282,7 @@ mkSubst env x tx ey ty
     ey'         = elabToInt env ey ty
 
 elabToInt :: F.SymEnv -> F.Expr -> F.Sort -> F.Expr
-elabToInt env e s = So.elaborate "elabToInt" env (So.toInt e s)
+elabToInt env e s = So.elaborate "elabToInt" env (So.toInt env e s)
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

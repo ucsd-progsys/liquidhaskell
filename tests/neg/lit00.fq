@@ -13,6 +13,6 @@ bind 1 xOne  : {v : Peano | v = One  }
 constraint:
   env [0; 1]
   lhs {v:int | true} 
-  rhs {v:int | xZero /= xOne } 
+  rhs {v:int | xZero = xOne } 
   id 1 tag []
 
