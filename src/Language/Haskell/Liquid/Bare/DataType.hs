@@ -181,8 +181,7 @@ canonizeDecls = Misc.nubHashLastM key
 
 groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    = F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
-                               merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+groupVariances dcs vdcs    = merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
     _msg                   = F.showpp (tycName <$> dcs)
     merge (d:ds) (v:vs)

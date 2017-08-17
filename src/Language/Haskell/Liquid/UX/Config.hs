@@ -119,11 +119,10 @@ allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
-allowRewrite, allowArithmetic :: Config -> Bool
-allowRewrite    cfg = proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods
-allowArithmetic cfg = proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods
-
-
+allowInstances, allowRewrite, allowArithmetic :: Config -> Bool
+allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
+allowArithmetic cfg = allowInstances cfg && (proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods)
+allowInstances  cfg = autoInstantiate cfg /= NoInstances 
 
 instance Default ProofMethod where
   def = Rewrite
