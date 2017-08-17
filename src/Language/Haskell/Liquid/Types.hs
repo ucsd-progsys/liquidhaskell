@@ -1078,6 +1078,7 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
+
 instance F.Subable AxiomEq where
   syms   a = F.syms (axiomBody a) ++ F.syms (axiomEq a)
   subst su = mapAxiomEqExpr (F.subst su)
