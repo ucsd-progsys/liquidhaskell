@@ -8,9 +8,9 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-module BadDataDecl where
+module MonoidList where
 
-{-@ data L = Emp | Bons {x::a, zonk :: a, xs:: (L a)} @-}
+{-@ data L = Emp | Cons {x::a, xs:: (L a)} @-}
 --       ^ whoops, missing a tyvar!
 
 data L a = Emp | Cons a (L a)

@@ -46,8 +46,10 @@ import qualified Language.Haskell.Liquid.Measure        as Ms
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
+import           Text.Printf                     (printf)
 
 -- import           Debug.Trace (trace)
+
 
 makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeNumericInfo Nothing x   = x
@@ -182,10 +184,10 @@ canonizeDecls = Misc.nubHashLastM key
 
 groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    = F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
+groupVariances dcs vdcs    = -- F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
                                merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
-    _msg                   = F.showpp (tycName <$> dcs)
+    -- _msg                   = F.showpp (tycName <$> dcs)
     merge (d:ds) (v:vs)
       | tycName d == fst v = (Just d, Just v)  : merge ds vs
       | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
@@ -226,10 +228,12 @@ checkDataDeclFields (lc, xts)
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d = cN == dN
+checkDataDecl c d = (cN == dN || null (tycDCons d))
   where
-    cN            = length (tyConTyVars c)
-    dN            = length (tycTyVars   d)
+    -- msg           = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show tc) cN dN
+    cN            = length (GM.tyConTyVarsDef c)
+    dN            = length (tycTyVars         d)
+
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Maybe DataDecl

@@ -108,7 +108,7 @@ tyConDataDecl (_, HasDecl)
 tyConDataDecl (tc, NoDecl szF)
   = Just $ D
       { tycName   = symbol <$> GM.locNamedThing tc
-      , tycTyVars = symbol <$> tyConTyVars      tc
+      , tycTyVars = symbol <$> GM.tyConTyVarsDef   tc
       , tycPVars  = []
       , tycTyLabs = []
       , tycDCons  = decls tc
