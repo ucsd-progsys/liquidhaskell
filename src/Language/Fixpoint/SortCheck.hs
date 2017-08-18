@@ -522,6 +522,7 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
+elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
 cast :: Expr -> Sort -> Expr
