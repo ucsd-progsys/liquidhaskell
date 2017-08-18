@@ -1098,7 +1098,7 @@ data SizeFun
 
 instance Show SizeFun where
   show IdSizeFun      = "IdSizeFun"
-  show (SymSizeFun x) = "SymSizeFun " ++ show x
+  show (SymSizeFun x) = "SymSizeFun " ++ show (F.val x)
 
 szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
@@ -1131,12 +1131,11 @@ instance F.Loc DataDecl where
 
 -- | For debugging.
 instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s [at: %s]"
+  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s" -- [at: %s]"
               (show $ F.symbol  dd)
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
-              (show $ F.srcSpan dd)
-              -- (show $ F.loc $ tycName dd)
+              -- (show $ F.srcSpan dd)
 
 instance F.PPrint DataDecl where
   pprintTidy _ = text . show
