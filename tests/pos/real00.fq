@@ -1,0 +1,9 @@
+bind 0 xZero : {v : real | v = 0.0 } 
+bind 1 xOne  : {v : real | v = 1.0 } 
+
+constraint:
+  env [0; 1]
+  lhs {v:int | true} 
+  rhs {v:int | xZero /= xOne } 
+  id 1 tag []
+

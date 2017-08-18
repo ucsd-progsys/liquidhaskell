@@ -599,6 +599,7 @@ isInt :: SymEnv -> Sort -> Bool
 isInt env s = case sortSmtSort False (seData env) s of
   SInt    -> True
   SString -> True
+  SReal   -> True
   _       -> False
 
 -- toInt env e s =
