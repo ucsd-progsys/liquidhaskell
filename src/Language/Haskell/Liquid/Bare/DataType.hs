@@ -46,7 +46,7 @@ import qualified Language.Haskell.Liquid.Measure        as Ms
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
-import           Text.Printf                     (printf)
+-- import           Text.Printf                     (printf)
 
 -- import           Debug.Trace (trace)
 
@@ -230,7 +230,7 @@ checkDataDeclFields (lc, xts)
 checkDataDecl :: TyCon -> DataDecl -> Bool
 checkDataDecl c d = (cN == dN || null (tycDCons d))
   where
-    -- msg           = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show tc) cN dN
+    -- _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
 
