@@ -24,6 +24,7 @@ import           Class
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
+import           Control.Monad                          (when)
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
@@ -181,7 +182,8 @@ canonizeDecls = Misc.nubHashLastM key
 
 groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    = merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+groupVariances dcs vdcs    = F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
+                               merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
     _msg                   = F.showpp (tycName <$> dcs)
     merge (d:ds) (v:vs)
@@ -215,9 +217,19 @@ checkDataDeclFields (lc, xts)
   | otherwise     = return (lc, xts)
     where
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
-
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
+
+-- | 'checkDataDecl' checks that the supplied DataDecl is indeed a refinement
+--   of the GHC TyCon. We just check that the right tyvars are supplied
+--   as errors in the names and types of the constructors will be caught
+--   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
+
+checkDataDecl :: TyCon -> DataDecl -> Bool
+checkDataDecl c d = cN == dN
+  where
+    cN            = length (tyConTyVars c)
+    dN            = length (tycTyVars   d)
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Maybe DataDecl
@@ -226,6 +238,7 @@ ofBDataDecl :: Maybe DataDecl
 ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
+       when (not $ checkDataDecl tc' dd) (Ex.throw err)
        cts           <- mapM checkDataDeclFields cts0
        cts'          <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
@@ -236,6 +249,7 @@ ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
        return ((tc', tcp, Just dd), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
+       err         = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
        αs          = RTV . GM.symbolTyVar <$> as
        n           = length αs
        lc          = loc  tc

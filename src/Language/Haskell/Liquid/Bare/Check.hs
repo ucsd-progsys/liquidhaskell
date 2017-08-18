@@ -7,7 +7,6 @@
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
-
   , checkTerminationExpr
   , checkTy
   ) where
