@@ -47,8 +47,8 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 -- import           Text.Printf                     (printf)
-
 -- import           Debug.Trace (trace)
+
 
 
 makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
