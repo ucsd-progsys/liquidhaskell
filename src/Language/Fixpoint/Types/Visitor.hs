@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns  #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
@@ -42,12 +43,17 @@ module Language.Fixpoint.Types.Visitor (
 
   ) where
 
-import           Control.Monad.Trans.State.Strict (State, modify, runState)
+-- import           Control.Monad.Trans.State.Strict (State, modify, runState)
+-- import           Control.DeepSeq
+import           Control.Monad.State.Strict
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import           Language.Fixpoint.Types hiding (mapSort)
-import           Language.Fixpoint.Misc (count, sortNub)
+import qualified Language.Fixpoint.Misc as Misc
+
+
+
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -61,10 +67,10 @@ data Visitor acc ctx = Visitor {
   }
 
 ---------------------------------------------------------------------------------
-defaultVisitor :: Monoid acc => Visitor acc ctx
+defaultVisitor :: (Monoid acc) => Visitor acc ctx
 ---------------------------------------------------------------------------------
 defaultVisitor = Visitor
-  { ctxExpr    = const -- \c _ -> c
+  { ctxExpr    = const
   , txExpr     = \_ x -> x
   , accExpr    = \_ _ -> mempty
   }
@@ -85,10 +91,20 @@ type VisitM acc = State acc
 
 accum :: (Monoid a) => a -> VisitM a ()
 accum !z = modify (mappend z)
+  -- do
+  -- !cur <- get
+  -- put ((mappend $!! z) $!! cur)
 
-(<$$>) ::  (Traversable t, Applicative f) => (a -> f b) -> t a -> f (t b)
-f <$$> x = traverse f x
+(<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
+f <$$> xs = f Misc.<$$> xs
 
+-- (<$$>) ::  (Applicative f) => (a -> f b) -> [a] -> f [b]
+-- f <$$> x = traverse f x
+-- _ <$$> []     = return []
+-- f <$$> (x:xs) = do
+  -- !y  <- f x
+  -- !ys <- f <$$> xs
+  -- return (y:ys)
 ------------------------------------------------------------------------------
 class Visitable t where
   visit :: (Monoid a) => Visitor a c -> c -> t -> VisitM a t
@@ -167,7 +183,7 @@ mapKVars f = mapKVars' f'
     f' (kv', _) = f kv'
 
 mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
-mapKVars' f            = trans kvVis () []
+mapKVars' f            = trans kvVis () ()
   where
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
@@ -179,7 +195,7 @@ mapKVars' f            = trans kvVis () []
 
 
 mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
-mapGVars' f            = trans kvVis () []
+mapGVars' f            = trans kvVis () ()
   where
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PGrad k su _ _)
@@ -187,7 +203,7 @@ mapGVars' f            = trans kvVis () []
     txK _ p            = p
 
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
-mapExpr f = trans (defaultVisitor {txExpr = const f}) () []
+mapExpr f = trans (defaultVisitor {txExpr = const f}) () ()
 
 
 mapMExpr :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
@@ -216,14 +232,14 @@ mapMExpr f = go
     go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
-mapKVarSubsts f          = trans kvVis () []
+mapKVarSubsts f          = trans kvVis () ()
   where
     kvVis                = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)   = PKVar k (f k su)
     txK _ (PGrad k su i e) = PGrad k (f k su) i e
     txK _ p              = p
 
-newtype MInt = MInt Integer
+newtype MInt = MInt Integer -- deriving (Eq, NFData)
 
 instance Monoid MInt where
   mempty                    = MInt 0
@@ -255,9 +271,9 @@ kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []
   where
     kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
-    kv' _ (PKVar k _)   = [k]
+    kv' _ (PKVar k _)     = [k]
     kv' _ (PGrad k _ _ _) = [k]
-    kv' _ _             = []
+    kv' _ _               = []
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
@@ -268,7 +284,7 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
 envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
 envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
   where
-    tally      = count . concat
+    tally      = Misc.count . concat
     kvs        = kvars . sr_reft
 
 rhsKVars :: (TaggedC c a) => c a -> [KVar]
@@ -289,7 +305,7 @@ isConc :: Expr -> Bool
 isConc = null . kvars
 
 stripCasts :: (Visitable t) => t -> t
-stripCasts = trans (defaultVisitor { txExpr = const go }) () []
+stripCasts = trans (defaultVisitor { txExpr = const go }) () ()
   where
     go (ECst e _) = e
     go e          = e
@@ -315,11 +331,11 @@ foldSort f = step
 mapSort :: (Sort -> Sort) -> Sort -> Sort
 mapSort f = step
   where
-    step             = go . f
-    go (FFunc t1 t2) = FFunc (step t1) (step t2)
-    go (FApp t1 t2)  = FApp  (step t1) (step t2)
-    go (FAbs i t)    = FAbs i (step t)
-    go t             = t
+    step !x           = go (f x)
+    go !(FFunc t1 t2) = FFunc (step t1) (step t2)
+    go !(FApp t1 t2)  = FApp  (step t1) (step t2)
+    go !(FAbs i t)    = FAbs i (step t)
+    go !t             = t
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
@@ -333,7 +349,7 @@ class SymConsts a where
 
 -- instance  SymConsts (FInfo a) where
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
-  symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
+  symConsts fi = Misc.sortNub $ csLits ++ bsLits ++ qsLits
     where
       csLits   = concatMap symConsts $ M.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi

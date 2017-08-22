@@ -117,7 +117,7 @@ unElab :: (Vis.Visitable t) => t -> t
 unElab = Vis.stripCasts . unApply
 
 unApply :: (Vis.Visitable t) => t -> t
-unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
+unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
   where
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2

@@ -50,7 +50,9 @@ module Language.Fixpoint.SortCheck  (
 
 
 import           Control.Monad
-import           Control.Monad.Except      (MonadError(..))
+import           Control.Monad.Except      -- (MonadError(..))
+import           Control.Monad.State.Strict
+
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe)
@@ -250,16 +252,19 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- RJ: why are we handrolling monads! 
+-- RJ: why are we handrolling monads!
 -- | Types used throughout checker
 
-type StateM = Int
-
-newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
+-- newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
+-- type CheckM   = ExceptT ChError (State ChState)
+type CheckM   = StateT ChState (Either ChError)
+type ChError  = String
+type ChState  = Int
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
 
+{-
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
   (CM m) >>= f = CM $ \i -> case m i of
@@ -273,9 +278,6 @@ instance MonadError String CheckM where
                                       (j, Left s) -> runCM (f s) j
                                       (j, Right x) -> (j, Right x)
 
-withError :: CheckM a -> String -> CheckM a
-act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
-
 instance Functor CheckM where
   fmap f (CM m) = CM $ \i -> case m i of {(j, Left s) -> (j, Left s); (j, Right x) -> (j, Right $ f x)}
 
@@ -286,12 +288,17 @@ instance Applicative CheckM where
                              (_, Right x) -> case f i of
                                  (k, Left s)  -> (k, Left s)
                                  (k, Right g) -> (k, Right $ g x)
+-}
 
-initCM :: StateM
-initCM = 42
+withError :: CheckM a -> String -> CheckM a
+act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
 
 runCM0 :: CheckM a -> Either String a
-runCM0 act = snd $ runCM act initCM
+-- runCM0 act = snd $ runCM act initCM
+runCM0 act = fst <$> runStateT act initCM -- :: Either ChError (a, ChState)
+  where
+    initCM = 42
+
 
 class Freshable a where
   fresh   :: CheckM a
@@ -299,7 +306,11 @@ class Freshable a where
   refresh _ = fresh
 
 instance Freshable Int where
-  fresh = CM (\n -> (n+1, Right n))
+  fresh = do
+    n <- get
+    put (n + 1)
+    return n
+    -- CM (\n -> (n + 1, Right n))
 
 instance Freshable [Int] where
   fresh   = mapM (const fresh) [0..]
