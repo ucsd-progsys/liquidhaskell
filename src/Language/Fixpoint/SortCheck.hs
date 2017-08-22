@@ -540,7 +540,7 @@ elabAs f t e = tracepp msg <$> go e
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs env@(_, f) t g e = do
-  gT       <- checkExpr f g -- >>= instantiate                         -- NO-INSTANTIATE
+  gT       <- checkExpr f g
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
