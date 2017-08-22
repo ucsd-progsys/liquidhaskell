@@ -83,7 +83,7 @@ execVisitM v c a f x = runState (f v c x) a
 type VisitM acc = State acc
 
 accum :: (Monoid a) => a -> VisitM a ()
-accum = modify . mappend
+accum !z = modify (mappend z)
 
 (<$$>) ::  (Traversable t, Applicative f) => (a -> f b) -> t a -> f (t b)
 f <$$> x = traverse f x
@@ -133,32 +133,32 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where
-    vE c e = do {-# SCC "visitExpr.vE.accum" #-} accum acc
-                {-# SCC "visitExpr.vE.step" #-} step c' e'
-      where c'  = ctxExpr v c e
-            e'  = txExpr v c' e
+    vE !c !e = do {-# SCC "visitExpr.vE.accum" #-} accum acc
+                {-# SCC "visitExpr.vE.step" #-}  step c' e'
+      where c'  = ctxExpr v c  e
+            e'  = txExpr  v c' e
             acc = accExpr v c' e
-    step _ e@(ESym _)      = return e
-    step _ e@(ECon _)      = return e
-    step _ e@(EVar _)      = return e
-    step c (EApp f e)      = EApp        <$> vE c f  <*> vE c e
-    step c (ENeg e)        = ENeg        <$> vE c e
-    step c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
-    step c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
-    step c (ECst e t)      = (`ECst` t)  <$> vE c e
-    step c (PAnd  ps)      = PAnd        <$> (vE c <$$> ps)
-    step c (POr  ps)       = POr         <$> (vE c <$$> ps)
-    step c (PNot p)        = PNot        <$> vE c p
-    step c (PImp p1 p2)    = PImp        <$> vE c p1 <*> vE c p2
-    step c (PIff p1 p2)    = PIff        <$> vE c p1 <*> vE c p2
-    step c (PAtom r e1 e2) = PAtom r     <$> vE c e1 <*> vE c e2
-    step c (PAll xts p)    = PAll   xts  <$> vE c p
-    step c (ELam (x,t) e)  = ELam (x,t)  <$> vE c e
-    step c (PExist xts p)  = PExist xts  <$> vE c p
-    step c (ETApp e s)     = (`ETApp` s) <$> vE c e
-    step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _ p@(PKVar _ _)   = return p
-    step c (PGrad k su i e) = PGrad k su i <$> vE c e
+    step _ e@(ESym _)       = return e
+    step _ e@(ECon _)       = return e
+    step _ e@(EVar _)       = return e
+    step !c (EApp f e)      = EApp        <$> vE c f  <*> vE c e
+    step !c (ENeg e)        = ENeg        <$> vE c e
+    step !c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
+    step !c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
+    step !c (ECst e t)      = (`ECst` t)  <$> vE c e
+    step !c (PAnd  ps)      = PAnd        <$> (vE c <$$> ps)
+    step !c (POr  ps)       = POr         <$> (vE c <$$> ps)
+    step !c (PNot p)        = PNot        <$> vE c p
+    step !c (PImp p1 p2)    = PImp        <$> vE c p1 <*> vE c p2
+    step !c (PIff p1 p2)    = PIff        <$> vE c p1 <*> vE c p2
+    step !c (PAtom r e1 e2) = PAtom r     <$> vE c e1 <*> vE c e2
+    step !c (PAll xts p)    = PAll   xts  <$> vE c p
+    step !c (ELam (x,t) e)  = ELam (x,t)  <$> vE c e
+    step !c (PExist xts p)  = PExist xts  <$> vE c p
+    step !c (ETApp e s)     = (`ETApp` s) <$> vE c e
+    step !c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
+    step _  p@(PKVar _ _)   = return p
+    step !c (PGrad k su i e) = PGrad k su i <$> vE c e
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
