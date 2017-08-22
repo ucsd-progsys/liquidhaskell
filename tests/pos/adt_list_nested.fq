@@ -1,14 +1,15 @@
 
+
 data LL 1 = [
   | emp { }
   | con { lHead : @(0), lTail : LL }
 ]
 
-bind 0 junk : {v:LL int | true} 
+bind 0 junk : {v:LL int | true}
+bind 1 pink : {v:LL (LL int) | true }
 
 constraint:
   env [0]
   lhs {v:int | true }
   rhs {v:int | emp = (if (1 < 2) then emp else (con junk emp)) }
   id 1 tag []
-

@@ -126,7 +126,7 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-    elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
+    elaborate msg env = elabNumeric . elabApply env . tracepp "elabExpr" . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -419,7 +419,7 @@ elab f@(_, g) e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s e1'           (ECst e2' s2), s)
+  return (eAppC s e1'           ( tracepp ("EAPPC: " ++ showpp s) $  ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
@@ -529,14 +529,13 @@ cast :: Expr -> Sort -> Expr
 cast (ECst e _) t = ECst e t
 cast e          t = ECst e t
 
--- elabAs :: Env -> Sort -> Expr -> CheckM Expr
--- elabAs f t e = tracepp msg <$> elabAs' f t e
-  -- where
-    -- msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
-
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t (EApp e1 e2) = elabAppAs f t e1 e2
-elabAs f _ e            = fst <$> elab f e
+elabAs f t e = tracepp msg <$> go e
+  where
+    msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
+    go (EApp e1 e2)   = elabAppAs f t e1 e2
+    -- go (EIte b e1 e2) = EIte b <$> go e1 <*> go e2
+    go e              = fst    <$> elab f e
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
@@ -554,10 +553,18 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
-  s         <- elabAppSort g e1 e2 s1 s2
-  return       (e1', s1, e2', s2, s)
+  (e1', s1)     <- elab f e1
+  (e2', s2)     <- elab f e2
+  (s1', s2', s) <- elabAppSort g e1 e2 s1 s2
+  return           (e1', s1', e2', s2', s)
+
+elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, Sort, Sort)
+elabAppSort f e1 e2 s1 s2 = do
+  let e            = Just (EApp e1 e2)
+  (sIn, sOut, su) <- checkFunSort s1
+  su'             <- unifyMany f e su [sIn] [s2]
+  return           $ (apply su' s1, apply su' s2, apply su' sOut)
+
 
 --------------------------------------------------------------------------------
 -- | defuncEApp monomorphizes function applications.
@@ -586,7 +593,6 @@ applyAt s t = ECst (EVar applyName) (FFunc s t)
 -- JUST make "toInt" call "makeApplication" also, so they are wrapped in apply
 -- MAY CAUSE CRASH (apply-on-apply) so rig `isSmt2App` to treat `apply` as SPECIAL.
 
-
 -- TODO: proper toInt
 toInt :: SymEnv -> Expr -> Sort -> Expr
 toInt env e s
@@ -603,28 +609,6 @@ isInt env s = case sortSmtSort False (seData env) s of
   SReal   -> True
   _       -> False
 
--- toInt env e s =
---  case unFApp s of
---    FTC c : _ -> ftcToInt env c s e
---    _         -> e
-
--- // ftcToInt :: SymEnv -> FTycon -> Sort -> Expr -> Expr
--- // ftcToInt env c s e
-  -- // | c == strFTyCon  = e
-  -- // | c == boolFTyCon = castWith boolToIntName e
--- //
-  -- // -- / | c == setConName = castWith setToIntName e
-  -- // -- / | c == mapConName = castWith mapToIntName e
-  -- // -- / | c == bitVecName = castWith bitVecToIntName e
-  -- // -- / | c == realFTyCon = castWith realToIntName e
--- //
-  -- // | otherwise       = ECst (EApp f (ECst e s)) FInt
-  -- // where
-    -- // f               = toIntAt s
-
--- // castWith :: Symbol -> Expr -> Expr
--- // castWith s = eAppC intSort (EVar s)
-
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
 
@@ -633,34 +617,6 @@ unApplyAt (ECst (EVar f) t@(FFunc {}))
   | f == applyName = Just t
 unApplyAt _        = Nothing
 
--- e1 e2 => App (App runFun e1) (toInt e2)
--- | 'makeApplication e1 (e2, s)' does the apply-ification for '(e1 e2) : s'
---   i.e. when the output type is 's'.
--- // _makeApplication :: Expr -> (Expr, Sort) -> Expr
--- // _makeApplication e1 (e2, s) = ECst (EApp (EApp (EVar f) e1) e2') s
-  -- // where
-    -- // f                       = _makeApplySymbol (unAbs s)
-    -- // e2'                     = toInt e2 s2
-    -- // s2                      = exprSort "makeApplication" e2
--- //
--- // _makeApplySymbol :: Sort -> Symbol
--- // _makeApplySymbol s
-  -- // | (FApp (FTC c) _) <- s
-  -- // , setConName == symbol c
-  -- // = setApplyName 1
-  -- // | (FApp (FApp (FTC c) _) _) <- s
-  -- // , mapConName == symbol c
-  -- // = mapApplyName 1
-  -- // | (FApp (FTC bv) (FTC s))   <- s
-  -- // , bitVecName == symbol bv
-  -- // , Just _ <- Thy.sizeBv s
-  -- // = bitVecApplyName 1
-  -- // | FTC c <- s, c == boolFTyCon
-  -- // = boolApplyName 1
-  -- // | s == FReal
-  -- // = realApplyName 1
-  -- // | otherwise
-  -- // = intApplyName 1
 
 splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
@@ -762,22 +718,6 @@ checkCst f t (EApp g e)
 checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` (errCast e t' t)
-
-elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
-elabAppSort f e1 e2 s1' s2 = do
-  -- s1'             <- instantiate s1                 -- NO-INSTANTIATE
-  (sIn, sOut, su) <- checkFunSort s1'
-  (`apply` sOut) <$> unifyMany f e su [sIn] [s2]
-  where
-    e = Just (EApp e1 e2)
-
-
-  -- case s1' of
-    -- FFunc sx s -> (`apply` s) <$> unifys f e [sx] [s2]
-    -- FVar i     -> do j <- refresh 0
-                     -- k <- refresh 0
-                     -- (`apply` (FVar k)) <$> unifyMany f e (updateVar i (FFunc (FVar j) (FVar j)) emptySubst) [FVar j] [s2]
-    -- _          -> errorstar ("elabAppSort for expr" ++ showpp (EApp e1 e2) ++ " with sorts" ++ showpp s1  ++ " and " ++ showpp s2 )
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -1058,17 +998,6 @@ checkFunSort (FVar i)      = do j <- refresh 0
                                 k <- refresh 0
                                 return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
 checkFunSort t             = throwError $ errNonFunction 1 t
-
-{-
-sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
-sortFunction i t
-  = case functionSort t of
-     Nothing          -> throwError $ errNonFunction i t
-     Just (_, ts, t') -> if length ts < i
-                          then throwError $ errNonFunction i t
-                          else let (its, ots) = splitAt i ts
-                               in return (its, foldl FFunc t' ots)
--}
 
 --------------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions -----------------------------------
