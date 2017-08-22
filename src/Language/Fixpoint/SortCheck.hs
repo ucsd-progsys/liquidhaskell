@@ -250,6 +250,7 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
 
+-- RJ: why are we handrolling monads! 
 -- | Types used throughout checker
 
 type StateM = Int
@@ -279,7 +280,7 @@ instance Functor CheckM where
   fmap f (CM m) = CM $ \i -> case m i of {(j, Left s) -> (j, Left s); (j, Right x) -> (j, Right $ f x)}
 
 instance Applicative CheckM where
-  pure x     = CM $ \i -> (i, Right x)
+  pure x            = CM $ \i -> (i, Right x)
   (CM f) <*> (CM m) = CM $ \i -> case m i of
                              (j, Left s)  -> (j, Left s)
                              (_, Right x) -> case f i of
@@ -413,7 +414,6 @@ elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 elab f@(_, g) e@(EBin o e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
-  -- s         <- checkExpr f e
   s <- checkOpTy g e s1 s2
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
