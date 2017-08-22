@@ -126,7 +126,7 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-    elaborate msg env = elabNumeric . elabApply env . tracepp "elabExpr" . elabExpr msg env
+    elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -419,7 +419,7 @@ elab f@(_, g) e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s e1'           ( tracepp ("EAPPC: " ++ showpp s) $  ECst e2' s2), s)
+  return (eAppC s e1'          (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
@@ -530,9 +530,9 @@ cast (ECst e _) t = ECst e t
 cast e          t = ECst e t
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t e = tracepp msg <$> go e
+elabAs f t e = {- tracepp _msg <$> -} go e
   where
-    msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
+    _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
     go (EApp e1 e2)   = elabAppAs f t e1 e2
     -- go (EIte b e1 e2) = EIte b <$> go e1 <*> go e2
     go e              = fst    <$> elab f e
