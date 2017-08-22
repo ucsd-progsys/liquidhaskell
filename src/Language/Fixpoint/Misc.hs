@@ -405,9 +405,9 @@ _ <$$> []           = return []
 f <$$> [x1]         = singleton <$> f x1
 f <$$> [x1, x2]     = pair      <$> f x1 <*> f x2
 f <$$> [x1, x2, x3] = triple    <$> f x1 <*> f x2 <*> f x3
-f <$$> xs           = revMapM f (trace msg xs)
+f <$$> xs           = revMapM f ({- trace msg -} xs)
   where
-    msg             = "<$$> on " ++ show (length xs)
+    _msg            = "<$$> on " ++ show (length xs)
 
 revMapM  :: (Monad m) => (a -> m b) -> [a] -> m [b]
 revMapM f          = go []

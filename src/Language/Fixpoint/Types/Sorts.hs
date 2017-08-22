@@ -422,7 +422,11 @@ instance B.Binary DataCtor
 instance B.Binary DataDecl
 instance B.Binary Sub
 
-instance NFData FTycon
+instance NFData FTycon where
+  rnf (TC x i) = x `seq` i `seq` ()
+
+-- data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
+
 instance NFData TCInfo
 instance NFData Sort
 instance NFData DataField

@@ -1,3 +1,5 @@
+{-# LANGUAGE Strict                #-}
+{-# LANGUAGE StrictData            #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -5,6 +7,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PatternGuards         #-}
+{-# LANGUAGE BangPatterns          #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -48,7 +51,7 @@ module Language.Fixpoint.SortCheck  (
   , isMono
   ) where
 
-
+--  import           Control.DeepSeq
 import           Control.Monad
 import           Control.Monad.Except      -- (MonadError(..))
 import           Control.Monad.State.Strict
@@ -67,20 +70,6 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
 -- import Debug.Trace
-
-
-
-{-
-EApp (EApp apply e1) e2
-  ===> EApp e1 e2
-
-((foo x) y)
-  ===> (EApp (EApp foo x) y)
-
-EApp (EApp apply (EApp (EApp apply foo) x)) y
-  ===> EApp (EApp (EApp apply foo) x) y
-  ===> EApp (Eapp foo x) y
--}
 
 --------------------------------------------------------------------------------
 -- | Predicates on Sorts -------------------------------------------------------
@@ -264,32 +253,6 @@ type ChState  = Int
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
 
-{-
-instance Monad CheckM where
-  return x     = CM $ \i -> (i, Right x)
-  (CM m) >>= f = CM $ \i -> case m i of
-                             (j, Left s)  -> (j, Left s)
-                             (j, Right x) -> runCM (f x) j
-
-
-instance MonadError String CheckM where
-  throwError s = CM $ \i -> (i, Left s)
-  (CM m) `catchError` f = CM $ \i -> case m i of
-                                      (j, Left s) -> runCM (f s) j
-                                      (j, Right x) -> (j, Right x)
-
-instance Functor CheckM where
-  fmap f (CM m) = CM $ \i -> case m i of {(j, Left s) -> (j, Left s); (j, Right x) -> (j, Right $ f x)}
-
-instance Applicative CheckM where
-  pure x            = CM $ \i -> (i, Right x)
-  (CM f) <*> (CM m) = CM $ \i -> case m i of
-                             (j, Left s)  -> (j, Left s)
-                             (_, Right x) -> case f i of
-                                 (k, Left s)  -> (k, Left s)
-                                 (k, Right g) -> (k, Right $ g x)
--}
-
 withError :: CheckM a -> String -> CheckM a
 act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
 
@@ -300,21 +263,19 @@ runCM0 act = fst <$> runStateT act initCM -- :: Either ChError (a, ChState)
     initCM = 42
 
 
-class Freshable a where
-  fresh   :: CheckM a
-  refresh :: a -> CheckM a
-  refresh _ = fresh
+-- class Freshable a where
+--  fresh   :: CheckM a
+--  refresh :: a -> CheckM a
+--  refresh _ = fresh
 
-instance Freshable Int where
-  fresh = do
-    n <- get
-    put (n + 1)
-    return n
+-- instance Freshable Int where
+
+fresh :: CheckM Int
+fresh = do
+  !n <- get
+  put (n + 1)
+  return n
     -- CM (\n -> (n + 1, Right n))
-
-instance Freshable [Int] where
-  fresh   = mapM (const fresh) [0..]
-  refresh = mapM refresh
 
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
@@ -573,7 +534,7 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  su'             <- unifyMany f e su [sIn] [s2]
+  su'             <- unify1 f e su sIn s2 -- unifyMany f e su [sIn] [s2]
   return           $ (apply su' s1, apply su' s2, apply su' sOut)
 
 
@@ -750,7 +711,7 @@ checkExprAs f t e
 -- DUPLICATION with 'elabAppAs'
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
-  gt       <- checkExpr f g -- >>= instantiate        NO-INSTANTIATE
+  gt       <- checkExpr f g
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
@@ -900,104 +861,125 @@ unifyMany f e θ ts ts'
 
 
 unify1 :: Env -> Maybe Expr -> TVSubst -> Sort -> Sort -> CheckM TVSubst
-unify1 f e θ (FVar i) t
+unify1 f e !θ (FVar !i) !t
   = unifyVar f e θ i t
-unify1 f e θ t (FVar i)
+unify1 f e !θ !t (FVar !i)
   = unifyVar f e θ i t
-unify1 f e θ (FApp t1 t2) (FApp t1' t2')
+unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
   = unifyMany f e θ [t1, t2] [t1', t2']
-unify1 _ _ θ (FTC l1) (FTC l2)
+unify1 _ _ !θ (FTC !l1) (FTC !l2)
   | isListTC l1 && isListTC l2
   = return θ
-unify1 f e θ t1@(FAbs _ _) t2 = do
-  t1'<- instantiate t1
+unify1 f e !θ !t1@(FAbs _ _) !t2 = do
+  !t1' <- instantiate t1
   unifyMany f e θ [t1'] [t2]
-unify1 f e θ t1 t2@(FAbs _ _) = do
-  t2' <- instantiate t2
+unify1 f e !θ !t1 t2@(FAbs _ _) = do
+  !t2' <- instantiate t2
   unifyMany f e θ [t1] [t2']
-unify1 _ _ θ s1 s2
+unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2
   = return θ
+unify1 _ _ !θ !FInt  !FReal = return θ
 
-unify1 _ _ θ FInt  FReal = return θ
+unify1 _ _ !θ !FReal !FInt  = return θ
 
-unify1 _ _ θ FReal FInt  = return θ
-
-unify1 f e θ t FInt = do
+unify1 f e !θ !t FInt = do
   checkNumeric f t `withError` (errUnify e t FInt)
   return θ
 
-unify1 f e θ FInt t = do
+unify1 f e !θ !FInt !t = do
   checkNumeric f t `withError` (errUnify e FInt t)
   return θ
 
-unify1 f e θ (FFunc t1 t2) (FFunc t1' t2') = do
+unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') = do
   unifyMany f e θ [t1, t2] [t1', t2']
 
-unify1 _ e θ t1 t2
+unify1 _ e θ !t1 !t2
   | t1 == t2
   = return θ
   | otherwise
   = throwError $ errUnify e t1 t2
 
-subst :: (Int, Sort) -> Sort -> Sort
-subst (j,tj) t@(FVar i)
-  | i == j    = tj
-  | otherwise = t
-subst su (FApp t1 t2)  = FApp (subst su t1) (subst su t2)
-subst _  (FTC l)       = FTC l
-subst su (FFunc t1 t2) = FFunc (subst su t1) (subst su t2)
-subst (j,tj) (FAbs i t)
-  | i == j    = FAbs i t
-  | otherwise = FAbs i $ subst (j,tj) t
-subst _  s             = s
+subst :: Int -> Sort -> Sort -> Sort
+subst !j !tj !t@(FVar !i)
+  | i == j                  = tj
+  | otherwise               = t
+
+subst !j !tj (FApp !t1 !t2)  = FApp t1' t2'
+  where
+    !t1'                    = subst j tj t1
+    !t2'                    = subst j tj t2
+
+-- subst _ _  !(FTC l)         = FTC l
+subst !j !tj (FFunc !t1 !t2) = FFunc t1' t2'
+  where
+    !t1'                    = subst j tj $! t1
+    !t2'                    = subst j tj $! t2
+
+subst !j !tj (FAbs !i !t)
+  | i == j                  = FAbs i t
+  | otherwise               = FAbs i t'
+  where
+    !t'                     = subst j tj t
+
+subst _  _   !s             = s
 
 --------------------------------------------------------------------------------
 instantiate :: Sort -> CheckM Sort
 --------------------------------------------------------------------------------
-instantiate (FAbs i t) = do
-  v      <- refresh 0
-  subst (i, FVar v) <$> instantiate t
-instantiate t =
-  return t
+instantiate !t = go t
+  -- / | tn > 10   = go $ tracepp ("SIZE=" ++ show tn) t
+  -- / | otherwise = go t
+  where
+    -- _tn = sortSize t
+    go (FAbs !i !t) = do
+      !t'    <- instantiate t
+      !v     <- fresh
+      return  $ subst i (FVar v) t'
+    go !t =
+      return t
+
+-- instantiate s = do
+--  where
+--    (is, t)   = unAbs s
+
+_unAbs :: Sort -> ([Int], Sort)
+_unAbs = go []
+  where
+    go !acc (FAbs !i !t) = go (i:acc) t
+    go !acc !t           = (reverse acc, t)
+
+_sortSize :: Sort -> Int
+_sortSize !t = go t
+  where
+    go :: Sort -> Int
+    go (FApp  !t1 !t2) = go t1 + go t2
+    go (FFunc !t1 !t2) = go t1 + go t2
+    go (FAbs  _   !t)  = 1     + go t
+    go _               = 1
+
 
 unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
-unifyVar _ _ θ i t@(FVar j)
+unifyVar _ _ θ !i !t@(FVar !j)
   = case lookupVar i θ of
-      Just t'       -> if t == t' then return θ else return $ updateVar j t' θ
-      Nothing       -> return $ updateVar i t θ
+      Just !t'      -> if t == t' then return θ else return (updateVar j t' θ)
+      Nothing       -> return (updateVar i t θ)
 
-unifyVar f e θ i t
+unifyVar f e θ !i !t
   = case lookupVar i θ of
-      Just (FVar j) -> return $ updateVar i t $ updateVar j t θ
-      Just t'       -> if t == t' then return θ else unify1 f e θ t t'
-      Nothing       -> return $ updateVar i t θ
+      Just (FVar !j) -> return $ updateVar i t $ updateVar j t θ
+      Just !t'       -> if t == t' then return θ else unify1 f e θ t t'
+      Nothing        -> return (updateVar i t θ)
 
 --------------------------------------------------------------------------------
 -- | Applying a Type Substitution ----------------------------------------------
 --------------------------------------------------------------------------------
 apply :: TVSubst -> Sort -> Sort
 --------------------------------------------------------------------------------
-apply θ          = Vis.mapSort f -- _sortMap
+apply θ          = Vis.mapSort f
   where
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
-
-_applyExpr :: TVSubst -> Expr -> Expr
-_applyExpr θ      = Vis.mapExpr f
-  where
-    f (ECst e t) = ECst e (apply θ t)
-    f e          = e
-
---------------------------------------------------------------------------------
-_sortMap :: (Sort -> Sort) -> Sort -> Sort
---------------------------------------------------------------------------------
-_sortMap f = go
-  where
-    go (FAbs i t)    = FAbs i (go t)
-    go (FFunc t1 t2) = FFunc  (go t1) (go t2)
-    go (FApp t1 t2)  = FApp   (go t1) (go t2)
-    go t             = f t
 
 --------------------------------------------------------------------------------
 -- | Deconstruct a function-sort -----------------------------------------------
@@ -1005,8 +987,8 @@ _sortMap f = go
 checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
 checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
-checkFunSort (FVar i)      = do j <- refresh 0
-                                k <- refresh 0
+checkFunSort (FVar i)      = do j <- fresh
+                                k <- fresh
                                 return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
 checkFunSort t             = throwError $ errNonFunction 1 t
 
@@ -1020,7 +1002,7 @@ lookupVar :: Int -> TVSubst -> Maybe Sort
 lookupVar i (Th m)   = M.lookup i m
 
 updateVar :: Int -> Sort -> TVSubst -> TVSubst
-updateVar i t (Th m) = Th (M.insert i t m)
+updateVar !i !t (Th m) = Th (M.insert i t m)
 
 emptySubst :: TVSubst
 emptySubst = Th M.empty
