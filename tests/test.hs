@@ -371,7 +371,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
-    system $ "cp -r tests/logs/cur " ++ dir
+    -- system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap
 
 
