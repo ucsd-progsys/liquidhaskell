@@ -27,13 +27,13 @@ dependencies:
 
 compile:
   override:
-    - stack build liquid-fixpoint --flag liquid-fixpoint:include --flag liquid-fixpoint:devel
-    - stack build liquid-fixpoint --flag liquid-fixpoint:include --flag liquid-fixpoint:devel --test --no-run-tests
+    - stack build liquid-fixpoint --flag liquid-fixpoint:devel
+    - stack build liquid-fixpoint --flag liquid-fixpoint:devel --test --no-run-tests
 
 test:
   override:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit
-    - stack test liquid-fixpoint:test --flag liquid-fixpoint:include --flag liquid-fixpoint:devel --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml":
+    - stack test liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml":
         timeout: 1800
     - stack sdist
   post:
