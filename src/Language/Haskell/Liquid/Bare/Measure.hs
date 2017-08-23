@@ -196,8 +196,8 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts r _))
-  =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) -- ^ internal measures, needed for reflection
-    ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) -- ^ user-visible measures.
+  =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
+    ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields    = not (noMeasureFields cfg)
     go ((x, t), i)
