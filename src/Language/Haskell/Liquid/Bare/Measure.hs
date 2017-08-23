@@ -77,7 +77,7 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 makeHaskellDataDecls cfg spec
   | exactDC cfg = mapMaybe tyConDataDecl
                 . zipMap   (hasDataDecl spec)
-                . filter   (\c -> F.tracepp ("isVanillaAlgTyCon: " ++ showpp c) $ isVanillaAlgTyCon c)
+                . filter    isVanillaAlgTyCon
   | otherwise   = const []
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
