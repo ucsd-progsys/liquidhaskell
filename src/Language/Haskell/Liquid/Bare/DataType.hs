@@ -98,11 +98,11 @@ groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
 makeDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
              -> F.DataDecl
 makeDataDecl tce tc dd ctors
-  = F.tracepp "makeDataDecl" $ F.DDecl
-    { F.ddTyCon = ftc
-    , F.ddVars  = length                $ tycTyVars dd
-    , F.ddCtors = makeDataCtor tce ftc <$> (F.tracepp "MAKEDATADECL: " ctors)
-    }
+  = F.DDecl
+      { F.ddTyCon = ftc
+      , F.ddVars  = length                $  tycTyVars dd
+      , F.ddCtors = makeDataCtor tce ftc <$> ctors
+      }
   where
     ftc = F.symbolFTycon $ F.atLoc (tycName dd) (F.symbol tc)
 
@@ -140,10 +140,9 @@ makeDataField :: F.TCEmb TyCon -> F.FTycon -> [(F.Symbol, Int)] -> (F.LocSymbol,
               -> F.DataField
 makeDataField tce c su (x, t) = F.DField
   { F.dfName = x
-  , F.dfSort = F.tracepp ("MAKEDATAFIELD: " ++ showpp t)
-                 $ muSort c su
-                 $ F.substVars su
-                 $ RT.rTypeSort tce t
+  , F.dfSort = muSort c su
+             $ F.substVars su
+             $ RT.rTypeSort tce t
   }
 
 muSort :: F.FTycon -> [(F.Symbol, Int)] -> F.Sort -> F.Sort
