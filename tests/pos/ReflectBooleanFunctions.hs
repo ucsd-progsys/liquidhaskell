@@ -1,6 +1,5 @@
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--higherorder"        @-}
+{-@ LIQUID "--exactdc"      @-}
+{-@ LIQUID "--higherorder"  @-}
 module Data.Foo where
 
 

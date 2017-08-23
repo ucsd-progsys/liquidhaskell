@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Test (isJustS, fromJustS) where
 
 data MaybeS a = NothingS | JustS !a

@@ -193,8 +193,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
 
- , totality
-    = def &= help "Check totality"
+ , nototality
+    = def &= help "Disable totality check"
+          &= name "no-totality"
 
  , cores
     = def &= help "Use m cores to solve logical constraints"
@@ -512,7 +513,7 @@ defConfig = Config { files             = def
                    , nocaseexpand      = def
                    , strata            = def
                    , notruetypes       = def
-                   , totality          = def
+                   , nototality        = False
                    , pruneUnsorted     = def
                    , exactDC           = def
                    , noADT             = def

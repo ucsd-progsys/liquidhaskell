@@ -299,10 +299,7 @@ To use unqualified names, much easier to read, use:
 Totality Check
 --------------
 
-LiquidHaskell can prove the absence of pattern match failures.
-Use the `totality` flag to prove that all defined functions are total.
-
-    liquid --totality test.hs
+LiquidHaskell proves the absence of pattern match failures.
 
 For example, the definition
 
@@ -315,6 +312,10 @@ If we exclude `Nothing` from its domain, for example using the following specifi
     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
 
 `fromJust` will be safe.
+
+Use the `no-totality` flag to disable totality checking.
+
+    liquid --no-totality test.hs
 
 Termination Check
 -----------------

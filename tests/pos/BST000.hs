@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module BST where
 
 import Language.Haskell.Liquid.Prelude

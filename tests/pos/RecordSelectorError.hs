@@ -1,8 +1,5 @@
 module Foo where
 
-{-@ LIQUID "--totality" @-}
-
-
 data F a b = F {fx :: a, fy :: b} | G {fx :: a}
 {-@ data F a b = F {fx :: a, fy :: b} | G {fx :: a} @-}
 

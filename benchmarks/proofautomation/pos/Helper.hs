@@ -3,7 +3,6 @@
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--betaequivalence" @-}
 
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}

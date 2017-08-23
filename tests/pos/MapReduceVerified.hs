@@ -4,7 +4,6 @@
 -- | Niki Vazou Sep 2016 
 
 {-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--totality"      @-}
 {-@ LIQUID "--exactdc"       @-}
 
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module GenTerm () where
 
 foo :: Int -> Int -> Int

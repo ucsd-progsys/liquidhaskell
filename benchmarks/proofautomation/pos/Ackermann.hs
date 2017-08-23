@@ -3,7 +3,6 @@
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 {-@ LIQUID "--proof-method=arithmetic" @-}
 

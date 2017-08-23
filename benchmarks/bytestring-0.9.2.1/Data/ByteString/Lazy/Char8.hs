@@ -1,4 +1,5 @@
 {-@ LIQUID "--notermination" @-}
+{-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 
@@ -186,6 +187,8 @@ module Data.ByteString.Lazy.Char8 (
         join                    -- :: ByteString -> [ByteString] -> ByteString
 
   ) where
+
+import Language.Haskell.Liquid.Prelude (unsafeError)
 
 -- Functions transparently exported
 import Data.ByteString.Lazy 

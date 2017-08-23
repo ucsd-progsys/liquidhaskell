@@ -1,7 +1,6 @@
 
-
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--totality"                            @-}
+{- LIQUID "--higherorder"                         @-}
+{- LIQUID "--totality"                            @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 

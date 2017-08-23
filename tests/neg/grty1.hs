@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module Foo () where
 
 moo = insert 4 [1, 2, 0]

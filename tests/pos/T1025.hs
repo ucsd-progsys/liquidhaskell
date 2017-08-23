@@ -11,9 +11,11 @@ import Language.Haskell.Liquid.ProofCombinators
 -- RJ: With `adt` we don't need the below, they are generated from the above.
 
 {- assume Left  :: a:a -> { v:Either a b | v == Left  a && lqdc##select##Left##1  v == a && lqdc##is##Left v && not (lqdc##is##Right v) } @-}
+
 {- assume Right :: b:b -> { v:Either a b | v == Right b && lqdc##select##Right##1 v == b && not (lqdc##is##Left v) && lqdc##is##Right v } @-}
 
 {- measure lqdc##select##Left##1  :: Either a b -> a
+
     lqdc##select##Left##1 (Left x) = x
   -}
 
