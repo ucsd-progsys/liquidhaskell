@@ -1,8 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
 
+import qualified Control.Concurrent.STM as STM
+import qualified Data.Functor.Compose   as Functor
+import qualified Data.IntMap            as IntMap
+import qualified Data.Map               as Map
+import qualified Control.Monad.State    as State
+import Control.Monad.Trans.Class (lift)
+
+import Data.Char
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Sum(..), (<>))
 import Control.Applicative
 import System.Directory
 import System.Exit
@@ -11,12 +22,46 @@ import System.Environment
 import System.IO
 import System.IO.Error
 import System.Process
-import Test.Tasty
-import Test.Tasty.HUnit
 import Text.Printf
 
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.Ingredients.Rerun
+import Test.Tasty.Options
+import Test.Tasty.Runners
+import Test.Tasty.Runners.AntXML
+
 main :: IO ()
-main = defaultMain =<< group "Tests" [unitTests]
+main    = run =<< group "Tests" [unitTests]
+  where
+    run = defaultMainWithIngredients [
+                testRunner
+            --  , includingOptions [ Option (Proxy :: Proxy NumThreads)
+            --                     , Option (Proxy :: Proxy LiquidOpts)
+            --                     , Option (Proxy :: Proxy SmtSolver) ]
+              ]
+
+testRunner :: Ingredient
+testRunner = rerunningTests
+               [ listingTests
+               , combineReporters myConsoleReporter antXMLRunner
+               , myConsoleReporter
+               ]
+
+myConsoleReporter :: Ingredient
+myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
+
+-- | Combine two @TestReporter@s into one.
+--
+-- Runs the reporters in sequence, so it's best to start with the one
+-- that will produce incremental output, e.g. 'consoleTestReporter'.
+combineReporters :: Ingredient -> Ingredient -> Ingredient
+combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
+  = TestReporter (opts1 ++ opts2) $ \opts tree -> do
+      f1 <- run1 opts tree
+      f2 <- run2 opts tree
+      return $ \smap -> f1 smap >> f2 smap
+combineReporters _ _ = error "combineReporters needs TestReporters"
 
 unitTests
   = group "Unit" [
@@ -250,3 +295,108 @@ partitionM f = go [] []
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
 concatMapM _ []     = pure []
 concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
+
+
+
+-- this is largely based on ocharles' test runner at
+-- https://github.com/ocharles/tasty-ant-xml/blob/master/Test/Tasty/Runners/AntXML.hs#L65
+loggingTestReporter :: Ingredient
+loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
+  let
+    runTest _ testName _ = Traversal $ Functor.Compose $ do
+        i <- State.get
+
+        summary <- lift $ STM.atomically $ do
+          status <- STM.readTVar $
+            fromMaybe (error "Attempted to lookup test by index outside bounds") $
+              IntMap.lookup i smap
+
+          let mkSuccess time = [(testName, time, True)]
+              mkFailure time = [(testName, time, False)]
+
+          case status of
+            -- If the test is done, generate a summary for it
+            Done result
+              | resultSuccessful result
+                  -> pure (mkSuccess (resultTime result))
+              | otherwise
+                  -> pure (mkFailure (resultTime result))
+            -- Otherwise the test has either not been started or is currently
+            -- executing
+            _ -> STM.retry
+
+        Const summary <$ State.modify (+ 1)
+
+    runGroup group children = Traversal $ Functor.Compose $ do
+      Const soFar <- Functor.getCompose $ getTraversal children
+      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
+
+    computeFailures :: StatusMap -> IO Int
+    computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
+      (\r -> Sum $ if resultSuccessful r then 0 else 1) <$> getResultFromTVar var)
+
+    getResultFromTVar :: STM.TVar Status -> IO Result
+    getResultFromTVar var =
+      STM.atomically $ do
+        status <- STM.readTVar var
+        case status of
+          Done r -> return r
+          _ -> STM.retry
+
+  (Const summary, _tests) <-
+     flip State.runStateT 0 $ Functor.getCompose $ getTraversal $
+      foldTestTree
+        trivialFold { foldSingle = runTest, foldGroup = runGroup }
+        opts
+        tree
+
+  return $ \_elapsedTime -> do
+    -- get some semblance of a hostname
+    host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
+    -- don't use the `time` package, major api differences between ghc 708 and 710
+    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
+    -- build header
+    ref <- gitRef
+    timestamp <- gitTimestamp
+    epochTime <- gitEpochTimestamp
+    hash <- gitHash
+    let hdr = unlines [ref ++ " : " ++ hash,
+                       "Timestamp: " ++ timestamp,
+                       "Epoch Timestamp: " ++ epochTime,
+                       headerDelim,
+                       "test, time(s), result"]
+
+    let dir = "tests" </> "logs" </> host ++ "-" ++ time
+    let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
+    writeFile smry $ unlines
+                   $ hdr
+                   : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
+    system $ "cp -r tests/logs/cur " ++ dir
+    (==0) <$> computeFailures smap
+
+
+gitTimestamp :: IO String
+gitTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitEpochTimestamp :: IO String
+gitEpochTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitHash :: IO String
+gitHash = do
+   res <- readProcess "git" ["show", "--format=\"%H\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitRef :: IO String
+gitRef = do
+   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   return $ filter notNoise res
+
+notNoise :: Char -> Bool
+notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
+
+headerDelim :: String
+headerDelim = replicate 80 '-'

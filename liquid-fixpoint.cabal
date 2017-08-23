@@ -165,9 +165,15 @@ test-suite test
                     directory,
                     filepath,
                     process,
+                    stm >= 2.4,
+                    containers >= 0.5,
+                    mtl >= 2.1,
+                    transformers >= 0.3,
                     tasty >= 0.10,
                     tasty-hunit,
                     tasty-rerun >= 1.1,
+                    tasty-ant-xml,
+                    tasty-hunit >= 0.9,
                     text
 
 test-suite testparser
@@ -184,6 +190,8 @@ test-suite testparser
                     tasty >= 0.10,
                     tasty-hunit,
                     tasty-rerun >= 1.1,
+                    tasty-ant-xml,
+                    tasty-hunit >= 0.9,
                     text
   if flag(devel)
     hs-source-dirs:   tests src
