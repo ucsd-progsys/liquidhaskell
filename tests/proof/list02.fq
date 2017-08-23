@@ -1,0 +1,29 @@
+fixpoint "--rewrite"
+
+data Blob 0 = [ 
+  | VBlob { vgoo : Int } 
+  ]
+
+data Vec 1 = [
+  | VCons { vhead : @(0) } 
+]
+
+constant len : (func(1, [(Vec @(0)); int]))
+constant hen : (func(1, [Blob; int]))
+constant tt  : (Vec bool)
+constant bob : (Blob)
+constant foo : (func(0, [Blob; Blob]))
+
+match hen VBlob z = 10 
+
+match len VCons x = (hen (foo (VBlob 12)))
+
+bind 0 thing : {v: int | true} 
+
+constraint:
+  env [0]
+  lhs {v : int | len (VCons 1) = 10 }
+  rhs {v : int | len (VCons 1) = 10 }
+  id 1 tag []
+
+expand [1 : True]

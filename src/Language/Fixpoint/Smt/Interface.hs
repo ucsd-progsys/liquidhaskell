@@ -41,12 +41,12 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtDecls
     , smtAssert
-    , smtDataDecl
+    -- , smtDataDecl
     , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
-    , smtBracket
+    , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
 
@@ -66,11 +66,12 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , betaEquivalence
                                                 , normalForm
                                                 , stringTheory)
-import qualified Language.Fixpoint.Misc  as Misc
+import qualified Language.Fixpoint.Misc          as Misc
+import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Types hiding (allowHO)
-import qualified Language.Fixpoint.Types as F
+import           Language.Fixpoint.Types         hiding (allowHO)
+import qualified Language.Fixpoint.Types         as F
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
@@ -406,6 +407,10 @@ smtDistinct me az = interact' me (Distinct az)
 smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
 
+smtBracketAt :: SrcSpan -> Context -> String -> IO a -> IO a
+smtBracketAt sp x y z = smtBracket x y z `catch` dieAt sp
+
+
 smtBracket :: Context -> String -> IO a -> IO a
 smtBracket me _msg a   = do
   smtPush me
@@ -454,8 +459,8 @@ declare me = do
   forM_ axs    $           smtAssert   me
   where
     env        = ctxSymEnv me
-    ds         = map snd . F.toListSEnv . F.seData $ env
-    lts        =           F.toListSEnv . F.seLits $ env
+    ds         = dataDeclarations          env
+    lts        = F.toListSEnv . F.seLits $ env
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
     thyXTs     =                    filter (isKind 1) xts
@@ -463,14 +468,22 @@ declare me = do
     isKind n   = (n ==)  . symKind env . fst
     xts        = F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
-    ats        = applyVars env
+    ats        = funcSortVars env
 
-applyVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
-applyVars env    = [(F.applyAtSmtName env t, aSort t) | t <- ts]
+dataDeclarations :: SymEnv -> [DataDecl]
+dataDeclarations = -- (if True then orderDeclarations else id) .
+                   orderDeclarations . map snd . F.toListSEnv . F.seData
+
+funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
+funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
+                 ++ [(var lambdaName t       , lamSort t) | t <- ts]
+                 ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
-    ts           = M.keys (F.seAppls env)
-    aSort (s, t) = ([F.SInt, s], t)
-
+    var n         = F.symbolAtSmtName n env ()
+    ts            = M.keys (F.seAppls env)
+    appSort (s,t) = ([F.SInt, s], t)
+    lamSort (s,t) = ([s, t], F.SInt)
+    argSort (s,_) = ([]    , s)
 
 -- | 'symKind' returns {0, 1, 2} where:
 --   0 = Theory-Definition,
@@ -499,3 +512,32 @@ distinctLiterals xts = [ es | (_, es) <- tess ]
     tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
+
+--------------------------------------------------------------------------------
+-- | 'orderDeclarations' sorts the data declarations such that each declarations
+--   only refers to preceding ones.
+--------------------------------------------------------------------------------
+orderDeclarations :: [F.DataDecl] -> [F.DataDecl]
+--------------------------------------------------------------------------------
+orderDeclarations ds = reverse (Misc.topoSortWith f ds)
+  where
+    dM               = M.fromList [(F.ddTyCon d, d) | d <- ds]
+    f d              = (F.ddTyCon d, dataDeclDeps dM d)
+
+dataDeclDeps :: M.HashMap F.FTycon F.DataDecl -> F.DataDecl -> [F.FTycon]
+dataDeclDeps dM = filter (`M.member` dM) . Misc.sortNub . dataDeclFTycons
+
+dataDeclFTycons :: F.DataDecl -> [F.FTycon]
+dataDeclFTycons = concatMap dataCtorFTycons . F.ddCtors
+
+dataCtorFTycons :: F.DataCtor -> [F.FTycon]
+dataCtorFTycons = concatMap dataFieldFTycons . F.dcFields
+
+dataFieldFTycons :: F.DataField -> [F.FTycon]
+dataFieldFTycons = sortFTycons . F.dfSort
+
+sortFTycons :: Sort -> [FTycon]
+sortFTycons = Vis.foldSort go []
+  where
+    go cs (FTC c) = c : cs
+    go cs _       = cs

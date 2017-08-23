@@ -20,8 +20,8 @@ import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Defunctionalize -- (defuncAny, makeLamArg)
-import           Language.Fixpoint.SortCheck       -- (unapplySorts, elaborate)
+import           Language.Fixpoint.Defunctionalize
+import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
 
@@ -68,7 +68,7 @@ instantiate' cfg fi = do
   -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
   SMT.smtPush ctx
   ips           <- forM cstrs $ \(i, c) ->
-                      (i, ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                      ((i,) . tracepp "INSTANTATIATE: " ) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
   let (is, ps)   = unzip ips
   let (ps', axs) = defuncAxioms cfg env ps
   let ps''       = elaborate "PLE1" env <$> ps'
@@ -117,7 +117,7 @@ unElab :: (Vis.Visitable t) => t -> t
 unElab = Vis.stripCasts . unApply
 
 unApply :: (Vis.Visitable t) => t -> t
-unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () []
+unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
   where
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2
@@ -349,11 +349,16 @@ makeLam γ e = foldl (flip ELam) e (knLams γ)
 
 eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
-   = (e, "Knowledge") ~> e'
+  = (e, "Knowledge") ~> e'
 eval γ (ELam (x,s) e)
-  = do let x' = makeLamArg s (1 + length (knLams γ))
-       e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
-       return $ ELam (x,s) $ subst1 e' (x', EVar x)
+  -- SHIFTLAM (assuming this shifting is redundant if DEFUNC has already happened)
+  -- = do let x' = lamArgSymbol (1 + length (knLams γ))
+       -- e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
+       -- return $ ELam (x,s) $ subst1 e' (x', EVar x)
+
+  = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
+       return $ ELam (x, s) e'
+
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2

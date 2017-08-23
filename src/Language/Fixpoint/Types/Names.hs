@@ -59,7 +59,6 @@ module Language.Fixpoint.Types.Names (
   -- * Widely used prefixes
   , anfPrefix
   , tempPrefix
-  -- , testPrefix
   , vv
   , symChars
 
@@ -72,7 +71,6 @@ module Language.Fixpoint.Types.Names (
   -- * Wrapping Symbols
   , litSymbol
   , testSymbol
-  -- , ctorSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
@@ -91,8 +89,6 @@ module Language.Fixpoint.Types.Names (
   , tupConName
   , setConName
   , mapConName
-  -- , propConName
-  -- , hpropConName
   , strConName
   , nilName
   , consName
@@ -102,17 +98,19 @@ module Language.Fixpoint.Types.Names (
   , bitVecName
   , bvAndName
   , bvOrName
+  -- HKT , tyAppName
   , prims
   , mulFuncName
   , divFuncName
 
   -- * Casting function names
-  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
+  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName, toIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
   , applyName
 
   , lambdaName
-  , intArgName
+  , lamArgSymbol
+  , isLamArgSymbol
 
 ) where
 
@@ -120,7 +118,7 @@ import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
 import           Data.Maybe                  (fromMaybe)
-import           Data.Monoid                 ((<>)) 
+import           Data.Monoid                 ((<>))
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -407,6 +405,7 @@ dummySymbol = dummyName
 -- isCtorSymbol :: Symbol -> Bool
 -- isCtorSymbol = isPrefixOfSym ctorPrefix
 
+-- | 'testSymbol c' creates the `is-c` symbol for the adt-constructor named 'c'.
 testSymbol :: Symbol -> Symbol
 testSymbol s = testPrefix `mappendSym` s
 
@@ -513,14 +512,21 @@ buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
 lambdaName :: Symbol
 lambdaName = "smt_lambda"
 
-intArgName :: Int -> Symbol
-intArgName = intSymbol "lam_int_arg"
+lamArgPrefix :: Symbol
+lamArgPrefix = "lam_arg"
 
-setToIntName, bitVecToIntName, mapToIntName, realToIntName :: Symbol
+lamArgSymbol :: Int -> Symbol
+lamArgSymbol = intSymbol lamArgPrefix
+
+isLamArgSymbol :: Symbol -> Bool
+isLamArgSymbol = isPrefixOfSym lamArgPrefix
+
+setToIntName, bitVecToIntName, mapToIntName, realToIntName, toIntName :: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
 realToIntName   = "real_to_int"
+toIntName       = "cast_as_int"
 
 boolToIntName :: (IsString a) => a
 boolToIntName   = "bool_to_int"
@@ -569,6 +575,9 @@ size64Name   = "Size64"
 bitVecName   = "BitVec"
 bvOrName     = "bvor"
 bvAndName    = "bvand"
+
+-- HKT tyAppName :: Symbol
+-- HKT tyAppName    = "LF-App"
 
 mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"

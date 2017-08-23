@@ -1,0 +1,18 @@
+// Config {srcFile = "/Users/rjhala/research/stack/liquidhaskell/tests/pos/lit00.hs", cores = Nothing, minPartSize = 500, maxPartSize = 700, solver = z3, linear = False, stringTheory = False, defunction = False, allowHO = False, allowHOqs = False, eliminate = some, elimBound = Nothing, elimStats = False, solverStats = False, metadata = False, stats = False, parts = False, save = True, minimize = False, minimizeQs = False, minimizeKs = False, minimalSol = False, gradual = False, ginteractive = False, extensionality = False, alphaEquivalence = False, betaEquivalence = False, normalForm = False, autoKuts = False, nonLinCuts = True, noslice = False, rewriteAxioms = True, arithmeticAxioms = False}
+
+constant Zero : (Peano) 
+constant One  : (Peano) 
+
+distinct Zero : (Peano) 
+distinct One  : (Peano) 
+
+
+bind 0 xZero : {v : Peano | v = Zero } 
+bind 1 xOne  : {v : Peano | v = One  } 
+
+constraint:
+  env [0; 1]
+  lhs {v:int | true} 
+  rhs {v:int | xZero /= xOne } 
+  id 1 tag []
+

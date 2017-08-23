@@ -282,9 +282,10 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds (F.dLits si) ts
   where
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
-    ts           = applySorts si
+    ts           = Misc.hashNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
     xts          = symbolSorts cfg si
+
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi

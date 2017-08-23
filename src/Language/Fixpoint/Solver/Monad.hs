@@ -175,23 +175,23 @@ filterRequired = error "TBD:filterRequired"
 --------------------------------------------------------------------------------
 -- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
-filterValid :: F.Expr -> F.Cand a -> SolveM [a]
+filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
-filterValid p qs = do
+filterValid sp p qs = do
   qs' <- withContext $ \me ->
            smtBracket me "filterValidLHS" $
-             filterValid_ p qs me
+             filterValid_ sp p qs me
   -- stats
   incBrkt
   incChck (length qs)
   incVald (length qs')
   return qs'
 
-filterValid_ :: F.Expr -> F.Cand a -> Context -> IO [a]
-filterValid_ p qs me = catMaybes <$> do
+filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> Context -> IO [a]
+filterValid_ sp p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
-    smtBracket me "filterValidRHS" $ do
+    smtBracketAt sp me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing

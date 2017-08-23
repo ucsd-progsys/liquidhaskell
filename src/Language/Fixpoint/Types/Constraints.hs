@@ -71,6 +71,9 @@ module Language.Fixpoint.Types.Constraints (
   , Equation (..)
   , Rewrite  (..)
   , getEqBody
+
+  -- * Misc  [should be elsewhere but here due to dependencies]
+  , substVars
   ) where
 
 import qualified Data.Binary as B
@@ -799,7 +802,7 @@ instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> toFix d <> hsep (toFix <$> xs)
+   <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> lparen <> toFix e <> rparen
 

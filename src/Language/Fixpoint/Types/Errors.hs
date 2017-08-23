@@ -38,7 +38,9 @@ module Language.Fixpoint.Types.Errors (
   , catErrors
 
   -- * Fatal Exit
+  , panic
   , die
+  , dieAt
   , exit
 
   -- * Some popular errors
@@ -48,7 +50,6 @@ module Language.Fixpoint.Types.Errors (
   ) where
 
 import           Control.Exception
--- import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Typeable
@@ -128,9 +129,22 @@ err :: SrcSpan -> Doc -> Error
 err sp d = Error [Error1 sp d]
 
 ---------------------------------------------------------------------
+panic :: String -> a
+---------------------------------------------------------------------
+panic = die . err dummySpan . text . (panicMsg ++)
+
+panicMsg :: String
+panicMsg = "PANIC: Please file an issue at https://github.com/ucsd-progsys/liquid-fixpoint \n"
+
+---------------------------------------------------------------------
 die :: Error -> a
 ---------------------------------------------------------------------
 die = throw
+
+---------------------------------------------------------------------
+dieAt :: SrcSpan -> Error -> a
+---------------------------------------------------------------------
+dieAt sp (Error es) = die (Error [ e {errLoc = sp} | e <- es])
 
 ---------------------------------------------------------------------
 exit :: a -> IO a -> IO a

@@ -18,14 +18,11 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Bit Vector Operations
      , sizeBv
-     , toInt
+       -- , toInt
 
        -- * Theory Symbols
      , theorySymbols
 
-     -- * String
-     -- , string
-     -- , genLen
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
@@ -34,6 +31,7 @@ module Language.Fixpoint.Smt.Theories
       -- * Query Theories
      , isSmt2App
      , axiomLiterals
+     , maxLamArg
      ) where
 
 import           Prelude hiding (map)
@@ -42,7 +40,7 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
-import           Data.Maybe (catMaybes, isJust)
+import           Data.Maybe (catMaybes)
 import           Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
@@ -215,9 +213,9 @@ stringPreamble _
 
 
 
--------------------------------------------------------------------------------
--- | Exported API -------------------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Exported API --------------------------------------------------------------
+--------------------------------------------------------------------------------
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder.Builder
 smt2Symbol env x = Builder.fromLazyText . tsRaw <$> symEnvTheory x env
 
@@ -234,32 +232,50 @@ smt2SmtSort SMap         = build "{}" (Only map)
 smt2SmtSort (SBitVec n)  = build "(_ BitVec {})" (Only n)
 smt2SmtSort (SVar n)     = build "T{}" (Only n)
 smt2SmtSort (SData c []) = symbolBuilder c
-smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c, args)
-  where args             = buildMany (smt2SmtSort <$> ts)
+smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c        , smt2SmtSorts ts)
+-- smt2SmtSort (SApp ts)    = build "({} {})" (symbolBuilder tyAppName, smt2SmtSorts ts)
 
+smt2SmtSorts :: [SmtSort] -> Builder.Builder
+smt2SmtSorts = buildMany . fmap smt2SmtSort
 
+--------------------------------------------------------------------------------
 smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
+--------------------------------------------------------------------------------
 smt2App _ (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
 smt2App env (EVar f) (d:ds)
-  | Just s <- symEnvTheory f env
+  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _ _    = Nothing
 
 -- isSmt2App :: Expr -> [a] -> Bool
 -- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
 
-isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
-isSmt2App _ (EVar f) [_]
-  | f == setEmpty = True
-  | f == setEmp   = True
-  | f == setSng   = True
-isSmt2App thyEnv (EVar f) _
-  =  isJust $ lookupSEnv f thyEnv
-isSmt2App _ _ _
-  = False
+--------------------------------------------------------------------------------
+-- / isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
+-- / --------------------------------------------------------------------------------
+-- / isSmt2App _ (EVar f) [_]
+  -- / | f == setEmpty = True
+  -- / | f == setEmp   = True
+  -- / | f == setSng   = True
+-- / isSmt2App env (EVar f) _
+  -- / =  isJust (lookupSEnv f env)
+-- / isSmt2App _ _ _
+  -- / = False
+
+--------------------------------------------------------------------------------
+isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
+--------------------------------------------------------------------------------
+isSmt2App _ (EVar f)
+  | f == setEmpty    = Just 1
+  | f == setEmp      = Just 1
+  | f == setSng      = Just 1
+isSmt2App g (EVar f) = do t  <- tsSort <$> lookupSEnv f g
+                          ts <- snd    <$> bkFFunc t
+                          Just (length ts - 1)
+isSmt2App _ _        = Nothing
 
 
 preamble :: Config -> SMTSolver -> [T.Text]
@@ -275,8 +291,8 @@ preamble u _    = smtlibPreamble u
   -- where
     -- msg   = "toInt e = " ++ show e ++ ", t = " ++ show s
 
-toInt :: Expr -> Sort -> Expr
-toInt e s
+_toInt :: Expr -> Sort -> Expr
+_toInt e s
   |  (FApp (FTC c) _) <- s
   , setConName == symbol c
   = castWith setToIntName e
@@ -310,8 +326,8 @@ castWith s = eAppC intSort (EVar s)
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
 theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols ds = fromListSEnv $  uninterpSymbols
-                               ++ interpSymbols
+theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
+                                  interpSymbols
                                ++ concatMap dataDeclSymbols ds
 
 --------------------------------------------------------------------------------
@@ -352,50 +368,51 @@ interpSymbols =
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
-uninterpSymbols :: [(Symbol, TheorySymbol)]
-uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- uninterpSymbols']
+-- SHIFTLAM _uninterpSymbols :: [(Symbol, TheorySymbol)]
+-- SHIFTLAM _uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- _uninterpSymbols']
+-- SHIFTLAM
+-- SHIFTLAM --------------------------------------------------------------------------------
+-- SHIFTLAM _uninterpSym :: Symbol -> Sort -> TheorySymbol
+-- SHIFTLAM --------------------------------------------------------------------------------
+-- SHIFTLAM _uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
+-- SHIFTLAM
+-- SHIFTLAM _uninterpSymbols' :: [(Symbol, Sort)]
+-- SHIFTLAM _uninterpSymbols' = [] -- [ (toIntName,  mkFFunc 1 [FVar 0, FInt]) ]
 
---------------------------------------------------------------------------------
-uninterpSym :: Symbol -> Sort -> TheorySymbol
---------------------------------------------------------------------------------
-uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
+  -- SHIFTLAM  [ (setToIntName,    FFunc (setSort intSort)   intSort)
+  -- SHIFTLAM  , (bitVecToIntName, FFunc bitVecSort intSort)
+  -- SHIFTLAM  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
+  -- SHIFTLAM  , (realToIntName,   FFunc realSort   intSort)
+  -- SHIFTLAM  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
+  -- SHIFTLAM  ]
+  -- SHIFTLAM  ++ concatMap makeApplies [1..maxLamArg]
+  -- SHIFTLAM  ++ [(lamArgSymbol i, s) | i <- [1..maxLamArg], s <- sorts]
+-- SHIFTLAM
+-- SHIFTLAM  -- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
 
-uninterpSymbols' :: [(Symbol, Sort)]
-uninterpSymbols' =
-  [ (setToIntName,    FFunc (setSort intSort)   intSort)
-  , (bitVecToIntName, FFunc bitVecSort intSort)
-  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  , (realToIntName,   FFunc realSort   intSort)
-  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
-  ]
-  ++ concatMap makeApplies [1..maxLamArg]
-  ++ [(makeLamArg s i, s) | i <- [1..maxLamArg], s <- sorts]
-
--- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
 maxLamArg :: Int
 maxLamArg = 7
 
-sorts :: [Sort]
-sorts = [intSort]
+-- SHIFTLAM sorts :: [Sort]
+-- SHIFTLAM sorts = [intSort]
 
 -- NIKI TODO: allow non integer lambda arguments
 -- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
+-- makeLamArg :: Sort -> Int  -> Symbol
+-- makeLamArg _ = intArgName
 
-makeLamArg :: Sort -> Int  -> Symbol
-makeLamArg _ = intArgName
-
-makeApplies :: Int -> [(Symbol, Sort)]
-makeApplies i =
-  [ (intApplyName i,    go i intSort)
-  , (setApplyName i,    go i (setSort intSort))
-  , (bitVecApplyName i, go i bitVecSort)
-  , (mapApplyName i,    go i $ mapSort intSort intSort)
-  , (realApplyName i,   go i realSort)
-  , (boolApplyName i,   go i boolSort)
-  ]
-  where
-    go 0 s = FFunc intSort s
-    go i s = FFunc intSort $ go (i-1) s
+-- SHIFTLAM makeApplies :: Int -> [(Symbol, Sort)]
+-- SHIFTLAM makeApplies i =
+  -- SHIFTLAM [ (intApplyName i,    go i intSort)
+  -- SHIFTLAM , (setApplyName i,    go i (setSort intSort))
+  -- SHIFTLAM , (bitVecApplyName i, go i bitVecSort)
+  -- SHIFTLAM , (mapApplyName i,    go i $ mapSort intSort intSort)
+  -- SHIFTLAM , (realApplyName i,   go i realSort)
+  -- SHIFTLAM , (boolApplyName i,   go i boolSort)
+  -- SHIFTLAM ]
+  -- SHIFTLAM where
+    -- SHIFTLAM go 0 s = FFunc intSort s
+    -- SHIFTLAM go i s = FFunc intSort $ go (i-1) s
 
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
 axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]

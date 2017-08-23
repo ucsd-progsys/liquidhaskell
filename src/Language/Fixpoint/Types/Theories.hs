@@ -21,16 +21,18 @@ module Language.Fixpoint.Types.Theories (
     -- * Theory Sorts
     , SmtSort (..)
     , sortSmtSort
+    , isIntSmtSort
 
     -- * Symbol Environments
     , SymEnv (..)
     , symEnv
     , symEnvSort
     , symEnvTheory
-    -- , symEnvData
     , insertSymEnv
-    , applyAtName
-    , applyAtSmtName
+    , symbolAtName
+    , symbolAtSmtName
+
+
     ) where
 
 
@@ -42,13 +44,14 @@ import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
-import           Language.Fixpoint.Misc   (errorstar) -- traceShow)
+import qualified Language.Fixpoint.Misc   as Misc -- (sortNub, errorstar) -- traceShow)
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
@@ -84,12 +87,50 @@ instance Monoid SymEnv where
                          }
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv fEnv dEnv ls sortMap
+symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
   where
+    xEnv'                 = unionSEnv xEnv wiredInEnv
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
-    smts                  = (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
-    tx                    = applySmtSort dEnv
+    smts                  = funcSorts dEnv ts -- tracepp "smt-apply-sorts" $ Misc.sortNub $ (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+
+-- | These are "BUILT-in" polymorphic functions which are
+--   UNININTERPRETED but POLYMORPHIC, hence need to go through
+--   the apply-defunc stuff.
+
+wiredInEnv :: M.HashMap Symbol Sort
+wiredInEnv = M.fromList [(toIntName, mkFFunc 1 [FVar 0, FInt])]
+
+
+-- | 'smtSorts' attempts to compute a list of all the input-output sorts
+--   at which applications occur. This is a gross hack; as during unfolding
+--   we may create _new_ terms with wierd new sorts. Ideally, we MUST allow
+--   for EXTENDING the apply-sorts with those newly created terms.
+--   the solution is perhaps to *preface* each VC query of the form
+--
+--      push
+--      assert p
+--      check-sat
+--      pop
+--
+--   with the declarations needed to make 'p' well-sorted under SMT, i.e.
+--   change the above to
+--
+--      declare apply-sorts
+--      push
+--      assert p
+--      check-sat
+--      pop
+--
+--   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
+--   [TODO]: dynamic-apply-declaration
+
+funcSorts :: SEnv a -> [Sort] -> [FuncSort]
+funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
+  where
+    smts         = Misc.sortNub $ concat [ [tx t1, tx t2] | FFunc t1 t2 <- ts]
+    tx           = applySmtSort dEnv
+
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -100,14 +141,16 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
-applyAtName :: SymEnv -> Sort -> Symbol
-applyAtName env = applyAtSmtName env . ffuncSort env
+symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Symbol
+symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
 
-applyAtSmtName :: SymEnv -> FuncSort -> Symbol
-applyAtSmtName env z = intSymbol applyName n
+symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Symbol
+symbolAtSmtName mkSym env e = intSymbol mkSym . funcSortIndex env e
+
+funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
+funcSortIndex env e z = M.lookupDefault err z (seAppls env)
   where
-    n                = M.lookupDefault err ({- tracepp "applyAtSmtName:" -} z) (seAppls env)
-    err              = errorstar "PANIC: Unknown apply-sort, please file an issue!"
+    err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = (tx t1, tx t2)
@@ -119,6 +162,9 @@ ffuncSort env t      = (tx t1, tx t2)
 
 applySmtSort :: SEnv a -> Sort -> SmtSort
 applySmtSort = sortSmtSort False
+
+isIntSmtSort :: SEnv a -> Sort -> Bool
+isIntSmtSort env s = SInt == applySmtSort env s
 
 --------------------------------------------------------------------------------
 -- | 'TheorySymbol' represents the information about each interpreted 'Symbol'
@@ -167,9 +213,10 @@ data SmtSort
   | SString
   | SSet
   | SMap
-  | SBitVec Int
-  | SVar    Int
-  | SData   FTycon [SmtSort]
+  | SBitVec !Int
+  | SVar    !Int
+  | SData   !FTycon ![SmtSort]
+  -- HKT | SApp            ![SmtSort]           -- ^ Representing HKT
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable SmtSort
@@ -195,6 +242,7 @@ sortSmtSort poly env  = go
 fappSmtSort :: Bool -> SEnv a -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly env = go
   where
+-- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
     go (FTC c) _
       | setConName == symbol c  = SSet
     go (FTC c) _
@@ -220,4 +268,8 @@ instance PPrint SmtSort where
   pprintTidy _ SMap         = text "Map"
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <> int i
-  pprintTidy k (SData c ts) = parens (pprintTidy k c <+> pprintTidy k ts)
+--  HKT pprintTidy k (SApp ts)    = ppParens k (pprintTidy k tyAppName) ts
+  pprintTidy k (SData c ts) = ppParens k (pprintTidy k c)         ts
+
+ppParens :: (PPrint d) => Tidy -> Doc -> [d] -> Doc
+ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds))

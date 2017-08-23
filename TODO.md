@@ -2,15 +2,20 @@
 
 ## Proper Encoding of DataTypes
 
-* https://github.com/ucsd-progsys/liquidhaskell/issues/1048
+Need to get proper casts.
 
-  - fix `symEnv` constructor
-  -
+So
 
-* DEPRECATE `makeSmtContext`, `makeSmtEnv` and `symEnv`
-  - all that instantiate stuff should work on SInfo
-  - OR at the VC level.
+    (Cons 1 Emp)
 
-* We need to add stuff to the LHS of an SimpC
-  - tricky as there _is_ no LHS.
-  - lets add reftBind field.
+should be elaborated to
+
+    ((Cons : (int, List int) => List int) (1 : int) (Emp : List int))
+
+
+1. Rig `checkSym` to call `instantiate`
+    - currently returns poly-type (e.g. `forall a. List a`)
+
+2. Change all places where `unify`/`apply` happens to
+   ALSO apply the substitutions to the casts.
+  

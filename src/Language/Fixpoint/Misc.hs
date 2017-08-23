@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 module Language.Fixpoint.Misc where
@@ -200,6 +201,9 @@ groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
 allMap p = L.foldl' (\a v -> a && p v) True
 
+hashNub :: (Eq k, Hashable k) => [k] -> [k]
+hashNub = M.keys . M.fromList . fmap (, ())
+
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
   where
@@ -255,7 +259,7 @@ safeFromList :: (Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k 
 
 safeFromList msg kvs = applyNonNull (M.fromList kvs) err (dups kvs)
   where
-    dups             = duplicates . fmap fst  
+    dups             = duplicates . fmap fst
     err              = errorstar . wrap "safeFromList with duplicates" msg . show
     wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
 
@@ -302,6 +306,13 @@ ensurePath = createDirectoryIfMissing True . takeDirectory
 singleton :: a -> [a]
 singleton x = [x]
 
+pair :: a -> a -> [a]
+pair x1 x2 = [x1, x2]
+
+triple :: a -> a -> a -> [a]
+triple x1 x2 x3 = [x1, x2, x3]
+
+
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
 
@@ -324,6 +335,25 @@ componentsWith eF x = map (fst3 . f) <$> vss
   where
     (g,f,_)         = G.graphFromEdges . eF $ x
     vss             = T.flatten <$> G.components g
+
+topoSortWith :: (Ord v) => (a -> (v, [v])) -> [a] -> [a]
+topoSortWith vF xs = fst3 . f <$> G.topSort g
+  where
+    (g, f, _)      = G.graphFromEdges es
+    es             = [ (x, ux, vxs) | x <- xs, let (ux, vxs) = vF x ]
+
+-- >>> λ> exTopo
+-- >>> [1,2,4,6,5,3]
+exTopo  :: [Int]
+exTopo  = topoSortWith f [1,2,3,4,5,6]
+  where
+    f 1 = (1, [2, 3])
+    f 2 = (2, [3, 4])
+    f 3 = (3, []    )
+    f 4 = (4, [5, 6])
+    f 5 = (5, []    )
+    f 6 = (6, [3]   )
+    f n = (n, []    )
 
 
 type EqHash a = (Eq a, Ord a, Hashable a)
@@ -368,3 +398,19 @@ allCombinations xs = assert (and . map (((length xs) == ) . length)) $ go xs
 
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
+
+
+(<$$>) ::  (Monad m) => (a -> m b) -> [a] -> m [b]
+_ <$$> []           = return []
+f <$$> [x1]         = singleton <$> f x1
+f <$$> [x1, x2]     = pair      <$> f x1 <*> f x2
+f <$$> [x1, x2, x3] = triple    <$> f x1 <*> f x2 <*> f x3
+f <$$> xs           = revMapM f ({- trace msg -} xs)
+  where
+    _msg            = "<$$> on " ++ show (length xs)
+
+revMapM  :: (Monad m) => (a -> m b) -> [a] -> m [b]
+revMapM f          = go []
+  where
+    go !acc []     = return (reverse acc)
+    go !acc (x:xs) = do {!y <- f x; go (y:acc) xs}

@@ -24,7 +24,6 @@ module Language.Fixpoint.Defunctionalize
   , Defunc(..)
   , defuncAny
   , defuncAxioms
-  , makeLamArg
   ) where
 
 import qualified Data.HashMap.Strict as M
@@ -53,9 +52,9 @@ defuncAxioms cfg env z = flip evalState (makeDFState cfg env emptyIBindEnv) $ do
   as <- map noTrigger <$> makeAxioms
   return (z', as)
 
---------------------------------------------------------------------------------
--- | Expressions defunctionalization -------------------------------------------
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
+-- | Expressions defunctionalization --------------------------------------------------------
+---------------------------------------------------------------------------------------------
 txExpr :: Expr -> DF Expr
 txExpr e = do
   hoFlag <- gets dfHO
@@ -68,7 +67,7 @@ defuncExpr = mapMExpr reBind
          >=> mapMExpr (fM normalizeLams)
 
 reBind :: Expr -> DF Expr
-reBind (ELam (x, s) e) = {- tracepp "reBind" <$> -} ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
+reBind (ELam (x, s) e) = ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
 reBind e               = return e
 
 maxLamArg :: Int
@@ -76,8 +75,8 @@ maxLamArg = 7
 
 -- NIKI TODO: allow non integer lambda arguments
 -- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
-makeLamArg :: Sort -> Int -> Symbol
-makeLamArg _ = intArgName
+-- makeLamArg :: Sort -> Int -> Symbol
+-- makeLamArg _ = intArgName
 
 --------------------------------------------------------------------------------
 makeAxioms :: DF [Expr]
@@ -117,9 +116,10 @@ makeAlphaEq e = go e ++ go' e
 normalize :: Expr -> Expr
 normalize = snd . go
   where
-    go (ELam (y, sy) e) = let (i', e') = go e
-                              y'      = makeLamArg sy i'
-                          in (i'+1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
+                              -- y'       = lamArgSymbol i'  -- SHIFTLAM
+                          -- in  -- ELam (y', sy) (e' `subst1` (y, EVar y')))
+
     go (EApp e e2)
       |  (ELam (x, _) bd) <- unECst e
                         = let (i1, e1') = go bd
@@ -135,6 +135,12 @@ normalize = snd . go
     unECst (ECst e _) = unECst e
     unECst e          = e
 
+shiftLam :: Int -> Symbol -> Sort -> Expr -> Expr
+shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
+  where
+    x_i          = lamArgSymbol i
+    x_i_t        = ECst (EVar x_i) t
+
 -- normalize lambda arguments [TODO: example]
 
 normalizeLams :: Expr -> Expr
@@ -143,9 +149,10 @@ normalizeLams e = snd $ normalizeLamsFromTo 1 e
 normalizeLamsFromTo :: Int -> Expr -> (Int, Expr)
 normalizeLamsFromTo i   = go
   where
-    go (ELam (y, sy) e) = let (i', e') = go e
-                              y'      = makeLamArg sy i'
-                          in (i' + 1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
+                          -- let (i', e') = go e
+                          --    y'       = lamArgSymbol i'  -- SHIFTLAM
+                          -- in (i' + 1, ELam (y', sy) (e' `subst1` (y, EVar y')))
     go (EApp e1 e2)     = let (i1, e1') = go e1
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
@@ -181,18 +188,10 @@ splitPAll :: [(Symbol, Sort)] -> Expr -> ([(Symbol, Sort)], Expr)
 splitPAll acc (PAll xs e) = splitPAll (acc ++ xs) e
 splitPAll acc e           = (acc, e)
 
--- NOPROP instantiate :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
--- NOPROP instantiate []     = [[]]
--- NOPROP instantiate xs     = L.foldl' (\acc x -> combine (instOne x) acc) [] xs
-  -- NOPROP where
-    -- NOPROP instOne (x, s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
-    -- NOPROP combine xs []  = [[x] | x <- xs]
-    -- NOPROP combine xs acc = concat [(x:) <$> acc | x <- xs]
-
-instantiate    :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
-instantiate     = choices . map inst1
+instantiate     :: [(Symbol, Sort)] -> [[(Symbol, (Symbol, Sort))]]
+instantiate      = choices . map inst1
   where
-    inst1 (x,s) = [(x, (makeLamArg s i, s)) | i <- [1..maxLamArg]]
+    inst1 (x, s) = [(x, (lamArgSymbol i, s)) | i <- [1..maxLamArg]]
 
 choices :: [[a]] -> [[a]]
 choices []       = [[]]

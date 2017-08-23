@@ -1,0 +1,25 @@
+
+qualif Eq(v:@(0), x:@(0)): (v = x)
+qualif Leq(v:@(0), x:@(0)): (v <= x)
+
+data Zob 0 = [
+  | boo { choo : int } 
+]
+
+bind 0 a : {a : Zob | true} 
+
+constraint:
+  env [0]
+  lhs {v:Zob | v = a }
+  rhs {v:Zob | $k0   } 
+  id 1 tag []
+
+constraint:
+  env [0]
+  lhs {v:Zob | $k0   }
+  rhs {v:Zob | v = a } 
+  id 2 tag []
+
+wf: 
+  env [0]
+  reft {v:Zob | $k0 }

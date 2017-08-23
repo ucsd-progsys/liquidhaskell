@@ -23,7 +23,7 @@ import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Smt.Theories       as Thy
+-- import qualified Language.Fixpoint.Smt.Theories       as Thy
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
@@ -221,8 +221,8 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
-    (_  , psu')     = substElim sEnv g' k su'
-    (xts, psu)      = substElim sEnv g  k su
+    (_  , psu')     = substElim (Sol.sEnv s) sEnv g' k su'
+    (xts, psu)      = substElim (Sol.sEnv s) sEnv g  k su
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
     k               = F.ksuKVar   ksu
@@ -255,10 +255,10 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
-substElim :: F.SEnv F.Sort -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
-substElim sEnv g _ (F.Su m) = (xts, p)
+substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
+substElim syEnv sEnv g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ mkSubst x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
+    p      = F.pAnd [ mkSubst syEnv x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
     xes    = M.toList m
@@ -271,15 +271,18 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
   where
     err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
 
-mkSubst :: F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
-mkSubst x tx ey ty
+mkSubst :: F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
+mkSubst env x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = F.notracepp msg (F.EEq ex' ey')
+  | otherwise   = {- F.tracepp _msg -} (F.EEq ex' ey')
   where
-    msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
+    _msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
-    ex'         = Thy.toInt ex tx
-    ey'         = Thy.toInt ey ty
+    ex'         = elabToInt env ex tx
+    ey'         = elabToInt env ey ty
+
+elabToInt :: F.SymEnv -> F.Expr -> F.Sort -> F.Expr
+elabToInt env e s = So.elaborate "elabToInt" env (So.toInt env e s)
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True

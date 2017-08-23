@@ -307,9 +307,10 @@ infixIdP = many (satisfy (`notElem` [' ', '.']))
 isSmall :: Char -> Bool
 isSmall c = isLower c || c == '_'
 
-locLowerIdP, locUpperIdP :: Parser LocSymbol
+locSymbolP, locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
+locSymbolP  = locParserP symbolP
 
 -- | Arbitrary Symbols
 symbolP :: Parser Symbol
@@ -651,10 +652,10 @@ refDefP x  = refBindP (optBindP x)
 --------------------------------------------------------------------------------
 
 dataFieldP :: Parser DataField
-dataFieldP = DField <$> locLowerIdP <* colon <*> sortP
+dataFieldP = DField <$> locSymbolP <* colon <*> sortP
 
 dataCtorP :: Parser DataCtor
-dataCtorP  = DCtor <$> locLowerIdP
+dataCtorP  = DCtor <$> locSymbolP
                    <*> braces (sepBy dataFieldP comma)
 
 dataDeclP :: Parser DataDecl

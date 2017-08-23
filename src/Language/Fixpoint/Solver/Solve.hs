@@ -44,6 +44,7 @@ solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO 
 --------------------------------------------------------------------------------
 solve cfg fi | gradual cfg
  = solveGradual cfg fi
+
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
@@ -130,7 +131,7 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
       | null new
       = return {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
       | otherwise
-      = do let cands = [e:es |e<-elems, es<-new]
+      = do let cands = [e:es | e <- elems, es <- new]
            localCans <- filterM (isLocal e) cands
            newElems  <- filterM (notTrivial (new ++ acc)) localCans
            makeLattice (acc ++ new) newElems elems
@@ -140,7 +141,7 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
     _showElemss = unlines. map _showElems
 
     notTrivial [] _     = return True
-    notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
+    notTrivial (x:xs) p = do v <- isValid F.dummySpan (mkPred x) (mkPred p)
                              if v then return False
                                   else notTrivial xs p
 
@@ -148,7 +149,7 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
 
     isLocal i es = do
       let pp = So.elaborate "filterLocal" sEnv $ F.PExist [(F.gsym i, F.gsort i)] $ F.pAnd (F.gexpr i:es)
-      isValid mempty pp
+      isValid F.dummySpan mempty pp
 
     root      = mempty
     sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs
@@ -166,7 +167,7 @@ makeLocalLatticeOne cfg fi (k, (e, es)) = do
 
     makeEdgesOne (i,_) (j,_) | i == j = return []
     makeEdgesOne (i,x) (j,y) = do
-      ij <- isValid (mkPred [x]) (mkPred [y])
+      ij <- isValid F.dummySpan (mkPred [x]) (mkPred [y])
       return (if ij then [(j,i)] else [])
 
     mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
@@ -197,7 +198,7 @@ siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
 --------------------------------------------------------------------------------
-solve_ :: (NFData a, F.Fixpoint a)
+solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        => Config
        -> F.SInfo a
        -> Sol.Solution
@@ -227,7 +228,7 @@ tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
-refine :: Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
+refine :: (F.Loc a) => Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
 --------------------------------------------------------------------------------
 refine s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
@@ -245,13 +246,14 @@ refine s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: Int -> Sol.Solution -> F.SimpC a -> SolveM (Bool, Sol.Solution)
+refineC :: (F.Loc a) => Int -> Sol.Solution -> F.SimpC a
+        -> SolveM (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
                    let lhs = S.lhsPred be s c
-                   kqs    <- filterValid lhs rhs
+                   kqs    <- filterValid (cstrSpan c) lhs rhs
                    return  $ S.update s ks kqs
   where
     _ci       = F.subcId c
@@ -277,7 +279,7 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+result :: (F.Fixpoint a, F.Loc a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result cfg wkl s = do
@@ -291,7 +293,7 @@ result cfg wkl s = do
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: (F.Loc a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
@@ -319,12 +321,12 @@ minimizeConjuncts :: F.Expr -> SolveM F.Expr
 minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
   where
     go []     acc   = return acc
-    go (p:ps) acc   = do b <- isValid (F.pAnd (acc ++ ps)) p
+    go (p:ps) acc   = do b <- isValid F.dummySpan (F.pAnd (acc ++ ps)) p
                          if b then go ps acc
                               else go ps (p:acc)
 
 --------------------------------------------------------------------------------
-isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: (F.Loc a) => Sol.Solution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
@@ -332,7 +334,7 @@ isUnsat s c = do
   be    <- getBinds
   let lp = S.lhsPred be s c
   let rp = rhsPred        c
-  res   <- not <$> isValid lp rp
+  res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
 
@@ -351,9 +353,13 @@ rhsPred c
   | isTarget c = F.crhs c
   | otherwise  = errorstar $ "rhsPred on non-target: " ++ show (F.sid c)
 
-isValid :: F.Expr -> F.Expr -> SolveM Bool
-isValid p q = (not . null) <$> filterValid p [(q, ())]
+--------------------------------------------------------------------------------
+isValid :: F.SrcSpan -> F.Expr -> F.Expr -> SolveM Bool
+--------------------------------------------------------------------------------
+isValid sp p q = (not . null) <$> filterValid sp p [(q, ())]
 
+cstrSpan :: (F.Loc a) => F.SimpC a -> F.SrcSpan
+cstrSpan = F.srcSpan . F.sinfo
 
 {-
 ---------------------------------------------------------------------------

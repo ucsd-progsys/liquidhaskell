@@ -52,7 +52,8 @@ smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t
 instance SMTLIB2 Symbol where
   smt2 env s
     | Just t <- Thy.smt2Symbol env s = t
-  smt2 _ s                           = symbolBuilder s -- Builder.fromText $ symbolSafeText  s
+  smt2 _ s                           = symbolBuilder s
+
 
 instance SMTLIB2 LocSymbol where
   smt2 env = smt2 env . val
@@ -69,8 +70,8 @@ instance SMTLIB2 Constant where
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
   smt2 _ Minus  = "-"
-  smt2 _ Times  = {- Builder.fromText $ symbolSafeText -} symbolBuilder mulFuncName
-  smt2 _ Div    = {- Builder.fromText $ symbolSafeText -} symbolBuilder divFuncName
+  smt2 _ Times  = symbolBuilder mulFuncName
+  smt2 _ Div    = symbolBuilder divFuncName
   smt2 _ RTimes = "*"
   smt2 _ RDiv   = "/"
   smt2 _ Mod    = "mod"
@@ -93,7 +94,7 @@ instance SMTLIB2 Expr where
   smt2 env (ENeg e)         = build "(- {})" (Only $ smt2 env e)
   smt2 env (EBin o e1 e2)   = build "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   smt2 env (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
-  smt2 env (ECst e _)       = smt2 env e
+  smt2 env (ECst e t)       = smt2Cast env e t
   smt2 _   (PTrue)          = "true"
   smt2 _   (PFalse)         = "false"
   smt2 _   (PAnd [])        = "true"
@@ -107,26 +108,58 @@ instance SMTLIB2 Expr where
   smt2 env (PExist bs p)    = build "(exists ({}) {})"  (smt2s env bs, smt2 env p)
   smt2 env (PAll   [] p)    = smt2 env p
   smt2 env (PAll   bs p)    = build "(forall ({}) {})"  (smt2s env bs, smt2 env p)
-
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam (x, _) e)  = smt2Lam env x e
-  smt2 _   e                = errorstar ("smtlib2 Pred  " ++ show e)
+  smt2 env (ELam b e)       = smt2Lam env b e
+  smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
 
+-- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
+--   like Nil, see `tests/pos/adt_list_1.fq`
 
-smt2Lam :: SymEnv -> Symbol -> Expr -> Builder.Builder
-smt2Lam env x e = build "({} {} {})" (smt2 env lambdaName, smt2 env x, smt2 env e)
+smt2Cast :: SymEnv -> Expr -> Sort -> Builder.Builder
+smt2Cast env (EVar x) t = smt2Var env x t
+smt2Cast env e        _ = smt2    env e
+
+smt2Var :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smt2Var env x t
+  | isLamArgSymbol x            = smtLamArg env x t
+  | Just s <- symEnvSort x env
+  , isPolyInst s t              = smt2VarAs env x t
+  | otherwise                   = smt2 env x
+
+smtLamArg :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smtLamArg env x t = symbolBuilder $ symbolAtName x env () (FFunc t FInt)
+  -- symbolBuilder (symbolAtName x env () t)
+
+smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder.Builder
+smt2VarAs env x t = build "(as {} {})" (smt2 env x, smt2SortMono x env t)
+
+isPolyInst :: Sort -> Sort -> Bool
+isPolyInst s t = isPoly s && not (isPoly t)
+
+isPoly :: Sort -> Bool
+isPoly (FAbs {}) = True
+isPoly _         = False
+
+smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder.Builder
+smt2Lam env (x, xT) (ECst e eT) = build "({} {} {})" (smt2 env lambda, x', smt2 env e)
+  where
+    x'                          = smtLamArg env x xT
+    lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
+
+smt2Lam _ _ e
+  = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)
 
 smt2App :: SymEnv -> Expr -> Builder.Builder
-smt2App env (EApp (EApp f e1) e2)
+smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = build "({} {})" (symbolBuilder (applyAtName env t), smt2s env [e1, e2])
+  = build "({} {})" (symbolBuilder (symbolAtName applyName env e t), smt2s env [e1, e2])
 smt2App env e
   | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
   = b
   | otherwise
   = build "({} {})" (smt2 env f, smt2s env es)
   where
-    (f, es)   = splitEApp' e
+    (f, es)   =  splitEApp' e
 
 unCast :: Expr -> Expr
 unCast (ECst e _) = unCast e

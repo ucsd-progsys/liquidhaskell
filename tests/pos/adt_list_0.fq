@@ -1,0 +1,15 @@
+
+data LL 0 = [
+  | emp { }
+  | con { lHead : int, lTail : LL }
+]
+
+bind 0 n : {n:int | true}
+bind 1 m : {m:int | true}
+
+constraint:
+  env [0; 1]
+  lhs {v:int | (con n (con m emp) = con m (con n emp)) }
+  rhs {v:int | m = n }
+  id 1 tag []
+
