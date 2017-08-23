@@ -66,11 +66,11 @@ combineReporters _ _ = error "combineReporters needs TestReporters"
 unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
-    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    []             (ExitFailure 1)
+    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 2)
     , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []             ExitSuccess
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
-    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    []             (ExitFailure 1)
+    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 2)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"  []             ExitSuccess
    ]
