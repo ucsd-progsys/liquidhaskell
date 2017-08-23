@@ -61,10 +61,11 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    -- tests = group "Tests" [ unitTests]
     tests = group "Tests" [ unitTests, errorTests, benchTests ]
+    -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
-    -- tests = group "Tests" [ selfTests ]
+    -- tests = group "Tests" [ selfTests  ]
+    -- tests = group "Tests" [ errorTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
 
@@ -157,15 +158,15 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List`"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List2`"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
-
+  , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "L :: Mismatch in number of type variables"
   ]
 
 unitTests :: IO TestTree
 unitTests = group "Unit"
-  [ testGroup "pos"            <$> dirTests "tests/pos"                            ["mapreduce.hs"]   ExitSuccess
+  [ testGroup "pos"            <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
   , testGroup "neg"            <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
   , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-  -- RJ: disabling because broken by adt PR #1068 
+  -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
@@ -174,7 +175,7 @@ unitTests = group "Unit"
   -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
   ]
 
-
+posIgnored = [ "mapreduce.hs" ]
 gPosIgnored = ["Intro.hs"]
 gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 

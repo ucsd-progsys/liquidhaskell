@@ -27,7 +27,7 @@ import Data.Data
 import qualified Data.Binary         as B
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Misc  (mapFst, mapSnd)
 import Language.Haskell.Liquid.Types.RefType
@@ -44,7 +44,7 @@ data Bound t e = Bound
 instance (B.Binary t, B.Binary e) => B.Binary (Bound t e)
 
 type RBound        = RRBound RSort
-type RRBound tv    = Bound tv Expr
+type RRBound tv    = Bound tv F.Expr
 
 type RBEnv         = M.HashMap LocSymbol RBound
 type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
@@ -74,7 +74,7 @@ instance Bifunctor Bound where
   second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
-          => RRBound RSort -> [RRType r] -> [Symbol] -> RRType r -> RRType r
+          => RRBound RSort -> [RRType r] -> [F.Symbol] -> RRType r -> RRType r
 makeBound (Bound _  vs ps xs p) ts qs
          = RRTy cts mempty OCons
   where
@@ -85,27 +85,27 @@ makeBound (Bound _  vs ps xs p) ts qs
     penv = zip (val . fst <$> ps) qs
     rs   = bkImp [] p
 
-    bkImp acc (PImp p q) = bkImp (p:acc) q
+    bkImp acc (F.PImp p q) = bkImp (p:acc) q
     bkImp acc p          = p:acc
 
     su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]
 
 makeBoundType :: (PPrint r, UReftable r)
-              => [(Symbol, Symbol)]
-              -> [Expr]
+              => [(F.Symbol, F.Symbol)]
+              -> [F.Expr]
               -> [(LocSymbol, RSort)]
-              -> [(Symbol, RRType r)]
+              -> [(F.Symbol, RRType r)]
 makeBoundType penv (q:qs) xts = go xts
   where
     -- NV TODO: Turn this into a proper error
     go [] = panic Nothing "Bound with empty symbols"
 
-    go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
+    go [(x, t)]      = [(F.dummySymbol, tp t x), (F.dummySymbol, tq t x)]
     go ((x, t):xtss) = (val x, mkt t x) : go xtss
 
-    mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (Reft (val x, mempty))
+    mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, mempty))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tp t x  = ofRSort t `strengthen` ofUReft (MkUReft (Reft (val x, pAnd rs))
+    tp t x  = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, F.pAnd rs))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
@@ -116,53 +116,46 @@ makeBoundType penv (q:qs) xts = go xts
 makeBoundType _ _ _           = panic Nothing "Bound with empty predicates"
 
 
-partitionPs :: [(Symbol, Symbol)] -> [Expr] -> (M.HashMap Symbol [UsedPVar], [Expr])
+partitionPs :: [(F.Symbol, F.Symbol)] -> [F.Expr] -> (M.HashMap F.Symbol [UsedPVar], [F.Expr])
 partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
-isPApp :: [(Symbol, a)] -> Expr -> Bool
-isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
-isPApp penv (EApp e _)         = isPApp penv e
+isPApp :: [(F.Symbol, a)] -> F.Expr -> Bool
+isPApp penv (F.EApp (F.EVar p) _)  = isJust $ lookup p penv
+isPApp penv (F.EApp e _)         = isPApp penv e
 isPApp _    _                  = False
 
-toUsedPVars :: [(Symbol, Symbol)] -> Expr -> (Symbol, [PVar ()])
-toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
+toUsedPVars :: [(F.Symbol, F.Symbol)] -> F.Expr -> (F.Symbol, [PVar ()])
+toUsedPVars penv q@(F.EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = case {- unProp -} e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
+    x = case {- unProp -} e of {F.EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
--- unProp :: Expr -> Expr
--- unProp (EApp (EVar f) e)
---    | f == propConName
---    = e
--- unProp e
---    = e
-
-toUsedPVar :: [(Symbol, Symbol)] -> Expr -> PVar ()
-toUsedPVar penv ee@(EApp _ _)
-  = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
+toUsedPVar :: [(F.Symbol, F.Symbol)] -> F.Expr -> PVar ()
+toUsedPVar penv ee@(F.EApp _ _)
+  = PV q (PVProp ()) e (((), F.dummySymbol,) <$> es')
    where
-     EVar e = {- unProp $ -} last es
+     F.EVar e = {- unProp $ -} last es
      es'    = init es
      Just q = lookup p penv
-     (EVar p, es) = splitEApp ee
+     (F.EVar p, es) = F.splitEApp ee
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 
 -- `makeRef` is used to make the refinement of the last implication,
 -- thus it can contain both concrete and abstract refinements
 
-makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Expr -> r
-makeRef penv v (PAnd rs) = ofUReft (MkUReft (Reft (val v, pAnd rrs)) r mempty)
+makeRef :: (UReftable r) => [(F.Symbol, F.Symbol)] -> LocSymbol -> F.Expr -> r
+makeRef penv v (F.PAnd rs) = ofUReft (MkUReft (F.Reft (val v, F.pAnd rrs)) r mempty)
   where
     r                    = Pr  (toUsedPVar penv <$> pps)
     (pps, rrs)           = partition (isPApp penv) rs
 
 makeRef penv v rr
-  | isPApp penv rr       = ofUReft (MkUReft (Reft(val v, mempty)) r mempty)
+  | isPApp penv rr       = ofUReft (MkUReft (F.Reft(val v, mempty)) r mempty)
   where
     r                    = Pr [toUsedPVar penv rr]
 
-makeRef _    v p         = ofReft (Reft(val v, p))
+makeRef _    v p         = F.ofReft (F.Reft (val v, p))

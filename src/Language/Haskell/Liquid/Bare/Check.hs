@@ -7,7 +7,6 @@
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
-
   , checkTerminationExpr
   , checkTy
   ) where
@@ -33,7 +32,7 @@ import qualified Data.HashMap.Strict                       as M
 
 import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead, mapSnd)
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
-import           Language.Fixpoint.Types                   hiding (Error, R)
+import           Language.Fixpoint.Types                   hiding (panic, Error, R)
 
 import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Misc              (snd4)

@@ -32,11 +32,8 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
--- import           Language.Fixpoint.Solver.Instantiate
 
 import           Language.Haskell.Liquid.UX.Config (terminationCheck)
-                 --, allowLiquidInstationationGlobal, allowLiquidInstationationLocal,
-                 -- allowRewrite, allowArithmetic)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
@@ -53,10 +50,6 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
--- import           Language.Haskell.Liquid.Constraint.ToFixpoint (fixConfig)
--- import           Language.Fixpoint.Smt.Interface (makeSmtContext, smtPush)
-
--- import System.IO.Unsafe
 
 -- import Debug.Trace (trace)
 
@@ -71,15 +64,15 @@ initEnv info
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   makeDataConTypes
        dcsty'   <- forM dcs'  makeDataConTypes
-       (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
-       f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
+       (hs,f0)  <- refreshHoles $ grty info                           -- asserted refinements     (for defined vars)
+       f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
-       f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty              -- data constructors
-       f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ vals gsAsmSigs sp            -- assumed refinedments     (with `assume`)
-       f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors sp)             -- constructor refinements  (for measures)
-       f5       <- refreshArgs' $ vals gsInSigs sp             -- internal refinements     (from Haskell measures)
+       f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
+       f1'      <- refreshArgs' $ makedcs dcsty                       -- data constructors
+       f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
+       f3       <- refreshArgs' $ vals gsAsmSigs sp                   -- assumed refinedments     (with `assume`)
+       f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors sp)   -- constructor refinements  (for measures)
+       f5       <- refreshArgs' $ vals gsInSigs sp                    -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize sp) dcs'
        let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
@@ -168,6 +161,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
   where
     tce            = gsTcEmbeds sp
     tyi            = gsTyconEnv sp
+
 
 --------------------------------------------------------------------------------
 measEnv :: GhcSpec
@@ -267,6 +261,7 @@ initCGI cfg info = CGInfo {
   , kvPacks    = mempty
   , cgLits     = infoLits gsMeas   (const True) info
   , cgConsts   = infoLits gsLits notFn info
+  , cgADTs     = gsADTs spc
   , termExprs  = M.fromList $ gsTexprs spc
   , specDecr   = gsDecr spc
   , specLVars  = gsLvars spc

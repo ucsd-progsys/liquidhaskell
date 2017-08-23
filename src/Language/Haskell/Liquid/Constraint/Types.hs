@@ -195,6 +195,7 @@ data CGInfo = CGInfo {
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
   , cgLits     :: !(F.SEnv F.Sort)             -- ^ Global symbols in the refinement logic
   , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
+  , cgADTs     :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements

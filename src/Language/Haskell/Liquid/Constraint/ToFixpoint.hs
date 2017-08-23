@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
-module Language.Haskell.Liquid.Constraint.ToFixpoint (
-
-    cgInfoFInfo
-
+module Language.Haskell.Liquid.Constraint.ToFixpoint
+  ( cgInfoFInfo
   , fixConfig
-
   ) where
 
 import           Prelude hiding (error)
@@ -55,8 +52,8 @@ fixConfig tgt cfg = def
   , FC.betaEquivalence  = betaEquivalence   cfg
   , FC.normalForm       = normalForm        cfg
   , FC.stringTheory     = stringTheory      cfg
-  , FC.gradual          = gradual           cfg 
-  , FC.ginteractive     = ginteractive       cfg 
+  , FC.gradual          = gradual           cfg
+  , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = allowRewrite      cfg
   , FC.arithmeticAxioms = allowArithmetic   cfg
@@ -77,19 +74,21 @@ ignoreQualifiers info fi
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
   where
-    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty mempty
+    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
     bs               = binds    cgi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
+    adts             = cgADTs   cgi
     qs               = qualifiers info (fEnv cgi)
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
     es               = makeAxioms info
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
+    -- msg              = show . map F.symbol . M.keys . tyConInfo
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
@@ -147,7 +146,7 @@ makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x x
     sp                        = spec info
 
 -- NV Move this to types?
--- sound but imprecise approximation of a tyep in the logic
+-- sound but imprecise approximation of a type in the logic
 specTypeToLogic :: [F.Expr] -> F.Expr -> SpecType -> F.Expr
 specTypeToLogic es e t
   | ok        = F.subst su (F.PImp (F.pAnd args) res)

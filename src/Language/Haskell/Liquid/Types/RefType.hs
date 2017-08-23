@@ -110,7 +110,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (shiftVV, Predicate, isNumeric)
+import Language.Fixpoint.Types hiding (panic, shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
@@ -328,7 +328,7 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftab
 
 instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
   isTauto     = isTrivial
-  top t       = mapReft top t 
+  top t       = mapReft top t
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
   params      = panic Nothing "params on RType"
@@ -1352,10 +1352,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 --------------------------------------------------------------------------------
 -- | From Old Fixpoint ---------------------------------------------------------
 --------------------------------------------------------------------------------
-
-typeUniqueSymbol :: Type -> Symbol
-typeUniqueSymbol = symbol . typeUniqueString
-
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce t@(FunTy _ _)
   = typeSortFun tce t
@@ -1366,8 +1362,7 @@ typeSort tce (TyConApp c τs)
 typeSort tce (AppTy t1 t2)
   = fApp (typeSort tce t1) [typeSort tce t2]
 typeSort _tce (TyVarTy tv)
-  = let x = FObj $ tyVarUniqueSymbol tv
-    in  x
+  = tyVarSort tv
 typeSort tce (CastTy t _)
   = typeSort tce t
 typeSort _ τ
@@ -1377,6 +1372,12 @@ tyConFTyCon :: M.HashMap TyCon FTycon -> TyCon -> FTycon
 tyConFTyCon tce c
   = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c))
               (M.lookup c tce)
+
+typeUniqueSymbol :: Type -> Symbol
+typeUniqueSymbol = symbol . typeUniqueString
+
+tyVarSort :: TyVar -> Sort
+tyVarSort = FObj . tyVarUniqueSymbol
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
 typeSortForAll tce τ

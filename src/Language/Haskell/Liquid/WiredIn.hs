@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.WiredIn
 
        -- | Built  in Symbols
        , isWiredIn
+       , dcPrefix
 
        ) where
 
@@ -25,8 +26,7 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
-
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
 
 import BasicTypes
@@ -60,9 +60,12 @@ wiredInNames :: [F.Symbol]
 wiredInNames = [ "head", "tail", "fst", "snd", "len" ]
 
 isWiredInShape :: Located Symbol -> Bool
-isWiredInShape x = any (`F.isPrefixOfSym` s) [F.anfPrefix, F.tempPrefix, dcPrefix]
-  where s        = val x
-        dcPrefix = "lqdc"
+isWiredInShape x = any (`F.isPrefixOfSym` (val x)) [F.anfPrefix, F.tempPrefix, dcPrefix]
+  -- where s        = val x
+        -- dcPrefix = "lqdc"
+
+dcPrefix :: F.Symbol
+dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(Symbol, Sort)]
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
@@ -117,7 +120,7 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
                    , [(nilDataCon, DataConP l0 [RTV tyv] [p] [] [] [] lt l0)
-                   , (consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt l0)])
+                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon

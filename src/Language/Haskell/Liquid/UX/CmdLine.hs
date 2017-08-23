@@ -63,7 +63,7 @@ import qualified Language.Fixpoint.Types.Config as FC
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
+import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
@@ -251,6 +251,10 @@ config = cmdArgsMode $ Config {
  , exactDC
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
+
+ , noADT
+    = def &= help "Do not generate ADT representations in refinement logic"
+          &= name "no-adt"
 
  , noMeasureFields
     = def &= help "Do not automatically lift data constructor fields into measures"
@@ -512,6 +516,7 @@ defConfig = Config { files             = def
                    , nototality        = False
                    , pruneUnsorted     = def
                    , exactDC           = def
+                   , noADT             = def
                    , noMeasureFields   = def
                    , cores             = def
                    , minPartSize       = FC.defaultMinPartSize

@@ -37,7 +37,7 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
 
-import           Language.Fixpoint.Types                hiding (SVar, DDecl, DataDecl, Error, R, Predicate)
+import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)

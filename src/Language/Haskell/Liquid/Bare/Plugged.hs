@@ -46,35 +46,32 @@ import Language.Haskell.Liquid.Bare.Misc
 -- this module is responsible for plugging the holes we obviously cannot
 -- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 
-makePluggedSigs :: Traversable t
-                => ModName
+makePluggedSigs :: ModName
                 -> TCEmb TyCon
                 -> M.HashMap TyCon RTyCon
                 -> NameSet
-                -> t (Var, Located (RRType RReft))
-                -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
+                -> [(Var, LocSpecType)]
+                -> BareM [(Var, LocSpecType)]
 makePluggedSigs name embs tcEnv exports sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = maybeTrue x name exports
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedAsmSigs :: Traversable t
-                   => TCEmb TyCon
+makePluggedAsmSigs :: TCEmb TyCon
                    -> M.HashMap TyCon RTyCon
-                   -> t (Var, Located (RRType RReft))
-                   -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
+                   -> [(Var, LocSpecType)]
+                   -> BareM [(Var, LocSpecType)]
 makePluggedAsmSigs embs tcEnv sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = const killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedDataCons :: Traversable t
-                    => TCEmb TyCon
+makePluggedDataCons :: TCEmb TyCon
                     -> M.HashMap TyCon RTyCon
-                    -> t (DataCon, Located DataConP)
-                    -> BareM (t (DataCon, Located DataConP))
+                    -> [(DataCon, Located DataConP)]
+                    -> BareM [(DataCon, Located DataConP)]
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc

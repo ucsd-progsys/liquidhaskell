@@ -53,7 +53,7 @@ import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Fixpoint.Types                      hiding (Error, Loc, Constant (..), Located (..))
+import           Language.Fixpoint.Types                      hiding (panic, Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType

@@ -3,25 +3,20 @@
 module Language.Haskell.Liquid.Bare.Misc (
     makeSymbols
   , freeSymbols
-
   , joinVar
-
   , mkVarExpr
-
   , MapTyVarST(..)
   , initMapSt
   , runMapTyVars
   , mapTyVars
   , matchKindArgs
-
   , symbolRTyVar
   , simpleSymbolVar
-
   , hasBoolResult
 
+  -- * Exact DataConstructor Functions
   , makeDataConChecker
   , makeDataConSelector
-  -- , isDataConSymbol
   , isKind
   ) where
 
@@ -43,28 +38,36 @@ import           Data.Maybe                            (isNothing)
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
 import           Language.Fixpoint.Misc                (singleton, sortNub)
--- import           Language.Fixpoint.Types               (suffixSymbol, Symbol, Expr(..), Reft(..))
 import qualified Language.Fixpoint.Types as F
---              (suffixSymbol, atLoc, Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft )
-
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
--- import           Language.Haskell.Liquid.Misc          (sortDiff)
 import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 
-
+--------------------------------------------------------------------------------
+-- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
+--   a given value was created by 'd'. e.g. is$Nil or is$Cons.
+--------------------------------------------------------------------------------
 makeDataConChecker :: DataCon -> F.Symbol
+--------------------------------------------------------------------------------
 makeDataConChecker d
   | nilDataCon  == d
   = F.symbol "isNull"
   | consDataCon == d
   = F.symbol "notIsNull"
   | otherwise
-  = dcMeasure "is" d Nothing
-  -- = symbol $ ("lqdc$is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d
+  = F.testSymbol (F.symbol d)
+  -- = dcMeasure "is" d Nothing
 
+--------------------------------------------------------------------------------
+-- | 'makeDataConSelector d' creates the selector `select$d$i`
+--   which projects the i-th field of a constructed value.
+--   e.g. `select$Cons$1` and `select$Cons$2` are respectively
+--   equivalent to `head` and `tail`.
+--------------------------------------------------------------------------------
 makeDataConSelector :: DataCon -> Int -> F.Symbol
+--------------------------------------------------------------------------------
 makeDataConSelector d i
   | consDataCon == d, i == 1
   = F.symbol "head"
@@ -74,18 +77,16 @@ makeDataConSelector d i
   = dcMeasure "select" d (Just i)
 
 dcMeasure :: String -> DataCon -> Maybe Int -> F.Symbol
-dcMeasure f d iMb = foldr1 F.suffixSymbol (F.symbol "lqdc" : F.symbol f : dcSymbol d : rest)
-                    -- F.symbol $ L.intercalate "_" ("lqdc" : f : dcString d : rest)
+dcMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : dcSymbol d : rest)
   where
-    rest = maybe [] (singleton . F.symbol . show) iMb
-    -- dcString :: DataCon -> F.Symbol
-    dcSymbol = simpleSymbolVar . dataConWorkId
+    rest          = maybe [] (singleton . F.symbol . show) iMb
+    dcSymbol      = simpleSymbolVar . dataConWorkId
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
 -- WTF does this function do?
 makeSymbols :: (Id -> Bool) -> [Id] -> [F.Symbol] -> BareM [(F.Symbol, Var)]
-makeSymbols f vs xs -- xs' xts yts ivs
+makeSymbols f vs xs
   = do svs <- M.toList <$> gets varEnv
        return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
                    ++  [ (F.symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])

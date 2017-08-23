@@ -301,19 +301,20 @@ ppEnvShort pp   = pp { ppShort = True }
 -- | GHC Information :  Code & Spec ------------------------------
 ------------------------------------------------------------------
 
-data GhcInfo = GI {
-    target   :: !FilePath
-  , targetMod:: !ModuleName
-  , env      :: !HscEnv
-  , cbs      :: ![CoreBind]
+data GhcInfo = GI
+  { target   :: !FilePath       -- ^ Source file for module
+  , targetMod:: !ModuleName     -- ^ Name for module
+  , env      :: !HscEnv         -- ^ GHC Env used to resolve names for module
+  , cbs      :: ![CoreBind]     -- ^ Source Code
   , derVars  :: ![Var]          -- ^ ?
-  , impVars  :: ![Var]
-  , defVars  :: ![Var]
-  , useVars  :: ![Var]
-  , hqFiles  :: ![FilePath]
-  , imports  :: ![String]
-  , includes :: ![FilePath]
-  , spec     :: !GhcSpec
+  , impVars  :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
+  , defVars  :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
+  , useVars  :: ![Var]          -- ^ Binders that are _read_ in module
+--   , tyCons   :: ![TyCon]        -- ^ Types that are defined inside module
+  , hqFiles  :: ![FilePath]     -- ^ Imported .hqual files
+  , imports  :: ![String]       -- ^ ??? dead?
+  , includes :: ![FilePath]     -- ^ ??? dead?
+  , spec     :: !GhcSpec        -- ^ All specification information for module
   }
 
 instance HasConfig GhcInfo where
@@ -348,24 +349,25 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsQualifiers :: ![Qualifier]                 -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
+  , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
-  , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of new type type constructors with their refined types.
+  , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
   , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
   , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
   , gsConfig     :: !Config                      -- ^ Configuration Options
-  , gsExports   :: !NameSet                       -- ^ `Name`s exported by the module being verified
-  , gsMeasures  :: [Measure SpecType DataCon]
-  , gsTyconEnv  :: M.HashMap TyCon RTyCon
-  , gsDicts     :: DEnv Var SpecType              -- ^ Dictionary Environment
-  , gsAxioms    :: [AxiomEq]                      -- ^ Axioms from reflected functions
-  , gsReflects  :: [Var]                          -- ^ Binders for reflected functions
-  , gsLogicMap  :: LogicMap
-  , gsProofType :: Maybe Type
-  , gsRTAliases :: !RTEnv                         -- ^ Refinement type aliases
+  , gsExports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , gsMeasures   :: [Measure SpecType DataCon]
+  , gsTyconEnv   :: M.HashMap TyCon RTyCon
+  , gsDicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , gsAxioms     :: [AxiomEq]                      -- ^ Axioms from reflected functions
+  , gsReflects   :: [Var]                          -- ^ Binders for reflected functions
+  , gsLogicMap   :: LogicMap
+  , gsProofType  :: Maybe Type
+  , gsRTAliases  :: !RTEnv                         -- ^ Refinement type aliases
   }
 
 instance HasConfig GhcSpec where
@@ -436,17 +438,20 @@ data TyConP = TyConP
   , sizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
+-- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dc_loc     :: !F.SourcePos
-  , freeTyVars :: ![RTyVar]
-  , freePred   :: ![PVar RSort]
-  , freeLabels :: ![Symbol]
-  , tyConsts   :: ![SpecType]             -- FIXME: WHAT IS THIS??
-  , tyArgs     :: ![(Symbol, SpecType)]   -- FIXME: These are backwards, why??
-  , tyRes      :: !SpecType
+  , freeTyVars :: ![RTyVar]               -- ^ Type parameters
+  , freePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
+  , freeLabels :: ![Symbol]               -- ^ ? strata stuff
+  , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
+  , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
+  , tyRes      :: !SpecType               -- ^ Result type
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
+instance F.Loc DataConP where
+  srcSpan d = F.SS (dc_loc d) (dc_locE d)
 
 -- | Which Top-Level Binders Should be Verified
 data TargetVars = AllVars | Only ![Var]
@@ -597,7 +602,6 @@ rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
 
 tyVarUniqueSymbol :: TyVar -> Symbol
 tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
-
 
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
@@ -1074,6 +1078,7 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
+
 instance F.Subable AxiomEq where
   syms   a = F.syms (axiomBody a) ++ F.syms (axiomEq a)
   subst su = mapAxiomEqExpr (F.subst su)
@@ -1083,13 +1088,17 @@ instance F.Subable AxiomEq where
 mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
 mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
                        , axiomEq   = f (axiomEq   a) }
---------------------------------------------------------------------------
--- | Values Related to Specifications ------------------------------------
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Values Related to Specifications ------------------------------------------
+--------------------------------------------------------------------------------
 data SizeFun
-  = IdSizeFun            -- ^ \x -> F.EVar x
+  = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
   deriving (Data, Typeable, Generic)
+
+instance Show SizeFun where
+  show IdSizeFun      = "IdSizeFun"
+  show (SymSizeFun x) = "SymSizeFun " ++ show (F.val x)
 
 szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
@@ -1101,12 +1110,12 @@ instance B.Binary SizeFun
 -- | Data type refinements
 data DataDecl   = D
   { tycName   :: F.LocSymbol                           -- ^ Type  Constructor Name
-  , tycTyVars :: [Symbol]                            -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]                        -- ^ PVar  Parameters
-  , tycTyLabs :: [Symbol]                            -- ^ PLabel  Parameters
+  , tycTyVars :: [Symbol]                              -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]                          -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]                              -- ^ PLabel  Parameters
   , tycDCons  :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
   , tycSrcPos :: !F.SourcePos                          -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun                       -- ^ Measure that should decrease in recursive calls
+  , tycSFun   :: Maybe SizeFun                         -- ^ Measure that should decrease in recursive calls
   } deriving (Data, Typeable, Generic)
 
 instance B.Binary DataDecl
@@ -1117,11 +1126,23 @@ instance Eq DataDecl where
 instance Ord DataDecl where
   compare d1 d2 = compare (tycName d1) (tycName d2)
 
+instance F.Loc DataDecl where
+  srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
+
 -- | For debugging.
 instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s"
-              (show $ tycName   dd)
+  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s" -- [at: %s]"
+              (show $ F.symbol  dd)
               (show $ tycTyVars dd)
+              (show $ tycSFun   dd)
+              -- (show $ F.srcSpan dd)
+
+instance F.PPrint DataDecl where
+  pprintTidy _ = text . show
+
+-- | Name of the data-type
+instance F.Symbolic DataDecl where
+  symbol =  F.symbol . tycName
 
 -- | Refinement Type Aliases
 data RTAlias x a = RTA
@@ -1728,6 +1749,7 @@ instance F.PPrint ModName where
 instance Show ModuleName where
   show = moduleNameString
 
+
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m
 
@@ -1890,7 +1912,7 @@ data RClass ty = RClass
   { rcName    :: BTyCon
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
-  , rcMethods :: [(F.LocSymbol,ty)]
+  , rcMethods :: [(F.LocSymbol, ty)]
   } deriving (Show, Functor, Data, Typeable, Generic)
 
 

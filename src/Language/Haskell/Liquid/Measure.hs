@@ -38,7 +38,7 @@ import           Data.List                              (foldl', partition)
 import           Data.Maybe                             (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types                hiding (R, DataDecl, SrcSpan)
+import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
 import           Language.Haskell.Liquid.Types.RefType
@@ -85,7 +85,7 @@ data Spec ty bndr  = Spec
   , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
   , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
-  , dvariance  :: ![(LocSymbol, [Variance])]
+  , dvariance  :: ![(LocSymbol, [Variance])]     -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap LocSymbol Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                  --   see tests/pos/NatClass.hs

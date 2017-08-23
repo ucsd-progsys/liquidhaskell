@@ -135,11 +135,11 @@ testSpecP =
 
     , testCase "data" $
        parseSingleSpec "data Bob = B {foo :: Int}" @?=
-          "DDecl DataDecl: data = \"Bob\" (dummyLoc), tyvars = []"
+          "DDecl DataDecl: data = \"Bob\", tyvars = [], sizeFun = Nothing"
 
     , testCase "newtype" $
        parseSingleSpec "newtype Foo = Bar {x :: Nat}" @?=
-          "NTDecl DataDecl: data = \"Foo\" (dummyLoc), tyvars = []"
+          "NTDecl DataDecl: data = \"Foo\", tyvars = [], sizeFun = Nothing"
 
     , testCase "include" $
        parseSingleSpec "include <listSet.hquals>" @?=
@@ -322,7 +322,7 @@ testSucceeds =
          , "                   , r   :: Tree {v:a | key < v }"
          , "                   }" ])
         @?=
-          "DDecl DataDecl: data = \"Tree\" (dummyLoc), tyvars = [\"a\"]"
+          "DDecl DataDecl: data = \"Tree\", tyvars = [\"a\"], sizeFun = Just SymSizeFun \"ht\""
 
     , testCase "type spec 7" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
@@ -351,7 +351,7 @@ testSucceeds =
           , "  | App (fn :: f) (arg :: f)"
           , "  | Paren (ast :: f)" ])
           @?=
-          "DDecl DataDecl: data = \"AstF\" (dummyLoc), tyvars = [\"f\"]"
+          "DDecl DataDecl: data = \"AstF\", tyvars = [\"f\"], sizeFun = Nothing"
 
     , testCase "type spec 11" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?=
@@ -441,7 +441,7 @@ testSucceeds =
          , "    Nil  :: List a "
          , "  | Cons :: listHead:a -> listTail:List a -> List a  "])
         @?=
-          "DDecl DataDecl: data = \"List\" (dummyLoc), tyvars = [\"a\"]"
+          "DDecl DataDecl: data = \"List\", tyvars = [\"a\"], sizeFun = Nothing"
 
     , testCase "type spec 28" $
        parseSingleSpec (unlines $
@@ -449,8 +449,7 @@ testSucceeds =
          , "    Nil2  :: List2 a "
          , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
         @?=
-          "DDecl DataDecl: data = \"List2\" (dummyLoc), tyvars = [\"a\",\"b\"]"
-
+          "DDecl DataDecl: data = \"List2\", tyvars = [\"a\",\"b\"], sizeFun = Nothing"
     ]
 
 -- ---------------------------------------------------------------------

@@ -76,6 +76,7 @@ data Config = Config {
   , eliminate      :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
+  , noADT           :: Bool      -- ^ Disable ADTs (only used with exactDC)
   , noMeasureFields :: Bool      -- ^ Do not automatically lift data constructor fields into measures
   , scrapeImports   :: Bool      -- ^ scrape qualifiers from imported specifications
   , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
@@ -118,11 +119,10 @@ allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
-allowRewrite, allowArithmetic :: Config -> Bool
-allowRewrite    cfg = proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods
-allowArithmetic cfg = proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods
-
-
+allowInstances, allowRewrite, allowArithmetic :: Config -> Bool
+allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
+allowArithmetic cfg = allowInstances cfg && (proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods)
+allowInstances  cfg = autoInstantiate cfg /= NoInstances 
 
 instance Default ProofMethod where
   def = Rewrite
