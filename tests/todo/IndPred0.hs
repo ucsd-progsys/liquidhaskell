@@ -2,7 +2,7 @@ module Even where
 
 data Peano
   = Z
-  | S Peano 
+  | S Peano
 
 data Even where
   EZ  :: Even
@@ -10,15 +10,36 @@ data Even where
 
 {-@ data Even :: Peano -> Prop where
       EZ  :: {v:Even | prop v = Even Z}
-      ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }  
+      ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
   @-}
 
--- LIQUID-ABBREV
--- predicate Prop E = {prop v = E}
+{-
 
--- data Even :: Peano -> Prop where
---   EZ  :: Prop (Even Z)                                     
---   ESS :: n:Nat -> Prop (Even n) -> Prop (Even (S (S n)))   
+1. DataProp
+    - parser
+    - spec
+
+2. DataProp -> [DataDecl]
+
+
+ctors
+
+  EZ  :: {v:Even | prop v = Even Z}
+  ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
+
+datatypes
+
+  datatype Even#Prop = [
+    | Even { x0 : Peano }
+  ]
+
+  datatype Even = [
+    | EZ  { }
+    | ESS { x0 : Peano, x1 : Even }
+  ]
+
+ -}
+
 
 {-@ test :: n:Peano -> {v:Even | prop v = Even (S (S n))} -> {v:Even | prop v = Even n} @-}
 test :: Peano -> Even -> Even
