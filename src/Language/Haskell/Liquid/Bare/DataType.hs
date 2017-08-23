@@ -123,18 +123,6 @@ makeDataCtor tce c (d, dp) = F.DCtor
     as          = rtyVarUniqueSymbol <$> freeTyVars dp
     xts        = [ (loc x, t) | (x, t) <- reverse (tyArgs dp) ]
     loc         = Loc (dc_loc dp) (dc_locE dp)
-    -- NEW: wrong because it uses unplugged version, so crashes with Tuple vs Proof
-    -- xts         = fromMaybe err (zipMaybe xs ts)
-    -- xs          = [ loc x | (x, _) <- reverse (tyArgs dp) ]
-    -- tvSym       = rtyVarUniqueSymbol . RT.rTyVar
-    -- as           = tvSym <$> as'
-    -- (as',_,ts,_) = dataConSig d
-    -- err         = uError (ErrDataCon (GM.fSrcSpan dp) (F.pprint dp) "Wrong number of fields" )
-
--- // zipMaybe :: [a] -> [b] -> Maybe [(a, b)]
--- // zipMaybe xs ys
-  -- // | length xs == length ys = Just (zip xs ys)
-  -- // | otherwise              = Nothing
 
 makeDataField :: F.TCEmb TyCon -> F.FTycon -> [(F.Symbol, Int)] -> (F.LocSymbol, SpecType)
               -> F.DataField
