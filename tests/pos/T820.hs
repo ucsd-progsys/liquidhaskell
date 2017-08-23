@@ -1,4 +1,3 @@
-{-@ LIQUID "--totality"     @-}
 {-@ LIQUID "--exactdc"      @-}
 {-@ LIQUID "--higherorder"  @-}
 

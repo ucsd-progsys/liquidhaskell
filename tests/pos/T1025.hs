@@ -1,6 +1,5 @@
 {-@ LIQUID "--exactdc"     @-}
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--totality"    @-}
 
 module Bug where
 
