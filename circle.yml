@@ -26,13 +26,13 @@ dependencies:
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-    - stack build liquidhaskell --fast --only-dependencies --test --no-run-tests
+    - stack build liquidhaskell --only-dependencies --test --no-run-tests
 
 compile:
   override:
     # - stack build liquidhaskell --fast --pedantic --flag liquidhaskell:include --flag liquidhaskell:devel
-    - stack build liquidhaskell --fast --flag liquidhaskell:include --flag liquidhaskell:devel
-    - stack build liquidhaskell --fast --flag liquidhaskell:include --flag liquidhaskell:devel --test --no-run-tests
+    - stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel
+    - stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel --test --no-run-tests
 
 test:
   override:
