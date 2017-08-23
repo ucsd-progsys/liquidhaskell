@@ -1,7 +1,6 @@
 {- Example of AVL trees by michaelbeaumont -}
 
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--totality" @-}
 
 module AVL (Tree, empty, singleton, insert, ht, bFac, balanced) where
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}

@@ -1,6 +1,6 @@
 {-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--totality"       @-}
 {-@ LIQUID "--exactdc"        @-}
+
 {-# LANGUAGE RankNTypes #-}
 module Generics2 where
 

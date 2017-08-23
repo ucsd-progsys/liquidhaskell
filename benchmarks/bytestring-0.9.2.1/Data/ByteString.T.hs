@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-totality" @-}
 
 -- #prune
 
@@ -205,6 +206,7 @@ module Data.ByteString (
 
   ) where
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,length,map,lines,foldl,foldr,unlines
@@ -287,7 +289,7 @@ import GHC.Handle
 #define assert  assertS "__FILE__ : __LINE__"
 assertS :: String -> Bool -> a -> a
 assertS _ True  = id
-assertS s False = error ("assertion failed at "++s)
+assertS s False = unsafeError ("assertion failed at "++s)
 #endif
 
 -- LIQUID
@@ -303,13 +305,13 @@ import Language.Haskell.Liquid.Foreign
                      -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
   @-}
 memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
-memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+memcpy_ptr_baoff = unsafeError "LIQUIDCOMPAT"
 
 readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
-readCharFromBuffer x y = error "LIQUIDCOMPAT"
+readCharFromBuffer x y = unsafeError "LIQUIDCOMPAT"
 
 wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
-wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
+wantReadableHandleLIQUID x y f = unsafeError $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
 {- IN INCLUDE FILE qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
 {- qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}

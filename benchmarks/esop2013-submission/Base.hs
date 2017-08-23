@@ -1,4 +1,3 @@
-{-@ LIQUID "--totality" @-}
 {-@ LIQUID "--prune-unsorted" @-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__

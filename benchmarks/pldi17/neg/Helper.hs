@@ -4,7 +4,6 @@
 
 {-@ LIQUID "--higherorder"   @-}
 {-@ LIQUID "--autoproofs"    @-}
-{-@ LIQUID "--totality"      @-}
 
 module Helper (
 

@@ -1,6 +1,6 @@
 module spec GHC.List where 
 
-// head         :: xs:{v: [a] | len(v) > 0} -> {v:a | v = head xs}
+head         :: xs:{v: [a] | len(v) > 0} -> {v:a | v = head xs}
 
 tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1) && v = tail xs}
 last         :: xs:{v: [a] | len(v) > 0} -> a

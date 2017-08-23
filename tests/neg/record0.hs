@@ -14,4 +14,4 @@ mk x n = BXYZ n (clone x 0)
 
 {-@ clone :: x:a -> n:Int -> {v:[a]| (len v) = n} @-}
 clone :: a -> Int -> [a]
-clone = error "FOO"
+clone = undefined 

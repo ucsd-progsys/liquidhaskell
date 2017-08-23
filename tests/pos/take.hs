@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality"    @-}
+
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP,  NoImplicitPrelude, MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -9,7 +11,7 @@ module Take (
 
 import Data.Maybe
 import GHC.Base 
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError, unsafeError) 
 
 
 
@@ -20,7 +22,7 @@ take0 (I# n#) xs = take_unsafe_UInt0 n# xs
 take_unsafe_UInt0 :: Int# -> [a] -> [a]
 take_unsafe_UInt0 0#  _     = []
 take_unsafe_UInt0 n  (x:xs) = x : take_unsafe_UInt0 (n -# 1#) xs
-take_unsafe_UInt0 _   _     = error "unsafe take"
+take_unsafe_UInt0 _   _     = unsafeError "unsafe take"
 
 {-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len v = if len xs < n then (len xs) else n } @-}
 take (I# n#) xs = takeUInt n# xs

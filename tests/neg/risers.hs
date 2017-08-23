@@ -1,7 +1,5 @@
 module Risers  where
 
-{-@ LIQUID "--totality" @-}
-
 {-@ predicate NonNull X = ((len X) > 0) @-}
 
 {- risers :: (Ord a) => zs:[a] -> {v: [[a]] | ((NonNull zs) => (NonNull v)) } @-} 

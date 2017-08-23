@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorderqs" @-}

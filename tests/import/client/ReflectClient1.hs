@@ -1,5 +1,3 @@
-{-@ LIQUID "--totality" @-}
-
 module ReflectClient0 where
 
 import ReflectLib1

@@ -17,4 +17,4 @@ get i a = a i
 
 {-@ empty :: i: {v: Int | 0 = 1} -> a @-}
 empty :: Int -> a
-empty = const (error "Empty array!")
+empty = const undefined 
