@@ -333,16 +333,16 @@ evaluate cfg ctx facts aenv einit
 
 -- Don't evaluate under Lam, App, Ite, or constants
 grepTopApps :: Expr -> [Expr]
-grepTopApps (PAnd es) = concatMap grepTopApps es
-grepTopApps (POr es) = concatMap grepTopApps es
+grepTopApps (PAnd es)       = concatMap grepTopApps es
+grepTopApps (POr es)        = concatMap grepTopApps es
 grepTopApps (PAtom _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PIff e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PImp e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PNot e) = grepTopApps e
+grepTopApps (PIff e1 e2)    = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (PImp e1 e2)    = grepTopApps e1 ++ grepTopApps e2
+grepTopApps (PNot e)        = grepTopApps e
 grepTopApps (EBin  _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (ENeg e) = grepTopApps e
-grepTopApps e@(EApp _ _) = [e]
-grepTopApps _ = []
+grepTopApps (ENeg e)        = grepTopApps e
+grepTopApps e@(EApp _ _)    = [e]
+grepTopApps _               = []
 
 -- AT: I think makeLam is the adjoint of splitEApp?
 makeLam :: Knowledge -> Expr -> Expr
