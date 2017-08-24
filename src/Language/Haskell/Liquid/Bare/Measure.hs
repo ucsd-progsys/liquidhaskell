@@ -206,7 +206,7 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy _))
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
-      = Just $ makeMeasureSelector (Loc l l' x) (F.tracepp ("makeMeasureSelector: " ++ show (x, t)) $ dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' x) ({- F.tracepp ("makeMeasureSelector: " ++ show (x, t)) $ -} dty t) dc n i
 
     go' ((_,t), i)
       = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector dc i)) (dty t) dc n i
