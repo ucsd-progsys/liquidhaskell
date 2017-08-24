@@ -701,7 +701,6 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
         su    = mkSubst [(v, mkEApp x [EVar v])]
         reft  = Reft (v, subst su p')
-
         p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]

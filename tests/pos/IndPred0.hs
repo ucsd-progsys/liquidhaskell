@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
+{-@ LIQUID "--exact-data-con" @-}
+
 module Ev where
 
 data Peano where
@@ -19,15 +21,12 @@ data Ev where
 
 {-@ data Ev where
       EZ  :: {v:Ev | prop v = Ev Z}
-    | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }
+    | ESS :: evn:Peano -> {evpf:Ev | prop evpf = Ev evn} -> {zing : Ev | prop zing = Ev (S (S evn)) }
   @-}
 
-{- test :: n:Peano -> {v:Ev | prop v = Ev (S (S n))} -> {v:Ev | prop v = Ev n} @-}
+{-@ test :: n:Peano -> {v:Ev | prop v = Ev (S (S n))} -> {v:Ev | prop v = Ev n} @-}
 test :: Peano -> Ev -> Ev
 test n (ESS m q) = q
-
-
-
 
 -- G := p : {prop p  = Even (S (S n)) /\ prop p = Even (S (S m))}
 --        ; q : {prop q = Even m}
