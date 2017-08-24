@@ -37,7 +37,7 @@ import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
 
-import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, Error, R, Predicate)
+import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import           Language.Fixpoint.Misc                 (mapSnd)
@@ -981,7 +981,7 @@ specP
         >> ((reserved "variance"  >> liftM Varia  datavarianceP)
                                  <|> liftM DDecl  dataDeclP ))
 
-    <|> (reserved "newtype"       >> liftM NTDecl newtypeP )
+    <|> (reserved "newtype"       >> liftM NTDecl dataDeclP )
     <|> (reserved "include"       >> liftM Incl   filePathP )
     <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
     <|> (reserved "using"         >> liftM IAlias invaliasP )
@@ -1357,22 +1357,22 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
 
-dataConP :: Parser (Located Symbol, [(Symbol, BareType)])
-dataConP
-  = do x   <- locParserP dataConNameP
-       spaces
-       xts <- dataConFieldsP
-       return (x, xts)
+dataConP :: Parser DataCtor -- (LocSymbol, [(Symbol, BareType)])
+dataConP = do
+  x   <- locParserP dataConNameP
+  spaces
+  xts <- dataConFieldsP
+  return $ DataCtor x xts Nothing
 
+adtDataConP :: Parser DataCtor -- (LocSymbol, [(Symbol, BareType)])
+adtDataConP = do
+  x     <- locParserP dataConNameP
+  dcolon
+  tr    <- toRTypeRep <$> bareTypeP
+  return $ DataCtor x (tRepFields tr) (Just $ ty_res tr)
 
-adtDataConP :: Parser (Located Symbol, [(Symbol, BareType)])
-adtDataConP
-  = do x   <- locParserP dataConNameP
-       dcolon
-       xts <- tRepToArgs . toRTypeRep <$> bareTypeP
-       return (x, xts)
-  where
-    tRepToArgs trep = zip (ty_binds trep) (ty_args trep)
+tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
+tRepFields tr = zip (ty_binds tr) (ty_args tr)
 
 dataConNameP :: Parser Symbol
 dataConNameP
@@ -1389,9 +1389,6 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-
-newtypeP :: Parser DataDecl
-newtypeP = dataDeclP
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do

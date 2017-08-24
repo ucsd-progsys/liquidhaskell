@@ -200,10 +200,11 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
 
-checkDataDeclFields ::  (LocSymbol, [(F.Symbol, BareType)]) -> BareM (LocSymbol, [(F.Symbol, BareType)])
-checkDataDeclFields (lc, xts)
+-- checkDataDeclFields ::  (LocSymbol, [(F.Symbol, BareType)]) -> BareM (LocSymbol, [(F.Symbol, BareType)])
+checkDataCtor :: DataCtor -> BareM DataCtor
+checkDataCtor d@(DataCtor lc xts _)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
-  | otherwise     = return (lc, xts)
+  | otherwise     = return d
     where
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
@@ -230,8 +231,8 @@ ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cts           <- mapM checkDataDeclFields cts0
-       cts'          <- mapM (ofBDataCon lc lc' tc' αs ps ls πs) cts
+       cts           <- mapM checkDataCtor cts0
+       cts'          <- mapM (ofBDataCtor lc lc' tc' αs ps ls πs) cts
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap    = zip (RT.uPVar <$> πs) [0..]
        let varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
@@ -291,25 +292,26 @@ addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
 -- TODO:EFFECTS:ofBDataCon
-ofBDataCon :: SourcePos
-           -> SourcePos
-           -> TyCon
-           -> [RTyVar]
-           -> [PVar BSort]
-           -> [F.Symbol]
-           -> [PVar RSort]
-           -> (LocSymbol, [(F.Symbol, BareType)])
-           -> BareM (DataCon, DataConP)
-ofBDataCon l l' tc αs ps ls πs (c, xts)
+ofBDataCtor :: SourcePos
+            -> SourcePos
+            -> TyCon
+            -> [RTyVar]
+            -> [PVar BSort]
+            -> [F.Symbol]
+            -> [PVar RSort]
+            -> DataCtor -- (LocSymbol, [(F.Symbol, BareType)])
+            -> BareM (DataCon, DataConP)
+ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
+       res'    <- mapM (mkSpecType' l ps) res
        let cs   = map RT.ofType (dataConStupidTheta c')
-       let t0   = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
-       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0 l')
+       let t0'  = fromMaybe t0 res'
+       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' l')
     where
        (xs, ts) = unzip xts
        rs       = [RT.rVar α | RTV α <- αs]
-
+       t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)

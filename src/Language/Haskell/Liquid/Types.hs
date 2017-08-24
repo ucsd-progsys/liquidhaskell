@@ -90,8 +90,9 @@ module Language.Haskell.Liquid.Types (
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
   , DataDecl (..)
+  , DataCtor (..)
   , DataConP (..)
-  , TyConP (..)
+  , TyConP   (..)
 
   -- * Pre-instantiated RType
   , RRType, RRProp
@@ -1109,14 +1110,23 @@ instance B.Binary SizeFun
 
 -- | Data type refinements
 data DataDecl   = D
-  { tycName   :: F.LocSymbol                           -- ^ Type  Constructor Name
-  , tycTyVars :: [Symbol]                              -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]                          -- ^ PVar  Parameters
-  , tycTyLabs :: [Symbol]                              -- ^ PLabel  Parameters
-  , tycDCons  :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
-  , tycSrcPos :: !F.SourcePos                          -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun                         -- ^ Measure that should decrease in recursive calls
+  { tycName   :: F.LocSymbol              -- ^ Type  Constructor Name
+  , tycTyVars :: [Symbol]                 -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]             -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]                 -- ^ PLabel  Parameters
+  , tycDCons  :: [DataCtor]               -- ^ Data Constructors
+  , tycSrcPos :: !F.SourcePos             -- ^ Source Position
+  , tycSFun   :: Maybe SizeFun            -- ^ Measure that should decrease in recursive calls
   } deriving (Data, Typeable, Generic)
+
+-- | Data Constructor
+data DataCtor = DataCtor
+  { dcName   :: F.LocSymbol               -- ^ DataCon name
+  , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
+  , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
+  } deriving (Data, Typeable, Generic)
+
+instance B.Binary DataCtor
 
 instance B.Binary DataDecl
 
@@ -1125,6 +1135,9 @@ instance Eq DataDecl where
 
 instance Ord DataDecl where
   compare d1 d2 = compare (tycName d1) (tycName d2)
+
+instance F.Loc DataCtor where
+  srcSpan = F.srcSpan . dcName
 
 instance F.Loc DataDecl where
   srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos

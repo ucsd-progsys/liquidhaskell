@@ -1,12 +1,14 @@
+{-# LANGUAGE GADTs #-}
+
 module Even where
 
 data Peano where
   Z :: Peano
-  S :: Peano -> Peano 
+  S :: Peano -> Peano
 
 -- AUTO
-data EvenProp where 
-  Even :: Peano -> EvenProp 
+data EvenProp where
+  Even :: Peano -> EvenProp
 
 data Even where
   EZ  :: Even
@@ -17,7 +19,7 @@ data Even where
 
 {-@ data Even where
       EZ  :: {v:Even | prop v = Even Z}
-      ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
+    | ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
   @-}
 
 {-@ test :: n:Peano -> {v:Even | prop v = Even (S (S n))} -> {v:Even | prop v = Even n} @-}

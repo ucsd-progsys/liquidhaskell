@@ -5,8 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Main where
 
+module Main where
 
 import Control.Applicative
 import qualified Control.Concurrent.STM as STM
@@ -194,13 +194,11 @@ benchTests
      , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
      ]
 
-
 selfTests :: IO TestTree
 selfTests
   = group "Self" [
       testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
   ]
-
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
@@ -412,23 +410,27 @@ group n xs = testGroup n <$> sequence xs
 
 gitTimestamp :: IO String
 gitTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ci\"", "--quiet"]
    return $ filter notNoise res
 
 gitEpochTimestamp :: IO String
 gitEpochTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ct\"", "--quiet"]
    return $ filter notNoise res
 
 gitHash :: IO String
 gitHash = do
-   res <- readProcess "git" ["show", "--format=\"%H\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%H\"", "--quiet"]
    return $ filter notNoise res
 
 gitRef :: IO String
 gitRef = do
-   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%d\"", "--quiet"]
    return $ filter notNoise res
+
+-- | Calls `git` for info; returns `"plain"` if we are not in a git directory.
+gitProcess :: [String] -> IO String
+gitProcess args = (readProcess "git" args []) `catchIOError` const (return "plain")
 
 notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
@@ -533,10 +535,10 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
-    ref <- gitRef
+    ref       <- gitRef
     timestamp <- gitTimestamp
     epochTime <- gitEpochTimestamp
-    hash <- gitHash
+    hash      <- gitHash
     let hdr = unlines [ref ++ " : " ++ hash,
                        "Timestamp: " ++ timestamp,
                        "Epoch Timestamp: " ++ epochTime,

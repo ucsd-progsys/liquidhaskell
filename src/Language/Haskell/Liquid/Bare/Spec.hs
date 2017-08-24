@@ -285,8 +285,11 @@ makeNewTypes' = mapM mkNT
     mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
     mkNT d       = (,) <$> lookupGhcTyCon "makeNewTypes'" (tycName d)
                        <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
-    getTy l [(_,[(_,t)])] = return $ withLoc l t
-    getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+
+    getTy l [c]
+      | [(_, t)] <- dcFields c = return $ withLoc l t
+    getTy l _                  = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+    -- getTy l [(_,[(_,t)])] = return $ withLoc l t
 
     withLoc s = Loc s s
 
