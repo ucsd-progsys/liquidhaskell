@@ -2,19 +2,60 @@ module Even where
 
 data Peano
   = Z
-  | S Peano 
+  | S Peano
 
 data Even where
   EZ  :: Even
   ESS :: Peano -> Even -> Even
 
--- Move into prelude?
-{-@ type Prop E = {v : _ | prop v = E} @-}
-
 {-@ data Even :: Peano -> Prop where
-      EZ  :: Prop (Even Z)                                     
-      ESS :: n:Nat -> Prop (Even n) -> Prop (Even (S (S n)))   
+      EZ  :: {v:Even | prop v = Even Z}
+      ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
   @-}
+
+{-
+
+data Member a :: a -> [a] -> Prop where
+  Here  :: x:a -> ys:[a] -> Prop (Member x (x:ys))
+  There :: x:a -> y:a -> ys:[a] -> Prop (Member x ys) -> Prop (Member x (y:ys))
+
+Inductive prefix_spec : list A -> list A -> Prop :=
+    | prefix_nil  : forall (l: list A),
+        prefix_spec nil l
+    | prefix_cons : forall (a: A) (l m:list A),
+        prefix_spec l m -> prefix_spec (a::l) (a::m).
+  
+0. Refactor `DataDecl`
+
+    - allow for OUTPUT type
+    - allow for GADT syntax
+
+1. DataProp
+    - just like DataDecl (?) but with OUTPUT TYPE
+    - parser
+    - spec
+
+2. DataProp -> DataDecl
+    - Create the
+
+ctors
+
+  EZ  :: {v:Even | prop v = Even Z}
+  ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
+
+datatypes
+
+  datatype Even#Prop = [
+    | Even { x0 : Peano }
+  ]
+
+  datatype Even = [
+    | EZ  { }
+    | ESS { x0 : Peano, x1 : Even }
+  ]
+
+ -}
+
 
 {-@ test :: n:Peano -> {v:Even | prop v = Even (S (S n))} -> {v:Even | prop v = Even n} @-}
 test :: Peano -> Even -> Even
