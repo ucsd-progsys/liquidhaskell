@@ -2,6 +2,13 @@
 
 ## NEXT
 
+## 0.7.0.0
+
+- New `eliminate` based solver (see ICFP 2017 paper for algorithm)
+- Proof by Logical Evaluation see `tests/proof`
+- SMTLIB2 ADTs to make data constructors injective 
+- Uniformly support polymorphic functions via `apply` and elaborate
+
 ## 0.3.0.0
 
 - Make interpreted mul and div the default, when `solver = z3`
