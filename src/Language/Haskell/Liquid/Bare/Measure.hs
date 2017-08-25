@@ -195,20 +195,24 @@ meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy _))
+makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
   =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
     ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
-    autofields = not (noMeasureFields cfg)
-    res        = fmap mempty resTy -- _fixme_strip_refinements_from_resTy
+    autofields = F.tracepp ("AUTOFIELDS: " ++ show dc) $ not (isGadt || noMeasureFields cfg)
+    res        = fmap mempty resTy
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
-      = Just $ makeMeasureSelector (Loc l l' x) ({- F.tracepp ("makeMeasureSelector: " ++ show (x, t)) $ -} dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
     go' ((_,t), i)
+      -- do not make selectors for functional fields
+      | isFunTy t && not (higherOrderFlag cfg)
+      = Nothing
+      | otherwise
       = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector dc i)) (dty t) dc n i
 
     fields   = zip (reverse xts) [1..]

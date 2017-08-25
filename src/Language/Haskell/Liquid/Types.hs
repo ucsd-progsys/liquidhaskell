@@ -420,8 +420,8 @@ dropApp _ _          = errorstar "impossible"
 
 isApp :: Expr -> Bool
 isApp (F.EApp (F.EVar _) (F.EVar _)) = True
-isApp (F.EApp e (F.EVar _))        = isApp e
-isApp _                        = False
+isApp (F.EApp e (F.EVar _))          = isApp e
+isApp _                              = False
 
 data TyConP = TyConP
   { ty_loc       :: !F.SourcePos
@@ -442,6 +442,7 @@ data DataConP = DataConP
   , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
+  , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 

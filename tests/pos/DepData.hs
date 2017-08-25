@@ -1,12 +1,13 @@
-
 {-# LANGUAGE GADTs #-}
+
+{-@ LIQUID "--no-measure" @-}
 
 module DepData where
 
 data Foo = Foo { thing1 :: Int, thing2 :: Int }
 
 {-@ data Foo where
-      Foo :: thing1:Int -> thing2:{v : Int | thing1 < v} -> Foo
+      Foo :: pig:Int -> thing2:{v : Int | pig < v} -> Foo
   @-}
 
 {- data Foo = Foo { thing1 :: Int, thing2 :: {v : Int | thing1 < v } } @-}

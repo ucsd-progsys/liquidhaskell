@@ -157,7 +157,7 @@ ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
   where
     emb              = gsTcEmbeds sp
-    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
+    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- F.tracepp "GSMEAS" $ gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
     rSort            = rTypeSortedReft emb

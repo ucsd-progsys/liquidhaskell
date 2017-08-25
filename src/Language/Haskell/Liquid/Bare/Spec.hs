@@ -91,7 +91,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
                  let t   = rCls tc as'
-                 let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t l'
+                 let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t False l'
                  return ((dc,dcp),vts)
 
 makeQualifiers :: (ModName, Ms.Spec ty bndr)

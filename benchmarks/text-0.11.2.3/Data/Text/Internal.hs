@@ -1,4 +1,6 @@
-{-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--maxparams=3"    @-}
+{-@ LIQUID "--prune-unsorted" @-}
+
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 -- |

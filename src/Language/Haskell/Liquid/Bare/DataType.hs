@@ -305,11 +305,12 @@ ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
        res'    <- mapM (mkSpecType' l ps) res
        let cs   = map RT.ofType (dataConStupidTheta c')
        let t0'  = fromMaybe t0 res'
-       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' l')
+       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' isGadt l')
     where
        (xs, ts) = unzip xts
        rs       = [RT.rVar α | RTV α <- αs]
        t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+       isGadt   = isJust res
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
@@ -324,9 +325,9 @@ makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecT
 makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
   where
   makeOne (dc, Loc l l' dcp)
-    | null (dataConFieldLabels dc)
-    -- do not make record selectors for data cons with functional arguments
-    || any (isFunTy . snd) args
+    | null (dataConFieldLabels dc)  -- no field labels OR
+      || any (isFunTy . snd) args   -- OR function-valued fields
+      || dcpIsGadt dcp              -- OR GADT style datcon
     = return []
     | otherwise = do
         fs <- mapM lookupGhcVar (dataConFieldLabels dc)
