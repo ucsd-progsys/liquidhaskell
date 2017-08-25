@@ -136,12 +136,8 @@ Library
                 , ghc-prim
                 , hpc >= 0.6
 
-
-
    hs-source-dirs:  src, include
-
    Exposed-Modules: LiquidHaskell,
-
                     Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.ProofCombinators,
                     Language.Haskell.Liquid.Foreign,
@@ -221,7 +217,6 @@ Library
                     Language.Haskell.Liquid.Desugar.DsMonad,
                     Language.Haskell.Liquid.Desugar.StaticPtrTable,
                     Language.Haskell.Liquid.Desugar.TmOracle
-
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
@@ -288,7 +283,6 @@ test-suite test
                ,     liquid-fixpoint >= 0.7
                ,     hpc >= 0.6
                ,     text
-
 
 test-suite liquidhaskell-parser
   default-language: Haskell2010

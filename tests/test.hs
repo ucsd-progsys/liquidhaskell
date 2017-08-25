@@ -38,6 +38,7 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
+import Paths_liquidhaskell
 
 import Text.Printf
 
@@ -160,7 +161,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
   , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "L :: Mismatch in number of type variables"
   , errorTest "tests/errors/BadDataCon2.hs"         2 "OOPS PLEASE FIXME"
-  , errorTest "tests/errors/BadDataCon3.hs"         2 "OOPS PLEASE FIXME" 
+  , errorTest "tests/errors/BadDataCon3.hs"         2 "OOPS PLEASE FIXME"
   ]
 
 unitTests :: IO TestTree
@@ -272,9 +273,10 @@ mkTest ec dir file
     log = "tests/logs/cur" </> test <.> "log"
 
 binPath :: FilePath -> IO FilePath
-binPath pkgName = do
-  testPath <- getExecutablePath
-  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
+binPath pkgName = (</> pkgName) <$> getBinDir
+-- binPath pkgName = do
+--  testPath <- getExecutablePath
+--  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
