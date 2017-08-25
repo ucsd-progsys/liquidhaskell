@@ -64,7 +64,7 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType
 dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
-  = mkArrow makeVars ps ls ts' rt'
+  = F.tracepp ("dataConPSpecType" ++ show yts) $ mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip $ reverse yts
     -- mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
@@ -78,8 +78,6 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
     ts'      = map ("" , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = F.subst su rt
-
-
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where

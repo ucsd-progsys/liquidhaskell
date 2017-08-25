@@ -158,8 +158,8 @@ ghcSpecEnv sp = fromListSEnv binds
   where
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ] -- // || S.member x refls ]
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- F.tracepp "GHC-SPEC-ENV" $ gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -634,7 +634,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tcs          = [(x, y) | (x, y,_)       <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
-  datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+  datacons        <- tracepp "DATACONS" <$> makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let tds          = [(tc, dd) | (tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons

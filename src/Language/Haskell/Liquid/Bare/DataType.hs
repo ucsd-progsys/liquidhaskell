@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeConTypes
   , makeTyConEmbeds
   , makeRecordSelectorSigs
-  , dataConSpec
+  -- , dataConSpec
   , meetDataConSpec
   , makeNumericInfo
   ) where
@@ -182,13 +182,13 @@ groupVariances dcs vdcs    = -- F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
     merge []     vs        = ((Nothing,) . Just) <$> vs
     merge ds     []        = ((,Nothing) . Just) <$> ds
 
-dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
+_dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
+_dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
 
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
+    tx (a, b)    = F.tracepp "dataConSpec" [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
@@ -299,7 +299,7 @@ ofBDataCtor :: SourcePos
             -> [PVar BSort]
             -> [F.Symbol]
             -> [PVar RSort]
-            -> DataCtor -- (LocSymbol, [(F.Symbol, BareType)])
+            -> DataCtor
             -> BareM (DataCon, DataConP)
 ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
   = do c'      <- lookupGhcDataCon c
@@ -309,7 +309,7 @@ ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
        let t0'  = fromMaybe t0 res'
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' l')
     where
-       (xs, ts) = unzip xts
+       (xs, ts) = unzip $ F.tracepp "DATACONP: xts" xts
        rs       = [RT.rVar α | RTV α <- αs]
        t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
 
