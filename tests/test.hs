@@ -161,8 +161,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
   , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "L :: Mismatch in number of type variables"
   , errorTest "tests/errors/BadDataCon2.hs"         2 "Boo.Cuthb :: GHC and Liquid specifications have different numbers of fields"
-  , errorTest "tests/errors/BadDataSig0.hs"         2 "Error: Illegal type specification for `Zoo.foo`"
-  , errorTest "tests/errors/BadDataSig1.hs"         2 "Error: Illegal type specification for `constructor Ev.EZ`"
+  , errorTest "tests/errors/BadSig0.hs"             2 "Error: Illegal type specification for `Zoo.foo`"
+  , errorTest "tests/errors/BadSig1.hs"             2 "Error: Illegal type specification for `constructor Ev.EZ`"
   ]
 
 unitTests :: IO TestTree

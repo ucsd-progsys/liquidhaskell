@@ -24,6 +24,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO: I put this in because the below creates a
+--       junk symbol in the measure for headerEth
+{-@ LIQUID "--prune-unsorted" @-}
+
 module ProxyClass where
 
 import           Data.Proxy
@@ -39,15 +43,12 @@ newtype Bytes (n :: Nat) = Bytes (ReadPtr Int)
 foo ::  ReadPtrN EthernetHeaderBase
 foo = undefined
 
-{-@
-data EthernetPacket = EthernetPacket
-  { headerEth     :: ReadPtrN EthernetHeaderBase
-  }
-@-}
+{-@ data EthernetPacket = EthernetPacket
+      { headerEth :: ReadPtrN EthernetHeaderBase }
+  @-}
 
-data   EthernetPacket = EthernetPacket
-  { headerEth     :: ReadPtrN EthernetHeaderBase
-  }
+data EthernetPacket = EthernetPacket
+  { headerEth     :: ReadPtrN EthernetHeaderBase }
 
 infixr 1 ?$
 
