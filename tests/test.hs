@@ -159,6 +159,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List2`"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
   , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "L :: Mismatch in number of type variables"
+  , errorTest "tests/errors/BadDataCon2.hs"         2 "OOPS PLEASE FIXME"
+  , errorTest "tests/errors/BadDataCon3.hs"         2 "OOPS PLEASE FIXME" 
   ]
 
 unitTests :: IO TestTree
