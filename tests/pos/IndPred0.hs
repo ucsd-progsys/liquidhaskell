@@ -19,7 +19,7 @@ data Ev where
 -- AUTO/PRELUDE
 {-@ measure prop :: a -> b @-}
 
-{-@ type Prop E = {v:_ | pro v = E} @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
 
       -- {v:Ev | prop v = Ev Z}
 {-@ data Ev where
