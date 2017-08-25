@@ -171,10 +171,8 @@ canonizeDecls = Misc.nubHashLastM key
 
 groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    = -- F.tracepp ("GROUPED-CONTYPES: " ++ _msg) $
-                               merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+groupVariances dcs vdcs    =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
-    -- _msg                   = F.showpp (tycName <$> dcs)
     merge (d:ds) (v:vs)
       | tycName d == fst v = (Just d, Just v)  : merge ds vs
       | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
@@ -188,7 +186,7 @@ _dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)    = F.tracepp "dataConSpec" [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
+    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
@@ -309,7 +307,7 @@ ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
        let t0'  = fromMaybe t0 res'
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' l')
     where
-       (xs, ts) = unzip $ F.tracepp "DATACONP: xts" xts
+       (xs, ts) = unzip xts
        rs       = [RT.rVar α | RTV α <- αs]
        t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
 

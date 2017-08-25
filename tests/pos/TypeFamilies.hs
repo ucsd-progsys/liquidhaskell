@@ -30,14 +30,14 @@ import           Data.Proxy
 import           GHC.TypeLits (Nat)
 
 type ReadPtrN t  = ReadPtr (t 'Nothing)
-newtype ReadPtr a = ReadPtr Int 
-data EthernetHeaderBase m = EHB (m ?$ Bytes 6) 
-data ForeignPtr a  
+newtype ReadPtr a = ReadPtr Int
+data EthernetHeaderBase m = EHB (m ?$ Bytes 6)
+data ForeignPtr a
 newtype Bytes (n :: Nat) = Bytes (ReadPtr Int)
 
 {-@ foo ::  ReadPtrN EthernetHeaderBase @-}
 foo ::  ReadPtrN EthernetHeaderBase
-foo = undefined 
+foo = undefined
 
 {-@
 data EthernetPacket = EthernetPacket
@@ -45,11 +45,9 @@ data EthernetPacket = EthernetPacket
   }
 @-}
 
-data EthernetPacket = EthernetPacket
+data   EthernetPacket = EthernetPacket
   { headerEth     :: ReadPtrN EthernetHeaderBase
   }
-
-
 
 infixr 1 ?$
 

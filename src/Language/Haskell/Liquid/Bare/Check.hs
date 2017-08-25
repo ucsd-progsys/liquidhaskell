@@ -35,14 +35,12 @@ import           Language.Fixpoint.SortCheck               (checkSorted, checkSo
 import           Language.Fixpoint.Types                   hiding (panic, Error, R)
 
 import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
-import           Language.Haskell.Liquid.Misc              (snd4)
+import           Language.Haskell.Liquid.Misc              (condNull, snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
 import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
 import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
-
-
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 
@@ -66,7 +64,8 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
                         mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
-                     ++ mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      sp)
+                     ++ condNull noPrune
+                       (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      sp))
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
@@ -95,6 +94,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
+    noPrune          = not (pruneFlag sp)
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 

@@ -64,7 +64,7 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType
 dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
-  = F.tracepp ("dataConPSpecType" ++ show yts) $ mkArrow makeVars ps ls ts' rt'
+  = mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip $ reverse yts
     -- mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
