@@ -65,10 +65,10 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
-                        mapMaybe (checkBind allowHO "measure"      emb tcEnv env') (gsMeas       sp)
-                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env') (gsAsmSigs    sp)
-                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env') (clsSigs      sp)
-                     ++ mapMaybe (checkInv allowHO emb tcEnv env)                  (gsInvariants sp)
+                        mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
+                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      sp)
+                     ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
                      ++ checkIAl allowHO emb tcEnv env (gsIaliases   sp)
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures (gsMeasures sp)
@@ -94,7 +94,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
-    env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
+    -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
 checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
@@ -396,10 +396,7 @@ checkAbstractRefs t = go t
     mkPEnv (RAllT _ t) = mkPEnv t
     mkPEnv (RAllP p t) = p:mkPEnv t
     mkPEnv _           = []
-
-    pvType' p = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
-
-
+    pvType' p          = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
 
 
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))

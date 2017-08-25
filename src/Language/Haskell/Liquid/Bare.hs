@@ -96,8 +96,8 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  sp      <- throwLeft =<< execBare act initEnv
-  let renv =  ghcSpecEnv sp
+  sp         <- throwLeft =<< execBare act initEnv
+  let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
