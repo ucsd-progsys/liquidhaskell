@@ -1,5 +1,7 @@
 module spec Data.ByteString.Char8 where
 
+import Data.ByteString 
+
 assume empty :: { bs : Data.ByteString.ByteString | bslen bs == 0 }
 
 assume singleton
@@ -309,13 +311,6 @@ assume filter
     -> i : Data.ByteString.ByteString
     -> { o : Data.ByteString.ByteString | bslen o <= bslen i }
 
-assume partition
-    :: (Char -> Bool)
-    -> i : Data.ByteString.ByteString
-    -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
-       , { r : Data.ByteString.ByteString | bslen r <= bslen i }
-       )
-
 index
     :: bs : Data.ByteString.ByteString
     -> { n : Int | 0 <= n && n < bslen bs }
@@ -398,3 +393,10 @@ assume hGetNonBlocking
     :: System.IO.Handle
     -> n : { n : Int | 0 <= n }
     -> IO { bs : Data.ByteString.ByteString | bslen bs <= n }
+
+// assume partition
+    // :: (Char -> Bool)
+    // -> i : Data.ByteString.ByteString
+    // -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
+       // , { r : Data.ByteString.ByteString | bslen r <= bslen i }
+       // )
