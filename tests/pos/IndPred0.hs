@@ -17,17 +17,15 @@ data Ev where
   ESS :: Peano -> Ev -> Ev
 
 -- AUTO/PRELUDE
-{-@ measure prop :: a -> b @-}
-
+{-@ measure prop :: a -> b           @-}
 {-@ type Prop E = {v:_ | prop v = E} @-}
 
-      -- {v:Ev | prop v = Ev Z}
 {-@ data Ev where
       EZ  :: Prop (Ev Z)
-    | ESS :: evn:Peano -> {evpf:Ev | prop evpf = Ev evn} -> {zing : Ev | prop zing = Ev (S (S evn)) }
+    | ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))
   @-}
 
-{-@ test :: n:Peano -> {v:Ev | prop v = Ev (S (S n))} -> {v:Ev | prop v = Ev n} @-}
+{-@ test :: n:Peano -> Prop (Ev (S (S n))) -> Prop (Ev n) @-}
 test :: Peano -> Ev -> Ev
 test n (ESS m q) = q
 

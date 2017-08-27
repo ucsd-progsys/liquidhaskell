@@ -1084,9 +1084,29 @@ instance F.Subable AxiomEq where
 mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
 mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
                        , axiomEq   = f (axiomEq   a) }
+
 --------------------------------------------------------------------------------
--- | Values Related to Specifications ------------------------------------------
+-- | Data type refinements
 --------------------------------------------------------------------------------
+data DataDecl   = D
+  { tycName   :: F.LocSymbol           -- ^ Type  Constructor Name
+  , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]              -- ^ PLabel  Parameters
+  , tycDCons  :: [DataCtor]            -- ^ Data Constructors
+  , tycSrcPos :: !F.SourcePos          -- ^ Source Position
+  , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
+  , tycPropTy :: Maybe [BareType]      -- ^ Domain of Ind-Prop relation
+  } deriving (Data, Typeable, Generic)
+
+-- | Data Constructor
+data DataCtor = DataCtor
+  { dcName   :: F.LocSymbol               -- ^ DataCon name
+  , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
+  , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
+  } deriving (Data, Typeable, Generic)
+
+-- | Termination expressios
 data SizeFun
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
@@ -1103,26 +1123,7 @@ szFun (SymSizeFun f) = \x -> F.mkEApp (F.symbol <$> f) [F.EVar x]
 instance NFData   SizeFun
 instance B.Binary SizeFun
 
--- | Data type refinements
-data DataDecl   = D
-  { tycName   :: F.LocSymbol              -- ^ Type  Constructor Name
-  , tycTyVars :: [Symbol]                 -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]             -- ^ PVar  Parameters
-  , tycTyLabs :: [Symbol]                 -- ^ PLabel  Parameters
-  , tycDCons  :: [DataCtor]               -- ^ Data Constructors
-  , tycSrcPos :: !F.SourcePos             -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun            -- ^ Measure that should decrease in recursive calls
-  } deriving (Data, Typeable, Generic)
-
--- | Data Constructor
-data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol               -- ^ DataCon name
-  , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
-  , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
-  } deriving (Data, Typeable, Generic)
-
 instance B.Binary DataCtor
-
 instance B.Binary DataDecl
 
 instance Eq DataDecl where
@@ -1152,7 +1153,9 @@ instance F.PPrint DataDecl where
 instance F.Symbolic DataDecl where
   symbol =  F.symbol . tycName
 
+--------------------------------------------------------------------------------
 -- | Refinement Type Aliases
+--------------------------------------------------------------------------------
 data RTAlias x a = RTA
   { rtName  :: Symbol             -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters

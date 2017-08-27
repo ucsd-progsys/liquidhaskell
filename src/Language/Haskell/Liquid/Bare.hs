@@ -622,7 +622,7 @@ insertHMeasLogicEnv (x, s)
 makeGhcSpecCHOP1
   :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon -> [(Symbol, Var)]
   -> BareM ( [(TyCon,TyConP)]
-           , [(DataCon,DataConP)]
+           , [(DataCon, DataConP)]
            , [Measure SpecType DataCon]
            , [(Var, Located SpecType)]
            , M.HashMap TyCon RTyCon

@@ -1357,14 +1357,14 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
 
-dataConP :: Parser DataCtor -- (LocSymbol, [(Symbol, BareType)])
+dataConP :: Parser DataCtor
 dataConP = do
   x   <- locParserP dataConNameP
   spaces
   xts <- dataConFieldsP
   return $ DataCtor x xts Nothing
 
-adtDataConP :: Parser DataCtor -- (LocSymbol, [(Symbol, BareType)])
+adtDataConP :: Parser DataCtor
 adtDataConP = do
   x     <- locParserP dataConNameP
   dcolon
@@ -1389,31 +1389,41 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-
 dataDeclP :: Parser DataDecl
 dataDeclP = do
   pos <- getPosition
   x   <- locUpperIdP'
   spaces
   fsize <- dataSizeP
-  (     (dcsP pos x fsize)
-    <|> (return $ D x [] [] [] [] pos fsize)
-        )
-  where
-    dcsP pos x fsize = do
-      ts  <- sepBy noWhere blanks
-      ps  <- predVarDefsP
-      dcs <- ((reservedOp "=" >> sepBy dataConP (reservedOp "|"))
-              <|>
-               (reserved "where" >> sepBy adtDataConP (reservedOp "|")))
-      whiteSpace
-      return $ D x ts ps [] dcs pos fsize
+  (dataDeclBodyP pos x fsize <|> return (emptyDecl x pos fsize))
 
-    noWhere = try $ do
-      s <- tyVarIdP
-      if s == "where"
-        then parserZero
-        else return s
+emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
+emptyDecl x pos fsize
+  = D x [] [] [] [] pos fsize Nothing
+
+
+dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
+dataDeclBodyP pos x fsize = do
+  ts     <- sepBy noWhere blanks
+  ps     <- predVarDefsP
+  propTy <- dataPropTyP
+  dcs    <- dataCtorsP
+  whiteSpace
+  return $ D x ts ps [] dcs pos fsize propTy
+
+dataCtorsP :: Parser [DataCtor]
+dataCtorsP =  (reservedOp "="   >> sepBy dataConP    (reservedOp "|"))
+          <|> (reserved "where" >> sepBy adtDataConP (reservedOp "|"))
+
+noWhere :: Parser Symbol
+noWhere = try $ do
+  s <- tyVarIdP
+  if s == "where"
+    then parserZero
+    else return s
+
+dataPropTyP :: Parser (Maybe [BareType])
+dataPropTyP = undefined "FIXME:dataPropTyP"
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------

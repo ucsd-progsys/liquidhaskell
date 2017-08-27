@@ -114,6 +114,7 @@ tyConDataDecl (tc, NoDecl szF)
       , tycDCons  = decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
+      , tycPropTy = Nothing
       }
       where decls = map dataConDecl . tyConDataCons
 

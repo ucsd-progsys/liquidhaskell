@@ -7,7 +7,6 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeConTypes
   , makeTyConEmbeds
   , makeRecordSelectorSigs
-  -- , dataConSpec
   , meetDataConSpec
   , makeNumericInfo
   ) where
@@ -180,9 +179,6 @@ groupVariances dcs vdcs    =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst
     merge []     vs        = ((Nothing,) . Just) <$> vs
     merge ds     []        = ((,Nothing) . Just) <$> ds
 
-_dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-_dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
-
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
@@ -198,7 +194,6 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
 
--- checkDataDeclFields ::  (LocSymbol, [(F.Symbol, BareType)]) -> BareM (LocSymbol, [(F.Symbol, BareType)])
 checkDataCtor :: DataCtor -> BareM DataCtor
 checkDataCtor d@(DataCtor lc xts _)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
@@ -225,7 +220,7 @@ checkDataDecl c d = (cN == dN || null (tycDCons d))
 ofBDataDecl :: Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((TyCon, TyConP, Maybe DataDecl), [(DataCon, Located DataConP)])
-ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun)) maybe_invariance_info
+ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)

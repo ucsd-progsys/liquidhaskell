@@ -4,22 +4,44 @@ data Peano
   = Z
   | S Peano
 
-data Even where
-  EZ  :: Even
-  ESS :: Peano -> Even -> Even
+{- AUTOMATICALLY GENERATE
 
-{-@ data Even :: Peano -> Prop where
-      EZ  :: {v:Even | prop v = Even Z}
-      ESS :: n:Peano -> {v:Even | prop v = Even n} -> {v:Even | prop v = Even (S (S n)) }
+   data EvProp where
+     Ev :: Peano -> EvProp
+
+   data EvProp 0 = [
+      Ev { x0: Peano }
+   ]
+
+ -}
+
+data Ev where
+  EZ  :: Ev
+  ESS :: Peano -> Ev -> Ev
+
+{-@ data Ev :: Peano -> Prop where
+      EZ  :: Prop (Ev Z)
+    | ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))
   @-}
 
+{-@ test :: n:Peano -> Prop (Ev (S (S n))) -> Prop (Ev n) @-}
+test :: Peano -> Ev -> Ev
+test n (ESS m q) = q
 
 
-{-@ test :: n:Peano -> {v:Even | prop v = Even (S (S n))} -> {v:Even | prop v = Even n} @-}
-test :: Peano -> Even -> Even
-test n p@EZ        = p      -- contra "..."
-test n p@(ESS m q) = q      -- G := p : {prop p  = Even (S (S n)) /\ prop p = Even (S (S m))}
-                            --        ; q : {prop q = Even m}
-                            --        ==> n = m
-                            --        ==> prop q = Even n
-                            
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+-- PRELUDE
+--------------------------------------------------------------------------------
+{-@ measure prop :: a -> b           @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
+--------------------------------------------------------------------------------
