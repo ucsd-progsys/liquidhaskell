@@ -1,5 +1,7 @@
 module spec Data.ByteString.Char8 where
 
+import Data.ByteString 
+
 assume empty :: { bs : Data.ByteString.ByteString | bslen bs == 0 }
 
 assume singleton
