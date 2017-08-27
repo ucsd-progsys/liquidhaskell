@@ -219,7 +219,7 @@ mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
   homePkg <- thisPackage <$> getSessionDynFlags
-  return $ moduleUnitId mod == homePkg
+  return   $ moduleUnitId mod == homePkg
 
 modSummaryImports :: ModSummary -> Ghc [Module]
 modSummaryImports modSummary =
@@ -407,7 +407,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
   hsc          <- getSession
-  let impNames  = map (getModString . fst) impSpecs
+  let impNames  = traceShow "IMPNAMES" $ map (getModString . fst) impSpecs
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
@@ -499,10 +499,11 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
-  -- liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
-  -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
-  -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
-  -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
+  -- liftIO    $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
+  -- liftIO    $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
+  -- liftIO    $ print ("moduleFiles-imps  : "  ++ show imps)
+  -- liftIO    $ print ("moduleFiles-Paths : "  ++ show paths)
+  -- liftIO    $ print ("moduleFiles-Specs : "  ++ show fs')
   patSpec  <- getPatSpec paths $ totalityCheck cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'
