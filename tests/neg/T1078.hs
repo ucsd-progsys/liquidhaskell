@@ -1,4 +1,3 @@
-module Bob where
 
 -- needed to bring `bslen` into scope
 import qualified Data.ByteString

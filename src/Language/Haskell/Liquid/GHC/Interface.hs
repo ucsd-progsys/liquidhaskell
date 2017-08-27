@@ -407,7 +407,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
   hsc          <- getSession
-  let impNames  = traceShow "IMPNAMES" $ map (getModString . fst) impSpecs
+  let impNames  = map (getModString . fst) impSpecs
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
