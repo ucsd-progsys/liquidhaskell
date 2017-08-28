@@ -1,12 +1,13 @@
-Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) [![Build Status](https://img.shields.io/travis/ucsd-progsys/liquid-fixpoint/master.svg)](https://travis-ci.org/ucsd-progsys/liquid-fixpoint)
+Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
 ===============
+
 
 
 This package implements a Horn-Clause/Logical Implication constraint solver used
 for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm similar to:
 
 + [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
-+ [cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
++ [Cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
 
 
 Requirements
