@@ -377,23 +377,27 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
 gitTimestamp :: IO String
 gitTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ci\"", "--quiet"]
    return $ filter notNoise res
 
 gitEpochTimestamp :: IO String
 gitEpochTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ct\"", "--quiet"]
    return $ filter notNoise res
 
 gitHash :: IO String
 gitHash = do
-   res <- readProcess "git" ["show", "--format=\"%H\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%H\"", "--quiet"]
    return $ filter notNoise res
 
 gitRef :: IO String
 gitRef = do
-   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%d\"", "--quiet"]
    return $ filter notNoise res
+
+-- | Calls `git` for info; returns `"plain"` if we are not in a git directory.
+gitProcess :: [String] -> IO String
+gitProcess args = (readProcess "git" args []) `catchIOError` const (return "plain")
 
 notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
