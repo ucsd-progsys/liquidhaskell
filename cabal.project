@@ -3,7 +3,6 @@
 
 packages: .
           ./liquid-fixpoint
-          ./liquiddesugar
 
 package liquid-fixpoint
   flags: devel

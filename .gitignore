@@ -31,6 +31,11 @@ _build
 *~
 *.swp
 *.swo
+dist-newstyle
+.cabal-sandbox/
+cabal.sandbox.config
+.ghc.environment.*
+cabal.project.local
 
 /.stack-work/
 /.vagrant/
