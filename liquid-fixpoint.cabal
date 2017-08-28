@@ -35,6 +35,7 @@ Extra-Source-Files: tests/neg/*.fq
                   , unix/Language/Fixpoint/Utils/*.hs
                   , win/Language/Fixpoint/Utils/*.hs
                   , tests/logs/cur/pin
+                  , Makefile
 
 Source-Repository head
   Type:        git
