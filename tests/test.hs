@@ -30,6 +30,7 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
+import Paths_liquid_fixpoint
 
 main :: IO ()
 main    = run =<< group "Tests" [unitTests]
@@ -110,9 +111,8 @@ mkTest testCmd code dir file
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
-binPath pkgName = do
-  testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
+binPath :: FilePath -> IO FilePath
+binPath pkgName = (</> pkgName) <$> getBinDir
 
 knownToFail = []
 ---------------------------------------------------------------------------
