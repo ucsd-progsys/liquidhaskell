@@ -26,6 +26,7 @@ data-files: include/*.hquals
           , include/Data/Text/*.spec
           , include/Data/Text/Fusion/*.spec
           , include/Data/Text/Lazy/*.spec
+          , include/Data/ByteString/*.spec
           , include/Foreign/*.spec
           , include/Foreign/C/*.spec
           , include/Foreign/Marshal/*.spec
