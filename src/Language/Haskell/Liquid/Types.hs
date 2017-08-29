@@ -1096,7 +1096,7 @@ data DataDecl   = D
   , tycDCons  :: [DataCtor]            -- ^ Data Constructors
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
-  , tycPropTy :: Maybe [BareType]      -- ^ Domain of Ind-Prop relation
+  , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
   } deriving (Data, Typeable, Generic)
 
 -- | Data Constructor

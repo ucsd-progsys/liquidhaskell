@@ -50,7 +50,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
-import           Language.Fixpoint.Types                    hiding (DataDecl, Error)
+import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -157,18 +157,30 @@ ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = unionSEnv' env0 env1
   where
     env0             = fromListSEnv binds
-    env1             = propCtors sp
+    env1             = fromListSEnv propBinds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
+                                                                 isConLikeId v ]
+    propBinds        = [ propCtor d          | d              <- gsADTs sp,
+                                                                 isPropDecl d  ]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
 
-propCtors :: [F.DataDecl] -> SEnv SortedReft
-propCtors = _fixme -- undefined -- error "TODO:propCtors"
+propCtor :: F.DataDecl -> (Symbol, SortedReft)
+propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
+  where
+    t                               = F.mkFFunc n (inTs ++ [outT])
+    inTs                            = F.dfSort <$> ts
+    outT                            = F.fTyconSelfSort c n
+
+propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
+  where
+    msg                             = "Invalid propCtor: " ++ show c
+
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
 --

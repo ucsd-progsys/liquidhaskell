@@ -1417,8 +1417,8 @@ noWhere = try $ do
     then parserZero
     else return s
 
-dataPropTyP :: Parser (Maybe [BareType])
-dataPropTyP = (dcolon >> (Just . map snd <$> propositionTypeP))
+dataPropTyP :: Parser (Maybe BareType)
+dataPropTyP = (dcolon >> (Just <$> bareTypeP))
            <|> return Nothing
 
 ---------------------------------------------------------------------
