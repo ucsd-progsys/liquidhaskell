@@ -154,10 +154,12 @@ postProcess cbs specEnv sp@(SP {..})
     allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv binds
+ghcSpecEnv sp        = unionSEnv' env0 env1
   where
+    env0             = fromListSEnv binds
+    env1             = propCtors sp
     emb              = gsTcEmbeds sp
-    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- F.tracepp "GSMEAS" $ gsMeas sp]
+    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
     rSort            = rTypeSortedReft emb
@@ -165,6 +167,8 @@ ghcSpecEnv sp = fromListSEnv binds
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
 
+propCtors :: [F.DataDecl] -> SEnv SortedReft
+propCtors = _fixme -- undefined -- error "TODO:propCtors"
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
 --

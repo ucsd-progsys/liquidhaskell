@@ -273,9 +273,6 @@ mkTest ec dir file
 
 binPath :: FilePath -> IO FilePath
 binPath pkgName = (</> pkgName) <$> getBinDir
--- binPath pkgName = do
---  testPath <- getExecutablePath
---  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"

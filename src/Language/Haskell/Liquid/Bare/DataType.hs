@@ -3,12 +3,16 @@
 {-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Bare.DataType
-  ( makeDataDecls
+  ( -- * Constructors
+    makeDataDecls
   , makeConTypes
   , makeTyConEmbeds
   , makeRecordSelectorSigs
   , meetDataConSpec
   , makeNumericInfo
+
+  -- * Tests
+  , isPropDecl
   ) where
 
 import           DataCon
@@ -42,13 +46,12 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
+import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 -- import           Text.Printf                     (printf)
 -- import           Debug.Trace (trace)
-
-
 
 makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeNumericInfo Nothing x   = x
@@ -80,8 +83,8 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> [(TyCon, DataDecl)]
               -> [F.DataDecl]
 
 makeDataDecls cfg tce tds ds
-  | makeDecls = [ makeDataDecl tce tc dd ctors
-                      | (tc, (dd, ctors)) <- groupDataCons tds ds ]
+  | makeDecls = concat [ makeFDataDecls tce tc dd ctors
+                       | (tc, (dd, ctors)) <- groupDataCons tds ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
@@ -94,6 +97,11 @@ groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
     ctorM            = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
 
 
+makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
+               -> [F.DataDecl]
+makeFDataDecls tce tc dd ctors = makeDataDecl tce tc dd ctors
+                               : maybeToList (makePropDecl tce tc dd)
+
 makeDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
              -> F.DataDecl
 makeDataDecl tce tc dd ctors
@@ -103,7 +111,42 @@ makeDataDecl tce tc dd ctors
       , F.ddCtors = makeDataCtor tce ftc <$> ctors
       }
   where
-    ftc = F.symbolFTycon $ F.atLoc (tycName dd) (F.symbol tc)
+    ftc = F.symbolFTycon (tyConLocSymbol tc dd)
+
+tyConLocSymbol :: TyCon -> DataDecl -> LocSymbol
+tyConLocSymbol tc dd = F.atLoc (tycName dd) (F.symbol tc)
+
+-- | 'makePropDecl' creates the 'F.DataDecl' for the *proposition* described
+--   by the corresponding 'TyCon' / 'DataDecl', e.g. tests/pos/IndPred0.hs
+makePropDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> Maybe F.DataDecl
+makePropDecl tce tc dd = makePropTyDecl tce tc dd <$> tycPropTy dd
+
+makePropTyDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [BareType] -> F.DataDecl
+makePropTyDecl tce tc dd ts
+  = F.DDecl
+    { F.ddTyCon = propTC (tyConLocSymbol tc dd)
+    , F.ddVars  = length (tycTyVars dd)
+    , F.ddCtors = [ makePropTyCtor tce tc dd ts ]
+    }
+  where
+    propTC      = F.symbolFTycon . fmap (`F.suffixSymbol` F.propConName)
+
+makePropTyCtor :: F.TCEmb TyCon -> TyCon -> DataDecl -> [BareType] -> F.DataCtor
+makePropTyCtor tce tc dd ts
+  = F.DCtor
+    { F.dcName   = tcSym
+    , F.dcFields = zipWith (makePropField tce tcSym) [0..] ts
+    }
+    where tcSym  = tyConLocSymbol tc dd
+
+makePropField :: F.TCEmb TyCon -> LocSymbol -> Int -> BareType -> F.DataField
+makePropField tce tc i t = F.DField
+  { F.dfName = F.atLoc tc $ GM.symbolMeasure "propField" (val tc) (Just i)
+  , F.dfSort = RT.rTypeSort tce (mkSpecType' (loc tc) [] t)
+  }
+
+isPropDecl :: F.DataDecl -> Bool
+isPropDecl = F.isSuffixOfSym F.propConName . F.val . F.ddTyCon
 
 -- [NOTE:ADT] We need to POST-PROCESS the 'Sort' so that:
 -- 1. The poly tyvars are replaced with debruijn
@@ -118,9 +161,8 @@ makeDataCtor tce c (d, dp) = F.DCtor
   }
   where
     su          = zip as [0..]
-    -- OLD: crashes on HOLES, so call AFTER-PLUG
     as          = rtyVarUniqueSymbol <$> freeTyVars dp
-    xts        = [ (loc x, t) | (x, t) <- reverse (tyArgs dp) ]
+    xts         = [ (loc x, t) | (x, t) <- reverse (tyArgs dp) ]
     loc         = Loc (dc_loc dp) (dc_locE dp)
 
 makeDataField :: F.TCEmb TyCon -> F.FTycon -> [(F.Symbol, Int)] -> (F.LocSymbol, SpecType)

@@ -579,7 +579,7 @@ predVarDefsP
 
 predVarDefP :: Parser (PVar BSort)
 predVarDefP
-  = bPVar <$> predVarIdP <*> dcolon <*> predVarTypeP
+  = bPVar <$> predVarIdP <*> dcolon <*> propositionSortP
 
 predVarIdP :: Parser Symbol
 predVarIdP
@@ -593,34 +593,29 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
     safeLast _ xs@(_:_) = last xs
     safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
-predVarTypeP :: Parser [(Symbol, BSort)]
-predVarTypeP = bareTypeP >>= either parserFail return . mkPredVarType
+propositionSortP :: Parser [(Symbol, BSort)]
+propositionSortP = map (mapSnd toRSort) <$> propositionTypeP
 
-mkPredVarType :: BareType -> Either String [(Symbol, BSort)]
-mkPredVarType t
-  | isOk      = Right $ zip xs ts
+propositionTypeP :: Parser [(Symbol, BareType)]
+propositionTypeP = either parserFail return =<< (mkPropositionType <$> bareTypeP)
+
+mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
+mkPropositionType t
+  | isOk      = Right $ zip (ty_binds tRep) (ty_args tRep)
   | otherwise = Left err
   where
-    isOk      = isPropBareType tOut --  isHPropBareType tOut
-    tOut      = ty_res trep
-    trep      = toRTypeRep t
-    xs        = ty_binds trep
-    ts        = toRSort <$> ty_args trep
-    err       = "Predicate Variable with non-Prop output sort: " ++ showpp t
+    isOk      = isPropBareType (ty_res tRep)
+    tRep      = toRTypeRep t
+    err       = "Proposition type with non-Bool output: " ++ showpp t
 
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
-
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
-
 isPropBareType :: RType BTyCon t t1 -> Bool
-isPropBareType  = isPrimBareType boolConName -- propConName
-
--- isHPropBareType :: RType BTyCon t t1 -> Bool
--- isHPropBareType = isPrimBareType hpropConName
+isPropBareType  = isPrimBareType boolConName
 
 isPrimBareType :: Symbol -> RType BTyCon t t1 -> Bool
 isPrimBareType n (RApp tc [] _ _) = val (btc_tc tc) == n
@@ -1423,7 +1418,8 @@ noWhere = try $ do
     else return s
 
 dataPropTyP :: Parser (Maybe [BareType])
-dataPropTyP = undefined "FIXME:dataPropTyP"
+dataPropTyP = (dcolon >> (Just . map snd <$> propositionTypeP))
+           <|> return Nothing
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------

@@ -118,7 +118,7 @@ tyConDataDecl (tc, NoDecl szF)
       }
       where decls = map dataConDecl . tyConDataCons
 
-dataConDecl :: DataCon -> DataCtor -- (F.LocSymbol, [(Symbol, BareType)])
+dataConDecl :: DataCon -> DataCtor
 dataConDecl d  = DataCtor dx xts Nothing
   where
     xts        = [(makeDataConSelector d i, bareOfType t) | (i, t) <- its ]
