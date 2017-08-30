@@ -449,6 +449,15 @@ testSucceeds =
          , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
         @?=
           "DDecl DataDecl: data = \"List2\", tyvars = [\"a\",\"b\"], sizeFun = Nothing"
+
+    , testCase "type spec 29" $
+       parseSingleSpec (unlines $
+         [ "data Ev :: Peano -> Prop where"
+         , "  EZ  :: Prop (Ev Z)"
+         , "| ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))"
+         ])
+        @?=
+          "DDecl DataDecl: data = \"Ev\", tyvars = [], sizeFun = Nothing"
     ]
 
 -- ---------------------------------------------------------------------
@@ -491,7 +500,7 @@ gadtSpec :: String
 gadtSpec = unlines
   [ "data Ev where"
   , "   EZ  :: {v:Ev | prop v = Ev Z}"
-  , " | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }" 
+  , " | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }"
   ]
 
 -- ---------------------------------------------------------------------

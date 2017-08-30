@@ -1,4 +1,8 @@
-module Even where
+{-# LANGUAGE GADTs #-}
+
+{-@ LIQUID "--exact-data-con" @-}
+
+module Ev where
 
 data Peano
   = Z

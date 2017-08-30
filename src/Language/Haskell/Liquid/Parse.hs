@@ -180,16 +180,16 @@ defineP = do v <- locParserP binderP
 ----------------------------------------------------------------------------------
 
 dot :: Parser String
-dot           = Token.dot           lexer
+dot = Token.dot lexer
 
 angles :: Parser a -> Parser a
-angles        = Token.angles        lexer
+angles = Token.angles lexer
 
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
--- identifier :: Parser String
--- identifier = Token.identifier       lexer
+identifier :: Parser String
+identifier = Token.identifier lexer
 
 -- operator :: Parser String
 -- operator = Token.operator           lexer
@@ -558,9 +558,11 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
-  where
-    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+tyVarIdP = symbol <$> identifier
+
+-- tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
+  -- where
+    -- alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP = do
@@ -1396,19 +1398,19 @@ emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize
   = D x [] [] [] [] pos fsize Nothing
 
-
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
-  ts     <- sepBy noWhere blanks
-  ps     <- predVarDefsP
-  propTy <- dataPropTyP
-  dcs    <- dataCtorsP
+  ts         <- sepBy noWhere blanks
+  ps         <- predVarDefsP
+  (pTy, dcs) <- dataCtorsP
   whiteSpace
-  return $ D x ts ps [] dcs pos fsize propTy
+  return      $ D x ts ps [] dcs pos fsize pTy
 
-dataCtorsP :: Parser [DataCtor]
-dataCtorsP =  (reservedOp "="   >> sepBy dataConP    (reservedOp "|"))
-          <|> (reserved "where" >> sepBy adtDataConP (reservedOp "|"))
+dataCtorsP :: Parser (Maybe BareType, [DataCtor])
+dataCtorsP
+  =  (reservedOp "="     >> ((Nothing, ) <$>                 sepBy dataConP    (reservedOp "|")))
+ <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy adtDataConP (reservedOp "|")))
+ <|> (                      ((,)         <$> dataPropTyP <*> sepBy adtDataConP (reservedOp "|")))
 
 noWhere :: Parser Symbol
 noWhere = try $ do
@@ -1418,8 +1420,7 @@ noWhere = try $ do
     else return s
 
 dataPropTyP :: Parser (Maybe BareType)
-dataPropTyP = (dcolon >> (Just <$> bareTypeP))
-           <|> return Nothing
+dataPropTyP = Just <$> between dcolon (reserved "where") bareTypeP
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
