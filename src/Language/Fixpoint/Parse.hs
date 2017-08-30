@@ -69,6 +69,7 @@ module Language.Fixpoint.Parse (
 
   -- * Utilities
   , isSmall
+  , isNotReserved
 
   , initPState, PState
 
@@ -92,7 +93,7 @@ import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
-import           Data.Char                   (isLower)
+import qualified Data.Char                   as Char -- (isUpper, isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Misc      (tshow, thd3)
@@ -246,6 +247,7 @@ double :: Parser Double
 double        = Token.float         lexer
 -- integer       = Token.integer       lexer
 
+-- identifier :: Parser String
 -- identifier = Token.identifier lexer
 
 -- TODO:AZ: pretty sure there is already a whitespace eater in parsec,
@@ -278,42 +280,53 @@ locParserP p = do l1 <- getPosition
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
 
-condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
-condIdP chars f
-  = do c  <- letter <|> char '_'
-       cs <- many (satisfy (`S.member` chars))
+condIdP  :: Parser Char -> S.HashSet Char -> (String -> Bool) -> Parser Symbol
+condIdP initP okChars p
+  = do c    <- initP -- letter <|> char '_'
+       cs   <- many (satisfy (`S.member` okChars))
        blanks
-       if f (c:cs) then return (symbol $ c:cs) else parserZero
+       let s = c:cs
+       if p s then return (symbol s) else parserZero
 
--- | Lower-case identifiers
+-- upperIdP :: Parser Symbol
+-- upperIdP = do
+--  c  <- upper
+--  cs <- many (satisfy (`S.member` symChars))
+--  blanks
+--  return (symbol $ c:cs)
+-- lowerIdP = do
+  -- c  <- satisfy (\c -> isLower c || c == '_' )
+  -- cs <- many (satisfy (`S.member` symChars))
+  -- blanks
+  -- return (symbol $ c:cs)
+
+-- TODO:RJ we really _should_ just use the below, but we cannot,
+-- because 'identifier' also chomps newlines which then make
+-- it hard to parse stuff like: "measure foo :: a -> b \n foo x = y"
+-- as the type parser thinks 'b \n foo` is a type. Sigh.
+-- lowerIdP :: Parser Symbol
+-- lowerIdP = symbol <$> (identifier <* blanks)
+
 upperIdP :: Parser Symbol
-upperIdP = do
-  c <- upper
-  cs <- many (satisfy (`S.member` symChars))
-  blanks
-  return (symbol $ c:cs)
+upperIdP  = condIdP upper                  symChars (const True)
 
--- | Lower-case identifiers
 lowerIdP :: Parser Symbol
-lowerIdP = symbol <$> Token.identifier lexer
-
--- OLD lowerIdP = do
-  -- OLD c  <- satisfy (\c -> isLower c || c == '_' )
-  -- OLD cs <- many (satisfy (`S.member` symChars))
-  -- OLD blanks
-  -- OLD return (symbol $ c:cs)
+lowerIdP  = condIdP (lower <|> char '_')   symChars isNotReserved
 
 symCharsP :: Parser Symbol
-symCharsP = condIdP symChars (`notElem` keyWordSyms)
-  where
-    keyWordSyms = ["if", "then", "else", "mod"]
+symCharsP = condIdP (letter <|> char '_')  symChars isNotReserved
 
+isNotReserved :: String -> Bool
+isNotReserved s = not (s `S.member` reservedNames)
+
+-- (&&&) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+-- f &&& g = \x -> f x && g x
 -- | String Haskell infix Id
 infixIdP :: Parser String
 infixIdP = many (satisfy (`notElem` [' ', '.']))
 
 isSmall :: Char -> Bool
-isSmall c = isLower c || c == '_'
+isSmall c = Char.isLower c || c == '_'
 
 locSymbolP, locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
@@ -335,7 +348,9 @@ symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  (fastIfP EIte exprP)
+  =  trueP
+ <|> falseP
+ <|> (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reservedOp "_|_" >> return EBot)
