@@ -458,6 +458,14 @@ testSucceeds =
          ])
         @?=
           "DDecl DataDecl: data = \"Ev\", tyvars = [], sizeFun = Nothing"
+
+    , testCase "type spec 30" $
+       parseSingleSpec (unlines $
+         [ "measure fst :: (a,b) -> a"
+         , "fst (a,b) = a"
+         ])
+        @?=
+          "FIXME-MEASURE"
     ]
 
 -- ---------------------------------------------------------------------
@@ -467,7 +475,7 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?=
-            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP, \"->\", \"=>\", \"/\" or end of input"
+            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting letter or digit, stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP, \"->\", \"=>\", \"/\" or end of input"
     ]
 
 

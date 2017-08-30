@@ -188,8 +188,8 @@ angles = Token.angles lexer
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
-identifier :: Parser String
-identifier = Token.identifier lexer
+-- identifier :: Parser String
+-- identifier = Token.identifier lexer
 
 -- operator :: Parser String
 -- operator = Token.operator           lexer
@@ -558,7 +558,7 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> identifier
+tyVarIdP = lowerIdP -- symbol <$> identifier
 
 -- tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
   -- where
