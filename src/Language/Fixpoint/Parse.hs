@@ -119,8 +119,8 @@ emptyDef    = Token.LanguageDef
                , Token.commentEnd     = ""
                , Token.commentLine    = ""
                , Token.nestedComments = True
-               , Token.identStart     = letter <|> char '_'
-               , Token.identLetter    = alphaNum <|> oneOf "_"
+               , Token.identStart     = lower <|> char '_'             -- letter <|> char '_'
+               , Token.identLetter    = satisfy (`S.member` symChars)  -- alphaNum <|> oneOf "_"
                , Token.opStart        = Token.opLetter emptyDef
                , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~'"
                , Token.reservedOpNames= []
@@ -133,83 +133,89 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
-           -- , Token.identStart      = satisfy (const False)
-           -- , Token.identLetter     = satisfy (const False)
-           , Token.reservedNames   = [ "SAT"
-                                     , "UNSAT"
-                                     , "true"
-                                     , "false"
-                                     , "mod"
-                                     , "data"
-                                     , "Bexp"
-                                     , "True"
-                                     , "Int"
-                                     , "import"
-                                     , "if", "then", "else"
-                                     , "func"
-
-                                     -- reserved words used in liquid haskell
-                                     , "forall"
-                                     , "exists"
-                                     , "module"
-                                     , "spec"
-                                     , "where"
-
-                                     , "decrease"
-                                     , "lazyvar"
-                                     , "LIQUID"
-                                     , "lazy"
-                                     , "local"
-                                     , "assert"
-                                     , "assume"
-                                     , "automatic-instances"
-                                     , "autosize"
-                                     , "axiomatize"
-                                     , "bound"
-                                     , "class"
-                                     , "data"
-                                     , "define"
-                                     , "defined"
-                                     , "embed"
-                                     , "expression"
-                                     , "import"
-                                     , "include"
-                                     , "infix"
-                                     , "infixl"
-                                     , "infixr"
-                                     , "inline"
-                                     , "instance"
-                                     , "invariant"
-                                     , "measure"
-                                     , "newtype"
-                                     , "predicate"
-                                     , "qualif"
-                                     , "reflect"
-                                     , "type"
-                                     , "using"
-                                     , "with"
-
-
-                                     ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
-                                     , "<", ">", "<=", ">=", "=", "!=" , "/="
-                                     , "mod", "and", "or"
-                                  --, "is"
-                                     , "&&", "||"
-                                     , "~", "=>", "==>", "<=>"
-                                     , "->"
-                                     , ":="
-                                     , "&", "^", "<<", ">>", "--"
-                                     , "?", "Bexp"
-                                     , "'"
-                                     , "_|_"
-                                     , "|"
-                                     , "<:"
-                                     , "|-"
-                                     , "::"
-                                     , "."
-                                     ]
+           , Token.identStart      = lower <|> char '_'
+           , Token.identLetter     = alphaNum <|> oneOf "_"
+           , Token.reservedNames   = S.toList reservedNames
+           , Token.reservedOpNames =          reservedOpNames
            }
+
+reservedNames :: S.HashSet String
+reservedNames = S.fromList
+  [ -- reserved words used in fixpoint
+    "SAT"
+  , "UNSAT"
+  , "true"
+  , "false"
+  , "mod"
+  , "data"
+  , "Bexp"
+  , "True"
+  , "Int"
+  , "import"
+  , "if", "then", "else"
+  , "func"
+
+  -- reserved words used in liquid haskell
+  , "forall"
+  , "exists"
+  , "module"
+  , "spec"
+  , "where"
+  , "decrease"
+  , "lazyvar"
+  , "LIQUID"
+  , "lazy"
+  , "local"
+  , "assert"
+  , "assume"
+  , "automatic-instances"
+  , "autosize"
+  , "axiomatize"
+  , "bound"
+  , "class"
+  , "data"
+  , "define"
+  , "defined"
+  , "embed"
+  , "expression"
+  , "import"
+  , "include"
+  , "infix"
+  , "infixl"
+  , "infixr"
+  , "inline"
+  , "instance"
+  , "invariant"
+  , "measure"
+  , "newtype"
+  , "predicate"
+  , "qualif"
+  , "reflect"
+  , "type"
+  , "using"
+  , "with"
+  ]
+
+reservedOpNames :: [String]
+reservedOpNames =
+  [ "+", "-", "*", "/", "\\", ":"
+  , "<", ">", "<=", ">=", "=", "!=" , "/="
+  , "mod", "and", "or"
+  --, "is"
+  , "&&", "||"
+  , "~", "=>", "==>", "<=>"
+  , "->"
+  , ":="
+  , "&", "^", "<<", ">>", "--"
+  , "?", "Bexp"
+  , "'"
+  , "_|_"
+  , "|"
+  , "<:"
+  , "|-"
+  , "::"
+  , "."
+  ]
 
 lexer :: Monad m => Token.GenTokenParser String u m
 lexer = Token.makeTokenParser languageDef
@@ -289,11 +295,13 @@ upperIdP = do
 
 -- | Lower-case identifiers
 lowerIdP :: Parser Symbol
-lowerIdP = do
-  c <- satisfy (\c -> isLower c || c == '_' )
-  cs <- many (satisfy (`S.member` symChars))
-  blanks
-  return (symbol $ c:cs)
+lowerIdP = symbol <$> Token.identifier lexer
+
+-- OLD lowerIdP = do
+  -- OLD c  <- satisfy (\c -> isLower c || c == '_' )
+  -- OLD cs <- many (satisfy (`S.member` symChars))
+  -- OLD blanks
+  -- OLD return (symbol $ c:cs)
 
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)

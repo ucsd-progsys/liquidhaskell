@@ -41,6 +41,7 @@ module Language.Fixpoint.Types.Sorts (
   , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
+  , fTyconSelfSort
   , fApp
   , fAppTC
   , fObj
@@ -160,6 +161,9 @@ fApp = foldl' FApp
 
 fAppTC :: FTycon -> [Sort] -> Sort
 fAppTC = fApp . fTyconSort
+
+fTyconSelfSort :: FTycon -> Int -> Sort
+fTyconSelfSort c n = fAppTC c [FVar i | i <- [0..(n - 1)]]
 
 -- | fApp' (FApp (FApp "Map" key) val) ===> ["Map", key, val]
 --   That is, `fApp'` is used to split a type application into
@@ -284,7 +288,7 @@ mkFFunc i ss     = go [0..i-1] ss
   where
     go [] [s]    = s
     go [] (s:ss) = FFunc s $ go [] ss
-    go (i:is) ss = FAbs i $ go is ss
+    go (i:is) ss = FAbs  i $ go is ss
     go _ _       = error "cannot happen"
 
    -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
@@ -308,6 +312,9 @@ bkFun _              = Nothing
 
 instance Hashable FTycon where
   hashWithSalt i (TC s _) = hashWithSalt i s
+
+instance Loc FTycon where
+  srcSpan (TC c _) = srcSpan c
 
 instance Hashable Sort
 
@@ -425,7 +432,6 @@ instance B.Binary Sub
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()
 
--- data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
 instance NFData TCInfo
 instance NFData Sort
