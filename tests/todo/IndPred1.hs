@@ -23,12 +23,12 @@ data Ev where
   EZ  :: Ev
   ESS :: Peano -> Ev -> Ev
 
-{-@ data Ev :: Peano -> Prop where
-      EZ  :: Prop (Ev Z)
-    | ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))
+{-@ data Ev :: Peano -> Bool where
+      EZ  :: Prop (pink Z)
+    | ESS :: n:Peano -> {v:Ev | prop v = pink n} -> {v: Ev | prop v = (pink (S (S n))) }
   @-}
 
-{-@ test :: n:Peano -> Prop (Ev (S (S n))) -> Prop (Ev n) @-}
+{-@ test :: n:Peano -> Prop (pink (S (S n))) -> Prop (pink n) @-}
 test :: Peano -> Ev -> Ev
 test n (ESS m q) = q
 

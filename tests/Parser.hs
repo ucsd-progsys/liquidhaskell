@@ -229,9 +229,14 @@ testReservedAliases =
        parseSingleSpec "measure :: Int -> Bool " @?=
           "Asrts ([\"measure\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
 
-    , testCase "define" $
+
+    , testCase "define 1" $
        parseSingleSpec "define :: Int -> Bool " @?=
           "Asrts ([\"define\" (dummyLoc)],(lq_tmp$db##0:Int -> Bool (dummyLoc),Nothing))"
+
+    , testCase "define 2" $
+       parseSingleSpec "define GHC.Types.True = (true)" @?=
+          "Define (\"GHC.Types.True\" (dummyLoc),\"(true)\")"
 
     , testCase "defined" $
        parseSingleSpec "defined :: Int -> Bool " @?=
@@ -465,7 +470,7 @@ testSucceeds =
          , "fst (a,b) = a"
          ])
         @?=
-          "FIXME-MEASURE"
+          "Meas fst :: lq_tmp$db##0:(a, b) -> a\nfst [] ((,)a b) = a"
     ]
 
 -- ---------------------------------------------------------------------
@@ -475,7 +480,7 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?=
-            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting letter or digit, stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP, \"->\", \"=>\", \"/\" or end of input"
+            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, white space, bareTyArgP, mmonoPredicateP, \"->\", \"=>\", \"/\" or end of input"
     ]
 
 
@@ -511,7 +516,7 @@ gadtSpec = unlines
   , " | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }"
   ]
 
--- ---------------------------------------------------------------------
+------------------------------------------------------------------------
 
 dummyLocs :: (Data a) => a -> a
 dummyLocs = everywhere (mkT posToDummy)

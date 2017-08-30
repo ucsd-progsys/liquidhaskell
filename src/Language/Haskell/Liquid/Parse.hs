@@ -218,6 +218,7 @@ stringLiteral = Token.stringLiteral lexer
 --  e.g.   xs : [Int]
 data ParamComp = PC { _pci :: PcScope
                     , _pct :: BareType }
+                    deriving (Show)
 
 data PcScope = PcImplicit Symbol
              | PcExplicit Symbol
@@ -438,7 +439,7 @@ bbaseP
   =  holeRefP  -- Starts with '_'
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
- <|> parseHelper  -- starts with lower
+ <|> try parseHelper  -- starts with lower
  <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
            -- starts with "'" or upper case char
  <?> "bbaseP"
@@ -558,11 +559,9 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = lowerIdP -- symbol <$> identifier
-
--- tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
-  -- where
-    -- alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
+tyVarIdP = symbol <$> condIdP (lower <|> char '_') alphanums isNotReserved -- (isSmall . head)
+  where
+    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP = do
@@ -1128,7 +1127,7 @@ rtAliasP f bodyP
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
 
 aliasIdP :: Parser Symbol
-aliasIdP = condIdP alphaNums (isAlpha . head)
+aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)
            where
              alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
