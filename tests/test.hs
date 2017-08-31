@@ -364,7 +364,8 @@ negIgnored = [ "Lib.hs"
              ]
 
 textIgnored :: [FilePath]
-textIgnored = [ "Data/Text/Axioms.hs"
+textIgnored = [ "Setup.lhs"
+              , "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
               , "Data/Text/Encoding/Fusion.hs"
               , "Data/Text/Encoding/Fusion/Common.hs"
