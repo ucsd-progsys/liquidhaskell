@@ -78,9 +78,9 @@ instance Resolvable LocSymbol where
 resolveSym :: SourcePos -> LocSymbol -> BareM LocSymbol
 resolveSym _ ls@(Loc _ _ s) = do
   isKnown <- isSpecialSym s
-  if not isKnown && isCon s
-    then resolveCtor ls
-    else return ls
+  if isKnown || not (isCon s)
+    then return ls
+    else resolveCtor ls
 
     -- nv <- gets (typeAliases . rtEnv)
          -- case M.lookup s env of
@@ -93,6 +93,13 @@ resolveSym _ ls@(Loc _ _ s) = do
 
 resolveCtor :: LocSymbol -> BareM LocSymbol
 resolveCtor ls = do
+  env1 <- gets propSyms
+  case M.lookup (val ls) env1 of
+    Just ls' -> return ls'
+    Nothing  -> resolveCtorVar ls
+
+resolveCtorVar :: LocSymbol -> BareM LocSymbol
+resolveCtorVar ls = do
   v <- lookupGhcVar ls
   let qs = symbol v
   addSym (qs, v)
@@ -102,8 +109,8 @@ resolveCtor ls = do
 isSpecialSym :: Symbol -> BareM Bool
 isSpecialSym s = do
   env0 <- gets (typeAliases . rtEnv)
-  env1 <- gets propSyms
-  return $ or [s `elem` prims, M.member s env0, M.member s env1]
+  return $ or [s `elem` prims, M.member s env0]
+
 
 addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
 addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.union` [x] } -- TODO: OMG THIS IS THE SLOWEST THING IN THE WORLD!

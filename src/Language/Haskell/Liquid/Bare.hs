@@ -104,8 +104,8 @@ makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = 
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
-                    (tracepp "INIT-AX-SYM"   $ initAxSymbols name defVars specs)
-                    (tracepp "INIT-PROP-SYM" $ initPropSymbols specs)
+                    (initAxSymbols name defVars specs)
+                    (initPropSymbols specs)
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
@@ -113,8 +113,9 @@ initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
     locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
     tx                = qualifySymbol' vs
 
+-- | see NOTE:AUTO-INDPRED in Bare/DataType.hs
 initPropSymbols :: [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initPropSymbols = _fixme
+initPropSymbols _ = M.empty
 
 importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
 importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
@@ -158,30 +159,31 @@ postProcess cbs specEnv sp@(SP {..})
     allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp        = unionSEnv' env0 env1
+ghcSpecEnv sp        = res
   where
-    env0             = fromListSEnv binds
-    env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
+    res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
                                                                  isConLikeId v ]
-    propBinds        = [ propCtor d          | d              <- gsADTs sp,
-                                                                 isPropDecl d  ]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
+    -- TODO:AUTO-INDPRED
+    -- res               = unionSEnv' (fromListSEnv binds) env1
+    -- env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
+    -- propBinds        = [ propCtor d          | d <- gsADTs sp, isPropDecl d  ]
 
-propCtor :: F.DataDecl -> (Symbol, SortedReft)
-propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
+
+_propCtor :: F.DataDecl -> (Symbol, SortedReft)
+_propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
   where
     t                               = F.mkFFunc n (inTs ++ [outT])
     inTs                            = F.dfSort <$> ts
     outT                            = F.fTyconSelfSort c n
-
-propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
+_propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
   where
     msg                             = "Invalid propCtor: " ++ show c
 

@@ -1760,7 +1760,6 @@ instance F.PPrint ModName where
 instance Show ModuleName where
   show = moduleNameString
 
-
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m
 

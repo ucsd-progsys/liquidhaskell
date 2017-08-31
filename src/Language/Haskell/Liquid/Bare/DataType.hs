@@ -12,7 +12,8 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeNumericInfo
 
     -- * Tests
-  , isPropDecl
+  -- , isPropDecl
+  -- , qualifyDataDecl
   ) where
 
 import           DataCon
@@ -46,7 +47,7 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
-import qualified Language.Haskell.Liquid.Bare.Misc      as GM
+-- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
@@ -74,7 +75,6 @@ instanceTyCon = go . is_tys
     go [TyConApp c _] = Just c
     go _              = Nothing
 
-
 --------------------------------------------------------------------------------
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
 --------------------------------------------------------------------------------
@@ -85,7 +85,6 @@ instanceTyCon = go . is_tys
 --   'pd' is the `SpecType` version of the `BareType` given by `tycPropTy dd`.
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
-type SpecTypeRep  = RTypeRep RTyCon RTyVar RReft
 
 makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
@@ -98,10 +97,7 @@ makeDataDecls cfg tce tds ds
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = qualifyDataDecl <$> tds
-
-qualifyDataDecl :: (ModName, a, DataPropDecl) -> (a, DataPropDecl)
-qualifyDataDecl = _fixme_qualify_the_DataProp_name_with_modname
+    tds'      = [ (tc, ({- qualifyDataDecl m -} d, t)) | (_, tc, (d, t)) <- tds ]
 
 groupDataCons :: [(TyCon, DataPropDecl)] -> [(DataCon, Located DataConP)]
               -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
@@ -113,8 +109,8 @@ groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
 
 makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
                -> [F.DataDecl]
-makeFDataDecls tce tc dd ctors = makeDataDecl tce tc (fst dd) ctors
-                               : maybeToList (makePropDecl tce tc dd)
+makeFDataDecls tce tc dd ctors = [makeDataDecl tce tc (fst dd) ctors]
+                               -- ++ maybeToList (makePropDecl tce tc dd) -- TODO: AUTO-INDPRED
 
 makeDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
              -> F.DataDecl
@@ -130,49 +126,6 @@ makeDataDecl tce tc dd ctors
 tyConLocSymbol :: TyCon -> DataDecl -> LocSymbol
 tyConLocSymbol _tc dd = tycName dd -- F.atLoc (tycName dd) (F.symbol tc)
   -- where _z = tyConModule _tc
-
-
-
--- | 'makePropDecl' creates the 'F.DataDecl' for the *proposition* described
---   by the corresponding 'TyCon' / 'DataDecl', e.g. tests/pos/IndPred0.hs
-makePropDecl :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> Maybe F.DataDecl
-makePropDecl tce tc (dd, pd) = makePropTyDecl tce tc dd <$> pd
-
-makePropTyDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> SpecType -> F.DataDecl
-makePropTyDecl tce tc dd t
-  = F.DDecl
-    { F.ddTyCon = ftc
-    , F.ddVars  = length (ty_vars tRep)
-    , F.ddCtors = [ makePropTyCtor tce ftc tRep ]
-    }
-  where
-    ftc         = propFTycon tc dd
-    tRep        = toRTypeRep t
-
-propFTycon :: TyCon -> DataDecl -> F.FTycon
-propFTycon tc = F.symbolFTycon . fmap (`F.suffixSymbol` F.propConName) . tyConLocSymbol tc
-
-isPropDecl :: F.DataDecl -> Bool
-isPropDecl d =  (F.isSuffixOfSym F.propConName . F.symbol . F.ddTyCon $ d)
-             && (length (F.ddCtors d) == 1)
-
-makePropTyCtor :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> F.DataCtor
-makePropTyCtor tce ftc t
-  = F.DCtor
-    { F.dcName   = F.fTyconSymbol ftc
-    , F.dcFields = makePropTyFields tce ftc t
-    }
-
-makePropTyFields :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> [F.DataField]
-makePropTyFields tce ftc t = makeDataFields tce ftc as xts
-  where
-    as                     = [ a | RTVar a _ <- ty_vars t ]
-    xts                    = zipWith (\i t -> (fld i, t)) [0..] (ty_args t)
-    tcSym                  = F.fTyconSymbol ftc
-    fld                    = F.atLoc tcSym
-                           . GM.symbolMeasure "propField" (val tcSym)
-                           . Just
-
 
 -- [NOTE:ADT] We need to POST-PROCESS the 'Sort' so that:
 -- 1. The poly tyvars are replaced with debruijn
@@ -203,10 +156,68 @@ muSort c n  = V.mapSort tx
     ct      = F.fTyconSort c
     me      = F.fTyconSelfSort c n
     tx t    = if t == me then ct else t
-    -- cts     = ct : [ F.FVar i | (_, i) <- su ]
-    -- tx t    = if F.unFApp t == cts then ct else t
 
 
+--------------------------------------------------------------------------------
+{- | NOTE:AUTO-INDPRED (tests/todo/IndPred1.hs)
+-- RJ: too hard, too brittle, I _thought_ we could just
+-- generate the F.DataDecl, but really, you need the GHC
+-- names for the Prop-Ctor if you want to be able to `import`
+-- a predicate across modules. Seems a LOT easier to just have
+-- the program explicitly create the the proposition type
+-- e.g. as shownn in (tests/pos/IndPred0.hs)
+--------------------------------------------------------------------------------
+
+type SpecTypeRep  = RTypeRep RTyCon RTyVar RReft
+
+-- | 'makePropDecl' creates the 'F.DataDecl' for the *proposition* described
+--   by the corresponding 'TyCon' / 'DataDecl', e.g. tests/pos/IndPred0.hs
+makePropDecl :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> Maybe F.DataDecl
+makePropDecl tce tc (dd, pd) = makePropTyDecl tce tc dd <$> pd
+
+makePropTyDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> SpecType -> F.DataDecl
+makePropTyDecl tce tc dd t
+  = F.DDecl
+    { F.ddTyCon = ftc
+    , F.ddVars  = length (ty_vars tRep)
+    , F.ddCtors = [ makePropTyCtor tce ftc tRep ]
+    }
+  where
+    ftc         = propFTycon tc dd
+    tRep        = toRTypeRep t
+
+propFTycon :: TyCon -> DataDecl -> F.FTycon
+propFTycon tc = F.symbolFTycon . fmap (`F.suffixSymbol` F.propConName) . tyConLocSymbol tc
+
+makePropTyCtor :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> F.DataCtor
+makePropTyCtor tce ftc t
+  = F.DCtor
+    { F.dcName   = F.fTyconSymbol ftc
+    , F.dcFields = makePropTyFields tce ftc t
+    }
+
+makePropTyFields :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> [F.DataField]
+makePropTyFields tce ftc t = makeDataFields tce ftc as xts
+  where
+    as                     = [ a | RTVar a _ <- ty_vars t ]
+    xts                    = zipWith (\i t -> (fld i, t)) [0..] (ty_args t)
+    tcSym                  = F.fTyconSymbol ftc
+    fld                    = F.atLoc tcSym
+                           . GM.symbolMeasure "propField" (val tcSym)
+                           . Just
+
+isPropDecl :: F.DataDecl -> Bool
+isPropDecl d =  (F.isSuffixOfSym F.propConName . F.symbol . F.ddTyCon $ d)
+              && (length (F.ddCtors d) == 1)
+
+qualifyDataDecl :: ModName -> DataDecl -> DataDecl
+qualifyDataDecl name d = d { tycName = qualifyName name (tycName d)}
+
+qualifyName :: ModName -> LocSymbol -> LocSymbol
+qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
+  where
+    nSym        = GM.takeModuleNames (F.symbol n)
+-}
 
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
