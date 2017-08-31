@@ -1,52 +1,86 @@
-{-# LANGUAGE GADTs #-}
+{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--higherorder"                         @-}
+{-@ LIQUID "--totality"                            @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
-{-@ LIQUID "--exact-data-con" @-}
+module IndPred where
 
-module Ev where
+import Prelude hiding (sum)
 
-data Peano
-  = Z
-  | S Peano
+--------------------------------------------------------------------------------
 
-{- AUTOMATICALLY GENERATE
+{-@ measure llen @-}
+{-@ llen :: List a -> Nat @-}
+llen :: List a -> Int
+llen Nil        = 0
+llen (Cons h t) = 1 + llen t
 
-   data EvProp where
-     Ev :: Peano -> EvProp
+{-@ data List [llen] a = Nil | Cons {lHd :: a , lTl :: (List a) } @-}
+data List a = Nil | Cons a (List a)
 
-   data EvProp 0 = [
-      Ev { x0: Peano }
-   ]
+--------------------------------------------------------------------------------
 
- -}
+data IsIns a
+  = Here  { m :: a, ms :: List a }
+  | There { m :: a, n :: a, ns :: List a, mns :: List a }
 
-data Ev where
-  EZ  :: Ev
-  ESS :: Peano -> Ev -> Ev
+{-@ measure isIns :: a -> List a -> List a -> Bool @-}
 
-{-@ data Ev :: Peano -> Bool where
-      EZ  :: Prop (pink Z)
-    | ESS :: n:Peano -> {v:Ev | prop v = pink n} -> {v: Ev | prop v = (pink (S (S n))) }
+-- v = Here m ms = isIns m ms (Cons m ms)
+
+
+
+{-@ assume Here :: m:a
+                -> ms:List a
+                -> { v : IsIns a | isIns m ms (Cons m ms) }
   @-}
 
-{-@ test :: n:{Peano | inc n = inc n} -> Prop (pink (S (S n))) -> Prop (pink n) @-}
-test :: Peano -> Ev -> Ev
-test n (ESS m q) = q
-
-
-
-{-@ reflect pink @-}
-pink :: Int -> Int
-pink x = x + 1
-
-
-
-
-
-
+{-@ assume There :: m:a -> n:a -> ns:List a
+                 -> mns:{List a | isIns m ns mns }
+                 -> { v : IsIns a | isIns m (Cons n ns) (Cons n mns)}
+  @-}
 
 --------------------------------------------------------------------------------
--- PRELUDE
+
+data IsPerm a
+  = NilPerm
+  | ConsPerm { cm :: a, cms :: List a, cns :: List a, cmns :: List a }
+
+{-@ measure isPerm  :: List a -> List a -> Bool @-}
+
+{-@ assume NilPerm  :: {v:IsPerm a | isPerm Nil Nil} @-}
+
+{-@ assume ConsPerm :: cm:a -> cms:List a
+                    -> cns: {List a | isPerm cms cns   }
+                    -> cmns:{List a | isIns cm cns cmns }
+                    -> {v:IsPerm a | isPerm (Cons cm cms) cmns }
+  @-}
+
 --------------------------------------------------------------------------------
-{-@ measure prop :: a -> b           @-}
-{-@ type Prop E = {v:_ | prop v = E} @-}
---------------------------------------------------------------------------------
+
+{-@ reflect sum @-}
+sum :: List Int -> Int
+sum Nil         = 0
+sum (Cons x xs) = x + sum xs
+
+
+{-@ lemma :: x:a -> ys:List a -> xys:List a
+          -> {v:IsIns a | isIns x ys xys}
+          -> { x + sum ys == sum xys}
+  @-}
+lemma :: a -> List a -> List a -> IsIns a -> ()
+lemma x ys xys (Here ...)  = ...
+lemma x ys xys (There ...) = ...
+
+{-
+
+  lemma : ∀ {m ns mns}
+        → m ∪ ns ≡ mns → m <> sum ns ≡ sum mns
+  lemma here = refl
+  lemma {m} {n ∷ ns} (there p)
+    rewrite sym (<>-assoc m n (sum ns))
+          | <>-comm m n
+          | <>-assoc n m (sum ns)
+          | lemma p = refl
+
+-}
