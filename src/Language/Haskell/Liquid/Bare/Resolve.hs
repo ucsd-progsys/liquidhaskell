@@ -1,10 +1,10 @@
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Haskell.Liquid.Bare.Resolve (
-    Resolvable(..)
+     Resolvable(..)
   ) where
 
 
@@ -26,6 +26,7 @@ import Language.Fixpoint.Types (Expr(..),
                                 Reft(..),
                                 Sort(..),
                                 Symbol,
+                                atLoc,
                                 fTyconSymbol,
                                 symbol,
                                 symbolFTycon)
@@ -69,20 +70,40 @@ instance Resolvable Expr where
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
   resolve _ (ESym s)        = return $ ESym s
   resolve _ (ECon c)        = return $ ECon c
-  resolve l (PGrad k su i e)  = PGrad k su i <$> resolve l e 
+  resolve l (PGrad k su i e)  = PGrad k su i <$> resolve l e
 
 instance Resolvable LocSymbol where
-  resolve _ ls@(Loc l l' s)
-    | s `elem` prims
-    = return ls
-    | otherwise
-    = do env <- gets (typeAliases . rtEnv)
-         case M.lookup s env of
-           Nothing | isCon s -> do v <- lookupGhcVar ls
-                                   let qs = symbol v
-                                   addSym (qs, v)
-                                   return $ Loc l l' qs
-           _                 -> return ls
+  resolve = resolveSym
+
+resolveSym :: SourcePos -> LocSymbol -> BareM LocSymbol
+resolveSym _ ls@(Loc _ _ s) = do
+  isKnown <- isSpecialSym s
+  if not isKnown && isCon s
+    then resolveCtor ls
+    else return ls
+
+    -- nv <- gets (typeAliases . rtEnv)
+         -- case M.lookup s env of
+           -- Nothing | isCon s -> resolveCtor ls
+                                -- -- do v <- lookupGhcVar ls
+                                -- --   let qs = symbol v
+                                -- --   addSym (qs, v)
+                                -- --   return $ Loc l l' qs
+           -- _                 -> return ls
+
+resolveCtor :: LocSymbol -> BareM LocSymbol
+resolveCtor ls = do
+  v <- lookupGhcVar ls
+  let qs = symbol v
+  addSym (qs, v)
+  return $ atLoc ls qs
+  -- Loc l l' qs
+
+isSpecialSym :: Symbol -> BareM Bool
+isSpecialSym s = do
+  env0 <- gets (typeAliases . rtEnv)
+  env1 <- gets propSyms
+  return $ or [s `elem` prims, M.member s env0, M.member s env1]
 
 addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
 addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.union` [x] } -- TODO: OMG THIS IS THE SLOWEST THING IN THE WORLD!

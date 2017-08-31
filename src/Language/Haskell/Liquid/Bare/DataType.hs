@@ -87,17 +87,21 @@ instanceTyCon = go . is_tys
 type DataPropDecl = (DataDecl, Maybe SpecType)
 type SpecTypeRep  = RTypeRep RTyCon RTyVar RReft
 
-makeDataDecls :: Config -> F.TCEmb TyCon -> [(TyCon, DataPropDecl)]
+makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
 
 makeDataDecls cfg tce tds ds
   | makeDecls = F.tracepp "makeDataDecls" $
                 concat [ makeFDataDecls tce tc dd ctors
-                       | (tc, (dd, ctors)) <- groupDataCons tds ds ]
+                       | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
+    tds'      = qualifyDataDecl <$> tds
+
+qualifyDataDecl :: (ModName, a, DataPropDecl) -> (a, DataPropDecl)
+qualifyDataDecl = _fixme_qualify_the_DataProp_name_with_modname
 
 groupDataCons :: [(TyCon, DataPropDecl)] -> [(DataCon, Located DataConP)]
               -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
@@ -124,7 +128,10 @@ makeDataDecl tce tc dd ctors
     ftc = F.symbolFTycon (tyConLocSymbol tc dd)
 
 tyConLocSymbol :: TyCon -> DataDecl -> LocSymbol
-tyConLocSymbol tc dd = F.atLoc (tycName dd) (F.symbol tc)
+tyConLocSymbol _tc dd = tycName dd -- F.atLoc (tycName dd) (F.symbol tc)
+  -- where _z = tyConModule _tc
+
+
 
 -- | 'makePropDecl' creates the 'F.DataDecl' for the *proposition* described
 --   by the corresponding 'TyCon' / 'DataDecl', e.g. tests/pos/IndPred0.hs
@@ -206,17 +213,17 @@ muSort c n  = V.mapSort tx
 --------------------------------------------------------------------------------
 makeConTypes
   :: (ModName, Ms.Spec ty bndr)
-  -> BareM ( [(TyCon, TyConP, Maybe DataPropDecl)]
+  -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
            , [[(DataCon, Located DataConP)]]   )
 makeConTypes (name, spec) = inModule name $
-  makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
+  makeConTypes' name (Ms.dataDecls spec) (Ms.dvariance spec)
 
-makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])]
-              -> BareM ( [(TyCon, TyConP, Maybe DataPropDecl)]
+makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
+              -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])
-makeConTypes' dcs vdcs = do
+makeConTypes' name dcs vdcs = do
   dcs' <- canonizeDecls dcs
-  unzip <$> mapM (uncurry ofBDataDecl) (groupVariances dcs' vdcs)
+  unzip <$> mapM (uncurry (ofBDataDecl name)) (groupVariances dcs' vdcs)
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' where duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
@@ -277,10 +284,11 @@ checkDataDecl c d = (cN == dN || null (tycDCons d))
 
 
 -- FIXME: ES: why the maybes?
-ofBDataDecl :: Maybe DataDecl
+ofBDataDecl :: ModName
+            -> Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
-            -> BareM ((TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
-ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
+            -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
+ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
@@ -293,7 +301,7 @@ ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
-       return ((tc', tcp, Just (dd, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
+       return ((name, tc', tcp, Just (dd, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
        err         = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
        αs          = RTV . GM.symbolTyVar <$> as
@@ -304,14 +312,14 @@ ofBDataDecl (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
                       { Nothing -> ([], defPs);
                         Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
 
-ofBDataDecl Nothing (Just (tc, is))
+ofBDataDecl name Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon "ofBDataDecl" tc
-       return ((tc', TyConP srcpos [] [] [] tcov tcontr Nothing, Nothing), [])
+       return ((name, tc', TyConP srcpos [] [] [] tcov tcontr Nothing, Nothing), [])
   where
     (tcov, tcontr) = (is, [])
     srcpos = F.dummyPos "LH.DataType.Variance"
 
-ofBDataDecl Nothing Nothing
+ofBDataDecl _ Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance

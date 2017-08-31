@@ -103,14 +103,18 @@ makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = 
     act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    axs       = initAxSymbols name defVars specs
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+                    (tracepp "INIT-AX-SYM"   $ initAxSymbols name defVars specs)
+                    (tracepp "INIT-PROP-SYM" $ initPropSymbols specs)
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where
     locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
     tx                = qualifySymbol' vs
+
+initPropSymbols :: [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initPropSymbols = _fixme
 
 importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
 importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
@@ -157,7 +161,7 @@ ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = unionSEnv' env0 env1
   where
     env0             = fromListSEnv binds
-    env1             = fromListSEnv propBinds
+    env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
@@ -647,11 +651,11 @@ makeGhcSpecCHOP1
 
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcDds, dcs)    <- mconcat <$> mapM makeConTypes specs
-  let tcs          = [(x, y) | (x, y,_)       <- tcDds]
+  let tcs          = [(x, y) | (_, x, y, _)       <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-  let tds          = [(tc, dd) | (tc, _, Just dd) <- tcDds]
+  let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons

@@ -28,14 +28,15 @@ data Ev where
     | ESS :: n:Peano -> {v:Ev | prop v = pink n} -> {v: Ev | prop v = (pink (S (S n))) }
   @-}
 
-{-@ test :: n:Peano -> Prop (pink (S (S n))) -> Prop (pink n) @-}
+{-@ test :: n:{Peano | inc n = inc n} -> Prop (pink (S (S n))) -> Prop (pink n) @-}
 test :: Peano -> Ev -> Ev
 test n (ESS m q) = q
 
 
 
-
-
+{-@ reflect pink @-}
+pink :: Int -> Int
+pink x = x + 1
 
 
 
