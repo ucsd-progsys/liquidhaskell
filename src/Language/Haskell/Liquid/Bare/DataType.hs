@@ -124,8 +124,7 @@ makeDataDecl tce tc dd ctors
     ftc = F.symbolFTycon (tyConLocSymbol tc dd)
 
 tyConLocSymbol :: TyCon -> DataDecl -> LocSymbol
-tyConLocSymbol _tc dd = tycName dd -- F.atLoc (tycName dd) (F.symbol tc)
-  -- where _z = tyConModule _tc
+tyConLocSymbol tc dd = F.atLoc (tycName dd) (F.symbol tc)
 
 -- [NOTE:ADT] We need to POST-PROCESS the 'Sort' so that:
 -- 1. The poly tyvars are replaced with debruijn
