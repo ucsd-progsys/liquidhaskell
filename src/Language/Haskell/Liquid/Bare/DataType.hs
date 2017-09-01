@@ -139,8 +139,13 @@ makeDataCtor tce c (d, dp) = F.DCtor
   }
   where
     as          = freeTyVars dp
-    xts         = [ (loc x, t) | (x, t) <- reverse (tyArgs dp) ]
-    loc         = Loc (dc_loc dp) (dc_locE dp)
+    xts         = [ (fld x, t) | (x, t) <- reverse (tyArgs dp) ]
+    fld         = Loc (dc_loc dp) (dc_locE dp) . fieldName d dp
+
+fieldName :: DataCon -> DataConP -> F.Symbol -> F.Symbol
+fieldName d dp x
+  | dcpIsGadt dp = F.suffixSymbol (F.symbol d) x
+  | otherwise    = x
 
 makeDataFields :: F.TCEmb TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
