@@ -91,7 +91,7 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
               -> [F.DataDecl]
 
 makeDataDecls cfg tce tds ds
-  | makeDecls = F.tracepp "makeDataDecls" $
+  | makeDecls = -- F.tracepp "makeDataDecls" $
                 concat [ makeFDataDecls tce tc dd ctors
                        | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []

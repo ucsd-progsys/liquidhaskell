@@ -200,7 +200,7 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
   =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
     ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
-    autofields = F.tracepp ("AUTOFIELDS: " ++ show dc) $ not (isGadt || noMeasureFields cfg)
+    autofields = {- F.tracepp ("AUTOFIELDS: " ++ show dc) $ -} not (isGadt || noMeasureFields cfg)
     res        = fmap mempty resTy
     go ((x, t), i)
       -- do not make selectors for functional fields
