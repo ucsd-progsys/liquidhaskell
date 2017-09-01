@@ -9,25 +9,22 @@ import Prelude hiding (sum)
 
 --------------------------------------------------------------------------------
 
-{-@ measure llen @-}
+{-@ measure llen          @-}
 {-@ llen :: List a -> Nat @-}
 llen :: List a -> Int
 llen Nil        = 0
 llen (Cons h t) = 1 + llen t
 
-{-@ data List [llen] a = Nil | Cons {lHd :: a , lTl :: (List a) } @-}
+{-@ data List [llen] @-}
 data List a = Nil | Cons a (List a)
 
 --------------------------------------------------------------------------------
 
-data IsIns a
+data Ins a
   = Here  { m :: a, ms :: List a }
   | There { m :: a, n :: a, ns :: List a, mns :: List a }
 
 {-@ measure isIns :: a -> List a -> List a -> Bool @-}
-
--- v = Here m ms = isIns m ms (Cons m ms)
-
 
 
 {-@ assume Here :: m:a
