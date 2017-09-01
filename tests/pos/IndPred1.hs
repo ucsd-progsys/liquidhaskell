@@ -8,15 +8,6 @@ module Star where
 
 type Rel a = a -> a -> Bool
 
-data StarP a where
-  Star :: Rel a -> a -> a -> StarP a
-
-data Star a where
-  Refl :: Rel a -> a -> Star a
-  Step :: Rel a -> a -> a -> a -> Star a -> Star a
-
-{- autosize Star @-}
-
 {-@ data Star [toNat] a where
       Refl :: r:(Rel a) -> x:a -> Prop (Star r x x)
     | Step :: r:(Rel a) -> x:a -> y:{a | r x y} -> z:a -> Prop (Star r y z) -> Prop (Star r x z)
@@ -27,9 +18,21 @@ data Star a where
         -> Prop (Star r y z)
         -> Prop (Star r x z)
   @-}
-thm :: (Rel a) -> a -> a -> a -> Star a -> Star a -> Star a
 thm r x y z (Refl _ _)          yz = yz
 thm r x y z (Step _ _ x1 _ x1y) yz = Step r x x1 z (thm r x1 y z x1y yz)
+
+--------------------------------------------------------------------------------
+-- BOILERPLATE
+--------------------------------------------------------------------------------
+
+thm :: (Rel a) -> a -> a -> a -> Star a -> Star a -> Star a
+
+data StarP a where
+  Star :: Rel a -> a -> a -> StarP a
+
+data Star a where
+  Refl :: Rel a -> a -> Star a
+  Step :: Rel a -> a -> a -> a -> Star a -> Star a
 
 {-@ measure toNat          @-}
 {-@ toNat :: Star a -> Nat @-}
