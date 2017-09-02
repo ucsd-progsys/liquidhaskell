@@ -40,7 +40,7 @@ import           Text.PrettyPrint.HughesPJ              (text )
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
-import           Language.Fixpoint.Misc                 (mapSnd)
+import qualified Language.Fixpoint.Misc                 as F           --  (mapSnd)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
@@ -188,34 +188,31 @@ angles = Token.angles lexer
 stringLiteral :: Parser String
 stringLiteral = Token.stringLiteral lexer
 
--- identifier :: Parser String
--- identifier = Token.identifier lexer
+--------------------------------------------------------------------------------
+-- | BareTypes -----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
--- operator :: Parser String
--- operator = Token.operator           lexer
+{- | [NOTE:BARETYPE-PARSE] Fundamentally, a type is ofthe form
 
-----------------------------------------------------------------------------------
--- BareTypes ---------------------------------------------------------------------
-----------------------------------------------------------------------------------
+      comp -> comp -> ... -> comp
 
--- ---------------------------------------------------------------------
--- fundamentally, a type is ofthe form
---   comp -> comp -> .. -> comp
---
--- So
---
--- bt = comp
---    | comp '->' bt
---
--- comp = circle
---      | '(' bt ')'
---
--- circle = the ground component of a baretype, sans parens or "->" at the top
---          level
+So
 
--- Each 'comp' should have a variable to refer to it, either a parser-assigned
--- one or given explicitly.
---  e.g.   xs : [Int]
+  bt = comp
+     | comp '->' bt
+
+  comp = circle
+       | '(' bt ')'
+
+  circle = the ground component of a baretype, sans parens or "->" at the top level
+
+Each 'comp' should have a variable to refer to it,
+either a parser-assigned one or given explicitly. e.g.
+
+  xs : [Int]
+
+-}
+
 data ParamComp = PC { _pci :: PcScope
                     , _pct :: BareType }
                     deriving (Show)
@@ -250,22 +247,32 @@ btP = do
             return $ PC sb $ foldr (rFun dummySymbol) t2 (getClasses t1))
          <|> return c)
 
+
+-- _rFun' b t1 t2 = tracepp msg (rFun b t1 t2)
+ -- where msg    = "RFUN: b = " ++ showpp b ++
+                -- " t1 = "     ++ showpp t1 ++
+                -- " t2 = "     ++ showpp t2
+
 compP :: Parser ParamComp
 compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
   =  nullPC <$> (reserved "forall" >> bareAllP)
- <|> holePC -- starts with '_'
- <|> namedCircleP -- starts with lower
- <|> bareTypeBracesP -- starts with '{'
+ <|> holePC                                 -- starts with '_'
+ <|> namedCircleP                           -- starts with lower
+ <|> bareTypeBracesP                        -- starts with '{'
  <|> unnamedCircleP
- <|> (angles (do PC sb t <- parens btP
-                 p <- monoPredicateP
-                 return $ PC sb (t `strengthen` MkUReft mempty p mempty)))
-             -- starts with '<'
+ <|> anglesCircleP                          -- starts with '<'
  <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
- <?> "circeP"
+ <?> "circleP"
+
+anglesCircleP :: Parser ParamComp
+anglesCircleP
+  = angles $ do
+      PC sb t <- parens btP
+      p <- monoPredicateP
+      return $ PC sb (t `strengthen` MkUReft mempty p mempty)
 
 holePC :: Parser ParamComp
 holePC = do
@@ -276,11 +283,9 @@ holePC = do
 namedCircleP :: Parser ParamComp
 namedCircleP = do
   lb <- locParserP lowerIdP
-  (do
-      _ <- colon
+  (do _ <- colon
       let b = val lb
-      t1 <- bareArgP b
-      return $ PC (PcExplicit b) t1
+      PC (PcExplicit b) <$> bareArgP b
     <|> do
       b <- dummyBindP
       PC (PcImplicit b) <$> dummyP (lowerIdTail (val lb))
@@ -332,13 +337,20 @@ bareTypeBracesP = do
       PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
 
+-- FIXME HEREHEREHERE bareArgP :: Symbol -> Parser BareType
+-- FIXME HEREHEREHERE bareArgP x = do
+  -- FIXME HEREHEREHERE i     <- freshIntP
+  -- FIXME HEREHEREHERE t     <- bareArgRawP x
+  -- FIXME HEREHEREHERE let xi = intSymbol x i
+  -- FIXME HEREHEREHERE let su v = if v == x then xi else v
+
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
-  =  (refDefP vvv) refasHoleP bbaseP -- starts with '{'
+  = tracepp "BAREARG1" <$> refDefP vvv refasHoleP bbaseP -- starts with '{'
  <|> holeP                           -- starts with '_'
- <|> (dummyP (bbaseP <* spaces))
- <|> parens bareTypeP                -- starts with '('
-        -- starts with '_', '[', '(', lower, upper
+ <|> tracepp "BAREARG2" <$> (dummyP (bbaseP <* spaces))
+ <|> tracepp "BAREARG3" <$> parens bareTypeP                -- starts with '('
+      -- starts with '_', '[', '(', lower, upper
  <?> "bareArgP"
 
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
@@ -379,36 +391,28 @@ refBindBindP rp kindP'
    )
 
 
-refBindOptBindP :: Symbol
-         -> Parser Expr
-         -> Parser (Reft -> BareType)
-         -> Parser BareType
-refBindOptBindP vv rp kindP'
-  = braces (
-      (try(do x  <- optBindP vv
-              i  <- freshIntP
-              t  <- kindP'
-              reservedOp "|"
-              ra <- rp <* spaces
-              let xi = intSymbol x i
-              -- xi is a unique var based on the name in x.
-              -- su replaces any use of x in the balance of the expression with the unique val
-              let su v = if v == x then xi else v
-              return $ substa su $ t (Reft (x, ra)) ))
-     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
-     <?> "refBindP"
-   )
+refDefP :: Symbol
+        -> Parser Expr
+        -> Parser (Reft -> BareType)
+        -> Parser BareType
+refDefP vv rp kindP' = braces $ do
+  x       <- optBindP vv
+  i       <- freshIntP
+  t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
+  ra      <- (rp <* spaces)
+  -- xi is a unique var based on the name in x.
+  -- su replaces any use of x in the balance of the expression with the unique val
+  let xi   = intSymbol x i
+  let su v = if v == x then xi else v
+  return   $ substa su $ t (Reft (x, ra))
+       -- substa su . t . Reft . (x,) <$> (rp <* spaces))
+      --  <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
 
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP = refBindBindP refaP
 
-refDefP :: Symbol -> Parser Expr -> Parser (Reft -> BareType) -> Parser BareType
-refDefP x  = refBindOptBindP x
-
-
 -- "sym :" or return the devault sym
-optBindP :: Symbol
-         -> Parser Symbol
+optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
 
 holeP :: Parser BareType
@@ -595,7 +599,7 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
     safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
 propositionSortP :: Parser [(Symbol, BSort)]
-propositionSortP = map (mapSnd toRSort) <$> propositionTypeP
+propositionSortP = map (F.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
 propositionTypeP = either parserFail return =<< (mkPropositionType <$> bareTypeP)
@@ -1039,7 +1043,7 @@ asizeP :: Parser LocSymbol
 asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
+decreaseP = F.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 

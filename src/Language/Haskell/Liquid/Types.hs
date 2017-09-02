@@ -1254,8 +1254,7 @@ bkClass (RRTy e r o t)
 bkClass t
   = ([], t)
 
-rFun :: Monoid r
-     => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFun :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
 rFun b t t' = RFun b t t' mempty
 
 rCls :: Monoid r => TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
