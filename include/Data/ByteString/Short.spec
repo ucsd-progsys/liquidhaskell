@@ -1,8 +1,12 @@
 module spec Data.ByteString.Short where
 
+import Data.String
+
 measure sbslen :: Data.ByteString.Short.ShortByteString -> { n : Int | 0 <= n }
 
 invariant { bs : Data.ByteString.Short.ShortByteString  | 0 <= sbslen bs }
+
+invariant { bs : Data.ByteString.Short.ShortByteString | sbslen bs == stringlen bs }
 
 assume toShort
     :: i : Data.ByteString.ByteString
