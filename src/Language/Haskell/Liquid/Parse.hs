@@ -319,15 +319,15 @@ bareTypeBracesP = do
             (try(do
                     x  <- symbolP
                     _ <- colon
-                    i  <- freshIntP
+                    -- NOSUBST i  <- freshIntP
                     t  <- bbaseP
                     reservedOp "|"
                     ra <- refasHoleP <* spaces
-                    let xi = intSymbol x i
                     -- xi is a unique var based on the name in x.
                     -- su replaces any use of x in the balance of the expression with the unique val
-                    let su v = if v == x then xi else v
-                    return $ Left $ PC (PcExplicit x) $ substa su $ t (Reft (x, ra)) ))
+                    -- NOSUBST let xi = intSymbol x i
+                    -- NOSUBST let su v = if v == x then xi else v
+                    return $ Left $ PC (PcExplicit x) $ {- substa su $ NOSUBST -} t (Reft (x, ra)) ))
            <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
                   return (Left $ nullPC t)
             )
@@ -346,7 +346,7 @@ bareTypeBracesP = do
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
-  = tracepp "BAREARG1" <$> refDefP vvv refasHoleP bbaseP -- starts with '{'
+  =  refDefP vvv refasHoleP bbaseP -- starts with '{'
  <|> holeP                           -- starts with '_'
  <|> tracepp "BAREARG2" <$> (dummyP (bbaseP <* spaces))
  <|> tracepp "BAREARG3" <$> parens bareTypeP                -- starts with '('
@@ -377,15 +377,15 @@ refBindBindP rp kindP'
       ((do
               x  <- symbolP
               _ <- colon
-              i  <- freshIntP
+              -- NOSUBST i  <- freshIntP
               t  <- kindP'
               reservedOp "|"
               ra <- rp <* spaces
-              let xi = intSymbol x i
               -- xi is a unique var based on the name in x.
               -- su replaces any use of x in the balance of the expression with the unique val
-              let su v = if v == x then xi else v
-              return $ substa su $ t (Reft (x, ra)) ))
+              -- NOSUBST let xi = intSymbol x i
+              -- NOSUBST let su v = if v == x then xi else v
+              return $ {- substa su $ NOSUBST -} t (Reft (x, ra)) ))
      <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
      <?> "refBindBindP"
    )
@@ -397,14 +397,14 @@ refDefP :: Symbol
         -> Parser BareType
 refDefP vv rp kindP' = braces $ do
   x       <- optBindP vv
-  i       <- freshIntP
+  -- NOSUBST i       <- freshIntP
   t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
   ra      <- (rp <* spaces)
   -- xi is a unique var based on the name in x.
   -- su replaces any use of x in the balance of the expression with the unique val
-  let xi   = intSymbol x i
-  let su v = if v == x then xi else v
-  return   $ substa su $ t (Reft (x, ra))
+  -- NOSUBST let xi   = intSymbol x i
+  -- NOSUBST let su v = if v == x then xi else v
+  return   $ {- substa su $ NOSUBST -} t (Reft (x, ra))
        -- substa su . t . Reft . (x,) <$> (rp <* spaces))
       --  <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
 
