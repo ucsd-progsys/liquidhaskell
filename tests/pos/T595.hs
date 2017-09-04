@@ -12,7 +12,7 @@ type Thing = [()] -- Vector ()
 {-@
 data Test = Test
     { vec  :: Thing
-    , x0   :: { x0 : Bool | ((len vec) < 1) ==> x0 }
+    , x0   :: { v : Bool | ((len vec) < 1) ==> v }
     }
 @-}
 
