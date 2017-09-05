@@ -36,6 +36,7 @@ import           Data.List                              (foldl', partition)
 
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
+import           SrcLoc                                 (noSrcSpan)
 
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
@@ -62,6 +63,7 @@ hsSpecificationP :: ModuleName
                  -> [(SourcePos, String)] -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
+hsSpecificationP _ [] _ = Left [ErrParseAnn noSrcSpan (text "Malformed annotation")]
 hsSpecificationP modName specComments specQuotes =
   case go ([], []) initPState $ reverse specComments of
     ([], specs) ->

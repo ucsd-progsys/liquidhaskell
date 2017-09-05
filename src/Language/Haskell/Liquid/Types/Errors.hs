@@ -358,6 +358,10 @@ data TError t =
                 , msg    :: !Doc
                 }
 
+  | ErrParseAnn { pos :: !SrcSpan
+                , msg :: !Doc
+                }
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -814,6 +818,9 @@ ppError' _ dSp dCtx (ErrTyCon _ msg ty)
   = dSp <+> text "Illegal data refinement for" <+> ppVar ty
         $+$ dCtx
         $+$ nest 4 msg
+
+ppError' _ _ _ (ErrParseAnn _ m)
+  = m
 
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "`"
