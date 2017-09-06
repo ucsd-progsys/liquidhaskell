@@ -1,8 +1,12 @@
 module spec Data.ByteString where
 
+import Data.String
+
 measure bslen :: Data.ByteString.ByteString -> { n : Int | 0 <= n }
 
 invariant { bs : Data.ByteString.ByteString  | 0 <= bslen bs }
+
+invariant { bs : Data.ByteString.ByteString | bslen bs == stringlen bs }
 
 empty :: { bs : Data.ByteString.ByteString | bslen bs == 0 }
 

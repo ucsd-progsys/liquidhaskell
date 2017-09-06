@@ -1,8 +1,12 @@
 module spec Data.ByteString.Lazy where
 
+import Data.String
+
 measure bllen :: Data.ByteString.Lazy.ByteString -> { n : Data.Int.Int64 | 0 <= n }
 
 invariant { bs : Data.ByteString.Lazy.ByteString | 0 <= bllen bs }
+
+invariant { bs : Data.ByteString.Lazy.ByteString | bllen bs == stringlen bs }
 
 assume empty :: { bs : Data.ByteString.Lazy.ByteString | bllen bs == 0 }
 
@@ -117,11 +121,6 @@ foldr1
     -> { bs : Data.ByteString.Lazy.ByteString | 1 <= bllen bs }
     -> Data.Word.Word8
 
-foldr1'
-    :: (Data.Word.Word8 -> Data.Word.Word8 -> Data.Word.Word8)
-    -> { bs : Data.ByteString.Lazy.ByteString | 1 <= bllen bs }
-    -> Data.Word.Word8
-
 assume concat
     :: is : [Data.ByteString.Lazy.ByteString]
     -> { o : Data.ByteString.Lazy.ByteString | len is == 0 ==> bllen o }
@@ -149,22 +148,6 @@ assume scanl
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i }
 
-assume scanl1
-    :: (Data.Word.Word8 -> Data.Word.Word8 -> Data.Word.Word8)
-    -> i : { i : Data.ByteString.Lazy.ByteString | 1 <= bllen i }
-    -> { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i }
-
-assume scanr
-    :: (Data.Word.Word8 -> Data.Word.Word8 -> Data.Word.Word8)
-    -> Data.Word.Word8
-    -> i : Data.ByteString.Lazy.ByteString
-    -> { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i }
-
-assume scanr1
-    :: (Data.Word.Word8 -> Data.Word.Word8 -> Data.Word.Word8)
-    -> i : { i : Data.ByteString.Lazy.ByteString | 1 <= bllen i }
-    -> { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i }
-
 assume mapAccumL
     :: (acc -> Data.Word.Word8 -> (acc, Data.Word.Word8))
     -> acc
@@ -181,12 +164,6 @@ assume replicate
     :: n : Data.Int.Int64
     -> Data.Word.Word8
     -> { bs : Data.ByteString.Lazy.ByteString | bllen bs == n }
-
-assume unfoldrN
-    :: n : Int
-    -> (a -> Maybe (Data.Word.Word8, a))
-    -> a
-    -> ({ bs : Data.ByteString.Lazy.ByteString | bllen bs <= n }, Maybe a)
 
 assume take
     :: n : Data.Int.Int64
@@ -230,13 +207,6 @@ assume span
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
        )
 
-assume spanEnd
-    :: (Data.Word.Word8 -> Bool)
-    -> i : Data.ByteString.Lazy.ByteString
-    -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
-       , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
-       )
-
 assume break
     :: (Data.Word.Word8 -> Bool)
     -> i : Data.ByteString.Lazy.ByteString
@@ -244,12 +214,6 @@ assume break
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
        )
 
-assume breakEnd
-    :: (Data.Word.Word8 -> Bool)
-    -> i : Data.ByteString.Lazy.ByteString
-    -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
-       , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
-       )
 assume group
     :: i : Data.ByteString.Lazy.ByteString
     -> [{ o : Data.ByteString.Lazy.ByteString | 1 <= bllen o && bllen o <= bllen i }]
@@ -286,18 +250,6 @@ assume isSuffixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
     -> { b : Bool | bllen l >= bllen r ==> not b }
-
-assume isInfixOf
-    :: l : Data.ByteString.Lazy.ByteString
-    -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
-
-assume breakSubstring
-    :: il : Data.ByteString.Lazy.ByteString
-    -> ir : Data.ByteString.Lazy.ByteString
-    -> ( { ol : Data.ByteString.Lazy.ByteString | bllen ol <= bllen ir && (bllen il > bllen ir ==> bllen ol == bllen ir)}
-       , { or : Data.ByteString.Lazy.ByteString | bllen or <= bllen ir && (bllen il > bllen ir ==> bllen or == 0) }
-       )
 
 assume elem
     :: Data.Word.Word8
@@ -377,10 +329,6 @@ assume unzip
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l == len i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r == len i }
        )
-
-assume sort
-    :: i : Data.ByteString.Lazy.ByteString
-    -> { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i }
 
 assume copy
     :: i : Data.ByteString.Lazy.ByteString

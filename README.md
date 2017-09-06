@@ -7,14 +7,9 @@
 Main Web site
 -------------
 
-The UCSD web site for liquid haskell is [here](https://ucsd-progsys.github.io/liquidhaskell-blog/)
-
-Examples
---------
-
-Jump to examples here [TODO]
-
-
+* [Splash page with examples and link to blog](https://ucsd-progsys.github.io/liquidhaskell-blog/)
+* [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
+* [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
 
 Contributing Guide
 ------------------
