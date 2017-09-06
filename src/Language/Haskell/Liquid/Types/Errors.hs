@@ -819,8 +819,10 @@ ppError' _ dSp dCtx (ErrTyCon _ msg ty)
         $+$ dCtx
         $+$ nest 4 msg
 
-ppError' _ _ _ (ErrParseAnn _ m)
-  = m
+ppError' _ dSp dCtx (ErrParseAnn _ msg)
+  = dSp <+> text "Malformed annotation"
+        $+$ dCtx
+        $+$ nest 4 msg
 
 ppVar :: PPrint a => a -> Doc
 ppVar v = text "`" <> pprint v <> text "`"
