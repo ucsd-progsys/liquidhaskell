@@ -95,15 +95,13 @@ errorWithContext e = CtxError e <$> srcSpanContext (pos e)
 
 srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext sp
-  | Just (f, l, c, c') <- srcSpanInfo sp
-  = maybe empty (makeContext l c c') <$> getFileLine f l
+  | Just (f, l, c, l', c') <- srcSpanInfo sp
+  = makeContext l c c' <$> getFileLines f l l'
   | otherwise
   = return empty
 
-srcSpanInfo :: SrcSpan -> Maybe (FilePath, Int, Int, Int)
-srcSpanInfo (RealSrcSpan s)
-  | l == l'   = Just (f, l, c, c')
-  | otherwise = Nothing
+srcSpanInfo :: SrcSpan -> Maybe (FilePath, Int, Int, Int, Int)
+srcSpanInfo (RealSrcSpan s) = Just (f, l, c, l', c')
   where
      f        = unpackFS $ srcSpanFile s
      l        = srcSpanStartLine s
@@ -112,28 +110,45 @@ srcSpanInfo (RealSrcSpan s)
      c'       = srcSpanEndCol    s
 srcSpanInfo _ = Nothing
 
-getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = do
+getFileLines :: FilePath -> Int -> Int -> IO [String]
+getFileLines f i j = do
   b <- doesFileExist f
   if b
-    then getNth (i - 1) . lines <$> readFile f
-    else return Nothing
+    then slice (i - 1) (j - 1) . lines <$> readFile f
+    else return []
 
-getNth :: Int -> [a] -> Maybe a
-getNth i xs
-  | i < length xs = Just (xs !! i)
-  | otherwise     = Nothing
+slice :: Int -> Int -> [a] -> [a]
+slice i j xs = take (j - i + 1) (drop i xs)
 
-makeContext :: Int -> Int -> Int -> String -> Doc
-makeContext l c c' s = vcat [ text ""
-                            , lnum l <+> (text s $+$ cursor)
-                            , text ""
-                            ]
+-- getNth :: Int -> [a] -> Maybe a
+-- getNth i xs
+-- /  | i < length xs = Just (xs !! i)
+-- /  | otherwise     = Nothing
+
+makeContext :: Int -> Int -> Int -> [String] -> Doc
+makeContext _ _ _  []  = empty
+makeContext l c c' [s] = makeContext1 l c c' s
+makeContext l _ _  ss  = vcat $ text " "
+                              : (zipWith makeContextLine [l..] ss)
+                              ++ [ text " "
+                                 , text " " ]
+
+makeContextLine :: Int -> String -> Doc
+makeContextLine l s = lnum l <+> text s
   where
-    lnum n           = text (show n) <+> text "|"
-    cursor           = blanks (c - 1) <> pointer (max 1 (c' - c))
-    blanks n         = text $ replicate n ' '
-    pointer n        = text $ replicate n '^'
+    lnum n          = text (show n) <+> text "|"
+
+makeContext1 :: Int -> Int -> Int -> String -> Doc
+makeContext1 l c c' s = vcat [ text " "
+                             , lnum l <+> (text s $+$ cursor)
+                             , text " "
+                             , text " "
+                             ]
+  where
+    lnum n            = text (show n) <+> text "|"
+    cursor            = blanks (c - 1) <> pointer (max 1 (c' - c))
+    blanks n          = text $ replicate n ' '
+    pointer n         = text $ replicate n '^'
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
