@@ -444,18 +444,27 @@ checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-
 extractSpecComments :: ParsedModule -> [(SourcePos, String)]
-extractSpecComments parsed = mapMaybe extractSpecComment comments
-  where
-    comments = concat $ M.elems $ snd $ pm_annotations parsed
+extractSpecComments = mapMaybe extractSpecComment
+                    . concat
+                    . M.elems
+                    . snd
+                    . pm_annotations
 
+-- | 'extractSpecComment' pulls out the specification part from a full comment
+--   string, i.e. if the string is of the form:
+--   1. '{-@ S @-}' then it returns the substring 'S',
+--   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
+--   3. Otherwise it is just treated as a plain comment so we return Nothing.
 extractSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
-extractSpecComment (GHC.L span (AnnBlockComment text))
-  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
-    Just (offsetPos, take (length text - 6) $ drop 3 text)
+
+extractSpecComment (GHC.L sp (AnnBlockComment text))
+  | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
+  = Just (offsetPos, take (length text - 6) $ drop 3 text)
+  | isPrefixOf "{-@" text                                   -- invalid specification
+  = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+    offsetPos = incSourceColumn (srcSpanSourcePos sp) 3
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
