@@ -352,11 +352,11 @@ bareTypeBracesP = do
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
-  =  refDefP vvv refasHoleP bbaseP -- starts with '{'
- <|> holeP                           -- starts with '_'
- <|> tracepp "BAREARG2" <$> (dummyP (bbaseP <* spaces))
- <|> tracepp "BAREARG3" <$> parens bareTypeP                -- starts with '('
-      -- starts with '_', '[', '(', lower, upper
+  =  refDefP vvv refasHoleP bbaseP    -- starts with '{'
+ <|> holeP                            -- starts with '_'
+ <|> (dummyP (bbaseP <* spaces))
+ <|> parens bareTypeP                 -- starts with '('
+                                      -- starts with '_', '[', '(', lower, upper
  <?> "bareArgP"
 
 bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)

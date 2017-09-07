@@ -40,7 +40,7 @@ import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
 
-import           Text.PrettyPrint.HughesPJ                  (text) --, (<+>))
+import           Text.PrettyPrint.HughesPJ                  hiding (first) -- (text, (<+>))
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L

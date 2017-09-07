@@ -33,18 +33,19 @@ import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
 -- import Language.Fixpoint.Misc (traceShow)
-import Language.Fixpoint.Types ( atLoc
-                               , Expr(..)
-                               , Reftable
-                               , Symbol
-                               , meet
-                               , mkSubst
-                               , subst
-                               , symbol
-                               , symbolString
-                               , mkEApp
-                               -- , tracepp
-                               )
+import Language.Fixpoint.Types (Expr (..))
+import qualified Language.Fixpoint.Types as F
+-- ( atLoc
+   --  , Expr(..)
+   --  , F.Reftable
+   --  , Symbol
+   --  , meet
+   --  , mkSubst
+  --  , subst
+  --  , symbol
+  --  , symbolString
+  --  , mkEApp
+  --  )
 
 
 import Language.Haskell.Liquid.GHC.Misc
@@ -88,7 +89,7 @@ mapMPvar f (PV x t v txys)
 
 --------------------------------------------------------------------------------
 mkLSpecType :: Located BareType -> BareM (Located SpecType)
-mkLSpecType !t = atLoc t <$> mkSpecType (loc t) (val t)
+mkLSpecType !t = F.atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
 mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
@@ -103,7 +104,7 @@ txParam :: SourcePos
         -> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
 txParam l f πs t = f (txPvar l (predMap πs t))
 
-txPvar :: SourcePos -> M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
+txPvar :: SourcePos -> M.HashMap F.Symbol UsedPVar -> UsedPVar -> UsedPVar
 txPvar l m π = π { pargs = args' }
   where
     args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
@@ -113,14 +114,14 @@ txPvar l m π = π { pargs = args' }
         -- err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 
-predMap :: [UsedPVar] -> RType c tv r -> M.HashMap Symbol UsedPVar
+predMap :: [UsedPVar] -> RType c tv r -> M.HashMap F.Symbol UsedPVar
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
 rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, Reftable (RTProp RTyCon RTyVar r), Reftable (RTProp BTyCon BTyVar r))
+ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, F.Reftable (RTProp RTyCon RTyVar r), F.Reftable (RTProp BTyCon BTyVar r))
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -161,13 +162,16 @@ ofBRType appRTAlias resolveReft !t
     go_syms
       = secondM ofBSort
 
+
     goRFun bounds _ (RApp c ps' _ _) t _
       | Just bnd <- M.lookup (btc_tc c) bounds
       = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
            ts <- mapM go ts'
            makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
     goRFun _ x t1 t2 r
-      = RFun x <$> go t1 <*> go t2 <*> resolveReft r
+      = RFun x <$> (rebind x <$> go t1) <*> go t2 <*> resolveReft r
+
+    rebind x t = F.subst1 t (x, F.EVar $ rTypeValueVar t)
 
     goRApp aliases !(RApp tc ts _ r)
       | Loc l _ c <- btc_tc tc
@@ -209,10 +213,10 @@ expandRTAliasApp l rta args r
     = Ex.throw errmsg
   | otherwise
     = do ts <- mapM (ofBareType l) $ take (length αs) args
-         es <- mapM (resolve l . exprArg (symbolString $ rtName rta)) $ drop (length αs) args
+         es <- mapM (resolve l . exprArg (F.symbolString $ rtName rta)) $ drop (length αs) args
          let tsu = zipWith (\α t -> (α, toRSort t, t)) αs ts
-         let esu = mkSubst $ zip (symbol <$> εs) es
-         return $ subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
+         let esu = F.mkSubst $ zip (F.symbol <$> εs) es
+         return  $ F.subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
 
   where
     αs        = rtTArgs rta
@@ -221,8 +225,6 @@ expandRTAliasApp l rta args r
     err       = ErrAliasApp (sourcePosSrcSpan l)
                             (pprint $ rtName rta)
                             (sourcePosSrcSpan $ rtPos rta)
-
-
     isOK :: Maybe Error
     isOK
       | length args /= length targs + length eargs
@@ -259,13 +261,13 @@ exprArg :: (PrintfArg t1)  => t1 -> BareType -> Expr
 exprArg _   (RExprArg e)
   = val e
 exprArg _   (RVar x _)
-  = EVar (symbol x)
+  = EVar (F.symbol x)
 exprArg _   (RApp x [] [] _)
-  = EVar (symbol x)
+  = EVar (F.symbol x)
 exprArg msg (RApp f ts [] _)
-  = mkEApp (symbol <$> btc_tc f) (exprArg msg <$> ts)
+  = F.mkEApp (F.symbol <$> btc_tc f) (exprArg msg <$> ts)
 exprArg msg (RAppTy (RVar f _) t _)
-  = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
+  = F.mkEApp (dummyLoc $ F.symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
   -- = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z ++ "[" ++ show (toConstr z) ++ "]") msg
@@ -273,7 +275,7 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp :: (Monad m, PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+bareTCApp :: (Monad m, PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
           => r
           -> Located TyCon
           -> [RTProp RTyCon RTyVar r]
@@ -299,13 +301,13 @@ bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
 bareTCApp r (Loc _ _ c) rs ts
   = return $ rApp c ts rs r
 
-tyApp :: Reftable r
+tyApp :: F.Reftable r
       => RType c tv r
       -> [RType c tv r] -> [RTProp c tv r] -> r -> RType c tv r
-tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
+tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `F.meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
+expandRTypeSynonyms :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar r))
                     => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

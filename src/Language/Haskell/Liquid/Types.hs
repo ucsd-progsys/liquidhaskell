@@ -1540,8 +1540,10 @@ efoldReft logicBind cb dty g f fp = go
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x t t' r)
-       | logicBind x t                  = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
-       | otherwise                      = f γ (Just me) r (go γ (go γ z t) t')
+       | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
+       | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
+       where
+         γ'                             = insertSEnv x (g t) γ
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'

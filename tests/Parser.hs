@@ -123,7 +123,7 @@ testSpecP =
 
     , testCase "class" $
        parseSingleSpec "class Sized s where\n  size :: forall a. x:s a -> {v:Nat | v = sz x}" @?=
-          "Class (RClass {rcName = Sized, rcSupers = [], rcTyVars = [BTV \"s\"], rcMethods = [(\"size\" (dummyLoc),x:s a -> {v##0 : Nat | v##0 == sz x} (dummyLoc))]})"
+          "Class (RClass {rcName = Sized, rcSupers = [], rcTyVars = [BTV \"s\"], rcMethods = [(\"size\" (dummyLoc),x:s a -> {v : Nat | v == sz x} (dummyLoc))]})"
 
     , testCase "import" $
        parseSingleSpec "import Foo" @?=
@@ -147,16 +147,16 @@ testSpecP =
 
     , testCase "invariant" $
        parseSingleSpec "invariant {v:Tree a | 0 <= ht v}" @?=
-          "Invt {v##0 : (Tree a) | 0 <= ht v##0} (dummyLoc)"
+          "Invt {v : (Tree a) | 0 <= ht v} (dummyLoc)"
 
     , testCase "using" $
        parseSingleSpec "using (Tree a) as  {v:Tree a   | 0 <= height v}" @?=
           -- "IAlias ((Tree a) (dummyLoc),{v##0 : (Tree a) | 0 <= height v##0} (dummyLoc))"
-             "IAlias ((Tree a) (dummyLoc),{v##2 : (Tree a) | 0 <= height v##2} (dummyLoc))"
+             "IAlias ((Tree a) (dummyLoc),{v : (Tree a) | 0 <= height v} (dummyLoc))"
 
     , testCase "type" $
        parseSingleSpec "type PosInt = {v: Int | v >= 0}" @?=
-          "Alias type PosInt   = {v##0 : Int | v##0 >= 0} -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+          "Alias type PosInt   = {v : Int | v >= 0} -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
     , testCase "predicate" $
        parseSingleSpec "predicate Pos X  = X > 0" @?=
@@ -305,7 +305,7 @@ testSucceeds =
     , testCase "type spec 2 " $
        parseSingleSpec "takeL :: Ord a => x:a -> [a] -> [{v:a|v<=x}]" @?=
           -- "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v##2 : a | v##2 <= x}] (dummyLoc),Nothing))"
-             "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v##4 : a | v##4 <= x}] (dummyLoc),Nothing))"
+             "Asrts ([\"takeL\" (dummyLoc)],((Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v : a | v <= x}] (dummyLoc),Nothing))"
 
     , testCase "type spec 3" $
        parseSingleSpec "bar :: t 'Nothing" @?=
@@ -331,11 +331,11 @@ testSucceeds =
 
     , testCase "type spec 7" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
-              "Alias type AVLL \"a\" \"X\" = (AVLTree {v##1 : a | v##1 < X}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+              "Alias type AVLL \"a\" \"X\" = (AVLTree {v : a | v < X}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
     , testCase "type spec 8" $
        parseSingleSpec "type AVLR a X    = AVLTree {v:a |X< v} " @?=
-             "Alias type AVLR \"a\" \"X\" = (AVLTree {v##1 : a | X < v##1}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
+             "Alias type AVLR \"a\" \"X\" = (AVLTree {v : a | X < v}) -- defined at \"Fixpoint.Types.dummyLoc\" (line 0, column 0)"
 
     , testCase "type spec 9 " $
        parseSingleSpec (unlines $
@@ -345,7 +345,7 @@ testSucceeds =
       , "  {a<q> <: a<r>} "
       , "  Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> "])
         @?=
-             "Assm (\"(++)\" (dummyLoc),(Ord a) =>\n{x :: {VV : a | true} |- {VV : a | true} <: {v##8 : a | x <= v##8}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\nlq_tmp$db##14:(OList {VV : a | true}) -> lq_tmp$db##16:(OList {VV : a | true}) -> (OList {VV : a | true}) (dummyLoc))"
+             "Assm (\"(++)\" (dummyLoc),(Ord a) =>\n{x :: {VV : a | true} |- {VV : a | true} <: {v : a | x <= v}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\n{|- {VV : a | true} <: {VV : a | true}} =>\nlq_tmp$db##13:(OList {VV : a | true}) -> lq_tmp$db##15:(OList {VV : a | true}) -> (OList {VV : a | true}) (dummyLoc))"
 
     , testCase "type spec 10" $
        parseSingleSpec (unlines $
@@ -359,7 +359,7 @@ testSucceeds =
 
     , testCase "type spec 11" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?=
-          "Asrts ([\"assume\" (dummyLoc)],(b:{VV : _ | $HOLE} -> lq_tmp$db##0:a -> {v##1 : a | b} (dummyLoc),Nothing))"
+          "Asrts ([\"assume\" (dummyLoc)],(b:{VV : _ | $HOLE} -> lq_tmp$db##0:a -> {v : a | b} (dummyLoc),Nothing))"
 
     , testCase "type spec 12" $
        parseSingleSpec (unlines $
@@ -368,7 +368,7 @@ testSucceeds =
           , "       {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}"
           , "       (Int<p> -> ()) -> x:Int<q> -> ()" ])
           @?=
-             "Asrts ([\"app\" (dummyLoc)],({|- Int <: Int} =>\n{x :: Int |- {v##7 : Int | v##7 == x + 1} <: Int} =>\nlq_tmp$db##9:(lq_tmp$db##10:Int -> ()) -> x:Int -> () (dummyLoc),Nothing))"
+             "Asrts ([\"app\" (dummyLoc)],({|- Int <: Int} =>\n{x :: Int |- {v : Int | v == x + 1} <: Int} =>\nlq_tmp$db##8:(lq_tmp$db##9:Int -> ()) -> x:Int -> () (dummyLoc),Nothing))"
 
     , testCase "type spec 13" $
        parseSingleSpec (unlines $
@@ -377,7 +377,7 @@ testSucceeds =
           , "         {x::a<p> |- {v:a | x <= v} <: a<q>}"
           , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
           @?=
-             "Asrts ([\"ssum\" (dummyLoc)],({|- {v##4 : a | v##4 == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v##7 : a | x <= v##7} <: {VV : a | true}} =>\nxs:[{v##9 : a | 0 <= v##9}] -> {v##10 : a | len xs >= 0\n                                            && 0 <= v##10} (dummyLoc),Nothing))"
+             "Asrts ([\"ssum\" (dummyLoc)],({|- {v : a | v == 0} <: {VV : a | true}} =>\n{x :: {VV : a | true} |- {v : a | x <= v} <: {VV : a | true}} =>\nxs:[{v : a | 0 <= v}] -> {v : a | len xs >= 0\n                                  && 0 <= v} (dummyLoc),Nothing))"
 
     , testCase "type spec 14" $
        parseSingleSpec (unlines $
@@ -391,7 +391,7 @@ testSucceeds =
 
     , testCase "type spec 15" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?=
-             "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##7:a -> b | f == g} (dummyLoc))"
+             "Assm (\"(=*=.)\" (dummyLoc),(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##6:a -> b | f == g} (dummyLoc))"
 
     , testCase "type spec 16" $
        parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?=
@@ -399,7 +399,7 @@ testSucceeds =
 
     , testCase "type spec 17" $
        parseSingleSpec " ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y } " @?=
-           "Asrts ([\"==.\" (dummyLoc)],(x:a -> y:{y##0 : a | x == y##0} -> {v##1 : b | v##1 ~~ x\n                                               && v##1 ~~ y} (dummyLoc),Nothing))"
+           "Asrts ([\"==.\" (dummyLoc)],(x:a -> y:{y : a | x == y} -> {v : b | v ~~ x\n                                      && v ~~ y} (dummyLoc),Nothing))"
 
     , testCase "type spec 18" $
        parseSingleSpec "measure snd :: (a,b) -> b" @?=
@@ -413,27 +413,27 @@ testSucceeds =
 
     , testCase "type spec 20" $
        parseSingleSpec "makeq :: l:_ -> r:{ _ | size r <= size l + 1} -> _ " @?=
-           "Asrts ([\"makeq\" (dummyLoc)],(l:{VV : _ | $HOLE} -> r:{r##0 : _ | size r##0 <= size l + 1} -> {VV : _ | $HOLE} (dummyLoc),Nothing))"
+           "Asrts ([\"makeq\" (dummyLoc)],(l:{VV : _ | $HOLE} -> r:{r : _ | size r <= size l + 1} -> {VV : _ | $HOLE} (dummyLoc),Nothing))"
 
     , testCase "type spec 21" $
        parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?=
-            "Asrts ([\"newRGRef\" (dummyLoc)],(e:{VV : a | true} -> e2:{VV : a | true} -> f:(x:{VV : a | true} -> y:{VV : a | true} -> {v##5 : a | v##5 == y}) -> (IO (RGRef a)) (dummyLoc),Nothing))"
+            "Asrts ([\"newRGRef\" (dummyLoc)],(e:{VV : a | true} -> e2:{VV : a | true} -> f:(x:{VV : a | true} -> y:{VV : a | true} -> {v : a | v == y}) -> (IO (RGRef a)) (dummyLoc),Nothing))"
 
     , testCase "type spec 22" $
        parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?=
-            "Asrts ([\"cycle\" (dummyLoc)],(v:{v##0 : [a] | len v##0 > 0} -> [a] (dummyLoc),Nothing))"
+            "Asrts ([\"cycle\" (dummyLoc)],(v:{v : [a] | len v > 0} -> [a] (dummyLoc),Nothing))"
 
     , testCase "type spec 23" $
        parseSingleSpec "cons :: x:a -> _ -> {v:[a] | hd v = x} " @?=
-         "Asrts ([\"cons\" (dummyLoc)],(x:a -> lq_tmp$db##0:{VV : _ | $HOLE} -> {v##1 : [a] | hd v##1 == x} (dummyLoc),Nothing))"
+         "Asrts ([\"cons\" (dummyLoc)],(x:a -> lq_tmp$db##0:{VV : _ | $HOLE} -> {v : [a] | hd v == x} (dummyLoc),Nothing))"
 
     , testCase "type spec 24" $
        parseSingleSpec "set :: a:Vector a -> i:Idx a -> a -> {v:Vector a | vlen v = vlen a}" @?=
-         "Asrts ([\"set\" (dummyLoc)],(a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v##1 : (Vector a) | vlen v##1 == vlen a} (dummyLoc),Nothing))"
+         "Asrts ([\"set\" (dummyLoc)],(a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v : (Vector a) | vlen v == vlen a} (dummyLoc),Nothing))"
 
     , testCase "type spec 25" $
        parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?=
-         "Assm (\"GHC.Prim.+#\" (dummyLoc),x:Int# -> y:Int# -> {v##0 : Int# | v##0 == x + y} (dummyLoc))"
+         "Assm (\"GHC.Prim.+#\" (dummyLoc),x:Int# -> y:Int# -> {v : Int# | v == x + y} (dummyLoc))"
 
     , testCase "type spec 26" $
        parseSingleSpec " measure isEVar " @?=
