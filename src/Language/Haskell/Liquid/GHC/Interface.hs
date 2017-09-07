@@ -451,6 +451,7 @@ extractSpecComments = mapMaybe extractSpecComment
                     . snd
                     . pm_annotations
 
+
 -- | 'extractSpecComment' pulls out the specification part from a full comment
 --   string, i.e. if the string is of the form:
 --   1. '{-@ S @-}' then it returns the substring 'S',
