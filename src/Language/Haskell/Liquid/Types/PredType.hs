@@ -63,7 +63,7 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
     pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType
-dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
+dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _ _)
   = mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip $ reverse yts
@@ -78,8 +78,6 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _)
     ts'      = map ("" , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = F.subst su rt
-
-
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
@@ -92,13 +90,14 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ vs ps ls cs yts t _)
-     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))  <+>
-       (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))  <+>
-       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))  <+>
-       (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))  <+>
-       (parens $ hsep (punctuate comma (pprintTidy k <$> yts))) <+>
-       pprintTidy k t
+  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt _)
+     =  (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))  
+    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
+    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
+    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
+    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> yts)))
+    <+> (pprintTidy k isGadt)
+    <+>  pprintTidy k t
 
 instance Show DataConP where
   show = showpp

@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.0.0
+Version:             0.8.0.2
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -73,13 +73,13 @@ Executable liquid
                , deepseq
                , pretty
                , process
-               , liquid-fixpoint >= 0.6
+               , liquid-fixpoint >= 0.7
                , located-base
                , liquidhaskell
                , hpc >= 0.6
 
   Main-is: src/Liquid.hs
-  ghc-options: -W -threaded
+  ghc-options: -W -threaded -fdefer-typed-holes
   if flag(devel)
     ghc-options: -Werror
   Default-Extensions: PatternGuards
@@ -119,7 +119,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.6
+                , liquid-fixpoint >= 0.7
                 , located-base
                 , aeson >= 0.10 && < 1.0
                 , bytestring >= 0.10
@@ -137,12 +137,8 @@ Library
                 , ghc-prim
                 , hpc >= 0.6
 
-
-
    hs-source-dirs:  src, include
-
    Exposed-Modules: LiquidHaskell,
-
                     Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.ProofCombinators,
                     Language.Haskell.Liquid.Foreign,
@@ -222,7 +218,6 @@ Library
                     Language.Haskell.Liquid.Desugar.DsMonad,
                     Language.Haskell.Liquid.Desugar.StaticPtrTable,
                     Language.Haskell.Liquid.Desugar.TmOracle
-
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
@@ -286,10 +281,9 @@ test-suite test
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint
+               ,     liquid-fixpoint >= 0.7
                ,     hpc >= 0.6
                ,     text
-
 
 test-suite liquidhaskell-parser
   default-language: Haskell2010
@@ -309,7 +303,7 @@ test-suite liquidhaskell-parser
                ,     text
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.6
+               ,     liquid-fixpoint >= 0.7
                ,     hpc >= 0.6
 
   if flag(devel)
@@ -328,7 +322,7 @@ test-suite liquidhaskell-parser
                 , ghc == 8.0.2
                 , ghc-boot == 8.0.2
                 , hashable >= 1.2
-                , liquid-fixpoint >= 0.6
+                , liquid-fixpoint >= 0.7
                 , pretty
                 , syb >= 0.4.4
                 , time

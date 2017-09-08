@@ -40,7 +40,7 @@ import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
 
-import           Text.PrettyPrint.HughesPJ                  (text) --, (<+>))
+import           Text.PrettyPrint.HughesPJ                  hiding (first) -- (text, (<+>))
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -50,7 +50,7 @@ import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
-import           Language.Fixpoint.Types                    hiding (DataDecl, Error)
+import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
@@ -96,21 +96,26 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  sp      <- throwLeft =<< execBare act initEnv
-  let renv =  ghcSpecEnv sp
+  sp         <- throwLeft =<< execBare act initEnv
+  let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    axs       = initAxSymbols name defVars specs
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty axs
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+                    (initAxSymbols name defVars specs)
+                    (initPropSymbols specs)
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where
     locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
     tx                = qualifySymbol' vs
+
+-- | see NOTE:AUTO-INDPRED in Bare/DataType.hs
+initPropSymbols :: [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initPropSymbols _ = M.empty
 
 importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
 importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
@@ -154,16 +159,33 @@ postProcess cbs specEnv sp@(SP {..})
     allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv binds
+ghcSpecEnv sp        = res
   where
+    res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ] -- // || S.member x refls ]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
+                                                                 isConLikeId v ]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
+    -- TODO:AUTO-INDPRED
+    -- res               = unionSEnv' (fromListSEnv binds) env1
+    -- env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
+    -- propBinds        = [ propCtor d          | d <- gsADTs sp, isPropDecl d  ]
+
+
+_propCtor :: F.DataDecl -> (Symbol, SortedReft)
+_propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
+  where
+    t                               = F.mkFFunc n (inTs ++ [outT])
+    inTs                            = F.dfSort <$> ts
+    outT                            = F.fTyconSelfSort c n
+_propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
+  where
+    msg                             = "Invalid propCtor: " ++ show c
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
@@ -622,7 +644,7 @@ insertHMeasLogicEnv (x, s)
 makeGhcSpecCHOP1
   :: Config -> [(ModName,Ms.Spec ty bndr)] -> TCEmb TyCon -> [(Symbol, Var)]
   -> BareM ( [(TyCon,TyConP)]
-           , [(DataCon,DataConP)]
+           , [(DataCon, DataConP)]
            , [Measure SpecType DataCon]
            , [(Var, Located SpecType)]
            , M.HashMap TyCon RTyCon
@@ -631,11 +653,11 @@ makeGhcSpecCHOP1
 
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcDds, dcs)    <- mconcat <$> mapM makeConTypes specs
-  let tcs          = [(x, y) | (x, y,_)       <- tcDds]
+  let tcs          = [(x, y) | (_, x, y, _)       <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-  let tds          = [(tc, dd) | (tc, _, Just dd) <- tcDds]
+  let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
   let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
   recSels         <- makeRecordSelectorSigs datacons
@@ -701,7 +723,6 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
         Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
         su    = mkSubst [(v, mkEApp x [EVar v])]
         reft  = Reft (v, subst su p')
-
         p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]

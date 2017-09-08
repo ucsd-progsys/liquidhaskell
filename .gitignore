@@ -1,7 +1,6 @@
 dist
 cabal-dev
 .hsenv
-*.md
 *.o
 *.hi
 *.chi

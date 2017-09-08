@@ -30,7 +30,7 @@ solve   :: Formula -> Maybe Asgn
 solve f = find (\a -> sat a f) (asgns f)
 
 
-{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
+{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
             {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a

@@ -11,7 +11,6 @@ import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
 import qualified Data.HashMap.Strict              as M
 import           Language.Fixpoint.Types          (tracepp, Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
--- import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc     (firstMaybes, safeZipWithError)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
@@ -99,7 +98,7 @@ expandExpr = go
     go (EIte p e1 e2)  = EIte        <$> go p   <*> go e1 <*> go e2
     -- go e@(EVar _)      = return e
     go e@(PKVar _ _)   = return e
-    go (PGrad k su i e)  = PGrad k su i <$> go e 
+    go (PGrad k su i e)  = PGrad k su i <$> go e
     go e@(ESym _)      = return e
     go e@(ECon _)      = return e
 

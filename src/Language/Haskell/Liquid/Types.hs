@@ -22,12 +22,6 @@ module Language.Haskell.Liquid.Types (
   -- * Options
     Config (..)
   , HasConfig (..)
-  , hasOpt
-  , totalityCheck
-  , terminationCheck
-  , patternFlag
-  , expandFlag
-  , higherOrderFlag
 
   -- * Ghc Information
   , GhcInfo (..)
@@ -90,8 +84,9 @@ module Language.Haskell.Liquid.Types (
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
   , DataDecl (..)
+  , DataCtor (..)
   , DataConP (..)
-  , TyConP (..)
+  , TyConP   (..)
 
   -- * Pre-instantiated RType
   , RRType, RRProp
@@ -425,8 +420,8 @@ dropApp _ _          = errorstar "impossible"
 
 isApp :: Expr -> Bool
 isApp (F.EApp (F.EVar _) (F.EVar _)) = True
-isApp (F.EApp e (F.EVar _))        = isApp e
-isApp _                        = False
+isApp (F.EApp e (F.EVar _))          = isApp e
+isApp _                              = False
 
 data TyConP = TyConP
   { ty_loc       :: !F.SourcePos
@@ -447,6 +442,7 @@ data DataConP = DataConP
   , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
+  , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
@@ -1088,9 +1084,29 @@ instance F.Subable AxiomEq where
 mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
 mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
                        , axiomEq   = f (axiomEq   a) }
+
 --------------------------------------------------------------------------------
--- | Values Related to Specifications ------------------------------------------
+-- | Data type refinements
 --------------------------------------------------------------------------------
+data DataDecl   = D
+  { tycName   :: F.LocSymbol           -- ^ Type  Constructor Name
+  , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
+  , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
+  , tycTyLabs :: [Symbol]              -- ^ PLabel  Parameters
+  , tycDCons  :: [DataCtor]            -- ^ Data Constructors
+  , tycSrcPos :: !F.SourcePos          -- ^ Source Position
+  , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
+  , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
+  } deriving (Data, Typeable, Generic)
+
+-- | Data Constructor
+data DataCtor = DataCtor
+  { dcName   :: F.LocSymbol               -- ^ DataCon name
+  , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
+  , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
+  } deriving (Data, Typeable, Generic)
+
+-- | Termination expressios
 data SizeFun
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
@@ -1107,17 +1123,7 @@ szFun (SymSizeFun f) = \x -> F.mkEApp (F.symbol <$> f) [F.EVar x]
 instance NFData   SizeFun
 instance B.Binary SizeFun
 
--- | Data type refinements
-data DataDecl   = D
-  { tycName   :: F.LocSymbol                           -- ^ Type  Constructor Name
-  , tycTyVars :: [Symbol]                              -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]                          -- ^ PVar  Parameters
-  , tycTyLabs :: [Symbol]                              -- ^ PLabel  Parameters
-  , tycDCons  :: [(F.LocSymbol, [(Symbol, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]
-  , tycSrcPos :: !F.SourcePos                          -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun                         -- ^ Measure that should decrease in recursive calls
-  } deriving (Data, Typeable, Generic)
-
+instance B.Binary DataCtor
 instance B.Binary DataDecl
 
 instance Eq DataDecl where
@@ -1125,6 +1131,9 @@ instance Eq DataDecl where
 
 instance Ord DataDecl where
   compare d1 d2 = compare (tycName d1) (tycName d2)
+
+instance F.Loc DataCtor where
+  srcSpan = F.srcSpan . dcName
 
 instance F.Loc DataDecl where
   srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
@@ -1144,7 +1153,9 @@ instance F.PPrint DataDecl where
 instance F.Symbolic DataDecl where
   symbol =  F.symbol . tycName
 
+--------------------------------------------------------------------------------
 -- | Refinement Type Aliases
+--------------------------------------------------------------------------------
 data RTAlias x a = RTA
   { rtName  :: Symbol             -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
@@ -1243,8 +1254,7 @@ bkClass (RRTy e r o t)
 bkClass t
   = ([], t)
 
-rFun :: Monoid r
-     => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFun :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
 rFun b t t' = RFun b t t' mempty
 
 rCls :: Monoid r => TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
@@ -1530,8 +1540,10 @@ efoldReft logicBind cb dty g f fp = go
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x t t' r)
-       | logicBind x t                  = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
-       | otherwise                      = f γ (Just me) r (go γ (go γ z t) t')
+       | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
+       | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
+       where
+         γ'                             = insertSEnv x (g t) γ
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
@@ -1748,7 +1760,6 @@ instance F.PPrint ModName where
 
 instance Show ModuleName where
   show = moduleNameString
-
 
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m

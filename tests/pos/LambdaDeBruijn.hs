@@ -1,5 +1,7 @@
 module LambdaDeBruijn where
 
+{-@ LIQUID "--prune-unsorted" @-}
+
 {- Proving Termination of Parallel Substitutions,
    see  § 3.2.2 of Dependent Types and Multi Monadic Effects in F*
  -}

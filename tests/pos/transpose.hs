@@ -24,7 +24,7 @@ import Language.Haskell.Liquid.Prelude
 mat_3_2 :: [[Int]]
 mat_3_2 = [ [1,2,3]
           , [4,5,6] ]
-          
+
 {-@ mat_2_4 :: {v: Matrix Int | (Dim v 2 4)} @-}
 mat_2_4 :: [[Int]]
 mat_2_4 = [ [1,2]
@@ -35,16 +35,16 @@ mat_2_4 = [ [1,2]
 -- | Old fashioned transpose with explicit dimensions
 
 {- transpose :: c:Nat
-             -> r:{v:Nat | v > 0} 
-             -> {v:[{v:[a] | (len v) = c}] | (len v) = r} 
-             -> {v:[{v:[a] | (len v) = r}] | (len v) = c} 
+             -> r:{v:Nat | v > 0}
+             -> {v:[{v:[a] | (len v) = c}] | (len v) = r}
+             -> {v:[{v:[a] | (len v) = r}] | (len v) = c}
   -}
 
 {-@ transpose :: c:Nat -> r:{v:Nat | v > 0}  -> (MatrixCR a c r) -> (MatrixCR a r c) @-}
 transpose     :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
-transpose n m ([] : _)       = liquidError "transpose1" 
+transpose n m ([] : _)       = liquidError "transpose1"
 transpose n m []             = liquidError "transpose2"
 
 
@@ -59,4 +59,3 @@ transpose' []             = liquidError "transpose'"
 {-@ transpose''     :: c:Nat -> r:{v:Nat | v > 0}  -> (MatrixCR a c r) -> (MatrixCR a r c) @-}
 transpose''         :: Int -> Int -> [[a]] -> [[a]]
 transpose'' n m xss = transpose' xss
-

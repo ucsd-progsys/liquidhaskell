@@ -1,3 +1,5 @@
+{-@ LIQUID "--prune-unsorted" @-}
+
 module Avg where
 
 {-@ measure sumF :: [Double] -> Double

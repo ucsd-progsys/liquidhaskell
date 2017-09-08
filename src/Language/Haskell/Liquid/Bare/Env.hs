@@ -63,12 +63,13 @@ data BareEnv = BE
   { modName  :: !ModName
   , tcEnv    :: !TCEnv
   , rtEnv    :: !RTEnv
-  , varEnv   :: M.HashMap Symbol Var -- S.HashSet (Symbol, Var) -- [(Symbol, Var)]
-  , hscEnv   :: HscEnv
-  , logicEnv :: LogicMap
-  , bounds   :: RBEnv
-  , embeds   :: TCEmb TyCon
-  , axSyms   :: M.HashMap Symbol LocSymbol
+  , varEnv   :: !(M.HashMap Symbol Var)
+  , hscEnv   :: !(HscEnv)
+  , logicEnv :: !LogicMap
+  , bounds   :: !(RBEnv)
+  , embeds   :: !(TCEmb TyCon)
+  , axSyms   :: !(M.HashMap Symbol LocSymbol)
+  , propSyms :: !(M.HashMap Symbol LocSymbol)
   }
 
 setEmbeds :: TCEmb TyCon -> BareM ()

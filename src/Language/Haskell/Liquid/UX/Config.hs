@@ -1,27 +1,16 @@
---------------------------------------------------------------------------------
--- | Command Line Config Options -----------------------------------------------
---------------------------------------------------------------------------------
+-- | Command Line Configuration Options ----------------------------------------
 
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.UX.Config (
-   -- * Configuration Options
      Config (..)
    , HasConfig (..)
-   , hasOpt
-   , totalityCheck
-   , terminationCheck
-   , patternFlag
-   , expandFlag
-   , higherOrderFlag
-
    , Instantiate (..)
    , allowSMTInstationation
    , allowLiquidInstationation
    , allowLiquidInstationationGlobal
    , allowLiquidInstationationLocal
-
    , ProofMethod (..)
    , allowRewrite
    , allowArithmetic
@@ -122,7 +111,7 @@ allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLoca
 allowInstances, allowRewrite, allowArithmetic :: Config -> Bool
 allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
 allowArithmetic cfg = allowInstances cfg && (proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods)
-allowInstances  cfg = autoInstantiate cfg /= NoInstances 
+allowInstances  cfg = autoInstantiate cfg /= NoInstances
 
 instance Default ProofMethod where
   def = Rewrite
@@ -143,29 +132,32 @@ instance Show Instantiate where
   show LiquidInstances       = "liquid-global"
 
 
-class HasConfig t where
-  getConfig :: t -> Config
-
 instance HasConfig Config where
   getConfig x = x
 
-patternFlag :: (HasConfig t) => t -> Bool
-patternFlag = not . noPatternInline . getConfig
+class HasConfig t where
+  getConfig :: t -> Config
 
-higherOrderFlag :: (HasConfig t) => t -> Bool
-higherOrderFlag = higherorder . getConfig
+  patternFlag :: t -> Bool
+  patternFlag = not . noPatternInline . getConfig
 
-expandFlag :: (HasConfig t) => t -> Bool
-expandFlag = not . nocaseexpand . getConfig
+  higherOrderFlag :: t -> Bool
+  higherOrderFlag = higherorder . getConfig
 
-hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
-hasOpt t f = f (getConfig t)
+  pruneFlag :: t -> Bool
+  pruneFlag = pruneUnsorted . getConfig
 
-totalityCheck :: (HasConfig t) => t -> Bool
-totalityCheck = totalityCheck' . getConfig
+  expandFlag :: t -> Bool
+  expandFlag = not . nocaseexpand . getConfig
 
-terminationCheck :: (HasConfig t) => t -> Bool
-terminationCheck = terminationCheck' . getConfig
+  hasOpt :: t -> (Config -> Bool) -> Bool
+  hasOpt t f = f (getConfig t)
+
+  totalityCheck :: t -> Bool
+  totalityCheck = totalityCheck' . getConfig
+
+  terminationCheck :: t -> Bool
+  terminationCheck = terminationCheck' . getConfig
 
 totalityCheck' :: Config -> Bool
 totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg

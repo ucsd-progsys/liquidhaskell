@@ -5,8 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Main where
 
+module Main where
 
 import Control.Applicative
 import qualified Control.Concurrent.STM as STM
@@ -38,6 +38,7 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
+import Paths_liquidhaskell
 
 import Text.Printf
 
@@ -142,8 +143,6 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/CyclicExprAlias3.hs"    2 "Cyclic type alias definition for `CyclicD3`"
   , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Type Alias `BoundedNat`"
   , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Pred Alias `Foo`"
-  , errorTest "tests/errors/BadDataCon1.hs"         2 "Malformed refined data constructor `Boo.C`"
-  -- , errorTest "tests/errors/TODOBadDataCon2.hs"         2 "Malformed refined data constructor `Boo.C`"
   , errorTest "tests/errors/BadDataConType.hs"      2 "Specified type does not refine Haskell type for `Boo.C`"
   , errorTest "tests/errors/LiftMeasureCase.hs"     2 "Cannot lift Haskell function `foo` to logic"
   , errorTest "tests/errors/HigherOrderBinder.hs"   2 "Illegal type specification for `Main.foo`"
@@ -161,6 +160,9 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Illegal data refinement for `MapReduce.List2`"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
   , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "L :: Mismatch in number of type variables"
+  , errorTest "tests/errors/BadDataCon2.hs"         2 "Boo.Cuthb :: GHC and Liquid specifications have different numbers of fields"
+  , errorTest "tests/errors/BadSig0.hs"             2 "Error: Illegal type specification for `Zoo.foo`"
+  , errorTest "tests/errors/BadSig1.hs"             2 "Error: Illegal type specification for `constructor Ev.EZ`"
   ]
 
 unitTests :: IO TestTree
@@ -196,13 +198,11 @@ benchTests
      , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
      ]
 
-
 selfTests :: IO TestTree
 selfTests
   = group "Self" [
       testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
   ]
-
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
@@ -274,9 +274,7 @@ mkTest ec dir file
     log = "tests/logs/cur" </> test <.> "log"
 
 binPath :: FilePath -> IO FilePath
-binPath pkgName = do
-  testPath <- getExecutablePath
-  return    $ takeDirectory (takeDirectory testPath) </> pkgName </> pkgName
+binPath pkgName = (</> pkgName) <$> getBinDir
 
 knownToFail :: SmtSolver -> [FilePath]
 knownToFail CVC4 = [ "tests/pos/linspace.hs"
@@ -368,7 +366,8 @@ negIgnored = [ "Lib.hs"
              ]
 
 textIgnored :: [FilePath]
-textIgnored = [ "Data/Text/Axioms.hs"
+textIgnored = [ "Setup.lhs"
+              , "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
               , "Data/Text/Encoding/Fusion.hs"
               , "Data/Text/Encoding/Fusion/Common.hs"
@@ -414,23 +413,27 @@ group n xs = testGroup n <$> sequence xs
 
 gitTimestamp :: IO String
 gitTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ci\"", "--quiet"]
    return $ filter notNoise res
 
 gitEpochTimestamp :: IO String
 gitEpochTimestamp = do
-   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%ct\"", "--quiet"]
    return $ filter notNoise res
 
 gitHash :: IO String
 gitHash = do
-   res <- readProcess "git" ["show", "--format=\"%H\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%H\"", "--quiet"]
    return $ filter notNoise res
 
 gitRef :: IO String
 gitRef = do
-   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   res <- gitProcess ["show", "--format=\"%d\"", "--quiet"]
    return $ filter notNoise res
+
+-- | Calls `git` for info; returns `"plain"` if we are not in a git directory.
+gitProcess :: [String] -> IO String
+gitProcess args = (readProcess "git" args []) `catchIOError` const (return "plain")
 
 notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
@@ -535,10 +538,10 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
-    ref <- gitRef
+    ref       <- gitRef
     timestamp <- gitTimestamp
     epochTime <- gitEpochTimestamp
-    hash <- gitHash
+    hash      <- gitHash
     let hdr = unlines [ref ++ " : " ++ hash,
                        "Timestamp: " ++ timestamp,
                        "Epoch Timestamp: " ++ epochTime,

@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Bare.Misc (
   , symbolRTyVar
   , simpleSymbolVar
   , hasBoolResult
-
+  , symbolMeasure
   -- * Exact DataConstructor Functions
   , makeDataConChecker
   , makeDataConSelector
@@ -58,7 +58,6 @@ makeDataConChecker d
   = F.symbol "notIsNull"
   | otherwise
   = F.testSymbol (F.symbol d)
-  -- = dcMeasure "is" d Nothing
 
 --------------------------------------------------------------------------------
 -- | 'makeDataConSelector d' creates the selector `select$d$i`
@@ -74,13 +73,15 @@ makeDataConSelector d i
   | consDataCon == d, i == 2
   = F.symbol "tail"
   | otherwise
-  = dcMeasure "select" d (Just i)
+  = symbolMeasure "select" (dcSymbol d) (Just i)
 
-dcMeasure :: String -> DataCon -> Maybe Int -> F.Symbol
-dcMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : dcSymbol d : rest)
+dcSymbol :: DataCon -> F.Symbol
+dcSymbol = simpleSymbolVar . dataConWorkId
+
+symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
+symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
   where
     rest          = maybe [] (singleton . F.symbol . show) iMb
-    dcSymbol      = simpleSymbolVar . dataConWorkId
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 

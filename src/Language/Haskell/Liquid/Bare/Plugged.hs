@@ -19,6 +19,7 @@ import Var
 
 import Control.Monad
 import Control.Monad.Except
+import qualified Control.Exception                      as Ex
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
@@ -31,7 +32,8 @@ import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 -- import Language.Fixpoint.Misc (traceShow)
 
-import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
+-- import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
 import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 
@@ -75,7 +77,8 @@ makePluggedDataCons :: TCEmb TyCon
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
-       tyArgs <- zipWithM (\t1 (x,t2) ->
+       when (mismatch dts dcp) (Ex.throw $ err dc dcp)
+       tyArgs <- zipWithM (\t1 (x, t2) ->
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) t1 (Loc l l' t2))
                  dts (reverse $ tyArgs dcp)
        tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) dt (Loc l l' (tyRes dcp))
@@ -83,6 +86,10 @@ makePluggedDataCons embs tcEnv dcs
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
+
+    where
+      mismatch dts dcp = length dts /= length (tyArgs dcp)
+      err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
 
 plugHoles :: (NamedThing a, PPrint a, Show a)
           => TCEmb TyCon
@@ -112,7 +119,7 @@ plugHoles tce tyi x f t (Loc l l' st)
 
     initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (text "Plugged Init types" <+> pprint t <+> "\nVS\n" <+> pprint st)  (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
     hsSp              = getSrcSpan x
-    lqSp              = sourcePos2SrcSpan l l'
+    lqSp              = GM.sourcePos2SrcSpan l l'
 
     go :: SpecType -> SpecType -> BareM SpecType
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }

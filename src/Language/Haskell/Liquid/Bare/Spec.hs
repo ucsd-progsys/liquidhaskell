@@ -91,7 +91,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
                  let t   = rCls tc as'
-                 let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t l'
+                 let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t False l'
                  return ((dc,dcp),vts)
 
 makeQualifiers :: (ModName, Ms.Spec ty bndr)
@@ -285,8 +285,11 @@ makeNewTypes' = mapM mkNT
     mkNT :: DataDecl -> BareM (TyCon, Located SpecType)
     mkNT d       = (,) <$> lookupGhcTyCon "makeNewTypes'" (tycName d)
                        <*> (fmap generalize <$> (getTy (tycSrcPos d) (tycDCons d) >>= mkLSpecType))
-    getTy l [(_,[(_,t)])] = return $ withLoc l t
-    getTy l _             = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+
+    getTy l [c]
+      | [(_, t)] <- dcFields c = return $ withLoc l t
+    getTy l _                  = throwError $ ErrOther (sourcePosSrcSpan l) "bad new type declaration"
+    -- getTy l [(_,[(_,t)])] = return $ withLoc l t
 
     withLoc s = Loc s s
 

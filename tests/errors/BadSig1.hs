@@ -19,8 +19,11 @@ data Ev where
 -- AUTO/PRELUDE
 {-@ measure prop :: a -> b @-}
 
+{-@ type Prop E = {v:_ | pro v = E} @-}
+
+      -- {v:Ev | prop v = Ev Z}
 {-@ data Ev where
-      EZ  :: {v:Ev | prop v = Ev Z}
+      EZ  :: Prop (Ev Z)
     | ESS :: evn:Peano -> {evpf:Ev | prop evpf = Ev evn} -> {zing : Ev | prop zing = Ev (S (S evn)) }
   @-}
 

@@ -1,5 +1,7 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
+
+{-@ LIQUID "--prune-unsorted" @-}
 
 module Blank where
 
