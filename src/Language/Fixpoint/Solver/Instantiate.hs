@@ -63,22 +63,30 @@ instantiate cfg fi
     -- return (strengthenHyp fi ips)
 
 instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
-instantiate' cfg fi = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
-  -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
-  SMT.smtPush ctx
-  ips           <- forM cstrs $ \(i, c) ->
-                      (i,) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
-  let (is, ps)   = unzip ips
-  let (ps', axs) = defuncAxioms cfg env ps
-  let ps''       = elaborate "PLE1" env <$> ps'
-  let axs'       = elaborate "PLE2" env <$> axs
-  let fi'        = fi { asserts = axs' ++ asserts fi }
-  return         $ strengthenHyp fi' (zip is ps'')
+instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
-    cstrs        = M.toList (cm fi)
-    file         = srcFile cfg ++ ".evals"
-    env          = symbolEnv cfg fi
+    act ctx         = forM cstrs $ \(i, c) ->
+                        (i,) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+    cstrs           = M.toList (cm fi)
+    file            = srcFile cfg ++ ".evals"
+    env             = symbolEnv cfg fi
+
+sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
+sInfo cfg fi env ips = strengthenHyp fi' (zip is ps'')
+  where
+    (is, ps)         = unzip ips
+    (ps', axs)       = defuncAxioms cfg env ps
+    ps''             = elaborate "PLE1" env <$> ps'
+    axs'             = elaborate "PLE2" env <$> axs
+    fi'              = fi { asserts = axs' ++ asserts fi }
+
+withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
+withCtx cfg file env k = do
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  _   <- SMT.smtPush ctx
+  res <- k ctx
+  _   <- SMT.cleanupContext ctx
+  return res
 
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> Integer -> SimpC a
