@@ -98,6 +98,7 @@ module Language.Fixpoint.Types.Names (
   , bitVecName
   , bvAndName
   , bvOrName
+  , propConName
   -- HKT , tyAppName
   , prims
   , mulFuncName
@@ -549,14 +550,14 @@ boolConName  = "Bool"
 funConName   = "->"
 
 
-listConName, listLConName, tupConName, _propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
+listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
 vvName       = "VV"
-_propConName  = "Prop"
+propConName  = "Prop"
 _hpropConName = "HProp"
 
 strConName  :: (IsString a) => a
@@ -584,7 +585,7 @@ mulFuncName  = "Z3_OP_MUL"
 divFuncName  = "Z3_OP_DIV"
 
 prims :: [Symbol]
-prims = [ _propConName
+prims = [ propConName
         , _hpropConName
         , vvName
         , "Pred"
