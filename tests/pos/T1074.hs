@@ -31,3 +31,33 @@ the2 :: Eq a => [a] -> a
 the2 = undefined
 
 {-@ measure headP :: a -> b @-}
+
+Hi everyone,
+
+Its 2017 and it feels odd to send emails cc-ed to 30 people.
+Plus, its tedious to copy-paste the 30 addresses.
+
+I made a mailing list so we can just write to a single address.
+
+(I hope everyone gets this ... hmm I guess the only way to
+find out is to copy-paste again... curses... foiled again!)
+
+- Ranjit.
+
+Frances Ajo <frances.ajo@gmail.com>,
+Heather Oberly <hroberly@gmail.com>,
+Ian Silverman <Islander403@hotmail.com>,
+Julie Stope <juliej22779@yahoo.com>,
+Kamalika Chaudhuri <kamalika@cs.ucsd.edu>,
+Kayleigh Gebreselassie <kvondoll@gmail.com>,
+Kelly Carll <jones.kellyr@gmail.com>,
+Kim Sparrow <kim.sparrow@gmail.com>,
+Lauren Zamler <lzamler@gmail.com>,
+Lisa Starace <lisa.a.starace@gmail.com>,
+Mike DeEmedio <deemedio32@yahoo.com>,
+Morgan Craft <craft.morganc@gmail.com>,
+Rachel Jensen <racheljensen@hotmail.com>,
+Ranjit Jhala <jhala@cs.ucsd.edu>,
+Sarah Thomas <sapsel@gmail.com>,
+Scott Armstrong <sjordan72@gmail.com>,
+Tony Winney <twinney@gmail.com>
