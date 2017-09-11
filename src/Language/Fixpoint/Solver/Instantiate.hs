@@ -190,9 +190,11 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 1. when e2 is a data con and can lead to further reductions
     -- 2. when size e2 < size e1
     -- @TODO: Can this be generalized?
-    atms = splitPAnd =<< (expr <$> filter isProof es)
-    simpleEqs = tracepp "SIMPLEEQS" $ makeSimplifications (aenvSimpl aenv) =<<
-                L.nub (catMaybes [getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
+    simpleEqs = []
+    -- ADT simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
+    -- ADT           L.nub (catMaybes [getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
+    -- ADT atms = splitPAnd =<< (expr <$> filter isProof es)
+    -- ADT isProof (_, RR s _) = showpp s == "Tuple"
     sels = (go . expr) =<< es
     go e = let es   = splitPAnd e
                su   = mkSubst [(x, EVar y)  | PAtom Eq (EVar x) (EVar y) <- es ]
@@ -224,10 +226,9 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- TODO: Stringy hacks
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
-    isProof (_, RR s _) = showpp s == "Tuple"
 
-makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
-makeSimplifications sis (dc, es, e)
+_makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+_makeSimplifications sis (dc, es, e)
  = go =<< sis
  where
    go (SMeasure f dc' xs bd)
@@ -236,8 +237,8 @@ makeSimplifications sis (dc, es, e)
    go _
      = []
 
-getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-getDCEquality e1 e2
+_getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
+_getDCEquality e1 e2
     | Just dc1 <- f1
     , Just dc2 <- f2
     = if dc1 == dc2

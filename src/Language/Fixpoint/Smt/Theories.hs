@@ -251,21 +251,6 @@ smt2App env (EVar f) (d:ds)
   = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _ _    = Nothing
 
--- isSmt2App :: Expr -> [a] -> Bool
--- isSmt2App e xs = tracepp ("isSmt2App e := " ++ show e) (isSmt2App' e xs)
-
---------------------------------------------------------------------------------
--- / isSmt2App :: SEnv TheorySymbol -> Expr -> [a] -> Bool
--- / --------------------------------------------------------------------------------
--- / isSmt2App _ (EVar f) [_]
-  -- / | f == setEmpty = True
-  -- / | f == setEmp   = True
-  -- / | f == setSng   = True
--- / isSmt2App env (EVar f) _
-  -- / =  isJust (lookupSEnv f env)
--- / isSmt2App _ _ _
-  -- / = False
-
 --------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 --------------------------------------------------------------------------------
@@ -283,38 +268,6 @@ preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
-
---------------------------------------------------------------------------------
--- | Converting Non-Int types to Int -------------------------------------------
---------------------------------------------------------------------------------
--- toInt :: Expr -> Sort -> Expr
--- toInt e s = tracepp msg (toInt' e s)
-  -- where
-    -- msg   = "toInt e = " ++ show e ++ ", t = " ++ show s
-
-_toInt :: Expr -> Sort -> Expr
-_toInt e s
-  |  (FApp (FTC c) _) <- s
-  , setConName == symbol c
-  = castWith setToIntName e
-  | (FApp (FApp (FTC c) _) _) <- s
-  , mapConName == symbol c
-  = castWith mapToIntName e
-  | (FApp (FTC bv) (FTC s)) <- s
-  , bitVecName == symbol bv
-  , Just _ <- sizeBv s
-  = castWith bitVecToIntName e
-  | FTC c <- s
-  , c == boolFTyCon
-  = castWith boolToIntName e
-  | FTC c <- s
-  , c == realFTyCon
-  = castWith realToIntName e
-  | otherwise
-  = e
-
-castWith :: Symbol -> Expr -> Expr
-castWith s = eAppC intSort (EVar s)
 
 --------------------------------------------------------------------------------
 -- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`
