@@ -14,10 +14,12 @@ module Language.Haskell.Liquid.Bare.Misc (
   , simpleSymbolVar
   , hasBoolResult
   , symbolMeasure
+  , isKind
+
   -- * Exact DataConstructor Functions
   , makeDataConChecker
   , makeDataConSelector
-  , isKind
+
   ) where
 
 import           Name

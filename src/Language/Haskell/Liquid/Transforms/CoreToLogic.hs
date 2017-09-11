@@ -125,36 +125,37 @@ strengthenResult' v
 type LogicM = ExceptT Error (StateT LState Identity)
 
 data LState = LState
-  { symbolMap :: LogicMap
-  , mkError   :: String -> Error
-  , ltce      :: TCEmb TyCon
-  , boolbinds :: [Var]
+  { lsSymMap  :: LogicMap
+  , lsError   :: String -> Error
+  , lsEmb     :: TCEmb TyCon
+  , lsBools   :: [Var]
+  , lsDCMap   :: DataConMap
   }
 
 throw :: String -> LogicM a
 throw str = do
-  fmkError  <- mkError <$> get
+  fmkError  <- lsError <$> get
   throwError $ fmkError str
 
 getState :: LogicM LState
 getState = get
 
 runToLogic
-  :: TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
-  -> Either Error t
+  :: TCEmb TyCon -> LogicMap -> DataConMap -> (String -> Error)
+  -> LogicM t -> Either Error t
 runToLogic = runToLogicWithBoolBinds []
 
 runToLogicWithBoolBinds
-  :: [Var] -> TCEmb TyCon -> LogicMap -> (String -> Error) -> LogicM t
-  -> Either Error t
-runToLogicWithBoolBinds xs tce lmap ferror m
-       = evalState (runExceptT m) s0
-  where
-    s0 = LState { symbolMap = lmap
-                , mkError   = ferror
-                , ltce      = tce
-                , boolbinds = xs
-                }
+  :: [Var] -> TCEmb TyCon -> LogicMap -> DataConMap -> (String -> Error)
+  -> LogicM t -> Either Error t
+runToLogicWithBoolBinds xs tce lmap dm ferror m
+  = evalState (runExceptT m) $ LState
+      { lsSymMap = lmap
+      , lsError  = ferror
+      , lsEmb    = tce
+      , lsBools  = xs
+      , lsDCMap  = dm
+      }
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
@@ -216,14 +217,14 @@ coreToLg (C.Var x)
   | x == trueDataConId
   = return PTrue
   | otherwise
-  = (symbolMap <$> getState) >>= eVarWithMap x
+  = (lsSymMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)
   = toPredApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
   = do p   <- coreToLg e
-       tce <- ltce <$> getState
+       tce <- lsEmb <$> getState
        return $ ELam (symbol x, typeSort tce $ varType x) p
 coreToLg (C.Case e b _ alts)
   = do p <- coreToLg e
@@ -264,14 +265,21 @@ checkDataCon :: DataCon -> Expr -> LogicM Expr
 checkDataCon d e
   = return $ EApp (EVar $ makeDataConChecker d) e
 
+dataConSelector :: DataConMap -> DataCon -> Int -> Symbol
+dataConSelector dm d i = {- F.tracepp msg $ -} M.lookupDefault def (symbol d, i) dm
+  where
+    def                = makeDataConSelector d i
+    -- msg                = "DataConSelector: d = " ++ F.showpp d ++ " i = " ++ show i
+
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)
-  = do p <- coreToLg e
-       let su = mkSubst $ concat [ f x i | (x, i) <- zip xs [1..]]
+  = do p  <- coreToLg e
+       dm <- gets lsDCMap
+       let su = mkSubst $ concat [ f dm x i | (x, i) <- zip xs [1..]]
        return (d, subst su p)
   where
-    f x i = let t = EApp (EVar $ makeDataConSelector d i) de
-            in [(symbol x, t), (simplesymbol x, t)]
+    f dm x i = let t = EApp (EVar $ dataConSelector dm d i) de
+               in [(symbol x, t), (simplesymbol x, t)]
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"
 altToLg _ (C.DEFAULT, _, _)
@@ -314,8 +322,8 @@ toLogicApp e = do
   let (f, es) = splitArgs e
   case f of
     C.Var _ -> do args <- mapM coreToLg es
-                  lmap       <- symbolMap <$> getState
-                  def        <- (`mkEApp` args) <$> tosymbol f
+                  lmap <- lsSymMap <$> getState
+                  def  <- (`mkEApp` args) <$> tosymbol f
                   ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
     _       -> do (fe : args) <- mapM coreToLg (f:es)
                   return $ foldl EApp fe args

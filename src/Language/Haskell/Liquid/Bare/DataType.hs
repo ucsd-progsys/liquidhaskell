@@ -89,11 +89,9 @@ type DataPropDecl = (DataDecl, Maybe SpecType)
 makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
-
 makeDataDecls cfg tce tds ds
-  | makeDecls = -- F.tracepp "makeDataDecls" $
-                concat [ makeFDataDecls tce tc dd ctors
-                       | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
+  | makeDecls = [ makeFDataDecls tce tc dd ctors
+                | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
@@ -108,8 +106,8 @@ groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
 
 
 makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
-               -> [F.DataDecl]
-makeFDataDecls tce tc dd ctors = [makeDataDecl tce tc (fst dd) ctors]
+               -> F.DataDecl
+makeFDataDecls tce tc dd ctors = makeDataDecl tce tc (fst dd) ctors
                                -- ++ maybeToList (makePropDecl tce tc dd) -- TODO: AUTO-INDPRED
 
 makeDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]

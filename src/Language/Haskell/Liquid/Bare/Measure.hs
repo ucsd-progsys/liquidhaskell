@@ -132,7 +132,8 @@ makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
 --------------------------------------------------------------------------------
 makeHaskellMeasures tce cbs spec = do
     lmap <- gets logicEnv
-    ms   <- mapM (makeMeasureDefinition tce lmap cbs') (S.toList $ Ms.hmeas spec)
+    dm   <- gets dcEnv
+    ms   <- mapM (makeMeasureDefinition tce lmap dm cbs') (S.toList $ Ms.hmeas spec)
     return (measureToBare <$> ms)
   where
     cbs'                  = concatMap unrec cbs
@@ -158,17 +159,18 @@ makeMeasureInline :: F.TCEmb TyCon -> LogicMap -> [CoreBind] ->  LocSymbol
 makeMeasureInline tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
     chomp (v, def)               = (vx, ) <$> coreToFun' tce lmap vx v def (ok vx)
-                                   where vx = F.atLoc x (symbol v)
+                                      where vx = F.atLoc x (symbol v)
     err                          = throwError $ errHMeas x "Cannot inline haskell function"
     ok vx (xs, e)                = return (LMap vx (symbol <$> xs) (either id id e))
 
-makeMeasureDefinition :: F.TCEmb TyCon -> LogicMap -> [CoreBind] -> LocSymbol
-                      -> BareM (Measure LocSpecType DataCon)
-makeMeasureDefinition tce lmap cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
+makeMeasureDefinition
+  :: F.TCEmb TyCon -> LogicMap -> DataConMap -> [CoreBind] -> LocSymbol
+  -> BareM (Measure LocSpecType DataCon)
+makeMeasureDefinition tce lmap dm cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
     chomp (v, def)     = Ms.mkM vx (GM.varLocInfo logicType v) <$> coreToDef' vx v def
                          where vx = F.atLoc x (symbol v)
-    coreToDef' x v def = case runToLogic tce lmap mkErr (coreToDef x v def) of
+    coreToDef' x v def = case runToLogic tce lmap dm mkErr (coreToDef x v def) of
                            Right l -> return     l
                            Left e  -> throwError e
 
@@ -197,8 +199,9 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
-  =    (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
-    ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
+  = -- ADT (condNull (exactDC cfg) $ checker : []) -- ADT catMaybes (go' <$> fields)) --  internal measures, needed for reflection
+    -- ADT ++
+    (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = {- F.tracepp ("AUTOFIELDS: " ++ show dc) $ -} not (isGadt || noMeasureFields cfg)
     res        = fmap mempty resTy
@@ -209,7 +212,7 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
       | otherwise
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
-    go' ((_,t), i)
+    _go' ((_,t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
@@ -219,7 +222,7 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
     fields   = zip (reverse xts) [1..]
     dty t    = foldr RAllT  (RFun dummySymbol res (fmap mempty t) mempty) (makeRTVar <$> vs)
     n        = length xts
-    checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
+    _checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
     scheck   = foldr RAllT  (RFun dummySymbol res bareBool        mempty) (makeRTVar <$> vs)
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
@@ -321,9 +324,9 @@ coreToFun' :: F.TCEmb TyCon
            -> CoreExpr
            -> (([Var], Either F.Expr F.Expr) -> BareM a)
            -> BareM a
-coreToFun' tce lmap x v def ok
-  = either throwError ok
-  $ runToLogic tce lmap (errHMeas x) (coreToFun x v def)
+coreToFun' tce lmap x v def ok = do
+  dm <- gets dcEnv
+  either throwError ok $ runToLogic tce lmap dm (errHMeas x) (coreToFun x v def)
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)
 toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)

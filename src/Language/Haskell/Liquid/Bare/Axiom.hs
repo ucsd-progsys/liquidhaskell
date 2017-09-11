@@ -3,7 +3,9 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Axiom (makeHaskellAxioms) where
+module Language.Haskell.Liquid.Bare.Axiom
+  ( makeHaskellAxioms )
+  where
 
 import Prelude hiding (error)
 import CoreSyn
@@ -18,7 +20,7 @@ import Prelude hiding (mapM)
 import           Control.Monad.Except hiding (forM, mapM)
 import           Control.Monad.State hiding (forM, mapM)
 import           Text.PrettyPrint.HughesPJ (text)
-import qualified Data.HashSet as S
+import qualified Data.HashSet        as S
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types (Symbol, symbol)
@@ -32,14 +34,16 @@ import           Language.Haskell.Liquid.Bare.Env
 
 --------------------------------------------------------------------------------
 makeHaskellAxioms
-  :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec
+  :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> [F.DataDecl]
   -> BareM [ (Var, LocSpecType, AxiomEq)]
 --------------------------------------------------------------------------------
-makeHaskellAxioms tce cbs spec sp = do
+makeHaskellAxioms tce cbs spec sp adts = do
   xtvds <- getReflectDefs spec sp cbs
   forM_ xtvds $ \(x,_,v,_) -> updateLMapXV x v
-  lmap <- logicEnv <$> get
-  mapM (makeAxiom tce lmap cbs) xtvds
+  lmap  <- logicEnv <$> get
+  let dm = dataConMap adts
+  mapM (makeAxiom tce lmap dm) xtvds
+
 
 updateLMapXV :: LocSymbol -> Var -> BareM ()
 updateLMapXV x v = do
@@ -66,15 +70,15 @@ findVarDefType cbs sigs x = case findVarDef (val x) cbs of
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
           -> LogicMap
-          -> [CoreBind]
+          -> DataConMap
           -> (LocSymbol, Maybe SpecType, Var, CoreExpr)
           -> BareM (Var, LocSpecType, AxiomEq)
 --------------------------------------------------------------------------------
-makeAxiom tce lmap _cbs (x, mbT, v, def) = do
-  insertAxiom v Nothing -- TODO:reflect-datacons (val x)
+makeAxiom tce lmap dm (x, mbT, v, def) = do
+  insertAxiom v Nothing
   updateLMap x x v
   updateLMap (x{val = (symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap x mbT v def
+  let (t, e) = makeAssumeType tce lmap dm x mbT v def
   return (v, t, e)
 
 mkError :: LocSymbol -> String -> Error
@@ -87,15 +91,15 @@ makeSMTAxiom f xts e = AxiomEq (val f) xs e (F.PAll xts (F.EEq f_xs e))
     f_xs             = F.mkEApp f (F.EVar <$> xs)
 
 makeAssumeType
-  :: F.TCEmb TyCon -> LogicMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
+  :: F.TCEmb TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
   -> (LocSpecType, AxiomEq)
-makeAssumeType tce lmap x mbT v def
+makeAssumeType tce lmap dm x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xts le )
   where
     t    = fromMaybe (ofType $ varType v) mbT
     at   = {- F.tracepp ("axiomType: " ++ msg) $ -} axiomType x mbT t
     _msg = unwords [showpp x, showpp mbT]
-    le   = case runToLogicWithBoolBinds bbs tce lmap mkErr (coreToLogic def') of
+    le   = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic def') of
              Right e -> e
              Left  e -> panic Nothing $ show e
 

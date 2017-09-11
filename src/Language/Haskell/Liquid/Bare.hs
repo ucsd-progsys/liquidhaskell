@@ -52,6 +52,7 @@ import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
+import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Misc               (nubHashOn)
@@ -103,7 +104,7 @@ makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = 
     act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
     throwLeft = either Ex.throw return
     lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty mempty
                     (initAxSymbols name defVars specs)
                     (initPropSymbols specs)
 
@@ -167,15 +168,21 @@ ghcSpecEnv sp        = res
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
                                                                  isConLikeId v ]
+                     ++ concatMap adtEnv (gsADTs sp)
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
+
     -- TODO:AUTO-INDPRED
     -- res               = unionSEnv' (fromListSEnv binds) env1
     -- env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
     -- propBinds        = [ propCtor d          | d <- gsADTs sp, isPropDecl d  ]
 
+adtEnv      :: F.DataDecl -> [(F.Symbol, F.SortedReft)]
+adtEnv      = map (mapSnd thySort) . Thy.dataDeclSymbols
+  where
+    thySort = F.trueSortedReft . F.tsSort
 
 _propCtor :: F.DataDecl -> (Symbol, SortedReft)
 _propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
@@ -330,9 +337,8 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-
+  setDataDecls adts
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
-
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -353,7 +359,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
     -- The lifted-spec is saved in the next step
-    >>= makeGhcAxioms file name embs cbs su specs lSpec0
+    >>= makeGhcAxioms file name embs cbs su specs lSpec0 adts
     >>= makeLogicMap
     >>= makeExactDataCons name cfg (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
@@ -408,12 +414,12 @@ getAxiomEqs = concatMap (Ms.axeqs . snd)
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms
   :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Subst
-  -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
-  -> GhcSpec -> BareM GhcSpec
-makeGhcAxioms file name embs cbs su specs lSpec0 sp = do
+  -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec -> [F.DataDecl] -> GhcSpec
+  -> BareM GhcSpec
+makeGhcAxioms file name embs cbs su specs lSpec0 adts sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (getReflects specs)
-  xtes    <- makeHaskellAxioms embs cbs sp mSpc
+  xtes    <- makeHaskellAxioms embs cbs sp mSpc adts
   let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
   let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
   let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
