@@ -635,6 +635,8 @@ instance PTable (SInfo a) where
 toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    cfgDoc   cfg
+                  $++$ declsDoc x'
+                  $++$ aeDoc    x'
                   $++$ qualsDoc x'
                   $++$ kutsDoc  x'
                 --   $++$ packsDoc x'
@@ -644,7 +646,6 @@ toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
-                  $++$ aeDoc    x'
                   $++$ text "\n"
   where
     cfgDoc cfg    = text ("// " ++ show cfg)
@@ -654,6 +655,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
+    declsDoc      = toFix    . ddecls
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
     aeDoc         = toFix    . ae
@@ -790,7 +792,6 @@ instance Fixpoint AxiomEnv where
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
     where pairdoc (x,y) = text $ show x ++ " : " ++ show y
 
--- teehee
 instance Fixpoint Doc where
   toFix = id
 
@@ -798,6 +799,7 @@ instance Fixpoint Equation where
   toFix (Equ f xs e)  = text "define"
                      <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
                      <+> lparen <> toFix e <> rparen
+
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"

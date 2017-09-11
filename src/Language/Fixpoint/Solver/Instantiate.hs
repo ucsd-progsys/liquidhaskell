@@ -33,7 +33,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
-import           Data.Foldable        (foldlM)
+-- import           Data.Foldable        (foldlM)
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_e,_str) ~> e' = do
@@ -66,7 +66,7 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -174,10 +174,6 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      , knPreds  = \bs e c -> askSMT c bs e
                                      }
   where
-    -- (xv, sv) = (vv Nothing, sr_sort $ snd $ head es)
-    -- fbinds   = toListSEnv fenv ++ [(x, s) | (x, RR s _) <- es]
-    -- senv     = senvCtx { seSort = fromListSEnv fbinds }
-    -- thySyms  = seTheory senvCtx
     senv = SMT.ctxSymEnv ctx
     context :: IO SMT.Context
     context = do
@@ -195,7 +191,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 2. when size e2 < size e1
     -- @TODO: Can this be generalized?
     atms = splitPAnd =<< (expr <$> filter isProof es)
-    simpleEqs = makeSimplifications (aenvSimpl aenv) =<<
+    simpleEqs = tracepp "SIMPLEEQS" $ makeSimplifications (aenvSimpl aenv) =<<
                 L.nub (catMaybes [getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
     sels = (go . expr) =<< es
     go e = let es   = splitPAnd e
@@ -228,7 +224,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- TODO: Stringy hacks
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
-    isProof (_, RR s _) =  showpp s == "Tuple"
+    isProof (_, RR s _) = showpp s == "Tuple"
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
@@ -260,8 +256,8 @@ getDCEquality e1 e2
     -- TODO: Stringy hacks
     getDC (EVar x)
       = if isUpper $ head $ symbolString $ dropModuleNames x
-           then Just x
-           else Nothing
+          then Just x
+          else Nothing
     getDC _
       = Nothing
 
@@ -287,25 +283,27 @@ splitPAnd e         = [e]
 -- that appears in the expression e
 -- required by PMEquivalence.mconcatChunk
 assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors γ e = do
-   EvalEnv _ _ evaenv <- get
-   let sims = aenvSimpl evaenv
-   _ <- foldlM (\_ s -> Vis.mapMExpr (go s) e) e sims
-   return ()
-  where
-    go :: Rewrite -> Expr -> EvalST Expr
-    go (SMeasure f dc xs bd) e@(EApp _ _)
-      | (EVar dc', es) <- splitEApp e
-      , dc == dc', length xs == length es
-      = addSMTEquality γ (EApp (EVar f) e) (subst (mkSubst $ zip xs es) bd)
-      >> return e
-    go _ e
-      = return e
+assertSelectors _ _ = return ()
+-- ADT/DATACONS TAKES CARE OF THIS
+-- assertSelectors γ e = do
+   -- EvalEnv _ _ evaenv <- get
+   -- let sims = aenvSimpl evaenv
+   -- _ <- foldlM (\_ s -> Vis.mapMExpr (go s) e) e sims
+   -- return ()
+  -- where
+    -- go :: Rewrite -> Expr -> EvalST Expr
+    -- go (SMeasure f dc xs bd) e@(EApp _ _)
+      -- | (EVar dc', es) <- splitEApp e
+      -- , dc == dc', length xs == length es
+      -- = addSMTEquality γ (EApp (EVar f) e) (subst (mkSubst $ zip xs es) bd)
+      -- >> return e
+    -- go _ e
+      -- = return e
 
-addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
-addSMTEquality γ e1 e2 =
-  return $ do ctx <- knContext γ
-              SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
+-- addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
+-- addSMTEquality γ e1 e2 =
+--  return $ do ctx <- knContext γ
+--              SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
@@ -426,19 +424,19 @@ substPopIf xes e = η $ foldl go e xes
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
-evalRecApplication :: Knowledge ->  Expr -> Expr -> EvalST Expr
+evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ e (EIte b e1 e2)
   = do b' <- eval γ b
        b'' <- liftIO (isValid γ b')
        if b''
           then addApplicationEq γ e e1 >>
-               assertSelectors γ e1 >>
+               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                eval γ e1 >>=
                ((e, "App") ~>)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
                      then addApplicationEq γ e e2 >>
-                          assertSelectors γ e2 >>
+                          ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
                           eval γ e2 >>=
                           ((e, "App") ~>)
                      else return e
