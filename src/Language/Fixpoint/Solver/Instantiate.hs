@@ -384,7 +384,15 @@ eval γ (PImp e1 e2)
   = PImp <$> eval γ e1 <*> eval γ e2
 eval γ (PIff e1 e2)
   = PIff <$> eval γ e1 <*> eval γ e2
+eval γ (PAnd es)
+  = PAnd <$> (eval γ <$$> es)
+eval γ (POr es)
+  = POr  <$> (eval γ <$$> es)
 eval _ e = return e
+
+(<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
+f <$$> xs = f Misc.<$$> xs
+
 
 evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
 evalArgs γ = go []
