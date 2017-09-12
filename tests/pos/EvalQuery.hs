@@ -6,6 +6,8 @@
 
 module Query where
 
+import Prelude hiding (filter)
+
 data Atom  = VarX
            | VarY
            | Const Int
@@ -17,25 +19,28 @@ data Query = Le  Atom  Atom
 {-@ data Blob  = B { xVal :: Int, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
-
 {-@ reflect evalA @-}
-evalA :: Blob -> Atom -> Int
-evalA b VarX      = xVal b
-evalA b VarY      = yVal b
-evalA _ (Const n) = n
+evalA :: Atom -> Blob -> Int
+evalA VarX  b     = xVal b
+evalA VarY  b     = yVal b
+evalA (Const n) _ = n
 
 {-@ reflect evalQ @-}
-evalQ :: Blob -> Query -> Bool
-evalQ b (Le  a1 a2) = (evalA b a1) <= (evalA b a2)
-evalQ b (And q1 q2) = (evalQ b q1) && (evalQ b q2)
-evalQ b (Or  q1 q2) = (evalQ b q1) || (evalQ b q2)
+evalQ :: Query -> Blob -> Bool
+evalQ (Le  a1 a2) b = (evalA a1 b) <= (evalA a2 b)
+evalQ (And q1 q2) b = (evalQ q1 b) && (evalQ q2 b)
+evalQ (Or  q1 q2) b = (evalQ q1 b) || (evalQ q2 b)
 
-{-@ filterQ :: q:Query -> [Blob] -> [{b:Blob | evalQ b q}] @-}
+{-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
+filter :: (a -> Bool) -> [a] -> [a]
+filter f (x:xs)
+  | f x         = x : filter f xs
+  | otherwise   =     filter f xs
+filter _ []     = []
+
+{-@ filterQ :: q:Query -> [Blob] -> [{b:Blob | evalQ q b}] @-}
 filterQ :: Query -> [Blob] -> [Blob]
-filterQ q []     = []
-filterQ q (b:bs)
-  | evalQ b q    = b : filterQ q bs
-  | otherwise    =     filterQ q bs
+filterQ q = filter (evalQ q) 
 
 {-@ test1 :: [Blob] -> [{v: Blob | xVal v <= 10}] @-}
 test1   = filterQ q1
@@ -46,3 +51,10 @@ test1   = filterQ q1
 test2  = filterQ q2
   where
   q2   = (VarX `Le` (Const 10)) `And` (VarY `Le` (Const 20))
+
+{- filterQ :: q:Query -> [Blob] -> [{b:Blob | evalQ q b}] @-}
+-- filterQ :: Query -> [Blob] -> [Blob]
+-- filterQ q []     = []
+-- filterQ q (b:bs)
+-- /  | evalQ q b    = b : filterQ q bs
+-- /  | otherwise    =     filterQ q bs
