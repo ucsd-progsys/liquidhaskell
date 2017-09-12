@@ -337,7 +337,6 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-  -- setDataDecls (F.tracepp "DATADECLS" adts)
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
@@ -666,7 +665,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
   dm              <- gets dcEnv
-  setDataDecls (F.tracepp "DATADECLS" adts)
+  _               <- setDataDecls adts
   let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
@@ -837,7 +836,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (text "replaceLocalBindsOne" <+> pprint v) t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ({- text "replaceLocalBindsOne" <+> -} pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
