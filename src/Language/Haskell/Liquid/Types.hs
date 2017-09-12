@@ -14,6 +14,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -1152,7 +1153,7 @@ instance F.PPrint DataDecl where
 -- | Name of the data-type
 instance F.Symbolic DataDecl where
   symbol =  F.symbol . tycName
-
+  
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------

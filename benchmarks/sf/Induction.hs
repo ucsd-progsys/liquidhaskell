@@ -9,7 +9,7 @@ import qualified Prelude
 
 import Language.Haskell.Liquid.ProofCombinators
 
-{-@ data Peano [toNat] = O | S Peano @-}
+{-@ data Peano [toNat] @-} 
 data Peano = O | S Peano
 
 {-@ measure toNat @-}

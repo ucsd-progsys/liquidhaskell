@@ -14,10 +14,9 @@ module Language.Haskell.Liquid.Bare.Misc (
   , simpleSymbolVar
   , hasBoolResult
   , symbolMeasure
-  -- * Exact DataConstructor Functions
+  , isKind
   , makeDataConChecker
   , makeDataConSelector
-  , isKind
   ) where
 
 import           Name
@@ -65,9 +64,15 @@ makeDataConChecker d
 --   e.g. `select$Cons$1` and `select$Cons$2` are respectively
 --   equivalent to `head` and `tail`.
 --------------------------------------------------------------------------------
-makeDataConSelector :: DataCon -> Int -> F.Symbol
---------------------------------------------------------------------------------
-makeDataConSelector d i
+makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
+makeDataConSelector mbDm d i = case mbDm of
+  Nothing -> def
+  Just dm -> M.lookupDefault def (F.symbol d, i) dm
+  where
+    def   =  makeDataConSelector' d i
+
+makeDataConSelector' :: DataCon -> Int -> F.Symbol
+makeDataConSelector' d i
   | consDataCon == d, i == 1
   = F.symbol "head"
   | consDataCon == d, i == 2

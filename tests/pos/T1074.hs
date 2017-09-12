@@ -31,3 +31,4 @@ the2 :: Eq a => [a] -> a
 the2 = undefined
 
 {-@ measure headP :: a -> b @-}
+
