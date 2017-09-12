@@ -37,6 +37,8 @@ type SanitizeM a = Either E.Error a
 sanitize :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize =    -- banIllScopedKvars
+        --      Misc.fM dropAdtMeasures
+        --      >=>
              Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -46,6 +48,23 @@ sanitize =    -- banIllScopedKvars
          >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
 
+
+--------------------------------------------------------------------------------
+-- | 'dropAdtMeasures' removes all the measure definitions that correspond to
+--   constructor, selector or test names for declared datatypes, as these are
+--   now "natively" handled by the SMT solver.
+--------------------------------------------------------------------------------
+_dropAdtMeasures :: F.SInfo a -> F.SInfo a
+_dropAdtMeasures si = si { F.ae = dropAdtAenv (F.ddecls si) (F.ae si) }
+
+dropAdtAenv :: [F.DataDecl] -> F.AxiomEnv -> F.AxiomEnv
+dropAdtAenv ds ae = ae { F.aenvSimpl = filter (not . isAdt) (F.aenvSimpl ae) }
+  where
+    isAdt         = (`S.member` adtSyms) . F.smName
+    adtSyms       = adtSymbols ds
+
+adtSymbols :: [F.DataDecl] -> S.HashSet F.Symbol
+adtSymbols = S.fromList . map fst . concatMap Thy.dataDeclSymbols
 
 --------------------------------------------------------------------------------
 -- | `addLiterals` traverses the constraints to find (string) literals that

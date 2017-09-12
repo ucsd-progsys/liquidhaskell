@@ -30,7 +30,6 @@ module Language.Fixpoint.Smt.Interface (
     , makeContext
     , makeContextNoLog
     , makeContextWithSEnv
-    -- , makeSmtContext
     , cleanupContext
 
     -- * Execute Queries
@@ -115,29 +114,6 @@ runCommands cmds
        return zs
 -}
 
-
--- TODO: DEPRECATE `makeSmtContext`; instead use just `makeContextWithSEnv`
---       which should call `declare` inside it. Currently broken as the use
---       case is in `instantiate` which needs it BEFORE we `Sanitize` and
---       hence before we can call `symbolEnv` to find the set of all symbols etc...
-
--- makeSmtContext :: Config -> FilePath -> [DataDecl] -> [(Symbol, Sort)] -> [Sort]
---                -> IO Context
--- makeSmtContext cfg f dds xts ts = do
-  -- let env = makeSmtEnv dds xts ts
-  -- me     <- makeContextWithSEnv cfg f env
-  -- smtDecls me (theoryDecls env)
-  -- smtDecls me xts
-  -- return me
-
--- makeSmtEnv :: [DataDecl] -> [(Symbol, Sort)] -> [Sort] -> SymEnv
--- makeSmtEnv dds xts ts = symEnv (fromListSEnv xts) (Thy.theorySymbols dds) dds ts
-
-_theoryDecls :: SymEnv -> [(Symbol, Sort)]
-_theoryDecls env = [ (x, tsSort ty) | (x, ty) <- theorySyms, Uninterp == tsInterp ty]
-  where
-    theorySyms  = toListSEnv (seTheory env)
-
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q =
   smtBracket me "checkValidWithContext" $
@@ -171,14 +147,13 @@ checkValids cfg f xts ps
 -- debugFile :: FilePath
 -- debugFile = "DEBUG.smt2"
 
---------------------------------------------------------------------------
--- | SMT IO --------------------------------------------------------------
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | SMT IO --------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 command me !cmd       = say cmd >> hear cmd
   where
     env               = ctxSymEnv me
@@ -301,7 +276,7 @@ makeProcess cfg
                   , ctxAeq     = alphaEquivalence cfg
                   , ctxBeq     = betaEquivalence  cfg
                   , ctxNorm    = normalForm       cfg
-                  , ctxSymEnv  = mempty -- tsSort <$> Thy.theorySymbols -- Thy.theorySEnv
+                  , ctxSymEnv  = mempty
                   }
 
 --------------------------------------------------------------------------
