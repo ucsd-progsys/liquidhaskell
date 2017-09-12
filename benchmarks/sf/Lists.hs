@@ -149,7 +149,7 @@ app (Cons h t) l2 = Cons h (app t l2)
 {-@ reflect hd @-}
 hd :: Peano -> NatList -> Peano
 hd def Nil        = def
-hd _   (Cons h t) = h 
+hd _   (Cons h t) = h
 
 {-@ reflect tl @-}
 tl :: NatList -> NatList
@@ -176,7 +176,7 @@ nonzeros' l = filter (\x -> negb (beq x O)) l
 
 -- TODO: Stuck. See: https://github.com/ucsd-progsys/liquidhaskell/issues/1035
 
--- {-@ testNonzeros' :: { 
+-- {-@ testNonzeros' :: {
 --   nonzeros' (Cons p0 (Cons p1 (Cons p0 (Cons p2 (Cons p3 (Cons p0 (Cons p0 Nil))))))) =
 --   (Cons p1 (Cons p2 (Cons p3 Nil))) } @-}
 
@@ -427,7 +427,7 @@ subset (Cons h t) s2 = case member h s2 of
 -- | Reasoning About Lists -----------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ thmNilApp :: { lhs : NatList | lhs = Nil } 
+{-@ thmNilApp :: { lhs : NatList | lhs = Nil }
               -> rhs : NatList
               -> { app lhs rhs = rhs }
 @-}
