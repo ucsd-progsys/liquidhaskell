@@ -11,6 +11,9 @@ module Language.Haskell.Liquid.Bare.DataType
   , meetDataConSpec
   , makeNumericInfo
 
+  , DataConMap
+  , dataConMap
+
     -- * Tests
   -- , isPropDecl
   -- , qualifyDataDecl

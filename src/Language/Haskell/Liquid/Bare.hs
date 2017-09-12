@@ -337,7 +337,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-  setDataDecls (F.tracepp "DATADECLS" adts)
+  -- setDataDecls (F.tracepp "DATADECLS" adts)
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
@@ -665,7 +665,9 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
   let adts         = makeDataDecls cfg embs tds datacons
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg) datacons
+  dm              <- gets dcEnv
+  setDataDecls (F.tracepp "DATADECLS" adts)
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 

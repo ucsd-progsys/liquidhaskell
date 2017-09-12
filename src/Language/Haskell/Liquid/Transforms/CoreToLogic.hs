@@ -41,6 +41,7 @@ import           Language.Fixpoint.Types               hiding (Error, R, simplif
 import qualified Language.Fixpoint.Types               as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Bare.Misc
+import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Types.RefType
@@ -265,12 +266,6 @@ checkDataCon :: DataCon -> Expr -> LogicM Expr
 checkDataCon d e
   = return $ EApp (EVar $ makeDataConChecker d) e
 
-dataConSelector :: DataConMap -> DataCon -> Int -> Symbol
-dataConSelector dm d i = {- F.tracepp msg $ -} M.lookupDefault def (symbol d, i) dm
-  where
-    def                = makeDataConSelector d i
-    -- msg                = "DataConSelector: d = " ++ F.showpp d ++ " i = " ++ show i
-
 altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
 altToLg de (C.DataAlt d, xs, e)
   = do p  <- coreToLg e
@@ -278,7 +273,7 @@ altToLg de (C.DataAlt d, xs, e)
        let su = mkSubst $ concat [ f dm x i | (x, i) <- zip xs [1..]]
        return (d, subst su p)
   where
-    f dm x i = let t = EApp (EVar $ dataConSelector dm d i) de
+    f dm x i = let t = EApp (EVar $ makeDataConSelector (Just dm) d i) de
                in [(symbol x, t), (simplesymbol x, t)]
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"

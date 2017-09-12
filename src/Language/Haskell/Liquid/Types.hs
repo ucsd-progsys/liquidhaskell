@@ -89,9 +89,6 @@ module Language.Haskell.Liquid.Types (
   , DataConP (..)
   , TyConP   (..)
 
-  , DataConMap
-  , dataConMap
-
   -- * Pre-instantiated RType
   , RRType, RRProp
   , BRType, BRProp
@@ -1156,18 +1153,7 @@ instance F.PPrint DataDecl where
 -- | Name of the data-type
 instance F.Symbolic DataDecl where
   symbol =  F.symbol . tycName
-
--- | 'DataConMap' stores the names of those ctor-fields that have been declared
---   as SMT ADTs so we don't make up new names for them.
-type DataConMap = M.HashMap (Symbol, Int) Symbol
-
-dataConMap :: [F.DataDecl] -> DataConMap
-dataConMap ds = M.fromList $ do
-  d     <- ds
-  c     <- F.ddCtors d
-  let fs = F.symbol <$> F.dcFields c
-  zip ((F.symbol c,) <$> [1..]) fs
-
+  
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------

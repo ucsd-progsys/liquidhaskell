@@ -1,15 +1,11 @@
-{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Language.Haskell.Liquid.Bare.Env (
     BareM
   , Warn
   , TCEnv
   , BareEnv(..)
-
-  -- * mapping fields to ADTs
-  , DataConMap
-  , dataConMap
-
   , InlnEnv
 
   , inModule
@@ -25,6 +21,11 @@ module Language.Haskell.Liquid.Bare.Env (
   , insertLogicEnv
   , insertAxiom
   , addDefs
+
+
+  -- * Exact DataConstructor Functions
+  , DataConMap
+  , dataConMap
   ) where
 
 import           HscTypes
@@ -49,6 +50,18 @@ import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
+--------------------------------------------------------------------------------
+-- | 'DataConMap' stores the names of those ctor-fields that have been declared
+--   as SMT ADTs so we don't make up new names for them.
+--------------------------------------------------------------------------------
+type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
+
+dataConMap :: [F.DataDecl] -> DataConMap
+dataConMap ds = M.fromList $ do
+  d     <- ds
+  c     <- F.ddCtors d
+  let fs = F.symbol <$> F.dcFields c
+  zip ((F.symbol c,) <$> [1..]) fs
 
 --------------------------------------------------------------------------------
 -- | Error-Reader-IO For Bare Transformation -----------------------------------

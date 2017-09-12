@@ -121,7 +121,7 @@ tyConDataDecl (tc, NoDecl szF)
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d  = DataCtor dx xts Nothing
   where
-    xts        = [(makeDataConSelector d i, bareOfType t) | (i, t) <- its ]
+    xts        = [(makeDataConSelector Nothing d i, bareOfType t) | (i, t) <- its ]
     dx         = symbol <$> GM.locNamedThing d
     its        = zip [1..] ts
     (_,_,ts,_) = dataConSig d
@@ -197,11 +197,10 @@ strengthenHaskell strengthen hmeas sigs
 meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
-makeMeasureSelectors :: Config -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
-  = -- ADT (condNull (exactDC cfg) $ checker : []) -- ADT catMaybes (go' <$> fields)) --  internal measures, needed for reflection
-    -- ADT ++
-    (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
+makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
+  = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
+ ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = {- F.tracepp ("AUTOFIELDS: " ++ show dc) $ -} not (isGadt || noMeasureFields cfg)
     res        = fmap mempty resTy
@@ -212,17 +211,17 @@ makeMeasureSelectors cfg (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
       | otherwise
       = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
 
-    _go' ((_,t), i)
+    go' ((_,t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
-      = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector dc i)) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector (Just dm) dc i)) (dty t) dc n i
 
     fields   = zip (reverse xts) [1..]
     dty t    = foldr RAllT  (RFun dummySymbol res (fmap mempty t) mempty) (makeRTVar <$> vs)
     n        = length xts
-    _checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
+    checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
     scheck   = foldr RAllT  (RFun dummySymbol res bareBool        mempty) (makeRTVar <$> vs)
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
