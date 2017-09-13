@@ -6,7 +6,7 @@
 
 module Query where
 
-import Prelude hiding (filter)
+import Prelude hiding (filter, all)
 
 data Atom  = VarX
            | VarY
@@ -31,6 +31,13 @@ evalQ (Le  a1 a2) b = (evalA a1 b) <= (evalA a2 b)
 evalQ (And q1 q2) b = (evalQ q1 b) && (evalQ q2 b)
 evalQ (Or  q1 q2) b = (evalQ q1 b) || (evalQ q2 b)
 
+{- reflect all @-}
+-- all []     = True
+-- all (b:bs) = b && all bs
+-- evalQs   :: [Query] -> Blob -> Bool
+-- evalQs b = e
+
+
 {-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
 filter :: (a -> Bool) -> [a] -> [a]
 filter f (x:xs)
@@ -40,7 +47,7 @@ filter _ []     = []
 
 {-@ filterQ :: q:Query -> [Blob] -> [{b:Blob | evalQ q b}] @-}
 filterQ :: Query -> [Blob] -> [Blob]
-filterQ q = filter (evalQ q) 
+filterQ q = filter (evalQ q)
 
 {-@ test1 :: [Blob] -> [{v: Blob | xVal v <= 10}] @-}
 test1   = filterQ q1
@@ -58,3 +65,17 @@ test2  = filterQ q2
 -- filterQ q (b:bs)
 -- /  | evalQ q b    = b : filterQ q bs
 -- /  | otherwise    =     filterQ q bs
+
+{-@ reflect isPos @-}
+isPos :: Int -> Bool
+isPos n = n > 0
+
+{-@ reflect isNeg @-}
+isNeg :: Int -> Bool
+isNeg n = n < 0
+
+{-@ positives :: [Int] -> [{v:Int | v > 0}] @-}
+positives xs = filter isPos xs
+
+{-@ negatives :: [Int] -> [{v:Int | v < 0}] @-}
+negatives xs = filter isNeg xs
