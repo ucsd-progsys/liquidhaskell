@@ -227,9 +227,7 @@ coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
 coreToLg (C.Lam x e)
   = do p     <- coreToLg e
        tce   <- lsEmb <$> getState
-       let xt = varType x
-       let xs = tracepp ("TYPE-SORT tce = " ++ showpp tce ++ " xt = " ++ showPpr xt) $ typeSort tce xt
-       return $ ELam (symbol x, xs) p
+       return $ ELam (symbol x, typeSort tce (varType x)) p
 coreToLg (C.Case e b _ alts)
   = do p <- coreToLg e
        casesToLg b p alts
