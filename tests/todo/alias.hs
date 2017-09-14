@@ -1,12 +1,10 @@
-module Foo where
 
-{-@ type Pos = {v:Int | 0 < v} @-}
-type Pos = Int
+{-# LANGUAGE ScopedTypeVariables #-}
 
--- If I add the explicit @-annotation then of course liquid marks this program
--- unsafe, but it would be nice if we could get the same result (i.e. unsafe)
--- directly by using the Haskell type. (This would be a step towards
--- @spindakin's summer project using TF).
+module Bob where
 
-incr   :: Pos -> Pos
-incr x = x - 1
+type Val = Int
+
+{-@ reflect poo @-}
+poo :: Int -> Int
+poo y = (\(x :: Val) -> x + 1) y

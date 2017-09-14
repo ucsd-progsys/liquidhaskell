@@ -22,7 +22,7 @@ import           GHC                                   hiding (Located, exprType
 import           Prelude                               hiding (error)
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Var
+import qualified Var
 
 import qualified CoreSyn                               as C
 import           Literal
@@ -51,6 +51,8 @@ import           Language.Haskell.Liquid.Types.RefType
 
 import qualified Data.HashMap.Strict                   as M
 
+varType :: Var -> Type
+varType = expandTypeSynonyms . Var.varType
 
 logicType :: (Reftable r) => Type -> RRType r
 logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
@@ -224,9 +226,11 @@ coreToLg e@(C.App _ _)
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)
-  = do p   <- coreToLg e
-       tce <- lsEmb <$> getState
-       return $ ELam (symbol x, typeSort tce $ varType x) p
+  = do p     <- coreToLg e
+       tce   <- lsEmb <$> getState
+       let xt = varType x
+       let xs = tracepp ("TYPE-SORT tce = " ++ showpp tce ++ " xt = " ++ showPpr xt) $ typeSort tce xt
+       return $ ELam (symbol x, xs) p
 coreToLg (C.Case e b _ alts)
   = do p <- coreToLg e
        casesToLg b p alts
@@ -442,7 +446,7 @@ isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 
 isDead :: Id -> Bool
-isDead     = isDeadOcc . occInfo . idInfo
+isDead     = isDeadOcc . occInfo . Var.idInfo
 
 class Simplify a where
   simplify :: a -> a
