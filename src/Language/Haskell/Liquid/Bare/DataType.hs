@@ -165,6 +165,7 @@ muSort c n  = V.mapSort tx
 
 --------------------------------------------------------------------------------
 {- | NOTE:AUTO-INDPRED (tests/todo/IndPred1.hs)
+-- DO NOT DELETE
 -- RJ: too hard, too brittle, I _thought_ we could just
 -- generate the F.DataDecl, but really, you need the GHC
 -- names for the Prop-Ctor if you want to be able to `import`

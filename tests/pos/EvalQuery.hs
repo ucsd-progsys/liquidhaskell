@@ -79,3 +79,27 @@ positives xs = filter isPos xs
 
 {-@ negatives :: [Int] -> [{v:Int | v < 0}] @-}
 negatives xs = filter isNeg xs
+
+
+{- F* version, which doesn't work...
+
+let isPos n = n > 0
+
+val filter : f:('a -> bool) -> list 'a -> list (x:'a{f x}) 
+let rec filter f xs = match xs with 
+    | []    -> []
+    | x::ys -> let zs = filter f ys in 
+               if f x then x :: zs else zs 
+                                   
+type pos = x:int{0 < x}
+
+(* this is verified ... *)
+val pos1 : int -> option pos 
+let pos1 z = if isPos z then Some z else None
+
+(* ... but this is not *)
+val positives : list int -> list pos               
+let positives xs = filter isPos xs  
+
+-}
+
