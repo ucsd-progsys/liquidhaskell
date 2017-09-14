@@ -60,7 +60,6 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
     t            = toRTypeRep $ ofType τ
     (bs, as, rs) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-
 {- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
 
    CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
