@@ -1,3 +1,4 @@
+-- See LH #1086 
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
