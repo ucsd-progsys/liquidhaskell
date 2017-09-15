@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.UX.Config (
    , allowLiquidInstationationLocal
    , ProofMethod (..)
    , allowRewrite
-   , allowArithmetic
    ) where
 
 import Prelude hiding (error)
@@ -95,7 +94,7 @@ instance Serialize Config
 data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod = Arithmetic | Rewrite | AllMethods
+data ProofMethod = Rewrite | AllMethods
   deriving (Eq, Data, Typeable, Generic)
 
 
@@ -108,16 +107,14 @@ allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
-allowInstances, allowRewrite, allowArithmetic :: Config -> Bool
+allowInstances, allowRewrite :: Config -> Bool
 allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
-allowArithmetic cfg = allowInstances cfg && (proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods)
 allowInstances  cfg = autoInstantiate cfg /= NoInstances
 
 instance Default ProofMethod where
   def = Rewrite
 
 instance Show ProofMethod where
-  show Arithmetic = "arithmetic"
   show Rewrite    = "rewrite"
   show AllMethods = "all"
 

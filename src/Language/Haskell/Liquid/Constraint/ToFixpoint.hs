@@ -23,7 +23,6 @@ import Data.Maybe (fromJust)
 import           Language.Haskell.Liquid.UX.Config ( allowLiquidInstationationGlobal
                                                    , allowLiquidInstationationLocal
                                                    , allowRewrite
-                                                   , allowArithmetic
                                                    )
 import           Language.Haskell.Liquid.GHC.Misc  (simplesymbol)
 import qualified Data.List                         as L
@@ -56,7 +55,6 @@ fixConfig tgt cfg = def
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = allowRewrite      cfg
-  , FC.arithmeticAxioms = allowArithmetic   cfg
   }
 
 
@@ -92,10 +90,8 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (length $ (axiomName <$> gsAxioms (spec info)) ++ (F.symbol . fst <$> xts))
-           (makeEquations info ++ (specTypToEq  <$> xts))
+  = F.AEnv (makeEquations info ++ (specTypToEq  <$> xts))
            (concatMap makeSimplify xts)
-           fuelMap
            doExpand
   where
     cfg = getConfig info
@@ -103,8 +99,6 @@ makeAxiomEnvironment info xts fcs
                 || allowLiquidInstationationLocal cfg
                 && maybe False (`M.member` gsAutoInst (spec info)) (subVar sub))
                                     <$> fcs
-    fuelNumber sub = do {v <- subVar sub; lp <- M.lookup v (gsAutoInst (spec info)); lp}
-    fuelMap =  fromMaybe (fuel cfg) . fuelNumber <$> fcs
     specTypToEq (x, t)
       = F.Equ (F.symbol x) (ty_binds $ toRTypeRep t)
            (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
