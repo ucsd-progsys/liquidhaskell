@@ -47,10 +47,8 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | inst      = instantiate' cfg fi
+  | rewriteAxioms cfg = instantiate' cfg fi
   | otherwise = return fi
-  where
-    inst      = rewriteAxioms cfg || arithmeticAxioms cfg
 
 -- instantiate' :: Config -> SInfo a -> IO (SInfo a)
 -- instantiate' cfg fi = do
