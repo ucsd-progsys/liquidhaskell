@@ -738,10 +738,8 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
-data AxiomEnv = AEnv { aenvSyms    :: !Int
-                     , aenvEqs     :: ![Equation]
+data AxiomEnv = AEnv { aenvEqs     :: ![Equation]
                      , aenvSimpl   :: ![Rewrite]
-                     , aenvFuel    :: M.HashMap SubcId Int
                      , aenvExpand  :: M.HashMap SubcId Bool
                      }
   deriving (Eq, Show, Generic)
@@ -758,12 +756,10 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv 0 [] [] (M.fromList []) (M.fromList [])
-  mappend a1 a2 = AEnv aenvSyms' aenvEqs' aenvSimpl' aenvFuel' aenvExpand'
-    where aenvSyms'    = aenvSyms a1 + aenvSyms a2
-          aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
+  mempty = AEnv [] [] (M.fromList [])
+  mappend a1 a2 = AEnv aenvEqs' aenvSimpl' aenvExpand'
+    where aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
-          aenvFuel'    = mappend (aenvFuel a1) (aenvFuel a2)
           aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
 
 data Equation = Equ { eqName :: Symbol
@@ -787,8 +783,6 @@ data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ text "syms" <+> text (show (aenvSyms axe))
-              $+$ text "fuel" <+> toFix (pairdoc <$> M.toList (aenvFuel axe))
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
     where pairdoc (x,y) = text $ show x ++ " : " ++ show y
 

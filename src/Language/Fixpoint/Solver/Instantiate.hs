@@ -47,10 +47,8 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | inst      = instantiate' cfg fi
+  | rewriteAxioms cfg = instantiate' cfg fi
   | otherwise = return fi
-  where
-    inst      = rewriteAxioms cfg || arithmeticAxioms cfg
 
 -- instantiate' :: Config -> SInfo a -> IO (SInfo a)
 -- instantiate' cfg fi = do
@@ -94,25 +92,18 @@ instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
 instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
   = return PTrue
-instSimpC cfg ctx bds aenv sid sub
+instSimpC cfg ctx bds aenv _ sub
   = -- tracepp ("instSimpC " ++ show sid) .
-    pAnd . (is0 ++) .
-    (if arithmeticAxioms cfg then (is1 ++) else id) <$>
+    pAnd . (is0 ++) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
-    is1              = instances maxNumber aenv initOccurences
     evalEqs          =
        map (uncurry (PAtom Eq)) .
        filter (uncurry (/=)) <$>
        evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) aenv iExprs
-    initOccurences   = concatMap (makeInitOccurences as eqs) iExprs
     eqs              = aenvEqs aenv
     (binds, iExprs)  = cstrBindExprs bds sub
-    -- fuel calculated and used only by `instances` arith rewrite method
-    fuelNumber       = M.lookupDefault 0 sid (aenvFuel aenv)
-    as               = (,fuelNumber) . eqName <$> filter (not . null . eqArgs) eqs
-    maxNumber        = (aenvSyms aenv * length initOccurences) ^ fuelNumber
 
 cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrBindExprs bds sub = {- tracepp "initExpressions" -} (unElab <$> binds, unElab <$> es)
@@ -503,85 +494,6 @@ evalIte' γ _ b e1 e2 _ _
               then go $ EApp e1' e2'
               else (False, EApp e1' e2')
     go e = (False, e)
-
-
--- Fuel
--------
-type Fuel = Int
-type FuelMap = [(Symbol, Fuel)]
-
-goodFuelMap :: FuelMap -> Bool
-goodFuelMap = any ((>0) . snd)
-
-hasFuel :: FuelMap -> Symbol -> Bool
-hasFuel fm x = maybe True (\x -> 0 < x) (L.lookup x fm)
-
-makeFuelMap :: (Fuel -> Fuel) -> FuelMap -> Symbol -> FuelMap
-makeFuelMap f ((x, fx):fs) y
-  | x == y    = (x, f fx) : fs
-  | otherwise = (x, fx)   : makeFuelMap f fs y
-makeFuelMap _ _ _ = error "makeFuelMap"
-
-----------------------------
--- Naive evaluation strategy
-----------------------------
-data Occurence = Occ {_ofun :: Symbol, _oargs :: [Expr], ofuel :: FuelMap}
- deriving (Show)
-
-instances :: Int -> AxiomEnv -> [Occurence] -> [Expr]
-instances maxIs aenv !occs
-  = instancesLoop aenv maxIs eqs occs -- (eqBody <$> eqsZero) ++ is
-  where
-    eqs = filter (not . null . eqArgs) (aenvEqs  aenv)
-
--- Naively: Instantiation happens arbitrary times (in recursive functions it
--- diverges)
--- Step 1 [done] : Hack it so that instantiation of axiom A happens from an
--- occurences and its subsequent instances <= FUEL times
--- How? Hack expressions to contatin fuel info within eg Cst Step 2: Compute
--- fuel based on Ranjit's algorithm
-
-instancesLoop :: AxiomEnv ->  Int -> [Equation] -> [Occurence] -> [Expr]
-instancesLoop _ _ eqs = go 0 []
-  where
-    go :: Int -> [Expr] -> [Occurence] -> [Expr]
-    go !i acc occs
-       = let is      = concatMap (unfold eqs) occs
-             newIs   = findNewEqs is acc
-             newOccs = concatMap (grepOccurences eqs) newIs
-             in
-         if null newIs
-            then acc
-            else go (i + length newIs) ((fst <$> newIs) ++ acc) newOccs
-
-findNewEqs :: [(Expr, FuelMap)] -> [Expr] -> [(Expr, FuelMap)]
-findNewEqs [] _ = []
-findNewEqs ((e, f):xss) es
-  | e `elem` es = findNewEqs xss es
-  | otherwise   = (e,f):findNewEqs xss es
-
-makeInitOccurences :: [(Symbol, Fuel)] -> [Equation] -> Expr -> [Occurence]
-makeInitOccurences xs eqs e
-  = [Occ x es xs | (EVar x, es) <- splitEApp <$> Vis.eapps e
-                 , Equ x' xs' _ <- eqs, x == x'
-                 , length xs' == length es]
-
-grepOccurences :: [Equation] -> (Expr, FuelMap) -> [Occurence]
-grepOccurences eqs (e, fs)
-  = filter (goodFuelMap . ofuel)
-           [Occ x es fs | (EVar x, es) <- splitEApp <$> Vis.eapps e
-                        , Equ x' xs' _ <- eqs, x == x'
-                        , length xs' == length es]
-
-unfold :: [Equation] -> Occurence -> [(Expr, FuelMap)]
-unfold eqs (Occ x es fs)
-  = catMaybes [if hasFuel fs x
-                  then Just (subst (mkSubst $ zip  xs' es) e
-                            , makeFuelMap (\x -> x-1) fs x)
-                  else Nothing
-              | Equ x' xs' e <- eqs
-              , x == x'
-              , length xs' == length es]
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

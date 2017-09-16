@@ -740,9 +740,7 @@ data Def a
   | Opt !String
   | Def !Equation
   | Mat !Rewrite
-  | Fuel ![(Int,Int)]
   | Expand ![(Int,Bool)]
-  | Syms !Int
   | Adt  !DataDecl
   deriving (Show, Generic)
   --  Sol of solbind
@@ -771,9 +769,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Opt    <$> (reserved "fixpoint"   >> stringLiteral)
     <|> Def    <$> (reserved "define"     >> defineP)
     <|> Mat    <$> (reserved "match"      >> matchP)
-    <|> Fuel   <$> (reserved "fuel"       >> pairsP intP intP)
     <|> Expand <$> (reserved "expand"     >> pairsP intP boolP)
-    <|> Syms   <$> (reserved "syms"       >> intP)
     <|> Adt    <$> (reserved "data"       >> dataDeclP)
 
 
@@ -844,13 +840,11 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs binfo adts memp
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
     qs         =                    [q                  | Qul q       <- defs]
     binfo      = mempty
-    fuel       = M.fromList         [(fromIntegral i, f)| Fuel fs     <- defs, (i,f) <- fs]
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
-    syms       = sum                [s                  | Syms s      <- defs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
     cid        = fromJust . sid
-    ae         = AEnv syms eqs rews fuel expand
+    ae         = AEnv eqs rews expand
     adts       =                    [d                  | Adt d       <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
