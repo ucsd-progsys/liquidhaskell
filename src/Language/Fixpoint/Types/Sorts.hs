@@ -197,7 +197,7 @@ functionSort s
   | otherwise
   = Just (is, ss, r)
   where
-    (is, ss, r) = go [] [] s
+    (is, ss, r)            = go [] [] s
     go vs ss (FAbs i t)    = go (i:vs) ss t
     go vs ss (FFunc s1 s2) = go vs (s1:ss) s2
     go vs ss t             = (reverse vs, reverse ss, t)

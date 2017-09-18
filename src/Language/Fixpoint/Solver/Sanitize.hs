@@ -377,10 +377,13 @@ binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 --------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
+dropFuncSortedShadowedBinders fi = dropBinders ok (const True) fi
   where
-    f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
-    defs   = M.fromList $ F.toListSEnv $ F.gLits fi
+    ok x t  = (M.member x defs) ==> (F.allowHO fi || isFirstOrder t)
+    defs    = M.fromList $ F.toListSEnv $ F.gLits fi
+
+(==>) :: Bool -> Bool -> Bool
+p ==> q = not p || q
 
 --------------------------------------------------------------------------------
 -- | Drop irrelevant binders from WfC Environments
@@ -424,8 +427,8 @@ dropBinders f g fi  = fi { F.bs    = bs'
                          , F.ws    = ws'
                          , F.gLits = lits' }
   where
-    discards        = diss
-    (bs', diss)     = filterBindEnv f $ F.bs fi
+    -- discards        = diss
+    (bs', discards) = filterBindEnv f $ F.bs fi
     cm'             = deleteSubCBinds discards   <$> F.cm fi
     ws'             = deleteWfCBinds  discards   <$> F.ws fi
     lits'           = F.filterSEnv g (F.gLits fi)

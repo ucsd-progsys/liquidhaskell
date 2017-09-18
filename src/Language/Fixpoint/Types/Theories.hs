@@ -227,7 +227,7 @@ instance B.Binary SmtSort
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SEnv a -> Sort -> SmtSort
-sortSmtSort poly env  = go
+sortSmtSort poly env  = go . unAbs
   where
     go (FFunc _ _)    = SInt
     go FInt           = SInt

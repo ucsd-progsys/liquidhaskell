@@ -51,7 +51,7 @@ remakeSubsts :: SInfo a -> SInfo a
 remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
-remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
+remakeSubst fi k su = foldl' (updateSubst k) su (tracepp "KVARDOMAIN" $ kvarDomain fi k)
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym
@@ -73,7 +73,7 @@ updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 updateWfc :: SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
-    w'            = updateWfCExpr (subst su) w'' 
+    w'            = updateWfCExpr (subst su) w''
     w''           = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
     (_, fi'')     = newTopBind v' (trueSortedReft t) fi'
     (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
