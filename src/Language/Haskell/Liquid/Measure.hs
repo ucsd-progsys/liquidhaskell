@@ -231,7 +231,7 @@ makeDataConType []
 makeDataConType ds | isNothing (dataConWrapId_maybe dc)
   = [(woId, combineDCTypes t ts)]
   where
-    dc   = ctor $ head ds
+    dc   = ctor (head ds)
     woId = dataConWorkId dc
     t    = varType woId
     ts   = defRefType t <$> ds

@@ -23,7 +23,7 @@ import           Type
 import           TyCon
 import           Var
 import           Id                                           -- hiding (isExportedId)
-import           IdInfo
+-- import           IdInfo
 import           Name        hiding (varName)
 import           Control.Monad.State
 import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
 import           Language.Haskell.Liquid.Types.Meet
-import           Language.Haskell.Liquid.GHC.Misc             ( hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Types.Literals
@@ -69,7 +69,7 @@ initEnv info
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty                       -- data constructors
-       f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
+       f2       <- F.tracepp "ASSUMED-REFINEMENTS" <$> (refreshArgs' $ assm info)                           -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals gsAsmSigs sp                   -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors sp)   -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs sp                    -- internal refinements     (from Haskell measures)
@@ -110,10 +110,12 @@ makeAutoDecrDataCons dcts specenv dcs
       | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..]
     go _
       = []
-    idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+
+idTyCon :: Id -> Maybe TyCon
+idTyCon = fmap dataConTyCon . idDataConM
 
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
