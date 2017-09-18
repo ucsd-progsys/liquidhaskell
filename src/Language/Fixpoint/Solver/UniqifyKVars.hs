@@ -51,7 +51,7 @@ remakeSubsts :: SInfo a -> SInfo a
 remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
-remakeSubst fi k su = foldl' (updateSubst k) su (tracepp "KVARDOMAIN" $ kvarDomain fi k)
+remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym

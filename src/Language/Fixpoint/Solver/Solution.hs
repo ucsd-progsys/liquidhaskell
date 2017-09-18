@@ -276,7 +276,7 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
 mkSubst :: F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst env x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = F.tracepp _msg (F.EEq ex' ey')
+  | otherwise   = {- F.tracepp _msg -} (F.EEq ex' ey')
   where
     _msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
