@@ -271,6 +271,8 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
   where
     err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
 
+
+-- LH #1091
 mkSubst :: F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst env x tx ey ty
   | tx == ty    = F.EEq ex ey
