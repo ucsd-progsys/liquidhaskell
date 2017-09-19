@@ -1,0 +1,21 @@
+// TODO: the printer for ADTs like these are broken.
+// Instead of printing "data x = [...]\ndata y = [...],
+// it prints [x = [...]; y = [...]]
+// TODO: FILE THIS BUG
+data Either 2 = [
+  | right { eRight : @(0) }
+  | left { eLeft : @(1) }
+]
+
+bind 0 escobar : {v:int | true }
+bind 1 junk : {v:Either bool int | v = left escobar}
+bind 2 punk : {v:Either int int | true}
+
+// TODO: this causes the behavior described in #1090,
+// where Z3 fails to infer the correct types
+constraint:
+  env [0; 1; 2]
+  lhs {v:int | true }
+  rhs {v:int | punk = left escobar }
+  id 1 tag []
+
