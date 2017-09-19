@@ -181,7 +181,7 @@ testExpr0P =
         show (doParse' expr0P "test" "_|_") @?= "POr []" -- pattern for "EBot"
 
     , testCase "ELam" $
-        show (doParse' expr0P "test" "\\ foo : Int -> true") @?= "ELam (\"foo\",FInt) (EVar \"true\")"
+        show (doParse' expr0P "test" "\\ foo : Int -> true") @?= "ELam (\"foo\",FInt) (PAnd [])"
 
     , testCase "Expr" $
         show (doParse' expr0P "test" "(1)") @?= "ECon (I 1)"
