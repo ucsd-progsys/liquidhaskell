@@ -1,3 +1,5 @@
+// This test works on z3-4.4.1, but is broken in 4.4.2 or newer
+
 data Either 2 = [
   | right { eRight : @(0) }
   | left { eLeft : @(1) }
