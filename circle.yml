@@ -39,8 +39,6 @@ test:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit
     - stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
         timeout: 1800
-    - stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
-        timeout: 1800
     # - git ls-files | grep '\.l\?hs$' | xargs stack exec -- hlint -X QuasiQuotes "$@"
     # - stack exec -- cabal update
     # - stack exec --no-ghc-package-path -- cabal install --only-dependencies --dry-run --reorder-goals
