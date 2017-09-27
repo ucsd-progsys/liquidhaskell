@@ -188,7 +188,7 @@ benchTests
      -- , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      -- , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      -- , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-       testGroup "no-ple"         <$> dirTests "benchmarks/popl18/nople/pos"          autoIgnored               ExitSuccess
+       testGroup "no-ple"         <$> dirTests "benchmarks/popl18/nople/pos"          proverIgnored             ExitSuccess
      , testGroup "ple"            <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
      ]
 
@@ -345,10 +345,9 @@ proverIgnored = [ "OverviewListInfix.hs"
                 , "MonadReader.hs"        -- NOPROP: ""
                 , "ApplicativeReader.hs"  -- NOPROP: ""
                 , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
-                -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
 
-autoIgnored = "Fibonacci.hs" : proverIgnored
+autoIgnored = proverIgnored
 
 
 hscIgnored :: [FilePath]
