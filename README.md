@@ -44,6 +44,8 @@ To run inside `ghci` e.g. when developing do:
     ghci> :m +Language.Haskell.Liquid.Liquid
     ghci> liquid ["tests/pos/Abs.hs"]
 
+See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
+
 How To Run Regression Tests
 ---------------------------
 

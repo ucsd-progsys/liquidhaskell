@@ -135,13 +135,14 @@ configureDynFlags cfg tmp = do
   df <- getSessionDynFlags
   (df',_,_) <- parseDynamicFlags df $ map noLoc $ ghcOptions cfg
   loud <- liftIO isLoud
-  let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
-                 , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = nub $ idirs cfg ++ includePaths df'
+  let df'' = df' { importPaths  = traceShow "IMPORT-PATHS"  $ nub $ idirs cfg ++ importPaths df'
+                 , libraryPaths = traceShow "LIBRARY-PATHS" $ nub $ idirs cfg ++ libraryPaths df'
+                 , includePaths = traceShow "INCLUDE-PATHS" $ nub $ idirs cfg ++ includePaths df'
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
-                                : packageFlags df'
+                                : (packageFlags df')
+
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
