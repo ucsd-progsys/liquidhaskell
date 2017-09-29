@@ -679,7 +679,10 @@ findVarDef x cbs = case xCbs of
                      (Rec [(v, def)] : _ ) -> Just (v, def)
                      _                     -> Nothing
   where
-    xCbs         = [ cb | cb <- cbs, x `elem` coreBindSymbols cb ]
+    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb ]
+    unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
+    unRec nonRec    = [nonRec]
+
 
 coreBindSymbols :: CoreBind -> [Symbol]
 coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
