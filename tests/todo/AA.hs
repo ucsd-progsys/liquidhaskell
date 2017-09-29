@@ -1,6 +1,6 @@
 {-@ LIQUID "--exactdc" @-}
 
-module A where 
+module AA where 
 
 data Foo a b = Foo {fooA :: a, fooB :: b}  |  Bar
 
