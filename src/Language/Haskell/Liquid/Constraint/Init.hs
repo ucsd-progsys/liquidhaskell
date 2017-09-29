@@ -69,7 +69,7 @@ initEnv info
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty                       -- data constructors
-       f2       <- F.tracepp "ASSUMED-REFINEMENTS" <$> (refreshArgs' $ assm info)                           -- assumed refinements      (for imported vars)
+       f2       <- (refreshArgs' $ assm info)                           -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals gsAsmSigs sp                   -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors sp)   -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs sp                    -- internal refinements     (from Haskell measures)
