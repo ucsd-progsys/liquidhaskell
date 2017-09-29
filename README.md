@@ -1,7 +1,6 @@
 ![LiquidHaskell](/resources/logo.png)
 
 
-
 [![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
 
 Main Web site
@@ -43,6 +42,8 @@ To run inside `ghci` e.g. when developing do:
     $ stack ghci liquidhaskell
     ghci> :m +Language.Haskell.Liquid.Liquid
     ghci> liquid ["tests/pos/Abs.hs"]
+
+See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 
 How To Run Regression Tests
 ---------------------------

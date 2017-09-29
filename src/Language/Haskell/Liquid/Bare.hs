@@ -214,7 +214,7 @@ makeLiftedSpec0 cfg embs cbs tcs mySpec = do
   return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
                    , Ms.measures  = ms
                    , Ms.reflects  = Ms.reflects mySpec
-                   , Ms.dataDecls = tracepp "DATA-DECLS" $ makeHaskellDataDecls cfg mySpec tcs
+                   , Ms.dataDecls = makeHaskellDataDecls cfg mySpec tcs
                    }
 
 makeLiftedSpec1

@@ -141,7 +141,8 @@ configureDynFlags cfg tmp = do
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
-                                : packageFlags df'
+                                : (packageFlags df')
+
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
