@@ -111,7 +111,7 @@ expandSym' :: Symbol -> BareM Symbol
 expandSym' s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
-  return $ if M.member s' axs then tracepp "EXPANDSYM" s' else s
+  return $ if M.member s' axs then {- tracepp "EXPANDSYM" -} s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es) = do
