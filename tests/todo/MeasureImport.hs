@@ -1,6 +1,6 @@
 {-@ LIQUID "--exactdc" @-}
 
-import A 
+import AA
 
 {-@ lazy bar @-}
 {-@ bar :: Foo a b -> {v:Foo a b | isFoo v} @-}
