@@ -78,7 +78,7 @@ makeDataConSelector' d i
   | consDataCon == d, i == 2
   = F.symbol "tail"
   | otherwise
-  = symbolMeasure "select" (dcSymbol d) (Just i)
+  = symbolMeasure "$select" (dcSymbol d) (Just i)
 
 dcSymbol :: DataCon -> F.Symbol
 dcSymbol = simpleSymbolVar . dataConWorkId

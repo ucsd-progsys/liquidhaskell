@@ -79,12 +79,15 @@ isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
 isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 
+
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
 -------------------------------------------------------------------------
-tidySpecType k = tidyValueVars
+tidySpecType k = tidyEqual 
+               . tidyValueVars
                . tidyDSymbols
                . tidySymbols
+               . tidyInternalRefas
                . tidyLocalRefas k
                . tidyFunBinds
                . tidyTyVars
@@ -119,6 +122,21 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     dropLocals                    = pAnd . filter (not . any isTmp . syms) . conjuncts
     isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
     txStr                         = filter (not . isSVar)
+
+
+tidyEqual :: SpecType -> SpecType
+tidyEqual = mapReft txReft
+  where 
+    txReft u                      = u { ur_reft = mapPredReft dropInternals $ ur_reft u }
+    dropInternals                 = pAnd . L.nub . conjuncts
+
+tidyInternalRefas   :: SpecType -> SpecType
+tidyInternalRefas = mapReft txReft
+  where
+    txReft u                      = u { ur_reft = mapPredReft dropInternals $ ur_reft u }
+    dropInternals                 = pAnd . filter (not . any isIntern . syms) . conjuncts
+    isIntern x                    = "is$" `isPrefixOfSym` x || "$select" `isSuffixOfSym` x
+
 
 tidyDSymbols :: SpecType -> SpecType
 tidyDSymbols t = mapBind tx $ substa tx t
