@@ -1290,22 +1290,12 @@ makeSingleton γ e t
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 
-{- OLD: only sinlgetons for 
--- reflected functions as appear in aenv
--- this breaks now as imported relfected functions
--- do no live in aenv
--- NV to RJ: to restore this code add imported reflected
--- functions to aenv 
+-- reflectefd functions 
 funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
+
 -- local function arguments
 funExpr γ (Var v) | S.member v (fargs γ)
-  = Just $ F.EVar (F.symbol v)
--}
-
-{- NEW: singletons for everything! -}
-
-funExpr _ (Var v)
   = Just $ F.EVar (F.symbol v)
 
 funExpr γ (App e1 e2)
@@ -1315,6 +1305,7 @@ funExpr γ (App e1 e2)
       (Just e1', Just _)
                            -> Just e1'
       _                    -> Nothing
+
 funExpr _ _
   = Nothing
 
