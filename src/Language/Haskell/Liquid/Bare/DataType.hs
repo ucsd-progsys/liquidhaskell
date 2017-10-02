@@ -31,7 +31,7 @@ import           Class
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
-import           Control.Monad                          (when, (>=>))
+import           Control.Monad                          (when) -- , (>=>))
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
@@ -297,16 +297,17 @@ qualifyDataCtor name (DataCtor c xts t) = DataCtor c xts' t'
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
-  | needsQual = (Just x, qualifyName name x)
+  | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
   | otherwise = (Nothing, x)
   where
+    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
     x         = val lx
     needsQual = not (isWiredIn lx)
 
 qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
   where
-    nSym      = GM.takeModuleNames (F.symbol n)
+    nSym      = {- GM.takeModuleNames -} (F.symbol n)
 
   --
   -- return (trace ("QUALIFY-DCTOR" ++ show c) d)
@@ -333,7 +334,7 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cts           <- mapM (checkDataCtor >=> qualifyDataCtor name)  cts0
+       cts           <- mapM (checkDataCtor) (qualifyDataCtor name <$> cts0)
        cts'          <- mapM (ofBDataCtor lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]

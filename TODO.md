@@ -4,10 +4,7 @@ with data-spec
   Trace: [refl-sigs] : [ImpB.bar : lq1:Bar -> {VV : Int | VV == ImpB.bar lq1
                                     && VV == ImpA.fooA (lqdc##select##Bar##1 lq1)}]
 
-
-
 without data-spec                                  
-
 
 ### CallStack/Error
 
