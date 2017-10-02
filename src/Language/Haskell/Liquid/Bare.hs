@@ -267,11 +267,9 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 --------------------------------------------------------------------------------
 -- | symbolVarMap resolves each Symbol occuring in the spec to its Var ---------
 --------------------------------------------------------------------------------
-
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
-  let xs0   = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  let xs    = xs0
+  let xs    = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
   syms1    <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2    <- lookupIds True [ (lx, ()) | lx@(Loc _ _ x) <- xs
                                         , not (M.member x syms1)
@@ -524,7 +522,9 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
       tx'      = fmap (mapSnd $ fmap uRType)
       tx''     = fmap . mapFst . qualifySymbol $ syms
       vs       = S.fromList $ vars ++ defVars ++ (snd <$> syms)
-      measSyms = tx'' . tx' . tx $ ms' ++ (varMeasures vars) ++ cms'
+      measSyms = tx'' . tx' . tx $ ms'
+                                ++ (varMeasures vars)
+                                ++ cms'
 
 qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Symbol)
 qualifyDefs syms = S.fromList . fmap (mapSnd (qualifySymbol syms)) . S.toList
@@ -666,7 +666,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let adts         = makeDataDecls cfg embs tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.tracepp "CHOP1-datacons" datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 
@@ -745,7 +745,8 @@ makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]
 makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
   measures'   <- mconcat <$> mapM makeMeasureSpec specs
   tyi         <- gets tcEnv
-  let measures = mconcat [measures' , Ms.mkMSpec' dcSelectors]
+  let measures = mconcat [ measures'
+                         , Ms.mkMSpec' dcSelectors]
   let (cs, ms) = makeMeasureSpec' measures
   let cms      = makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]

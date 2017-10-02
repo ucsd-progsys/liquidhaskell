@@ -1,20 +1,20 @@
-GHC-8 integration
-==================
 
-## Last GHC7 commit
 
- (HEAD) : 1aba981fe855028c5ccd572fe8672cbc482f612e
- Timestamp: 2017-05-02 08:02:43 +0530
- Epoch Timestamp: 1493692363
+with data-spec
+  Trace: [refl-sigs] : [ImpB.bar : lq1:Bar -> {VV : Int | VV == ImpB.bar lq1
+                                    && VV == ImpA.fooA (lqdc##select##Bar##1 lq1)}]
 
+
+
+without data-spec                                  
 
 
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated, this is 
+apparently even without cutvars being generated, this is
 because of some bizarro GHC transforms, that thwart eliminate.
-This is because GHC now threads `callstack` through such 
+This is because GHC now threads `callstack` through such
 computations, which make a top-level signature no longer top-level.
 
                  Prelude.error -> dummyError (no call-stack)
@@ -24,7 +24,7 @@ computations, which make a top-level signature no longer top-level.
   Map.hs         ""
   Base           103 -> 76.18 -> 68
 
-Not clear 
+Not clear
 Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - NO.
 - Or do we need to really use a different `error`?
@@ -36,12 +36,6 @@ Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`
 - [ ] NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
-
-- Reader
-  - Applicative crashing
-  - Functor crashing
-  - Functor.NoEx
-  - Monad (...)
 
 TODO
 ====

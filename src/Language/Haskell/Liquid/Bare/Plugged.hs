@@ -86,7 +86,6 @@ makePluggedDataCons embs tcEnv dcs
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
-
     where
       mismatch dts dcp = length dts /= length (tyArgs dcp)
       err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
