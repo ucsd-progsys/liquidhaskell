@@ -51,7 +51,7 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
--- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
+import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
@@ -310,7 +310,7 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cts           <- mapM checkDataCtor cts0 -- (qualifyDataCtor cfg name <$> cts0)
+       cts           <- mapM checkDataCtor cts0
        cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
@@ -390,13 +390,22 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   let t0'       = fromMaybe t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
-  return          (c', DataConP l αs πs ls cs (reverse yts) ot isGadt l')
+  let zts       = zipWith (normalizeField c') [1..] (reverse yts)
+  return          (c', DataConP l αs πs ls cs zts ot isGadt l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
     t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
     isGadt   = isJust res
     dLoc     = F.Loc l l' ()
+
+normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)
+normalizeField c i (x, t)
+  | isTmp x   = (xi, t)
+  | otherwise = (x , t)
+  where
+    isTmp     = F.isPrefixOfSym F.tempPrefix
+    xi        = GM.makeDataConSelector Nothing c i
 
 -- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to
 --   ensure things work properly when exported.
@@ -425,7 +434,7 @@ qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
  where
    nSym      = F.symbol n
-   
+
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec

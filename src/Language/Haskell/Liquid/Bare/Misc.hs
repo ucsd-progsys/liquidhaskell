@@ -81,7 +81,7 @@ makeDataConSelector' d i
   = symbolMeasure "select" (dcSymbol d) (Just i)
 
 dcSymbol :: DataCon -> F.Symbol
-dcSymbol = simpleSymbolVar . dataConWorkId
+dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
 
 symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
 symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
