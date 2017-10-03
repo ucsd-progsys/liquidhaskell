@@ -548,7 +548,7 @@ defuncEApp env e es = L.foldl' makeApplication e' es'
 
 takeArgs :: SEnv TheorySymbol -> Expr -> [(Expr, a)] -> (Expr, [(Expr, a)])
 takeArgs env e es =
-  case tracepp ("isSmt2App" ++ show e) $ Thy.isSmt2App env (Vis.stripCasts e) of
+  case Thy.isSmt2App env (Vis.stripCasts e) of
     Just n  -> let (es1, es2) = splitAt n es
                in (eApps e (fst <$> es1), es2)
     Nothing -> (e, es)
