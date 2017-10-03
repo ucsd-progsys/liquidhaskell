@@ -6,6 +6,7 @@
 {- LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE GADTs               #-}
+module Foo where 
 
 import Prelude hiding (Maybe (..), Either (..))
 import System.Process
@@ -39,8 +40,8 @@ data HeapLte where
 -- Maybe
 --------
 
-{-@ data Either a b = Left {selectLeft :: a}  | Right {selectRight :: b}  @-}
-data Either a b = Left a | Right b
+{-@ data MyEither a b = Left {selectLeft :: a}  | Right {selectRight :: b}  @-}
+data MyEither a b = Left { selectLeft :: a }  | Right { selectRight :: b } 
 data Maybe a = Just a | Nothing
 
 {-@ reflect join @-}
@@ -125,7 +126,7 @@ instance Eq Exn where
 
 {-@ reflect step @-}
 step :: (Trace, [Trace]) -> Map Int [Val -> Trace] -> Int -> Heap
-     -> Either Exn ([Trace], Map Int [Val -> Trace], Int,  Heap)
+     -> MyEither Exn ([Trace], Map Int [Val -> Trace], Int,  Heap)
 step (trc, others) blkd cntr heap =
   case trc of
     Done            -> Right (others, blkd, cntr, heap)
@@ -147,8 +148,6 @@ step (trc, others) blkd cntr heap =
 {-@ reflect select4of4 @-}
 select4of4 (_,_,_,h) = h
 
-{- reflect selectRight @-}
--- selectRight (Right h) = h
 
 {-@ theoremMonotonic :: a:(Trace,[Trace]) -> b:( Map Int [Val -> Trace]) -> c:Int -> h:Heap
                      -> h':{v:Heap | v = select4of4 (selectRight (step a b c h))}

@@ -388,15 +388,14 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   res'         <- mapM (mkSpecType' l ps) res
   let cs        = RT.ofType <$> dataConStupidTheta c'
   let t0'       = fromMaybe t0 res'
-  _cfg         <- gets beConfig
-  let (yts, ot) = qualifyDataCtor qualFlag name dLoc (zip xs ts', t0')
+  cfg          <- gets beConfig
+  let (yts, ot) = qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   return          (c', DataConP l αs πs ls cs (reverse yts) ot isGadt l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
     t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
     isGadt   = isJust res
-    qualFlag = not isGadt -- && (exactDC cfg)
     dLoc     = F.Loc l l' ()
 
 -- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to

@@ -1,7 +1,7 @@
 module Data.Monoid where
 
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc" @-}
+{-@ LIQUID "--exactdc"     @-}
 
 import Prelude hiding (Monoid (..))
 
@@ -29,7 +29,7 @@ class VerifiedMonoid a where
 
 
 {-@ data List a = N | C {hd :: a, tl :: List a} @-}
-data List a = N | C a (List a)
+data List a = N | C {hd :: a, tl :: (List a)}
 
 
 
@@ -82,7 +82,7 @@ instance VerifiedMonoid (List a) where
 {-@ instance VerifiedMonoid (List a) where
   assume mempty  :: {v:List a | (v = N) && (v = memptyList) };
   assume mappend :: {v:(x:List a -> y:List a
-                 -> {v:List a | (v = mappendList x y) && (if (is$Data.Monoid.N x) then (v == y) else (v == C (hd x) (mappendList (tl x) y) )) })  | v == mappendList};
+                 -> {v:List a | (v = mappendList x y) && (if (is$Data.Monoid.N x) then (v == y) else (v == C (Data.Monoid.hd x) (mappendList (Data.Monoid.tl x) y) )) })  | v == mappendList};
   leftId  :: x:List a -> {v:Proof | mappendList memptyList x = x } ;
   rightId :: x:List a -> {v:Proof | mappendList x memptyList = x } ;
   assoc   :: x:List a -> y:List a -> z:List a -> {v:Proof | mappendList x (mappendList y z) = mappendList (mappendList x y) z}
