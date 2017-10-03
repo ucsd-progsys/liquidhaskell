@@ -263,8 +263,8 @@ isSmt2App _ _     = Nothing
 
 thyAppInfo :: TheorySymbol -> Maybe Int
 thyAppInfo ti = case tsInterp ti of
-  Data -> Just 1
-  _    -> sortAppInfo (tsSort ti)
+  Field -> Just 1
+  _     -> sortAppInfo (tsSort ti)
 
 sortAppInfo :: Sort -> Maybe Int
 sortAppInfo t = case bkFFunc t of
@@ -401,18 +401,13 @@ fldSort d (FTC c)
   | c == ddTyCon d = selfSort d
 fldSort _ s        = s
 
--- | 'theorify' converts the 'Sort' into a full 'TheorySymbol'
-
-theorify :: (Symbol, Sort) -> (Symbol, TheorySymbol)
-theorify (x, t) = (x, Thy x (symbolRaw x) t Data)
-
 --------------------------------------------------------------------------------
 ctorSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 ctorSymbols d = ctorSort d <$> ddCtors d
 
 ctorSort :: DataDecl -> DataCtor -> (Symbol, TheorySymbol)
-ctorSort d ctor = (x, Thy x (symbolRaw x) t Data)
+ctorSort d ctor = (x, Thy x (symbolRaw x) t Ctor)
   where
     x           = symbol ctor
     t           = mkFFunc n (ts ++ [selfSort d])
@@ -427,7 +422,7 @@ testSymbols d = testTheory t . symbol <$> ddCtors d
     t         = mkFFunc (ddVars d) [selfSort d, boolSort]
 
 testTheory :: Sort -> Symbol -> (Symbol, TheorySymbol)
-testTheory t x = (sx, Thy sx raw t Data)
+testTheory t x = (sx, Thy sx raw t Ctor)
   where
     sx         = testSymbol x
     raw        = "is-" <> symbolRaw x
@@ -439,6 +434,10 @@ symbolRaw = T.fromStrict . symbolSafeText
 selectSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 selectSymbols d = theorify <$> concatMap (ctorSelectors d) (ddCtors d)
+
+-- | 'theorify' converts the 'Sort' into a full 'TheorySymbol'
+theorify :: (Symbol, Sort) -> (Symbol, TheorySymbol)
+theorify (x, t) = (x, Thy x (symbolRaw x) t Field)
 
 ctorSelectors :: DataDecl -> DataCtor -> [(Symbol, Sort)]
 ctorSelectors d ctor = fieldSelector d <$> dcFields ctor

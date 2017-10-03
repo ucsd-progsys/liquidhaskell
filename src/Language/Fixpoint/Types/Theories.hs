@@ -195,9 +195,10 @@ instance PPrint TheorySymbol where
 --------------------------------------------------------------------------------
 
 data Sem
-  = Uninterp                     -- ^ for UDF: `len`, `height`, `append`
-  | Data                         -- ^ for ADT ctors & accessor: `cons`, `nil`, `head`
-  | Theory                       -- ^ for theory ops: mem, cup, select
+  = Uninterp      -- ^ for UDF: `len`, `height`, `append`
+  | Ctor          -- ^ for ADT constructor and tests: `cons`, `nil`, `is$cons`
+  | Field         -- ^ for ADT field: `hd`, `tl`
+  | Theory        -- ^ for theory ops: mem, cup, select
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance B.Binary Sem
