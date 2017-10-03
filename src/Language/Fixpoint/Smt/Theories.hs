@@ -254,15 +254,22 @@ smt2App _ _ _    = Nothing
 --------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 --------------------------------------------------------------------------------
-isSmt2App _ (EVar f)
-  | f == setEmpty    = Just 1
-  | f == setEmp      = Just 1
-  | f == setSng      = Just 1
-isSmt2App g (EVar f) = do t  <- tsSort <$> lookupSEnv f g
-                          ts <- snd    <$> bkFFunc t
-                          Just (length ts - 1)
-isSmt2App _ _        = Nothing
+isSmt2App g  (EVar f)
+  | f == setEmpty = Just 1
+  | f == setEmp   = Just 1
+  | f == setSng   = Just 1
+  | otherwise     = lookupSEnv f g >>= thyAppInfo
+isSmt2App _ _     = Nothing
 
+thyAppInfo :: TheorySymbol -> Maybe Int
+thyAppInfo ti = case tsInterp ti of
+  Data -> Just 1
+  _    -> sortAppInfo (tsSort ti)
+
+sortAppInfo :: Sort -> Maybe Int
+sortAppInfo t = case bkFFunc t of
+  Just (_, ts) -> Just (length ts - 1)
+  Nothing      -> Nothing
 
 preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
