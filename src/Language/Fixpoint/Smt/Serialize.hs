@@ -14,12 +14,13 @@ module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types
+import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (sortNub, errorstar)
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)
@@ -32,13 +33,15 @@ smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder.Builder
 smt2Sort poly _ env t = smt2 env (Thy.sortSmtSort poly (seData env) t)
 
 smt2data :: SymEnv -> DataDecl -> Builder.Builder
-smt2data env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
+smt2data env = smt2data' env . padDataDecl
+
+smt2data' :: SymEnv -> DataDecl -> Builder.Builder
+smt2data' env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
   where
     tvars                    = smt2many (smt2TV <$> [0..(n-1)])
     name                     = smt2 env (symbol tc)
     ctors                    = smt2many (smt2ctor env <$> cs)
     smt2TV                   = smt2 env . SVar
-
 
 smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
 smt2ctor env (DCtor c [])  = smt2 env c
@@ -48,6 +51,31 @@ smt2ctor env (DCtor c fs)  = build "({} {})" (smt2 env c, fields)
 
 smt2field :: SymEnv -> DataField -> Builder.Builder
 smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t)
+
+-- | SMTLIB/Z3 don't like "unused" type variables; they get pruned away and
+--   cause wierd hassles. See tests/pos/adt_poly_dead.fq for an example.
+--   'padDataDecl' adds a junk constructor that "uses" up all the tyvars just
+--   to avoid this pruning problem.
+
+padDataDecl :: DataDecl -> DataDecl
+padDataDecl d@(DDecl tc n cs)
+  | hasDead    = DDecl tc n (junkDataCtor tc n : cs)
+  | otherwise  = d
+  where
+    hasDead    = tracepp ("HAS-DEAD" ++ show (symbol tc)) $ length usedVars < n
+    usedVars   = declUsedVars d
+
+junkDataCtor :: FTycon -> Int -> DataCtor
+junkDataCtor c n = DCtor (atLoc c junkc) [DField (junkFld i) (FVar i) | i <- [0..(n-1)]]
+  where
+    junkc        = suffixSymbol "junk" (symbol c)
+    junkFld i    = atLoc c    (intSymbol junkc i)
+
+declUsedVars :: DataDecl -> [Int]
+declUsedVars = sortNub . Vis.foldDataDecl go []
+  where
+    go is (FVar i) = i : is
+    go is _        = is
 
 instance SMTLIB2 Symbol where
   smt2 env s

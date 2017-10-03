@@ -176,8 +176,14 @@ dummySpan :: SrcSpan
 dummySpan = SS l l
   where l = initialPos ""
 
-atLoc :: Located a -> b -> Located b
-atLoc (Loc l l' _) = Loc l l'
+-- atLoc :: Located a -> b -> Located b
+-- atLoc (Loc l l' _) = Loc l l'
+
+atLoc :: (Loc l) => l -> b -> Located b
+atLoc z x   = Loc l l' x
+  where
+    SS l l' = srcSpan z
+
 
 locAt :: String -> a -> Located a
 locAt s  = Loc l l

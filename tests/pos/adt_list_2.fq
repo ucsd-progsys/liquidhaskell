@@ -4,11 +4,10 @@ data LL 1 = [
   | con { lHead : @(0), lTail : LL }
 ]
 
-bind 0 junk : {v:LL bool | true} 
+bind 0 junk : {v:LL bool | true}
 
 constraint:
   env [0]
   lhs {v:int | true }
   rhs {v:int | emp = (if (1 < 2) then emp else (con 1 emp)) }
   id 1 tag []
-

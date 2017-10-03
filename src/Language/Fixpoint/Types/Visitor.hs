@@ -39,6 +39,7 @@ module Language.Fixpoint.Types.Visitor (
   -- * Sorts
   , foldSort
   , mapSort
+  , foldDataDecl
 
 
   ) where
@@ -337,6 +338,14 @@ mapSort f = step
     go !(FAbs i t)    = FAbs i (step t)
     go !t             = t
 
+foldDataDecl :: (a -> Sort -> a) -> a -> DataDecl -> a
+foldDataDecl f acc = L.foldl' f acc . dataDeclSorts
+
+dataDeclSorts :: DataDecl -> [Sort]
+dataDeclSorts = concatMap dataCtorSorts . ddCtors
+
+dataCtorSorts :: DataCtor -> [Sort]
+dataCtorSorts = map dfSort . dcFields
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
