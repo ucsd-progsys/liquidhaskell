@@ -424,8 +424,8 @@ qualifyField name lx
 qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
  where
-   nSym      = {- GM.takeModuleNames -} (F.symbol n)
-
+   nSym      = F.symbol n
+   
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
