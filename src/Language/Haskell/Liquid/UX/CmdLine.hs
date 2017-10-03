@@ -47,7 +47,7 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (nub)
+import Data.List                           (nub, isInfixOf)
 
 
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
@@ -383,7 +383,9 @@ cmdArgsRun' md as
       Right a -> cmdArgsApply a
     where
       helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
-      parseResult = process md as -- <$> getArgs
+      parseResult = process md (wideHelp as)
+      wideHelp = map (\a -> if "-help" `isInfixOf` a then "--help=120" else a)
+
 
 --------------------------------------------------------------------------------
 withSmtSolver :: Config -> IO Config
