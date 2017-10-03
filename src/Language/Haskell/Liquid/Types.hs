@@ -1367,10 +1367,11 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
   syms        = foldReft (\_ r acc -> F.syms r ++ acc) []
-  substa f    = _fixme1 -- emapExprArg . mapReft  (F.substa f)
-  substf f    = _fixme2 -- emapExprArg . emapReft (F.substf . F.substfExcept f) []
-  subst su    = _fixme3 -- emapExprArg . emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = _fixme4 -- emapExprArg . emapReft (\xs r -> F.subst1Except xs r su) [] t
+  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
+  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
+  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
+  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+
 
 instance F.Reftable Predicate where
   isTauto (Pr ps)      = null ps
@@ -1440,7 +1441,7 @@ emapExprArg f = go
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')       = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)       = RExprArg (f γ <$> e)
+    go γ (RExprArg e)       = RExprArg (f γ <$> F.tracepp "RExprArg" e)
     go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t

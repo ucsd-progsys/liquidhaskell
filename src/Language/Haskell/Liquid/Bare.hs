@@ -107,7 +107,8 @@ makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = 
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty mempty
                     (initAxSymbols name defVars specs)
                     (initPropSymbols specs)
-
+                    cfg
+                    
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where

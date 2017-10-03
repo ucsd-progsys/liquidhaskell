@@ -32,6 +32,7 @@ import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
 import           Control.Monad                          (when) -- , (>=>))
+import           Control.Monad.State                    (gets)
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
@@ -287,15 +288,19 @@ checkDataCtor d@(DataCtor lc xts _)
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
-qualifyDataCtor :: ModName -> DataCtor -> DataCtor
-qualifyDataCtor name d@(DataCtor c xts t)
- | isJust t  = d                        -- This is a GADT: fields won't become measures.
+-- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to
+--   ensure things work properly when exported.
+
+qualifyDataCtor :: Config -> ModName -> DataCtor -> DataCtor
+qualifyDataCtor _cfg name d@(DataCtor c xts t)
+ | noQual    = d
  | otherwise = F.tracepp "qualifyDataCtor" $ DataCtor c xts' t'
  where
    t'        = F.subst su <$> t
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-   su        = F.mkSubst $ F.tracepp "FUCKING SUBST" $ [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   su        = F.tracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc c x) ]
+   noQual    = isJust t -- // || not (exactDC cfg)
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
@@ -336,7 +341,8 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cts           <- mapM (checkDataCtor) (qualifyDataCtor name <$> cts0)
+       cfg           <- gets beConfig
+       cts           <- mapM (checkDataCtor) (qualifyDataCtor cfg name <$> cts0)
        cts'          <- mapM (ofBDataCtor lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
@@ -407,18 +413,19 @@ ofBDataCtor :: SourcePos
             -> [PVar RSort]
             -> DataCtor
             -> BareM (DataCon, DataConP)
-ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
-  = do c'      <- lookupGhcDataCon c
-       ts'     <- mapM (mkSpecType' l ps) ts
-       res'    <- mapM (mkSpecType' l ps) res
-       let cs   = map RT.ofType (dataConStupidTheta c')
-       let t0'  = fromMaybe t0 res'
-       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' isGadt l')
-    where
-       (xs, ts) = unzip xts
-       rs       = [RT.rVar α | RTV α <- αs]
-       t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
-       isGadt   = isJust res
+ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res) = do
+  c'      <- lookupGhcDataCon c
+  ts'     <- mapM (mkSpecType' l ps) ts
+  res'    <- mapM (mkSpecType' l ps) res
+  let cs   = map RT.ofType (dataConStupidTheta c')
+  let t0'  = fromMaybe t0 res'
+  _       <- _fixme_do_qualifyDataCtor_here_post_expand ts' t0
+  return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' isGadt l')
+  where
+    (xs, ts) = unzip xts
+    rs       = [RT.rVar α | RTV α <- αs]
+    t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+    isGadt   = isJust res
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
