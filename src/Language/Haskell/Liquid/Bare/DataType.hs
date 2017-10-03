@@ -288,37 +288,6 @@ checkDataCtor d@(DataCtor lc xts _)
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
--- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to
---   ensure things work properly when exported.
-
-qualifyDataCtor :: Config -> ModName -> DataCtor -> DataCtor
-qualifyDataCtor _cfg name d@(DataCtor c xts t)
- | noQual    = d
- | otherwise = F.tracepp "qualifyDataCtor" $ DataCtor c xts' t'
- where
-   t'        = F.subst su <$> t
-   xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-   su        = F.tracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
-   fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc c x) ]
-   noQual    = isJust t -- // || not (exactDC cfg)
-
-qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
-qualifyField name lx
- | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
- | otherwise = (Nothing, x)
- where
-   msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
-   x         = val lx
-   needsQual = not (isWiredIn lx)
-
-qualifyName :: ModName -> F.Symbol -> F.Symbol
-qualifyName n = GM.qualifySymbol nSym
- where
-   nSym      = {- GM.takeModuleNames -} (F.symbol n)
-
-  --
-  -- return (trace ("QUALIFY-DCTOR" ++ show c) d)
-
 -- | 'checkDataDecl' checks that the supplied DataDecl is indeed a refinement
 --   of the GHC TyCon. We just check that the right tyvars are supplied
 --   as errors in the names and types of the constructors will be caught
@@ -341,9 +310,8 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cfg           <- gets beConfig
-       cts           <- mapM (checkDataCtor) (qualifyDataCtor cfg name <$> cts0)
-       cts'          <- mapM (ofBDataCtor lc lc' tc' αs ps ls πs) cts
+       cts           <- mapM checkDataCtor cts0 -- (qualifyDataCtor cfg name <$> cts0)
+       cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap    = zip (RT.uPVar <$> πs) [0..]
@@ -404,7 +372,8 @@ addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
 -- TODO:EFFECTS:ofBDataCon
-ofBDataCtor :: SourcePos
+ofBDataCtor :: ModName
+            -> SourcePos
             -> SourcePos
             -> TyCon
             -> [RTyVar]
@@ -413,19 +382,50 @@ ofBDataCtor :: SourcePos
             -> [PVar RSort]
             -> DataCtor
             -> BareM (DataCon, DataConP)
-ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res) = do
-  c'      <- lookupGhcDataCon c
-  ts'     <- mapM (mkSpecType' l ps) ts
-  res'    <- mapM (mkSpecType' l ps) res
-  let cs   = map RT.ofType (dataConStupidTheta c')
-  let t0'  = fromMaybe t0 res'
-  _       <- _fixme_do_qualifyDataCtor_here_post_expand ts' t0
-  return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' isGadt l')
+ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
+  c'           <- lookupGhcDataCon c
+  ts'          <- mapM (mkSpecType' l ps) ts
+  res'         <- mapM (mkSpecType' l ps) res
+  let cs        = RT.ofType <$> dataConStupidTheta c'
+  let t0'       = fromMaybe t0 res'
+  _cfg         <- gets beConfig
+  let (yts, ot) = qualifyDataCtor qualFlag name dLoc (zip xs ts', t0')
+  return          (c', DataConP l αs πs ls cs (reverse yts) ot isGadt l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
     t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
     isGadt   = isJust res
+    qualFlag = not isGadt -- && (exactDC cfg)
+    dLoc     = F.Loc l l' ()
+
+-- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to
+--   ensure things work properly when exported.
+type CtorType = ([(F.Symbol, SpecType)], SpecType)
+
+qualifyDataCtor :: Bool -> ModName -> F.Located a -> CtorType -> CtorType
+qualifyDataCtor qualFlag name l ct@(xts, t)
+ | qualFlag  = (xts', t')
+ | otherwise = ct
+ where
+   t'        = F.subst su <$> t
+   xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
+   su        = F.tracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
+
+qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
+qualifyField name lx
+ | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
+ | otherwise = (Nothing, x)
+ where
+   msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
+   x         = val lx
+   needsQual = not (isWiredIn lx)
+
+qualifyName :: ModName -> F.Symbol -> F.Symbol
+qualifyName n = GM.qualifySymbol nSym
+ where
+   nSym      = {- GM.takeModuleNames -} (F.symbol n)
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)

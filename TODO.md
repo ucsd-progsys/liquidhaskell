@@ -4,7 +4,6 @@ PersistentVector.hs
     `qualifyDataCtor` which yields bogus `makeRecordSelectorSigs`
     (as the substitution done there is not working)
 
-  pair.hs:                                FAIL (1.04s)
   niki1.hs:                               FAIL (0.86s)
   niki.hs:                                FAIL (0.90s)
   maybe2.hs:                              FAIL (0.81s)
