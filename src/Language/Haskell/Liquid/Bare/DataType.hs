@@ -288,26 +288,28 @@ checkDataCtor d@(DataCtor lc xts _)
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
 qualifyDataCtor :: ModName -> DataCtor -> DataCtor
-qualifyDataCtor name (DataCtor c xts t) = DataCtor c xts' t'
-  where
-    t'       = F.subst su <$> t
-    xts'     = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-    su       = F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields   ]
-    fields   = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc c x) ]
+qualifyDataCtor name d@(DataCtor c xts t)
+ | isJust t  = d                        -- This is a GADT: fields won't become measures.
+ | otherwise = F.tracepp "qualifyDataCtor" $ DataCtor c xts' t'
+ where
+   t'        = F.subst su <$> t
+   xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
+   su        = F.mkSubst $ F.tracepp "FUCKING SUBST" $ [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc c x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
-  | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
-  | otherwise = (Nothing, x)
-  where
-    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
-    x         = val lx
-    needsQual = not (isWiredIn lx)
+ | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
+ | otherwise = (Nothing, x)
+ where
+   msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
+   x         = val lx
+   needsQual = not (isWiredIn lx)
 
 qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
-  where
-    nSym      = {- GM.takeModuleNames -} (F.symbol n)
+ where
+   nSym      = {- GM.takeModuleNames -} (F.symbol n)
 
   --
   -- return (trace ("QUALIFY-DCTOR" ++ show c) d)
@@ -428,7 +430,7 @@ makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
 makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecType)]
-makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
+makeRecordSelectorSigs dcs = F.tracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)  -- no field labels OR
@@ -449,10 +451,9 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
            , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
            ]
 
-    su   = F.mkSubst $ [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- xs ]
+    su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
     args = tyArgs dcp
-    xs   = map fst args
-    z    = "lq$recSel"
+    z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
     res  = dropPreds (tyRes dcp)
 
     -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

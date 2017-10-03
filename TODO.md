@@ -1,4 +1,223 @@
 
+PersistentVector.hs
+  - the actual "parameters" are not getting substituted inside
+    `qualifyDataCtor` which yields bogus `makeRecordSelectorSigs`
+    (as the substitution done there is not working)
+
+  pair.hs:                                FAIL (1.04s)
+  niki1.hs:                               FAIL (0.86s)
+  niki.hs:                                FAIL (0.90s)
+  maybe2.hs:                              FAIL (0.81s)
+  Map2.hs:                                FAIL (1.06s)
+  Map0.hs:                                FAIL (1.03s)
+  Map.hs:                                 FAIL (1.00s)
+  ListRange-LType.hs:                     FAIL (0.90s)
+  ListQSort-LType.hs:                     FAIL (0.92s)
+  ListMSort-LType.hs:                     FAIL (0.91s)
+  ListLen-LType.hs:                       FAIL (0.90s)
+  ListISort-LType.hs:                     FAIL (0.99s)
+  listAnf.hs:                             FAIL (0.87s)
+  LF326.hs:                               FAIL (1.15s)
+  kmpIO.hs:                               FAIL (1.36s)
+  kmp.hs:                                 FAIL (1.10s)
+  deptupW.hs:                             FAIL (0.91s)
+  deptup1.hs:                             FAIL (0.91s)
+  deptup0.hs:                             FAIL (0.89s)
+  deptup.hs:                              FAIL (0.91s)
+  DepData.hs:                             FAIL (0.84s)
+  ClojurVector.hs:                        FAIL (1.22s)
+  BST000.hs:                              FAIL (1.28s)
+  BST.hs:                                 FAIL (1.29s)
+  absref-crash0.hs:                       FAIL (0.88s)
+neg
+  StrictPair1.hs:                         FAIL (0.83s)
+  RecSelector.hs:                         FAIL (0.87s)
+  pair.hs:                                FAIL (0.84s)
+  deptupW.hs:                             FAIL (0.82s)
+import/lib
+  RL1015.hs:                              FAIL (1.01s)
+import/client
+  ReflectClient5.hs:                      FAIL (0.94s)
+  ReflectClient4a.hs:                     FAIL (0.95s)
+  ReflectClient4.hs:                      FAIL (0.99s)
+  RC1015.hs:                              FAIL (1.00s)
+Error-Messages
+  MultiRecSels.hs:                          FAIL (0.79s)
+  ShadowFieldInline.hs:                     FAIL (0.89s)
+  ShadowFieldReflect.hs:                    FAIL (0.93s)
+  BadPredApp.hs:                            FAIL (0.79s)
+  BadSig1.hs:                               FAIL (0.81s)
+
+Benchmarks
+text
+  Data/Text.hs:                           FAIL (5.82s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/UnsafeChar.hs:                FAIL (1.61s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Unsafe.hs:                    FAIL (2.06s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Search.hs:                    FAIL (1.91s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Private.hs:                   FAIL (2.09s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy.hs:                      FAIL (7.73s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Internal.hs:                  FAIL (1.79s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Fusion.hs:                    FAIL (3.39s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Foreign.hs:                   FAIL (2.24s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Array.hs:                     FAIL (1.47s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy/Search.hs:               FAIL (5.79s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy/Internal.hs:             FAIL (5.59s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy/Fusion.hs:               FAIL (5.79s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy/Encoding.hs:             FAIL (11.58s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Lazy/Builder.hs:              FAIL (7.07s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/Text/Fusion/Size.hs:               OK (3.02s)
+bytestring
+  Data/ByteString.T.hs:                   FAIL (4.37s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString.hs:                     FAIL (4.30s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Unsafe.hs:              FAIL (1.43s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/LazyZip.hs:             FAIL (4.25s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Lazy.hs:                FAIL (5.32s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Internal.hs:            FAIL (1.35s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Fusion.T.hs:            FAIL (1.75s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Fusion.hs:              FAIL (1.79s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Char8.hs:               FAIL (4.72s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Lazy/Internal.hs:       FAIL (1.45s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Data/ByteString/Lazy/Char8.hs:          FAIL (5.69s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+esop
+  Toy.hs:                                 OK (2.61s)
+  Splay.hs:                               FAIL (1.00s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  ListSort.hs:                            OK (4.28s)
+  GhcListSort.hs:                         OK (14.53s)
+  Fib.hs:                                 OK (1.96s)
+  Base.hs:                                FAIL (5.65s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Array.hs:                               OK (3.93s)
+vect-algs
+  Setup.lhs:                              OK (1.29s)
+  Data/Vector/Algorithms/Termination.hs:  OK (1.47s)
+  Data/Vector/Algorithms/Search.hs:       OK (4.39s)
+  Data/Vector/Algorithms/Radix.hs:        OK (4.71s)
+  Data/Vector/Algorithms/Optimal.hs:      OK (15.10s)
+  Data/Vector/Algorithms/Merge.hs:        OK (9.87s)
+  Data/Vector/Algorithms/Intro.hs:        OK (7.40s)
+  Data/Vector/Algorithms/Insertion.hs:    OK (2.22s)
+  Data/Vector/Algorithms/Heap.hs:         OK (34.08s)
+  Data/Vector/Algorithms/Common.hs:       OK (1.63s)
+  Data/Vector/Algorithms/Combinators.hs:  OK (0.98s)
+  Data/Vector/Algorithms/AmericanFlag.hs: OK (15.29s)
+icfp_pos
+  WhileTest.hs:                           OK (1.65s)
+  WhileM.hs:                              OK (1.96s)
+  TestM.hs:                               OK (1.09s)
+  RIO2.hs:                                OK (51.77s)
+  Privileges.hs:                          OK (1.14s)
+  Overview.lhs:                           OK (19.81s)
+  Incr.hs:                                OK (2.65s)
+  Incr-elim.hs:                           OK (1.57s)
+  IfM2.hs:                                OK (6.06s)
+  IfM.hs:                                 OK (14.14s)
+  ICFP15.lhs:                             OK (2.97s)
+  FoldAbs.hs:                             OK (18.06s)
+  Filter.lhs:                             OK (1.63s)
+  dropwhile.hs:                           OK (1.42s)
+  DBMovies.hs:                            FAIL (0.95s)
+    Wrong exit code
+    expected: ExitSuccess
+     but got: ExitFailure 2
+  Composition.hs:                         OK (1.22s)
+  CompareConstraints.hs:                  OK (1.43s)
+  Append.hs:                              OK (1.88s)
+icfp_neg
+  WhileM.hs:                              OK (2.39s)
+  TestM.hs:                               OK (1.09s)
+  Records.hs:                             FAIL (0.91s)
+    Wrong exit code
+    expected: ExitFailure 1
+     but got: ExitFailure 2
+  IfM.hs:                                 OK (14.50s)
+  DBMovies.hs:                            FAIL (0.97s)
+    Wrong exit code
+    expected: ExitFailure 1
+     but got: ExitFailure 2
+
 
 with data-spec
   Trace: [refl-sigs] : [ImpB.bar : lq1:Bar -> {VV : Int | VV == ImpB.bar lq1
