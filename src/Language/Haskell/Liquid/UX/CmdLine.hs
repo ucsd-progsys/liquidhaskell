@@ -47,7 +47,7 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (nub, isInfixOf)
+import Data.List                           (nub)
 
 
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
@@ -384,7 +384,7 @@ cmdArgsRun' md as
     where
       helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
       parseResult = process md (wideHelp as)
-      wideHelp = map (\a -> if "-help" `isInfixOf` a then "--help=120" else a)
+      wideHelp = map (\a -> if a == "--help" || a == "-help" then "--help=120" else a)
 
 
 --------------------------------------------------------------------------------
