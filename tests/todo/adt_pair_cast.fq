@@ -1,11 +1,11 @@
-data Unify.P 2 = [
-   | Unify.P {Unify.pfst : @(0), Unify.psnd : @(1)}
+data P 2 = [
+   | P {pfst : @(0), psnd : @(1)}
    ]
 
 bind 1 myterm     : {v : bool | true }
 bind 2 pig        : {v : int  | true }
 bind 3 dog        : {v : bool | true }
-bind 4 thing      : {v : int | myterm = (if true then (Unify.psnd (Unify.P pig dog)) else myterm) }
+bind 4 thing      : {v : int | myterm = (if true then (psnd (P pig dog)) else myterm) }
 
 constraint:
   env [1;2;3;4]
