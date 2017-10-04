@@ -50,27 +50,17 @@ instantiate cfg fi
   | rewriteAxioms cfg = instantiate' cfg fi
   | otherwise = return fi
 
--- instantiate' :: Config -> SInfo a -> IO (SInfo a)
--- instantiate' cfg fi = do
-    -- ctx <- SMT.makeContextWithSEnv cfg file env
-    -- -- ctx <- SMT.makeSmtContext cfg file (ddecls fi) [] (applySorts fi)
-    -- SMT.smtPush ctx
-    -- ips <- forM cstrs $ \(i, c) -> do
-             -- p <- instSimpC cfg ctx (bs fi) (ae fi) i c
-             -- return (i, elaborate "PLE-instantiate" env p)
-    -- return (strengthenHyp fi ips)
-
 instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) {- . tracepp ("INSTANTIATE i = " ++ show i) -} <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (zip is ps'')
+sInfo cfg fi env ips = strengthenHyp fi' (tracepp "ELAB-INST: " $ zip is ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
@@ -98,10 +88,9 @@ instSimpC cfg ctx bds aenv _ sub
     if rewriteAxioms cfg then evalEqs else return []
   where
     is0              = eqBody <$> L.filter (null . eqArgs) eqs
-    evalEqs          =
-       map (uncurry (PAtom Eq)) .
-       filter (uncurry (/=)) <$>
-       evaluate cfg ctx ({- (vv Nothing, slhs sub): -} binds) aenv iExprs
+    evalEqs          = map (uncurry (PAtom Eq)) .
+                       filter (uncurry (/=)) <$>
+                       evaluate cfg ctx binds aenv iExprs
     eqs              = aenvEqs aenv
     (binds, iExprs)  = cstrBindExprs bds sub
 
