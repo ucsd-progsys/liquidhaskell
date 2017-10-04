@@ -599,7 +599,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   autois    <- mkThing makeAutoInsts
   addDefs  =<< (qualifyDefs syms <$> mkThing makeDefs)
   asize'    <- S.fromList <$> makeASize
-  hmeas     <- mkThing makeHMeas
+  hmeas     <- mkThing' True makeHMeas
   hinls     <- mkThing makeHInlines
   mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hmeas
   mapM_ (\(v, _) -> insertAxiom (val v) Nothing) $ S.toList hinls
@@ -631,7 +631,8 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
                 , gsIaliases   = gsIaliases'
                 }
   where
-    mkThing mk      = S.fromList . mconcat <$> sequence [ mk defVars s | (_m, s) <- specs ] -- , m == name ]
+    mkThing         = mkThing' False
+    mkThing' b mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs , b || m == name ]
     makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 
