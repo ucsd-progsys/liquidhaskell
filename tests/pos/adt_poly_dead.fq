@@ -1,0 +1,22 @@
+
+// Due to a quirk of Z3, adding an extra "junk" ctor that uses the @(0) ty-var makes this ok, specifically,
+//  | junk  { fjunk    : @(0) }
+
+data Boo 1 = [
+  | bling { booFirst : int  }
+]
+
+data LL 1 = [
+  | emp { }
+  | con { lHead : @(0), lTail : LL }
+]
+
+bind 1 x  : {v: Boo int  | true}
+bind 2 y  : {v: Boo bool | true}
+bind 3 z  : {v: int      | z = 12}
+
+constraint:
+  env [1;2;3]
+  lhs {v : int | v = z + 1 }
+  rhs {v : int | v < 20    }
+  id 1 tag []

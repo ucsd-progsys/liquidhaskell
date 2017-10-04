@@ -1,0 +1,14 @@
+data Boo 0 = [
+  | bling { booFirst : func(0, [int; int]) }
+]
+
+constant booFirst : func(0, [Boo; int; int])
+
+bind 1 x  : {v : Boo | true}
+bind 2 y  : {v : Boo | v = x}
+
+constraint:
+  env [1;2]
+  lhs {v : int | booFirst x 0 = 10 }
+  rhs {v : int | booFirst y 0 = 10 }
+  id 1 tag []

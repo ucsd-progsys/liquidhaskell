@@ -239,30 +239,61 @@ smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c        , smt2SmtSort
 smt2SmtSorts :: [SmtSort] -> Builder.Builder
 smt2SmtSorts = buildMany . fmap smt2SmtSort
 
+type VarAs = SymEnv -> Symbol -> Sort -> Builder.Builder
 --------------------------------------------------------------------------------
-smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
+smt2App :: VarAs -> SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 --------------------------------------------------------------------------------
-smt2App _ (EVar f) [d]
+smt2App _ _ (ECst (EVar f) _) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
-smt2App env (EVar f) (d:ds)
-  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
-  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-smt2App _ _ _    = Nothing
+
+smt2App k env f (d:ds)
+  | Just fb <- smt2AppArg k env f
+  = Just $ build "({} {})" (fb, d <> mconcat [ " " <> d | d <- ds])
+
+smt2App _ _ _ _    = Nothing
+
+-- smt2App env (EVar f) (d:ds)
+--  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
+--  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
+
+smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder.Builder
+smt2AppArg k env (ECst (EVar f) t)
+  | Just fThy <- symEnvTheory f env
+  , isPolyInst (tsSort fThy) t
+  , tsInterp fThy == Ctor
+  = Just (k env f (ffuncOut t))
+
+-- // smt2AppArg _ env (EVar f)
+-- // | Just fThy <- symEnvTheory f env
+-- //  = Just (build "{}" (Only (tsRaw fThy)))
+
+smt2AppArg _ _ _
+  = Nothing
+
+ffuncOut :: Sort -> Sort
+ffuncOut t = maybe t (last . snd) (bkFFunc t)
 
 --------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 --------------------------------------------------------------------------------
-isSmt2App _ (EVar f)
-  | f == setEmpty    = Just 1
-  | f == setEmp      = Just 1
-  | f == setSng      = Just 1
-isSmt2App g (EVar f) = do t  <- tsSort <$> lookupSEnv f g
-                          ts <- snd    <$> bkFFunc t
-                          Just (length ts - 1)
-isSmt2App _ _        = Nothing
+isSmt2App g  (EVar f)
+  | f == setEmpty = Just 1
+  | f == setEmp   = Just 1
+  | f == setSng   = Just 1
+  | otherwise     = lookupSEnv f g >>= thyAppInfo
+isSmt2App _ _     = Nothing
 
+thyAppInfo :: TheorySymbol -> Maybe Int
+thyAppInfo ti = case tsInterp ti of
+  Field -> Just 1
+  _     -> sortAppInfo (tsSort ti)
+
+sortAppInfo :: Sort -> Maybe Int
+sortAppInfo t = case bkFFunc t of
+  Just (_, ts) -> Just (length ts - 1)
+  Nothing      -> Nothing
 
 preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
@@ -394,18 +425,13 @@ fldSort d (FTC c)
   | c == ddTyCon d = selfSort d
 fldSort _ s        = s
 
--- | 'theorify' converts the 'Sort' into a full 'TheorySymbol'
-
-theorify :: (Symbol, Sort) -> (Symbol, TheorySymbol)
-theorify (x, t) = (x, Thy x (symbolRaw x) t Data)
-
 --------------------------------------------------------------------------------
 ctorSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 ctorSymbols d = ctorSort d <$> ddCtors d
 
 ctorSort :: DataDecl -> DataCtor -> (Symbol, TheorySymbol)
-ctorSort d ctor = (x, Thy x (symbolRaw x) t Data)
+ctorSort d ctor = (x, Thy x (symbolRaw x) t Ctor)
   where
     x           = symbol ctor
     t           = mkFFunc n (ts ++ [selfSort d])
@@ -420,7 +446,7 @@ testSymbols d = testTheory t . symbol <$> ddCtors d
     t         = mkFFunc (ddVars d) [selfSort d, boolSort]
 
 testTheory :: Sort -> Symbol -> (Symbol, TheorySymbol)
-testTheory t x = (sx, Thy sx raw t Data)
+testTheory t x = (sx, Thy sx raw t Test)
   where
     sx         = testSymbol x
     raw        = "is-" <> symbolRaw x
@@ -432,6 +458,10 @@ symbolRaw = T.fromStrict . symbolSafeText
 selectSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 selectSymbols d = theorify <$> concatMap (ctorSelectors d) (ddCtors d)
+
+-- | 'theorify' converts the 'Sort' into a full 'TheorySymbol'
+theorify :: (Symbol, Sort) -> (Symbol, TheorySymbol)
+theorify (x, t) = (x, Thy x (symbolRaw x) t Field)
 
 ctorSelectors :: DataDecl -> DataCtor -> [(Symbol, Sort)]
 ctorSelectors d ctor = fieldSelector d <$> dcFields ctor
