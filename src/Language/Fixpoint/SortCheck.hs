@@ -502,7 +502,7 @@ cast (ECst e _) t = ECst e t
 cast e          t = ECst e t
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t e = tracepp _msg <$>  go e
+elabAs f t e = {- tracepp _msg <$> -} go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
     go (EApp e1 e2)   = elabAppAs f t e1 e2

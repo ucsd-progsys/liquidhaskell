@@ -21,7 +21,7 @@ import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)
@@ -123,7 +123,7 @@ instance SMTLIB2 Expr where
   smt2 env (ENeg e)         = build "(- {})" (Only $ smt2 env e)
   smt2 env (EBin o e1 e2)   = build "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   smt2 env (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
-  smt2 env e0@(ECst e t)       = trace ("SMT2-CAST: " ++ showpp e0) $ smt2Cast env e t
+  smt2 env (ECst e t)       = smt2Cast env e t
   smt2 _   (PTrue)          = "true"
   smt2 _   (PFalse)         = "false"
   smt2 _   (PAnd [])        = "true"
@@ -180,7 +180,7 @@ smt2App env e
   | otherwise
   = build "({} {})" (smt2 env f, smt2s env es)
   where
-    (f, es)   = tracepp "SMT2-APP" $ splitEApp' e
+    (f, es)   = splitEApp' e
 
 -- unCast :: Expr -> Expr
 -- unCast (ECst e _) = unCast e

@@ -243,7 +243,7 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder.Builder
 --------------------------------------------------------------------------------
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 --------------------------------------------------------------------------------
-smt2App _ _ (EVar f) [d]
+smt2App _ _ (ECst (EVar f) _) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
@@ -265,13 +265,13 @@ smt2AppArg k env (ECst (EVar f) t)
   , tsInterp fThy == Ctor
   = Just (k env f (ffuncOut t))
 
-smt2AppArg _ env (EVar f)
-  | Just fThy <- symEnvTheory f env
-  = Just (build "{}" (Only (tsRaw fThy)))
+-- // smt2AppArg _ env (EVar f)
+-- // | Just fThy <- symEnvTheory f env
+-- //  = Just (build "{}" (Only (tsRaw fThy)))
 
 smt2AppArg _ _ _
   = Nothing
-  
+
 ffuncOut :: Sort -> Sort
 ffuncOut t = maybe t (last . snd) (bkFFunc t)
 
