@@ -1,27 +1,14 @@
-
-data Unify.L 1 = [
-   | Unify.C {Unify.lhd : @(0), Unify.ltl : Unify.L}
-   | Unify.Emp {}
-   ]
-
-data Unify.Term 0 = [
-   | Unify.TFun {Unify.tfun1 : Unify.Term, Unify.tfun2 : Unify.Term}
-   | Unify.TVar {Unify.tvar : int}
-   | Unify.TBot {}
-   ]
-
 data Unify.P 2 = [
    | Unify.P {Unify.pfst : @(0), Unify.psnd : @(1)}
    ]
 
-bind 1 ink##a2rB  : {v : int        | true }
-bind 2 tonk##a2rC : {v : Unify.Term | true }
-bind 3 ds_d2yg    : {v : Unify.Term | true }
-bind 4 myterm     : {v : Unify.Term | true }
-bind 10 thing     : {v : int | myterm = (if (Unify.pfst (Unify.P ink##a2rB tonk##a2rC)) == (Unify.tvar ds_d2yg) then (Unify.psnd (Unify.P ink##a2rB tonk##a2rC)) else ds_d2yg) }
+bind 1 myterm     : {v : bool | true }
+bind 2 pig        : {v : int  | true }
+bind 3 dog        : {v : bool | true }
+bind 4 thing      : {v : int | myterm = (if true then (Unify.psnd (Unify.P pig dog)) else myterm) }
 
 constraint:
-  env [1;2;3;4;10]
+  env [1;2;3;4]
   lhs {v:int | true }
   rhs {v:int | 12 = 4 + 8}
   id 1 tag []
