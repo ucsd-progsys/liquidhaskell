@@ -96,7 +96,7 @@ strengthenResult' v
   where f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
-        -- refine types of meaures: keep going until you find the last data con!
+        -- refine types of measures: keep going until you find the last data con!
         -- this code is a hack! we refine the last data constructor,
         -- it got complicated to support both
         -- 1. multi parameter measures     (see tests/pos/HasElem.hs)

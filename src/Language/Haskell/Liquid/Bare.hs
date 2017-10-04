@@ -213,8 +213,8 @@ makeLiftedSpec0 cfg embs cbs tcs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
-                   , Ms.measures  = ms
-                   , Ms.reflects  = Ms.reflects mySpec
+                   , Ms.measures  = F.tracepp "MS-MEAS" $ ms
+                   , Ms.reflects  = F.tracepp "MS-REFLS" $ Ms.reflects mySpec
                    , Ms.dataDecls = makeHaskellDataDecls cfg mySpec tcs
                    }
 
@@ -225,8 +225,8 @@ makeLiftedSpec1 file name lSpec0 xts axs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
     xbs    = [ (varLocSym x, specToBare <$> t) | (x, t) <- xts ]
-    lSpec1 = lSpec0 { Ms.asmSigs  = xbs
-                    , Ms.reflSigs = xbs
+    lSpec1 = lSpec0 { Ms.asmSigs  = F.tracepp "ASM-SIGS"  xbs
+                    , Ms.reflSigs = F.tracepp "REFL-SIGS" xbs
                     , Ms.axeqs    = axs }
 
 varLocSym :: Var -> LocSymbol
@@ -237,7 +237,6 @@ varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
 
 saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF _ lspec = do
-  -- putStrLn $ "Saving Binary Lifted Spec: " ++ specF
   ensurePath specF
   B.encodeFile specF lspec
   where
@@ -608,7 +607,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
   isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+  gsTySigs'   <- tracepp "STRENGTHENED-STUFF" <$> (expand $ strengthenHaskellMeasures (tracepp "STRENG-HMEAS" $ S.map fst hmeas) isgs)
   gsMeasures' <- expand $ gsMeasures   sp
   gsAsmSigs'  <- expand $ gsAsmSigs    sp
   gsInSigs'   <- expand $ gsInSigs     sp
@@ -632,7 +631,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
                 , gsIaliases   = gsIaliases'
                 }
   where
-    mkThing mk      = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
+    mkThing mk      = S.fromList . mconcat <$> sequence [ mk defVars s | (_m, s) <- specs ] -- , m == name ]
     makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 
