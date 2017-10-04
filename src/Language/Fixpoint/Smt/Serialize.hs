@@ -21,6 +21,7 @@ import           Data.Monoid
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
+import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)
@@ -62,7 +63,7 @@ padDataDecl d@(DDecl tc n cs)
   | hasDead    = DDecl tc n (junkDataCtor tc n : cs)
   | otherwise  = d
   where
-    hasDead    = tracepp ("HAS-DEAD" ++ show (symbol tc)) $ length usedVars < n
+    hasDead    = length usedVars < n
     usedVars   = declUsedVars d
 
 junkDataCtor :: FTycon -> Int -> DataCtor
@@ -122,7 +123,7 @@ instance SMTLIB2 Expr where
   smt2 env (ENeg e)         = build "(- {})" (Only $ smt2 env e)
   smt2 env (EBin o e1 e2)   = build "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   smt2 env (EIte e1 e2 e3)  = build "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
-  smt2 env (ECst e t)       = smt2Cast env e t
+  smt2 env e0@(ECst e t)       = trace ("SMT2-CAST: " ++ showpp e0) $ smt2Cast env e t
   smt2 _   (PTrue)          = "true"
   smt2 _   (PFalse)         = "false"
   smt2 _   (PAnd [])        = "true"
@@ -156,17 +157,9 @@ smt2Var env x t
 
 smtLamArg :: SymEnv -> Symbol -> Sort -> Builder.Builder
 smtLamArg env x t = symbolBuilder $ symbolAtName x env () (FFunc t FInt)
-  -- symbolBuilder (symbolAtName x env () t)
 
 smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder.Builder
 smt2VarAs env x t = build "(as {} {})" (smt2 env x, smt2SortMono x env t)
-
-isPolyInst :: Sort -> Sort -> Bool
-isPolyInst s t = isPoly s && not (isPoly t)
-
-isPoly :: Sort -> Bool
-isPoly (FAbs {}) = True
-isPoly _         = False
 
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder.Builder
 smt2Lam env (x, xT) (ECst e eT) = build "({} {} {})" (smt2 env lambda, x', smt2 env e)
@@ -182,22 +175,22 @@ smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
   = build "({} {})" (symbolBuilder (symbolAtName applyName env e t), smt2s env [e1, e2])
 smt2App env e
-  | Just b <- Thy.smt2App env (unCast f) (smt2 env <$> es)
+  | Just b <- Thy.smt2App smt2VarAs env f (smt2 env <$> es)
   = b
   | otherwise
   = build "({} {})" (smt2 env f, smt2s env es)
   where
-    (f, es)   =  splitEApp' e
+    (f, es)   = tracepp "SMT2-APP" $ splitEApp' e
 
-unCast :: Expr -> Expr
-unCast (ECst e _) = unCast e
-unCast e          = e
+-- unCast :: Expr -> Expr
+-- unCast (ECst e _) = unCast e
+-- unCast e          = e
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
   where
     go acc (EApp f e) = go (e:acc) f
-    go acc (ECst e _) = go acc e
+  --   go acc (ECst e _) = go acc e
     go acc e          = (e, acc)
 
 mkRel :: SymEnv -> Brel -> Expr -> Expr -> Builder.Builder

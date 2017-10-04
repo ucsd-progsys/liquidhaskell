@@ -196,7 +196,8 @@ instance PPrint TheorySymbol where
 
 data Sem
   = Uninterp      -- ^ for UDF: `len`, `height`, `append`
-  | Ctor          -- ^ for ADT constructor and tests: `cons`, `nil`, `is$cons`
+  | Ctor         -- ^ for ADT constructor and tests: `cons`, `nil`
+  | Test          -- ^ for ADT tests : `is$cons`
   | Field         -- ^ for ADT field: `hd`, `tl`
   | Theory        -- ^ for theory ops: mem, cup, select
   deriving (Eq, Ord, Show, Data, Typeable, Generic)

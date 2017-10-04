@@ -239,17 +239,41 @@ smt2SmtSort (SData c ts) = build "({} {})" (symbolBuilder c        , smt2SmtSort
 smt2SmtSorts :: [SmtSort] -> Builder.Builder
 smt2SmtSorts = buildMany . fmap smt2SmtSort
 
+type VarAs = SymEnv -> Symbol -> Sort -> Builder.Builder
 --------------------------------------------------------------------------------
-smt2App :: SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
+smt2App :: VarAs -> SymEnv -> Expr -> [Builder.Builder] -> Maybe Builder.Builder
 --------------------------------------------------------------------------------
-smt2App _ (EVar f) [d]
+smt2App _ _ (EVar f) [d]
   | f == setEmpty = Just $ build "{}"             (Only emp)
   | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
   | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
-smt2App env (EVar f) (d:ds)
-  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
-  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-smt2App _ _ _    = Nothing
+
+smt2App k env f (d:ds)
+  | Just fb <- smt2AppArg k env f
+  = Just $ build "({} {})" (fb, d <> mconcat [ " " <> d | d <- ds])
+
+smt2App _ _ _ _    = Nothing
+
+-- smt2App env (EVar f) (d:ds)
+--  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
+--  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
+
+smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder.Builder
+smt2AppArg k env (ECst (EVar f) t)
+  | Just fThy <- symEnvTheory f env
+  , isPolyInst (tsSort fThy) t
+  , tsInterp fThy == Ctor
+  = Just (k env f (ffuncOut t))
+
+smt2AppArg _ env (EVar f)
+  | Just fThy <- symEnvTheory f env
+  = Just (build "{}" (Only (tsRaw fThy)))
+
+smt2AppArg _ _ _
+  = Nothing
+  
+ffuncOut :: Sort -> Sort
+ffuncOut t = maybe t (last . snd) (bkFFunc t)
 
 --------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
@@ -422,7 +446,7 @@ testSymbols d = testTheory t . symbol <$> ddCtors d
     t         = mkFFunc (ddVars d) [selfSort d, boolSort]
 
 testTheory :: Sort -> Symbol -> (Symbol, TheorySymbol)
-testTheory t x = (sx, Thy sx raw t Ctor)
+testTheory t x = (sx, Thy sx raw t Test)
   where
     sx         = testSymbol x
     raw        = "is-" <> symbolRaw x

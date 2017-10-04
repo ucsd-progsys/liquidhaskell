@@ -53,7 +53,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkFFunc
   , bkFFunc
 
-  , isNumeric, isReal, isString
+  , isNumeric, isReal, isString, isPolyInst 
 
   -- * User-defined ADTs
   , DataField (..)
@@ -308,6 +308,13 @@ bkFun z@(FFunc _ _)  = Just (go z)
     go (FFunc t1 t2) = t1 : go t2
     go t             = [t]
 bkFun _              = Nothing
+
+isPolyInst :: Sort -> Sort -> Bool
+isPolyInst s t = isPoly s && not (isPoly t)
+
+isPoly :: Sort -> Bool
+isPoly (FAbs {}) = True
+isPoly _         = False
 
 
 instance Hashable FTycon where

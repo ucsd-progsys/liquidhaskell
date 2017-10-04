@@ -469,6 +469,7 @@ symKind :: F.SymEnv -> F.Symbol -> Int
 symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
                   Just F.Theory   -> 0
                   Just F.Ctor     -> 0
+                  Just F.Test     -> 0
                   Just F.Field    -> 0
                   Just F.Uninterp -> 1
                   Nothing         -> 2
