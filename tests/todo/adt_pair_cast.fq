@@ -2,13 +2,12 @@ data P 2 = [
    | P {pfst : @(0), psnd : @(1)}
    ]
 
-bind 1 myterm     : {v : bool | true }
-bind 2 pig        : {v : int  | true }
-bind 3 dog        : {v : bool | true }
-bind 4 thing      : {v : int | myterm = (if true then (psnd (P pig dog)) else myterm) }
+bind 1 myterm : {v : bool | true }
+bind 2 pig    : {v : int  | true }
+bind 3 dog    : {v : bool | true }
 
 constraint:
   env [1;2;3;4]
-  lhs {v:int | true }
+  lhs {v : int | myterm = (if true then (psnd (P pig dog)) else myterm) }
   rhs {v:int | 12 = 4 + 8}
   id 1 tag []
