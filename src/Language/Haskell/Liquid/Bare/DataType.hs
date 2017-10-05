@@ -445,7 +445,7 @@ makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
 makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecType)]
-makeRecordSelectorSigs dcs = F.tracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)
+makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)  -- no field labels OR

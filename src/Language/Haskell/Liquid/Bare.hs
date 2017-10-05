@@ -213,8 +213,8 @@ makeLiftedSpec0 cfg embs cbs tcs mySpec = do
   xils   <- makeHaskellInlines  embs cbs mySpec
   ms     <- makeHaskellMeasures embs cbs mySpec
   return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
-                   , Ms.measures  = F.tracepp "MS-MEAS" $ ms
-                   , Ms.reflects  = F.tracepp "MS-REFLS" $ Ms.reflects mySpec
+                   , Ms.measures  = F.notracepp "MS-MEAS" $ ms
+                   , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
                    , Ms.dataDecls = makeHaskellDataDecls cfg mySpec tcs
                    }
 
@@ -225,8 +225,8 @@ makeLiftedSpec1 file name lSpec0 xts axs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
     xbs    = [ (varLocSym x, specToBare <$> t) | (x, t) <- xts ]
-    lSpec1 = lSpec0 { Ms.asmSigs  = F.tracepp "ASM-SIGS"  xbs
-                    , Ms.reflSigs = F.tracepp "REFL-SIGS" xbs
+    lSpec1 = lSpec0 { Ms.asmSigs  = F.notracepp "ASM-SIGS"  xbs
+                    , Ms.reflSigs = F.notracepp "REFL-SIGS" xbs
                     , Ms.axeqs    = axs }
 
 varLocSym :: Var -> LocSymbol
@@ -607,7 +607,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
   isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- tracepp "STRENGTHENED-STUFF" <$> (expand $ strengthenHaskellMeasures (tracepp "STRENG-HMEAS" $ S.map fst hmeas) isgs)
+  gsTySigs'   <- notracepp "STRENGTHENED-STUFF" <$> (expand $ strengthenHaskellMeasures (notracepp "STRENG-HMEAS" $ S.map fst hmeas) isgs)
   gsMeasures' <- expand $ gsMeasures   sp
   gsAsmSigs'  <- expand $ gsAsmSigs    sp
   gsInSigs'   <- expand $ gsInSigs     sp
@@ -667,7 +667,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let adts         = makeDataDecls cfg embs tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.tracepp "CHOP1-datacons" datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.notracepp "CHOP1-datacons" datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 
