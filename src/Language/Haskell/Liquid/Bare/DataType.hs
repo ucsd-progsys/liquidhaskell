@@ -418,12 +418,12 @@ qualifyDataCtor qualFlag name l ct@(xts, t)
  where
    t'        = F.subst su <$> t
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-   su        = F.tracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   su        = F.notracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
- | needsQual = (Just x, F.tracepp msg $ qualifyName name x)
+ | needsQual = (Just x, F.notracepp msg $ qualifyName name x)
  | otherwise = (Nothing, x)
  where
    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
@@ -468,7 +468,7 @@ makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$
 
     su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
     args = tyArgs dcp
-    z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+    z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
     res  = dropPreds (tyRes dcp)
 
     -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
