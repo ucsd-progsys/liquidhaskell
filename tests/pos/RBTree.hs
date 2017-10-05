@@ -5,8 +5,23 @@ module Foo where
 import Language.Haskell.Liquid.Prelude
 
 data RBTree a = Leaf
-              | Node Color a !(RBTree a) !(RBTree a)
+              | Node { nCol   :: Color
+                     , nKey   :: a
+                     , nLeft  :: !(RBTree a)
+                     , nRight :: !(RBTree a)
+                     }
               deriving (Show)
+
+
+{-@ data RBTree a <l :: a -> a -> Bool, r :: a -> a -> Bool>
+            = Leaf
+            | Node { nCol   :: Color
+                   , nKey   :: a
+                   , nLeft  :: RBTree <l, r> (a <l nKey>)
+                   , nRight :: RBTree <l, r> (a <r nKey>)
+                  }
+  @-}
+
 
 data Color = B -- ^ Black
            | R -- ^ Red

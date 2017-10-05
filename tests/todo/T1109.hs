@@ -157,33 +157,13 @@ theoremVar t i
 
 
 {-@ automatic-instances theoremVarOne  @-}
-
 {-@ theoremVarOne :: tiger:Term
              -> i:{Int | not (Set_mem i (freeVars tiger)) }
              -> ti:Term
              -> { applyOne (P i ti) tiger == tiger } @-}
-{- PLE -}
 theoremVarOne :: Term -> Int -> Term -> Proof
-theoremVarOne (TFun t1 t2) i tonk
-  = theoremVarOne t1 i tonk &&& theoremVarOne t2 i tonk 
-theoremVarOne t i tink
-  = trivial 
-
-{- FULL 
-theoremVarOne :: Term -> Int -> Term -> Proof
-theoremVarOne (TFun t1 t2) i ti
-  =   applyOne (P i ti) (TFun t1 t2)
-  ==. TFun (applyOne (P i ti) t1) (applyOne (P i ti) t2)
-  ==. TFun t1 (applyOne (P i ti) t2)
-      ? theoremVarOne t1 i ti
-  ==. TFun t1 t2
-      ? theoremVarOne t2 i ti
-  *** QED
-theoremVarOne t i ti
-  =   applyOne (P i ti) t
-  ==. t
-  *** QED
--}
+theoremVarOne (TFun t1 t2) ink tonk
+  = theoremVarOne t1 ink tonk
 
 
 -- | Helpers to lift Terms and Lists into logic...

@@ -56,6 +56,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.Misc
+-- import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (findVarDef, varLocInfo, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, bareOfType, uRType, typeSort)
 import           Language.Haskell.Liquid.Types
@@ -226,11 +227,24 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt 
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
 makeMeasureSelector :: (Show a1)
-                    => LocSymbol -> ty -> ctor -> Int -> a1 -> Measure ty ctor
+                    => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where
-    eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
-    mkx j = symbol ("xx" ++ show j)
+    -- x                           = qualifyField dc x0
+    eqn                         = Def x [] dc Nothing args (E (EVar $ mkx i))
+    args                        = ((, Nothing) . mkx) <$> [1 .. n]
+    mkx j                       = symbol ("xx" ++ show j)
+
+
+-- ///     qualifyField :: DataCon -> LocSymbol -> LocSymbol
+-- ///     qualifyField dc x
+  -- ///     | isWiredIn x = x
+  -- ///     | otherwise   = qualifyName dc <$> x
+-- ///
+-- ///     qualifyName :: (F.Symbolic name) => name -> F.Symbol -> F.Symbol
+-- ///     qualifyName n = GM.qualifySymbol nSym
+  -- ///     where
+    -- ///     nSym      = GM.takeModuleNames (F.symbol n)
 
 -- tyConDataCons
 makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon

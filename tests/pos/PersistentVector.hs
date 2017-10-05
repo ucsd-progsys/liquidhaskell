@@ -12,7 +12,7 @@ import Data.Bits
 -- | Simplified binary tree
 
 data Tree a = Leaf a
-            | Node (Tree a) (Tree a)
+            | Node {tLeft :: (Tree a), tRight :: (Tree a) }
 
 -- | Specify "height" of a tree
 

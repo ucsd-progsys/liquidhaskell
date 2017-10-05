@@ -110,7 +110,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (panic, shiftVV, Predicate, isNumeric)
+import Language.Fixpoint.Types hiding (DataCtor (..), panic, shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
@@ -1625,6 +1625,11 @@ instance Show RTyVar where
 
 instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
+
+instance PPrint DataCtor where
+  pprintTidy k (DataCtor c xts t) =
+    pprintTidy k c <+> text "::" <+> (hsep $ punctuate (text "->")
+                                          ((pprintTidy k <$> xts) ++ [pprintTidy k t]))
 
 -- ppHack :: (?callStack :: CallStack) => a -> b
 -- ppHack _ = errorstar "OOPS"

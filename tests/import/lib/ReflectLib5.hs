@@ -22,9 +22,7 @@ lDay (Cons x) = Tue
 
 -- | Lists ---------------------------------------------------------------------
 
-{-@ data List  a = Nil | Cons {lHd :: a} @-}
-data List a = Nil | Cons a
-
+data List  a = Nil | Cons {lHd :: a}
 
 {-@ reflect gapp @-}
 gapp :: List a -> List a

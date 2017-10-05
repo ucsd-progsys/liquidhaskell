@@ -1,20 +1,67 @@
-GHC-8 integration
-==================
 
-## Last GHC7 commit
+HEREHERE:
+  Why the hell was this test passing on `develop` ? (look at .smt2 file)
 
- (HEAD) : 1aba981fe855028c5ccd572fe8672cbc482f612e
- Timestamp: 2017-05-02 08:02:43 +0530
- Epoch Timestamp: 1493692363
+  RL1015.hs:                              FAIL (1.01s)
 
+  theory: this was passing because earlier
+
+    fooFirst and Foo.fooFirst
+
+  were separate names (i.e. the field name was separate from measure name)
+
+  now they are lumped so we have two conflicting types :
+
+    Foo.fooFirst :: FFunc [Foo; int] (where int = closure)  -- due to data-field
+    Foo.fooFirst :: FFunc [Foo; int; int]                   -- due to measure/constant
+
+  and thats whats causing the problem.
+
+  Solution:
+
+  1. write a small fq test
+  2. overload sort-lookup to use field-sorts FIRST
+
+  ShadowFieldInline.hs:                     FAIL (1.00s)
+     Did not match message: Multiple specifications for `pig`
+   ShadowFieldReflect.hs:                    FAIL (0.98s)
+     Did not match message: Multiple specifications for `pig`
+   UnboundVarInSpec.hs:                      FAIL (1.00s)
+     Did not match message: Illegal type specification for `Fixme.foo`
+   MissingAbsRefArgs.hs:                     FAIL (0.99s)
+     Did not match message: Illegal type specification for `Fixme.bar`
+   UnboundVarInAssume.hs:                    FAIL (0.96s)
+     Did not match message: Illegal type specification for `Assume.incr`
+   UnboundVarInAssume1.hs:                   FAIL (0.93s)
+     Did not match message: Illegal type specification for `Main.b`
+   UnboundFunInSpec.hs:                      FAIL (1.01s)
+     Did not match message: Illegal type specification for `Goo.three`
+   UnboundFunInSpec1.hs:                     FAIL (1.02s)
+     Did not match message: Illegal type specification for `Goo.foo`
+   UnboundFunInSpec2.hs:                     FAIL (1.18s)
+     Did not match message: Illegal type specification for `Goo.foo`
+   Fractional.hs:                            FAIL (1.09s)
+     Did not match message: Illegal type specification for `Crash.f`
+   T773.hs:                                  FAIL (1.00s)
+     Did not match message: Illegal type specification for `LiquidR.incr`
+   T774.hs:                                  FAIL (1.05s)
+     Did not match message: Illegal type specification for `LiquidR.incr`
+   HigherOrderBinder.hs:                     FAIL (1.05s)
+     Did not match message: Illegal type specification for `Main.foo`
+   HoleCrash1.hs:                            FAIL (0.94s)
+     Did not match message: Illegal type specification for `ListDemo.t`
+   LocalHole.hs:                             FAIL (0.93s)
+     Did not match message: Illegal type specification for `go`
+   BadSig0.hs:                               FAIL (0.96s)
+     Did not match message: Error: Illegal type specification for `Zoo.foo`
 
 
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated, this is 
+apparently even without cutvars being generated, this is
 because of some bizarro GHC transforms, that thwart eliminate.
-This is because GHC now threads `callstack` through such 
+This is because GHC now threads `callstack` through such
 computations, which make a top-level signature no longer top-level.
 
                  Prelude.error -> dummyError (no call-stack)
@@ -24,7 +71,7 @@ computations, which make a top-level signature no longer top-level.
   Map.hs         ""
   Base           103 -> 76.18 -> 68
 
-Not clear 
+Not clear
 Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - NO.
 - Or do we need to really use a different `error`?
@@ -36,12 +83,6 @@ Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`
 - [ ] NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
-
-- Reader
-  - Applicative crashing
-  - Functor crashing
-  - Functor.NoEx
-  - Monad (...)
 
 TODO
 ====

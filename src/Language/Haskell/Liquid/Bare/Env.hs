@@ -85,8 +85,11 @@ data BareEnv = BE
   , embeds   :: !(TCEmb TyCon)
   , axSyms   :: !(M.HashMap F.Symbol LocSymbol)
   , propSyms :: !(M.HashMap F.Symbol LocSymbol)
+  , beConfig :: !Config
   }
 
+instance HasConfig BareEnv where
+  getConfig = beConfig
 
 setDataDecls :: [F.DataDecl] -> BareM ()
 setDataDecls adts = modify $ \be -> be { dcEnv = dataConMap adts }
