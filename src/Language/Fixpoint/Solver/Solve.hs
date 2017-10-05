@@ -13,6 +13,7 @@ module Language.Fixpoint.Solver.Solve (solve) where
 import           Control.Monad (when, filterM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
+import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.Types.Graduals  as G
@@ -46,7 +47,7 @@ solve cfg fi | gradual cfg
  = solveGradual cfg fi
 
 solve cfg fi = do
-    -- donePhase Loud "Worklist Initialize"
+    donePhase Misc.Loud "Worklist Initialize"
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)

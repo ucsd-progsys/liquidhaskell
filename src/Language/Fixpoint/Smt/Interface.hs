@@ -167,15 +167,16 @@ smtWrite :: Context -> Raw -> IO ()
 smtWrite me !s = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
-smtRead me = {-# SCC "smtRead" #-}
-    do ln  <- smtReadRaw me
-       res <- A.parseWith (smtReadRaw me) responseP ln
-       case A.eitherResult res of
-         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
-         Right r -> do
-           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
-           -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
-           return r
+smtRead me = {-# SCC "smtRead" #-} do
+  when (ctxVerbose me) $ LTIO.putStrLn "SMT READ"
+  ln  <- smtReadRaw me
+  res <- A.parseWith (smtReadRaw me) responseP ln
+  case A.eitherResult res of
+    Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
+    Right r -> do
+      maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
+      when (ctxVerbose me) $ LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+      return r
 
 type SmtParser a = Parser T.Text a
 
