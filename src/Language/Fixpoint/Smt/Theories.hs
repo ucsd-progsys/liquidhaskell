@@ -261,9 +261,9 @@ smt2App _ _ _ _    = Nothing
 smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder.Builder
 smt2AppArg k env (ECst (EVar f) t)
   | Just fThy <- symEnvTheory f env
-  , isPolyInst (tsSort fThy) t
-  , tsInterp fThy == Ctor
-  = Just (k env f (ffuncOut t))
+  = Just $ if isPolyCtor fThy t
+            then (k env f (ffuncOut t))
+            else (build "{}" (Only (tsRaw fThy)))
 
 -- // smt2AppArg _ env (EVar f)
 -- // | Just fThy <- symEnvTheory f env
@@ -271,6 +271,9 @@ smt2AppArg k env (ECst (EVar f) t)
 
 smt2AppArg _ _ _
   = Nothing
+
+isPolyCtor :: TheorySymbol -> Sort -> Bool
+isPolyCtor fThy t = isPolyInst (tsSort fThy) t && tsInterp fThy == Ctor
 
 ffuncOut :: Sort -> Sort
 ffuncOut t = maybe t (last . snd) (bkFFunc t)

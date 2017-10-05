@@ -153,16 +153,15 @@ instance Elaborate BindEnv where
 instance Elaborate (SimpC a) where
   elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
 
--- instance Elaborate Qualifier where
-  -- elaborate env q = q { qParams = elaborate env (qParams q)
-                      -- , qBody   = elaborate [env ++ qParams] (qBody q)
-                      -- }
 
+--------------------------------------------------------------------------------
+-- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
+--------------------------------------------------------------------------------
 elabExpr :: String -> SymEnv -> Expr -> Expr
 elabExpr msg env e
   = case runCM0 $ elab (env, f) e of
       Left msg -> die $ err dummySpan (d msg)
-      Right s  -> fst s
+      Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
     where
       sEnv = seSort env
       f    = (`lookupSEnvWithDistance` sEnv)
@@ -175,6 +174,9 @@ elabExpr msg env e
                  , nest 4 (pprint $ subEnv sEnv e)
                  ]
 
+--------------------------------------------------------------------------------
+-- | 'elabApply' replaces all direct function calls indirect calls via `apply`
+--------------------------------------------------------------------------------
 elabApply :: SymEnv -> Expr -> Expr
 elabApply env = go
   where
@@ -241,11 +243,7 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- RJ: why are we handrolling monads!
 -- | Types used throughout checker
-
--- newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
--- type CheckM   = ExceptT ChError (State ChState)
 type CheckM   = StateT ChState (Either ChError)
 type ChError  = String
 type ChState  = Int
@@ -257,25 +255,15 @@ withError :: CheckM a -> String -> CheckM a
 act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
 
 runCM0 :: CheckM a -> Either String a
--- runCM0 act = snd $ runCM act initCM
-runCM0 act = fst <$> runStateT act initCM -- :: Either ChError (a, ChState)
+runCM0 act = fst <$> runStateT act initCM
   where
     initCM = 42
-
-
--- class Freshable a where
---  fresh   :: CheckM a
---  refresh :: a -> CheckM a
---  refresh _ = fresh
-
--- instance Freshable Int where
 
 fresh :: CheckM Int
 fresh = do
   !n <- get
   put (n + 1)
   return n
-    -- CM (\n -> (n + 1, Right n))
 
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
@@ -390,7 +378,7 @@ elab f@(_, g) e@(EBin o e1 e2) = do
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- elabEApp f e1 e2
+  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
   return (eAppC s e1'          (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
@@ -502,7 +490,7 @@ cast (ECst e _) t = ECst e t
 cast e          t = ECst e t
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t e = {- tracepp _msg <$> -} go e
+elabAs f t e = notracepp _msg <$>  go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
     go (EApp e1 e2)   = elabAppAs f t e1 e2
@@ -525,7 +513,7 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- elab f e1
+  (e1', s1)     <- notracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
   (e2', s2)     <- elab f e2
   (s1', s2', s) <- elabAppSort g e1 e2 s1 s2
   return           (e1', s1', e2', s2', s)
@@ -534,7 +522,7 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  su'             <- unify1 f e su sIn s2 -- unifyMany f e su [sIn] [s2]
+  su'             <- unify1 f e su sIn s2
   return           $ (apply su' s1, apply su' s2, apply su' sOut)
 
 
@@ -674,8 +662,6 @@ checkIte f p e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
   checkIteTy f p e1 e2 t1 t2
-
---  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2
@@ -928,36 +914,13 @@ subst _  _   !s             = s
 instantiate :: Sort -> CheckM Sort
 --------------------------------------------------------------------------------
 instantiate !t = go t
-  -- / | tn > 10   = go $ tracepp ("SIZE=" ++ show tn) t
-  -- / | otherwise = go t
   where
-    -- _tn = sortSize t
     go (FAbs !i !t) = do
       !t'    <- instantiate t
       !v     <- fresh
       return  $ subst i (FVar v) t'
     go !t =
       return t
-
--- instantiate s = do
---  where
---    (is, t)   = unAbs s
-
-_unAbs :: Sort -> ([Int], Sort)
-_unAbs = go []
-  where
-    go !acc (FAbs !i !t) = go (i:acc) t
-    go !acc !t           = (reverse acc, t)
-
-_sortSize :: Sort -> Int
-_sortSize !t = go t
-  where
-    go :: Sort -> Int
-    go (FApp  !t1 !t2) = go t1 + go t2
-    go (FFunc !t1 !t2) = go t1 + go t2
-    go (FAbs  _   !t)  = 1     + go t
-    go _               = 1
-
 
 unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
 unifyVar _ _ θ !i !t@(FVar !j)
