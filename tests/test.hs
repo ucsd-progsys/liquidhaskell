@@ -350,7 +350,9 @@ proverIgnored = [ "OverviewListInfix.hs"
                 -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
 
-autoIgnored = "Fibonacci.hs" : proverIgnored
+autoIgnored = "Unification.hs" 
+            : "Fibonacci.hs" 
+            : proverIgnored
 
 
 hscIgnored :: [FilePath]
