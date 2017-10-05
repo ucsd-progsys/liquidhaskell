@@ -193,13 +193,14 @@ solveNative' !cfg !fi0 = do
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
   let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
-  -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
+  rnf si4 `seq` donePhase Loud "Defunctionalize"
   let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
+  rnf si5 `seq` donePhase Loud "Elaborate"
   si6 <- {-# SCC "Sol.inst"  #-} instantiate cfg $!! si5
+  rnf si6 `seq` donePhase Loud "Instantiate"
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si6
-  -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
   -- when (save cfg) $ saveSolution cfg

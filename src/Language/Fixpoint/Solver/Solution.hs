@@ -40,7 +40,7 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
 --------------------------------------------------------------------------------
-init :: Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
+init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
 init cfg si ks = Sol.fromList senv mempty keqs [] mempty
   where
