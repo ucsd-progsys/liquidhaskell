@@ -60,7 +60,7 @@ instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
     env             = symbolEnv cfg fi
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (tracepp "ELAB-INST:  " $ zip is ps'')
+sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
