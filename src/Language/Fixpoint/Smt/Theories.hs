@@ -273,7 +273,8 @@ smt2AppArg _ _ _
   = Nothing
 
 isPolyCtor :: TheorySymbol -> Sort -> Bool
-isPolyCtor fThy t = isPolyInst (tsSort fThy) t && tsInterp fThy == Ctor
+isPolyCtor _ _ = False
+-- isPolyCtor fThy t = isPolyInst (tsSort fThy) t && tsInterp fThy == Ctor
 
 ffuncOut :: Sort -> Sort
 ffuncOut t = maybe t (last . snd) (bkFFunc t)

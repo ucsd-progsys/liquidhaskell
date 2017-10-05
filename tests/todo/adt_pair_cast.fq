@@ -7,6 +7,6 @@ bind 2 dog : {v : bool | true }
 
 constraint:
   env [1;2]
-  lhs {v : int | psnd ((P pig) dog) }
+  lhs {v : int | psnd (P pig dog) }
   rhs {v:int | 12 = 4 + 8}
   id 1 tag []
