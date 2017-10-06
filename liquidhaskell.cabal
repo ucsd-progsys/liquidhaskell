@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.0.2
+Version:             0.8.0.4
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -73,7 +73,7 @@ Executable liquid
                , deepseq
                , pretty
                , process
-               , liquid-fixpoint >= 0.7
+               , liquid-fixpoint >= 0.7.0.3
                , located-base
                , liquidhaskell
                , hpc >= 0.6
@@ -119,7 +119,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.7
+                , liquid-fixpoint >= 0.7.0.3
                 , located-base
                 , aeson >= 0.10 && < 1.0
                 , bytestring >= 0.10
@@ -281,7 +281,7 @@ test-suite test
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7
+               ,     liquid-fixpoint >= 0.7.0.3
                ,     hpc >= 0.6
                ,     text
 
@@ -303,7 +303,7 @@ test-suite liquidhaskell-parser
                ,     text
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7
+               ,     liquid-fixpoint >= 0.7.0.3
                ,     hpc >= 0.6
 
   if flag(devel)
@@ -322,7 +322,7 @@ test-suite liquidhaskell-parser
                 , ghc == 8.0.2
                 , ghc-boot == 8.0.2
                 , hashable >= 1.2
-                , liquid-fixpoint >= 0.7
+                , liquid-fixpoint >= 0.7.0.3
                 , pretty
                 , syb >= 0.4.4
                 , time
