@@ -389,7 +389,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   let cs        = RT.ofType <$> dataConStupidTheta c'
   let t0'       = fromMaybe t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
+  let (yts, ot) = F.tracepp "OFBDataCTOR" $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
   return          (c', DataConP l αs πs ls cs zts ot isGadt l')
   where
