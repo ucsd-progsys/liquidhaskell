@@ -188,8 +188,8 @@ benchTests
      -- , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
      -- , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
      -- , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-       testGroup "no-ple"         <$> dirTests "benchmarks/popl18/nople/pos"          proverIgnored             ExitSuccess
-     , testGroup "ple"            <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
+       testGroup "without_ple"         <$> dirTests "benchmarks/popl18/without_ple/pos"          proverIgnored             ExitSuccess
+     , testGroup "with_ple"            <$> dirTests "benchmarks/popl18/with_ple/pos"            autoIgnored               ExitSuccess
      ]
 
 
