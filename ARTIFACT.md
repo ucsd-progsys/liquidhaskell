@@ -1,19 +1,14 @@
 Artifact for "Towards Complete Verification via SMT"
 =======
 
-You can run Liquid Haskell 
-online, 
-using a docker VM, *or* 
-build it from source.
-
 # Online Demo 
 
 The examples presented in Sections 2 and 3 of the paper can be viewed 
 and checked at the online demo links below: 
 
-- §2 Overview: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/Overview.html), [.lhs source](https://raw.githubusercontent.com/ucsd-progsys/liquidhaskell/popl18/benchmarks/popl18/ple/Overview.lhs)
-- §2.5 Laws for Lists: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/LawsForLists.html), [.lhs source](https://raw.githubusercontent.com/ucsd-progsys/liquidhaskell/popl18/benchmarks/popl18/ple/LawsForLists.lhs) 
-- §3.3 Natural Deduction: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/NaturalDeduction.html), [lhs source](https://github.com/ucsd-progsys/liquidhaskell/blob/popl18/benchmarks/popl18/ple/NaturalDeduction.lhs)
+- §2 Overview: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/Overview.html), [.lhs source](https://raw.githubusercontent.com/ucsd-progsys/liquidhaskell/popl18/benchmarks/popl18/with_ple/Overview.lhs)
+- §2.5 Laws for Lists: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/LawsForLists.html), [.lhs source](https://raw.githubusercontent.com/ucsd-progsys/liquidhaskell/popl18/benchmarks/popl18/with_ple/LawsForLists.lhs) 
+- §3.3 Natural Deduction: [.html file](http://goto.ucsd.edu/~nvazou/popl18/_site/NaturalDeduction.html), [lhs source](https://github.com/ucsd-progsys/liquidhaskell/blob/popl18/benchmarks/popl18/with_ple/NaturalDeduction.lhs)
 
 # Running Benchmarks 
 
@@ -24,7 +19,8 @@ To run the benchmarks, you need to
 
 ## Build Option 1: Docker 
 
-- Please install `docker`. 
+- Please install `docker` by following [this link](https://docs.docker.com/engine/installation/)
+
 
 - Then, you can run the tests:
 ```
@@ -101,9 +97,40 @@ $ cd verified-instances ; make DOCKER=false TIMEIT=true PLE=true
 $ cd verified-instances ; make DOCKER=false TIMEIT=true PLE=false
 ```
 
-  
+## Proof Size Measurements
+
+To reproduce the proof sizes, do:
+
+```
+$ cd liquidhaskell
+$ make count
+```
+```
+$ cd verified-instances
+$ make count
+```
+$ cd lvars
+$ make count
+```
+
+You should see output that looks like:
+
+```
+src/Data/VerifiedEq/Instances/Sum.hs
+CODE: 59
+SPEC: 34
+CODE + SPEC: 93
+```
+
+For each file `Foo.hs` we print:
+
+* CODE = lines of haskell code (including proofs)
+- i.e. the sum of the “Impl (l)” and “Proof (l)” columns from Table  1
+(we have to partition the two by manual inspection as, after all all the motivation of the paper is that proofs are just code!)
 
 
+* SPEC = lines of theorem specifications (including liquid & haskell sigs)
+- i.e. the the “Spec (l)” column of Table 1
 
 
 # Benchmark Listing 
