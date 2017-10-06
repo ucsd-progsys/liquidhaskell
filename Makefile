@@ -108,3 +108,6 @@ tags:
 
 ghcid:
 	ghcid --command "stack ghci --main-is liquidhaskell:exe:liquid"
+
+count:
+	for file in $(wildcard benchmarks/popl18/*_ple/*) ; do echo $$file ; ./lh-count.sh $$file ; done
