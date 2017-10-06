@@ -60,7 +60,7 @@ import qualified Data.String as String
 import qualified Data.Text as S
 import qualified Data.Text.Array as A
 import qualified Data.Text.Lazy as L
-
+import          Data.Text.Lazy (isNull)
 
 ------------------------------------------------------------------------
 

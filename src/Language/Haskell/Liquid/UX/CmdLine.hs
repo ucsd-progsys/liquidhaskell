@@ -383,7 +383,9 @@ cmdArgsRun' md as
       Right a -> cmdArgsApply a
     where
       helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
-      parseResult = process md as -- <$> getArgs
+      parseResult = process md (wideHelp as)
+      wideHelp = map (\a -> if a == "--help" || a == "-help" then "--help=120" else a)
+
 
 --------------------------------------------------------------------------------
 withSmtSolver :: Config -> IO Config

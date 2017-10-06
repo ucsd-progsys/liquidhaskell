@@ -7,7 +7,11 @@ module Foo (add, remove, deleteMin, deleteMin') where
 import Language.Haskell.Liquid.Prelude
 
 data RBTree a = Leaf
-              | Node Color a !(RBTree a) !(RBTree a)
+              | Node { nCol   :: Color
+                     , nKey   :: a
+                     , nLeft  :: !(RBTree a)
+                     , nRight :: !(RBTree a)
+                     }
               deriving (Show)
 
 data Color = B -- ^ Black
@@ -140,5 +144,5 @@ makeBlack (Node _ x l r) = Node B x l r
               | Node { nCol   :: Color
                      , nKey   :: a
                      , nLeft  :: RBTree <l, r> (a <l nKey>)
-                     , nRight :: RBTree <l, r> (a <r nKey>) } 
+                     , nRight :: RBTree <l, r> (a <r nKey>) }
   @-}

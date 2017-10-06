@@ -32,6 +32,7 @@ import qualified HscTypes as GHC
 
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types          hiding (prop)
+import qualified Language.Fixpoint.Types as F 
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Types.PredType
@@ -84,7 +85,7 @@ type family Res a where
 -- makeDecl x t
   -- = Declare x [] t
 
-makeDecl :: SEnv a -> Symbol -> Sort -> Command
+makeDecl :: SEnv F.DataDecl -> Symbol -> Sort -> Command
 makeDecl env x t = Declare x ins' out'
   where
     ins'        = sortSmtSort False env <$> ins

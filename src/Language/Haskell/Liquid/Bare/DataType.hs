@@ -31,7 +31,8 @@ import           Class
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
-import           Control.Monad                          (when)
+import           Control.Monad                          (when) -- , (>=>))
+import           Control.Monad.State                    (gets)
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
@@ -50,7 +51,7 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
--- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
+import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
@@ -82,9 +83,9 @@ instanceTyCon = go . is_tys
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
 --------------------------------------------------------------------------------
 
--- | A 'PropDecl' is associated with a (`TyCon` and) `DataDecl`, and defines the
+-- | A 'DataPropDecl' is associated with a (`TyCon` and) `DataDecl`, and defines the
 --   sort of relation that is established by terms of the given `TyCon`.
---   A 'PropDecl' say, 'pd' is associated with a 'dd' of type 'DataDecl' when
+--   A 'DataPropDecl' say, 'pd' is associated with a 'dd' of type 'DataDecl' when
 --   'pd' is the `SpecType` version of the `BareType` given by `tycPropTy dd`.
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
@@ -223,6 +224,7 @@ qualifyName :: ModName -> LocSymbol -> LocSymbol
 qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
   where
     nSym        = GM.takeModuleNames (F.symbol n)
+
 -}
 
 --------------------------------------------------------------------------------
@@ -286,7 +288,6 @@ checkDataCtor d@(DataCtor lc xts _)
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
-
 -- | 'checkDataDecl' checks that the supplied DataDecl is indeed a refinement
 --   of the GHC TyCon. We just check that the right tyvars are supplied
 --   as errors in the names and types of the constructors will be caught
@@ -310,7 +311,7 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
        cts           <- mapM checkDataCtor cts0
-       cts'          <- mapM (ofBDataCtor lc lc' tc' αs ps ls πs) cts
+       cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap    = zip (RT.uPVar <$> πs) [0..]
@@ -318,7 +319,7 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
        let defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
        let (tvi, pvi) = f defPs
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
-       return ((name, tc', tcp, Just (dd, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
+       return ((name, tc', tcp, Just (dd { tycDCons = cts }, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
        err         = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
        αs          = RTV . GM.symbolTyVar <$> as
@@ -371,7 +372,8 @@ addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
 -- TODO:EFFECTS:ofBDataCon
-ofBDataCtor :: SourcePos
+ofBDataCtor :: ModName
+            -> SourcePos
             -> SourcePos
             -> TyCon
             -> [RTyVar]
@@ -380,18 +382,58 @@ ofBDataCtor :: SourcePos
             -> [PVar RSort]
             -> DataCtor
             -> BareM (DataCon, DataConP)
-ofBDataCtor l l' tc αs ps ls πs (DataCtor c xts res)
-  = do c'      <- lookupGhcDataCon c
-       ts'     <- mapM (mkSpecType' l ps) ts
-       res'    <- mapM (mkSpecType' l ps) res
-       let cs   = map RT.ofType (dataConStupidTheta c')
-       let t0'  = fromMaybe t0 res'
-       return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0' isGadt l')
-    where
-       (xs, ts) = unzip xts
-       rs       = [RT.rVar α | RTV α <- αs]
-       t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
-       isGadt   = isJust res
+ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
+  c'           <- lookupGhcDataCon c
+  ts'          <- mapM (mkSpecType' l ps) ts
+  res'         <- mapM (mkSpecType' l ps) res
+  let cs        = RT.ofType <$> dataConStupidTheta c'
+  let t0'       = fromMaybe t0 res'
+  cfg          <- gets beConfig
+  let (yts, ot) = qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
+  let zts       = zipWith (normalizeField c') [1..] (reverse yts)
+  return          (c', DataConP l αs πs ls cs zts ot isGadt l')
+  where
+    (xs, ts) = unzip xts
+    rs       = [RT.rVar α | RTV α <- αs]
+    t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+    isGadt   = isJust res
+    dLoc     = F.Loc l l' ()
+
+normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)
+normalizeField c i (x, t)
+  | isTmp x   = (xi, t)
+  | otherwise = (x , t)
+  where
+    isTmp     = F.isPrefixOfSym F.tempPrefix
+    xi        = GM.makeDataConSelector Nothing c i
+
+-- | `qualifyDataCtor` qualfies the field names for each `DataCtor` to
+--   ensure things work properly when exported.
+type CtorType = ([(F.Symbol, SpecType)], SpecType)
+
+qualifyDataCtor :: Bool -> ModName -> F.Located a -> CtorType -> CtorType
+qualifyDataCtor qualFlag name l ct@(xts, t)
+ | qualFlag  = (xts', t')
+ | otherwise = ct
+ where
+   t'        = F.subst su <$> t
+   xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
+   su        = F.notracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
+
+qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
+qualifyField name lx
+ | needsQual = (Just x, F.notracepp msg $ qualifyName name x)
+ | otherwise = (Nothing, x)
+ where
+   msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
+   x         = val lx
+   needsQual = not (isWiredIn lx)
+
+qualifyName :: ModName -> F.Symbol -> F.Symbol
+qualifyName n = GM.qualifySymbol nSym
+ where
+   nSym      = F.symbol n
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
@@ -403,7 +445,7 @@ makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
 makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecType)]
-makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
+makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)
   where
   makeOne (dc, Loc l l' dcp)
     | null (dataConFieldLabels dc)  -- no field labels OR
@@ -424,10 +466,9 @@ makeRecordSelectorSigs dcs = concat <$> mapM makeOne dcs
            , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
            ]
 
-    su   = F.mkSubst $ [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- xs ]
+    su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
     args = tyArgs dcp
-    xs   = map fst args
-    z    = "lq$recSel"
+    z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
     res  = dropPreds (tyRes dcp)
 
     -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

@@ -174,7 +174,7 @@ pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 instance Show Cinfo where
-  show = show . F.toFix 
+  show = show . F.toFix
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
