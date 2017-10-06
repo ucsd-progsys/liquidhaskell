@@ -204,7 +204,6 @@ lookupGhcVar x = do
     fv (AConLike (RealDataCon x)) = Just $ dataConWorkId x
     fv _                          = Nothing
 
-
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
   lookupGhcThing err ftc (Just tcName) s  `catchError` \_ ->

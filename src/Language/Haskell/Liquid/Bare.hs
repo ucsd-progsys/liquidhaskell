@@ -49,7 +49,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (sortNub, applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
@@ -97,6 +97,7 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
+  putStrLn $ "hsc_type_env_var = " ++ show (isJust (hsc_type_env_var env))
   sp         <- throwLeft =<< execBare act initEnv
   let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
@@ -209,14 +210,36 @@ _propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
 
 makeLiftedSpec0 :: Config -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
                 -> BareM Ms.BareSpec
-makeLiftedSpec0 cfg embs cbs tcs mySpec = do
-  xils   <- makeHaskellInlines  embs cbs mySpec
-  ms     <- makeHaskellMeasures embs cbs mySpec
-  return  $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
-                   , Ms.measures  = F.tracepp "MS-MEAS" $ ms
-                   , Ms.reflects  = F.tracepp "MS-REFLS" $ Ms.reflects mySpec
-                   , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
-                   }
+makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
+  xils    <- makeHaskellInlines  embs cbs mySpec
+  ms      <- makeHaskellMeasures embs cbs mySpec
+  reflTcs <- reflectedTyCons          cfg mySpec
+  let tcs  = F.tracepp "REFLECTED-TYCONS" $ sortNub (defTcs ++ reflTcs)
+  return   $ mempty { Ms.ealiases  = lmapEAlias . snd <$> xils
+                    , Ms.measures  = F.tracepp "MS-MEAS" $ ms
+                    , Ms.reflects  = F.tracepp "MS-REFLS" $ Ms.reflects mySpec
+                    , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                    }
+
+-- | 'externalTyCons' returns the list of `[TyCon]` that must be reflected but
+--   which are defined *outside* the current module e.g. in Base or somewhere
+--   that we don't have access to the code.
+reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
+reflectedTyCons cfg spec
+  | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
+  | otherwise   = return []
+
+reflectedVars :: Ms.BareSpec -> [CoreBind] -> [Var]
+reflectedVars spec cbs = fst <$> xDefs 
+  where
+    xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
+    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
+
+-- findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+
+-- makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+-- specTypeCons :: SpecType -> [TyCon]
+-- specTypeCons = _fixme
 
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq]

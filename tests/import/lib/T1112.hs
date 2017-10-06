@@ -4,7 +4,9 @@
 
 module T1112 where
 
-import ProdDef
+import T1112Lib
+
+{-@ data Product @-}
 
 {-@ axiomatize leqProd @-}
 leqProd :: Eq (f p)

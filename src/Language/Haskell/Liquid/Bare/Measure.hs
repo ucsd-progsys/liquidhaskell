@@ -48,7 +48,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, groupList, mapSnd, mapFst)
+import Language.Fixpoint.Misc (traceShow, mlookup, sortNub, groupList, mapSnd, mapFst)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -77,7 +77,9 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec
   | exactDC cfg = mapMaybe tyConDataDecl
+                . traceShow "VanillaTCs 2 "
                 . zipMap   (hasDataDecl spec)
+                . F.tracepp "VanillaTCs 1 "
                 . filter    isVanillaAlgTyCon
   | otherwise   = const []
 
@@ -87,6 +89,7 @@ zipMap f xs = zip xs (map f xs)
 data HasDataDecl
   = NoDecl  (Maybe SizeFun)
   | HasDecl
+  deriving (Show)
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
@@ -97,8 +100,10 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
 
 hasDecl :: DataDecl -> HasDataDecl
 hasDecl d
-  | Just s <- tycSFun d, null (tycDCons d)
-  = NoDecl (Just s)
+  | null (tycDCons d)
+  = NoDecl (tycSFun d)
+  -- // | Just s <- tycSFun d, null (tycDCons d)
+  -- // = NoDecl (Just s)
   | otherwise
   = HasDecl
 
