@@ -1,4 +1,18 @@
+{-@ reflect baz @-}
+bar :: Int -> Int
+bar n = n
 
+{-@ reflect baz @-}
+baz :: Int -> Int
+baz n = n
+
+{-@ reflect foo @-}
+foo 0 = bar 0  
+foo 1 = baz 1
+foo n = baz 1
+
+prop :: n:Int -> { foo n == 0 || foo n == 1 }
+prop n = ()
 
 
 

@@ -60,7 +60,7 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
              -> GhcSpec
              -> Either [Error] GhcSpec
 
-checkGhcSpec specs env0 sp =  applyNonNull (Right sp) Left errors
+checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
     errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
                         mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
@@ -84,12 +84,11 @@ checkGhcSpec specs env0 sp =  applyNonNull (Right sp) Left errors
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                        (gsTconsP sp)
-    env               = tracepp "checkGhcSpec ENV = " env0
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases          = concat [Ms.ealiases sp | (_, sp) <- specs]
-    emb              = tracepp "checkGhcSpec TCEMB" $ gsTcEmbeds sp
+    emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
@@ -273,12 +272,11 @@ checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, R
            => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
-checkRType allowHO emb env t0
+checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
-    t                  = tracepp "checkRType: " t0
     cb c ts            = classBinds (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r

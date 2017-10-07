@@ -97,7 +97,6 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  putStrLn $ "hsc_type_env_var = " ++ show (isJust (hsc_type_env_var env))
   sp         <- throwLeft =<< execBare act initEnv
   let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
@@ -215,7 +214,6 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
   let tcs    = defTcs ++ refTcs
-  liftIO     $ putStrLn $ "REFLECTED-TYCONS" ++ show tcs
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
@@ -372,7 +370,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  lSpec0         <- makeLiftedSpec0 cfg embs cbs (GM.tracePpr "TCS" tcs) mySpec
+  lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
