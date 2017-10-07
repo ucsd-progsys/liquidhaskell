@@ -121,6 +121,8 @@ module Language.Haskell.Liquid.Types (
   , efoldReft, foldReft, foldReft'
   , mapReft, mapReftM, mapPropM
   , mapBot, mapBind
+  , foldRType
+
 
   -- * ???
   , Oblig(..)
@@ -246,7 +248,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Maybe                             (fromMaybe, mapMaybe)
 
-import           Data.List                              (nub)
+import           Data.List                              (foldl', nub)
 import           Data.Text                              (Text)
 
 
@@ -1446,6 +1448,26 @@ emapExprArg f = go
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t
     mo γ (RProp s t)            = RProp s (go γ t)
+
+
+foldRType :: (acc -> RType c tv r -> acc) -> acc -> RType c tv r -> acc
+foldRType f = go
+  where
+    step a t                = go (f a t) t
+    prep a (RProp _ (RHole {})) = a
+    prep a (RProp _ t)      = step a t
+    go a (RVar {})          = a
+    go a (RHole {})         = a
+    go a (RExprArg {})      = a
+    go a (RAllT _ t)        = step a t
+    go a (RAllP _ t)        = step a t
+    go a (RAllS _ t)        = step a t
+    go a (RFun _ t t' _)    = foldl' step a [t, t']
+    go a (RAllE _ t t')     = foldl' step a [t, t']
+    go a (REx _ t t')       = foldl' step a [t, t']
+    go a (RAppTy t t' _)    = foldl' step a [t, t']
+    go a (RApp _ ts rs _)   = foldl' prep (foldl' step a ts) rs
+    go a (RRTy e _ _ t)     = foldl' step a (t : (snd <$> e))
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t

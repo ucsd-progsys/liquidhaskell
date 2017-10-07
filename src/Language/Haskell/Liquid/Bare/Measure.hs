@@ -37,7 +37,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
-import TysWiredIn (boolTyCon)
+import TysWiredIn (boolTyCon, wiredInTyCons)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -77,9 +77,17 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec
   | exactDC cfg = mapMaybe tyConDataDecl
+                -- . traceShow "VanillaTCs 2 "
                 . zipMap   (hasDataDecl spec)
-                . filter    isVanillaAlgTyCon
+                . F.notracepp "VanillaTCs 1 "
+                . liftableTyCons
+
   | otherwise   = const []
+
+liftableTyCons :: [TyCon] -> [TyCon]
+liftableTyCons = filter   (not . isBoxedTupleTyCon)
+               . filter   isVanillaAlgTyCon
+               . (`sortDiff` wiredInTyCons)
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
@@ -87,6 +95,7 @@ zipMap f xs = zip xs (map f xs)
 data HasDataDecl
   = NoDecl  (Maybe SizeFun)
   | HasDecl
+  deriving (Show)
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
@@ -97,8 +106,10 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
 
 hasDecl :: DataDecl -> HasDataDecl
 hasDecl d
-  | Just s <- tycSFun d, null (tycDCons d)
-  = NoDecl (Just s)
+  | null (tycDCons d)
+  = NoDecl (tycSFun d)
+  -- // | Just s <- tycSFun d, null (tycDCons d)
+  -- // = NoDecl (Just s)
   | otherwise
   = HasDecl
 

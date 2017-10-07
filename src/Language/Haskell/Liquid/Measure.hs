@@ -72,7 +72,6 @@ data Spec ty bndr  = Spec
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
   , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  -- , axioms     :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into SMT axioms
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to reflect
   , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
