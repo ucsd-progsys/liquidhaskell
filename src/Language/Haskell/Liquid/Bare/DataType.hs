@@ -90,18 +90,36 @@ instanceTyCon = go . is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
+makeDataDecls :: Config -> F.TCEmb TyCon
+              -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
 makeDataDecls cfg tce tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
+                | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls-DATACONS" ds) ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = [ (tc, ({- qualifyDataDecl m -} d, t)) | (_, tc, (d, t)) <- tds ]
+    tds'      = [ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
 
-groupDataCons :: [(TyCon, DataPropDecl)] -> [(DataCon, Located DataConP)]
+-- [NOTE:Multiple-Lifted-TyCons]
+{- | 'canonizeTyConDecls' will prune duplicate 'TyCon' definitions, as follows:
+--   Let the "home" of a 'TyCon' be the module where it is defined.
+--   There are three kinds of 'TyCon' definitions:
+--   1. A  "home"-definition is one that belongs to its home module,
+--   2. An "orphan"-definition is one that belongs to some non-home module, and
+--   3. A "refined"-definition is either 1 or 2 but such that `hasDecl dataAn "refined-definition" for a 'TyCon'
+--   1. If there is a "home"-definition of 'TyCon', then use that and IGNORE all others.
+--   2. If there are only "orphan"-definitions, then take any one (they shou) defined in its "home" then take thatthe hom
+
+-}
+_canonizeTyConDecls
+  :: [(ModName, TyCon, DataPropDecl)]
+  -> [(ModName, TyCon, DataPropDecl)]
+_canonizeTyConDecls = undefined -- _fixme
+
+groupDataCons :: [(TyCon, DataPropDecl)]
+              -> [(DataCon, Located DataConP)]
               -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
 groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
   where
@@ -306,7 +324,7 @@ ofBDataDecl :: ModName
             -> Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
-ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
+ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
@@ -391,7 +409,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   cfg          <- gets beConfig
   let (yts, ot) = F.notracepp "OFBDataCTOR" $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
-  return          (c', DataConP l αs πs ls cs zts ot isGadt l')
+  return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
