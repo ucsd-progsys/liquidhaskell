@@ -37,7 +37,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
-import TysWiredIn (boolTyCon)
+import TysWiredIn (boolTyCon, wiredInTyCons)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -80,8 +80,17 @@ makeHaskellDataDecls cfg spec
                 . traceShow "VanillaTCs 2 "
                 . zipMap   (hasDataDecl spec)
                 . F.tracepp "VanillaTCs 1 "
-                . filter    isVanillaAlgTyCon
+                . liftableTyCons
+
   | otherwise   = const []
+
+liftableTyCons :: [TyCon] -> [TyCon]
+liftableTyCons = filter   (not . isBoxedTupleTyCon)
+               . filter   isVanillaAlgTyCon
+               . (`sortDiff` wiredInTyCons)
+
+  -- F.notracepp "REFLECTED-TYCONS" $ (sortNub (defTcs ++ refTcs))
+
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)

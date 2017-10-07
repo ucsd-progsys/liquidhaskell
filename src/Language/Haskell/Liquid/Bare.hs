@@ -49,13 +49,13 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (sortNub, applyNonNull, ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.Misc               (sortDiff, nubHashOn)
+import           Language.Haskell.Liquid.Misc               (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
@@ -214,7 +214,8 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = if True then refTcs else F.notracepp "REFLECTED-TYCONS" $ sortNub (defTcs ++ refTcs) `sortDiff` wiredInTyCons
+  let tcs    = defTcs ++ refTcs
+  liftIO     $ putStrLn $ "REFLECTED-TYCONS" ++ show tcs
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
