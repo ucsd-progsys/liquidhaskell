@@ -1,8 +1,10 @@
 {-@ LIQUID "--higherorder"        @-}
 {-@ LIQUID "--exactdc"            @-}
-module Bug where
 
-import Aux
+module T1117 where
+
+import T1117Lib 
+
 import Language.Haskell.Liquid.ProofCombinators
 
 {-@ axiomatize leqU1 @-}
