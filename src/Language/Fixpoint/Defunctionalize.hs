@@ -5,7 +5,6 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 
-
 --------------------------------------------------------------------------------
 -- | `defunctionalize` traverses the query to:
 --      1. "normalize" lambda terms by renaming binders,
