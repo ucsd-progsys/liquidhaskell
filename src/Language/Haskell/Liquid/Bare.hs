@@ -55,7 +55,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.Misc               (nubHashOn)
+import           Language.Haskell.Liquid.Misc               (sortDiff, nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
@@ -214,7 +214,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = F.notracepp "REFLECTED-TYCONS" $ sortNub (defTcs ++ refTcs)
+  let tcs    = if True then refTcs else F.notracepp "REFLECTED-TYCONS" $ sortNub (defTcs ++ refTcs) `sortDiff` wiredInTyCons
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
@@ -882,7 +882,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) (  text "replaceLocalBindsOne" <+>  pprint v) t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ( {- text "replaceLocalBindsOne" <+> -} pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))
