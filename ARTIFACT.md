@@ -109,6 +109,7 @@ $ make count
 $ cd verified-instances
 $ make count
 ```
+```
 $ cd lvars
 $ make count
 ```
