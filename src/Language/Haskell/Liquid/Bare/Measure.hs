@@ -92,26 +92,12 @@ liftableTyCons = filter   (not . isBoxedTupleTyCon)
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
 
-data HasDataDecl
-  = NoDecl  (Maybe SizeFun)
-  | HasDecl
-  deriving (Show)
-
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
   where
     def          = NoDecl Nothing
     tcSym        = GM.dropModuleNamesAndUnique . symbol
     decls        = M.fromList [ (symbol d, hasDecl d) | d <- Ms.dataDecls spec ]
-
-hasDecl :: DataDecl -> HasDataDecl
-hasDecl d
-  | null (tycDCons d)
-  = NoDecl (tycSFun d)
-  -- // | Just s <- tycSFun d, null (tycDCons d)
-  -- // = NoDecl (Just s)
-  | otherwise
-  = HasDecl
 
 {-@ tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: (TyCon, HasDataDecl) -> Maybe DataDecl
@@ -127,6 +113,7 @@ tyConDataDecl (tc, NoDecl szF)
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
+      , tycKind   = DataReflected
       }
       where decls = map dataConDecl . tyConDataCons
 
@@ -210,7 +197,7 @@ meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
+makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _ _))
   = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where

@@ -90,23 +90,85 @@ instanceTyCon = go . is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb TyCon -> [(ModName, TyCon, DataPropDecl)]
+makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
+              -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
-makeDataDecls cfg tce tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd ctors
+makeDataDecls cfg tce name tds ds
+  | makeDecls = [ makeFDataDecls tce tc dd (F.notracepp "Make-Decl-CTORS" ctors)
                 | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = [ (tc, ({- qualifyDataDecl m -} d, t)) | (_, tc, (d, t)) <- tds ]
+    tds'      = F.notracepp "makeDataDecls-TYCONS" $ resolveTyCons name tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
 
-groupDataCons :: [(TyCon, DataPropDecl)] -> [(DataCon, Located DataConP)]
-              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
-groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
+-- [NOTE:Orphan-TyCons]
+
+{- | 'resolveTyCons' will prune duplicate 'TyCon' definitions, as follows:
+
+      Let the "home" of a 'TyCon' be the module where it is defined.
+      There are three kinds of 'DataDecl' definitions:
+
+      1. A  "home"-definition is one that belongs to its home module,
+      2. An "orphan"-definition is one that belongs to some non-home module.
+
+      A 'DataUser' definition MUST be a "home" definition
+          - otherwise you can avoid importing the definition
+            and hence, unsafely pass its invariants!
+
+      So, 'resolveTyConDecls' implements the following protocol:
+
+      (a) If there is a "Home" definition,
+          then use it, and IGNORE others.
+
+      (b) If there are ONLY "orphan" definitions,
+          then pick the one from module being analyzed.
+
+      We COULD relax to allow for exactly one orphan `DataUser` definition
+      which is the one that should be selected, but that seems like a
+      slippery slope, as you can avoid importing the definition
+      and hence, unsafely pass its invariants! (Feature not bug?)
+
+-}
+resolveTyCons :: ModName -> [(ModName, TyCon, DataPropDecl)]
+              -> [(TyCon, (ModName, DataPropDecl))]
+resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
+                                     , (m, d)    <- maybeToList $ resolveDecls m tc mds ]
   where
+    tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
+
+-- | See [NOTE:Orphan-TyCons], the below function tells us which of (possibly many)
+--   DataDecls to use.
+resolveDecls :: ModName -> TyCon -> Misc.ListNE (ModName, DataPropDecl)
+             -> Maybe (ModName, DataPropDecl)
+resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
+  where
+    isMyDef                = (mName ==)             . fst
+    isHomeDef              = (tcHome ==) . F.symbol . fst
+    tcHome                 = GM.takeModuleNames (F.symbol tc)
+
+
+groupDataCons :: [(TyCon, (ModName, DataPropDecl))]
+              -> [(DataCon, Located DataConP)]
+              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
+groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
+                                         , let dds' = filter (isResolvedDataConP m . snd) dds
+                       ]
+  where
+    tcDataCons       = M.toList $ M.intersectionWith (,) declM ctorM
     declM            = M.fromList tds
     ctorM            = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
+
+isResolvedDataConP :: ModName -> DataConP -> Bool
+isResolvedDataConP m dp = F.symbol m == dcpModule dp
+
+_groupDataCons :: [(TyCon, DataPropDecl)]
+              -> [(DataCon, Located DataConP)]
+              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
+_groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
+  where
+    declM             = M.fromList tds
+    ctorM             = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
 
 
 makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
@@ -306,7 +368,7 @@ ofBDataDecl :: ModName
             -> Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
-ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt)) maybe_invariance_info
+ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
@@ -391,7 +453,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   cfg          <- gets beConfig
   let (yts, ot) = F.notracepp "OFBDataCTOR" $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
-  return          (c', DataConP l αs πs ls cs zts ot isGadt l')
+  return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
@@ -433,7 +495,7 @@ qualifyField name lx
 qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
  where
-   nSym      = F.symbol n
+   nSym       = F.symbol n
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)

@@ -87,6 +87,8 @@ module Language.Haskell.Liquid.Types (
   , DataDecl (..)
   , DataCtor (..)
   , DataConP (..)
+  , HasDataDecl (..), hasDecl
+  , DataDeclKind (..)
   , TyConP   (..)
 
   -- * Pre-instantiated RType
@@ -446,8 +448,10 @@ data DataConP = DataConP
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
+  , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
+
 
 instance F.Loc DataConP where
   srcSpan d = F.SS (dc_loc d) (dc_locE d)
@@ -1100,6 +1104,7 @@ data DataDecl   = D
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
+  , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
 
 -- | Data Constructor
@@ -1115,6 +1120,12 @@ data SizeFun
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
   deriving (Data, Typeable, Generic)
 
+-- | What kind of `DataDecl` is it?
+data DataDeclKind
+  = DataUser           -- ^ User defined data-definitions (should have refined fields)
+  | DataReflected      -- ^ Automatically lifted data-definitions (do not have refined fields)
+  deriving (Data, Typeable, Generic)
+
 instance Show SizeFun where
   show IdSizeFun      = "IdSizeFun"
   show (SymSizeFun x) = "SymSizeFun " ++ show (F.val x)
@@ -1123,9 +1134,24 @@ szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
 szFun (SymSizeFun f) = \x -> F.mkEApp (F.symbol <$> f) [F.EVar x]
 
+data HasDataDecl
+  = NoDecl  (Maybe SizeFun)
+  | HasDecl
+  deriving (Show)
+
+hasDecl :: DataDecl -> HasDataDecl
+hasDecl d
+  | null (tycDCons d)
+  = NoDecl (tycSFun d)
+  -- // | Just s <- tycSFun d, null (tycDCons d)
+  -- // = NoDecl (Just s)
+  | otherwise
+  = HasDecl
+
 instance NFData   SizeFun
 instance B.Binary SizeFun
-
+instance NFData   DataDeclKind
+instance B.Binary DataDeclKind
 instance B.Binary DataCtor
 instance B.Binary DataDecl
 

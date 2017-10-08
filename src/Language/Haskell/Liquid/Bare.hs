@@ -700,7 +700,6 @@ makeGhcSpecCHOP1
            , M.HashMap TyCon RTyCon
            , [F.DataDecl]
            )
-
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcDds, dcs)    <- mconcat <$> mapM makeConTypes specs
   let tcs          = [(x, y) | (_, x, y, _)       <- tcDds]
@@ -708,7 +707,8 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
   datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
-  let adts         = makeDataDecls cfg embs tds datacons
+  myName          <- modName <$> get
+  let adts         = makeDataDecls cfg embs myName tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
   let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.notracepp "CHOP1-datacons" datacons
