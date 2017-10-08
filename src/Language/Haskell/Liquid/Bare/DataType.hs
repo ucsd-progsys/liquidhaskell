@@ -95,12 +95,12 @@ makeDataDecls :: Config -> F.TCEmb TyCon
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
 makeDataDecls cfg tce tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls-DATACONS" ds) ]
+  | makeDecls = [ makeFDataDecls tce tc dd (F.notracepp "Make-Decl-CTORS" ctors)
+                | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = indexTyConDecls tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
+    tds'      = F.notracepp "makeDataDecls-TYCONS" $ indexTyConDecls tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
 
 -- [NOTE:Orphan-TyCons]
 
