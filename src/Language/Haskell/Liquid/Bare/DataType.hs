@@ -90,21 +90,21 @@ instanceTyCon = go . is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb TyCon
+makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
               -> [(ModName, TyCon, DataPropDecl)]
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
-makeDataDecls cfg tce tds ds
+makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd (F.notracepp "Make-Decl-CTORS" ctors)
                 | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = F.notracepp "makeDataDecls-TYCONS" $ indexTyConDecls tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
+    tds'      = F.notracepp "makeDataDecls-TYCONS" $ resolveTyCons name tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
 
 -- [NOTE:Orphan-TyCons]
 
-{- | 'indexTyConDecls' will prune duplicate 'TyCon' definitions, as follows:
+{- | 'resolveTyCons' will prune duplicate 'TyCon' definitions, as follows:
 
       Let the "home" of a 'TyCon' be the module where it is defined.
       There are three kinds of 'DataDecl' definitions:
@@ -116,29 +116,34 @@ makeDataDecls cfg tce tds ds
           - otherwise you can avoid importing the definition
             and hence, unsafely pass its invariants!
 
+      That said ...
+
       So, 'resolveTyConDecls' implements the following protocol:
 
-      (a) If there is a "Home" definition, then use it, and IGNORE others.
+      (a) If there is a "Home" definition,
+          then use it, and IGNORE others.
 
-      (b) If there are ONLY "orphan" definitions, PICK ANY;
-          they must all be 'DataReflected' and hence, equivalent.
+      (b) If there are ONLY "orphan" definitions,
+          then pick the one from module being analyzed.
 
 -}
-indexTyConDecls :: [(ModName, TyCon, DataPropDecl)] -> [(TyCon, (ModName, DataPropDecl))]
-indexTyConDecls mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
-                                     , let (m, d) = resolveTyConDecls tc mds ]
+resolveTyCons :: ModName -> [(ModName, TyCon, DataPropDecl)]
+              -> [(TyCon, (ModName, DataPropDecl))]
+resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
+                                     , (m, d)    <- maybeToList $ resolveDecls m tc mds ]
   where
     tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
 
 -- | See [NOTE:Orphan-TyCons], the below function tells us which of (possibly many)
 --   DataDecls to use.
-resolveTyConDecls :: TyCon -> Misc.ListNE (ModName, DataPropDecl) -> (ModName, DataPropDecl)
-resolveTyConDecls tc mds
-  | Just (m, d) <- homeDef = (m, d)
-  | otherwise              = head mds
+resolveDecls :: ModName -> TyCon -> Misc.ListNE (ModName, DataPropDecl)
+             -> Maybe (ModName, DataPropDecl)
+resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
   where
-    homeDef                = L.find ((tcHome ==) . F.symbol . fst) mds
+    isMyDef                = (mName ==)             . fst 
+    isHomeDef              = (tcHome ==) . F.symbol . fst
     tcHome                 = GM.takeModuleNames (F.symbol tc)
+
 
 groupDataCons :: [(TyCon, (ModName, DataPropDecl))]
               -> [(DataCon, Located DataConP)]
