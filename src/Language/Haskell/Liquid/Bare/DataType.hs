@@ -100,31 +100,67 @@ makeDataDecls cfg tce tds ds
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = [ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
+    tds'      = indexTyConDecls tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
 
--- [NOTE:Multiple-Lifted-TyCons]
-{- | 'canonizeTyConDecls' will prune duplicate 'TyCon' definitions, as follows:
---   Let the "home" of a 'TyCon' be the module where it is defined.
---   There are three kinds of 'TyCon' definitions:
---   1. A  "home"-definition is one that belongs to its home module,
---   2. An "orphan"-definition is one that belongs to some non-home module, and
---   3. A "refined"-definition is either 1 or 2 but such that `hasDecl dataAn "refined-definition" for a 'TyCon'
---   1. If there is a "home"-definition of 'TyCon', then use that and IGNORE all others.
---   2. If there are only "orphan"-definitions, then take any one (they shou) defined in its "home" then take thatthe hom
+-- [NOTE:Orphan-TyCons]
+
+{- | 'indexTyConDecls' will prune duplicate 'TyCon' definitions, as follows:
+
+      Let the "home" of a 'TyCon' be the module where it is defined.
+      There are three kinds of 'DataDecl' definitions:
+
+      1. A  "home"-definition is one that belongs to its home module,
+      2. An "orphan"-definition is one that belongs to some non-home module.
+
+      A 'DataUser' definition MUST be a "home" definition
+          - otherwise you can avoid importing the definition
+            and hence, unsafely pass its invariants!
+
+      So, 'resolveTyConDecls' implements the following protocol:
+
+      (a) If there is a "Home" definition, then use it, and IGNORE others.
+
+      (b) If there are ONLY "orphan" definitions, PICK ANY;
+          they must all be 'DataReflected' and hence, equivalent.
 
 -}
-_canonizeTyConDecls
-  :: [(ModName, TyCon, DataPropDecl)]
-  -> [(ModName, TyCon, DataPropDecl)]
-_canonizeTyConDecls = undefined -- _fixme
+indexTyConDecls :: [(ModName, TyCon, DataPropDecl)] -> [(TyCon, (ModName, DataPropDecl))]
+indexTyConDecls mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
+                                     , let (m, d) = resolveTyConDecls tc mds ]
+  where
+    tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
 
-groupDataCons :: [(TyCon, DataPropDecl)]
+-- | See [NOTE:Orphan-TyCons], the below function tells us which of (possibly many)
+--   DataDecls to use.
+resolveTyConDecls :: TyCon -> Misc.ListNE (ModName, DataPropDecl) -> (ModName, DataPropDecl)
+resolveTyConDecls tc mds
+  | Just (m, d) <- homeDef = (m, d)
+  | otherwise              = head mds
+  where
+    homeDef                = L.find ((tcHome ==) . F.symbol . fst) mds
+    tcHome                 = GM.takeModuleNames (F.symbol tc)
+
+groupDataCons :: [(TyCon, (ModName, DataPropDecl))]
               -> [(DataCon, Located DataConP)]
               -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
-groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
+groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
+                                         , let dds' = filter (isResolvedDataConP m . snd) dds
+                       ]
   where
+    tcDataCons       = M.toList $ M.intersectionWith (,) declM ctorM
     declM            = M.fromList tds
     ctorM            = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
+
+isResolvedDataConP :: ModName -> DataConP -> Bool
+isResolvedDataConP m dp = F.symbol m == dcpModule dp
+
+_groupDataCons :: [(TyCon, DataPropDecl)]
+              -> [(DataCon, Located DataConP)]
+              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
+_groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
+  where
+    declM             = M.fromList tds
+    ctorM             = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
 
 
 makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
@@ -451,7 +487,7 @@ qualifyField name lx
 qualifyName :: ModName -> F.Symbol -> F.Symbol
 qualifyName n = GM.qualifySymbol nSym
  where
-   nSym      = F.symbol n
+   nSym       = F.symbol n
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
