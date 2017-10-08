@@ -116,8 +116,6 @@ makeDataDecls cfg tce name tds ds
           - otherwise you can avoid importing the definition
             and hence, unsafely pass its invariants!
 
-      That said ...
-
       So, 'resolveTyConDecls' implements the following protocol:
 
       (a) If there is a "Home" definition,
@@ -125,6 +123,11 @@ makeDataDecls cfg tce name tds ds
 
       (b) If there are ONLY "orphan" definitions,
           then pick the one from module being analyzed.
+
+      We COULD relax to allow for exactly one orphan `DataUser` definition
+      which is the one that should be selected, but that seems like a
+      slippery slope, as you can avoid importing the definition
+      and hence, unsafely pass its invariants! (Feature not bug?)
 
 -}
 resolveTyCons :: ModName -> [(ModName, TyCon, DataPropDecl)]
@@ -140,7 +143,7 @@ resolveDecls :: ModName -> TyCon -> Misc.ListNE (ModName, DataPropDecl)
              -> Maybe (ModName, DataPropDecl)
 resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
   where
-    isMyDef                = (mName ==)             . fst 
+    isMyDef                = (mName ==)             . fst
     isHomeDef              = (tcHome ==) . F.symbol . fst
     tcHome                 = GM.takeModuleNames (F.symbol tc)
 

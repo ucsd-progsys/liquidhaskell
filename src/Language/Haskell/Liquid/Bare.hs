@@ -700,7 +700,6 @@ makeGhcSpecCHOP1
            , M.HashMap TyCon RTyCon
            , [F.DataDecl]
            )
-
 makeGhcSpecCHOP1 cfg specs embs syms = do
   (tcDds, dcs)    <- mconcat <$> mapM makeConTypes specs
   let tcs          = [(x, y) | (_, x, y, _)       <- tcDds]
