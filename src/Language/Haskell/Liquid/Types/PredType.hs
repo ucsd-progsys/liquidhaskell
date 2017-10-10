@@ -77,7 +77,13 @@ dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
     wrR                 = toRTypeRep wrT
 
 dataConWorkRep :: DataCon -> SpecRep
-dataConWorkRep = toRTypeRep . ofType . Var.varType . dataConWorkId
+dataConWorkRep c = toRTypeRep
+                 . F.tracepp ("DCWR: " ++ F.showpp c)
+                 . ofType
+                 . Var.varType
+                 . dataConWorkId
+                 $ c
+
     -- msg                   = "dataConWorkSpecType: " ++ showPpr t
     -- (αs,es,eqs,th,ts,ot)  = dataConFullSig dc
 
@@ -91,7 +97,7 @@ meetWorkWrapRep c workR wrapR
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
   where
-    pad       = workN - wrapN
+    pad       = F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ workN - wrapN
     (xs, _)   = splitAt pad (ty_binds workR)
     (ts, ts') = splitAt pad (ty_args  workR)
     workN     = length      (ty_args  workR)
