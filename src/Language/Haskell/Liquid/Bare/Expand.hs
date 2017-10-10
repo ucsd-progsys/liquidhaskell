@@ -47,10 +47,10 @@ instance ExpandAliases ty => ExpandAliases (Measure ty ctor) where
 
 instance ExpandAliases DataConP where
   expand d = do
-    tyRes'    <- expand $ tyRes    d
-    tyConsts' <- expand $ tyConsts d
-    tyArgs'   <- expand $ tyArgs   d
-    return d { tyRes = tyRes', tyConsts = tyConsts', tyArgs = tyArgs' }
+    tyRes'    <- expand $ tyRes     d
+    tyConsts' <- expand $ tyConstrs d
+    tyArgs'   <- expand $ tyArgs    d
+    return d { tyRes = tyRes', tyConstrs = tyConsts', tyArgs = tyArgs' }
 
 instance ExpandAliases RReft where
   expand = mapM expand

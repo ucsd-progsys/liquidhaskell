@@ -100,6 +100,7 @@ module Language.Haskell.Liquid.Types (
   -- * Instantiated RType
   , BareType, PrType
   , SpecType, SpecProp
+  , SpecRep
   , LocBareType, LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
@@ -444,7 +445,7 @@ data DataConP = DataConP
   , freeTyVars :: ![RTyVar]               -- ^ Type parameters
   , freePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
   , freeLabels :: ![Symbol]               -- ^ ? strata stuff
-  , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
+  , tyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
@@ -873,6 +874,7 @@ instance B.Binary r => B.Binary (UReft r)
 
 type BRType     = RType BTyCon BTyVar
 type RRType     = RType RTyCon RTyVar
+type RRep       = RTypeRep RTyCon RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
@@ -884,6 +886,7 @@ type RReft       = UReft     F.Reft
 type PrType      = RRType    Predicate
 type BareType    = BRType    RReft
 type SpecType    = RRType    RReft
+type SpecRep     = RRep      RReft
 type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
@@ -1231,11 +1234,10 @@ toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
     (αs, πs, ls, t')  = bkUniv  t
     (xs, ts, rs, t'') = bkArrow t'
 
-mkArrow :: (Foldable t, Foldable t1, Foldable t2, Foldable t3)
-        => t  (RTVar tv (RType c tv ()))
-        -> t1 (PVar (RType c tv ()))
-        -> t2 Symbol
-        -> t3 (Symbol, RType c tv r, r)
+mkArrow :: [RTVar tv (RType c tv ())]
+        -> [PVar (RType c tv ())]
+        -> [Symbol]
+        -> [(Symbol, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
 mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts
@@ -1706,9 +1708,8 @@ rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
 rTypeReft = fromMaybe F.trueReft . fmap F.toReft . stripRTypeBase
 
-
 -- stripRTypeBase ::  RType a -> Maybe a
-stripRTypeBase :: RType t t1 a -> Maybe a
+stripRTypeBase :: RType c tv r -> Maybe r
 stripRTypeBase (RApp _ _ _ x)
   = Just x
 stripRTypeBase (RVar _ x)

@@ -95,12 +95,12 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd (F.notracepp "Make-Decl-CTORS" ctors)
+  | makeDecls = [ makeFDataDecls tce tc dd ctors
                 | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = F.notracepp "makeDataDecls-TYCONS" $ resolveTyCons name tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
+    tds'      = resolveTyCons name tds
 
 -- [NOTE:Orphan-TyCons]
 
@@ -330,17 +330,21 @@ groupVariances dcs vdcs    =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
+                                         , let t  = RT.expandProductType x t0  ]
+
+    -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
+
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
     dcm0                 = M.fromList $ dataConSpec' dcs
-    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
     upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
+    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
 
 checkDataCtor :: DataCtor -> BareM DataCtor
 checkDataCtor d@(DataCtor lc xts _)
@@ -449,17 +453,35 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
   let cs        = RT.ofType <$> dataConStupidTheta c'
-  let t0'       = fromMaybe t0 res'
+  let t0'       = {- fromMaybe t0 res' -} dataConResultTy c' t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.notracepp "OFBDataCTOR" $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
+  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+                $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
     rs       = [RT.rVar α | RTV α <- αs]
-    t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+    t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt   = isJust res
     dLoc     = F.Loc l l' ()
+
+-- | This computes the result of a `DataCon` application.
+--   For 'isVanillaDataCon' we can just use the `TyCon`
+--   applied to the relevant tyvars.
+--   We cannot just cloFor GADTs (non-vanilla Tycon)
+dataConResultTy :: DataCon
+                -> SpecType         -- ^ vanilla
+                -> Maybe SpecType   -- ^ user-provided
+                -> SpecType
+dataConResultTy _ _ (Just t) = t
+dataConResultTy c t _
+  | isVanillaDataCon c       = t
+dataConResultTy c _ _        = RT.ofType t
+  where
+    -- (_,_,_,t)                = dataConSig c
+    (_,_,_,_,_,t)            = GM.tracePpr ("FULL-SIG: " ++ show c) $ dataConFullSig c
+
 
 normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)
 normalizeField c i (x, t)

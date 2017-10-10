@@ -105,11 +105,11 @@ tyConDataDecl (_, HasDecl)
   = Nothing
 tyConDataDecl (tc, NoDecl szF)
   = Just $ D
-      { tycName   = symbol <$> GM.locNamedThing tc
-      , tycTyVars = symbol <$> GM.tyConTyVarsDef   tc
+      { tycName   = symbol <$> GM.locNamedThing  tc
+      , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = decls tc
+      , tycDCons  = F.tracepp "tyConDataDecl-DECLS: " $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
