@@ -1,10 +1,7 @@
-data Thing 0 = [
-  | mkCons { head : int } 
-]
-  
-bind 0 a : {v: Thing | true } 
-bind 1 x : {v: Thing | true } 
-bind 2 y : {v: a     | true } 
+ 
+bind 0 a : {v: int | true } 
+bind 1 x : {v: int | true } 
+bind 2 y : {v: a   | true } 
 
 constraint:  
   env [0; 1; 2]
