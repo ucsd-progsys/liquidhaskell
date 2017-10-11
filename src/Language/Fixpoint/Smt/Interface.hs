@@ -80,6 +80,7 @@ import           Control.Exception
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Monoid
+import           Data.Maybe                  (fromMaybe)
 import qualified Data.Text                as T
 import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
@@ -442,9 +443,15 @@ declare me = do
     thyXTs     =                    filter (isKind 1) xts
     qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
-    xts        = F.toListSEnv           (F.seSort env)
+    xts        = symbolSorts (F.seSort env) -- F.toListSEnv           (F.seSort env)
     tx         = elaborate    "declare" env
     ats        = funcSortVars env
+
+symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
+symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
+ where
+  tx t@(FObj a) = fromMaybe t (F.lookupSEnv a env)
+  tx t          = t
 
 dataDeclarations :: SymEnv -> [DataDecl]
 dataDeclarations = -- (if True then orderDeclarations else id) .
