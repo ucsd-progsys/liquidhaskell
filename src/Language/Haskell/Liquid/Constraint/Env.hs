@@ -160,8 +160,8 @@ addBind l x r = do
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
-addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
-addClassBind l = mapM (uncurry (addBind l)) . classBinds
+addClassBind :: CGEnv -> SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
+addClassBind γ l = mapM (uncurry (addBind l)) . classBinds (emb γ)
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -185,7 +185,7 @@ addCGEnv tx γ (_, x, t') = do
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
   is    <- if allowHOBinders || isBase t
-            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
+            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
