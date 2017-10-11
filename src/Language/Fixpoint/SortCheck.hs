@@ -758,6 +758,15 @@ checkNumeric f s@(FObj l)
 checkNumeric _ s
   = unless (isNumeric s) (throwError $ errNonNumeric s)
 
+checkEqConstr :: Env -> Maybe Expr -> a -> Symbol -> Sort -> CheckM a
+checkEqConstr _ _  θ a (FObj b)
+  | a == b
+  = return θ
+checkEqConstr f e θ a t = do
+  tA <- checkSym f a
+  unless (tA == t) (throwError $ errUnify e tA t)
+  return θ
+
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -880,11 +889,18 @@ unify1 f e !θ !FInt !t = do
 unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') = do
   unifyMany f e θ [t1, t2] [t1', t2']
 
+unify1 f e θ (FObj a) !t =
+  checkEqConstr f e θ a t
+
+unify1 f e θ !t (FObj a) =
+  checkEqConstr f e θ a t
+
 unify1 _ e θ !t1 !t2
   | t1 == t2
   = return θ
   | otherwise
   = throwError $ errUnify e t1 t2
+
 
 subst :: Int -> Sort -> Sort -> Sort
 subst !j !tj !t@(FVar !i)
