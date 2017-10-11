@@ -11,4 +11,4 @@ data Field typ where
   FldX :: Field Int
   FldY :: Field Int
 
-poogle = FldY
+bob = FldX 
