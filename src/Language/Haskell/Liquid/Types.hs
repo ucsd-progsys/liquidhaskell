@@ -224,7 +224,7 @@ import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
 import           DataCon
-import           GHC                                    (HscEnv, ModuleName, moduleNameString, getName)
+import           GHC                                    (Name, HscEnv, ModuleName, moduleNameString, getName)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
@@ -1098,12 +1098,17 @@ mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
-data DataDecl   = D
-  { tycName   :: F.LocSymbol           -- ^ Type  Constructor Name
+type DataDecl = DDecl Name
+type DataCtor = DCtor Name
+type BareDecl = DDecl F.LocSymbol
+type BareCtor = DCtor F.LocSymbol
+
+data DDecl name  = D
+  { tycName   :: name                  -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
   , tycTyLabs :: [Symbol]              -- ^ PLabel  Parameters
-  , tycDCons  :: [DataCtor]            -- ^ Data Constructors
+  , tycDCons  :: [DCtor name]            -- ^ Data Constructors
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
@@ -1111,8 +1116,8 @@ data DataDecl   = D
   } deriving (Data, Typeable, Generic)
 
 -- | Data Constructor
-data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol               -- ^ DataCon name
+data DCtor name = DataCtor
+  { dcName   :: name                      -- ^ DataCon name
   , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
   , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)

@@ -49,7 +49,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (sortNub, applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
@@ -213,7 +213,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = defTcs ++ refTcs
+  let tcs    = sortNub (defTcs ++ refTcs)
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms

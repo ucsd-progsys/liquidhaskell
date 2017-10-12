@@ -48,7 +48,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, groupList, mapSnd, mapFst)
+import Language.Fixpoint.Misc (traceShow, mlookup, sortNub, groupList, mapSnd, mapFst)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -75,18 +75,19 @@ import           Language.Haskell.Liquid.Bare.ToBare
 --------------------------------------------------------------------------------
 makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls cfg spec
+makeHaskellDataDecls cfg spec tcs
   | exactDC cfg = mapMaybe tyConDataDecl
-                -- . traceShow "VanillaTCs 2 "
+                . traceShow "VanillaTCs 2"
                 . zipMap   (hasDataDecl spec)
-                . F.notracepp "VanillaTCs 1 "
+                . F.tracepp ("VanillaTCs 1" ++ show (tyConName <$> tcs))
                 . liftableTyCons
-
-  | otherwise   = const []
+                . F.tracepp "VanillaTCs 0"
+                $ tcs
+  | otherwise   = []
 
 liftableTyCons :: [TyCon] -> [TyCon]
 liftableTyCons = filter   (not . isBoxedTupleTyCon)
-               . filter   isVanillaAlgTyCon
+               -- . filter   isVanillaAlgTyCon
                . (`sortDiff` wiredInTyCons)
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
