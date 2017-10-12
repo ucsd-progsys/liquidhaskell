@@ -1,0 +1,10 @@
+ 
+bind 0 a : {v: int | true } 
+bind 1 x : {v: int | true } 
+bind 2 y : {v: a   | true } 
+
+constraint:  
+  env [0; 1; 2]
+  lhs {v: int | x = y }
+  rhs {v: Int | y = x }
+  id 1 tag []
