@@ -1,12 +1,4 @@
 
-GhcLookup DataDecl
-https://github.com/ghc/ghc/blob/master/compiler/rename/RnSource.hs#L691
-lookupFamInstName (fmap fst mb_cls) tycon
-
-
-
-
-
 
 ### CallStack/Error
 
