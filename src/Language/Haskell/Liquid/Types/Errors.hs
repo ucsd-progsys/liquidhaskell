@@ -32,6 +32,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , todo
   , impossible
   , uError
+  , sourceErrors
 
   -- * Printing Errors
   , ppError
@@ -43,9 +44,13 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
--- import           Data.Bifunctor
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
+
+import           HscTypes (srcErrorMessages, SourceError)
+import           ErrUtils
+import           Bag
+
 import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
@@ -853,3 +858,14 @@ ppNames ds = ppList
 ppList :: (PPrint a) => Doc -> [a] -> Doc
 ppList d ls
   = nest 4 (sepVcat blankLine (d : [ text "*" <+> pprint l | l <- ls ]))
+
+-- | Convert a GHC error into a list of our errors.
+
+sourceErrors :: String -> SourceError -> [TError t]
+sourceErrors s = concatMap (errMsgErrors s) . bagToList . srcErrorMessages
+
+errMsgErrors :: String -> ErrMsg -> [TError t]
+errMsgErrors s e = [ ErrGhc (errMsgSpan e) msg ]
+   where
+     msg         =  text s
+                $+$ nest 4 (text (show e))

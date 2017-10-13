@@ -76,22 +76,27 @@ import           Language.Haskell.Liquid.Bare.ToBare
 makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec tcs
-  | exactDC cfg = mapMaybe tyConDataDecl
+  | exactDC cfg = traceShow "VanillaTCs 3"
+                . mapMaybe tyConDataDecl
                 . traceShow "VanillaTCs 2"
-                . zipMap   (hasDataDecl spec)
-                . F.tracepp ("VanillaTCs 1" ++ show (tyConName <$> tcs))
+                . zipMap   (hasDataDecl spec . fst)
+                -- . F.tracepp ("VanillaTCs 1" ++ show (tyConName <$> tcs))
                 . liftableTyCons
-                . F.tracepp "VanillaTCs 0"
+                -- . F.tracepp "VanillaTCs 0"
                 $ tcs
   | otherwise   = []
 
-liftableTyCons :: [TyCon] -> [TyCon]
-liftableTyCons = filter   (not . isBoxedTupleTyCon)
-               -- . filter   isVanillaAlgTyCon
+liftableTyCons :: [TyCon] -> [(TyCon, DataName)]
+liftableTyCons = zipMapMaybe tyConDataName
+               . filter   (not . isBoxedTupleTyCon)
                . (`sortDiff` wiredInTyCons)
+          --   filter   isVanillaAlgTyCon
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
+
+zipMapMaybe :: (a -> Maybe b) -> [a] -> [(a, b)]
+zipMapMaybe f = mapMaybe (\x -> (x, ) <$> f x)
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
@@ -100,13 +105,13 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
     tcSym        = GM.dropModuleNamesAndUnique . symbol
     decls        = M.fromList [ (symbol d, hasDecl d) | d <- Ms.dataDecls spec ]
 
-{-@ tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
-tyConDataDecl :: (TyCon, HasDataDecl) -> Maybe DataDecl
+{-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
+tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl
 tyConDataDecl (_, HasDecl)
   = Nothing
-tyConDataDecl (tc, NoDecl szF)
+tyConDataDecl ((tc, dn), NoDecl szF)
   = Just $ D
-      { tycName   = symbol <$> GM.locNamedThing  tc
+      { tycName   = dn
       , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
@@ -117,6 +122,15 @@ tyConDataDecl (tc, NoDecl szF)
       , tycKind   = DataReflected
       }
       where decls = map dataConDecl . tyConDataCons
+
+tyConDataName :: TyCon -> Maybe DataName
+tyConDataName tc
+  | vanillaTc  = Just (DnName (symbol <$> GM.locNamedThing tc))
+  | d:_ <- dcs = Just (DnCon  (symbol <$> GM.locNamedThing d ))
+  | otherwise  = Nothing
+  where
+    vanillaTc  = isVanillaAlgTyCon tc
+    dcs        = tyConDataCons tc
 
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d  = DataCtor dx xts Nothing

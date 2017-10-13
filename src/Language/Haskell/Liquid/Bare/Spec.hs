@@ -252,7 +252,7 @@ lookupIds !ignoreUnknown
   where
     lookup (s, t)
       = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
-    handleError (ErrGhc {})
+    handleError ( ErrGhc {})
       | ignoreUnknown
       = return Nothing
     handleError err

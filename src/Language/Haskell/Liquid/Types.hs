@@ -85,6 +85,7 @@ module Language.Haskell.Liquid.Types (
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
   , DataDecl (..)
+  , DataName (..), dataNameSymbol
   , DataCtor (..)
   , DataConP (..)
   , HasDataDecl (..), hasDecl
@@ -224,7 +225,7 @@ import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
 import           DataCon
-import           GHC                                    (Name, HscEnv, ModuleName, moduleNameString, getName)
+import           GHC                                    (HscEnv, ModuleName, moduleNameString, getName)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
@@ -1098,26 +1099,27 @@ mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
-type DataDecl = DDecl Name
-type DataCtor = DCtor Name
-type BareDecl = DDecl F.LocSymbol
-type BareCtor = DCtor F.LocSymbol
-
-data DDecl name  = D
-  { tycName   :: name                  -- ^ Type  Constructor Name
+data DataDecl   = D
+  { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
   , tycTyLabs :: [Symbol]              -- ^ PLabel  Parameters
-  , tycDCons  :: [DCtor name]            -- ^ Data Constructors
+  , tycDCons  :: [DataCtor]            -- ^ Data Constructors
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
 
+-- | The name of the `TyCon` corresponding to a `DataDecl`
+data DataName
+  = DnName !F.LocSymbol  -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
+  | DnCon  !F.LocSymbol  -- ^ for 'FamInst' TyCon we save some `DataCon` name
+  deriving (Eq, Ord, Data, Typeable, Generic)
+
 -- | Data Constructor
-data DCtor name = DataCtor
-  { dcName   :: name                      -- ^ DataCon name
+data DataCtor = DataCtor
+  { dcName   :: F.LocSymbol               -- ^ DataCon name
   , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
   , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
@@ -1160,6 +1162,7 @@ instance NFData   SizeFun
 instance B.Binary SizeFun
 instance NFData   DataDeclKind
 instance B.Binary DataDeclKind
+instance B.Binary DataName
 instance B.Binary DataCtor
 instance B.Binary DataDecl
 
@@ -1175,20 +1178,41 @@ instance F.Loc DataCtor where
 instance F.Loc DataDecl where
   srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
 
+instance F.Loc DataName where
+  srcSpan (DnName z) = F.srcSpan z
+  srcSpan (DnCon  z) = F.srcSpan z
+
+
 -- | For debugging.
 instance Show DataDecl where
   show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s" -- [at: %s]"
-              (show $ F.symbol  dd)
+              (show $ tycName   dd)
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
               -- (show $ F.srcSpan dd)
 
+instance Show DataName where
+  show (DnName n) = "tycon:"   ++ show (F.val n)
+  show (DnCon  c) = "datacon:" ++ show (F.val c)
+
 instance F.PPrint DataDecl where
   pprintTidy _ = text . show
 
--- | Name of the data-type
+instance F.Symbolic DataName where
+  symbol = F.val . dataNameSymbol
+
 instance F.Symbolic DataDecl where
-  symbol =  F.symbol . tycName
+  symbol = F.symbol . tycName
+
+instance F.PPrint DataName where
+  pprintTidy _ = text . show
+
+  -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
+  -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)
+
+dataNameSymbol :: DataName -> F.LocSymbol
+dataNameSymbol (DnName z) = z
+dataNameSymbol (DnCon  z) = z
 
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases

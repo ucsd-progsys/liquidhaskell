@@ -218,16 +218,16 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
-                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
 
 -- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
 --   that we don't have access to the code.
-_reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
-_reflectedTyCons cfg spec
-  | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
-  | otherwise   = return []
+-- // _reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
+-- // _reflectedTyCons cfg spec
+  -- // | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
+  -- // | otherwise   = return []
 
 reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
 reflectedTyCons cfg embs cbs spec

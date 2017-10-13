@@ -1405,7 +1405,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize
-  = D x [] [] [] [] pos fsize Nothing DataReflected
+  = D (DnName x) [] [] [] [] pos fsize Nothing DataReflected
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
@@ -1413,7 +1413,7 @@ dataDeclBodyP pos x fsize = do
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP
   whiteSpace
-  return      $ D x ts ps [] dcs pos fsize pTy DataUser
+  return      $ D (DnName x) ts ps [] dcs pos fsize pTy DataUser
 
 dataCtorsP :: Parser (Maybe BareType, [DataCtor])
 dataCtorsP

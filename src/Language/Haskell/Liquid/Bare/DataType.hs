@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Bare.DataType
   , DataConMap
   , dataConMap
 
-    -- * Tests
+  -- * Tests
   -- , isPropDecl
   -- , qualifyDataDecl
   ) where
@@ -316,16 +316,20 @@ canonizeDecls = Misc.nubHashLastM key
   where
     key       = fmap F.symbol . lookupGhcTyCon "canonizeDecls" . tycName
 
-groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
+
+
+groupVariances :: [DataDecl]
+               -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
     merge (d:ds) (v:vs)
-      | tycName d == fst v = (Just d, Just v)  : merge ds vs
-      | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
-      | otherwise          = (Nothing, Just v) : merge (d:ds) vs
-    merge []     vs        = ((Nothing,) . Just) <$> vs
-    merge ds     []        = ((,Nothing) . Just) <$> ds
+      | F.symbol d == sym v = (Just d, Just v)  : merge ds vs
+      | F.symbol d <  sym v = (Just d, Nothing) : merge ds (v:vs)
+      | otherwise           = (Nothing, Just v) : merge (d:ds) vs
+    merge []     vs         = ((Nothing,) . Just) <$> vs
+    merge ds     []         = ((,Nothing) . Just) <$> ds
+    sym                     = val . fst
 
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
@@ -387,14 +391,13 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_inf
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
        return ((name, tc', tcp, Just (dd { tycDCons = cts }, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
-       err         = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
-       αs          = RTV . GM.symbolTyVar <$> as
-       n           = length αs
-       lc          = loc  tc
-       lc'         = locE tc
-       f defPs     = case maybe_invariance_info of
-                      { Nothing -> ([], defPs);
-                        Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
+       err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
+       αs           = RTV . GM.symbolTyVar <$> as
+       n            = length αs
+       Loc lc lc' _ = dataNameSymbol tc
+       f defPs      = case maybe_invariance_info of
+                       { Nothing -> ([], defPs);
+                         Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
 
 ofBDataDecl name Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon "ofBDataDecl" tc

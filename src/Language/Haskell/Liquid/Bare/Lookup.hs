@@ -22,6 +22,7 @@ import           PrelNames                        (fromIntegerName, smallInteger
 import           Prelude                          hiding (error)
 import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
+import qualified SrcLoc
 import           TcEnv
 import           TyCon
 import           TysWiredIn
@@ -31,18 +32,20 @@ import           TcRnMonad
 import           IfaceEnv
 import           Var hiding (varName)
 import           TysPrim
-import RdrName
+import           RdrName
 -- import PrelNames (ioTyConKey)
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
+import qualified Control.Exception as Ex
+
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
-import qualified Language.Fixpoint.Types          as F -- (tracepp, Symbol, Symbolic(..))
+import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.Misc     (nubHashOn)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -59,7 +62,7 @@ class F.Symbolic a => GhcLookup a where
 
 instance GhcLookup (Located F.Symbol) where
   lookupName e m ns = symbolLookup e m ns . val
-  srcSpan           = sourcePosSrcSpan . loc
+  srcSpan           = GM.sourcePosSrcSpan . loc
 
 instance GhcLookup Name where
   lookupName _ _ _ = return . (:[])
@@ -71,6 +74,10 @@ instance GhcLookup FieldLabel where
 
 instance F.Symbolic FieldLabel where
   symbol = F.symbol . flSelector
+
+instance GhcLookup DataName where
+  lookupName e m ns = lookupName e m ns . dataNameSymbol
+  srcSpan           = GM.fSrcSpanSrcSpan . F.srcSpan
 
 lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
 lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
@@ -90,7 +97,6 @@ lookupGhcThing' _err f ns x = do
     []  -> return Nothing
     [z] -> return (Just z)
     zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
-
 
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = symbolString . F.symbol
@@ -127,20 +133,25 @@ symbolLookupEnv env mod ns k = do
     [] -> symbolLookupEnvFull env mod k
     _  -> return ns
 
+safeParseIdentifier :: HscEnv -> String -> IO (SrcLoc.Located RdrName)
+safeParseIdentifier env s = hscParseIdentifier env s `Ex.catch` handle
+  where
+    handle = uError . head . sourceErrors ("GHC error in safeParseIdentifier: " ++ s)
+
 symbolLookupEnvOrig :: HscEnv -> ModName -> Maybe NameSpace -> F.Symbol -> IO [Name]
 symbolLookupEnvOrig env mod namespace s
   | isSrcImport mod
   = do let modName = getModName mod
-       L _ rn <- hscParseIdentifier env $ ghcSymbolString s
+       L _ rn <- safeParseIdentifier env (ghcSymbolString s)
        let rn' = mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn)
-       res    <- lookupRdrName env modName (makeRdrName rn namespace)
-       -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
+       res    <- GM.lookupRdrName env modName (makeRdrName rn namespace)
+       -- 'safeParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
-       res'   <- lookupRdrName env modName rn'
+       res'   <- GM.lookupRdrName env modName rn'
        return $ catMaybes [res, res']
   | otherwise
-  = do rn             <- hscParseIdentifier env $ ghcSymbolString s
-       (_, lookupres) <- tcRnLookupRdrName env rn
+  = do rn             <- safeParseIdentifier env (ghcSymbolString s)
+       (_, lookupres) <- GM.tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
          _       -> return []
@@ -181,7 +192,7 @@ lookupTheName hsc mod name = initTcForLookup hsc (lookupOrig mod name)
 ghcSplitModuleName :: F.Symbol -> (ModuleName, OccName)
 ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolString s)
   where
-    (m, s)           = splitModuleName x
+    (m, s)           = GM.splitModuleName x
 
 ghcSymbolString :: F.Symbol -> String
 ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
@@ -212,12 +223,14 @@ lookupGhcTyCon src s = do
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
       = Just x
+    ftc (AConLike (RealDataCon x))
+      = Just (dataConTyCon x)
     ftc _
       = Nothing
 
-    fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey
+    fdc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
       = Just $ dataConTyCon x
-    fdc (AConLike (RealDataCon x)) --  isJust $ promoteDataCon_maybe x
+    fdc (AConLike (RealDataCon x))
       = Just $ promoteDataCon x
     fdc _
       = Nothing
