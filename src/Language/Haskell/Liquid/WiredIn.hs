@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.WiredIn
-       (
-         pdVarReft
-       , wiredTyCons
+       ( wiredTyCons
        , wiredDataCons
        , wiredSortedSyms
 
@@ -119,8 +117,8 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] [] lt False wiredInName l0)
-                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt  False wiredInName l0)])
+                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] []    lt lt False wiredInName l0)
+                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs lt lt False wiredInName l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -142,7 +140,7 @@ wiredInName = "WiredIn"
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt False wiredInName l0)])
+                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt lt False wiredInName l0)])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
@@ -164,9 +162,6 @@ tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo No
     mks  x        = (\i -> symbol (x++ show i)) <$> [1..n]
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
-
-pdVarReft :: PVar t -> UReft Reft
-pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps :: [Symbol]
      -> [t] -> [(Symbol, F.Expr)] -> [PVar t]

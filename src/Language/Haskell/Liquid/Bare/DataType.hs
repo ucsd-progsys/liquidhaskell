@@ -461,18 +461,18 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
-  return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
+  return          (c', DataConP l αs πs ls cs zts ot t0 isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
-    rs       = [RT.rVar α | RTV α <- αs]
-    t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
+    t0       = RT.gApp tc αs πs
+    -- rs       = [RT.rVar α | RTV α <- αs]
+    -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt   = isJust res
     dLoc     = F.Loc l l' ()
 
 -- | This computes the result of a `DataCon` application.
 --   For 'isVanillaDataCon' we can just use the `TyCon`
 --   applied to the relevant tyvars.
---   We cannot just cloFor GADTs (non-vanilla Tycon)
 dataConResultTy :: DataCon
                 -> SpecType         -- ^ vanilla
                 -> Maybe SpecType   -- ^ user-provided

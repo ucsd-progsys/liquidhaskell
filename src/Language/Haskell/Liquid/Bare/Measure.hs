@@ -56,14 +56,11 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.Misc
--- import           Language.Haskell.Liquid.WiredIn
-import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (findVarDef, varLocInfo, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
-import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, bareOfType, uRType, typeSort)
+import qualified Language.Haskell.Liquid.GHC.Misc      as GM
+import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
-
-import qualified Language.Haskell.Liquid.Measure as Ms
-
+import qualified Language.Haskell.Liquid.Measure       as Ms
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataConSelector)
 import           Language.Haskell.Liquid.Bare.Expand
@@ -136,7 +133,7 @@ tyConDataName tc
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d  = DataCtor dx xts Nothing
   where
-    xts        = [(makeDataConSelector Nothing d i, bareOfType t) | (i, t) <- its ]
+    xts        = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
     dx         = symbol <$> GM.locNamedThing d
     its        = zip [1..] ts
     (_,_,ts,_) = dataConSig d
@@ -212,13 +209,20 @@ strengthenHaskell strengthen hmeas sigs
 meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
+--------------------------------------------------------------------------------
+-- | 'makeMeasureSelectors' converts the 'DataCon's and creates the measures for
+--   the selectors and checkers that then enable reflection.
+--------------------------------------------------------------------------------
+
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _ _))
+makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs ps _ _ xts resTy _ isGadt _ _))
   = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = {- F.tracepp ("AUTOFIELDS: " ++ show dc) $ -} not (isGadt || noMeasureFields cfg)
-    res        = fmap mempty resTy
+    res        = mempty <$> if isVanillaDataCon dc
+                              then resTy
+                              else RT.gApp (dataConTyCon dc) vs ps
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
@@ -234,40 +238,31 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt 
       = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector (Just dm) dc i)) (dty t) dc n i
 
     fields   = zip (reverse xts) [1..]
-    dty t    = foldr RAllT  (RFun dummySymbol res (fmap mempty t) mempty) (makeRTVar <$> vs)
     n        = length xts
-    checker  = makeMeasureChecker (Loc l l' $ makeDataConChecker dc) scheck dc n
-    scheck   = foldr RAllT  (RFun dummySymbol res bareBool        mempty) (makeRTVar <$> vs)
+    checker  = makeMeasureChecker (Loc l l' (makeDataConChecker dc)) checkerT dc n
+    checkerT = mkTy res bareBool       -- foldr RAllT  (RFun dummySymbol res bareBool        mempty) (makeRTVar <$> vs)
+    dty t    = mkTy res (mempty <$> t) -- foldr RAllT  (RFun dummySymbol res (fmap mempty t) mempty) (makeRTVar <$> vs)
+    as       = makeRTVar <$> vs
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
+    mkTy i o = F.tracepp ("mkTy" ++ show vs) $ mkUnivs as [] [] (RFun dummySymbol i o mempty)
 
 makeMeasureSelector :: (Show a1)
                     => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where
-    -- x                           = qualifyField dc x0
-    eqn                         = Def x [] dc Nothing args (E (EVar $ mkx i))
-    args                        = ((, Nothing) . mkx) <$> [1 .. n]
-    mkx j                       = symbol ("xx" ++ show j)
+    eqn                        = Def x [] dc Nothing args (E (EVar $ mkx i))
+    args                       = ((, Nothing) . mkx) <$> [1 .. n]
+    mkx j                      = symbol ("xx" ++ show j)
 
-
--- ///     qualifyField :: DataCon -> LocSymbol -> LocSymbol
--- ///     qualifyField dc x
-  -- ///     | isWiredIn x = x
-  -- ///     | otherwise   = qualifyName dc <$> x
--- ///
--- ///     qualifyName :: (F.Symbolic name) => name -> F.Symbol -> F.Symbol
--- ///     qualifyName n = GM.qualifySymbol nSym
-  -- ///     where
-    -- ///     nSym      = GM.takeModuleNames (F.symbol n)
-
--- tyConDataCons
-makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon
-makeMeasureChecker x s dc n = M {name = x, sort = s, eqns = eqn:(eqns <$> filter (/=dc) dcs)}
+makeMeasureChecker :: LocSymbol -> SpecType -> DataCon -> Int -> Measure SpecType DataCon
+makeMeasureChecker x s0 dc n = M {name = x, sort = s, eqns = eqn : (eqns <$> filter (/= dc) dcs)}
   where
-    eqn    = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (P F.PTrue)
-    eqns d = Def x [] d Nothing (((, Nothing) . mkx) <$> [1 .. (length $ dataConOrigArgTys d)]) (P F.PFalse)
-    mkx j  = symbol ("xx" ++ show j)
-    dcs    = tyConDataCons $ dataConTyCon dc
+    s       = F.tracepp ("makeMeasureChecker: " ++ show x) s0
+    eqn     = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
+    eqns d  = Def x [] d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
+    nArgs d = length (dataConOrigArgTys d)
+    mkx j   = symbol ("xx" ++ show j)
+    dcs     = tyConDataCons (dataConTyCon dc)
 
 makeMeasureSpec :: (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeMeasureSpec (mod, spec) = inModule mod mkSpec
@@ -279,7 +274,7 @@ makeMeasureSpec (mod, spec) = inModule mod mkSpec
 
 makeMeasureSpec' :: MSpec SpecType DataCon
                  -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
-makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
+makeMeasureSpec' = mapFst (mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
 makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
@@ -323,10 +318,10 @@ varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
                                                 , isSimpleType $ varType v ]
 
 isSimpleType :: Type -> Bool
-isSimpleType = isFirstOrder . typeSort M.empty
+isSimpleType = isFirstOrder . RT.typeSort M.empty
 
 varSpecType :: (Monoid r) => Var -> Located (RRType r)
-varSpecType = fmap (ofType . varType) . GM.locNamedThing
+varSpecType = fmap (RT.ofType . varType) . GM.locNamedThing
 
 makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
 makeHaskellBounds tce cbs xs = do
@@ -361,8 +356,8 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
     x'         = capitalizeBound x
     (ps', xs') = L.partition (hasBoolResult . varType) vs
     (ps , xs)  = (txp <$> ps', txx <$> xs')
-    txp v      = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
-    txx v      = (dummyLoc $ symbol v,          ofType $ varType v)
+    txp v      = (dummyLoc $ simpleSymbolVar v, RT.ofType $ varType v)
+    txx v      = (dummyLoc $ symbol v,          RT.ofType $ varType v)
     fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTys $ varType v)) :: [RSort]
 
 toBound v x (vs, Right e) = toBound v x (vs, Left e)
@@ -381,7 +376,7 @@ type BareMeasure = Measure (Located BareType) LocSymbol
 expandMeasure :: BareMeasure -> BareM BareMeasure
 expandMeasure m = do
   eqns <- sequence $ expandMeasureDef <$> eqns m
-  return $ m { sort = generalize <$> sort m
+  return $ m { sort = RT.generalize <$> sort m
              , eqns = eqns }
 
 expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)

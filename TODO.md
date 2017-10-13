@@ -1,5 +1,36 @@
 
 
+
+HASSLE:
+
+
+ /Users/rjhala/research/stack/liquidhaskell/tests/todo/ExactGADT3.hs:11:13: Error: Illegal type specification for `Query.foo`
+
+ 11 | {-@ reflect foo @-}
+                  ^
+
+     Query.foo :: lq1:(Field a) -> {VV : Int | VV == Query.foo lq1}
+     Sort Error in Refinement: {VV : int | (VV == Query.foo lq1
+                                            && VV == (if is$Query.FldX lq1 then 10 else 21))}
+     Unbound Symbol a_awx
+ Perhaps you meant: head, tail
+  because
+Cannot unify int with a_awx in expression: is$Query.FldX lq1
+
+NEXT:
+
+1. fix indentation in the "Perhaps you meant: ..."
+
+2. I'm guessing that we currently do
+
+      `is$Query.FldX : Field Int -> Bool`  
+
+   but we SHOULD do
+
+      `is$Query.FldX : Field a -> Bool`  
+
+3. God knows what Z3 will think but we can `--no-adt` it up...
+
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit

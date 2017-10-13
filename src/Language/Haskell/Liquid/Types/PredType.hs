@@ -122,7 +122,7 @@ dataConFullSig :: DataCon -> ([TyVar], [TyVar], [EqSpec], ThetaType, [Type], Typ
 -}
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
+dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _ _)
   = mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
@@ -148,7 +148,7 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt mname _)
+  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt _ mname _)
      =  (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))

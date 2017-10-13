@@ -449,10 +449,26 @@ data DataConP = DataConP
   , tyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
+  , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
+
+-- | [NOTE:DataCon-Data] for each 'DataConP' we also
+--   store the type of the constructed data. This is
+--   *the same as* 'tyRes' for *vanilla* ADTs
+--   (e.g. List, Maybe etc.) but may differ for GADTs.
+--   For example,
+--
+--      data Thing a where
+--        X  :: Thing Int
+--        Y  :: Thing Bool
+--
+--   Here the 'DataConP' associated with 'X' (resp. 'Y')
+--   has 'tyRes' corresponding to 'Thing Int' (resp. 'Thing Bool'),
+--   but in both cases, the 'tyData' should be 'Thing a'.
+--
 
 
 instance F.Loc DataConP where

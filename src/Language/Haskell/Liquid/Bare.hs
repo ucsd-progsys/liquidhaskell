@@ -860,7 +860,7 @@ withExtendedEnv :: Bool -> [Var] -> ReplaceM b -> ReplaceM b
 withExtendedEnv allowHO vs k = do
   RE env' fenv' emb tyi <- ask
   let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
-      fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+      fenv = F.tracepp "FENV" $ L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
   withReaderT (const (RE env fenv emb tyi)) $ do
     mapM_ (replaceLocalBindsOne allowHO) vs
     k
@@ -881,7 +881,7 @@ replaceLocalBindsOne allowHO v
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
-           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ( {- text "replaceLocalBindsOne" <+> -} pprint v) t'
+           let msg  = ErrTySpec (GM.sourcePosSrcSpan l) ( text "replaceLocalBindsOne" <+> pprint v) t'
            case checkTy allowHO msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing  -> modify (first $ M.insert v (Loc l l' t'))

@@ -41,9 +41,10 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * RType constructors
   , ofType, toType, bareOfType
-  , bTyVar, rTyVar, rVar, rApp, rEx
+  , bTyVar, rTyVar, rVar, rApp, gApp, rEx
   , symbolRTyVar, bareRTyVar
   , tyConBTyCon
+  , pdVarReft
 
   -- * Substitutions
   , subts, subvPredicate, subvUReft
@@ -506,6 +507,15 @@ rApp :: TyCon
      -> r
      -> RType RTyCon tv r
 rApp c = RApp (tyConRTyCon c)
+
+gApp :: TyCon -> [RTyVar] -> [PVar a] -> SpecType
+gApp tc αs πs = rApp tc
+                  [rVar α | RTV α <- αs]
+                  (rPropP [] . pdVarReft <$> πs)
+                  mempty
+
+pdVarReft :: PVar t -> UReft Reft
+pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 tyConRTyCon :: TyCon -> RTyCon
 tyConRTyCon c = RTyCon c [] (mkTyConInfo c [] [] Nothing)

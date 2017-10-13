@@ -77,7 +77,7 @@ makePluggedDataCons :: F.TCEmb TyCon
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt0) = dataConSig dc
-       let (dt, rest) = F.tracepp "makePluggedDataCons: " (dt0, tyRes dcp)
+       let (dt, rest) = (dt0, tyRes dcp)
        when (mismatch dts dcp) (Ex.throw $ err dc dcp)
        tyArgs <- zipWithM (\t1 (x, t2) ->
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) t1 (Loc l l' t2))
