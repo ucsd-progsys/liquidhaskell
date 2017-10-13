@@ -1,42 +1,75 @@
+{-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
+module Query where
+
+import Prelude hiding (filter)
+
+data PersistFilter = EQUAL | LE | GE
+
 class PersistEntity record where
-    {-@ data EntityField @-}
-    data EntityField record :: * -> *
+  data EntityField record :: * -> *
+
+{-@ 
+data Filter record typ = Filter
+    { filterField  :: EntityField record typ
+    , filterValue  :: typ
+    , filterFilter :: PersistFilter
+    }
+@-}
+
+
+data Filter record typ = Filter
+    { filterField  :: EntityField record typ
+    , filterValue  :: typ
+    , filterFilter :: PersistFilter
+    }
+
+createEqQuery :: (PersistEntity record, Eq typ) =>
+                 EntityField record typ -> typ -> Filter record typ
+createEqQuery field value =
+  Filter {
+    filterField = field
+  , filterValue = value
+  , filterFilter = EQUAL
+  }
+
+data Blob = B { xVal :: Int, yVal :: Int }
 
 instance PersistEntity Blob where
-    {-@ data EntityField record typ where
-        BlobXVal :: EntityField Blob {v:Int | v >= 0}
-      | BlobYVal :: EntityField Blob Int
-    @-}
-    data EntityField Blob typ where
-        BlobXVal :: EntityField Blob Int
-        BlobYVal :: EntityField Blob Int
+  data EntityField Blob dog where
+    BlobXVal :: EntityField Blob Int
+    BlobYVal :: EntityField Blob Int
 
-{-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
-data Blob  = B { xVal :: Int, yVal :: Int }
+{-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
+filter :: (a -> Bool) -> [a] -> [a]
+filter f (x:xs)
+  | f x         = x : filter f xs
+  | otherwise   =     filter f xs
+filter _ []     = []
 
-{-@ data Update record typ <p :: typ -> Bool> = Update { updateField :: EntityField record typ<p>, updateValue :: typ<p> } @-}
-data Update record typ = Update 
-    { updateField :: EntityField record typ
-    , updateValue :: typ
-    } 
+{-@ reflect evalQBlobXVal @-}
+evalQBlobXVal :: PersistFilter -> Int -> Int -> Bool
+evalQBlobXVal EQUAL filter given = filter == given
+evalQBlobXVal LE filter given = given <= filter
+evalQBlobXVal GE filter given = given <= filter
 
-{-@ data variance Update covariant covariant contravariant @-}
+{-@ reflect evalQBlobYVal @-}
+evalQBlobYVal :: PersistFilter -> Int -> Int -> Bool
+evalQBlobYVal EQUAL filter given = filter == given
+evalQBlobYVal LE filter given = given <= filter
+evalQBlobYVal GE filter given = given <= filter
 
-{-@ createUpdate :: forall a <p :: a -> Bool>. EntityField record a<p> -> a<p> -> Update record a<p> @-}
-createUpdate :: EntityField record a -> a -> Update record a
-createUpdate field value = Update {
-      updateField = field
-    , updateValue = value
-}
+{-@ reflect evalQBlob @-}
+evalQBlob :: Filter Blob typ -> Blob -> Bool
+evalQBlob filter blob = case filterField filter of
+  BlobXVal -> evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
+  BlobYVal -> evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
 
-testUpdateQuery :: () -> Update Blob Int
-testUpdateQuery () = createUpdate BlobXVal 3
-
-testUpdateQueryFail :: () -> Update Blob Int
-testUpdateQueryFail () = createUpdate BlobXVal (-1)
+{-@ filterQBlob :: f:(Filter Blob a) -> [Blob] -> [{b:Blob | evalQBlob f b}] @-}
+filterQBlob :: Filter Blob a -> [Blob] -> [Blob]
+filterQBlob q = filter (evalQBlob q)

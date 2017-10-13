@@ -5,10 +5,10 @@
 module Query where
 
 data Field typ where
-  FldX :: Field Int
-  FldY :: Field Int
+  FldX :: Int -> Field Int
+  FldY :: Int -> Field Int
 
 {-@ reflect foo @-}
 foo :: Field a -> Int 
-foo FldX = 10 
-foo FldY = 21
+foo (FldX x) = x
+foo (FldY y) = y
