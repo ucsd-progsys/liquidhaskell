@@ -36,7 +36,6 @@ import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
 import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
-import           Data.Hashable
 import qualified Data.IntervalMap.FingerTree            as IM
 import           CoreSyn                                hiding (sourceName)
 import           Name                                   (getSrcSpan, NamedThing)
@@ -514,12 +513,6 @@ instance ToJSON Doc where
 instance FromJSON Doc where
   parseJSON (String s) = return $ text $ T.unpack s
   parseJSON _          = mempty
-
-instance (ToJSON k, ToJSON v) => ToJSON (M.HashMap k v) where
-  toJSON = toJSON . M.toList
-
-instance (Eq k, Hashable k, FromJSON k, FromJSON v) => FromJSON (M.HashMap k v) where
-  parseJSON = fmap M.fromList . parseJSON
 
 instance ToJSON a => ToJSON (AnnInfo a) where
   toJSON = genericToJSON defaultOptions

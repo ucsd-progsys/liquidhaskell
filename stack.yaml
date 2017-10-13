@@ -5,12 +5,13 @@ packages:
 - '.'
 
 extra-deps:
-- aeson-0.11.3.0
+- aeson-1.2.2.0
 - csv-table-0.1.0.1
 - dotgen-0.4.2
 - fgl-visualize-0.1.0.1
 - intern-0.9.1.4
 - located-base-0.1.1.0
+- th-abstraction-0.2.6.0
 
 flags:
   liquidhaskell:

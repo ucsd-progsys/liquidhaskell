@@ -121,7 +121,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.7.0.5
                 , located-base
-                , aeson >= 0.10 && < 1.0
+                , aeson >= 1.2 && < 1.3
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
@@ -309,7 +309,7 @@ test-suite liquidhaskell-parser
   if flag(devel)
     hs-source-dirs:   tests src
     build-depends:
-                  aeson >= 0.10 && < 1.0
+                  aeson
                 , binary
                 , bytestring
                 , cereal
