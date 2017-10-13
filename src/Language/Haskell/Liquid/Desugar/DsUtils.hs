@@ -35,17 +35,17 @@ module Language.Haskell.Liquid.Desugar.DsUtils (
         mkSelectorBinds,
 
         selectSimpleMatchVarL, selectMatchVars, selectMatchVar,
-        mkOptTickBox, mkBinaryTickBox, decideBangHood
+        mkOptTickBox, mkBinaryTickBox, decideBangHood, addBang
     ) where
 
-import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar.Match ( matchSimply )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match  ( matchSimply )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsLExpr )
 
 import HsSyn
 import TcHsSyn
 import TcType( tcSplitTyConApp )
 import CoreSyn
 import Language.Haskell.Liquid.Desugar.DsMonad
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsLExpr )
 
 import CoreUtils
 import MkCore
@@ -53,7 +53,6 @@ import MkId
 import Id
 import Literal
 import TyCon
--- import ConLike
 import DataCon
 import PatSyn
 import Type
@@ -66,6 +65,7 @@ import UniqSet
 import UniqSupply
 import Module
 import PrelNames
+import Name( isInternalName )
 import Outputable
 import SrcLoc
 import Util
@@ -119,7 +119,7 @@ selectMatchVar (ParPat pat)  = selectMatchVar (unLoc pat)
 selectMatchVar (VarPat var)  = return (localiseId (unLoc var))
                                   -- Note [Localise pattern binders]
 selectMatchVar (AsPat var _) = return (unLoc var)
-selectMatchVar other_pat     = newSysLocalDs (hsPatType other_pat)
+selectMatchVar other_pat     = newSysLocalDsNoLP (hsPatType other_pat)
                                   -- OK, better make up one...
 
 {-
@@ -536,22 +536,25 @@ into
 which stupidly tries to bind the datacon 'True'.
 -}
 
+-- NB: Make sure the argument is not levity polymorphic
 mkCoreAppDs  :: SDoc -> CoreExpr -> CoreExpr -> CoreExpr
 mkCoreAppDs _ (Var f `App` Type ty1 `App` Type ty2 `App` arg1) arg2
   | f `hasKey` seqIdKey            -- Note [Desugaring seq (1), (2)]
   = Case arg1 case_bndr ty2 [(DEFAULT,[],arg2)]
   where
     case_bndr = case arg1 of
-                   Var v1 | isLocalId v1 -> v1        -- Note [Desugaring seq (2) and (3)]
-                   _                     -> mkWildValBinder ty1
+                   Var v1 | isInternalName (idName v1)
+                          -> v1        -- Note [Desugaring seq (2) and (3)]
+                   _      -> mkWildValBinder ty1
 
 mkCoreAppDs s fun arg = mkCoreApp s fun arg  -- The rest is done in MkCore
 
+-- NB: No argument can be levity polymorphic
 mkCoreAppsDs :: SDoc -> CoreExpr -> [CoreExpr] -> CoreExpr
 mkCoreAppsDs s fun args = foldl (mkCoreAppDs s) fun args
 
 mkCastDs :: CoreExpr -> Coercion -> CoreExpr
--- We define a desugarer-specific verison of CoreUtils.mkCast,
+-- We define a desugarer-specific version of CoreUtils.mkCast,
 -- because in the immediate output of the desugarer, we can have
 -- apparently-mis-matched coercions:  E.g.
 --     let a = b
@@ -731,7 +734,7 @@ mkSelectorBinds ticks pat val_expr
 
   | is_flat_prod_lpat pat'           -- Special case (B)
   = do { let pat_ty = hsLPatType pat'
-       ; val_var <- newSysLocalDs pat_ty
+       ; val_var <- newSysLocalDsNoLP pat_ty
 
        ; let mk_bind tick bndr_var
                -- (mk_bind sv bv)  generates  bv = case sv of { pat -> bv }
@@ -888,6 +891,15 @@ for the primitive case:
 \end{verbatim}
 
 Now @fail.33@ is a function, so it can be let-bound.
+
+We would *like* to use join points here; in fact, these "fail variables" are
+paradigmatic join points! Sadly, this breaks pattern synonyms, which desugar as
+CPS functions - i.e. they take "join points" as parameters. It's not impossible
+to imagine extending our type system to allow passing join points around (very
+carefully), but we certainly don't support it now.
+
+99.99% of the time, the fail variables wind up as join points in short order
+anyway, and the Void# doesn't do much harm.
 -}
 
 mkFailurePair :: CoreExpr       -- Result type of the whole case expression
@@ -907,6 +919,11 @@ mkFailurePair expr
 {-
 Note [Failure thunks and CPR]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+(This note predates join points as formal entities (hence the quotation marks).
+We can't use actual join points here (see above); if we did, this would also
+solve the CPR problem, since join points don't get CPR'd. See Note [Don't CPR
+join points] in WorkWrap.)
+
 When we make a failure point we ensure that it
 does not look like a thunk. Example:
 
@@ -971,5 +988,17 @@ decideBangHood dflags lpat
       = case p of
            ParPat p    -> L l (ParPat (go p))
            LazyPat lp' -> lp'
+           BangPat _   -> lp
+           _           -> L l (BangPat lp)
+
+-- | Unconditionally make a 'Pat' strict.
+addBang :: LPat id -- ^ Original pattern
+        -> LPat id -- ^ Banged pattern
+addBang = go
+  where
+    go lp@(L l p)
+      = case p of
+           ParPat p    -> L l (ParPat (go p))
+           LazyPat lp' -> L l (BangPat lp')
            BangPat _   -> lp
            _           -> L l (BangPat lp)
