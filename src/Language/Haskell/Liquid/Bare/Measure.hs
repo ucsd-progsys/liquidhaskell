@@ -80,9 +80,10 @@ makeHaskellDataDecls cfg spec tcs
                 . mapMaybe tyConDataDecl
                 . traceShow "VanillaTCs 2"
                 . zipMap   (hasDataDecl spec . fst)
-                -- . F.tracepp ("VanillaTCs 1" ++ show (tyConName <$> tcs))
+                . F.tracepp "VanillaTCs 1"
                 . liftableTyCons
-                -- . F.tracepp "VanillaTCs 0"
+                . F.tracepp "VanillaTCs 0"
+                . filter (isVanillaAlgTyCon .||. isFamInstTyCon)
                 $ tcs
   | otherwise   = []
 

@@ -14,6 +14,15 @@ data PersistFilter = EQUAL | LE | GE
 class PersistEntity record where
   data EntityField record :: * -> *
 
+{-@ 
+data Filter record typ = Filter
+    { filterField  :: EntityField record typ
+    , filterValue  :: typ
+    , filterFilter :: PersistFilter
+    }
+@-}
+
+
 data Filter record typ = Filter
     { filterField  :: EntityField record typ
     , filterValue  :: typ

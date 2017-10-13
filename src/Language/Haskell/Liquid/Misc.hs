@@ -26,6 +26,13 @@ import           Paths_liquidhaskell
 
 type Nat = Int
 
+(.&&.), (.||.) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+(.&&.) = up (&&)
+(.||.) = up (||)
+
+up :: (b -> c -> d) -> (a -> b) -> (a -> c) -> (a -> d)
+up o f g x = f x `o` g x
+
 timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
 timedAction label io = do
   t0 <- getCurrentTime
