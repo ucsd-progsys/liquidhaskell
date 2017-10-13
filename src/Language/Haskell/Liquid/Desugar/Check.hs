@@ -33,7 +33,7 @@ import FastString
 import DataCon
 import HscTypes (CompleteMatch(..))
 
-import DsMonad
+import Language.Haskell.Liquid.Desugar.DsMonad
 import TcSimplify    (tcCheckSatisfiability)
 import TcType        (toTcType, isStringTy, isIntTy, isWordTy)
 import Bag
@@ -41,7 +41,7 @@ import ErrUtils
 import Var           (EvVar)
 import Type
 import UniqSupply
-import DsGRHSs       (isTrueLHsExpr)
+import Language.Haskell.Liquid.Desugar.DsGRHSs       (isTrueLHsExpr)
 
 import Data.List     (find)
 import Data.Maybe    (isJust, fromMaybe)
