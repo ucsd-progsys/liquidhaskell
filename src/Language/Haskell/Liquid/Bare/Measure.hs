@@ -87,7 +87,7 @@ makeHaskellDataDecls cfg spec
 liftableTyCons :: [TyCon] -> [TyCon]
 liftableTyCons = filter   (not . isBoxedTupleTyCon)
                . filter   isVanillaAlgTyCon
-               -- . (`sortDiff` wiredInTyCons) -- TODO: TyCon isn't sortable
+               . (L.\\ wiredInTyCons) -- TODO: use hashDiff
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
