@@ -1015,7 +1015,7 @@ isClassConCo co
   | otherwise
   = Nothing
   where
-    ruleMatchTyX = undefined -- TODO
+    ruleMatchTyX =ruleMatchTyKiX -- TODO: is this correct?
 
 ----------------------------------------------------------------------
 -- Note [Type classes with a single method]
