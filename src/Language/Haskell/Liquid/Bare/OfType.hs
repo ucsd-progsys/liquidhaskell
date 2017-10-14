@@ -292,9 +292,6 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
        err :: Error
        err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c)
                          (text "Expects " <+> (pprint $ realTcArity c) <+> text "arguments, but is given" <+> (pprint $ length ts))
-        
-       isAnonBinder :: TyConBinder -> Bool
-       isAnonBinder _ = False
 
 -- TODO expandTypeSynonyms here to
 bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t

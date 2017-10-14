@@ -80,6 +80,11 @@ import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Desugar.HscMain
 import           Id                                         (isExportedId, idOccInfo, setIdInfo)
 
+
+isAnonBinder :: TC.TyConBinder -> Bool
+isAnonBinder (TvBndr _ TC.AnonTCB) = True 
+isAnonBinder (TvBndr _ _)          = False
+
 mkAlive :: Var -> Id
 mkAlive x
   | isId x && isDeadOcc (idOccInfo x)
@@ -163,8 +168,8 @@ hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
-isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType (ForAllTy _ _)  = False
+isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
@@ -401,8 +406,7 @@ isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
 
 realTcArity :: TyCon -> Arity
-realTcArity
-  = kindArity . TC.tyConKind
+realTcArity = tyConArity
 
 kindArity :: Kind -> Arity
 kindArity (ForAllTy _ res)
