@@ -58,8 +58,8 @@ import           TyCoRep
 import           Var
 import           IdInfo
 import qualified TyCon                                      as TC
-import           Data.Char                                  (isLower, isSpace)
-import           Data.Maybe                                 (isJust, fromMaybe)
+import           Data.Char                                  (isLower, isSpace, isUpper)
+import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
 
@@ -582,9 +582,18 @@ dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
-dropModuleNames  = mungeNames lastName sepModNames "dropModuleNames: "
-  where
-    lastName msg = symbol . safeLast msg
+dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
+ where
+   lastName msg = symbol . safeLast msg
+
+dropModuleNamesCorrect  :: Symbol -> Symbol
+dropModuleNamesCorrect = F.symbol . go . F.symbolText
+  where 
+    go s = case T.uncons s of
+             Just (c,tl) -> if isUpper c  && T.any (== '.') tl 
+                              then go $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
+                              else s 
+             Nothing -> s 
 
 takeModuleNames  :: Symbol -> Symbol
 takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
