@@ -211,7 +211,7 @@ reachableModules depGraph mod =
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
-  graphFromEdgedVertices <$> mapM mkDepGraphNode homeModules
+  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode homeModules
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
 mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>

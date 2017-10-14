@@ -179,8 +179,7 @@ match [] _ eqns
                     | eqn <- eqns ]
 
 match vars@(v:_) ty eqns    -- Eqns *can* be empty
-  = ASSERT2( all (isInternalName . idName) vars, ppr vars )
-    do  { dflags <- getDynFlags
+  = do  { dflags <- getDynFlags
                 -- Tidy the first pattern, generating
                 -- auxiliary bindings if necessary
         ; (aux_binds, tidy_eqns) <- mapAndUnzipM (tidyEqnInfo v) eqns
@@ -552,13 +551,11 @@ push_bang_into_newtype_arg :: SrcSpan
 -- See Note [Bang patterns and newtypes]
 -- We are transforming   !(N p)   into   (N !p)
 push_bang_into_newtype_arg l _ty (PrefixCon (arg:args))
-  = ASSERT( null args)
-    PrefixCon [L l (BangPat arg)]
+  = PrefixCon [L l (BangPat arg)]
 push_bang_into_newtype_arg l _ty (RecCon rf)
   | HsRecFields { rec_flds = L lf fld : flds } <- rf
   , HsRecField { hsRecFieldArg = arg } <- fld
-  = ASSERT( null flds)
-    RecCon (rf { rec_flds = [L lf (fld { hsRecFieldArg = L l (BangPat arg) })] })
+  = RecCon (rf { rec_flds = [L lf (fld { hsRecFieldArg = L l (BangPat arg) })] })
 push_bang_into_newtype_arg l ty (RecCon rf) -- If a user writes !(T {})
   | HsRecFields { rec_flds = [] } <- rf
   = PrefixCon [L l (BangPat (noLoc (WildPat ty)))]
@@ -824,8 +821,7 @@ match_single_pat_var :: Id   -- See Note [Match Ids]
                      -> HsMatchContext Name -> LPat Id
                      -> Type -> MatchResult -> DsM MatchResult
 match_single_pat_var var ctx pat ty match_result
-  = ASSERT2( isInternalName (idName var), ppr var )
-    do { dflags <- getDynFlags
+  = do { dflags <- getDynFlags
        ; locn   <- getSrcSpanDs
 
                     -- Pattern match check warnings
@@ -1098,8 +1094,7 @@ patGroup _ (NPat (L _ OverLit {ol_val=oval}) mb_neg _ _) =
    (HsIntegral _ i, True ) -> PgN (-fromInteger i)
    (HsFractional r, False) -> PgN (fl_value r)
    (HsFractional r, True ) -> PgN (-fl_value r)
-   (HsIsString _ s, _) -> ASSERT(isNothing mb_neg)
-                          PgOverS s
+   (HsIsString _ s, _) -> PgOverS s
 patGroup _ (NPlusKPat _ (L _ OverLit {ol_val=oval}) _ _ _ _) =
   case oval of
    HsIntegral _ i -> PgNpK i

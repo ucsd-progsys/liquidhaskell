@@ -13,8 +13,6 @@ module Language.Haskell.Liquid.Desugar.Desugar (
     deSugar, deSugarExpr
     ) where
 
-#include "HsVersions.h"
-
 import DsUsage
 import DynFlags
 import HscTypes
@@ -178,7 +176,7 @@ deSugar hsc_env
         -- never desugared and compiled (there's no code!)
         -- Consequently, this should hold for any ModGuts that make
         -- past desugaring. See Note [Identity versus semantic module].
-        ; MASSERT( id_mod == mod )
+        --; MASSERT( id_mod == mod )
 
         ; foreign_files <- readIORef th_foreign_files_var
 

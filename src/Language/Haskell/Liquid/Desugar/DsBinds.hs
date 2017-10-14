@@ -80,12 +80,7 @@ dsTopLHsBinds binds
        ; return nilOL }
 
   | otherwise
-  = do { (force_vars, prs) <- dsLHsBinds binds
-       ; when debugIsOn $
-         do { xstrict <- xoptM LangExt.Strict
-            ; MASSERT2( null force_vars || xstrict, ppr binds $$ ppr force_vars ) }
-              -- with -XStrict, even top-level vars are listed as force vars.
-
+  = do { (_, prs) <- dsLHsBinds binds
        ; return (toOL prs) }
 
   where
@@ -102,8 +97,7 @@ dsTopLHsBinds binds
 -- later be forced in the binding group body, see Note [Desugar Strict binds]
 dsLHsBinds :: LHsBinds Id -> DsM ([Id], [(Id,CoreExpr)])
 dsLHsBinds binds
-  = do { MASSERT( allBag (not . isUnliftedHsBind . unLoc) binds )
-       ; ds_bs <- mapBagM dsLHsBind binds
+  = do { ds_bs <- mapBagM dsLHsBind binds
        ; return (foldBag (\(a, a') (b, b') -> (a ++ b, a' ++ b'))
                          id ([], []) ds_bs) }
 
@@ -187,7 +181,7 @@ dsHsBind dflags
   = -- See Note [AbsBinds wrappers] in HsBinds
     addDictsDs (toTcTypeBag (listToBag dicts)) $
          -- addDictsDs: push type constraints deeper for pattern match check
-    do { (force_vars, bind_prs) <- dsLHsBinds binds
+    do { (_, bind_prs) <- dsLHsBinds binds
        ; let core_bind = Rec bind_prs
        ; ds_binds <- dsTcEvBinds_s ev_binds
        ; core_wrap <- dsHsWrapper wrap -- Usually the identity
@@ -203,8 +197,7 @@ dsHsBind dflags
                main_bind = makeCorePair dflags global' (isDefaultMethod prags)
                                         (dictArity dicts) rhs
 
-       ; ASSERT(null force_vars)
-         return ([], main_bind : fromOL spec_binds) }
+       ; return ([], main_bind : fromOL spec_binds) }
 
         -- Another common case: no tyvars, no dicts
         -- In this case we can have a much simpler desugaring
@@ -1145,8 +1138,7 @@ dsHsWrapper (WpFun c1 c2 t1 doc)
                                    ; if ok
                                      then return (\e -> (Lam x (w2 (app e arg))))
                                      else return id }  -- this return is irrelevant
-dsHsWrapper (WpCast co)       = ASSERT(coercionRole co == Representational)
-                                return $ \e -> mkCastDs e co
+dsHsWrapper (WpCast co)       = return $ \e -> mkCastDs e co
 dsHsWrapper (WpEvApp tm)      = do { core_tm <- dsEvTerm tm
                                    ; return (\e -> App e core_tm) }
 

@@ -423,7 +423,7 @@ pprPmExprCon (RealDataCon con) args
 
     list_elements [x,y]
       | PmExprCon c es <- y,  RealDataCon nilDataCon == c
-          = ASSERT(null es) [x,y]
+          = [x,y]
       | PmExprCon c es <- y, RealDataCon consDataCon == c
           = x : list_elements es
       | otherwise = [x,y]

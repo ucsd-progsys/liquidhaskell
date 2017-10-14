@@ -21,7 +21,7 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
 import           Outputable                                    (Outputable)
-import           Prelude                                       hiding (error, undefined)
+import           Prelude                                       hiding (error)
 import           GHC.Stack
 import           CoreUtils                                     (exprType)
 import           MkCore
@@ -1014,6 +1014,8 @@ isClassConCo co
 
   | otherwise
   = Nothing
+  where
+    ruleMatchTyX = undefined -- TODO
 
 ----------------------------------------------------------------------
 -- Note [Type classes with a single method]

@@ -13,7 +13,7 @@
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Prelude                          hiding (error)
-import           CoreSyn
+import           CoreSyn                          hiding (mkTyArg)
 import           CoreUtils                        (exprType)
 import qualified DsMonad
 import           DsMonad                          (initDs)
@@ -65,7 +65,7 @@ anormalize cfg hscEnv modGuts = do
     putStrLn $ showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ showCBs untidy rwr_cbs
-  (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
+  (fromMaybe err . snd) <$> initDs undefined undefined undefined --- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       untidy   = UX.untidyCore cfg
       m        = mgi_module modGuts

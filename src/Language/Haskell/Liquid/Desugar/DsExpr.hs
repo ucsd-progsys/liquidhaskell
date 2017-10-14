@@ -22,7 +22,7 @@ import Language.Haskell.Liquid.Desugar.DsMonad
 import Name
 import NameEnv
 import FamInstEnv( topNormaliseType )
-import Language.Haskell.Liquid.Desugar.DsExpr.DsMeta
+import Language.Haskell.Liquid.Desugar.DsMeta
 import HsSyn
 
 -- NB: The desugarer, which straddles the source and Core worlds, sometimes
@@ -143,17 +143,13 @@ ds_val_bind (NonRecursive, hsbinds) body
 
 ds_val_bind (is_rec, binds) _body
   | anyBag (isUnliftedHsBind . unLoc) binds  -- see Note [Strict binds checks] in DsBinds
-  = ASSERT( isRec is_rec )
-    errDsCoreExpr $
+  = errDsCoreExpr $
     hang (text "Recursive bindings for unlifted types aren't allowed:")
        2 (vcat (map ppr (bagToList binds)))
 
 -- Ordinary case for bindings; none should be unlifted
 ds_val_bind (is_rec, binds) body
-  = do  { MASSERT( isRec is_rec || isSingletonBag binds )
-               -- we should never produce a non-recursive list of multiple binds
-
-        ; (force_vars,prs) <- dsLHsBinds binds
+  = do  { (force_vars,prs) <- dsLHsBinds binds
         ; let body' = foldr seqVar body force_vars
         ; case prs of
             [] -> return body
