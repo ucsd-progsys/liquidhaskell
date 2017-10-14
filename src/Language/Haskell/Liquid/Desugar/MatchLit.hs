@@ -8,12 +8,12 @@ Pattern-matching literal patterns
 
 {-# LANGUAGE CPP, ScopedTypeVariables #-}
 
-module Language.Haskell.Liquid.Desugar.MatchLit ( dsLit, dsOverLit, hsLitKey, hsOverLitKey
+module Language.Haskell.Liquid.Desugar.MatchLit ( dsLit, dsOverLit, dsOverLit', hsLitKey
                 , tidyLitPat, tidyNPat
                 , matchLiterals, matchNPlusKPats, matchNPats
-                , warnAboutIdentities, warnAboutEmptyEnumerations
+                , warnAboutIdentities, warnAboutOverflowedLiterals
+                , warnAboutEmptyEnumerations
                 ) where
-
 
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match  ( match )
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsSyntaxExpr )
@@ -46,9 +46,6 @@ import qualified GHC.LanguageExtensions as LangExt
 
 import Control.Monad
 import Data.Int
-#if __GLASGOW_HASKELL__ < 709
-import Data.Traversable (traverse)
-#endif
 import Data.Word
 
 {-
@@ -292,11 +289,11 @@ tidyNPat tidy_lit_pat (OverLit val False _ ty) mb_neg _eq outer_ty
         --     which might be ok if we have 'instance IsString Int'
         --
   | not type_change, isIntTy ty,    Just int_lit <- mb_int_lit
-                            = mk_con_pat intDataCon    (HsIntPrim    "" int_lit)
+                 = mk_con_pat intDataCon    (HsIntPrim    NoSourceText int_lit)
   | not type_change, isWordTy ty,   Just int_lit <- mb_int_lit
-                            = mk_con_pat wordDataCon   (HsWordPrim   "" int_lit)
+                 = mk_con_pat wordDataCon   (HsWordPrim   NoSourceText int_lit)
   | not type_change, isStringTy ty, Just str_lit <- mb_str_lit
-                            = tidy_lit_pat (HsString "" str_lit)
+                 = tidy_lit_pat (HsString NoSourceText str_lit)
      -- NB: do /not/ convert Float or Double literals to F# 3.8 or D# 5.3
      -- If we do convert to the constructor form, we'll generate a case
      -- expression on a Float# or Double# and that's not allowed in Core; see
@@ -375,34 +372,24 @@ matchLiterals [] _ _ = panic "matchLiterals []"
 
 ---------------------------
 hsLitKey :: DynFlags -> HsLit -> Literal
--- Get a Core literal to use (only) a grouping key
--- Hence its type doesn't need to match the type of the original literal
---      (and doesn't for strings)
+-- Get the Core literal corresponding to a HsLit.
 -- It only works for primitive types and strings;
 -- others have been removed by tidy
-hsLitKey dflags (HsIntPrim    _ i) = mkMachInt  dflags i
-hsLitKey dflags (HsWordPrim   _ w) = mkMachWord dflags w
-hsLitKey _      (HsInt64Prim  _ i) = mkMachInt64  i
-hsLitKey _      (HsWord64Prim _ w) = mkMachWord64 w
-hsLitKey _      (HsCharPrim   _ c) = MachChar   c
-hsLitKey _      (HsStringPrim _ s) = MachStr    s
-hsLitKey _      (HsFloatPrim    f) = MachFloat  (fl_value f)
-hsLitKey _      (HsDoublePrim   d) = MachDouble (fl_value d)
-hsLitKey _      (HsString _ s)     = MachStr    (fastStringToByteString s)
+-- For HsString, it produces a MachStr, which really represents an _unboxed_
+-- string literal; and we deal with it in matchLiterals above. Otherwise, it
+-- produces a primitive Literal of type matching the original HsLit.
+-- In the case of the fixed-width numeric types, we need to wrap here
+-- because Literal has an invariant that the literal is in range, while
+-- HsLit does not.
+hsLitKey dflags (HsIntPrim    _ i) = mkMachIntWrap  dflags i
+hsLitKey dflags (HsWordPrim   _ w) = mkMachWordWrap dflags w
+hsLitKey _      (HsInt64Prim  _ i) = mkMachInt64Wrap       i
+hsLitKey _      (HsWord64Prim _ w) = mkMachWord64Wrap      w
+hsLitKey _      (HsCharPrim   _ c) = mkMachChar            c
+hsLitKey _      (HsFloatPrim    f) = mkMachFloat           (fl_value f)
+hsLitKey _      (HsDoublePrim   d) = mkMachDouble          (fl_value d)
+hsLitKey _      (HsString _ s)     = MachStr (fastStringToByteString s)
 hsLitKey _      l                  = pprPanic "hsLitKey" (ppr l)
-
----------------------------
-hsOverLitKey :: HsOverLit a -> Bool -> Literal
--- Ditto for HsOverLit; the boolean indicates to negate
-hsOverLitKey (OverLit { ol_val = l }) neg = litValKey l neg
-
----------------------------
-litValKey :: OverLitVal -> Bool -> Literal
-litValKey (HsIntegral _ i) False = MachInt i
-litValKey (HsIntegral _ i) True  = MachInt (-i)
-litValKey (HsFractional r) False = MachFloat (fl_value r)
-litValKey (HsFractional r) True  = MachFloat (negate (fl_value r))
-litValKey (HsIsString _ s) _     = MachStr (fastStringToByteString s)
 
 {-
 ************************************************************************

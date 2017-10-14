@@ -35,7 +35,7 @@ import TyCon
 import TysWiredIn
 
 import Language.Haskell.Liquid.GHC.TypeRep
-import CoreSyn
+import CoreSyn hiding (mkTyArg)
 
 -- | Horrible hack to support hardwired symbols like
 --      `head`, `tail`, `fst`, `snd`
@@ -75,7 +75,7 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 --------------------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (mkTyArg dictionaryTyVar) $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (TvBndr dictionaryTyVar Required) $ TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"

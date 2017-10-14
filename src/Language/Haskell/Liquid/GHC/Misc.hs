@@ -25,14 +25,14 @@ import           Debug.Trace
 import           DataCon                                    (isTupleDataCon)
 import           Prelude                                    hiding (error)
 import           Avail                                      (availsToNameSet)
-import           BasicTypes                                 (Arity)
+import           BasicTypes                                 (Arity, noOccInfo)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
 import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..),
                                                              Dependencies(..))
-import           TysPrim                                    (anyTy)
+import           TysWiredIn                                 (anyTy)
 import           NameSet                                    (NameSet)
 import           SrcLoc                                     hiding (L)
 import           Bag
@@ -83,7 +83,7 @@ import           Id                                         (isExportedId, idOcc
 mkAlive :: Var -> Id
 mkAlive x
   | isId x && isDeadOcc (idOccInfo x)
-  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
+  = setIdInfo x (setOccInfo (idInfo x) noOccInfo)
   | otherwise
   = x
 --------------------------------------------------------------------------------
@@ -163,8 +163,8 @@ hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
-isBaseType (ForAllTy (Anon _) _) = False -- isBaseType t1 && isBaseType t2
-isBaseType (ForAllTy _ t)  = isBaseType t
+isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
+isBaseType (ForAllTy _ _)  = False
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
@@ -225,7 +225,7 @@ showPpr       = showSDoc . ppr
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Out.SDoc -> String
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle myQualify {- Out.alwaysQualify -} Out.AllTheWay)
+showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle unsafeGlobalDynFlags myQualify {- Out.alwaysQualify -} Out.AllTheWay)
 
 myQualify :: Out.PrintUnqualified
 myQualify = Out.neverQualify { Out.queryQualifyName = Out.alwaysQualifyNames }
@@ -351,12 +351,14 @@ collectArguments n e = if length xs > n then take n xs else xs
     vs               = fst $ collectBinders $ ignoreLetBinds e'
     xs               = vs' ++ vs
 
+{-
 collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
 collectTyBinders expr
   = go [] expr
   where
     go tvs (Lam b e) | isTyVar b = go (b:tvs) e
     go tvs e                     = (reverse tvs, e)
+-}
 
 collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
 collectValBinders' = go []

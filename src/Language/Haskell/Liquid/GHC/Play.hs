@@ -88,8 +88,8 @@ instance Subable Type where
 
 substTysWith :: M.HashMap Var Type -> Type -> Type
 substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
-substTysWith s (ForAllTy (Anon t1) t2) = ForAllTy (Anon $ substTysWith s t1) (substTysWith s t2)
-substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar "impossible" v) s) t)
+substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
+substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar v) s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 substTysWith _ (LitTy t)       = LitTy t
@@ -103,7 +103,7 @@ mapType f = go
     go t@(TyVarTy _)   = f t
     go (AppTy t1 t2)   = f $ AppTy (go t1) (go t2)
     go (TyConApp c ts) = f $ TyConApp c (go <$> ts)
-    go (ForAllTy (Anon t1) t2)   = f $ ForAllTy (Anon $ go t1) (go t2)
+    go (FunTy t1 t2)   = f $ FunTy (go t1) (go t2)
     go (ForAllTy v t)  = f $ ForAllTy v (go t)
     go t@(LitTy _)     = f t
     go (CastTy t c)    = CastTy (go t) c
