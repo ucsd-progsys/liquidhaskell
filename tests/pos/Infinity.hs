@@ -1,8 +1,7 @@
 module Infinity () where
 
 import Language.Haskell.Liquid.Prelude
-{-@ LIQUID "--totality" @-}
-{-@ Lazy inf @-}
+{-@ lazy inf @-}
 
 {-@ inf :: {v:[Int] | (((len v) > oo) && ((len v) > 2))} @-}
 inf :: [Int]

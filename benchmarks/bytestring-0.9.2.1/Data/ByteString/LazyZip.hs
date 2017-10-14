@@ -145,7 +145,7 @@ zipWith f (Chunk a as) (Chunk b bs) = go f a as b bs (sz a as b bs) 0
                    then ((bLength x) + (lbLength xs))
                    else ((bLength y) + (lbLength ys)))}
    @-}
-{-@ Decrease go 6 7 @-}
+{-@ decrease go 6 7 @-}
 go f x xs y ys d (z :: Int64)
   = f (S.unsafeHead x) (S.unsafeHead y)
   : to f (S.unsafeTail x) xs (S.unsafeTail y) ys (sz (S.unsafeTail x) xs (S.unsafeTail y) ys) 1
@@ -160,7 +160,7 @@ go f x xs y ys d (z :: Int64)
                    then ((bLength x) + (lbLength xs))
                    else ((bLength y) + (lbLength ys)))}
    @-}
-{-@ Decrease to 6 7 @-}
+{-@ decrease to 6 7 @-}
 to f x Empty         _ _             d (_::Int64) | S.null x       = []
 to f _ _             y Empty         d _ | S.null y       = []
 to f x xs            y ys            d _ | not (S.null x)

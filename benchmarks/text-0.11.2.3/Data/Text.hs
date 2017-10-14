@@ -498,7 +498,7 @@ uncons t@(Text arr off len)
     | len <= 0  = Nothing
     | otherwise = let Iter c d = iter t 0 -- i
                   in Just (c, textP arr (off+d) (len-d))
-    {- LAZYVAR i @-}
+    {- lazyvar i @-}
     -- where i = iter t 0
 {-# INLINE [1] uncons #-}
 
@@ -515,7 +515,7 @@ last (Text arr off len)
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
     | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          {-@ LAZYVAR n0 @-}
+          {-@ lazyvar n0 @-}
           n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
@@ -942,7 +942,7 @@ concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
                    -> ts:{v:[TextNE] | (a + (sum_tlens v)) > 0}
                    -> {v:Int | ((v = (a + (sum_tlens ts))) && (v > 0))}
   @-}
-{-@ Decrease concat_sumP_go 3 @-}
+{-@ decrease concat_sumP_go 3 @-}
 concat_sumP_go :: String -> Int -> [Text] -> Int
 --LIQUID FIXME: we fail to infer the type of this function even with appropriate qualifiers..
 --LIQUID        probably related to the fact that `l` doesn't get a >0 refinement even though
@@ -1064,7 +1064,7 @@ replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
     | n == 1                = t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | otherwise             = let len = mul l n --LIQUID SPECIALIZE l * n
+    | otherwise             = let len = mulF l n --LIQUID SPECIALIZE l * n
                                   x = do arr <- A.new len
                                          {- LIQUID WITNESS -}
                                          let loop (d :: Int) !d' !i
@@ -1091,9 +1091,9 @@ replicate n t@(Text a o l)
 {- qualif Mul(v:int, x:int, y:int): v = (mul x y) @-}
 {-@ invariant {v:Int | (mul v 0) = 0} @-}
 
-{-@ mul :: x:Nat -> y:Nat -> {v:Nat | ((((x > 1) && (y > 1)) => ((v > x) && (v > y))) && (v = (mul x y)))} @-}
-mul :: Int -> Int -> Int
-mul = P.undefined
+{-@ mulF :: x:Nat -> y:Nat -> {v:Nat | ((((x > 1) && (y > 1)) => ((v > x) && (v > y))) && (v = (mul x y)))} @-}
+mulF :: Int -> Int -> Int
+mulF = P.undefined
 
 {-@ axiom_mul :: i:Nat -> n:Nat -> l:Nat -> len0:Nat -> d0:Nat
     -> {v:Bool | (v <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
@@ -1291,7 +1291,7 @@ dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p len (len-1) (length 
                                    && (BtwnI (v) (-1) (tlength t)))}
                       -> {v:Text | (tlength v) <= (tlength t)}
    @-}
-{-@ Decrease loop_dropWhileEnd 3 @-}
+{-@ decrease loop_dropWhileEnd 3 @-}
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
 loop_dropWhileEnd t@(Text arr off len) p !l !i cnt
     = if l <= 0  then empty
@@ -1496,7 +1496,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
                -> xs:[{v:Int | (BtwnI (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy -> (ix+(tlen pat)) <= iy}>
                -> [Text]
   @-}
-{-@ Decrease splitOn_go 4 @-}
+{-@ decrease splitOn_go 4 @-}
 splitOn_go :: Text -> Text -> Int -> [Int] -> [Text]
 splitOn_go pat@(Text _ _ l) t@(Text arr off len) !s (x:xs)
     =  textP arr (s+off) (x-s) : splitOn_go pat t (x+l) xs
@@ -1639,13 +1639,13 @@ breakOnEnd pat src = (reverse b, reverse a)
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
-breakOnAll pat src@(Text arr off slen)
+breakOnAll pat src@(Text arr off zslen)
     | null pat  = liquidError "breakOnAll"
     | otherwise = L.map step (indices pat src)
   where
 --LIQUID     step       x = (chunk 0 x, chunk x (slen-x))
 --LIQUID     chunk !n !l  = textP arr (n+off) l
-    step       x = (textP arr off x, textP arr (x+off) (slen-x))
+    step       x = (textP arr off x, textP arr (x+off) (zslen-x))
 {-# INLINE breakOnAll #-}
 
 -------------------------------------------------------------------------------
@@ -1804,8 +1804,8 @@ unwords = intercalate (singleton ' ')
                -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isPrefixOf :: Text -> Text -> Bool
-isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
-    alen <= blen && S.isPrefixOf (stream a) (stream b)
+isPrefixOf a@(Text _ _ zalen) b@(Text _ _ blen) =
+    zalen <= blen && S.isPrefixOf (stream a) (stream b)
 {-# INLINE [1] isPrefixOf #-}
 
 {-# RULES
@@ -1819,14 +1819,14 @@ isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
                -> {v:Bool | (v => ((tlen t1) <= (tlen t2)))}
   @-}
 isSuffixOf :: Text -> Text -> Bool
-isSuffixOf a@(Text _aarr _aoff alen) b@(Text barr boff blen) =
+isSuffixOf a@(Text _aarr _aoff zalen) b@(Text barr boff blen) =
   --   d >= 0 && a == b'
   -- where d              = blen - alen
   --       b' | d == 0    = b
   --          | otherwise = Text barr (boff+d) alen
-    let d = blen - alen
+    let d = blen - zalen
     in if d >= 0
-       then let b' = if d == 0 then b else Text barr (boff+d) alen
+       then let b' = if d == 0 then b else Text barr (boff+d) zalen
             in a == b'
        else False
 {-# INLINE isSuffixOf #-}
@@ -1941,4 +1941,8 @@ emptyError :: String -> a
 emptyError fun = liquidError $ "Data.Text." ++ fun ++ ": empty input"
 
 overflowError :: String -> a
-overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"
+overflowError fun = error $ "Data.Text." ++ fun ++ ": size overflow"
+
+{-@ lazy error @-}
+error :: String -> a
+error s = error s

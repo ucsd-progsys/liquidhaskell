@@ -184,6 +184,6 @@ buildExprEdges table  = ordNub . go
     go (ETAbs e _)         = go e
     go (PKVar _ _)         = []
     go (PExist _ e)        = go e
-    go PGrad               = []
+    go (PGrad _ _ _ e)     = go e
 
     go_alias f           = [f | M.member f table ]

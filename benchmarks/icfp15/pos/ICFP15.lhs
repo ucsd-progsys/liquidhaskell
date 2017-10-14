@@ -3,7 +3,10 @@ module ICFP15 where
 
 import Prelude hiding ((.), (++),  filter)
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
+
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--short-names" @-}
 
 \end{code}
@@ -15,7 +18,7 @@ Function Composition: Bringing Everything into Scope!
 
 \begin{code}
 {-@
-(.) :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
+(.) :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>.
        {x::a, w::b<q x> |- c<p w> <: c<r x>}
        (y:b -> c<p y>)
     -> (z:a -> b<q z>)
@@ -73,7 +76,7 @@ main i = app (check i) i
 {-@ check :: x:Int -> {y:Int | x <= y} -> () @-}
 check :: Int -> Int -> ()
 check x y | x < y     = ()
-          | otherwise = error "oups!"
+          | otherwise = unsafeError "oups!"
 \end{code}
 
 
@@ -108,9 +111,9 @@ filter _ []   = []
 
 
 {-@ measure isPrime :: Int -> Bool @-}
-isPrime :: Int -> Bool
-{-@ isPrime :: n:Int -> {v:Bool | v <=> isPrime n} @-}
-isPrime = undefined
+isPrimeP :: Int -> Bool
+{-@ isPrimeP :: n:Int -> {v:Bool | v <=> isPrime n} @-}
+isPrimeP = undefined
 
 -- | `positives` works by instantiating:
 -- p := \v   -> isPrime v
@@ -118,7 +121,7 @@ isPrime = undefined
 
 
 {-@ primes :: [Int] -> [{v:Int | isPrime v}] @-}
-primes     = filter isPrime
+primes     = filter isPrimeP
 \end{code}
 
 

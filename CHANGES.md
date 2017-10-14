@@ -2,6 +2,21 @@
 
 ## NEXT
 
+- Add support for *inductive predicates* see `tests/pos/Ind{Even,Perm,Star}.hs`
+  for examples.
+
+## 0.8.0.1
+
+- Support for GHC 8.0.2 
+
+## 0.7.0.1
+
+- **DELETED** the gsDcons and generally carrying DataConP beyond Bare; this _may_ cause
+  problems with `target` as I removed the `dconEnv` field in `TargetState`. Is it live?
+  To restore: have to apply the substitution syms/su in Bare.hs ALSO to gsDconsP (after 
+  restoring the gsDconsP field to [(DataCon, DataConP)])
+
+
 - **breaking change** Remove the `Bool` vs. `Prop` distinction. This means that: 
 
     * signatures that use(d) `Prop` as a type, e.g. 

@@ -18,7 +18,7 @@ import qualified Data.HashMap.Strict as M
 import           Debug.Trace (trace)
 import           TyCon
 import           Var (Var)
-import           Language.Fixpoint.Types                  hiding (mkQual)
+import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Bare
@@ -60,11 +60,13 @@ useSigQuals i = useQuals i && not (useAlsQuals i)
 
 -- | Scrape qualifiers from refinement type aliases (type Nat = {v:Int | 0 <= 0})
 useAlsQuals :: (HasConfig t) => t -> Bool
-useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag
+useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag && not (needQuals i)
 
 useQuals :: (HasConfig t) => t -> Bool
 useQuals = not . (FC.All == ) . eliminate . getConfig
 
+needQuals :: (HasConfig t) => t -> Bool
+needQuals = (FC.None == ) . eliminate . getConfig
 
 --------------------------------------------------------------------------------
 alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -176,7 +178,7 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
+refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
             => SEnv Sort
             -> SourcePos
             -> TCEmb TyCon
@@ -187,7 +189,8 @@ refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t)
 refTopQuals lEnv l tce t0 γ t
   = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
                    , pa                        <- conjuncts ra
-                   , not $ isHole pa
+                   , not $ isHole    pa
+                   , not $ isGradual pa
                    , isNothing $ checkSorted (insertSEnv v so γ') pa
     ]
     ++
@@ -201,7 +204,7 @@ refTopQuals lEnv l tce t0 γ t
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv
 
-mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r)
+mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
         => SEnv Sort
         -> SourcePos
         -> TCEmb TyCon
@@ -237,4 +240,4 @@ envSort l lEnv tEnv x i
   | otherwise                   = Just (x, ai)
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
-    msg            = "unknown symbol in qualifier: " ++ show x
+    msg            = "Unknown symbol in qualifier: " ++ show x

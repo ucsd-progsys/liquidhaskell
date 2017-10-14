@@ -50,8 +50,7 @@ import System.Console.CmdArgs.Text
 import Data.List                           (nub)
 
 
-import System.FilePath                     (dropFileName, isAbsolute,
-                                            takeDirectory, (</>))
+import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
 -- a   hiding (Config, linear, elimBound, elimStats,
@@ -64,7 +63,7 @@ import qualified Language.Fixpoint.Types.Config as FC
 -- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
+import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
@@ -156,6 +155,14 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , gradual
+    = def &= help "Enable gradual refinementtype checking"
+          &= name "gradual"
+
+ , ginteractive
+    = def &= help "Interactive Gradual Solving"
+          &= name "ginteractive"
+
  , totalHaskell
     = def &= help "Check for termination and totality, Overrides no-termination flags"
           &= name "total-Haskell"
@@ -186,8 +193,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
 
- , totality
-    = def &= help "Check totality"
+ , nototality
+    = def &= help "Disable totality check"
+          &= name "no-totality"
 
  , cores
     = def &= help "Use m cores to solve logical constraints"
@@ -244,6 +252,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
+ , noADT
+    = def &= help "Do not generate ADT representations in refinement logic"
+          &= name "no-adt"
+
  , noMeasureFields
     = def &= help "Do not automatically lift data constructor fields into measures"
           &= name "no-measure-fields"
@@ -271,6 +283,16 @@ config = cmdArgsMode $ Config {
     = Nothing
             &= name "elimBound"
             &= help "Maximum chain length for eliminating KVars"
+
+ , noslice
+    = False
+            &= name "noSlice"
+            &= help "Disable non-concrete KVar slicing"
+
+ , noLiftedImport
+    = False
+            &= name "no-lifted-imports"
+            &= help "Disable loading lifted specifications (for legacy libs)"
 
  , json
     = False &= name "json"
@@ -322,11 +344,11 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
           &= name "proof-method"
-  , fuel 
+  , fuel
     = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
         &= name "fuel"
 
-  , debugInstantionation 
+  , debugInstantionation
     = False &= help "Debug Progress in liquid instantiation"
         &= name "debug-instantiation"
  } &= verbosity
@@ -361,20 +383,26 @@ cmdArgsRun' md as
       Right a -> cmdArgsApply a
     where
       helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
-      parseResult = process md as -- <$> getArgs
+      parseResult = process md (wideHelp as)
+      wideHelp = map (\a -> if a == "--help" || a == "-help" then "--help=120" else a)
+
 
 --------------------------------------------------------------------------------
 withSmtSolver :: Config -> IO Config
 --------------------------------------------------------------------------------
 withSmtSolver cfg =
   case smtsolver cfg of
-    Just _  -> return cfg
-    Nothing -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
-                  case catMaybes smts of
-                    (s:_) -> return (cfg {smtsolver = Just s})
-                    _     -> panic Nothing noSmtError
+    Just smt -> do found <- findSmtSolver smt
+                   case found of
+                     Just _ -> return cfg
+                     Nothing -> panic Nothing (missingSmtError smt)
+    Nothing  -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc4, FC.Mathsat]
+                   case catMaybes smts of
+                     (s:_) -> return (cfg {smtsolver = Just s})
+                     _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+    missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
@@ -412,10 +440,20 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
 
--- [NOTE:searchpath]
--- 1. not convinced we should add the file's directory to the search path
+-- NOTE [searchpath]
+-- 1. we used to add the directory containing the file to the searchpath,
+--    but this is bad because GHC does NOT do this, and it causes spurious
+--    "duplicate module" errors in the following scenario
+--      > tree
+--      .
+--      ├── Bar.hs
+--      └── Foo
+--          ├── Bar.hs
+--          └── Goo.hs
+--    If we run `liquid Foo/Goo.hs` and that imports Bar, GHC will not know
+--    whether we mean to import Bar.hs or Foo/Bar.hs
 -- 2. tests fail if you flip order of idirs'
 
 mkOpts :: Config -> IO Config
@@ -423,8 +461,8 @@ mkOpts cfg = do
   let files' = sortNub $ files cfg
   id0       <- getIncludeDir
   return     $ cfg { files       = files'
-                   , idirs       = (dropFileName <$> files')    -- [NOTE:searchpath]
-                                ++ [id0 </> gHC_VERSION, id0]
+                                   -- See NOTE [searchpath]
+                   , idirs       = [id0 </> gHC_VERSION, id0]
                                 ++ idirs cfg
                    }
 
@@ -467,6 +505,8 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , gradual           = False
+                   , ginteractive      = False
                    , totalHaskell      = def
                    , autoproofs        = def
                    , nowarnings        = def
@@ -475,9 +515,10 @@ defConfig = Config { files             = def
                    , nocaseexpand      = def
                    , strata            = def
                    , notruetypes       = def
-                   , totality          = def
+                   , nototality        = False
                    , pruneUnsorted     = def
                    , exactDC           = def
+                   , noADT             = def
                    , noMeasureFields   = def
                    , cores             = def
                    , minPartSize       = FC.defaultMinPartSize
@@ -504,13 +545,15 @@ defConfig = Config { files             = def
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
-                   , autoInstantiate   = def 
-                   , proofMethod       = def 
+                   , autoInstantiate   = def
+                   , proofMethod       = def
                    , fuel              = defFuel
-                   , debugInstantionation = False 
+                   , debugInstantionation = False
+                   , noslice              = False
+                   , noLiftedImport       = False
                    }
 
-defFuel :: Int 
+defFuel :: Int
 defFuel = 2
 
 ------------------------------------------------------------------------

@@ -6,14 +6,9 @@
 Main Web site
 -------------
 
-The UCSD web site for liquid haskell is [here](https://ucsd-progsys.github.io/liquidhaskell-blog/)
-
-Examples
---------
-
-Jump to examples here [TODO]
-
-
+* [Splash page with examples and link to blog](https://ucsd-progsys.github.io/liquidhaskell-blog/)
+* [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
+* [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
 
 Contributing Guide
 ------------------
@@ -47,6 +42,8 @@ To run inside `ghci` e.g. when developing do:
     $ stack ghci liquidhaskell
     ghci> :m +Language.Haskell.Liquid.Liquid
     ghci> liquid ["tests/pos/Abs.hs"]
+
+See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 
 How To Run Regression Tests
 ---------------------------
@@ -298,10 +295,7 @@ To use unqualified names, much easier to read, use:
 Totality Check
 --------------
 
-LiquidHaskell can prove the absence of pattern match failures.
-Use the `totality` flag to prove that all defined functions are total.
-
-    liquid --totality test.hs
+LiquidHaskell proves the absence of pattern match failures.
 
 For example, the definition
 
@@ -314,6 +308,10 @@ If we exclude `Nothing` from its domain, for example using the following specifi
     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
 
 `fromJust` will be safe.
+
+Use the `no-totality` flag to disable totality checking.
+
+    liquid --no-totality test.hs
 
 Termination Check
 -----------------
@@ -951,6 +949,8 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
+
+
 Abstract and Bounded Refinements
 ================================
 
@@ -969,31 +969,30 @@ The bounds correspond to Horn implications between abstract refinements,
 which, as in the classical setting, correspond to subtyping constraints
 that must be satisfied by the concrete refinements used at any call-site.
 
+Dependent Pairs
+===============
+Dependent Pairs are expressed by binding the initial tuples of the pair. For example 
+`incrPair` defines an increasing pair.
+
+    {-@ incrPair :: Int -> (x::Int, {v:Int | x <= v}) @-}
+    incrPair i = (i, i+1)
+
+Internally dependent pairs are implemented using abstract refinement types. 
+That is `(x::a, {v:b | p x})` desugars to `(a,b)<\x -> {v:b | p x}>`.
+
 Invariants
 ==========
 
-**WARNING:** Do not use this mechanism -- it is *unsound* and about to be
-replaced with something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
+LH lets you locally associate invariants with specific data types.
 
-There are two ways of specifying invariants in LiquidHaskell.
-First, there are *global* invariants that always hold for a data-type. For
-example,  the length of a list cannot be negative
-
-    {-@ invariant {v:[a] | (len v >= 0)} @-}
-
-LiquidHaskell can prove that this invariant holds, by proving that all List's
-constructors (ie., `:` and `[]`) satisfy it.(TODO!)
-Then, LiquidHaskell assumes that each list element that is created satisfies
-this invariant.
-
-Second, there are *local* invariants that one may use. For
-example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+For example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
 list is treated as a Stream. To establish this local invariant one can use the
 `using` declaration
 
     {-@ using ([a]) as  {v:[a] | (len v > 0)} @-}
 
 denoting that each list is not empty.
+
 Then, LiquidHaskell will prove that this invariant holds, by proving that *all
 calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
@@ -1003,6 +1002,21 @@ With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
 But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
+
+
+**WARNING:** There is an older _global_ invariant mechanism that 
+attaches a refinement to a datatype globally.
+Do not use this mechanism -- it is *unsound* and about to 
+deprecated in favor of something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
+
+Forexample,  the length of a list cannot be negative
+
+    {-@ invariant {v:[a] | (len v >= 0)} @-}
+
+LiquidHaskell can prove that this invariant holds, by proving that all List's
+constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell 
+assumes that each list element that is created satisfies
+this invariant.
 
 Formal Grammar of Refinement Predicates
 =======================================
@@ -1222,3 +1236,26 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 + The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Haskell re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Haskell is now `A.(B + 1)`
 
 + The `A` component shall be updated at the sole discretion of the project owners.
+
+Proof Automation
+----------------
+The `liquidinstances` automatically generates proof terms using symbolic evaluation. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/MonoidList.hs).
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+```
+
+This flag is **global** and will symbolically evaluation all the terms that appear in the specifications. 
+
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+```
+
+will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated 
+for automatic instantiation using the following liquid annotation
+
+```
+{-@ automatic-instances theorem @-}
+```

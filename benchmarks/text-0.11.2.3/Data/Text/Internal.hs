@@ -1,4 +1,6 @@
-{-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--maxparams=3"    @-}
+{-@ LIQUID "--prune-unsorted" @-}
+
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 -- |
@@ -155,10 +157,10 @@ text arr off len =
 --LIQUID #if defined(ASSERTS)
 --LIQUID  let c    = A.unsafeIndex arr off
 --LIQUID      alen = A.length arr
-  let alen = A.aLen arr
+  let zzzalen = A.aLen arr
   in liquidAssert (len >= 0) .
      liquidAssert (off >= 0) .
-     liquidAssert (alen == 0 || len == 0 || off < alen) $
+     liquidAssert (zzzalen == 0 || len == 0 || off < zzzalen) $
 --LIQUID     assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
      let t = if len == 0 then Text arr off len else
                 let c = A.unsafeIndex arr off in

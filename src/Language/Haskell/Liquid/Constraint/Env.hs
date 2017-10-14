@@ -189,7 +189,7 @@ addCGEnv tx γ (_, x, t') = do
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r)
+rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
                  => Bool -> CGEnv -> RRType r -> F.SortedReft
 rTypeSortedReft' pflag γ
   | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f

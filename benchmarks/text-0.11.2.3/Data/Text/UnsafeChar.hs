@@ -36,14 +36,14 @@ import qualified Data.Text.Array as A
 --LIQUID
 import Language.Haskell.Liquid.Prelude
 
-{-@ measure ord :: Char -> Int @-}
-{-@ predicate One C = ((ord C) <  65536) @-}
-{-@ predicate Two C = ((ord C) >= 65536) @-}
+{-@ measure ordP :: Char -> Int @-}
+{-@ predicate One C = ((ordP C) <  65536) @-}
+{-@ predicate Two C = ((ordP C) >= 65536) @-}
 
-{-@ qualOneC :: {v:Char | (ord v) <  65536} -> () @-}
+{-@ qualOneC :: {v:Char | (ordP v) <  65536} -> () @-}
 qualOneC :: Char -> ()
 qualOneC _ = ()
-{-@ qualTwoC :: {v:Char | (ord v) >= 65536} -> () @-}
+{-@ qualTwoC :: {v:Char | (ordP v) >= 65536} -> () @-}
 qualTwoC :: Char -> ()
 qualTwoC _ = ()
 
@@ -53,11 +53,11 @@ qualTwoC _ = ()
 
 {- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
-{-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
+{-@ ord :: c:Char -> {v:Int | v = (ordP c)} @-}
 ord :: Char -> Int
 ord c@(C# c#) = let i = I# (ord# c#)
                 in liquidAssume (axiom_ord c i) i
-{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | (v <=> (i = (ord c)))} @-}
+{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | (v <=> (i = (ordP c)))} @-}
 axiom_ord :: Char -> Int -> Bool
 axiom_ord = undefined
 {-# INLINE ord #-}

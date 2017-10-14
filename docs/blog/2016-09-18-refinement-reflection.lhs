@@ -89,7 +89,7 @@ For example, we will prove that the Haskell `fib` function is increasing.
 Propositions
 ------------
 
-To begin with, we import [ProofCombinators][proofcomb], a (Liquid) Haskell 
+To begin, we import [ProofCombinators][proofcomb], a (Liquid) Haskell 
 library that defines and manipulates logical proofs. 
 
 ```haskell
@@ -151,8 +151,8 @@ Using the underlying SMT's knowledge on linear arithmetic,
 we can trivially prove the above propositions.
 
 \begin{code}
-{-@ propOnePlueOne :: _ -> OnePlusOne @-} 
-propOnePlueOne _ = trivial *** QED 
+{-@ propOnePlusOne :: _ -> OnePlusOne @-} 
+propOnePlusOne _ = trivial *** QED 
 
 {-@ propPlusComm :: PlusComm @-} 
 propPlusComm _ _ = trivial *** QED 
@@ -223,7 +223,7 @@ exactly reflecting the implementation of `fib`.
 ```haskell
 fibP i = if i == 0 then 0 else
          if i == 1 then 1 else
-         fin (i-1) + fib (i-2)
+         fib (i-1) + fib (i-2)
 ```
 
 Step 3: Application 
@@ -308,7 +308,7 @@ Next, combining the above operators we specify and prove that
 `fib` is increasing, that is for each natural number `i`, 
 `fib i <= fib (i+1)`. 
 
-We specify the theorem as a refinement type for `fubUp`
+We specify the theorem as a refinement type for `fibUp`
 and use Haskell code to persuade Liquid Haskell that 
 the theorem holds. 
 

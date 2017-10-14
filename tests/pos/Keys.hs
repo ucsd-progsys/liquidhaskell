@@ -1,4 +1,7 @@
+{-@ LIQUID "--prune-unsorted" @-}
+
 module Eval where
+
 
 import qualified Data.Set as S
 

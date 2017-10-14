@@ -28,7 +28,7 @@ import qualified Data.List                      as L
 import qualified Data.HashMap.Strict            as M
 import qualified Data.HashSet                   as S
 import           Data.Hashable
-import           Control.Monad.State            (get, put, modify)
+import           Control.Monad.State            (gets, get, put, modify)
 import           Control.Monad                  (when, (>=>))
 import           Prelude                        hiding (error)
 
@@ -57,18 +57,18 @@ instance Freshable CG Integer where
              put $ s { freshIndex = n + 1 }
              return n
 
-instance Freshable m Integer => Freshable m F.Symbol where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Symbol where
   fresh = F.tempSymbol "x" <$> fresh
 
-instance Freshable m Integer => Freshable m F.Expr where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Expr where
   fresh  = kv <$> fresh
     where
       kv = (`F.PKVar` mempty) . F.intKvar
 
-instance Freshable m Integer => Freshable m [F.Expr] where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m [F.Expr] where
   fresh = single <$> fresh
 
-instance Freshable m Integer => Freshable m F.Reft where
+instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft where
   fresh                  = panic Nothing "fresh Reft"
   true    (F.Reft (v,_)) = return $ F.Reft (v, mempty)
   refresh (F.Reft (_,_)) = (F.Reft .) . (,) <$> freshVV <*> fresh
@@ -129,13 +129,13 @@ trueRefType (REx _ t t')
   = REx <$> fresh <*> true t <*> true t'
 
 trueRefType t@(RExprArg _)
-  = return t 
+  = return t
 
 trueRefType t@(RHole _)
-  = return t 
+  = return t
 
 trueRefType (RAllS _ t)
-  = RAllS <$> fresh <*> true t  
+  = RAllS <$> fresh <*> true t
 
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
@@ -216,7 +216,7 @@ refreshVV (RApp c ts rs r)
        shiftVV (RApp c ts' rs' r) <$> fresh
 
 refreshVV t
-  = return t
+  = shiftVV t <$> fresh
 
 refreshVVRef :: Freshable m Integer
              => Ref b (RType RTyCon RTyVar RReft)
@@ -314,16 +314,17 @@ freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
-addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
-                     when (isKut k) $ addKuts k t
-                     -- when (True)    $ addKvPack t
+addKVars !k !t  = do
+    cfg <- getConfig  <$> gets ghcI
+    when (True)        $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+    when (isKut cfg k) $ addKuts k t
   where
-     ks         = F.KS $ S.fromList $ specTypeKVars t
+    ks         = F.KS $ S.fromList $ specTypeKVars t
 
-isKut              :: KVKind -> Bool
-isKut (RecBindE _) = True
-isKut ProjectE     = True
-isKut _            = False
+isKut :: Config -> KVKind -> Bool
+isKut _  (RecBindE _) = True
+isKut cfg ProjectE    = not (higherOrderFlag cfg) -- see ISSUE 1034, tests/pos/T1034.hs
+isKut _    _          = False
 
 addKuts :: (PPrint a) => a -> SpecType -> CG ()
 addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
@@ -332,11 +333,6 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
      ks
        | S.null ks' = ks'
        | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
-
--- addKvPack :: SpecType -> CG ()
--- addKvPack t = modify $ \s -> s { kvPacks = ks : kvPacks s}
-  -- where
-    -- ks      = S.fromList $ specTypeKVars t
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []

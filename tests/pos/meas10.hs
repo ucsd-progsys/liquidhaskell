@@ -2,12 +2,15 @@ module Meas where
 
 import Data.Set (Set(..))
 
+import Language.Haskell.Liquid.Prelude
+
+
 {-@ include <listSet.hquals> @-}
 
 {-@ myrev :: xs:[a] -> {v:[a]| listElts(v) = listElts(xs)} @-}
 myrev :: [a] -> [a]
 myrev xs = go [] xs 
-{-@ Decrease go 2 @-}
+{-@ decrease go 2 @-}
    where go acc []     = acc
          go acc (y:ys) = go (y:acc) ys
 
@@ -15,7 +18,7 @@ myrev xs = go [] xs
 {- goo :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} @-}
 goo :: [a] -> [a] -> [a]
 goo acc []     = acc
-goo acc (y:ys) = error "foo" -- goRev (y:acc) ys
+goo acc (y:ys) = unsafeError "foo" -- goRev (y:acc) ys
 
 {-@ emptySet :: a -> {v:[b] | Set_emp(listElts(v))} @-}
 emptySet :: a -> [b]

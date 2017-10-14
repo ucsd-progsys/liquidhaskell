@@ -30,13 +30,8 @@ solve   :: Formula -> Maybe Asgn
 solve f = find (\a -> sat a f) (asgns f)
 
 
-witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
-
-{-@ bound witness @-}
-
-{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
-            (Witness a p w) =>
+{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
+            {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing
@@ -84,7 +79,7 @@ satLit a (Neg x) = isFalse x a
 
 {-@ measure isTrue @-}
 isTrue          :: Var -> Asgn -> Bool
-isTrue xisT (yv:as) = if xisT == (fst yv) then (isVFalse (snd yv)) else isTrue xisT as
+isTrue xisT (yv:as) = if xisT == (myFst yv) then (isVFalse (mySnd yv)) else isTrue xisT as
 isTrue _ []      = False
 
 {-@ measure isVTrue @-}
@@ -92,9 +87,17 @@ isVTrue :: Val -> Bool
 isVTrue VTrue  = True
 isVTrue VFalse = False
 
+{-@ measure myFst @-}
+myFst :: (a, b) -> a
+myFst (x, y) = x
+
+{-@ measure mySnd @-}
+mySnd :: (a, b) -> b
+mySnd (x, y) = y
+
 {-@ measure isFalse @-}
 isFalse          :: Var -> Asgn -> Bool
-isFalse xisF (yv:as) = if xisF == (fst yv) then (isVFalse (snd yv)) else isFalse xisF as
+isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
 isFalse _ []      = False
 
 {-@ measure isVFalse @-}

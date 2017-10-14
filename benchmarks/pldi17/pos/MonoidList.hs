@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorderqs" @-}
 
@@ -62,7 +61,7 @@ mappend_assoc (x ::: xs) ys zs
   *** QED
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] = Emp | (:::) {x::a, xs:: (L a)} @-}
+{-@ data L [llen] @-}
 
 
 {-@ measure llen @-}

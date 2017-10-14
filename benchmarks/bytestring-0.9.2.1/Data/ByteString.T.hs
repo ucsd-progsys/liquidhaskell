@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-totality" @-}
 
 -- #prune
 
@@ -205,6 +206,7 @@ module Data.ByteString (
 
   ) where
 
+import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,length,map,lines,foldl,foldr,unlines
@@ -287,7 +289,7 @@ import GHC.Handle
 #define assert  assertS "__FILE__ : __LINE__"
 assertS :: String -> Bool -> a -> a
 assertS _ True  = id
-assertS s False = error ("assertion failed at "++s)
+assertS s False = unsafeError ("assertion failed at "++s)
 #endif
 
 -- LIQUID
@@ -295,7 +297,7 @@ import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
 import Language.Haskell.Liquid.Foreign 
 
-{-@ include <ByteString.hs.hquals> @-}
+{-@ include <Data/ByteString.hs.hquals> @-}
 
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
@@ -303,13 +305,13 @@ import Language.Haskell.Liquid.Foreign
                      -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
   @-}
 memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
-memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+memcpy_ptr_baoff = unsafeError "LIQUIDCOMPAT"
 
 readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
-readCharFromBuffer x y = error "LIQUIDCOMPAT"
+readCharFromBuffer x y = unsafeError "LIQUIDCOMPAT"
 
 wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
-wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
+wantReadableHandleLIQUID x y f = unsafeError $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
 {- IN INCLUDE FILE qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
 {- qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
@@ -468,7 +470,7 @@ pack str = unsafeCreate (P.length str) $ \p -> go p str
 
 pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p 0# str)
     where
-        {-@ Decrease go 3 @-}
+        {-@ decrease go 3 @-}
         go _ _ []        = return ()
         go p i (W8# c:cs) = writeByte p i c >> go p (i +# 1#) cs
 
@@ -1034,7 +1036,7 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
-{-@ Lazy unfoldr @-}
+{-@ lazy unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
   where unfoldChunk n n' x =
@@ -1057,7 +1059,7 @@ unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
-  {-@ Decrease go_unfoldrN 1 @-}
+  {-@ decrease go_unfoldrN 1 @-}
   where STRICT4(go)
         {- LIQUID WITNESS -}
         go_unfoldrN (d::Int) p x n =
@@ -1237,12 +1239,12 @@ splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp 1
   where pred# c# = pred_ (W8# c#)
 
         STRICT5(splitWith0)
-        {-@ Decrease splitWith0 3 5 @-}
+        {-@ decrease splitWith0 3 5 @-}
         {- LIQUID WITNESS -}
         splitWith0 pred' off' len' fp' (x::Int) = withPtr fp $ \p ->
             splitLoop pred' p 0 off' len' fp' len' 0
 
-        {-@ Decrease splitLoop 7 8 @-}
+        {-@ decrease splitLoop 7 8 @-}
         splitLoop :: (Word# -> Bool)
                   -> Ptr Word8
                   -> Int -> Int -> Int
@@ -1582,7 +1584,7 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plu
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
 findIndices p ps = loop 0 ps
    where
-     {-@ Decrease loop 2 @-}
+     {-@ decrease loop 2 @-}
      STRICT2(loop)
      loop (n :: Int) qs             -- LIQUID CAST
         | null qs           = []
@@ -1763,7 +1765,7 @@ findSubstrings pat str
     | null pat         = rng 0 (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
     | otherwise        = search 0 str
   where
-    {-@ Decrease search 2 @-}
+    {-@ decrease search 2 @-}
     STRICT2(search)
     search (n :: Int) s
         | null s             = []
@@ -1801,7 +1803,7 @@ breakSubstring :: ByteString -- ^ String to search for
 
 breakSubstring pat src = search 0 src
   where
-    {-@ Decrease search 2 @-}
+    {-@ decrease search 2 @-}
     STRICT2(search)
     search n s
         | null s             = (src, empty)      -- not found
@@ -1890,7 +1892,7 @@ unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 inits :: ByteString -> [ByteString]
 --LIQUID INLINE inits (PS x s l) = [PS x s n | n <- [0..l]]
 inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
-      {-@ Decrease go 2 @-}
+      {-@ decrease go 2 @-}
     where go _  []     = []
           go n0 (n:ns) = PS x s n : go n ns
 --LIQUID          rng a b | a > b     = []
@@ -2186,7 +2188,7 @@ hGetNonBlocking = hGet
 -- be ISO-8859-1.
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{-@ Lazy hGetContents @-}
+{-@ lazy hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024

@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module BST () where
 
 import Language.Haskell.Liquid.Prelude
@@ -5,11 +7,13 @@ import Language.Haskell.Liquid.Prelude
 {-@
 data Bst [blen] k v <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
   = Empty
-  | Bind (key   :: k) 
-         (value :: v) 
-         (left  :: Bst <l, r> (k <l key>) v) 
-         (right :: Bst <l, r> (k <r key>) v)
+  | Bind { bKey   :: k
+         , bValue :: v
+         , bLeft  :: Bst <l, r> (k <l bKey>) v
+         , bRight :: Bst <l, r> (k <r bKey>) v }
   @-}
+
+
 
 {-@ measure blen :: (Bst k v) -> Int
     blen(Empty)        = 0
@@ -22,7 +26,7 @@ data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 
 {-@
 data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
-  = P (fld0 :: k) (fld1 :: v) (tree :: Bst <l, r> (k <p fld0>) v) 
+  = P (fld0 :: k) (fld1 :: v) (tree :: Bst <l, r> (k <p fld0>) v)
   @-}
 
 data Pair k v = P k v (Bst k v)
@@ -37,8 +41,8 @@ insert k v (Bind k' v' l r)
 -- delete :: (Eq k, Ord k) => k -> Bst k v -> Bst k v
 delete _ Empty = Empty
 delete k' (Bind k v l r)
-  | k' == k = 
-      case r of 
+  | k' == k =
+      case r of
        Empty   -> l
        _       -> let P kmin vmin r' = getMin r in Bind kmin vmin l r'
   | k' < k = Bind k v (delete k' l) r
@@ -47,14 +51,14 @@ delete k' (Bind k v l r)
 getMin (Bind k v Empty rt) = P k v rt
 getMin (Bind k v lt rt)    = P k0min v0min (Bind k v l' rt)
    where P k0min v0min l' = getMin lt
-getMin _                   = error "getMin"
+getMin _                   = unsafeError "getMin"
 
-chkMin x Empty            = liquidAssertB True  
+chkMin x Empty            = liquidAssertB True
 chkMin x (Bind k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
-chk Empty            = liquidAssertB True  
+chk Empty            = liquidAssertB True
 chk (Bind k v lt rt) = chk lt && chk rt && chkl k lt && chkr k rt
-		
+
 chkl k Empty = liquidAssertB True
 chkl k (Bind kl _ _ _) = liquidAssertB (kl < k)
 

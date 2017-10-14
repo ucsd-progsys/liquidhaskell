@@ -212,8 +212,7 @@ appendAssoc :: List a -> List a -> List a -> Proof
   -> {append (append x y) z == append x (append y z)} @-}
 appendAssoc N y z 
   =   append (append N y) z 
-  ==. append N z 
-  ==. N
+ -- ==. append y z
   ==. append N (append y z)
   *** QED 
 appendAssoc (C x xs) y z 

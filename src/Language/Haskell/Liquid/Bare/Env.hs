@@ -1,13 +1,11 @@
-{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Language.Haskell.Liquid.Bare.Env (
     BareM
   , Warn
   , TCEnv
-
   , BareEnv(..)
-
-  -- , TInline(..)
   , InlnEnv
 
   , inModule
@@ -15,13 +13,19 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , setRTAlias
   , setREAlias
-  , setEmbeds
+  -- , setEmbeds
+  , setDataDecls
 
   , execBare
 
   , insertLogicEnv
   , insertAxiom
   , addDefs
+
+
+  -- * Exact DataConstructor Functions
+  , DataConMap
+  , dataConMap
   ) where
 
 import           HscTypes
@@ -39,53 +43,69 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
 
-import           Language.Fixpoint.Types              (Expr(..), Symbol, symbol, TCEmb)
+import           Language.Fixpoint.Types              (Expr(..), TCEmb)
+import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 
+--------------------------------------------------------------------------------
+-- | 'DataConMap' stores the names of those ctor-fields that have been declared
+--   as SMT ADTs so we don't make up new names for them.
+--------------------------------------------------------------------------------
+type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
+
+dataConMap :: [F.DataDecl] -> DataConMap
+dataConMap ds = M.fromList $ do
+  d     <- ds
+  c     <- F.ddCtors d
+  let fs = F.symbol <$> F.dcFields c
+  zip ((F.symbol c,) <$> [1..]) fs
 
 --------------------------------------------------------------------------------
 -- | Error-Reader-IO For Bare Transformation -----------------------------------
 --------------------------------------------------------------------------------
 
 -- FIXME: don't use WriterT [], very slow
-type BareM = WriterT [Warn] (ExceptT Error (StateT BareEnv IO))
-
-type Warn  = String
-
-type TCEnv = M.HashMap TyCon RTyCon
-
-type InlnEnv = M.HashMap Symbol LMap
+type BareM   = WriterT [Warn] (ExceptT Error (StateT BareEnv IO))
+type Warn    = String
+type TCEnv   = M.HashMap TyCon RTyCon
+type InlnEnv = M.HashMap F.Symbol LMap
 
 data BareEnv = BE
   { modName  :: !ModName
   , tcEnv    :: !TCEnv
   , rtEnv    :: !RTEnv
-  , varEnv   :: ![(Symbol, Var)]
-  , hscEnv   :: HscEnv
-  , logicEnv :: LogicMap
-  , bounds   :: RBEnv
-  , embeds   :: TCEmb TyCon
-  , axSyms   :: M.HashMap Symbol LocSymbol
+  , varEnv   :: !(M.HashMap F.Symbol Var)
+  , hscEnv   :: !(HscEnv)
+  , logicEnv :: !LogicMap
+  , dcEnv    :: !DataConMap
+  , bounds   :: !(RBEnv)
+  , embeds   :: !(TCEmb TyCon)
+  , axSyms   :: !(M.HashMap F.Symbol LocSymbol)
+  , propSyms :: !(M.HashMap F.Symbol LocSymbol)
+  , beConfig :: !Config
   }
 
-setEmbeds :: TCEmb TyCon -> BareM ()
-setEmbeds emb
-  = modify $ \be -> be {embeds = emb}
+instance HasConfig BareEnv where
+  getConfig = beConfig
 
-addDefs :: S.HashSet (Var, Symbol) -> BareM ()
-addDefs ds
-  = modify $ \be -> be {logicEnv = (logicEnv be) {axiom_map =  M.union (axiom_map $ logicEnv be) (M.fromList $ S.toList ds)}}
+setDataDecls :: [F.DataDecl] -> BareM ()
+setDataDecls adts = modify $ \be -> be { dcEnv = dataConMap adts }
 
-insertLogicEnv :: String -> LocSymbol -> [Symbol] -> Expr -> BareM ()
-insertLogicEnv _msg x ys e
-  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert (val x) (LMap x ys e) $ logic_map $ logicEnv be}}
+_setEmbeds :: TCEmb TyCon -> BareM ()
+_setEmbeds emb = modify $ \be -> be {embeds = emb}
 
-insertAxiom :: Var -> Symbol -> BareM ()
+insertLogicEnv :: String -> LocSymbol -> [F.Symbol] -> Expr -> BareM ()
+insertLogicEnv _msg x ys e = modify $ \be -> be {logicEnv = (logicEnv be) {lmSymDefs = M.insert (val x) (LMap x ys e) $ lmSymDefs $ logicEnv be}}
+
+insertAxiom :: Var -> Maybe F.Symbol -> BareM ()
 insertAxiom x s
-  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
+  = modify $ \be -> be {logicEnv = (logicEnv be) {lmVarSyms = M.insert x s $ lmVarSyms $ logicEnv be}}
+
+addDefs :: S.HashSet (Var, F.Symbol) -> BareM ()
+addDefs ds = forM_ (S.toList ds) $ \(v, x) -> insertAxiom v (Just x)
 
 setModule :: ModName -> BareEnv -> BareEnv
 setModule m b = b { modName = m }
@@ -106,18 +126,18 @@ withVArgs :: (Foldable t, PPrint a)
           -> BareM b
 withVArgs l l' vs act = do
   old <- gets rtEnv
-  mapM_ (mkExprAlias l l' . symbol . showpp) vs
+  mapM_ (mkExprAlias l l' . F.symbol . showpp) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res
 
-mkExprAlias :: SourcePos -> SourcePos -> Symbol -> BareM ()
-mkExprAlias l l' v = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ symbol v)) l l')
+mkExprAlias :: SourcePos -> SourcePos -> F.Symbol -> BareM ()
+mkExprAlias l l' v = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ F.symbol v)) l l')
 
-setRTAlias :: Symbol -> RTAlias RTyVar SpecType -> BareM ()
+setRTAlias :: F.Symbol -> RTAlias RTyVar SpecType -> BareM ()
 setRTAlias s a = modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
 
-setREAlias :: Symbol -> RTAlias Symbol Expr -> BareM ()
+setREAlias :: F.Symbol -> RTAlias F.Symbol Expr -> BareM ()
 setREAlias s a = modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }
 
 ------------------------------------------------------------------

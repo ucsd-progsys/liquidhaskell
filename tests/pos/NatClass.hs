@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
 module Nat where
@@ -19,7 +18,7 @@ toInt (Suc n) = 1 + toInt n
 {-@ class VerifiedEq a where
       eq :: a -> a -> Bool
       refl :: x:a -> { v:Proof | eq x x }
-@-}
+  @-}
 class Eq a => VerifiedEq a where
   eq   :: a -> a -> Bool 
   eq = (==)

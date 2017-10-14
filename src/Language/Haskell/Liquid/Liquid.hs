@@ -43,7 +43,7 @@ import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Model
-import           Language.Haskell.Liquid.Transforms.Rec
+-- import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
 type MbEnv = Maybe HscEnv
@@ -111,7 +111,7 @@ liquidOne info = do
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-  let cbs' = transformScope (cbs info)
+  let cbs' = cbs info -- scopeTr (cbs info)
   whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
@@ -173,17 +173,19 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
+instance Show Cinfo where
+  show = show . F.toFix
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
-  finfo          <- cgInfoFInfo info cgi
-  F.Result r sol <- solve (fixConfig tgt cfg) finfo
-  let resErr      = applySolution sol . cinfoError . snd <$> r
-  resModel_      <- fmap (e2u sol) <$> getModels info cfg resErr
-  let resModel    = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
-  let out0        = mkOutput cfg resModel sol (annotMap cgi)
-  return          $ out0 { o_vars    = names    }
-                         { o_result  = resModel }
+  finfo            <- cgInfoFInfo info cgi
+  F.Result r sol _ <- solve (fixConfig tgt cfg) finfo
+  let resErr        = applySolution sol . cinfoError . snd <$> r
+  resModel_        <- fmap (e2u sol) <$> getModels info cfg resErr
+  let resModel      = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
+  let out0          = mkOutput cfg resModel sol (annotMap cgi)
+  return            $ out0 { o_vars    = names    }
+                           { o_result  = resModel }
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap F.pprint . tidyError s

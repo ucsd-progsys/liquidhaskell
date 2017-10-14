@@ -6,7 +6,6 @@
 -- where? switch off non-lin-cuts in higher-order mode?
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate=all"   @-}
 
@@ -27,7 +26,7 @@ data P a b = P a b
 -- | If unification succeds then the returned substitution makes input terms equal
 -- | Unification may fail with Nothing, or diverge
 
-{-@ Lazy unify @-}
+{-@ lazy unify @-}
 {-@ unify :: t1:Term -> t2:Term
           -> Maybe {θ:Substitution | apply θ t1 == apply θ t2 } @-}
 unify :: Term -> Term -> Maybe Substitution

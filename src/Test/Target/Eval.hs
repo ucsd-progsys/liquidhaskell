@@ -19,7 +19,7 @@ import           Text.Printf
 
 import qualified GHC
 
-import           Language.Fixpoint.Smt.Theories  (theorySymbols)
+import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types         hiding (R)
 import           Language.Haskell.Liquid.Types   hiding (var)
 
@@ -62,19 +62,28 @@ evalPred (PIff p q)      m = and <$> sequence [ evalPred (p `imp` q) m
                                               ]
 evalPred (PAtom b e1 e2) m = evalBrel b <$> evalExpr e1 m <*> evalExpr e2 m
 evalPred e@(splitEApp_maybe -> Just (f, es))    m
-  | f == "Set_emp" || f == "Set_sng" || f `M.member` theorySymbols
-  = mapM (`evalExpr` m) es >>= \es' -> fromExpr <$> evalSet f es'
-  | otherwise
-  = filter ((==f) . val . name) <$> gets measEnv >>= \case
-      [] -> error $ "evalPred: cannot evaluate " ++ show e -- VC f <$> mapM (`evalExpr` m) es
-                      --FIXME: should really extend this to multi-param measures..
-      ms -> do e' <- evalExpr (head es) m
-               fromExpr <$> applyMeasure (symbolString f) (concatMap eqns ms) e' m
+  = do isThy <- isTheorySymbol f
+       if isThy
+         then evalPredBlob1 m f es
+         else evalPredBlob2 m e f es
 -- evalPred (PBexp e)       m = (==0) <$> evalPred e m
 evalPred p               _ = throwM $ EvalError $ "evalPred: " ++ show p
 -- evalExpr (PAll ss p)     m = undefined
 -- evalExpr PTop            m = undefined
 -- evalExpr :: Expr -> M.HashMap Symbol Expr -> Target Expr
+
+
+evalPredBlob1 :: M.HashMap Symbol Val -> Symbol -> [Expr] -> Target Bool
+evalPredBlob1 m f es
+  = mapM (`evalExpr` m) es >>= \es' -> fromExpr <$> evalSet f es'
+
+evalPredBlob2 :: Show a => M.HashMap Symbol Val -> a -> Symbol -> [Expr] -> Target Bool
+evalPredBlob2 m e f es
+  = filter ((==f) . val . name) <$> gets measEnv >>= \case
+      [] -> error $ "evalPred: cannot evaluate " ++ show e -- VC f <$> mapM (`evalExpr` m) es
+                      --FIXME: should really extend this to multi-param measures..
+      ms -> do e' <- evalExpr (head es) m
+               fromExpr <$> applyMeasure (symbolString f) (concatMap eqns ms) e' m
 
 fromExpr :: Val -> Bool
 fromExpr (VB True) = True
@@ -96,20 +105,32 @@ evalExpr' (EVar x)       m = return $! -- traceShow (x,m)
 evalExpr' (ESym s)       _ = return $! VX s
 evalExpr' (EBin b e1 e2) m = evalBop b <$> evalExpr' e1 m <*> evalExpr' e2 m
 evalExpr' (splitEApp_maybe -> Just (f, es))    m
-  | f == "Set_emp" || f == "Set_sng" || f `M.member` theorySymbols
-  = mapM (`evalExpr'` m) es >>= \es' -> evalSet f es'
-  | otherwise
-  = filter ((==f) . val . name) <$> gets measEnv >>= \case
-      [] -> VC f <$> mapM (`evalExpr'` m) es
-                      --FIXME: should really extend this to multi-param measures..
-      ms -> do e' <- evalExpr' (head es) m
-               applyMeasure (symbolString f) (concatMap eqns ms) e' m
+  = do isThy <- isTheorySymbol f
+       if isThy then evalExprBlob1 m f es
+                else evalExprBlob2 m f es
+
 evalExpr' (EIte p e1 e2) m
   = do b <- evalPred p m
        if b
          then evalExpr' e1 m
          else evalExpr' e2 m
 evalExpr' e              _ = throwM $ EvalError $ printf "evalExpr(%s)" (show e)
+
+isTheorySymbol :: Symbol -> Target Bool
+isTheorySymbol f = do
+  theorySymbols <- seTheory . ctxSymEnv <$> gets smtContext
+  return (f == "Set_emp" || f == "Set_sng" || f `memberSEnv` theorySymbols)
+
+evalExprBlob1 :: M.HashMap Symbol Val -> Symbol -> [Expr] -> Target Val
+evalExprBlob1 m f es
+  = mapM (`evalExpr'` m) es >>= \es' -> evalSet f es'
+
+evalExprBlob2 :: M.HashMap Symbol Val -> Symbol -> [Expr] -> Target Val
+evalExprBlob2 m f es
+  = filter ((==f) . val . name) <$> gets measEnv >>= \case
+      [] -> VC f <$> mapM (`evalExpr'` m) es   --FIXME: should really extend this to multi-param measures..
+      ms -> do e' <- evalExpr' (head es) m
+               applyMeasure (symbolString f) (concatMap eqns ms) e' m
 
 evalBrel :: Brel -> Val -> Val -> Bool
 evalBrel Eq = (==)

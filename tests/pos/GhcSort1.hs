@@ -8,9 +8,9 @@ import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)
 sort1 :: (Ord a) => [a] -> [a]
 sort1 xs = mergeAll  (sequences xs 0)
   where
-    {-@ Decrease sequences  1 2 @-}
-    {-@ Decrease descending 3 4 @-}
-    {-@ Decrease ascending  3 4 @-}
+    {-@ decrease sequences  1 2 @-}
+    {-@ decrease descending 3 4 @-}
+    {-@ decrease ascending  3 4 @-}
     sequences (a:b:xs) (_::Int)
       | a `compare` b == GT = descending b [a]  xs 1
       | otherwise           = ascending  b (a:) xs 1

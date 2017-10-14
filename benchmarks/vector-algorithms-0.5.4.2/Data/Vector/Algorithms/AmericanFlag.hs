@@ -70,17 +70,18 @@ class Lexicographic e where
 {-@ measure lexSize :: a -> Int                                           @-}
 {-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
-{-@ terminate :: (Lexicographic e) => x:e -> n:Int
-              -> {v:Bool | (((n+1) >= maxPasses) => v)}
-  @-}
+{-@ terminate :: (Lexicographic e) => x:e -> n:Int -> {v:Bool | (((n+1) >= maxPassesN) => v)} @-}
 
-{-@ measure maxPasses :: Int @-}
-{-@ maxPasses :: {v:Nat | v = maxPasses} @-}
+{-@ measure maxPassesN :: Int @-}
+
+{-@ maxPasses :: {v:Nat | v = maxPassesN} @-}
 maxPasses :: Int
 maxPasses = undefined
-{-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p) @-}
-{-@ qualif MaxPasses(v:int): v <= maxPasses @-}
-{-@ qualif MaxPasses(v:int): v < maxPasses @-}
+
+
+{-@ qualif MaxPasses(v:int, p:int): v = (maxPassesN - p) @-}
+{-@ qualif MaxPasses(v:int): v <= maxPassesN @-}
+{-@ qualif MaxPasses(v:int): v < maxPassesN  @-}
 
 
 instance Lexicographic Word8 where
@@ -234,10 +235,10 @@ sort v = sortBy compare terminate (size e) index maxPasses v
 
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => (Comparison e)
-       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPasses) => v )})
+       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPassesN) => v )})
        -> buckets:Nat
        -> (Int -> e -> {v:Nat | v < buckets})
-       -> {v:Nat | v = maxPasses}
+       -> {v:Nat | v = maxPassesN}
        -> v (PrimState m) e
        -> m ()
   @-}
@@ -253,7 +254,7 @@ sortBy cmp stop buckets radix mp v
   | length v == 0 = return ()
   | otherwise     = do count <- new buckets
                        pile <- new buckets
-                       countLoop v count (radix 0) 
+                       countLoop v count (radix 0)
                        flagLoop cmp stop count pile v mp radix
 {-# INLINE sortBy #-}
 
@@ -269,7 +270,7 @@ flagLoop :: (PrimMonad m, MVector v e)
 flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
- {-@ Decrease go 3 4 @-}
+ {-@ decrease go 3 4 @-}
   {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
    = do e <- unsafeRead v 0
@@ -278,12 +279,12 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
           else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
- {-@ Decrease go' 3 4 @-}
+ {-@ decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
-                          permute count pile v (radix pass) 
+                          permute count pile v (radix pass)
                           recurse len 0
   where
   len = length v
@@ -355,7 +356,7 @@ permute count pile v rdx = go len 0
                       then follow (len - (j+1)) i e (j+1)
                       else unsafeWrite v j e >> if i == p
                                                 then unsafeWrite v i en
-                                                else let p'' = liquidAssume (j < p && p < len) p in 
+                                                else let p'' = liquidAssume (j < p && p < len) p in
                                                      follow (len - p'') i en p''
 {-# INLINE permute #-}
 
@@ -384,4 +385,3 @@ countStripe count v rdx str lo = do set count 0
 
 threshold :: Int
 threshold = 25
-

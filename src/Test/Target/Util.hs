@@ -8,6 +8,7 @@
 {-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+
 module Test.Target.Util where
 
 
@@ -16,8 +17,6 @@ import           Data.List
 import           Data.Maybe
 
 import           Data.Generics                   (everywhere, mkT)
-import           Data.Text.Format                hiding (print)
-import           Data.Text.Lazy.Builder          (Builder)
 import           Debug.Trace
 
 import qualified DynFlags as GHC
@@ -31,14 +30,14 @@ import qualified HscTypes as GHC
 -- import           Language.Fixpoint.Smt.Serialize
 
 
+import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types          hiding (prop)
+import qualified Language.Fixpoint.Types as F 
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Types.PredType
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types    hiding (var)
-
-import           Test.Target.Serialize
 
 
 type Depth = Int
@@ -79,30 +78,24 @@ type family Res a where
   Res (a -> b) = Res b
   Res a        = a
 
--- liquid-fixpoint started encoding `FObj s` as `Int` in 0.3.0.0, but we
--- want to preserve the type aliases for easier debugging.. so here's a
--- copy of the SMTLIB2 Sort instance..
--- smt2Sort :: Sort -> T.Text
--- smt2Sort s = case s of
---   FObj s' -> smt2 s'
---   _       -> smt2 s
--- smt2Sort s           | Just t <- Thy.smt2Sort s = t
--- smt2Sort FInt        = "Int"
--- smt2Sort (FApp t []) | t == intFTyCon = "Int"
--- smt2Sort (FApp t []) | t == boolFTyCon = "Bool"
--- --smt2Sort (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
--- smt2Sort (FObj s)    = smt2 s
--- smt2Sort s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
--- smt2Sort _           = "Int"
+-- makeDecl :: Symbol -> Sort -> Command -- Builder
+-- makeDecl x t
+  -- / | Just (_, ts, t) <- functionSort t
+  -- = Declare x ts t
+-- makeDecl x t
+  -- = Declare x [] t
 
-makeDecl :: Symbol -> Sort -> Builder
--- FIXME: hack..
-makeDecl x t
-  | Just (_, ts, t) <- functionSort t
-  = build "(declare-fun {} ({}) {})"
-          (smt2 x, smt2s ts, smt2 t)
-makeDecl x t
-  = build "(declare-const {} {})" (smt2 x, smt2 t)
+makeDecl :: SEnv F.DataDecl -> Symbol -> Sort -> Command
+makeDecl env x t = Declare x ins' out'
+  where
+    ins'        = sortSmtSort False env <$> ins
+    out'        = sortSmtSort False env     out
+    (ins, out)  = deconSort t
+
+deconSort :: Sort -> ([Sort], Sort)
+deconSort t = case functionSort t of
+  Just (_, ins, out) -> (ins, out)
+  Nothing            -> ([] , t  )
 
 safeFromJust :: String -> Maybe a -> a
 safeFromJust msg Nothing  = error $ "safeFromJust: " ++ msg
@@ -161,9 +154,8 @@ runGhc o x = GHC.runGhc (Just GHC.Paths.libdir) $ do
                             , GHC.ghcLink   = GHC.NoLink --GHC.LinkInMemory
                             , GHC.hscTarget = GHC.HscNothing --GHC.HscInterpreted
                             -- , GHC.optLevel  = 0 --2
-                            , GHC.log_action = \_ _ _ _ _ -> return ()
+                            , GHC.log_action = \_ _ _ _ _ _ -> return ()
                             } `GHC.gopt_set` GHC.Opt_ImplicitImportQualified
-                              `GHC.xopt_set` GHC.Opt_MagicHash
                (df'',_,_) <- GHC.parseDynamicFlags df' (map GHC.noLoc o)
                _ <- GHC.setSessionDynFlags df''
                x

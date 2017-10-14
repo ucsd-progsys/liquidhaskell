@@ -50,13 +50,11 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
-
-  -- * Axiom Instantiation
-  , AxiomEnv(..), Equation(..), Simplify(..)
   ) where
 
 import Prelude hiding (error)
 import           CoreSyn
+import           Type (TyThing( AnId ))
 import           Var
 import           SrcLoc
 import           Unify (tcUnifyTy)
@@ -76,8 +74,6 @@ import           Language.Haskell.Liquid.Misc           (fourth4)
 import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
-import qualified Language.Fixpoint.Types.Config as FC
-import qualified Language.Fixpoint.Smt.Interface as FI 
 import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
@@ -107,7 +103,7 @@ data CGEnv = CGE
   , lcb    :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
   , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
-  , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
+  , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps reflected Haskell functions to the logical functions
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
   -- , cgCfg  :: !Config                                -- ^ top-level config options
   , cgInfo :: !GhcInfo                               -- ^ top-level GhcInfo
@@ -128,33 +124,6 @@ instance PPrint CGEnv where
 
 instance Show CGEnv where
   show = showpp
-
-
-data AxiomEnv = AEnv { aenvSyms    :: ![F.Symbol]
-                     , aenvEqs     :: ![Equation]
-                     , aenvSimpl   :: ![Simplify] 
-                     , aenvFuel    :: (FixSubC -> Int) 
-                     , aenvExpand  :: (FixSubC -> Bool)
-                     , aenvDoRW    :: (FixSubC -> Bool)
-                     , aenvDoEqs   :: (FixSubC -> Bool)
-                     , aenvVerbose :: !Bool 
-                     , aenvConfig  :: FC.Config 
-                     , aenvContext :: FI.Context 
-                     }
-
-data Equation = Eq   { eqName :: F.Symbol
-                     , eqArgs :: [F.Symbol]
-                     , eqBody :: F.Expr
-                     } deriving (Show)
-
-
--- eg  SMeasure (f D [x1..xn] e) 
--- for f (D x1 .. xn) = e 
-data Simplify = SMeasure  { smName  :: F.Symbol         -- eg. f
-                          , smDC    :: F.Symbol         -- eg. D
-                          , smArgs  :: [F.Symbol]         -- eg. xs
-                          , smBody  :: F.Expr           -- eg. e[xs]
-                          } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -178,7 +147,7 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 
-subVar :: FixSubC -> Maybe Var 
+subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
@@ -226,6 +195,7 @@ data CGInfo = CGInfo {
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
   , cgLits     :: !(F.SEnv F.Sort)             -- ^ Global symbols in the refinement logic
   , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
+  , cgADTs     :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
@@ -351,7 +321,7 @@ addRInv m (x, t)
    where
      ids = [id | tc <- M.keys m
                , dc <- TC.tyConDataCons $ rtc_tc tc
-               , id <- DC.dataConImplicitIds dc]
+               , AnId id <- DC.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType

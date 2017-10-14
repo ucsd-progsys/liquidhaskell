@@ -6,10 +6,10 @@ module GhcSort () where
 sort3 :: (Ord a) => a -> [a] -> [a]
 sort3 w ls = qsort w ls [] (length ls) 0
 
-{-@ Decrease qsort 5 6 @-}
-{-@ Decrease rqsort 5 6 @-}
-{-@ Decrease qpart 8 9 @-}
-{-@ Decrease rqpart 8 9 @-}
+{-@ decrease qsort 5 6 @-}
+{-@ decrease rqsort 5 6 @-}
+{-@ decrease qpart 8 9 @-}
+{-@ decrease rqpart 8 9 @-}
 qsort :: (Ord a) =>  a -> [a] -> [a] -> Int -> Int -> [a]
 {-@ qsort, rqsort :: (Ord a) =>  w:a -> xs:[{v:a|v<=w}] -> OList {v:a|v>=w} -> {v:Int | v = (len xs) } -> {v:Int | v = 0 } -> OList a @-}
 qsort _ []     r _ _ = r

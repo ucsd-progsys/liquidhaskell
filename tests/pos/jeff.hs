@@ -61,8 +61,7 @@ import Debug.Trace
 import GHC.TypeLits
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
-import Prelude hiding (max)
-
+import Prelude hiding (head, min, max)
 
 junk = BS.head
 
@@ -134,15 +133,15 @@ data MatchIdxs
 
 {-@ data MatchIdxs
       = Small { targ    :: ByteStringNE
-              , bs      :: {bs:BS.ByteString | bLength bs < bLength targ}
+              , bs      :: {b:BS.ByteString | bLength b < bLength targ}
               }
 
       | MatchIdxs
               { targ    :: ByteStringNE
-              , input   :: {input : Int | input >= bLength targ}
-              , left    :: {left  : BS.ByteString | bLength left == bLength targ - 1}
-              , matches :: [{v:Int | v <= input - bLength targ}]
-              , right   :: {right : BS.ByteString | bLength right == bLength targ - 1}
+              , input   :: {i  : Int | i >= bLength targ}
+              , left    :: {l  : BS.ByteString | bLength l == bLength targ - 1}
+              , matches :: [{v : Int | v <= input - bLength targ}]
+              , right   :: {r  : BS.ByteString | bLength r == bLength targ - 1}
               }
   @-}
 
@@ -164,9 +163,9 @@ myIndices alg t bs
     -- right1    = BS.drop (BS.length bs - fringeLen) bs
 
 -- ISSUE: get contextual output with --diff
--- ISSUE: why does LAZYVAR right1 not work? it drops the output type on right1!
+-- ISSUE: why does lazyvar right1 not work? it drops the output type on right1!
 
-{- LAZYVAR right1 -}
+{- lazyvar right1 -}
 
 {-@ type OkPos Targ Str = {v:Nat | v <= bLength Str - bLength Targ} @-}
 {-@ type ByteStringNE   = {v:BS.ByteString | bLength v > 0 }   @-}

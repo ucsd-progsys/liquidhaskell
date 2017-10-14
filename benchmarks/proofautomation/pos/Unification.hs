@@ -6,7 +6,6 @@
 -- where? switch off non-lin-cuts in higher-order mode?
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate=all"   @-}
 
@@ -30,7 +29,7 @@ data P a b = P a b
 -- | If unification succeds then the returned substitution makes input terms equal
 -- | Unification may fail with Nothing, or diverge
 
-{-@ Lazy unify @-}
+{-@ lazy unify @-}
 {-@ unify :: t1:Term -> t2:Term
           -> Maybe {θ:Substitution | apply θ t1 == apply θ t2 } @-}
 unify :: Term -> Term -> Maybe Substitution
@@ -159,16 +158,32 @@ theoremVar t i
 
 {-@ automatic-instances theoremVarOne  @-}
 
-{-@ theoremVarOne :: t:Term
-             -> i:{Int | not (Set_mem i (freeVars t)) }
+{-@ theoremVarOne :: tiger:Term
+             -> i:{Int | not (Set_mem i (freeVars tiger)) }
              -> ti:Term
-             -> { applyOne (P i ti) t == t } @-}
+             -> { applyOne (P i ti) tiger == tiger } @-}
+{- PLE -}
 theoremVarOne :: Term -> Int -> Term -> Proof
-theoremVarOne (TFun t1 t2) i ti
-  = theoremVarOne t1 i ti &&& theoremVarOne t2 i ti 
-theoremVarOne t i ti
+theoremVarOne (TFun t1 t2) i tonk
+  = theoremVarOne t1 i tonk &&& theoremVarOne t2 i tonk 
+theoremVarOne t i tink
   = trivial 
 
+{- FULL 
+theoremVarOne :: Term -> Int -> Term -> Proof
+theoremVarOne (TFun t1 t2) i ti
+  =   applyOne (P i ti) (TFun t1 t2)
+  ==. TFun (applyOne (P i ti) t1) (applyOne (P i ti) t2)
+  ==. TFun t1 (applyOne (P i ti) t2)
+      ? theoremVarOne t1 i ti
+  ==. TFun t1 t2
+      ? theoremVarOne t2 i ti
+  *** QED
+theoremVarOne t i ti
+  =   applyOne (P i ti) t
+  ==. t
+  *** QED
+-}
 
 
 -- | Helpers to lift Terms and Lists into logic...

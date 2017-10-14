@@ -3,9 +3,8 @@ module TestRec () where
 import Prelude hiding (map, foldl)
 
 data L a = N | C a (L a)
-{-@ 
-data L [llen] a = N | C (x::a) (xs::(L a))
-  @-}
+
+{-@ data L [llen] @-}
 
 {-@ measure llen :: (L a) -> Int
     llen(N) = 0
@@ -19,7 +18,7 @@ map f (x:xs) = f x : map f (x:xs)
  
 -- bar = map id []
 
-{-@ Decrease go 2 @-}
+{-@ decrease go 2 @-}
 rev xs = go [] xs
   where go ack  []    = ack
         go ack (x:xs) = go (x:ack) xs

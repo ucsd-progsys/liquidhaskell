@@ -7,7 +7,7 @@ pos :: Int -> Int
 pos = undefined
 
 
-{-@ LAZYVAR z @-}
+{-@ lazyvar z @-}
 foo = if x > 0 then z else x
   where z = pos x
         x = choose 0

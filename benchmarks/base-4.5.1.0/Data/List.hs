@@ -859,20 +859,20 @@ Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
 sort = sortBy compare
 sortBy cmp xs = mergeAll cmp $ sequences xs 0
   where
-    {-@ Decrease sequences  1 2 @-}
+    {-@ decrease sequences  1 2 @-}
     {- LIQUID WITNESS -}
     sequences (a:b:xs) (_::Int)
       | a `cmp` b == GT = descending b [a]  xs 1
       | otherwise       = ascending  b (a:) xs 1
     sequences xs _      = [xs]
 
-    {-@ Decrease descending 3 4 @-}
+    {-@ decrease descending 3 4 @-}
     {- LIQUID WITNESS -}
     descending a as (b:bs) (_::Int)
       | a `cmp` b == GT  = descending b (a:as) bs 1 
     descending a as bs _ = (a:as): sequences bs 0
 
-    {-@ Decrease ascending  3 4 @-}
+    {-@ decrease ascending  3 4 @-}
     {- LIQUID WITNESS -}
     ascending a as (b:bs) (_::Int)
       | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
@@ -1035,7 +1035,7 @@ rqpart cmp x (y:ys) rle rgt r =
 --
 -- LIQUID TERMINATION : 
 -- this function can not termination, eg f x = Just (b, b+1) 
-{-@ Strict Data.List.unfoldr @-} 
+{-@ lazy Data.List.unfoldr @-}
 unfoldr      :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr f b  =
   case f b of
@@ -1135,7 +1135,7 @@ unlines (l:ls) = l ++ '\n' : unlines ls
 
 -- | 'words' breaks a string up into a list of words, which were delimited
 -- by white space.
-{-@ Lazy words @-}
+{-@ lazy words @-}
 --LIQUID TODO: this function terminates because dropWhile guarantees that
 --             the first character of s' will not be a space, therefore
 --             w will not be empty and s'' < s.

@@ -5,14 +5,14 @@ https://github.com/clojure/clojure/blob/d5708425995e8c83157ad49007ec2f8f43d8eac8
 
 {-@ LIQUID "--no-termination" @-}
 
-module PVec (arrayFor) where
+module PVec (arrayFor, height) where
 
 import Data.Bits
 
 -- | Simplified binary tree
 
 data Tree a = Leaf a
-            | Node (Tree a) (Tree a)
+            | Node {tLeft :: (Tree a), tRight :: (Tree a) }
 
 -- | Specify "height" of a tree
 

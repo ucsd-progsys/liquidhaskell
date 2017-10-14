@@ -6,7 +6,7 @@ data L a = N | C a (L a)
 {-@
 data L a <p :: (L a) -> Bool>
   = N
-  | C (x::a) (xs::L <p> a <<p>>)
+  | C (lHd :: a) (lTl :: L <p> a <<p>>)
 @-}
 
 {-@
@@ -17,7 +17,7 @@ isCons (C a l) = true
 
 {-@ type Stream a = {v: L <{\v -> (isCons v)}> a | (isCons v)} @-}
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 {-@ repeat :: a -> Stream a @-}
 repeat :: a -> L a
 repeat x = C x (repeat x)

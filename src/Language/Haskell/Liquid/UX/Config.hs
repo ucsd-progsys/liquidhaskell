@@ -1,48 +1,25 @@
---------------------------------------------------------------------------------
--- | Command Line Config Options -----------------------------------------------
---------------------------------------------------------------------------------
+-- | Command Line Configuration Options ----------------------------------------
 
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.UX.Config (
-   -- * Configuration Options
      Config (..)
    , HasConfig (..)
-   , hasOpt
-   , totalityCheck
-   , terminationCheck
-
    , Instantiate (..)
    , allowSMTInstationation
    , allowLiquidInstationation
    , allowLiquidInstationationGlobal
    , allowLiquidInstationationLocal
-
    , ProofMethod (..)
    , allowRewrite
-   , allowArithmetic 
    ) where
 
 import Prelude hiding (error)
-
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
--- import Data.Typeable  (Typeable)
--- import Data.Generics  (Data)
 import GHC.Generics
-
 import System.Console.CmdArgs
-
-
-totalityCheck :: Config -> Bool
-totalityCheck config
-  = totality config || totalHaskell config
-
-terminationCheck :: Config -> Bool
-terminationCheck config
-  = totalHaskell config || not (notermination config)
-
 
 -- NOTE: adding strictness annotations breaks the help message
 data Config = Config {
@@ -62,6 +39,8 @@ data Config = Config {
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , gradual        :: Bool       -- ^ enable gradual type checking
+  , ginteractive   :: Bool       -- ^ interactive gradual solving
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
   , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
@@ -70,7 +49,7 @@ data Config = Config {
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
-  , totality       :: Bool       -- ^ check totality in definitions
+  , nototality     :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
   , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
@@ -83,10 +62,9 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate      :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
-  -- , noEliminate    :: Bool       -- ^ don't eliminate non-top-level and non-recursive KVars
-  --, oldEliminate   :: Bool       -- ^ use old eliminate algorithm (for benchmarking only)
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
+  , noADT           :: Bool      -- ^ Disable ADTs (only used with exactDC)
   , noMeasureFields :: Bool      -- ^ Do not automatically lift data constructor fields into measures
   , scrapeImports   :: Bool      -- ^ scrape qualifiers from imported specifications
   , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
@@ -101,9 +79,11 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , proofMethod     :: ProofMethod -- ^ How to create automatic instances 
-  , fuel            :: Int         -- ^ Fuel for axiom instantiation 
-  , debugInstantionation :: Bool   -- ^ Debug Instantiation  
+  , proofMethod     :: ProofMethod -- ^ How to create automatic instances
+  , fuel            :: Int         -- ^ Fuel for axiom instantiation
+  , debugInstantionation :: Bool   -- ^ Debug Instantiation
+  , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
+  , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize ProofMethod
@@ -114,32 +94,29 @@ instance Serialize Config
 data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod = Arithmetic | Rewrite | AllMethods 
+data ProofMethod = Rewrite | AllMethods
   deriving (Eq, Data, Typeable, Generic)
 
 
-allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool 
+allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
 allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
 
 allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
-                              || autoInstantiate cfg == LiquidInstancesLocal 
+                              || autoInstantiate cfg == LiquidInstancesLocal
 
 allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
 allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
 
-allowRewrite, allowArithmetic :: Config -> Bool 
-allowRewrite    cfg = proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods
-allowArithmetic cfg = proofMethod cfg == Arithmetic || proofMethod cfg == AllMethods
-
-
+allowInstances, allowRewrite :: Config -> Bool
+allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
+allowInstances  cfg = autoInstantiate cfg /= NoInstances
 
 instance Default ProofMethod where
   def = Rewrite
 
 instance Show ProofMethod where
-  show Arithmetic = "arithmetic"
   show Rewrite    = "rewrite"
-  show AllMethods = "all"  
+  show AllMethods = "all"
 
 
 instance Default Instantiate where
@@ -148,9 +125,12 @@ instance Default Instantiate where
 instance Show Instantiate where
   show NoInstances           = "none"
   show SMTInstances          = "SMT"
-  show LiquidInstancesLocal  = "liquid-local"  
-  show LiquidInstances       = "liquid-global"  
+  show LiquidInstancesLocal  = "liquid-local"
+  show LiquidInstances       = "liquid-global"
 
+
+instance HasConfig Config where
+  getConfig x = x
 
 class HasConfig t where
   getConfig :: t -> Config
@@ -161,11 +141,23 @@ class HasConfig t where
   higherOrderFlag :: t -> Bool
   higherOrderFlag = higherorder . getConfig
 
+  pruneFlag :: t -> Bool
+  pruneFlag = pruneUnsorted . getConfig
 
+  expandFlag :: t -> Bool
+  expandFlag = not . nocaseexpand . getConfig
 
+  hasOpt :: t -> (Config -> Bool) -> Bool
+  hasOpt t f = f (getConfig t)
 
-hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
-hasOpt t f = f (getConfig t)
+  totalityCheck :: t -> Bool
+  totalityCheck = totalityCheck' . getConfig
 
-instance HasConfig Config where
-  getConfig = id
+  terminationCheck :: t -> Bool
+  terminationCheck = terminationCheck' . getConfig
+
+totalityCheck' :: Config -> Bool
+totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
+
+terminationCheck' :: Config -> Bool
+terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)

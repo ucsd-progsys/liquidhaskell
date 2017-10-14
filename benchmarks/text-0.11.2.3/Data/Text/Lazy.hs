@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -192,12 +193,13 @@ module Data.Text.Lazy
     --LIQUID
     , equal
     , compareText
+    , isNull
     ) where
 
 import Prelude (Char, Bool(..), Maybe(..), String,
                 Eq(..), Ord(..), Ordering(..), Read(..), Show(..),
                 (&&), (||), (+), (-), (.), ($), (++),
-                div, error, flip, fmap, fromIntegral, not, otherwise
+                div, flip, fmap, fromIntegral, not, otherwise
                -- LIQUID
                , Num(..), Integral(..), Integer)
 import qualified Prelude as P
@@ -359,21 +361,21 @@ instance Show Text where
 
 --LIQUID instance Read Text where
 --LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
---LIQUID 
+--LIQUID
 --LIQUID instance Monoid Text where
 --LIQUID     mempty  = empty
 --LIQUID     mappend = append
 --LIQUID     mconcat = concat
---LIQUID 
+--LIQUID
 --LIQUID instance IsString Text where
 --LIQUID     fromString = pack
---LIQUID 
+--LIQUID
 --LIQUID #if defined(HAVE_DEEPSEQ)
 --LIQUID instance NFData Text where
 --LIQUID     rnf Empty        = ()
 --LIQUID     rnf (Chunk _ ts) = rnf ts
 --LIQUID #endif
---LIQUID 
+--LIQUID
 --LIQUID instance Data Text where
 --LIQUID   gfoldl f z txt = z pack `f` (unpack txt)
 --LIQUID   toConstr _     = error "Data.Text.Lazy.Text.toConstr"
@@ -554,7 +556,7 @@ init Empty = liquidError "init"
 {-@ init_go :: t:TextNE -> ts:Text
             -> {v:Text | ((ltlength v) = ((tlength t) + (ltlength ts) - 1))}
   @-}
-{-@ Decrease init_go 2 @-}
+{-@ decrease init_go 2 @-}
 init_go t (Chunk t' ts) = Chunk t (init_go t' ts)
 init_go t Empty         = chunk (T.init t) Empty
 
@@ -597,7 +599,7 @@ last :: Text -> Char
 --LIQUID last Empty        = emptyError "last"
 last Empty        = liquidError "last"
 last (Chunk t ts) = last_go t ts
-          {-@ Decrease last_go 2 @-}
+          {-@ decrease last_go 2 @-}
     where last_go _ (Chunk t' ts') = last_go t' ts'
           last_go t' Empty         = T.last t'
 {-# INLINE [1] last #-}
@@ -764,7 +766,7 @@ transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
 {-@ reverse :: t:Text -> {v:Text | (ltlength v) = (ltlength t)} @-}
 reverse :: Text -> Text
 reverse = rev Empty
-        {-@ Decrease rev 2 @-}
+        {-@ decrease rev 2 @-}
   where rev a Empty        = a
         rev a (Chunk t ts) = rev (Chunk (T.reverse t) a) ts
 
@@ -874,7 +876,7 @@ foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
 
 -- | /O(n)/ Concatenate a list of 'Text's.
-{-@ Lazy concat @-}
+{-@ lazy concat @-}
 {-@ concat :: ts:[Text] -> {v:Text | (ltlength v) = (sum_ltlengths ts)} @-}
 concat :: [Text] -> Text
 concat = to
@@ -1000,14 +1002,19 @@ replicate n t
 {-@ replicate_rep :: d:Nat64 -> n:{v:Int64 | v > 0} -> t:Text
                   -> i:{v:Int64 | ((v >= 0) && (v <= n) && (v = n - d))}
                   -> {v:[{v0:Text | (ltlength v0) = (ltlength t)}] |
-                        ((((n - i) = 0) <=> (null v))
-                         && ((null v) || ((sum_ltlengths v) >= (ltlength t))))}
+                        ((((n - i) = 0) <=> (isNull v))
+                         && ((isNull v) || ((sum_ltlengths v) >= (ltlength t))))}
   @-}
 replicate_rep :: Int64 -> Int64 -> Text -> Int64 -> [Text]
 replicate_rep (d :: Int64) n t !i
                      | i >= n    = []
                      | otherwise = t : replicate_rep (d-1) n t (i+1)
 {-# INLINE replicate #-}
+
+{-@ measure isNull @-}
+isNull :: [a] -> Bool
+isNull []     = True
+isNull (x:xs) = False
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
@@ -1320,7 +1327,7 @@ breakOnAll pat src
     | null pat  = liquidError "breakOnAll"
     | otherwise = breakOnAll_go (ltlen pat) 0 empty src (indices pat src)
   where
-    {-@ Decrease breakOnAll_go 5 @-}
+    {-@ decrease breakOnAll_go 5 @-}
     breakOnAll_go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
                                         h'      = append p h
                                     in (h',t) : breakOnAll_go l x h' t xs
@@ -1400,7 +1407,7 @@ inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
         -> ts:[{v:T.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
         -> [{v:Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
-{-@ Decrease inits_map1 3 @-}
+{-@ decrease inits_map1 3 @-}
 inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]
 inits_map1 _  _ []     = []
 inits_map1 t0 _ (t:ts) = Chunk t Empty : inits_map1 t0 t ts
@@ -1410,7 +1417,7 @@ inits_map1 t0 _ (t:ts) = Chunk t Empty : inits_map1 t0 t ts
         -> ts:[{v:Text | (BtwnI (ltlength v) 1 ((ltlength t0) - (tlength st)))}]<{\fx fy -> ((ltlength fx) < (ltlength fy))}>
         -> [{v:Text | (BtwnEI (ltlength v) (tlength st) (ltlength t0))}]<{\rx ry -> ((ltlength rx) < (ltlength ry))}>
   @-}
-{-@ Decrease inits_map2 3 @-}
+{-@ decrease inits_map2 3 @-}
 inits_map2 :: Text -> T.Text -> [Text] -> [Text]
 inits_map2 _  _  []     = []
 inits_map2 t0 st (t:ts) = inits_map2_ t0 st t ts
@@ -1421,7 +1428,7 @@ inits_map2 t0 st (t:ts) = inits_map2_ t0 st t ts
         -> ts:[{v:Text | (BtwnEI (ltlength v) (ltlength t) ((ltlength t0) - (tlength st)))}]<{\ax ay -> ((ltlength ax) < (ltlength ay))}>
         -> [{v:Text | (BtwnEI (ltlength v) ((tlength st) + (ltlength t)) (ltlength t0))}]<{\bx by -> ((ltlength bx) < (ltlength by))}>
   @-}
-{-@ Decrease inits_map2_ 4 @-}
+{-@ decrease inits_map2_ 4 @-}
 inits_map2_ :: Text -> T.Text -> Text -> [Text] -> [Text]
 inits_map2_ _  _  _ []     = []
 inits_map2_ t0 st _ (t:ts) = Chunk st t : inits_map2_ t0 st t ts
@@ -1444,7 +1451,7 @@ inits_app t (a:as) t0 b = inits_app_ t a as t0 b
         -> bs:[{v:Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
         -> [{v:Text | (BtwnEI (ltlength v) (ltlength a) (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
   @-}
-{-@ Decrease inits_app_ 3 @-}
+{-@ decrease inits_app_ 3 @-}
 inits_app_ :: T.Text -> Text -> [Text] -> Text -> [Text] -> [Text]
 inits_app_ _ _ []     _  b = b
 inits_app_ t _ (a:as) t0 b = a : inits_app_ t a as t0 b
@@ -1511,7 +1518,7 @@ ltlen (Chunk (T.Text _ _ l) ts) = fromIntegral l + ltlen ts
                -> Text
                -> [Text]
   @-}
-{-@ Decrease splitOn_go 3 @-}
+{-@ decrease splitOn_go 3 @-}
 splitOn_go :: Int64 -> Int64 -> [Int64] -> Text -> [Text]
 splitOn_go l  _ []     cs = [cs]
 splitOn_go l !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
@@ -1533,7 +1540,7 @@ splitOn_go l !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
 split :: (Char -> Bool) -> Text -> [Text]
 split _ Empty = [Empty]
 split p (Chunk t0 ts0) = comb [] ts0 (T.split p t0)
-        {-@ Decrease comb 2 3 @-}
+        {-@ decrease comb 2 3 @-}
   where comb acc Empty        (s:[]) = revChunks (s:acc) : []
         comb acc (Chunk t ts) (s:[]) = comb (s:acc) ts (T.split p t)
         comb acc ts           (s:ss) = revChunks (s:acc) : comb [] ts ss
@@ -1591,7 +1598,7 @@ unwords = intercalate (singleton ' ')
 
 -- | /O(n)/ The 'isPrefixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a prefix of the second.  Subject to fusion.
-{-@ Decrease isPrefixOf 1 2 @-}
+{-@ decrease isPrefixOf 1 2 @-}
 isPrefixOf :: Text -> Text -> Bool
 isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
@@ -1693,7 +1700,7 @@ commonPrefixes Empty _ = Nothing
 commonPrefixes _ Empty = Nothing
 commonPrefixes a0 b0   = Just (cgo a0 b0 [])
   where
-    {-@ Decrease cgo 1 2 @-}
+    {-@ decrease cgo 1 2 @-}
     cgo t0@(Chunk x xs) t1@(Chunk y ys) ps
         = case T.commonPrefixes x y of
             Just (p,a,b)
@@ -1796,7 +1803,11 @@ revChunks :: [T.Text] -> Text
 revChunks = L.foldl' (flip chunk) Empty
 
 emptyError :: String -> a
-emptyError fun = P.error ("Data.Text.Lazy." ++ fun ++ ": empty input")
+emptyError fun = error ("Data.Text.Lazy." ++ fun ++ ": empty input")
 
 impossibleError :: String -> a
-impossibleError fun = P.error ("Data.Text.Lazy." ++ fun ++ ": impossible case")
+impossibleError fun = error ("Data.Text.Lazy." ++ fun ++ ": impossible case")
+
+{-@ lazy error @-}
+error :: String -> a
+error z = error z

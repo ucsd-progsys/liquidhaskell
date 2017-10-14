@@ -6,7 +6,6 @@
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
 
@@ -35,13 +34,9 @@ type Asgn = L (P Var Bool)
 solve   :: Formula -> Maybe Asgn
 solve f = find (`sat` f) (asgns f)
 
-{-@ bound witness @-}
-witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
-
-{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
-            (Witness a p w) =>
-            (x:a -> Bool<w x>) -> [a ]-> Maybe (a<p>) @-}
+{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
+            {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
+            (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing
 find f (x:xs) | f x       = Just x

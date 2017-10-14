@@ -5,7 +5,7 @@ import Prelude hiding (repeat, length)
 {-@ LIQUID "--strata" @-}
 
 data L a = N | Cons a (L a)
-{-@ data L [llen] a = N | Cons (x::a) (xs::(L a)) @-}
+{-@ data L [llen] @-}
 
 {-@ measure llen :: L a -> Int
     llen (N) = 0
@@ -17,7 +17,7 @@ data L a = N | Cons a (L a)
 {-@ Cons :: forall <l>.a -> L^l a -> L^l a @-}
 
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 repeat x = Cons x (repeat x)
 
 

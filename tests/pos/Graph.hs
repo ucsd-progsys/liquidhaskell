@@ -1,3 +1,5 @@
+{-@ LIQUID "--prune-unsorted" @-}
+
 module Graph () where
 
 import Data.Set
@@ -8,19 +10,18 @@ data Map k v = Tip | Bin Size k v (Map k v) (Map k v)
              deriving (Eq, Ord)
 
 
-data Edges edge 
+data Edges edge
 
 
 {-@ measure getEdgesIncoming :: (Edges edge) -> (Set edge) @-}
 
 {-@ measure getEdgesOutgoing :: (Edges edge) -> (Set edge) @-}
 
-data Graph node edge = 
+data Graph node edge =
   Graph {
-    graphMap :: 
+    graphMap ::
       Map node (Edges edge, Edges edge)
   }
-
 
 {-@ invariant {v: (Graph node edge) | (getGraphIncoming v) = (getGraphOutgoing v) } @-}
 
@@ -51,4 +52,3 @@ data Graph node edge =
 {-@ measure getPairOutgoing :: (Edges e, Edges edge) -> (Set edge)
     getPairOutgoing (x, y) = (getEdgesOutgoing y)
   @-}
-

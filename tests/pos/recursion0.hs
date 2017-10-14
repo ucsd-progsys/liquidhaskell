@@ -1,4 +1,5 @@
-module Main where
+module Recursion where
+
 
 {-@ total :: Nat -> Nat @-}
 total :: Int -> Int 

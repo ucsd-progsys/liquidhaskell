@@ -1,18 +1,18 @@
 module LambdaDeBruijn where
 
+{-@ LIQUID "--prune-unsorted" @-}
+
 {- Proving Termination of Parallel Substitutions,
    see  § 3.2.2 of Dependent Types and Multi Monadic Effects in F*
  -}
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ LIQUID "--totality" @-}
-
 type Var = Int
 {-@ type EVar = {v:Expr| isEVar v} @-}
 
-type Subst = [(Var,Expr)]
-{-@ type RenamingSubst = {su: [(Var,Expr)] | isRenaming su} @-}
+type Subst = [(Var, Expr)]
+{-@ type RenamingSubst = {su: [(Var, Expr)] | isRenaming su} @-}
 
 
 {- TODO: in the F* paper, substitutions are functions,
@@ -38,7 +38,7 @@ sub ((vx, x):su) v | v == vx   = x
 
 
 {-@ subst :: e:Expr -> su:Subst -> MEVar e su
-  / [if (isEVar e) then 0 else 1, if (isRenaming su) then 0 else 1, elen e] @-}
+    / [ (if (isEVar e) then 0 else 1), (if (isRenaming su) then 0 else 1), elen e] @-}
 
 subst EUnit        su = EUnit
 subst (EVar v)     su = sub su v
@@ -76,7 +76,8 @@ isRenaming (vx:sus) = isEVar (mysnd vx) && isRenaming sus
 isRenaming [] = True
 
 {-@ measure mysnd @-}
-mysnd (_,y) = y
+mysnd :: (a, b) -> b
+mysnd (_, y) = y
 
 {-@ invariant {v:Expr | elen v >= 0 } @-}
 {-@ measure elen @-}

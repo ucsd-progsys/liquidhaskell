@@ -1,14 +1,12 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--higherorder"                          @-}
+{-@ LIQUID "--exact-data-cons"                      @-}
+{-@ LIQUID "--higherorderqs"                        @-}
+{-@ LIQUID "--automatic-instances=liquidinstances"  @-}
 
+{-# LANGUAGE IncoherentInstances  #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
-module FunctorList where
+module ApplicativeId where
 
 import Prelude hiding (fmap, id, pure, seq)
 
@@ -48,8 +46,7 @@ data Identity a = Identity a
 -- | Identity
 {-@ identity :: x:Identity a -> { seq (pure id) x == x } @-}
 identity :: Identity a -> Proof
-identity (Identity x)
-  =   trivial 
+identity (Identity x) = trivial
 
 -- | Composition
 
@@ -59,7 +56,7 @@ identity (Identity x)
                 -> { (seq (seq (seq (pure compose) x) y) z) == seq x (seq y z) } @-}
 composition :: Identity (a -> a) -> Identity (a -> a) -> Identity a -> Proof
 composition (Identity x) (Identity y) (Identity z)
-  =   trivial 
+  =   trivial
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
 
@@ -67,11 +64,11 @@ composition (Identity x) (Identity y) (Identity z)
                  -> { seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
-  =   trivial 
+  =   trivial
 
 interchange :: Identity (a -> a) -> a -> Proof
 {-@ interchange :: u:(Identity (a -> a)) -> y:a
      -> { seq u (pure y) == seq (pure (idollar y)) u }
   @-}
 interchange (Identity f) x
-  =   trivial 
+  =   trivial

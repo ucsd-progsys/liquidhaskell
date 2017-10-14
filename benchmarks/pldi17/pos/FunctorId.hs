@@ -1,17 +1,14 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-
-
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module FunctorList where
 
 import Prelude hiding (fmap, id)
+import Proves  hiding ((==:))
 
-import Proves
 import Helper
 
 -- | Functor Laws :
@@ -19,7 +16,7 @@ import Helper
 -- | fmap-distrib ∀ g h . fmap (g ◦ h) ≡ fmap g ◦ fmap h
 
 {-@ data Identity a = Identity { runIdentity :: a } @-}
-data Identity a = Identity a
+data Identity a = Identity a deriving (Eq)
 
 
 {-@ reflect fmap @-}
@@ -44,8 +41,14 @@ fmap_id (Identity x)
   *** QED
 
 
+infixl 3 ==:
+(==:) :: a -> a -> a
+{-@ (==:) :: x:a -> {y:a | x == y} -> {v:a | v == x && v == y} @-}
+(==:) x y = x
+
+
 {-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:Identity a
-               -> { fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
+                 -> { fmap (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
 fmap_distrib :: (a -> a) -> (a -> a) -> Identity a -> Proof
 fmap_distrib f g (Identity x)
   =   fmap (compose f g) (Identity x)
@@ -54,4 +57,23 @@ fmap_distrib f g (Identity x)
   ==. fmap f (Identity (g x))
   ==. (fmap f) (fmap g (Identity x))
   ==. (compose (fmap f) (fmap g)) (Identity x)
-  *** QED 
+  *** QED
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---

@@ -245,12 +245,12 @@ scanr1 f (x:xs@(_:_))   =  f x q : qs
 --
 -- > iterate f x == [x, f x, f (f x), ...]
 
-{-@ Strict GHC.List.iterate @-}
+{-@ lazy GHC.List.iterate @-}
 {-@ iterate :: (a -> a) -> a -> [a] @-}
 iterate :: (a -> a) -> a -> [a]
 iterate f x =  x : iterate f (f x)
 
-{-@ Strict GHC.List.iterateFB @-}
+{-@ lazy GHC.List.iterateFB @-}
 {-@ iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b @-}
 iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b
 iterateFB c f x = x `c` iterateFB c f (f x)
@@ -267,14 +267,14 @@ iterateFB c f x = x `c` iterateFB c f (f x)
 {- invariant {v:Int | v < inf} @-}
 {- repeat :: a -> {v:[a] | (len v) = inf} @-}
 {-@ repeat :: a -> [a] @-}
-{-@ Strict GHC.List.repeat @-}
+{-@ lazy GHC.List.repeat @-}
 repeat :: a -> [a]
 {-# INLINE [0] repeat #-}
 -- The pragma just gives the rules more chance to fire
 repeat x = xs where xs = x : xs
 
 {-# INLINE [0] repeatFB #-}     -- ditto
-{-@ Strict GHC.List.repeatFB @-}
+{-@ lazy GHC.List.repeatFB @-}
 {-@ repeatFB :: (a -> b -> b) -> a -> b @-}
 repeatFB :: (a -> b -> b) -> a -> b
 repeatFB c x = xs where xs = x `c` xs
@@ -301,7 +301,7 @@ replicate n x = x : replicate (n-1) x
 -- on infinite lists.
 
 {-@ assert cycle        :: {v: [a] | len(v) > 0 } -> [a] @-}
-{-@ Lazy cycle @-}
+{-@ lazy cycle @-}
 cycle                   :: [a] -> [a]
 cycle []                = liquidError {- error -} "Prelude.cycle: empty list"
 cycle xs                = xs' where xs' = xs ++ xs'

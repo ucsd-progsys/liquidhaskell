@@ -24,7 +24,7 @@ type Size    = Int
 
 -- Internal representation of hedgeUnion:
 
-{-@ LAZYVAR d20r @-}
+{-@ lazyvar d20r @-}
 
 g t1 d20i = 
   case d20i of

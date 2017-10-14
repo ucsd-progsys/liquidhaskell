@@ -1,10 +1,9 @@
 {- Example of AVL trees by michaelbeaumont -}
 
-{-@ LIQUID "--totality" @-}
-module AVL (Tree, singleton, insert) where
+module AVL (Tree, singleton, insert, ht, bFac) where
 
 -- Basic functions
-{-@ data Tree [ht] a = Nil | Tree (x::a) (l::Tree a) (r::Tree a) @-}
+{-@ data Tree [ht] @-} -- a = Nil | Tree (x::a) (l::Tree a) (r::Tree a) @-}
 data Tree a = Nil | Tree a (Tree a) (Tree a) deriving Show
 
 {-@ measure ht @-}
@@ -30,7 +29,7 @@ singleton a = Tree a Nil Nil
 
 -- | Insert functions
 
-{-@ Decrease insert 3 @-}
+{-@ decrease insert 3 @-}
 {-@ insert :: a -> s: AVLTree -> {t: AVLTree | EqHt t s || HtDiff t s 1 } @-}
 insert :: (Ord a) => a -> Tree a -> Tree a
 insert a Nil = singleton a
@@ -65,7 +64,7 @@ rebalanceLR v (Tree lv ll (Tree lrv lrl lrr)) r = Tree lrv (Tree lv ll lrl) (Tre
 rebalanceRR v l (Tree rv rl rr)                 = Tree rv (Tree v l rl) rr
 
 {-@ rebalanceRL :: a -> l: AVLTree -> r:{AVLTree | LeftHeavy r && HtDiff r l 2} -> {t: AVLTree | EqHt t r } @-}
-rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
+rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr)
 
 -- Test
 main = do

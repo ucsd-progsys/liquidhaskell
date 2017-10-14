@@ -1,5 +1,3 @@
-{-@ LIQUID "--totality" @-}
-
 module T595a where
 
 data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a}

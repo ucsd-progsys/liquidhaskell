@@ -7,7 +7,6 @@
 
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
-
   , checkTerminationExpr
   , checkTy
   ) where
@@ -19,7 +18,7 @@ import           Name                                      (getSrcSpan)
 import           Prelude                                   hiding (error)
 import           TyCon
 import           Var
-import           TypeRep (Type(TyConApp, TyVarTy))
+import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -33,21 +32,19 @@ import qualified Data.HashMap.Strict                       as M
 
 import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead, mapSnd)
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
-import           Language.Fixpoint.Types                   hiding (Error, R)
+import           Language.Fixpoint.Types                   hiding (panic, Error, R)
 
 import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
-import           Language.Haskell.Liquid.Misc              (snd4)
+import           Language.Haskell.Liquid.Misc              (condNull, snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
 import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
 import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 
-
-
 import qualified Language.Haskell.Liquid.Measure           as Ms
 
-import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
+-- import           Language.Haskell.Liquid.Bare.DataType     (dataConSpec)
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
 
@@ -55,7 +52,7 @@ import           Debug.Trace (trace)
 
 
 ----------------------------------------------------------------------------------------------
------ Checking GhcSpec -----------------------------------------------------------------------
+-- | Checking GhcSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
@@ -65,10 +62,12 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
-    errors           =  mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+    errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
+                        mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+                     ++ condNull noPrune
+                       (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      sp))
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
-                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs    sp)
+                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      sp)
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants sp)
                      ++ checkIAl allowHO emb tcEnv env (gsIaliases   sp)
                      ++ checkMeasures emb env ms
@@ -80,25 +79,23 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (gsTySigs sp) (gsAsmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
-                     ++ checkDuplicateFieldNames                   (gsDconsP sp)
+                     -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                        (gsTconsP sp)
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
-    tAliases         = concat [Ms.aliases sp  | (_, sp) <- specs]
-    eAliases         = concat [Ms.ealiases sp | (_, sp) <- specs]
-    dcons spec       = [(v, Loc l l' t) | (v, t)   <- dataConSpec (gsDconsP spec)
-                                        | (_, dcp) <- gsDconsP spec
-                                        , let l     = dc_loc  dcp
-                                        , let l'    = dc_locE dcp ]
+    tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
+    eAliases          = concat [Ms.ealiases sp | (_, sp) <- specs]
     emb              = gsTcEmbeds sp
     tcEnv            = gsTyconEnv sp
     ms               = gsMeasures sp
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs sp ++ gsAsmSigs sp
     allowHO          = higherOrderFlag sp
+    noPrune          = not (pruneFlag sp)
+    -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
 checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
@@ -143,25 +140,25 @@ _checkRefinedClasses definitions instances
     ofConflict
       = sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
 
-checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
-checkDuplicateFieldNames = mapMaybe go
+_checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
+_checkDuplicateFieldNames = mapMaybe go
   where
     go (d, dts)          = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
-    checkNoDups l d xs   = mkErr l d <$> firstDuplicate xs
+    checkNoDups l d xs   = mkErr l d <$> _firstDuplicate xs
 
     mkErr l d x = ErrBadData (sourcePosSrcSpan l)
                              (pprint d)
                              (text "Multiple declarations of record selector" <+> pprintSymbol x)
 
-firstDuplicate :: Ord a => [a] -> Maybe a
-firstDuplicate = go . L.sort
+_firstDuplicate :: Ord a => [a] -> Maybe a
+_firstDuplicate = go . L.sort
   where
     go (y:x:xs) | x == y    = Just x
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
 checkInv :: Bool -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (Maybe Var, Located SpecType) -> Maybe Error
-checkInv allowHO emb tcEnv env (_, t)   = checkTy allowHO err emb tcEnv env t
+checkInv allowHO emb tcEnv env (_, t) = checkTy allowHO err emb tcEnv env t
   where
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
 
@@ -194,22 +191,21 @@ checkRTAliases msg _ as = err1s
     err1s                  = checkDuplicateRTAlias msg as
 
 checkBind :: (PPrint v) => Bool -> String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
-checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env' t
+checkBind allowHO s emb tcEnv env' (v, t) = checkTy allowHO msg emb tcEnv env' t
   where
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
-    env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr])-> Maybe Error
+checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
             = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where
     es      = val <$> les
-    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
-    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
+    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
+    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
     go      = foldl (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
     go'     = foldl (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
-    env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
-    env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
+    -- env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
+    env'   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
@@ -262,7 +258,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
+errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t
@@ -272,7 +268,8 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
+checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
+           => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
 checkRType allowHO emb env t
@@ -281,7 +278,7 @@ checkRType allowHO emb env t
   <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
-    farg _ t           = allowHO || isBase t  -- this check should be the same as the one in addCGEnv
+    farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
@@ -342,7 +339,7 @@ checkFunRefs t = go t
 -}
 
 checkAbstractRefs
-  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t) =>
+  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t))) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs t = go t
   where
@@ -400,19 +397,16 @@ checkAbstractRefs t = go t
     mkPEnv (RAllT _ t) = mkPEnv t
     mkPEnv (RAllP p t) = p:mkPEnv t
     mkPEnv _           = []
-
-    pvType' p = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
-
+    pvType' p          = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
 
 
-
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
+                             => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
+checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
   where
     r                        = rTypeSortedReft emb t
     dr                       = text "Sort Error in Refinement:" <+> pprint r
-    env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 -- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t)
@@ -438,7 +432,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
            => SEnv SortedReft
            -> TCEmb TyCon
            -> t
@@ -464,7 +458,7 @@ checkMBodyUnify                 = go
     go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                      = []
 
-checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r)
+checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
             => TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv SortedReft
@@ -498,7 +492,7 @@ checkClassMeasures ms = mapMaybe checkOne byTyCon
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
-  checkOne (m:ms) = Just (ErrDupMeas (sourcePosSrcSpan (loc (name m)))
-                                     (pprint (val (name m)))
-                                     (pprint ((dataConTyCon . ctor . head . eqns) m))
-                                     (map (sourcePosSrcSpan.loc.name) (m:ms)))
+  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (name m)))
+                                      (pprint (val (name m)))
+                                      (pprint ((dataConTyCon . ctor . head . eqns) m))
+                                      (map (sourcePosSrcSpan.loc.name) (m:ms)))

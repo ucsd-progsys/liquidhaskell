@@ -5,9 +5,8 @@ module MultiParams where
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
 
-import Data.Tuple 
+import Data.Tuple
 import Language.Haskell.Liquid.Prelude ((==>))
-
 import Data.List (nub)
 
 -- | Formula
@@ -27,21 +26,16 @@ type Asgn = [(Var, Val)]
 
 {-@ solve :: f:Formula -> Maybe {a:Asgn | sat a f} @-}
 solve   :: Formula -> Maybe Asgn
-solve f = find (\a -> sat a f) (asgns f) 
+solve f = find (\a -> sat a f) (asgns f)
 
 
-witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
-witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v 
-
-{-@ bound witness @-}
-
-{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
-            (Witness a p w) => 
+{-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
+            {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing
-find f (x:xs) | f x       = Just x 
-              | otherwise = Nothing 
+find f (x:xs) | f x       = Just x
+              | otherwise = Nothing
 
 cons x xs = (x:xs)
 nil = []
@@ -53,10 +47,10 @@ asgns = go . vars
   	go [] = []
   	go (x:xs) = let ass = go xs in (inject (x, VTrue) ass) ++ (inject (x, VFalse) ass)
 
-  	inject x xs = map (\y -> x:y) xs 
+  	inject x xs = map (\y -> x:y) xs
 
 vars :: Formula -> [Var]
-vars = nub . go 
+vars = nub . go
   where
   	go [] = []
   	go (ls:xs) = map go' ls ++ go xs
@@ -79,13 +73,21 @@ satCls a (l:ls)  = satLit a l || satCls a ls
 
 {-@ measure satLit @-}
 satLit :: Asgn -> Lit -> Bool
-satLit a (Pos x) = isTrue x a 
+satLit a (Pos x) = isTrue x a
 satLit a (Neg x) = isFalse x a
 
 {-@ measure isTrue @-}
 isTrue          :: Var -> Asgn -> Bool
-isTrue xisT (yv:as) = if xisT == (fst yv) then (isVFalse (snd yv)) else isTrue xisT as 
-isTrue _ []      = False 
+isTrue xisT (yv:as) = if xisT == (myFst yv) then (isVFalse (mySnd yv)) else isTrue xisT as
+isTrue _ []      = False
+
+{-@ measure myFst @-}
+myFst :: (a, b) -> a
+myFst (x, y) = x
+
+{-@ measure mySnd @-}
+mySnd :: (a, b) -> b
+mySnd (x, y) = y
 
 {-@ measure isVTrue @-}
 isVTrue :: Val -> Bool
@@ -94,8 +96,8 @@ isVTrue VFalse = False
 
 {-@ measure isFalse @-}
 isFalse          :: Var -> Asgn -> Bool
-isFalse xisF (yv:as) = if xisF == (fst yv) then (isVFalse (snd yv)) else isFalse xisF as 
-isFalse _ []      = False 
+isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
+isFalse _ []      = False
 
 {-@ measure isVFalse @-}
 isVFalse :: Val -> Bool

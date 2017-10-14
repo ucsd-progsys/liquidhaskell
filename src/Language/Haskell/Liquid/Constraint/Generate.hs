@@ -31,17 +31,18 @@ import           Pair
 import           CoreSyn
 import           SrcLoc                                 hiding (Located)
 import           Type
+import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
-import           TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Class                                         (className)
 import           Var
 import           IdInfo
 import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
-import           VarSet
+import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ                     hiding (first)
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, fromJust, isJust)
@@ -53,6 +54,7 @@ import qualified Data.Traversable                              as T
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
+-- import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
@@ -72,9 +74,7 @@ import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
-import           Language.Haskell.Liquid.Constraint.Instantiate
-
-import Language.Haskell.Liquid.UX.Config (allowLiquidInstationation)
+import           Language.Haskell.Liquid.Transforms.Rec
 
 -- import Debug.Trace (trace)
 
@@ -90,13 +90,10 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
-  γ'    <- initEnv      info
+  γ     <- initEnv      info
   sflag <- scheck   <$> get
-  γ     <- {- NOPROVER if expandProofsMode then addCombine τProof γ' else -}
-           return  γ'
-  cbs'  <- {- NOPROVER if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else -}
-           return $ cbs info
-  foldM_ (consCBTop cfg info) γ cbs'
+  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
+  foldM_ (consCBTop cfg info) γ (cbs info)
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
   scss  <- sCs   <$> get
@@ -107,51 +104,32 @@ consAct cfg info = do
   let hcs' = if sflag then subsS smap hcs else hcs
   fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
-  bds <- binds <$> get
-  dcs <- dataConTys <$> get 
-  let fcs' = if allowLiquidInstationation (getConfig info) then instantiateAxioms bds (feEnv (fenv γ)) (makeAxiomEnvironment info dcs) <$> fcs else  fcs 
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
-                     , fixCs    = fcs'
+                     , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
-  where
-    -- NOPROVER expandProofsMode = autoproofs $ getConfig info
-    -- NOPROVER τProof           = gsProofType $ spec info
-    -- NOPROVER mkSigs γ         = toListREnv (renv  γ) ++
-                       -- NOPROVER toListREnv (assms γ) ++
-                       -- NOPROVER toListREnv (intys γ) ++
-                       -- NOPROVER toListREnv (grtys γ)
-
--- NOPROVER addCombine :: Maybe Type -> CGEnv -> CG CGEnv
--- NOPROVER addCombine τ γ
-  -- NOPROVER = do t <- trueTy combineType
-       -- NOPROVER γ += ("combineProofs", combineSymbol, t)
-    -- NOPROVER where
-       -- NOPROVER combineType   = makeCombineType τ
-       -- NOPROVER combineVar    = makeCombineVar  combineType
-       -- NOPROVER combineSymbol = F.symbol combineVar
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
-makeDecrIndex :: (Var, Template SpecType)-> CG [Int]
-makeDecrIndex (x, Assumed t)
-  = do dindex <- makeDecrIndexTy x t
+makeDecrIndex :: (Var, Template SpecType, [Var]) -> CG [Int]
+makeDecrIndex (x, Assumed t, args)
+  = do dindex <- makeDecrIndexTy x t args
        case dindex of
          Left _  -> return []
          Right i -> return i
-makeDecrIndex (x, Asserted t)
-  = do dindex <- makeDecrIndexTy x t
+makeDecrIndex (x, Asserted t, args)
+  = do dindex <- makeDecrIndexTy x t args
        case dindex of
          Left msg -> addWarning msg >> return []
          Right i  -> return i
 makeDecrIndex _ = return []
 
-makeDecrIndexTy :: Var -> SpecType -> CG (Either (TError t) [Int])
-makeDecrIndexTy x t
+makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
+makeDecrIndexTy x t args
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
        hint   <- checkHint' autosz (L.lookup x $ spDecr)
@@ -160,8 +138,10 @@ makeDecrIndexTy x t
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
        ts         = ty_args trep
+       tvs        = zip ts args
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
-       dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
+       dindex     = \autosz -> L.findIndex (p autosz) tvs
+       p autosz (t, v) = isDecreasing autosz cenv t && not (isIdTRecBound v)
        msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
@@ -297,9 +277,9 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
     where
-      topBind (NonRec v _)  = Just v 
-      topBind (Rec [(v,_)]) = Just v 
-      topBind _             = Nothing 
+      topBind (NonRec v _)  = Just v
+      topBind (Rec [(v,_)]) = Just v
+      topBind _             = Nothing
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
@@ -322,7 +302,7 @@ consCBSizedTys γ xes
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
        ts'      <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
-       is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
+       is       <- mapM makeDecrIndex (zip3 xs ts' vs) >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
@@ -627,7 +607,17 @@ cconsE g e t = do
   -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
   cconsE' g e t
 
+--------------------------------------------------------------------------------
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
+--------------------------------------------------------------------------------
+cconsE' γ e t
+  | Just (Rs.PatSelfBind _x e') <- Rs.lift e
+  = cconsE' γ e' t
+
+  | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
+  = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
+    in void $ consCBLet γ' (Rec [(x, e')])
+
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
        if (x `S.member` sp)
@@ -686,13 +676,13 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
-lambdaSignleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
-lambdaSignleton γ tce x e
+lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
+lambdaSingleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
     sx = typeSort tce $ varType x
-lambdaSignleton _ _ _ _
+lambdaSingleton _ _ _ _
   = mempty
 
 
@@ -858,7 +848,7 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSignleton (addArgument γ x) tce x e1
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton (addArgument γ x) tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -948,6 +938,13 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   addC (SubC γ' ti t) "consPattern:project"
   return t
 
+consPattern γ (Rs.PatSelfBind _ e) =
+  consE γ e
+
+consPattern γ p@(Rs.PatSelfRecBind {}) =
+  cconsFreshE LetE γ (Rs.lower p)
+
+
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
  where
@@ -1012,7 +1009,7 @@ isClassConCo co
   , [dc]    <- tyConDataCons tc
   , [tm]    <- dataConOrigArgTys dc
                -- tcMatchTy because we have to instantiate the class tyvars
-  , Just _  <- tcMatchTy (mkVarSet $ tyConTyVars tc) tm t1
+  , Just _  <- ruleMatchTyX (mkUniqSet $ tyConTyVars tc) (mkRnEnv2 emptyInScopeSet) emptyTvSubstEnv tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])
 
   | otherwise
@@ -1122,7 +1119,6 @@ projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
     projT is (j, t)
       | j `elem` is       = return t
       | otherwise         = true t
-
 
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
@@ -1293,8 +1289,15 @@ makeSingleton γ e t
   = t
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+
+-- reflectefd functions 
 funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
+
+-- local function arguments
+funExpr γ (Var v) | S.member v (fargs γ)
+  = Just $ F.EVar (F.symbol v)
+
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
       (Just e1', Just e2') | not (isClassPred $ exprType e2)
@@ -1302,8 +1305,7 @@ funExpr γ (App e1 e2)
       (Just e1', Just _)
                            -> Just e1'
       _                    -> Nothing
-funExpr γ (Var v) | S.member v (fargs γ)
-  = Just $ F.EVar (F.symbol v)
+
 funExpr _ _
   = Nothing
 

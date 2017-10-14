@@ -57,7 +57,7 @@ data Text = Empty
 --LIQUID            deriving (Typeable)
 
 {-@ data Text [ltlen] = Empty
-                      | Chunk (t :: TextNE) (cs :: Text)
+                      | Chunk { txtHead :: TextNE, txtRest :: Text }
   @-}
 
 {-@ measure ltlen :: Text -> Integer
@@ -127,7 +127,7 @@ showStructure (Chunk t ts)    =
     "Chunk " ++ show t ++ " (" ++ showStructure ts ++ ")"
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
-{-@ chunk :: t:T.Text -> ts:Text
+{-@ chunk :: t:_ -> ts:Text
           -> {v:Text | (((ltlength v) = ((tlength t) + (ltlength ts)))
                       && ((ltlen v) = ((tlen t) + (ltlen ts))))}
   @-}

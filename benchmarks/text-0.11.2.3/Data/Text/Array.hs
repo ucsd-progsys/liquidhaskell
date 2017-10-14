@@ -84,7 +84,7 @@ import GHC.Base (ByteArray#, MutableByteArray#, Int(..),
                  unsafeCoerce#, writeWord16Array#)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
-import Prelude hiding (length, read)
+import Prelude hiding (error, length, read)
 
 --LIQUID
 import Language.Haskell.Liquid.Prelude
@@ -96,6 +96,9 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ qualif LenDiff(v:List a, i:int, l:int): (len v) = (l - i) @-}
 {-@ qualif Diff(v:int, d:int, l:int): v = l - d @-}
+
+{-@ lazy error @-}
+error msg = error msg
 
 -- | Immutable array type.
 data Array = Array {

@@ -1,5 +1,6 @@
 
 {-@ LIQUID "--no-termination"   @-}
+{-@ LIQUID "--no-totality"      @-}
 
 module RedBlackTree where
 
@@ -102,13 +103,13 @@ deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMi
 lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
 lbalS k l (Node B y a b)              = let t = rbal k l (Node R y a b) in t 
 lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
-lbalS k l r                           = error "nein"
+lbalS k l r                           = unsafeError "nein"
 
 {-@ rbalS  :: k:a -> l:RBT a -> r:RBTN a {(bh l) - 1} -> RBTN a {(bh l)}    @-}
 rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
 rbalS k (Node B x a b) r              = let t = lbal k (Node R x a b) r in t 
 rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
-rbalS k l r                           = error "nein"
+rbalS k l r                           = unsafeError "nein"
 
 {-@ lbal  :: k:a -> l:RBT a -> RBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 lbal k (Node R y (Node R x a b) c) r  = Node R y (Node B x a b) (Node B k c r)
@@ -126,7 +127,7 @@ rbal x l r                            = Node B x l r
 
 {-@ makeRed :: l:RBT a -> RBTN a {(bh l) - 1} @-}
 makeRed (Node B x l r) = Node R x l r
-makeRed _              = error "nein"
+makeRed _              = unsafeError "nein"
 
 {-@ makeBlack :: RBT a -> RBT a @-}
 makeBlack Leaf           = Leaf

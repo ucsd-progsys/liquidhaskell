@@ -1,11 +1,11 @@
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--higherorder"        @-}
+{-@ LIQUID "--exactdc"      @-}
+{-@ LIQUID "--higherorder"  @-}
+
 module Data.Foo where
 
-import Language.Haskell.Liquid.ProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators
 
-{-@ data Foo = Foo { foox :: (Int -> Int) , fooy :: Int } @-}
+{- data Foo = Foo { foox :: (Int -> Int) , fooy :: Int } @-}
 data Foo = Foo { x :: Int -> Int , y :: Int }
 
 
@@ -31,7 +31,7 @@ data VerifiedEq a = VerifiedEq {
     , trans2 :: (x:a -> y:a -> z:a -> { (leq x y) && (leq y z) ==> (leq x z) })
     , verifiedEq :: VerifiedEq a
     }
-@-}
+  @-}
 
 
 data VerifiedOrd a = VerifiedOrd {
@@ -41,4 +41,3 @@ data VerifiedOrd a = VerifiedOrd {
   , trans2 :: a -> a -> a -> Proof
   , verifiedEq :: VerifiedEq a
   }
-

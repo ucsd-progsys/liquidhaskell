@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 module IcfpDemo where
 
 import Prelude hiding (gcd, map, repeat, take)
@@ -25,7 +26,7 @@ range lo hi
   | otherwise = []
 
 {-@ data L [sz] a <p :: L a -> Bool>
-      = N | C (x::a) (xs::L <p> a <<p>>)
+      = N | C (lHd :: a) (lTl ::L <p> a <<p>>)
   @-}
 data L a = N | C a (L a)
 
@@ -53,7 +54,7 @@ merge (C x xs) (C y ys)
 
 {-@ type Stream a = {xs: L <{\v -> not (emp v)}> a | not (emp xs)} @-}
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
 {-@ repeat :: a -> Stream a @-}
 repeat :: a -> L a
 repeat x = x `C` repeat x
@@ -63,19 +64,3 @@ take :: Int -> L a -> L a
 take 0 _        = N
 take n (C x xs) = x `C` take (n-1) xs
 take _ N        = liquidError "never happens"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -15,21 +15,25 @@ import NameSet
 import TyCon
 import Type (expandTypeSynonyms, Type)
 import Var
-
+-- import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import Control.Monad
 import Control.Monad.Except
+import qualified Control.Exception                      as Ex
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
+import           Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
+-- import Language.Fixpoint.Misc (traceShow)
 
-import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
+-- import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
 import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 
@@ -44,39 +48,37 @@ import Language.Haskell.Liquid.Bare.Misc
 -- this module is responsible for plugging the holes we obviously cannot
 -- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 
-makePluggedSigs :: Traversable t
-                => ModName
+makePluggedSigs :: ModName
                 -> TCEmb TyCon
                 -> M.HashMap TyCon RTyCon
                 -> NameSet
-                -> t (Var, Located (RRType RReft))
-                -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
+                -> [(Var, LocSpecType)]
+                -> BareM [(Var, LocSpecType)]
 makePluggedSigs name embs tcEnv exports sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = maybeTrue x name exports
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedAsmSigs :: Traversable t
-                   => TCEmb TyCon
+makePluggedAsmSigs :: TCEmb TyCon
                    -> M.HashMap TyCon RTyCon
-                   -> t (Var, Located (RRType RReft))
-                   -> BareM (t (Var, Located (RType RTyCon RTyVar RReft)))
+                   -> [(Var, LocSpecType)]
+                   -> BareM [(Var, LocSpecType)]
 makePluggedAsmSigs embs tcEnv sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = const killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedDataCons :: Traversable t
-                    => TCEmb TyCon
+makePluggedDataCons :: TCEmb TyCon
                     -> M.HashMap TyCon RTyCon
-                    -> t (DataCon, Located DataConP)
-                    -> BareM (t (DataCon, Located DataConP))
+                    -> [(DataCon, Located DataConP)]
+                    -> BareM [(DataCon, Located DataConP)]
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
-       tyArgs <- zipWithM (\t1 (x,t2) ->
+       when (mismatch dts dcp) (Ex.throw $ err dc dcp)
+       tyArgs <- zipWithM (\t1 (x, t2) ->
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) t1 (Loc l l' t2))
                  dts (reverse $ tyArgs dcp)
        tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) dt (Loc l l' (tyRes dcp))
@@ -84,6 +86,10 @@ makePluggedDataCons embs tcEnv dcs
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
+
+    where
+      mismatch dts dcp = length dts /= length (tyArgs dcp)
+      err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
 
 plugHoles :: (NamedThing a, PPrint a, Show a)
           => TCEmb TyCon
@@ -102,7 +108,7 @@ plugHoles tce tyi x f t (Loc l l' st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt
@@ -111,9 +117,12 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
 
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint $ expandTypeSynonyms t) (pprint $ toRSort st) hsSp
+    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
+                                                                (pprint $ expandTypeSynonyms t)
+                                                                (pprint $ toRSort st)
+                                                                hsSp
     hsSp              = getSrcSpan x
-    lqSp              = sourcePos2SrcSpan l l'
+    lqSp              = GM.sourcePos2SrcSpan l l'
 
     go :: SpecType -> SpecType -> BareM SpecType
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }

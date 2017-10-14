@@ -143,7 +143,7 @@ advance needle haystack ts0 x xs i g
             -> {v:Int64 | v = ((ltlen src) - g) + 1}
             -> IdxList {v:Int64 | (BtwnI (v) (g) ((ltlen src) - (ltlen pat)))} (ltlen pat)
   @-}
-{-@ Decrease advance_scan 5 8 @-}
+{-@ decrease advance_scan 5 8 @-}
 advance_scan :: Text -> Text -> Text -> T.Text -> Text -> Int64 -> Int64 -> Int64 -> [Int64]
 advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g dec =
   if i >= m then case xs of
@@ -184,7 +184,7 @@ lackingHay q t ts = lackingHay_go q 0 t ts
 {-@ lackingHay_go :: q:Nat64 -> p:Nat64 -> t:TextNE -> ts:Text
                -> {v:Bool | (v <=> (q > (p + (tlen t) + (ltlen ts))))}
   @-}
-{-@ Decrease lackingHay_go 4 @-}
+{-@ decrease lackingHay_go 4 @-}
 lackingHay_go :: Int64 -> Int64 -> T.Text -> Text -> Bool
 lackingHay_go q p (T.Text _ _ l) Empty = q > (p + fromIntegral l)
 lackingHay_go q p (T.Text _ _ l) (Chunk r rs) = let p' = p + fromIntegral l
@@ -216,7 +216,7 @@ swizzle w = 1 `shiftL` (fromIntegral w .&. 0x3f)
                -> d:{v:Nat64 | nlen = (i + v)}
                -> PairS Word64 {v:Nat64 | v < nlen}
   @-}
-{-@ Decrease buildTable 5 10 @-}
+{-@ decrease buildTable 5 10 @-}
 buildTable :: Word16 -> Int64 -> Text -> T.Text -> Text -> Int -> Int64 -> Word64 -> Int64 -> Int64
            -> PairS Word64 Int64
 buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp (d :: Int64) =
@@ -242,7 +242,7 @@ buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp (d :
 {-@ index :: t:TextNE -> ts:Text -> i:{v:Nat64 | v <= ((tlen t) + (ltlen ts))}
           -> Word16
   @-}
-{-@ Decrease index 2 @-}
+{-@ decrease index 2 @-}
 index :: T.Text -> Text -> Int64 -> Word16
 index (T.Text arr off len) xs !i =
     if j < len then A.unsafeIndex arr (off+j)
@@ -277,7 +277,7 @@ indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> [Int64]
 --LIQUID              where on = A.unsafeIndex oarr (ooff+h)
 indicesOne c t0 ts0 t@(T.Text _ _ l) os !i = indicesOne_go c t0 ts0 t os i 0 l
 
-{-@ Decrease indicesOne_go 5 8 @-}
+{-@ decrease indicesOne_go 5 8 @-}
 {-@ indicesOne_go :: Word16
                   -> t0:Text
                   -> ts0:LTextLE t0

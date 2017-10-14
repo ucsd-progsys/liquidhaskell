@@ -38,8 +38,6 @@ import           Data.IORef
 import           Data.List                        hiding (sort)
 
 import qualified Data.Text                        as ST
-import qualified Data.Text.Lazy                   as T
-import qualified Data.Text.Lazy.Builder           as Builder
 import           System.IO.Unsafe
 -- import           Text.Printf
 
@@ -54,7 +52,7 @@ import           Language.Haskell.Liquid.Types    hiding (var, Target)
 import qualified GHC
 import qualified Type as GHC
 
-import           Test.Target.Serialize
+-- import           Test.Target.Serialize
 import           Test.Target.Types
 import           Test.Target.Util
 
@@ -121,7 +119,7 @@ data TargetState = TargetState
   , constraints  :: !Constraint
   , deps         :: !(M.HashMap Symbol [Symbol])
   , realized     :: ![(Symbol, Value)]
-  , dconEnv      :: ![(Symbol, DataConP)]
+  -- , dconEnv      :: ![(Symbol, DataConP)]
   , ctorEnv      :: !DataConEnv
   , measEnv      :: !MeasureEnv
   , embEnv       :: !(TCEmb GHC.TyCon)
@@ -144,7 +142,7 @@ initState fp sp ctx = TargetState
   , constraints  = []
   , deps         = mempty
   , realized     = []
-  , dconEnv      = dcons
+  -- , dconEnv      = dcons
   , ctorEnv      = cts
   , measEnv      = meas
   , embEnv       = gsTcEmbeds sp
@@ -161,7 +159,7 @@ initState fp sp ctx = TargetState
   }
   where
     -- FIXME: can we NOT tidy???
-    dcons = tidyF $ map (first symbol) (gsDconsP sp)
+    -- dcons = tidyF $ map (first symbol) (gsDconsP sp)
 
     -- NOTE: we want to tidy all occurrences of nullary datacons in the signatures
     cts   = subst su $ tidyF $ map (symbol *** val) (gsCtors sp)
@@ -289,9 +287,10 @@ unObj s        = error $ "unObj: " ++ show s
 freshChoice :: String -> Target Symbol
 freshChoice cn
   = do n <- freshInt
-       let x = symbol $ T.unpack (Builder.toLazyText $ smt2 choicesort)
-                        ++ "-" ++ cn ++ "-" ++ show n
-       modify $ \s@(TargetState {..}) -> s { variables = (x,choicesort) : variables }
+       let x = intSymbol (unObj choicesort) (cn ++ "-" ++ show n)
+       --  ... symbol $ T.unpack (Builder.toLazyText $ smt2 choicesort)
+       --                  ++ "-" ++ cn ++ "-" ++ show n
+       modify $ \s@(TargetState {..}) -> s { variables = (x, choicesort) : variables }
        return x
 
 -- | Ask the SMT solver for the 'Value' of the given variable.

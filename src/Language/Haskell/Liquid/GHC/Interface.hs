@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.GHC.Interface (
 import Prelude hiding (error)
 
 import qualified Outputable as O
-import GHC hiding (Target, desugarModule, Located)
+import GHC hiding (Target, Located, desugarModule)
 import qualified GHC
 import GHC.Paths (libdir)
 
@@ -48,6 +48,8 @@ import Serialized
 import TcRnTypes
 import Var
 import NameSet
+import FastString
+import GHC.LanguageExtensions
 
 import Control.Exception
 import Control.Monad
@@ -71,11 +73,12 @@ import System.IO.Temp
 import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ hiding (first)
 
-import Language.Fixpoint.Types hiding (Error, Result, Expr)
+import Language.Fixpoint.Types hiding (panic, Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Parse
@@ -125,7 +128,7 @@ runLiquidGhc hscEnv cfg act =
     runGhc (Just libdir) $ do
       maybe (return ()) setSession hscEnv
       df <- configureDynFlags cfg tmp
-      defaultCleanupHandler df act
+      prettyPrintGhcErrors df act
 
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
@@ -135,9 +138,11 @@ configureDynFlags cfg tmp = do
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                  , includePaths = nub $ idirs cfg ++ includePaths df'
-                 , packageFlags = ExposePackage (PackageArg "ghc-prim")
+                 , packageFlags = ExposePackage ""
+                                                (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
-                                : packageFlags df'
+                                : (packageFlags df')
+
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
@@ -145,16 +150,16 @@ configureDynFlags cfg tmp = do
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
                                     then defaultLogAction
-                                    else \_ _ _ _ _ -> return ()
+                                    else \_ _ _ _ _ _ -> return ()
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
                  , stubDir      = Just tmp
-                 } `xopt_set` Opt_MagicHash
-                   `xopt_set` Opt_DeriveGeneric
-                   `xopt_set` Opt_StandaloneDeriving
-                   `gopt_set` Opt_ImplicitImportQualified
+                 } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
+                   `xopt_set` MagicHash
+                   `xopt_set` DeriveGeneric
+                   `xopt_set` StandaloneDeriving
   _ <- setSessionDynFlags df''
   return df''
 
@@ -163,7 +168,16 @@ configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
   moduleGraph     <- depanal [] False
-  let homeModules  = flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
+                     -- NOTE: drop hs-boot files from the graph.
+                     -- we do it manually rather than using the flag to topSortModuleGraph
+                     -- because otherwise the order of mutually recursive modules depends
+                     -- on the modulename, e.g. given
+                     --   Bar.hs --> Foo.hs --> Bar.hs-boot
+                     -- we'll get
+                     --   [Bar.hs, Foo.hs]
+                     -- wich is backwards..
+  let homeModules  = filter (not . isBootSummary) $
+                     flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
   return homeModules
 
@@ -206,18 +220,17 @@ mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
   homePkg <- thisPackage <$> getSessionDynFlags
-  return $ modulePackageKey mod == homePkg
+  return   $ moduleUnitId mod == homePkg
 
 modSummaryImports :: ModSummary -> Ghc [Module]
 modSummaryImports modSummary =
-  mapM (importDeclModule (ms_mod modSummary) . unLoc)
+  mapM (importDeclModule (ms_mod modSummary))
        (ms_textual_imps modSummary)
 
-importDeclModule :: Module -> ImportDecl a -> Ghc Module
-importDeclModule fromMod decl = do
+importDeclModule :: Module -> (Maybe FastString,  GHC.Located ModuleName) -> Ghc Module
+importDeclModule fromMod (pkgQual, locModName) = do
   hscEnv <- getSession
-  let modName = unLoc $ ideclName decl
-  let pkgQual = ideclPkgQual decl
+  let modName = unLoc locModName
   result <- liftIO $ findImportedModule hscEnv modName pkgQual
   case result of
     Finder.Found _ mod -> return mod
@@ -306,7 +319,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec file -- modName
+  liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec cfg file -- modName
   let bareSpec         = commSpec `mappend` liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
@@ -375,7 +388,8 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
             , hqFiles   = hqualsFiles
             , imports   = imps
             , includes  = incs
-            , spec      = spc                }
+            , spec      = spc
+            }
 
 toGhcSpec :: GhcMonad m
           => Config
@@ -389,7 +403,7 @@ toGhcSpec :: GhcMonad m
           -> Either Error LogicMap
           -> [(ModName, Ms.BareSpec)]
           -> m (GhcSpec, [String], [FilePath])
-toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
+toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
   _            <- setContext (tgtCxt : impCxt)
@@ -398,7 +412,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec lm impSpecs = do
   let exports   = mgi_exports mgi
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
-  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_cls_inst mgi) vars letVs exports hsc lm specs
+  ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_tcs mgi) (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
   return (ghcSpec, imps, Ms.includes tgtSpec)
 
 modSummaryHsFile :: ModSummary -> FilePath
@@ -431,18 +445,28 @@ checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-
 extractSpecComments :: ParsedModule -> [(SourcePos, String)]
-extractSpecComments parsed = mapMaybe extractSpecComment comments
-  where
-    comments = concat $ M.elems $ snd $ pm_annotations parsed
+extractSpecComments = mapMaybe extractSpecComment
+                    . concat
+                    . M.elems
+                    . snd
+                    . pm_annotations
 
+
+-- | 'extractSpecComment' pulls out the specification part from a full comment
+--   string, i.e. if the string is of the form:
+--   1. '{-@ S @-}' then it returns the substring 'S',
+--   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
+--   3. Otherwise it is just treated as a plain comment so we return Nothing.
 extractSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
-extractSpecComment (GHC.L span (AnnBlockComment text))
-  | length text > 2 && isPrefixOf "{-@" text && isSuffixOf "@-}" text =
-    Just (offsetPos, take (length text - 6) $ drop 3 text)
+
+extractSpecComment (GHC.L sp (AnnBlockComment text))
+  | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
+  = Just (offsetPos, take (length text - 6) $ drop 3 text)
+  | isPrefixOf "{-@" text                                   -- invalid specification
+  = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = incSourceColumn (srcSpanSourcePos span) 3
+    offsetPos = incSourceColumn (srcSpanSourcePos sp) 3
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
@@ -486,10 +510,11 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
-  -- liftIO    $ print ("moduleFiles-imps'\n"  ++ show (m2s <$> imps'))
-  -- liftIO    $ print ("moduleFiles-imps\n"   ++ show imps)
-  -- liftIO    $ print ("moduleFiles-Paths\n"  ++ show paths)
-  -- liftIO    $ print ("moduleFiles-Specs\n"  ++ show fs')
+  -- liftIO    $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
+  -- liftIO    $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
+  -- liftIO    $ print ("moduleFiles-imps  : "  ++ show imps)
+  -- liftIO    $ print ("moduleFiles-Paths : "  ++ show paths)
+  -- liftIO    $ print ("moduleFiles-Specs : "  ++ show fs')
   patSpec  <- getPatSpec paths $ totalityCheck cfg
   rlSpec   <- getRealSpec paths $ not $ linear cfg
   let fs    = patSpec ++ rlSpec ++ fs'

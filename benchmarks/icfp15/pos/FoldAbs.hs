@@ -1,6 +1,7 @@
 module Fold where
 
 {-@ LIQUID "--no-termination" @-}
+
 import Prelude hiding (foldr)
 
 data Vec a = Nil | Cons a (Vec a)

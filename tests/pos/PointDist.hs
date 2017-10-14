@@ -50,6 +50,6 @@ root x  = assume (rx > 0) rx
 
 {-@ assume     :: b:_ -> a -> {v:a | b} @-}
 assume True  x = x
-assume False _ = error "Failed Dynamic Check!"
+assume False _ = undefined -- error "Failed Dynamic Check!"
 
 

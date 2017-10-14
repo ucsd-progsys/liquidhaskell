@@ -2,11 +2,11 @@ module LocalLazy (bar) where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ Lazy foo @-}
+{-@ lazy foo @-}
 foo x = foo x
 
 
 bar = liquidAssertB (inf n > 0)
   where n     = choose 0
-       {-@ Lazy inf @-}
+       {-@ lazy inf @-}
         inf n = inf n

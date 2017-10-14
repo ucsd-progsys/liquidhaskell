@@ -36,7 +36,6 @@ import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
 import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
-import           Data.Hashable
 import qualified Data.IntervalMap.FingerTree            as IM
 import           CoreSyn                                hiding (sourceName)
 import           Name                                   (getSrcSpan, NamedThing)
@@ -47,10 +46,10 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (PPrint (..), FixResult (..), Located (..))
+import           Language.Fixpoint.Types                (atLoc, PPrint (..), FixResult (..), Located (..))
 -- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
-import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..), DataConP (..), Output (..))
+import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..),  Output (..)) --DataConP (..),)
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Visitors
@@ -166,8 +165,10 @@ globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
   where
     measDiff  = any (isDiff srcF ls) (snd <$> gsMeas spec)
     invsDiff  = any (isDiff srcF ls) (snd <$> gsInvariants spec)
-    dconsDiff = any (isDiff srcF ls) (dloc . snd <$> gsDconsP spec)
-    dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
+    dconsDiff = any (isDiff srcF ls) [ atLoc ldc () | ldc <- gsDconsP spec ]
+    -- (dloc . snd <$> gsDconsP spec)
+    -- dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
+
 
 isDiff :: FilePath -> [Int] -> Located a -> Bool
 isDiff srcF ls x = file x == srcF && any hits ls
@@ -512,12 +513,6 @@ instance ToJSON Doc where
 instance FromJSON Doc where
   parseJSON (String s) = return $ text $ T.unpack s
   parseJSON _          = mempty
-
-instance (ToJSON k, ToJSON v) => ToJSON (M.HashMap k v) where
-  toJSON = toJSON . M.toList
-
-instance (Eq k, Hashable k, FromJSON k, FromJSON v) => FromJSON (M.HashMap k v) where
-  parseJSON = fmap M.fromList . parseJSON
 
 instance ToJSON a => ToJSON (AnnInfo a) where
   toJSON = genericToJSON defaultOptions

@@ -1,7 +1,10 @@
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MagicHash     #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality"       @-}
+{-@ LIQUID "--no-termination"    @-}
+{-@ LIQUID "--no-pattern-inline" @-}
+
 module ToyMVar where
 
 import Prelude hiding (IO)

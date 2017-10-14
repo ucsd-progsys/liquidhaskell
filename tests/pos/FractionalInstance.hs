@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Fractional where
 
 data Frac a

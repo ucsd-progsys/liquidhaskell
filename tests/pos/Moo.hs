@@ -1,5 +1,5 @@
 module Moo (plusOne) where
 
-{-@ assert plusOne :: x:Int -> {v:Int| v > x } @-}
+{-@ plusOne :: x:Int -> {v:Int| v = x + 1 } @-}
 plusOne :: Int -> Int
 plusOne x = x + 1

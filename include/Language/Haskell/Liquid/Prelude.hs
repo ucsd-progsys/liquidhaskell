@@ -82,8 +82,12 @@ liquidAssumeB p x | p x = x
                   | otherwise = error "liquidAssumeB fails"
 
 
+{-# NOINLINE unsafeError #-}
+unsafeError :: String -> a
+unsafeError = error
 
-{-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
+
+{-@ assume liquidError :: {v:String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}
 liquidError :: String -> a
 liquidError = error
@@ -118,7 +122,8 @@ isOdd x = x `mod` 2 == 1
 
 -----------------------------------------------------------------------------------------------
 
-{-@ assert safeZipWith :: (a -> b -> c) -> xs : [a] -> ys:{v:[b] | len(v) = len(xs)} -> {v : [c] | len(v) = len(xs)} @-}
+{-@ safeZipWith :: (a -> b -> c) -> xs : [a] -> ys:{v:[b] | len v = len xs} 
+                -> {v : [c] | len v = len xs } @-}
 safeZipWith :: (a->b->c) -> [a]->[b]->[c]
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ []     []     = []

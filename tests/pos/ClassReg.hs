@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-totality" @-}
+
 module Compose where
 
 

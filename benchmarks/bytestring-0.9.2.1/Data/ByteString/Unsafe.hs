@@ -1,3 +1,5 @@
+{-@ LIQUID "--prune-unsorted" @-}
+
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Unsafe
@@ -5,7 +7,7 @@
 -- Maintainer  : dons@cse.unsw.edu.au, duncan@haskell.org
 -- Stability   : experimental
 -- Portability : portable
--- 
+--
 -- A module containing unsafe 'ByteString' operations. This exposes
 -- the 'ByteString' representation and low level construction functions.
 -- Modules which extend the 'ByteString' system will need to use this module
@@ -129,7 +131,7 @@ unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 
 {-@ unsafeIndex :: b:ByteString
                 -> {v:Nat | v < (bLength b)}
-                -> Word8 
+                -> Word8
   @-}
 unsafeIndex :: ByteString -> Int -> Word8
 unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
@@ -147,7 +149,7 @@ unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
 
 {-@ unsafeDrop :: n:Nat
-               -> b:{v: ByteString | n <= (bLength v)} 
+               -> b:{v: ByteString | n <= (bLength v)}
                -> {v:ByteString | (bLength v) = (bLength b) - n} @-}
 unsafeDrop  :: Int -> ByteString -> ByteString
 unsafeDrop n (PS x s l) = assert (0 <= n && n <= l) $ PS x (s+n) (l-n)
@@ -324,7 +326,7 @@ unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plu
 
 -- | /O(1) construction/ Use a @ByteString@ with a function requiring a
 -- @CStringLen@.
--- 
+--
 -- This function does zero copying, and merely unwraps a @ByteString@ to
 -- appear as a @CStringLen@. It is /unsafe/:
 --

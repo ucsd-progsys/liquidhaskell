@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorderqs" @-}
 
@@ -112,7 +111,7 @@ prop_concatMap f (x ::: xs)
 
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] a = Emp | (:::) {x::a, xs :: L a } @-}
+{-@ data L [llen] a = Emp | (:::) { lHd ::a, lTl :: L a } @-}
 
 
 {-@ measure llen @-}

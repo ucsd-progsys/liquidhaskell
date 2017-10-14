@@ -241,3 +241,12 @@ mapAccumM f acc0 xs =
 
 ifM :: (Monad m) => m Bool -> m b -> m b -> m b
 ifM b x y = b >>= \z -> if z then x else y
+
+nubHashOn :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a]
+nubHashOn f = map head . M.elems . groupMap f
+
+nubHashLast :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a]
+nubHashLast f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
+
+nubHashLastM :: (Eq k, Hashable k, Monad m) => (a -> m k) -> [a] -> m [a]
+nubHashLastM f xs =  M.elems . M.fromList . (`zip` xs) <$> mapM f xs

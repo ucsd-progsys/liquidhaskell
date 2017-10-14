@@ -1,4 +1,4 @@
-module Zipper () where
+module Zipper (getFocus, getUp, getDown) where
 
 import Prelude hiding (reverse, (++))
 
@@ -22,7 +22,7 @@ data Stack a = Stack { focus  :: !a        -- focused thing in this set
   listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}
 
--- predicates 
+-- predicates
 
 {-@ predicate EqElts X Y =
        ((listElts X) = (listElts Y)) @-}
@@ -56,21 +56,24 @@ data Stack a = Stack { focus  :: !a        -- focused thing in this set
 -------------------------------------------------------------------------------
 
 {-@
-data Stack a = Stack { focus :: a   
+data Stack a = Stack { focus :: a
                      , up    :: UListDif a focus
                      , down  :: UListDif a focus }
 @-}
 
 {-@ type UStack a = {v:Stack a | (ListDisjoint (getUp v) (getDown v))}@-}
 
-{-@ measure getUp :: forall a. (Stack a) -> [a] 
-    getUp (Stack focus up down) = up
-  @-}
+{-@ measure getFocus @-}
+getFocus :: Stack a -> a
+getFocus (Stack xfocus _ _) = xfocus
 
-{-@ measure getDown :: forall a. (Stack a) -> [a] 
-    getDown (Stack focus up down) = down
-  @-}
+{-@ measure getUp @-}
+getUp :: Stack a -> [a]
+getUp (Stack xfocus xup xdown) = xup
 
+{-@ measure getDown @-}
+getDown :: Stack a -> [a]
+getDown (Stack xfocus xup xdown) = xdown
 
 
 -------------------------------------------------------------------------------
@@ -99,7 +102,7 @@ focusUp (Stack t (l:ls) rs) = Stack l ls (t:rs)
 
 {-@ focusDown :: UStack a -> UStack a @-}
 focusDown :: Stack a -> Stack a
-focusDown = reverseStack . focusUp . reverseStack 
+focusDown = reverseStack . focusUp . reverseStack
 
 {-@ reverseStack :: UStack a -> UStack a @-}
 reverseStack :: Stack a -> Stack a
@@ -135,20 +138,20 @@ infixr 5 ++
 
 
 {-@ reverse :: xs:(UList a)
-            -> {v: UList a | (EqElts v xs)} 
+            -> {v: UList a | (EqElts v xs)}
   @-}
 reverse :: [a] -> [a]
 reverse = rev []
 
 
-{-@ rev :: ack:(UList a) 
+{-@ rev :: ack:(UList a)
         -> xs:{v: UList a | (ListDisjoint ack v)}
-        -> {v:UList a |(UnionElts v xs ack)} 
+        -> {v:UList a |(UnionElts v xs ack)}
   @-}
-{-@ Decrease rev 2 @-}
+{-@ decrease rev 2 @-}
 rev :: [a] -> [a] -> [a]
 rev a []     = a
-rev a (x:xs) = rev (x:a) xs 
+rev a (x:xs) = rev (x:a) xs
 
 {-@ filterL :: (a -> Bool) -> xs:(UList a) -> {v:UList a | (SubElts v xs)} @-}
 filterL :: (a -> Bool) -> [a] -> [a]

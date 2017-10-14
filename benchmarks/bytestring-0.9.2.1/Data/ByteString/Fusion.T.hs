@@ -416,7 +416,7 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 {-@ doUpLoop :: AccEFLJ acc -> acc -> ImperativeLoop acc @-}
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doUpLoop f acc0 src dest len = loop len 0 0 acc0
-        {-@ Decrease loop 1 @-} -- LIQUID TRANSFORMATION
+        {-@ decrease loop 1 @-} -- LIQUID TRANSFORMATION
   where STRICT4(loop)
         {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off acc
@@ -431,7 +431,7 @@ doUpLoop f acc0 src dest len = loop len 0 0 acc0
 {-@ doDownLoop :: AccEFLJ acc -> acc -> ImperativeLoop acc @-}
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
-        {-@ Decrease loop 1 @-} -- LIQUID TRANSFORMATION
+        {-@ decrease loop 1 @-} -- LIQUID TRANSFORMATION
   where STRICT4(loop)
         {- LIQUID WITNESS -}
         loop (d :: Int) src_offDOWN dest_offDOWN acc
@@ -446,7 +446,7 @@ doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
 {-@ doNoAccLoop :: NoAccEFLJ -> noAcc -> ImperativeLoop noAcc @-}
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
 doNoAccLoop f noAcc src dest len = loop len 0 0
-        {-@ Decrease loop 1 @-} -- LIQUID TRANSFORMATION
+        {-@ decrease loop 1 @-} -- LIQUID TRANSFORMATION
   where STRICT3(loop)
         {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off
@@ -461,7 +461,7 @@ doNoAccLoop f noAcc src dest len = loop len 0 0
 {-@ doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc @-}
 doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc
 doMapLoop f noAcc src dest len = loop len 0
-        {-@ Decrease loop 1 @-} -- LIQUID TRANSFORMATION
+        {-@ decrease loop 1 @-} -- LIQUID TRANSFORMATION
   where STRICT2(loop)
         {- LIQUID WITNESS -}
         loop (d :: Int) n
@@ -474,7 +474,7 @@ doMapLoop f noAcc src dest len = loop len 0
 {-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoopLE noAcc @-}
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop len 0 0
-        {-@ Decrease loop 1 @-} -- LIQUID TRANSFORMATION
+        {-@ decrease loop 1 @-} -- LIQUID TRANSFORMATION
   where STRICT3(loop)
         {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off

@@ -56,12 +56,6 @@ llen (Cons x xs) = 1 + llen(xs)
 suc :: Int -> Int
 suc x = x + 1
 
-
-{-
-step x b b' <=> llen b' = llen xs + llen b + 1
-inv zs b <=> llen b + len zs = len xs + len zs
--}
-
 {-@ LIQUID "--maxparams=3" @-}
 {-@ append_invariant_qualifier :: xs: Vec a -> ys:Vec a -> zs:Vec a -> {v:Vec a | llen v + llen xs ==  llen ys + llen zs } @-}
 append_invariant_qualifier :: Vec a -> Vec a -> Vec a -> Vec a

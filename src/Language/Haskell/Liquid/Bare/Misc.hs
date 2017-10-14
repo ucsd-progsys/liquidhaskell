@@ -1,23 +1,22 @@
 {-# LANGUAGE FlexibleContexts         #-}
+
 module Language.Haskell.Liquid.Bare.Misc (
     makeSymbols
-
+  , freeSymbols
   , joinVar
-
   , mkVarExpr
-
   , MapTyVarST(..)
   , initMapSt
   , runMapTyVars
   , mapTyVars
   , matchKindArgs
-
   , symbolRTyVar
   , simpleSymbolVar
-
   , hasBoolResult
-
-  , makeDataConChecker, makeDataSelector
+  , symbolMeasure
+  , isKind
+  , makeDataConChecker
+  , makeDataConSelector
   ) where
 
 import           Name
@@ -26,8 +25,8 @@ import           TysWiredIn
 
 import           Id
 import           Type
-import           Kind                                  (isKind)
-import           TypeRep
+import           Kind                                  (isStarKind)
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
 import           DataCon
@@ -36,67 +35,94 @@ import           Control.Monad.State
 import           Data.Maybe                            (isNothing)
 
 import qualified Data.List                             as L
-
-import           Language.Fixpoint.Misc                (sortNub)
-import           Language.Fixpoint.Types               (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft, symbolString)
-
+import qualified Data.HashMap.Strict                   as M
+import           Language.Fixpoint.Misc                (singleton, sortNub)
+import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Misc          (sortDiff)
-
 import           Language.Haskell.Liquid.Bare.Env
+import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 
-makeDataConChecker :: DataCon -> Symbol
+--------------------------------------------------------------------------------
+-- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
+--   a given value was created by 'd'. e.g. is$Nil or is$Cons.
+--------------------------------------------------------------------------------
+makeDataConChecker :: DataCon -> F.Symbol
+--------------------------------------------------------------------------------
 makeDataConChecker d
   | nilDataCon  == d
-  = symbol "isNull"
+  = F.symbol "isNull"
   | consDataCon == d
-  = symbol "notIsNull"
+  = F.symbol "notIsNull"
   | otherwise
-  = symbol $ ("is_"++) $ symbolString $ simpleSymbolVar $ dataConWorkId d
-makeDataSelector :: DataCon -> Int -> Symbol
-makeDataSelector d i
+  = F.testSymbol (F.symbol d)
+
+--------------------------------------------------------------------------------
+-- | 'makeDataConSelector d' creates the selector `select$d$i`
+--   which projects the i-th field of a constructed value.
+--   e.g. `select$Cons$1` and `select$Cons$2` are respectively
+--   equivalent to `head` and `tail`.
+--------------------------------------------------------------------------------
+makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
+makeDataConSelector mbDm d i = case mbDm of
+  Nothing -> def
+  Just dm -> M.lookupDefault def (F.symbol d, i) dm
+  where
+    def   =  makeDataConSelector' d i
+
+makeDataConSelector' :: DataCon -> Int -> F.Symbol
+makeDataConSelector' d i
   | consDataCon == d, i == 1
-  = symbol "head"
+  = F.symbol "head"
   | consDataCon == d, i == 2
-  = symbol "tail"
+  = F.symbol "tail"
   | otherwise
-  = symbol $ (\ds -> ("select_"++ ds ++ "_" ++ show i)) $ symbolString $ simpleSymbolVar $ dataConWorkId d
+  = symbolMeasure "$select" (dcSymbol d) (Just i)
+
+dcSymbol :: DataCon -> F.Symbol
+dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
+
+symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
+symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
+  where
+    rest          = maybe [] (singleton . F.symbol . show) iMb
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
 -- WTF does this function do?
-makeSymbols :: (Functor t1, Functor t2, Foldable t, Foldable t1, Foldable t2, Reftable r,
-                Reftable r1, Reftable r2, TyConable c, TyConable c1, TyConable c2, MonadState BareEnv m)
-            => (Id -> Bool)
-            -> [Id]
-            -> [Symbol]
-            -> t2 (a1, Located (RType c2 tv2 r2))
-            -> t1 (a, Located (RType c1 tv1 r1))
-            -> t (Located (RType c tv r))
-            -> m [(Symbol, Var)]
-makeSymbols f vs xs' xts yts ivs
-  = do svs <- gets varEnv
+makeSymbols :: (Id -> Bool) -> [Id] -> [F.Symbol] -> BareM [(F.Symbol, Var)]
+makeSymbols f vs xs
+  = do svs <- M.toList <$> gets varEnv
        return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
-                       ++  [ (symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])
+                   ++  [ (F.symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])
     where
-      xs    = sortNub $ zs ++ zs' ++ zs''
-      zs    = concatMap freeSymbols (snd <$> xts) `sortDiff` xs'
-      zs'   = concatMap freeSymbols (snd <$> yts) `sortDiff` xs'
-      zs''  = concatMap freeSymbols ivs           `sortDiff` xs'
-
       -- arguments should be basic so that autogenerated singleton types are well formed
       hasBasicArgs (ForAllTy _ t) = hasBasicArgs t
       hasBasicArgs (FunTy tx t)   = isBaseTy tx && hasBasicArgs t
       hasBasicArgs _              = True
 
-
-freeSymbols :: (Reftable r, TyConable c) => Located (RType c tv r) -> [Symbol]
-freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) emptySEnv [] (val ty)
+freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
+            => [F.Symbol]
+            -> [(a1, Located (RType c2 tv2 r2))]
+            -> [(a, Located (RType c1 tv1 r1))]
+            -> [(Located (RType c tv r))]
+            -> [LocSymbol]
+freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
   where
-    f γ _ r xs = let Reft (v, _) = toReft r in
-                 [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
+    knownM                  = M.fromList [ (x, ()) | x <- xs' ]
+    zs                      = concatMap freeSyms (snd <$> xts)
+    zs'                     = concatMap freeSyms (snd <$> yts)
+    zs''                    = concatMap freeSyms ivs
+
+
+
+freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
+  where
+    tySyms     = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    f γ _ r xs = let F.Reft (v, _) = F.toReft r in
+                 [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
@@ -115,12 +141,10 @@ runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Erro
 runMapTyVars = execStateT
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
-mapTyVars τ (RAllT _ t)
-  = mapTyVars τ t
-mapTyVars (ForAllTy _ τ) t
-  = mapTyVars τ t
 mapTyVars (FunTy τ τ') (RFun _ t t' _)
    = mapTyVars τ t >> mapTyVars τ' t'
+mapTyVars τ (RAllT _ t)
+  = mapTyVars τ t
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
    = zipWithM_ mapTyVars τs (matchKindArgs' τs ts)
 mapTyVars (TyVarTy α) (RVar a _)
@@ -146,8 +170,14 @@ mapTyVars _ (RHole _)
   = return ()
 mapTyVars k _ | isKind k
   = return ()
+mapTyVars (ForAllTy _ τ) t
+  = mapTyVars τ t
 mapTyVars _ _
   = throwError =<< errmsg <$> get
+
+isKind :: Kind -> Bool
+isKind k = isStarKind k --  typeKind k
+
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST
@@ -173,13 +203,13 @@ matchKindArgs ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
     go ts      []       = ts
     go _       ts       = ts
 
-mkVarExpr :: Id -> Expr
+mkVarExpr :: Id -> F.Expr
 mkVarExpr v
-  | isFunVar v = mkEApp (varFunSymbol v) []
-  | otherwise  = EVar (symbol v)
+  | isFunVar v = F.mkEApp (varFunSymbol v) []
+  | otherwise  = F.eVar v -- EVar (symbol v)
 
-varFunSymbol :: Id -> Located Symbol
-varFunSymbol = dummyLoc . symbol . idDataCon
+varFunSymbol :: Id -> Located F.Symbol
+varFunSymbol = dummyLoc . F.symbol . idDataCon
 
 isFunVar :: Id -> Bool
 isFunVar v   = isDataConId v && not (null αs) && isNothing tf
@@ -195,8 +225,8 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
                        Just v' -> (v',s,t)
                        Nothing -> (v,s,t)
 
-simpleSymbolVar :: Var -> Symbol
-simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
+simpleSymbolVar :: Var -> F.Symbol
+simpleSymbolVar  = dropModuleNames . F.symbol . showPpr . getName
 
 hasBoolResult :: Type -> Bool
 hasBoolResult (ForAllTy _ t) = hasBoolResult t

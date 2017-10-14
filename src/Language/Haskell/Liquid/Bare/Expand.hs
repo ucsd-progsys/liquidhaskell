@@ -2,7 +2,10 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Bare.Expand ( ExpandAliases (..) ) where
+module Language.Haskell.Liquid.Bare.Expand (
+  -- * Alias Expansion
+  ExpandAliases (..)
+  ) where
 
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
@@ -95,7 +98,7 @@ expandExpr = go
     go (EIte p e1 e2)  = EIte        <$> go p   <*> go e1 <*> go e2
     -- go e@(EVar _)      = return e
     go e@(PKVar _ _)   = return e
-    go e@PGrad         = return e
+    go (PGrad k su i e)  = PGrad k su i <$> go e
     go e@(ESym _)      = return e
     go e@(ECon _)      = return e
 
@@ -108,7 +111,7 @@ expandSym' :: Symbol -> BareM Symbol
 expandSym' s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
-  return $ if M.member s' axs then s' else s
+  return $ if M.member s' axs then {- tracepp "EXPANDSYM" -} s' else s
 
 expandEApp :: (Expr, [Expr]) -> BareM Expr
 expandEApp (EVar f, es) = do

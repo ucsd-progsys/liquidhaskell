@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-|
   Purely functional top-down splay sets.
 
@@ -38,6 +39,7 @@ module Data.Set.Splay (
   , (===)
   , showSet
   , printSet
+  , slen
   ) where
 
 import Data.List (foldl')
@@ -54,12 +56,7 @@ import Language.Haskell.Liquid.Prelude
          | Leaf 
 @-}
 
-{-@ measure slen :: (Splay a) -> Int
-    slen(Leaf) = 0
-    slen(Node v l r) = 1 + (slen l) + (slen r)
-  @-}
-
-{-@ slen :: s:Splay s -> {v:Nat | v = (slen s)} @-}
+{-@ measure slen @-}
 slen :: Splay a -> Int
 slen (Leaf)       = 0
 slen (Node v l r) = 1 + (slen l) + (slen r)
@@ -229,7 +226,7 @@ member x t = case split x t of
 
 {-@ minimum :: OSplay a -> MinEqSPair a @-}
 minimum :: Splay a -> (a, Splay a)
-minimum Leaf = error "minimum"
+minimum Leaf = unsafeError "minimum"
 minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 
 {-| Finding the maximum element.
@@ -242,7 +239,7 @@ minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 
 {-@ maximum :: OSplay a -> MaxEqSPair a @-}
 maximum :: Splay a -> (a, Splay a)
-maximum Leaf = error "maximum"
+maximum Leaf = unsafeError "maximum"
 maximum t = let (x,mt) = deleteMax t in (x, Node x mt Leaf)
 
 ----------------------------------------------------------------
@@ -257,7 +254,7 @@ True
 
 {-@ deleteMin :: OSplay a -> MinSPair a @-}
 deleteMin :: Splay a -> (a, Splay a)
-deleteMin Leaf                          = error "deleteMin"
+deleteMin Leaf                          = unsafeError "deleteMin"
 deleteMin (Node x Leaf r)               = (x,r)
 deleteMin (Node x (Node lx Leaf lr) r)  = (lx, Node x lr r)
 deleteMin (Node x (Node lx ll lr) r)    = let (k,mt) = deleteMin ll
@@ -274,7 +271,7 @@ True
 
 {-@ deleteMax :: OSplay a -> MaxSPair a @-}
 deleteMax :: Splay a -> (,) a (Splay a)
-deleteMax Leaf                          = error "deleteMax"
+deleteMax Leaf                          = unsafeError "deleteMax"
 deleteMax (Node x l Leaf)               = (x,l)
 deleteMax (Node x l (Node rx rl Leaf))  = (rx, Node x l rl)
 deleteMax (Node x l (Node rx rl rr))    = let (k,mt) = deleteMax rr
@@ -316,7 +313,7 @@ union a b = unionT a b (slen a + slen b)
 --LIQUID     (ta,_,tb) = split x t
 
 {-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease unionT 4 @-}
+{-@ decrease unionT 4 @-}
 {- LIQUID WITNESS -}
 unionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 unionT Leaf         t _ = t
@@ -342,7 +339,7 @@ intersection a b = intersectionT a b (slen a + slen b)
 --LIQUID     (l', False, r') -> union (intersection l' l) (intersection r' r)
 
 {-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease intersectionT 4 @-}
+{-@ decrease intersectionT 4 @-}
 {- LIQUID WITNESS -}
 intersectionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 intersectionT Leaf _          _ = Leaf
@@ -369,7 +366,7 @@ difference a b = differenceT a b (slen a + slen b)
 --LIQUID     (l',_,r') = split x t1
 
 {-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ Decrease differenceT 4 @-}
+{-@ decrease differenceT 4 @-}
 {- LIQUID WITNESS -}
 differenceT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 differenceT Leaf _          _ = Leaf
@@ -401,7 +398,7 @@ showSet = showSet_go ""
 
 --LIQUID FIXME: renamed from `showSet'`, must fix parser!
 
-{-@ Decrease showSet_go 3 @-}
+{-@ decrease showSet_go 3 @-}
 showSet_go :: Show a => String -> Splay a -> String
 showSet_go _ Leaf = "\n"
 showSet_go pref (Node x l r) = show x ++ "\n"

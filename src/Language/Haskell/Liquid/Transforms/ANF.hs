@@ -25,8 +25,8 @@ import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
-import           TypeRep
-import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
@@ -35,12 +35,12 @@ import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           Language.Fixpoint.Misc             (fst3)
-import           Language.Fixpoint.Types            (intSymbol, anfPrefix)
+import qualified Language.Fixpoint.Misc     as F
+import qualified Language.Fixpoint.Types    as F
 
-import           Language.Haskell.Liquid.UX.Config  (Config, untidyCore, nocaseexpand, noPatternInline)
+import           Language.Haskell.Liquid.UX.Config  as UX -- (Config, untidyCore, expandFlag, patternFlag)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showCBs, showPpr, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
@@ -55,17 +55,19 @@ import           Data.List                        (sortBy, (\\))
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
 --------------------------------------------------------------------------------
-anormalize :: Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
+anormalize :: UX.Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
-anormalize cfg hscEnv modGuts
-  = do whenLoud $ do putStrLn "***************************** GHC CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) (mgi_binds modGuts)
-                     putStrLn "***************************** REC CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) orig_cbs
-                     putStrLn "***************************** RWR CoreBinds ***************************"
-                     putStrLn $ showCBs (untidyCore cfg) rwr_cbs
-       (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
+anormalize cfg hscEnv modGuts = do
+  whenLoud $ do
+    putStrLn "***************************** GHC CoreBinds ***************************"
+    putStrLn $ showCBs untidy (mgi_binds modGuts)
+    putStrLn "***************************** REC CoreBinds ***************************"
+    putStrLn $ showCBs untidy orig_cbs
+    putStrLn "***************************** RWR CoreBinds ***************************"
+    putStrLn $ showCBs untidy rwr_cbs
+  (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where
+      untidy   = UX.untidyCore cfg
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
@@ -74,12 +76,6 @@ anormalize cfg hscEnv modGuts
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       γ0       = emptyAnfEnv cfg
-
-expandFlag :: AnfEnv -> Bool
-expandFlag = not . nocaseexpand . aeCfg
-
-patternFlag :: AnfEnv -> Bool
-patternFlag = not . noPatternInline . aeCfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
@@ -117,10 +113,10 @@ normalizeTyVars (Rec xes)    = Rec xes'
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
   | length as == length as'
-  = mkForAllTys as' $ substTy su bt
+  = mkForAllTys (mkTyArg <$> as') $ substTy su bt
   | otherwise
-  = trace msg $ mkForAllTys as bt
-  where su = mkTopTvSubst $ zip as (mkTyVarTys as')
+  = trace msg $ mkForAllTys (mkTyArg <$> as) bt
+  where su = mkTvSubstPrs $ zip as (mkTyVarTys as')
 
 -- | eta-expand CoreBinds with quantified types
 normalizeForAllTys :: CoreExpr -> CoreExpr
@@ -207,7 +203,7 @@ normalizeLiteral γ e =
 normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------------------
 normalize γ e
-  | patternFlag γ
+  | UX.patternFlag γ
   , Just p <- Rs.lift e
   = normalizePattern γ p
 
@@ -266,6 +262,11 @@ stitch γ e
        put bs'
        return $ mkCoreLets bs e'
 
+_mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
+_mkCoreLets' bs e = mkCoreLets bs1 e1
+  where
+    (e1, bs1)    = tracePpr "MKCORELETS" (e, bs)
+
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
 --------------------------------------------------------------------------------
@@ -282,13 +283,20 @@ normalizePattern γ p@(Rs.PatReturn {}) = do
 normalizePattern _ p@(Rs.PatProject {}) =
   return (Rs.lower p)
 
+normalizePattern γ p@(Rs.PatSelfBind {}) = do
+  normalize γ (Rs.patE p)
+
+normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
+  e'    <- normalize γ (Rs.patE p)
+  return $ Rs.lower p { Rs.patE = e' }
+
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
                   -> Type
                   -> [(AltCon, [Id], CoreExpr)]
                   -> DsM [(AltCon, [Id], CoreExpr)]
 --------------------------------------------------------------------------------
-expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandFlag γ
+expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | UX.expandFlag γ
   = expandDefaultCase' γ tyapp zs
 
 expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
@@ -319,7 +327,7 @@ cloneCase γ argτs e d
        return (DataAlt d, xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
-sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
+sortCases = sortBy (\x y -> cmpAltCon (F.fst3 x) (F.fst3 y))
 
 
 --------------------------------------------------------------------------------
@@ -337,15 +345,18 @@ freshNormalVar γ t = do
   return (mkUserLocal (anfOcc i) u t sp)
 
 anfOcc :: Int -> OccName
-anfOcc = mkVarOccFS . symbolFastString . intSymbol anfPrefix
+anfOcc = mkVarOccFS . symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
   , aeSrcSpan :: Sp.SpanStack
-  , aeCfg     :: Config
+  , aeCfg     :: UX.Config
   }
 
-emptyAnfEnv :: Config -> AnfEnv
+instance UX.HasConfig AnfEnv where
+  getConfig = aeCfg
+
+emptyAnfEnv :: UX.Config -> AnfEnv
 emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id

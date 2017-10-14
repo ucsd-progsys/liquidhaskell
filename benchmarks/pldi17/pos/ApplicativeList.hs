@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {- LIQUID "--higherorderqs" -} -- this seems to kill it?
 
@@ -193,8 +192,7 @@ interchange (C x xs) y
 
 
 data L a = N | C a (L a)
-{-@ data L [llen]
-    = N | C {x :: a, xs :: L a } @-}
+{-@ data L [llen] @-} 
 
 {-@ measure llen @-}
 llen :: L a -> Int

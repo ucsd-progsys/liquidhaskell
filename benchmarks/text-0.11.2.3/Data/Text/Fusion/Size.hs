@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-totality" @-}
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
 -- |
@@ -197,4 +198,4 @@ isEmpty _         = False
 
 {-@ overflowError :: Nat @-}
 overflowError :: Int
-overflowError = error "Data.Text.Fusion.Size: size overflow"
+overflowError = unsafeError "Data.Text.Fusion.Size: size overflow"

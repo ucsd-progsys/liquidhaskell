@@ -2,14 +2,21 @@ module Map (singleton, insert, delete) where
 
 import Language.Haskell.Liquid.Prelude
 
+import Prelude hiding (error)
+
+{-@ lazy error @-}
+{-@ error :: a -> b @-}
+error :: a -> b
+error x = error x
+
 {-@
   data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
       = Tip
-      | Bin (sz    :: Size)
-            (key   :: k)
-            (value :: a)
-            (left  :: Map <l, r> (k <l key>) a)
-            (right :: Map <l, r> (k <r key>) a)
+      | Bin { mSz    :: Size
+            , mKey   :: k
+            , mValue :: a
+            , mLeft  :: Map <l, r> (k <l mKey>) a
+            , mRight :: Map <l, r> (k <r mKey>) a }
   @-}
 
 {-@ measure mlen :: (Map k a) -> Int
@@ -17,7 +24,7 @@ import Language.Haskell.Liquid.Prelude
     mlen(Bin s k v l r) = 1 + (if ((mlen l) < (mlen r)) then (mlen r) else (mlen l))
   @-}
 
-{-@ invariant {v:Map k a | (mlen v) >= 0}@-}
+{-@ invariant { v:Map k a | mlen v >= 0 } @-}
 
 {-@ type OMap k a = Map <{\root v -> v < root }, {\root v -> v > root}> k a @-}
 

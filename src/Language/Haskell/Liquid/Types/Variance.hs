@@ -9,6 +9,8 @@ import Data.Typeable
 import Data.Data
 import GHC.Generics
 import Data.Binary
+import Text.PrettyPrint.HughesPJ
+import qualified Language.Fixpoint.Types as F
 
 type VarianceInfo = [Variance]
 
@@ -17,3 +19,5 @@ data Variance = Invariant | Bivariant | Contravariant | Covariant
 
 instance Binary Variance
 instance NFData Variance
+instance F.PPrint Variance where
+  pprintTidy _ = text . show
