@@ -26,7 +26,7 @@ module LawsForLists where
 
 import Language.Haskell.Liquid.ProofCombinators 
 
-import Prelude hiding (length, head, tail, map, (++))
+import Prelude hiding (length, head, tail, map, (++), (^))
 \end{code}
 
 
@@ -47,9 +47,10 @@ Next, we define and reflect function composition and
 the standard list map and append functions. 
 
 \begin{code}
-{-@ infix   o @-}
-{-@ reflect o @-}
-o f g x = f (g x)
+{-@ infix   ^ @-}
+{-@ reflect ^ @-}
+(^) :: (b -> c) -> (a -> b) -> a -> c 
+(^) f g x = f (g x)
 \end{code}
 
 \begin{code}
@@ -64,7 +65,7 @@ map f (C x xs) = f x `C` map f xs
 {-@ infix   ++ @-}
 {-@ reflect ++ @-}
 (++) :: L a-> L a -> L a 
-N        ++ ys = N 
+N        ++ ys = ys 
 (C x xs) ++ ys = C x (xs ++ ys) 
 \end{code}
 
@@ -80,6 +81,7 @@ appendNilId (C _ xs) = appendNilId xs
 \end{code}
 
 - Append Associative 
+
 \begin{code}
 appendAssoc :: L a -> L a -> L a -> Proof
 {-@ appendAssoc :: xs:_ -> ys:_ -> zs:_ -> { xs ++ (ys ++ zs) = (xs ++ ys) ++ zs } @-}
@@ -88,9 +90,12 @@ appendAssoc (C _ xs) ys zs = appendAssoc xs ys zs
 \end{code}
 
 - Map Fusion 
+
 \begin{code}
-{-@ mapFusion :: f:_ -> g:_ -> xs:_ -> { map (f o g) xs = map (f o g) xs } @-}
-mapFusion f g N = ()
+mapFusion :: (b -> c) -> (a -> b) -> L a -> Proof 
+{-@ mapFusion :: f:_ -> g:_ -> xs:_ 
+              -> { map f (map g xs) = map (f ^ g) xs } @-}
+mapFusion f g N        = ()
 mapFusion f g (C _ xs) = mapFusion f g xs 
 \end{code}
 
