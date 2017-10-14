@@ -16,7 +16,7 @@ import           Prelude                          hiding (error)
 import           CoreSyn                          hiding (mkTyArg)
 import           CoreUtils                        (exprType)
 import qualified DsMonad
-import           DsMonad                          (initDs)
+import           DsMonad                          (initDsWithModGuts)
 import           GHC                              hiding (exprType)
 import           HscTypes
 import           OccName                          (OccName, mkVarOccFS)
@@ -55,9 +55,10 @@ import           Data.List                        (sortBy, (\\))
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
 --------------------------------------------------------------------------------
-anormalize :: UX.Config -> HscEnv -> MGIModGuts -> IO [CoreBind]
+anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
+{-
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
     putStrLn $ showCBs untidy (mgi_binds modGuts)
@@ -65,17 +66,20 @@ anormalize cfg hscEnv modGuts = do
     putStrLn $ showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ showCBs untidy rwr_cbs
-  (fromMaybe err . snd) <$> initDs undefined undefined undefined --- hscEnv m grEnv tEnv emptyFamInstEnv act
+-}
+  (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
+      err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
+      act      = concatMapM (normalizeTopBind γ0) rwr_cbs
+      γ0       = emptyAnfEnv cfg
+      rwr_cbs  = rewriteBinds cfg orig_cbs
+      orig_cbs = transformRecExpr $ mg_binds modGuts
+
+{-
       untidy   = UX.untidyCore cfg
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
-      act      = concatMapM (normalizeTopBind γ0) rwr_cbs
-      rwr_cbs  = rewriteBinds cfg orig_cbs
-      orig_cbs = transformRecExpr $ mgi_binds modGuts
-      err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
-      γ0       = emptyAnfEnv cfg
 
 modGutsTypeEnv :: MGIModGuts -> TypeEnv
 modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
@@ -83,6 +87,7 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
     ids            = bindersOfBinds (mgi_binds mg)
     tcs            = mgi_tcs mg
     fis            = mgi_fam_insts mg
+-}
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------
