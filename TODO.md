@@ -1,3 +1,53 @@
+# 41 Failures
+
+- BST.hs - Tests.Unit.pos
+- ClassKind.hs - Tests.Unit.pos
+- DepTriples.hs - Tests.Unit.pos
+- Keys.hs - Tests.Unit.pos
+- LF326.hs - Tests.Unit.pos
+- Map.hs - Tests.Unit.pos
+- Map0.hs - Tests.Unit.pos
+- Map2.hs - Tests.Unit.pos
+- TypeAlias.hs - Tests.Unit.pos
+- TypeFamilies.hs - Tests.Unit.pos
+
+- contra0.hs - Tests.Unit.neg
+- errmsg.hs - Tests.Unit.neg
+- MaybeMonad.hs - Tests.Unit.neg
+- RG.hs - Tests.Unit.neg
+- T743.hs - Tests.Unit.neg
+
+- Unification.hs - Tests.Benchmarks.pldi17_pos
+- Base.hs - Tests.Benchmarks.esop
+- Data/ByteString.T.hs - Tests.Benchmarks.bytestring
+- Data/ByteString.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Fusion.T.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Fusion.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
+- Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+- Data/Text.hs - Tests.Benchmarks.text
+- Data/Text/Array.hs - Tests.Benchmarks.text
+- Data/Text/Foreign.hs - Tests.Benchmarks.text
+- Data/Text/Fusion.hs - Tests.Benchmarks.text
+- Data/Text/Lazy/Builder.hs - Tests.Benchmarks.text
+- Data/Text/Lazy/Fusion.hs - Tests.Benchmarks.text
+- Data/Text/Unsafe.hs - Tests.Benchmarks.text
+- Data/Text/UnsafeChar.hs - Tests.Benchmarks.text
+- Data/Vector/Algorithms/AmericanFlag.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Common.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Heap.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Insertion.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Intro.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Merge.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Optimal.hs - Tests.Benchmarks.vect-algs
+- Data/Vector/Algorithms/Search.hs - Tests.Benchmarks.vect-algs
+
+
+
+
+
 {-@ reflect baz @-}
 bar :: Int -> Int
 bar n = n
@@ -176,7 +226,7 @@ Benchmarks
 -   vector
 -   repa
 -   repa-algorithms
-- 	xmonad (stackset)
+-   xmonad (stackset)
 -   snap/security
 -   hmatrix
       > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -465,12 +515,12 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 a. Following `RProp` we should have
 
-	* RHProp := x1:t1,...,xn:tn -> World
+  * RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
-	* WPreds : (h v1 ... vn), h2, ...
-	* Wbinds : x1 := T1, x2 := T2, ...
+  * WPreds : (h v1 ... vn), h2, ...
+  * Wbinds : x1 := T1, x2 := T2, ...
 
 c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
@@ -482,25 +532,25 @@ c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. ca
 
 Per Niki:
 
-	RProp := x1:t1,...,xn:tn -> RType
+  RProp := x1:t1,...,xn:tn -> RType
 
 with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
 
 For example, we represent
 
-	[a]<p>
+  [a]<p>
 
 as
 
-	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+  RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
 
 which is the `RTycon` for lists `[]` applied to:
 
 + Tyvar `a`
 
 + RPoly with:
-	* _params_ `h:a`
-	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+  * _params_ `h:a`
+  * _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
 
 + Outer refinement `true`
 
