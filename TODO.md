@@ -2,7 +2,6 @@
 
 - ClassKind.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos
-- [OK?] TypeAlias.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
 
