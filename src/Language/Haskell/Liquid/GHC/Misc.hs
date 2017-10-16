@@ -406,7 +406,14 @@ isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
 
 realTcArity :: TyCon -> Arity
-realTcArity = tyConArity
+realTcArity = kindArity' . tyConKind
+
+kindArity' :: Kind -> Arity
+kindArity' (FunTy _ res)
+  = 1 + kindArity' res
+kindArity' _
+  = 0
+
 
 kindArity :: Kind -> Arity
 kindArity (ForAllTy _ res)

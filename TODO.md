@@ -2,7 +2,7 @@
 
 - ClassKind.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos
-- TypeAlias.hs - Tests.Unit.pos
+- [HERE] TypeAlias.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
 - contra0.hs - Tests.Unit.neg
