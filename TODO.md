@@ -4,10 +4,6 @@
 - LF326.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
-
-- restore Werror 
-- restore error location
-
 # FOR RJ.
 - remove old simplifyPatTuple? I think ghc does it now by defauls
 - [--no-pattern-inline] contra0.hs - Tests.Unit.neg
