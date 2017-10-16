@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}

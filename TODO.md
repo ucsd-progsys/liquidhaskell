@@ -1,38 +1,13 @@
-# 35 Failures
+# 4 Failures
 
 - ClassKind.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos
-- [HERE] TypeAlias.hs - Tests.Unit.pos
+- [OK?] TypeAlias.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
 
-
-- Data/ByteString.T.hs - Tests.Benchmarks.bytestring
-- Data/ByteString.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Fusion.T.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Fusion.hs - Tests.Benchmarks.bytestring
-
-- Data/Text.hs - Tests.Benchmarks.text
-- Data/Text/Array.hs - Tests.Benchmarks.text
-- Data/Text/Foreign.hs - Tests.Benchmarks.text
-- Data/Text/Fusion.hs - Tests.Benchmarks.text
-- Data/Text/Lazy/Builder.hs - Tests.Benchmarks.text
-- Data/Text/Lazy/Fusion.hs - Tests.Benchmarks.text
-- Data/Text/Unsafe.hs - Tests.Benchmarks.text
-- Data/Text/UnsafeChar.hs - Tests.Benchmarks.text
-- Data/Vector/Algorithms/AmericanFlag.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Common.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Heap.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Insertion.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Intro.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Merge.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Optimal.hs - Tests.Benchmarks.vect-algs
-- Data/Vector/Algorithms/Search.hs - Tests.Benchmarks.vect-algs
-
-
 - restore Werror 
-
+- restore error location
 
 # FOR RJ.
 - remove old simplifyPatTuple? I think ghc does it now by defauls
@@ -43,8 +18,18 @@
 - [--no-pattern-inline] Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
 - [--no-pattern-inline] Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
 - [--no-pattern-inline] Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.T.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.hs - Tests.Benchmarks.bytestring
 
-
+- [--no-pattern-inline] Data/Vector/Algorithms/AmericanFlag.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Common.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Heap.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Insertion.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Intro.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Merge.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Optimal.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Search.hs
 
 {-@ reflect baz @-}
 bar :: Int -> Int
