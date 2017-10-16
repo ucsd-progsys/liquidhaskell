@@ -263,8 +263,8 @@ test-suite test
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   ghc-options:       -W -threaded
-  if flag(devel)
-    ghc-options: -Werror
+--  if flag(devel)
+--    ghc-options: -Werror
   main-is:           test.hs
   build-depends:     base >=4.8.1.0 && <5
                ,     containers >= 0.5
