@@ -29,7 +29,6 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
-import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
@@ -40,7 +39,7 @@ import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX -- (Config, untidyCore, expandFlag, patternFlag)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, MGIModGuts(..), showCBs, showPpr, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, showCBs, showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
@@ -58,15 +57,13 @@ import           Data.List                        (sortBy, (\\))
 anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
-{-
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
-    putStrLn $ showCBs untidy (mgi_binds modGuts)
+    putStrLn $ showCBs untidy (mg_binds modGuts)
     putStrLn "***************************** REC CoreBinds ***************************"
     putStrLn $ showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ showCBs untidy rwr_cbs
--}
   (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
@@ -74,9 +71,9 @@ anormalize cfg hscEnv modGuts = do
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
       orig_cbs = transformRecExpr $ mg_binds modGuts
+      untidy   = UX.untidyCore cfg
 
 {-
-      untidy   = UX.untidyCore cfg
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts

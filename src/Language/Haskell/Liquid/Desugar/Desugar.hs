@@ -76,8 +76,7 @@ deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 
 deSugar hsc_env
         mod_loc
-        tcg_env@(TcGblEnv { tcg_mod          = id_mod,
-                            tcg_semantic_mod = mod,
+        tcg_env@(TcGblEnv { tcg_semantic_mod = mod,
                             tcg_src          = hsc_src,
                             tcg_type_env     = type_env,
                             tcg_imports      = imports,

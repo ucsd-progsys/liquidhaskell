@@ -91,7 +91,6 @@ import Var
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Language.Haskell.Liquid.GHC.TypeRep          hiding (maybeParen, pprArrowChain)
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)

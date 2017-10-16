@@ -17,7 +17,6 @@ import Name
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
-import TyCoRep
 
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)

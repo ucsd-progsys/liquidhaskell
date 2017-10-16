@@ -1,4 +1,4 @@
-# 4 Failures
+# 3 Failures moved in tests/DependendHaskell/todo
 
 - ClassKind.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos

@@ -320,7 +320,7 @@ dfListComp :: Id -> Id         -- 'c' and 'n'
 
 dfListComp _ _ [] = panic "dfListComp"
 
-dfListComp c_id n_id (LastStmt body _ _ : quals)
+dfListComp c_id n_id (LastStmt body _ _ : _)
   = do { core_body <- dsLExprNoLP body
        ; return (mkApps (Var c_id) [core_body, Var n_id]) }
 

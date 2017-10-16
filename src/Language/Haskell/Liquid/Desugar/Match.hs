@@ -550,10 +550,10 @@ push_bang_into_newtype_arg :: SrcSpan
                            -> HsConPatDetails Id -> HsConPatDetails Id
 -- See Note [Bang patterns and newtypes]
 -- We are transforming   !(N p)   into   (N !p)
-push_bang_into_newtype_arg l _ty (PrefixCon (arg:args))
+push_bang_into_newtype_arg l _ty (PrefixCon (arg:_))
   = PrefixCon [L l (BangPat arg)]
 push_bang_into_newtype_arg l _ty (RecCon rf)
-  | HsRecFields { rec_flds = L lf fld : flds } <- rf
+  | HsRecFields { rec_flds = L lf fld : _ } <- rf
   , HsRecField { hsRecFieldArg = arg } <- fld
   = RecCon (rf { rec_flds = [L lf (fld { hsRecFieldArg = L l (BangPat arg) })] })
 push_bang_into_newtype_arg l ty (RecCon rf) -- If a user writes !(T {})

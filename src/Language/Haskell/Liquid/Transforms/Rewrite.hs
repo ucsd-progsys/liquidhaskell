@@ -28,8 +28,6 @@ import           CoreSyn
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           TyCon
-import qualified CoreSubst
-import qualified Outputable
 import qualified CoreUtils
 import qualified Var
 import qualified MkCore
@@ -110,7 +108,7 @@ normalizeTuples b
   where 
     go (Let (NonRec x ex) e)
       | Case _ _ _ alts  <- unTickExpr ex 
-      , [(c, vs, Var z)] <- alts 
+      , [(_, vs, Var z)] <- alts 
       , z `elem` vs
       = Let (NonRec z (go ex)) (substTuple [z] [x] (go e)) 
     go (Let (NonRec x ex) e)
