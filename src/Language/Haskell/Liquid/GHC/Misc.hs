@@ -406,13 +406,21 @@ isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
 
 realTcArity :: TyCon -> Arity
-realTcArity = kindArity' . tyConKind
+realTcArity = tyConArity
 
-kindArity' :: Kind -> Arity
-kindArity' (FunTy _ res)
-  = 1 + kindArity' res
-kindArity' _
-  = 0
+{- 
+  tracePpr ("realTcArity of " ++ showPpr c
+     ++ "\n tyConKind = " ++ showPpr (tyConKind c)
+     ++ "\n kindArity = " ++ show (kindArity (tyConKind c))
+     ++ "\n kindArity' = " ++ show (kindArity' (tyConKind c)) -- this works for TypeAlias
+     ) $ kindArity' (tyConKind c)
+-}
+
+kindTCArity :: TyCon -> Arity
+kindTCArity = go . tyConKind
+  where 
+    go (FunTy _ res) = 1 + go res
+    go _             = 0
 
 
 kindArity :: Kind -> Arity

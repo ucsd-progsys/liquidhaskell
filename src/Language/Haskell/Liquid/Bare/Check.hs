@@ -4,7 +4,6 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
-
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
   , checkTerminationExpr
@@ -317,7 +316,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   | otherwise
     = Nothing
   where
-    expectedArity = realTcArity tc
+    expectedArity = tyConArity tc
 
 {-
 checkFunRefs t = go t

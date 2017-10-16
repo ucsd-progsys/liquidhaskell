@@ -7,16 +7,12 @@
 
 
 
-- Unification.hs - Tests.Benchmarks.pldi17_pos
-- Base.hs - Tests.Benchmarks.esop
 - Data/ByteString.T.hs - Tests.Benchmarks.bytestring
 - Data/ByteString.hs - Tests.Benchmarks.bytestring
 - Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
 - Data/ByteString/Fusion.T.hs - Tests.Benchmarks.bytestring
 - Data/ByteString/Fusion.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
-- Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+
 - Data/Text.hs - Tests.Benchmarks.text
 - Data/Text/Array.hs - Tests.Benchmarks.text
 - Data/Text/Foreign.hs - Tests.Benchmarks.text
@@ -44,6 +40,9 @@
 - [--no-pattern-inline] MaybeMonad.hs - Tests.Unit.neg
 - [--no-pattern-inline] RG.hs - Tests.Unit.neg
 - [--no-pattern-inline] T743.hs - Tests.Unit.neg
+- [--no-pattern-inline] Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
 
 
 
