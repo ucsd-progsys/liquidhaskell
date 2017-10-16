@@ -5,11 +5,7 @@
 - [HERE] TypeAlias.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
-- contra0.hs - Tests.Unit.neg
-- errmsg.hs - Tests.Unit.neg
-- MaybeMonad.hs - Tests.Unit.neg
-- RG.hs - Tests.Unit.neg
-- T743.hs - Tests.Unit.neg
+
 
 - Unification.hs - Tests.Benchmarks.pldi17_pos
 - Base.hs - Tests.Benchmarks.esop
@@ -40,7 +36,15 @@
 
 
 - restore Werror 
-- remove old simplifyPatTuple?
+
+
+# FOR RJ.
+- remove old simplifyPatTuple? I think ghc does it now by defauls
+- [--no-pattern-inline] contra0.hs - Tests.Unit.neg
+- [--no-pattern-inline] MaybeMonad.hs - Tests.Unit.neg
+- [--no-pattern-inline] RG.hs - Tests.Unit.neg
+- [--no-pattern-inline] T743.hs - Tests.Unit.neg
+
 
 
 {-@ reflect baz @-}
