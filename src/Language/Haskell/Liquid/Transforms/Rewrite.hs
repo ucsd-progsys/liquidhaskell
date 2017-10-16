@@ -39,24 +39,28 @@ import Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import qualified          Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
+import           Language.Haskell.Liquid.GHC.Play (substExpr)
 import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
+import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 -- import           Debug.Trace
 import qualified Data.List as L
+import qualified Data.HashMap.Strict as M
 
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg = fmap (rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
-  | otherwise        = id
+  | simplifyCore cfg 
+  = fmap (normalizeTuples . rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
+  | otherwise        
+  = id
 
 simplifyCore :: Config -> Bool
 simplifyCore = not . noSimplifyCore
 
-tidyTuples :: CoreExpr -> Maybe CoreExpr
+tidyTuples :: RewriteRule
 tidyTuples e = Just $ evalState (go e) []
   where
     go (Tick t e)
@@ -92,8 +96,45 @@ tidyTuples e = Just $ evalState (go e) []
             Just bs' -> return (c, bs', substTuple bs' bs e)
             Nothing  -> do let bs' = mkAlive <$> bs
                            modify (((c,v),bs'):)
-                           return $ (c,bs', e)
+                           return $ (c, bs', e)
 
+
+
+normalizeTuples :: CoreBind -> CoreBind
+normalizeTuples b 
+  | NonRec x e <- b 
+  = NonRec x $ go e 
+  | Rec xes <- b 
+  = let (xs,es) = unzip xes in 
+    Rec $ zip xs (go <$> es) 
+  where 
+    go (Let (NonRec x ex) e)
+      | Case _ _ _ alts  <- unTickExpr ex 
+      , [(c, vs, Var z)] <- alts 
+      , z `elem` vs
+      = Let (NonRec z (go ex)) (substTuple [z] [x] (go e)) 
+    go (Let (NonRec x ex) e)
+      = Let (NonRec x (go ex)) (go e)
+    go (Let (Rec xes) e)
+      = Let (Rec (mapSnd go <$> xes)) (go e)
+    go (App e1 e2)
+      = App (go e1) (go e2)
+    go (Lam x e)
+      = Lam x (go e)
+    go (Case e b t alt)
+      = Case (go e) b t (mapThd3 go <$> alt)
+    go (Cast e c)
+      = Cast (go e) c 
+    go (Tick t e)
+      = Tick t (go e)
+    go (Type t)
+      = Type t 
+    go (Coercion c)
+      = Coercion c
+    go (Lit l)
+      = Lit l 
+    go (Var x)
+      = Var x 
 
 
 --------------------------------------------------------------------------------
@@ -316,7 +357,6 @@ replaceTuple ys e e'           = stepE e
     go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
 
-
 _showExpr :: CoreExpr -> String
 _showExpr e = show' e
   where
@@ -385,12 +425,7 @@ isIrrefutErrorVar x = MkCore.iRREFUT_PAT_ERROR_ID == x
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
 --------------------------------------------------------------------------------
 substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
-substTuple xs ys = CoreSubst.substExpr Outputable.empty (mkSubst ys xs)
-
-mkSubst :: [Var] -> [Var] -> CoreSubst.Subst
-mkSubst ys xs = CoreSubst.extendIdSubstList CoreSubst.emptySubst yxs
-  where
-    yxs       = safeZipWithError "RW:mkSubst" ys (Var <$> xs)
+substTuple xs ys = substExpr (M.fromList $ zip ys xs)
 
 --------------------------------------------------------------------------------
 -- | `isVarTup xs e` returns `Just ys` if e == (y1, ... , yn) and xi ~ yi

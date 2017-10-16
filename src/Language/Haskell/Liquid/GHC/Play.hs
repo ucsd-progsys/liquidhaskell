@@ -96,6 +96,21 @@ substTysWith _ (LitTy t)       = LitTy t
 substTysWith s (CastTy t c)    = CastTy (substTysWith s t) c
 substTysWith _ (CoercionTy c)  = CoercionTy c 
 
+substExpr :: M.HashMap Var Var -> CoreExpr -> CoreExpr
+substExpr s = go 
+  where
+    subsVar v                = M.lookupDefault v v s
+    go (Var v)               = Var $ subsVar v
+    go (Lit l)               = Lit l 
+    go (App e1 e2)           = App (go e1) (go e2) 
+    go (Lam x e)             = Lam (subsVar x) (go e)
+    go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e) 
+    go (Let (Rec xes) e)     = Let (Rec [(subsVar x, go e) | (x,e) <- xes]) (go e)
+    go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e) | (c, xs, e) <- alts]
+    go (Cast e c)            = Cast (go e) c 
+    go (Tick t e)            = Tick t (go e)
+    go (Type t)              = Type t 
+    go (Coercion c)          = Coercion c 
 
 mapType :: (Type -> Type) -> Type -> Type
 mapType f = go

@@ -1,13 +1,7 @@
-# 41 Failures
+# 35 Failures
 
-- BST.hs - Tests.Unit.pos
 - ClassKind.hs - Tests.Unit.pos
-- DepTriples.hs - Tests.Unit.pos
-- Keys.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos
-- Map.hs - Tests.Unit.pos
-- Map0.hs - Tests.Unit.pos
-- Map2.hs - Tests.Unit.pos
 - TypeAlias.hs - Tests.Unit.pos
 - TypeFamilies.hs - Tests.Unit.pos
 
@@ -45,7 +39,8 @@
 - Data/Vector/Algorithms/Search.hs - Tests.Benchmarks.vect-algs
 
 
-
+- restore Werror 
+- remove old simplifyPatTuple?
 
 
 {-@ reflect baz @-}
