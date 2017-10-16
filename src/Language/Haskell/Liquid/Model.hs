@@ -46,7 +46,7 @@ import           Bag
 import           GHC hiding (obtainTermFromVal)
 import qualified Outputable as GHC
 import           DynFlags
-import           HscMain hiding (hscParsedStmt)
+import           HscMain hiding (hscParsedStmt, ioMsgMaybe)
 import           InstEnv
 import           Type
 import           TysWiredIn
@@ -318,6 +318,8 @@ monomorphize :: [PredType] -> Type -> Ghc (Maybe Su)
 monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
                              (Just [])
                              (varSetElems $ tyCoVarsOfType t)
+  where
+    varSetElems _ = []
 
 monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
 monomorphizeOne _preds _tv Nothing = return Nothing
@@ -349,6 +351,9 @@ monomorphizeOne preds tv (Just su)
        $ preds
 
   thd4 (_,_,c,_) = c
+
+  -- UniqSet tries to be deterministic
+  uniqSetToList = nonDetFoldUniqSet (:) []
 
 monomorphizeFree :: TyVar -> Su -> Maybe Su
 monomorphizeFree tv su

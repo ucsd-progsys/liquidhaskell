@@ -211,7 +211,7 @@ reachableModules depGraph mod =
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
-  graphFromEdgedVertices <$> mapM mkDepGraphNode homeModules
+  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode homeModules
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
 mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
@@ -359,8 +359,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modName        = ModName Target $ moduleName mod
   desugared         <- desugarModule typechecked
   let modGuts        = makeMGIModGuts desugared
+  let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
-  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
+  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs          = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)

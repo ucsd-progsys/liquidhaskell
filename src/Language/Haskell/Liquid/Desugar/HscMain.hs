@@ -31,11 +31,11 @@ module Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) where
 import Language.Haskell.Liquid.Desugar.Desugar (deSugar)
 import Prelude hiding (error)
 import Module
-import Lexer
 import TcRnMonad
 
 import ErrUtils
 
+import DynFlags
 import HscTypes
 import Bag
 import Exception

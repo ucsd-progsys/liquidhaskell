@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-pattern-inline" @-}
+
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
 {-@ LIQUID "--eliminate=none" @-}

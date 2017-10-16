@@ -17,7 +17,6 @@ import Name
 import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
-import TyCoRep
 
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
@@ -282,7 +281,7 @@ bareTCApp :: (Monad m, PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable
           -> [RType RTyCon RTyVar r]
           -> m (RType RTyCon RTyVar r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- synTyConRhs_maybe c
-  = do when (realTcArity c < length ts) (Ex.throw err)
+  = do when (kindTCArity c < length ts) (Ex.throw err)
        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
     where
        tvs = [ v | (v, b) <- zip (tyConTyVarsDef c) (tyConBinders c), isAnonBinder b]

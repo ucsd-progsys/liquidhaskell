@@ -1,3 +1,31 @@
+# 3 Failures moved in tests/DependendHaskell/todo
+
+- ClassKind.hs - Tests.Unit.pos
+- LF326.hs - Tests.Unit.pos
+- TypeFamilies.hs - Tests.Unit.pos
+
+# FOR RJ.
+- remove old simplifyPatTuple? I think ghc does it now by defauls
+- [--no-pattern-inline] contra0.hs - Tests.Unit.neg
+- [--no-pattern-inline] MaybeMonad.hs - Tests.Unit.neg
+- [--no-pattern-inline] RG.hs - Tests.Unit.neg
+- [--no-pattern-inline] T743.hs - Tests.Unit.neg
+- [--no-pattern-inline] Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.T.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.hs - Tests.Benchmarks.bytestring
+
+- [--no-pattern-inline] Data/Vector/Algorithms/AmericanFlag.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Common.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Heap.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Insertion.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Intro.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Merge.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Optimal.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Search.hs
+
 {-@ reflect baz @-}
 bar :: Int -> Int
 bar n = n
@@ -176,7 +204,7 @@ Benchmarks
 -   vector
 -   repa
 -   repa-algorithms
-- 	xmonad (stackset)
+-   xmonad (stackset)
 -   snap/security
 -   hmatrix
       > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -465,12 +493,12 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 a. Following `RProp` we should have
 
-	* RHProp := x1:t1,...,xn:tn -> World
+  * RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
-	* WPreds : (h v1 ... vn), h2, ...
-	* Wbinds : x1 := T1, x2 := T2, ...
+  * WPreds : (h v1 ... vn), h2, ...
+  * Wbinds : x1 := T1, x2 := T2, ...
 
 c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
@@ -482,25 +510,25 @@ c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. ca
 
 Per Niki:
 
-	RProp := x1:t1,...,xn:tn -> RType
+  RProp := x1:t1,...,xn:tn -> RType
 
 with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
 
 For example, we represent
 
-	[a]<p>
+  [a]<p>
 
 as
 
-	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+  RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
 
 which is the `RTycon` for lists `[]` applied to:
 
 + Tyvar `a`
 
 + RPoly with:
-	* _params_ `h:a`
-	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+  * _params_ `h:a`
+  * _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
 
 + Outer refinement `true`
 

@@ -8,6 +8,18 @@ define Data.Set.Base.member x xs      = (Set_mem x xs)
 define Data.Set.Base.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Base.elems xs         = (listElts xs)
 
+
+define Data.Set.Internal.singleton x      = (Set_sng x)
+define Data.Set.Internal.union x y        = (Set_cup x y)
+define Data.Set.Internal.intersection x y = (Set_cap x y)
+define Data.Set.Internal.difference x y   = (Set_dif x y)
+define Data.Set.Internal.empty            = (Set_empty 0)
+define Data.Set.Internal.null x           = (Set_emp x)
+define Data.Set.Internal.member x xs      = (Set_mem x xs)
+define Data.Set.Internal.isSubsetOf x y   = (Set_sub x y)
+define Data.Set.Internal.elems xs         = (listElts xs)
+
+
 define GHC.Types.True                 = (true) 
 
 define Data.Map.Base.insert k v m     = (Map_store m k v)
