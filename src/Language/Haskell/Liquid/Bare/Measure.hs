@@ -268,8 +268,9 @@ bkDataCon dc    = (as, RT.ofType <$> ts, xt)
     as          = makeRTVar . RT.rTyVar <$> αs
     xt          = (dummySymbol, RT.ofType t, mempty)
     -- (αs,_,_,_,ts,t)  = dataConFullSig dc
-    (αs,_,ts,t) = dataConSig dc
-
+    -- (αs,_,ts,t) = dataConSig dc
+    (αs,_,ts,t) = _fixme -- GET the f-ing poly type, the above give the USER type, `Foo Int`, not (a~Int) => Foo a
+    
 data DataConSel = Check | Proj Int
 
 bareBool :: SpecType
