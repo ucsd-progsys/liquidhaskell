@@ -53,6 +53,11 @@ safeFromJust :: String -> Maybe t -> t
 safeFromJust _  (Just x) = x
 safeFromJust err _       = errorstar err
 
+getNth :: Int -> [a] -> Maybe a
+getNth 0 (x:_)  = Just x
+getNth n (_:xs) = getNth (n-1) xs
+getNth _ _      = Nothing
+
 fst4 :: (t, t1, t2, t3) -> t
 fst4 (a,_,_,_) = a
 

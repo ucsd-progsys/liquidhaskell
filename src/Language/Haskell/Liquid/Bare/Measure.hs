@@ -254,27 +254,21 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy _ i
 dataConSel :: DataCon -> DataConSel -> SpecType
 dataConSel dc Check    = mkArrow as [] [] [xt] bareBool
   where
-    (as, _, xt)        = bkDataCon dc
+    (as, _, xt)        = traceShow ("bkDataCon: " ++ show dc) $ bkDataCon dc
 
 dataConSel dc (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
-    ti                 = getNth "dataConSel" (i-1) ts
+    ti                 = fromMaybe err $ getNth (i-1) ts
     (as, ts, xt)       = bkDataCon dc
+    err                = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 bkDataCon :: (Monoid r) => DataCon -> ([RTVar RTyVar a], [RRType r], (Symbol, RRType r, r))
-bkDataCon dc         = (as, RT.ofType <$> ts, xt)
+bkDataCon dc    = (as, RT.ofType <$> ts, xt)
   where
-    as               = makeRTVar . RT.rTyVar <$> αs
-    xt               = (dummySymbol, RT.ofType t, mempty)
-    (αs,_,_,_,ts,t)  = dataConFullSig dc
-
-getNth :: String -> Int -> [a] -> a
-getNth msg = go
-  where
-    go 0 (x:_)  = x
-    go n (_:xs) = go (n-1) xs
-    go _ _      = panic Nothing msg
-
+    as          = makeRTVar . RT.rTyVar <$> αs
+    xt          = (dummySymbol, RT.ofType t, mempty)
+    -- (αs,_,_,_,ts,t)  = dataConFullSig dc
+    (αs,_,ts,t) = dataConSig dc
 
 data DataConSel = Check | Proj Int
 
