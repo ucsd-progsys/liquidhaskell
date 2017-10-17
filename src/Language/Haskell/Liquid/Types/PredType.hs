@@ -84,8 +84,6 @@ dataConWorkRep c = toRTypeRep
                  . dataConWorkId
                  $ c
 
-    -- msg                   = "dataConWorkSpecType: " ++ showPpr t
-    -- (αs,es,eqs,th,ts,ot)  = dataConFullSig dc
 
 meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
@@ -106,20 +104,6 @@ meetWorkWrapRep c workR wrapR
 
 strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
-
-{-
-  | null es                         = RTypeRep
-                              { ty_vars   = RTV . GM.symbolTyVar <$> αs --  :: [RTVar tv (RType c tv ())]
-                              , ty_preds  = _fixme --  :: [PVar (RType c tv ())]
-                              , ty_labels = _fixme --  :: [Symbol]
-                              , ty_binds  = _fixme --  :: [Symbol]
-                              , ty_refts  = _fixme --  :: [r]
-                              , ty_args   = _fixme --  :: [RType c tv r]
-                              , ty_res    = _fixme --  :: (RType c tv r)
-                              }
-
-dataConFullSig :: DataCon -> ([TyVar], [TyVar], [EqSpec], ThetaType, [Type], Type)
--}
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _ _)

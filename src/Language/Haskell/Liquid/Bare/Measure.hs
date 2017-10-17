@@ -215,36 +215,80 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 --------------------------------------------------------------------------------
 
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs ps _ _ xts resTy _ isGadt _ _))
+makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy _ isGadt _ _))
   = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
-    autofields = {- F.tracepp ("AUTOFIELDS: " ++ show dc) $ -} not (isGadt || noMeasureFields cfg)
-    res        = mempty <$> if isVanillaDataCon dc
-                              then resTy
-                              else RT.gApp (dataConTyCon dc) vs ps
+    autofields = not (isGadt || noMeasureFields cfg)
+    -- res        = mempty <$> if isVanillaDataCon dc
+    --                          then resTy
+    --                          else _fixme -- RT.gApp (dataConTyCon dc) vs ps
+    --                                      -- see [NOTE:Use DataconWorkId]
+
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
-      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' x) (projT i) dc n i
 
     go' ((_,t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
       = Nothing
       | otherwise
-      = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector (Just dm) dc i)) (dty t) dc n i
+      = Just $ makeMeasureSelector (Loc l l' (makeDataConSelector (Just dm) dc i)) (projT i) dc n i
 
     fields   = zip (reverse xts) [1..]
     n        = length xts
-    checker  = makeMeasureChecker (Loc l l' (makeDataConChecker dc)) checkerT dc n
-    checkerT = mkTy res bareBool       -- foldr RAllT  (RFun dummySymbol res bareBool        mempty) (makeRTVar <$> vs)
-    dty t    = mkTy res (mempty <$> t) -- foldr RAllT  (RFun dummySymbol res (fmap mempty t) mempty) (makeRTVar <$> vs)
-    as       = makeRTVar <$> vs
-    bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
-    mkTy i o = F.tracepp ("mkTy" ++ show vs) $ mkUnivs as [] [] (RFun dummySymbol i o mempty)
+    checker  = makeMeasureChecker (Loc l l' (makeDataConChecker dc)) checkT dc n
+    projT i  = dataConSel dc (Proj i)
+    checkT   = dataConSel dc Check
+
+
+    -- checkT   = mkTy res bareBool
+    -- projT t  = mkTy res (mempty <$> t)
+    -- as       = makeRTVar <$> vs
+    -- mkTy i o = F.tracepp ("mkTy" ++ show vs) $ mkUnivs as [] [] (RFun dummySymbol i o mempty)
+
+dataConSel :: DataCon -> DataConSel -> SpecType
+dataConSel dc Check    = mkArrow as [] [] [xt] bareBool
+  where
+    (as, _, xt)        = bkDataCon dc
+
+dataConSel dc (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
+  where
+    ti                 = getNth "dataConSel" (i-1) ts
+    (as, ts, xt)       = bkDataCon dc
+
+bkDataCon :: (Monoid r) => DataCon -> ([RTVar RTyVar a], [RRType r], (Symbol, RRType r, r))
+bkDataCon dc         = (as, RT.ofType <$> ts, xt)
+  where
+    as               = makeRTVar . RT.rTyVar <$> αs
+    xt               = (dummySymbol, RT.ofType t, mempty)
+    (αs,_,_,_,ts,t)  = dataConFullSig dc
+
+getNth :: String -> Int -> [a] -> a
+getNth msg = go
+  where
+    go 0 (x:_)  = x
+    go n (_:xs) = go (n-1) xs
+    go _ _      = panic Nothing msg
+
+
+data DataConSel = Check | Proj Int
+
+bareBool :: SpecType
+bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty
+
+
+{- | NOTE:Use DataconWorkId
+
+      dcWorkId :: forall a1 ... aN. (a1 ~ X1 ...) => T1 -> ... -> Tn -> T
+      checkT   :: forall as. T -> Bool
+      projT t  :: forall as. T -> t
+
+-}
 
 makeMeasureSelector :: (Show a1)
                     => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
