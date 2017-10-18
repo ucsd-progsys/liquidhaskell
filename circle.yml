@@ -36,6 +36,7 @@ test:
     - stack test liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml":
         timeout: 1800
     - stack test liquid-fixpoint:testparser --flag liquid-fixpoint:devel
+    - stack haddock
     - stack sdist
   post:
     # - stack haddock liquidhaskell --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
