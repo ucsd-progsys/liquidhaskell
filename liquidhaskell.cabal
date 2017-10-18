@@ -91,7 +91,8 @@ executable gradual
   build-depends:  base >=4.8.1.0 && <5,
                   liquidhaskell, 
                   liquid-fixpoint >= 0.7.0.5, 
-                  hscolour
+                  hscolour, 
+                  cmdargs
 
 executable target
   default-language: Haskell2010
@@ -264,7 +265,9 @@ Library
                     Gradual.Uniquify, 
                     Gradual.Types,
                     Gradual.Refinements,
-                    Gradual.Misc
+                    Gradual.PrettyPrinting,
+                    Gradual.Misc,
+                    Gradual.Trivial
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)

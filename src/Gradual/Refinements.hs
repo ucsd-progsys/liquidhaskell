@@ -1,6 +1,8 @@
 module Gradual.Refinements (makeGMap) where
 
 import Gradual.Types
+-- import Gradual.PrettyPrinting
+
 import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Config
 import Language.Fixpoint.Solver.Monad
@@ -10,7 +12,7 @@ import Language.Fixpoint.Utils.Files
 import Control.Monad (filterM)
 -- import Control.Monad.IO.Class
 
-makeGMap :: Config -> SInfo a -> [(KVar, (GWInfo, [Expr]))] -> IO (GMap ())
+makeGMap :: Config -> SInfo a -> [(KVar, (GWInfo, [Expr]))] -> IO (GMap GWInfo)
 makeGMap cfg sinfo mes = toGMap <$> runSolverM cfg' sI act 
   where
     sI   = solverInfo cfg' sinfo
@@ -30,19 +32,20 @@ makeGMap cfg sinfo mes = do
     sI = solverInfo cfg sinfo
 -}
 
-concretize :: (KVar, (GWInfo, [Expr])) -> SolveM (KVar, ((),[Expr]))
+concretize :: (KVar, (GWInfo, [Expr])) -> SolveM (KVar, (GWInfo,[Expr]))
 concretize (kv, (info, es))
-  = (\es' -> (kv,((),es'))) <$> filterM (isGoodInstance info) es
+  = (\es' -> (kv,(info,es'))) <$> filterM (isGoodInstance info) (PTrue:es)
 
 isGoodInstance :: GWInfo -> Expr -> SolveM Bool 
 isGoodInstance info e = (&&) <$> (isLocal info e) <*> (isMoreSpecific info e) 
+
 {- 
 isGoodInstance info e = do 
   l <- isLocal info e 
   s <- isMoreSpecific info e
-  liftIO $ putStrLn ("Checking " ++ showFix e ++ 
-            "( isLocal = " ++ show l ++ 
-            "& isMoreSpecific = " ++ show s ++ ")\n"
+  liftIO $ putStrLn ("Checking " ++ pretty e ++ 
+            ":: (isLocal = " ++ show l ++ 
+            " & isMoreSpecific than (" ++ pretty (gexpr info) ++ ") = " ++ show s ++ ")\n"
             ) 
   return (l && s)
 -}
@@ -51,11 +54,17 @@ isLocal :: GWInfo -> Expr -> SolveM Bool
 isLocal i e = isValid (PExist [(gsym i, gsort i)] e)
 
 isMoreSpecific :: GWInfo -> Expr -> SolveM Bool
-isMoreSpecific i e = isValid (e `PImp` gexpr i)
+isMoreSpecific i e = isValid (pAnd [e, gexpr i] `PImp` gexpr i)
 
 
-isValid :: Expr -> SolveM Bool 
+isValid :: Expr -> SolveM Bool
+isValid e 
+  | isContraPred e = return False 
+  | isTautoPred  e = return True 
+  | PImp (PAnd es) e2 <- e 
+  , e2 `elem` es    = return True    
 isValid e = not <$> checkSat (PNot e)
+
 {- 
 isValid e = do -- not <$> checkSat (PNot e)
   r <- checkSat (PNot e)

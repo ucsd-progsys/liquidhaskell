@@ -1,10 +1,6 @@
 -- | Sec 4 from Gradual Refinement Types 
 
 module Interpretations where
-{-@ LIQUID "--gradual"        @-}
-{-@ LIQUID "--savequery"      @-}
-{-@ LIQUID "--eliminate=none"      @-}
-
 
 {-@ f :: {v:Int | ?? } -> Int -> Int @-} 
 f :: Int -> Int -> Int 

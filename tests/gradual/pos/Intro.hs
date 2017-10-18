@@ -2,10 +2,6 @@
 
 module Intro where
 
-{-@ LIQUID "--gradual"        @-}
-{-@ LIQUID "--savequery"      @-}
-
-
 checkPos :: Int -> Int 
 {-@ checkPos :: {v:Int | 0 < v} -> {v:Int | 0 < v} @-}
 checkPos x = x 

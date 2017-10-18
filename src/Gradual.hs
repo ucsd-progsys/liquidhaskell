@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Main where
 
 import Language.Haskell.Liquid.Liquid (liquidConstraints)
@@ -9,46 +11,72 @@ import Language.Haskell.Liquid.UX.CmdLine (getOpts)
 import Language.Haskell.Liquid.Constraint.ToFixpoint (cgInfoFInfo, fixConfig)
 
 import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types.Config as F
 import           Language.Fixpoint.Solver       (simplifyFInfo)
 import           Language.Fixpoint.Solver.Solve (solve)
 import qualified Language.Fixpoint.Solver.GradualSolution as GS
-
+import           Language.Fixpoint.Misc         (mapSnd)
+import           Language.Fixpoint.Graph.Partition (partition')
 
 import System.Exit                    (exitWith, exitSuccess, exitFailure)
 import System.Environment             (getArgs)
+import System.Console.CmdArgs.Verbosity
+import Control.Monad (when) 
 
+import qualified Data.List as L 
 
 import Gradual.Concretize 
 import Gradual.Types
+import Gradual.Misc (mapSndM, mapMWithLog)
 import Gradual.Uniquify
 import Gradual.Refinements
+import Gradual.PrettyPrinting
+import qualified Gradual.Trivial as T 
 
 main :: IO a
 main = do 
   cfg <- getArgs >>= getOpts
-  css <- liquidConstraints (cfg{gradual=True})
+  css <- quietly $ liquidConstraints (cfg{gradual=True})
   case css of 
-    Left cgis -> mapM (runGradual cfg) cgis >> exitSuccess 
+    Left cgis -> mapM (runGradual (cfg{gradual=True})) cgis >> exitSuccess 
     Right e   -> exitWith e 
 
 
-runGradual :: Config -> CGInfo -> IO [F.Result (Integer, Cinfo)]
+runGradual :: Config -> CGInfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
 runGradual cfg cgi = do
   let fname = target (ghcI cgi)
   let fcfg  = fixConfig fname cfg
-  finfo    <- cgInfoFInfo (ghcI cgi) cgi
-  sinfo    <- uniquify <$> simplifyFInfo fcfg finfo
-  gmap     <- makeGMap fcfg sinfo $ GS.init sinfo 
-  putStrLn ("\nGMAP = \n" ++ show gmap
-      ++ concat [show (length $ snd x) ++ "\n" | (_,x) <- fromGMap gmap ]
-      ++ "\nALL COMB = " ++ show (product [(length $ snd x) | (_,x) <- fromGMap gmap ])
-   )
-  -- putStrLn ("\nSinfo = \n" ++ show sinfo)
+  finfo    <- quietly $ cgInfoFInfo (ghcI cgi) cgi
+  sinfo    <- (uniquify . T.simplify) <$> (quietly $ simplifyFInfo fcfg finfo)
+  let (gsis, sis) = L.partition F.isGradual $ partition' Nothing sinfo
+  sol <- ((mempty,) . mconcat) <$> (quietly $ mapM (solve fcfg) sis)
+  when (not $ F.isSafe $ snd sol) (do 
+    putStrLn "The static part cannot be satisfied: UNSAFE"
+    exitFailure
+    )
+  whenLoud  $ putStrLn ("\nNumber of Gradual Partitions : " ++ show (length gsis) ++"\n")
+  ((sol:) . mconcat) <$> mapMWithLog "Running Partition" (solveSInfo fcfg) gsis
+
+
+solveSInfo :: F.Config -> F.SInfo Cinfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
+solveSInfo fcfg sinfo = do 
+  gmap     <- makeGMap fcfg sinfo $ GS.init fcfg sinfo 
   let allgs = concretize gmap sinfo
-  putStrLn ("\nAll CS = \n" ++ show (length allgs))
-  res   <- mapM (solve fcfg) allgs
-  case filter F.isSafe res of 
-    (_:xs) -> putStrLn (show (1 + length xs) ++ "/" ++ (show $ length res) ++ " Solutions Found!") 
-             >> exitSuccess
-    _     -> putStrLn ("0/" ++ (show $ length res) ++ " UNSAFE!")                            
-             >> exitFailure
+  putStrLn ("Total number of concretizations: " ++ show (length $ map snd allgs))
+  res   <- quietly $ mapM (mapSndM (solve fcfg)) allgs
+  case filter (F.isSafe . snd) res of 
+    (x:xs) -> do putStrLn ( "["++ show (1 + length xs) ++ "/" ++ (show $ length res) ++ "] Solutions Found!" ++ if length xs > 0 then " e.g.," else "") 
+                 putStrLn (pretty $ (map (mapSnd snd) $ fromGSub $ fst x))
+                 return (x:xs)
+    _     -> do putStrLn ("[0/" ++ (show $ length res) ++ "] Solutions. UNSAFE!\n")  
+                whenLoud $ putStrLn ("UNSAFE PARTITION: " ++ show sinfo)                           
+                return [] 
+
+
+quietly :: IO a -> IO a 
+quietly act = do 
+  vb <- getVerbosity 
+  setVerbosity Quiet
+  r  <- act 
+  setVerbosity vb 
+  return r 

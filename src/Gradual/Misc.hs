@@ -9,14 +9,29 @@ module Gradual.Misc where
 mapThd3 :: (c -> d) -> (a, b, c) -> (a, b, d)
 mapThd3 f (x, y, z) = (x, y, f z)
 
+mapSndM :: Functor m => (b -> m c) -> (a,b) -> m (a, c)
+mapSndM f (x,y) = (x,) <$> f y
+
+
+mapMWithLog :: String -> (a -> IO b) -> [a] -> IO [b]
+mapMWithLog msg f xs = go 1 xs 
+  where
+    n = length xs 
+
+    go _ [] = return []
+    go i (x:xs) = do 
+      putStrLn (msg ++ " [" ++ show i ++ "/" ++ show n ++ "]...") 
+      r  <- f x 
+      rs <- go (i+1) xs 
+      return (r:rs)
 
 -------------------------------------------------------------------------------
 -- | Combining ----------------------------------------------------------------
 -------------------------------------------------------------------------------
 
 
-flatten :: [(k,(i,[v]))] -> [[(k,v)]]
-flatten kvs = allCombinations ((\(k,(_,vs)) -> (k,) <$> vs)<$> kvs)
+flatten :: [(k,(i,[v]))] -> [[(k,(i, v))]]
+flatten kvs = allCombinations ((\(k,(i,vs)) -> ((k,) . (i,)) <$> vs)<$> kvs)
 
 expand :: (a -> [a]) -> [a] -> [[a]]
 expand f xs = allCombinations (f <$> xs)
