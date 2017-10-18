@@ -17,7 +17,6 @@ import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.Types.Graduals  as G
-import qualified Language.Fixpoint.Solver.GradualSolution as GS
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -43,12 +42,11 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-solve cfg fi | gradual cfg
- = solveGradual cfg fi
 
 solve cfg fi = do
-    donePhase Misc.Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI act
+    whenLoud $ donePhase Misc.Loud "Worklist Initialize"
+    vb <- getVerbosity
+    (res, stat) <- (if (Quiet == vb || gradual cfg) then id else withProgressFI sI) $ runSolverM cfg sI act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -61,124 +59,10 @@ solve cfg fi = do
 
 
 --------------------------------------------------------------------------------
-solveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a)
-             => Config -> F.SInfo a -> IO (F.Result (Integer, a))
---------------------------------------------------------------------------------
-solveGradual cfg fi = do
-  -- graphStatistics cfg $ G.uniquify fi
-  let fis = zip [1..] $ partition' Nothing $ G.uniquify fi
-  if ginteractive cfg
-    then snd . traceShow "FINAL SOLUTION\n"  <$> iSolveGradual cfg fis
-    else snd . traceShow "FINAL SOLUTION\n" . mconcat <$> parallel (solveGradualOne cfg <$> fis)
-
-
-iSolveGradual :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> [(Int, F.SInfo a)] -> IO (Maybe G.GSol, F.Result (Integer, a))
-iSolveGradual cfg fis
-  = mconcat <$> parallel (solveGradualOne cfg <$> fis)
-
-
-solveGradualOne :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> (Int, F.SInfo a) -> IO (Maybe G.GSol, F.Result (Integer, a))
-solveGradualOne cfg (_, fi) = do
-  sols   <- makeSolutions cfg fi
-  gradualLoop (cfg{gradual = False}) fi sols
-
-gradualLoop :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> (Maybe [G.GSol]) -> IO (Maybe G.GSol, F.Result (Integer, a))
-gradualLoop _ _ Nothing
-  = return (Nothing, F.safe)
-gradualLoop _ _ (Just [])
-  = return (Nothing, F.unsafe)
-gradualLoop cfg fi (Just (s:ss))
-  = do whenLoud   $ putStrLn ("Solving for " ++ show s)
-       whenNormal $ putStr "*"
-       v <- getVerbosity
-       -- putStr ("Substitution = " ++ show s)
-       -- putStr ("BEFORE \n\n"  ++ (show $ F.toFixpoint cfg fi))
-       -- putStr ("AFTER \n\n"  ++ (show $ F.toFixpoint cfg $ G.gsubst s fi))
-       whenNormal $ setVerbosity Quiet
-       r <- solve cfg (G.gsubst s fi)
-       setVerbosity v
-       whenLoud $ putStrLn ("Solution = " ++ if F.isUnsafe r then "UNSAFE" else "SAFE")
-       if F.isUnsafe r
-        then gradualLoop cfg fi (Just ss)
-        else return (Just s, r)
-
-
-makeSolutions :: (NFData a, F.Fixpoint a, Show a) => Config -> F.SInfo a -> IO (Maybe [G.GSol])
-makeSolutions cfg fi
-  = G.makeSolutions cfg fi <$> makeLocalLattice cfg fi (GS.init fi)
-
-
-
-makeLocalLattice :: Config -> F.SInfo a
-                 -> [(F.KVar, (F.GWInfo, [F.Expr]))]
-                 -> IO [(F.KVar, (F.GWInfo, [[F.Expr]]))]
-makeLocalLattice cfg fi kes = runSolverM cfg sI (act kes)
-  where
-    sI  = solverInfo cfg fi
-    act = mapM (makeLocalLatticeOne cfg fi)
-
-
-makeLocalLatticeOne :: Config -> F.SInfo a
-            -> (F.KVar, (F.GWInfo, [F.Expr]))
-            -> SolveM (F.KVar, (F.GWInfo, [[F.Expr]]))
-makeLocalLatticeOne cfg fi (k, (e, es)) = do
-   elems0  <- filterM (isLocal e) (map (:[]) es)
-   elems   <- sortEquals elems0
-   lattice <- makeLattice [] (map (:[]) elems) elems
-   return $ ((k,) . (e,)) lattice
-  where
-    sEnv = symbolEnv cfg fi
-    makeLattice acc new elems
-      | null new
-      = return {- traceShow ("LATTICE FROM ELEMENTS = " ++ showElems elems  ++ showElemss acc) -} acc
-      | otherwise
-      = do let cands = [e:es | e <- elems, es <- new]
-           localCans <- filterM (isLocal e) cands
-           newElems  <- filterM (notTrivial (new ++ acc)) localCans
-           makeLattice (acc ++ new) newElems elems
-    _showElem :: F.Expr -> String
-    _showElem e1 = showpp $ F.subst (F.mkSubst [(x, F.EVar $ F.tidySymbol x) | x <- F.syms e1]) e1
-    _showElems = unlines . map _showElem
-    _showElemss = unlines. map _showElems
-
-    notTrivial [] _     = return True
-    notTrivial (x:xs) p = do v <- isValid F.dummySpan (mkPred x) (mkPred p)
-                             if v then return False
-                                  else notTrivial xs p
-
-    mkPred es = So.elaborate "initBGind.mkPred" sEnv (F.pAnd es)
-
-    isLocal i es = do
-      let pp = So.elaborate "filterLocal" sEnv $ F.PExist [(F.gsym i, F.gsort i)] $ F.pAnd (F.gexpr i:es)
-      isValid F.dummySpan mempty pp
-
-    root      = mempty
-    sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs
-      where
-       vs        = zip [0..] (root:(head <$> xs))
-
-       bfs []     _  = []
-       bfs (i:is) es = (snd $ (vs!!i)) : bfs (is++map snd (filter (\(j,k) ->  (j==i && notElem k is)) es)) es
-
-       makeEdges _   acc []    = return acc
-       makeEdges vs acc (x:xs) = do ves  <- concat <$> mapM (makeEdgesOne x) vs
-                                    if any (\(i,j) -> elem (j,i) acc) ves
-                                      then makeEdges (filter ((/= fst x) . fst) vs) (filter (\(i,j) -> ((i /= fst x) && (j /= fst x))) acc) xs
-                                      else makeEdges vs (mergeEdges (ves ++ acc)) xs
-
-    makeEdgesOne (i,_) (j,_) | i == j = return []
-    makeEdgesOne (i,x) (j,y) = do
-      ij <- isValid F.dummySpan (mkPred [x]) (mkPred [y])
-      return (if ij then [(j,i)] else [])
-
-    mergeEdges es = filter (\(i,j) -> (not (any (\k -> ((i,k) `elem` es && (k,j) `elem` es)) (fst <$> es)))) es
-
---------------------------------------------------------------------------------
-
 -- | Progress Bar
 --------------------------------------------------------------------------------
 withProgressFI :: SolverInfo a b -> IO b -> IO b
-withProgressFI = withProgress . fromIntegral . cNumScc . siDeps
+withProgressFI = withProgress . fromIntegral . cNumScc . siDeps  
 --------------------------------------------------------------------------------
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()

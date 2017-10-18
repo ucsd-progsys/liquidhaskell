@@ -142,6 +142,9 @@ isGWfc :: WfC a -> Bool
 isGWfc (GWfC {}) = True
 isGWfc (WfC  {}) = False
 
+instance HasGradual (WfC a) where
+  isGradual = isGWfc
+
 type SubcId = Integer
 
 data SubC a = SubC
@@ -605,6 +608,9 @@ data GInfo c a =
      , ae       :: AxiomEnv
      }
   deriving (Eq, Show, Functor, Generic)
+
+instance HasGradual (GInfo c a) where
+  isGradual info = any isGradual (M.elems $ ws info)
 
 instance Monoid HOInfo where
   mempty        = HOI False False

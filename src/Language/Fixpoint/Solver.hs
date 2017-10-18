@@ -24,10 +24,11 @@ module Language.Fixpoint.Solver (
 import           Control.Concurrent
 import           Data.Binary
 import           System.Exit                        (ExitCode (..))
-import           System.Console.CmdArgs.Verbosity   (whenNormal)
+import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
+
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
@@ -195,7 +196,7 @@ simplifyFInfo !cfg !fi0 = do
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll"  #-} renameAll  $!! si2
-  rnf si3 `seq` donePhase Loud "Uniqify & Rename"
+  rnf si3 `seq` whenLoud $ donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
   let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)

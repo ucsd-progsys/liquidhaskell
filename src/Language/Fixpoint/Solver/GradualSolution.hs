@@ -11,6 +11,7 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint ()
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
@@ -18,20 +19,26 @@ import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
-
+import           Language.Fixpoint.Solver.Sanitize  (symbolEnv)
+import Language.Fixpoint.SortCheck
 
 --------------------------------------------------------------------------------
 -- | Initial Gradual Solution (from Qualifiers and WF constraints) -------------
 --------------------------------------------------------------------------------
-init :: (F.Fixpoint a) => F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
+init :: (F.Fixpoint a) => Config -> F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
-init si = map (refineG si qs genv) gs `using` parList rdeepseq 
+init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq 
   where
     qs         = F.quals si
     gs         = snd <$> gs0
     genv       = instConstants si
 
     gs0        = L.filter (isGWfc . snd) $ M.toList (F.ws si)
+
+    elab (k,(x,es)) = ((k,) . (x,)) $ (elaborate "init" (sEnv (gsym x) (gsort x)) <$> es)
+    
+    sEnv x s    = isEnv {F.seSort = F.insertSEnv x s (F.seSort isEnv)}
+    isEnv       = symbolEnv cfg si
 
 
 --------------------------------------------------------------------------------
