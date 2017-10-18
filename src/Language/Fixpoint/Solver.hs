@@ -16,6 +16,9 @@ module Language.Fixpoint.Solver (
 
     -- * Parse Qualifiers from File
   , parseFInfo
+
+    -- * Simplified Info 
+  , simplifyFInfo
 ) where
 
 import           Control.Concurrent
@@ -174,7 +177,9 @@ loudDump i cfg si = writeLoud $ msg ++ render (toFixpoint cfg si)
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
-solveNative' !cfg !fi0 = do
+simplifyFInfo :: (NFData a, Fixpoint a, Show a, Loc a)
+               => Config -> FInfo a -> IO (SInfo a)
+simplifyFInfo !cfg !fi0 = do 
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
@@ -193,14 +198,16 @@ solveNative' !cfg !fi0 = do
   rnf si3 `seq` donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
   let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
+  -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  rnf si4 `seq` donePhase Loud "Defunctionalize"
   let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
-  rnf si5 `seq` donePhase Loud "Elaborate"
-  si6 <- {-# SCC "Sol.inst"  #-} instantiate cfg $!! si5
-  rnf si6 `seq` donePhase Loud "Instantiate"
+  instantiate cfg $!! si5
+
+solveNative' !cfg !fi0 = do
+  si6 <- simplifyFInfo cfg fi0 
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si6
+  -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
   -- when (save cfg) $ saveSolution cfg

@@ -55,7 +55,7 @@ module Language.Fixpoint.Types.Constraints (
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
-  , unsafe, isUnsafe, safe
+  , unsafe, isUnsafe, isSafe ,safe
 
   -- * Cut KVars
   , Kuts (..)
@@ -262,6 +262,10 @@ instance Monoid (Result a) where
 unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
 safe   = mempty {resStatus = Safe}
+
+isSafe :: Result a -> Bool 
+isSafe (Result Safe _ _) = True 
+isSafe _                 = False
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ <- resStatus r

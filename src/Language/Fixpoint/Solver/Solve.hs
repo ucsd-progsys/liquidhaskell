@@ -8,7 +8,7 @@
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Solver.Solve (solve) where
+module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
 import           Control.Monad (when, filterM)
 import           Control.Monad.State.Strict (lift)
