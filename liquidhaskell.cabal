@@ -84,6 +84,15 @@ Executable liquid
     ghc-options: -Werror
   Default-Extensions: PatternGuards
 
+executable gradual
+  default-language: Haskell2010
+  main-is:        src/Gradual.hs
+  ghc-options: -W -threaded -Werror
+  build-depends:  base >=4.8.1.0 && <5,
+                  liquidhaskell, 
+                  liquid-fixpoint >= 0.7.0.5, 
+                  hscolour
+
 executable target
   default-language: Haskell2010
   main-is:        src/Target.hs
@@ -249,7 +258,13 @@ Library
                     Test.Target.Targetable.Function,
                     Test.Target.Testable,
                     Test.Target.Types,
-                    Test.Target.Util
+                    Test.Target.Util, 
+
+                    Gradual.Concretize, 
+                    Gradual.Uniquify, 
+                    Gradual.Types,
+                    Gradual.Refinements,
+                    Gradual.Misc
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
