@@ -16,7 +16,6 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
-import qualified Language.Fixpoint.Types.Graduals  as G
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution  as S
@@ -32,12 +31,6 @@ import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List as L
-import Control.Concurrent.ParallelIO.Global (parallel)
-
-import qualified Language.Fixpoint.SortCheck       as So
-import Language.Fixpoint.Solver.Sanitize (symbolEnv)
--- DEBUG
--- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))

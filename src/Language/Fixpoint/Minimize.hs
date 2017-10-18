@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
 import           Language.Fixpoint.Types.Config     (Config (..), queryFile)
-import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Misc             (safeHead)
 import           Language.Fixpoint.Utils.Files      hiding (Result)
 import           Language.Fixpoint.Graph
