@@ -87,7 +87,9 @@ Executable liquid
 executable gradual
   default-language: Haskell2010
   main-is:        src/Gradual.hs
-  ghc-options: -W -threaded -Werror
+  ghc-options: -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
   build-depends:  base >=4.8.1.0 && <5,
                   liquidhaskell, 
                   liquid-fixpoint >= 0.7.0.5, 
