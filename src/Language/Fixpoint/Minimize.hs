@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
 import           Language.Fixpoint.Types.Config     (Config (..), queryFile)
-import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Misc             (safeHead)
 import           Language.Fixpoint.Utils.Files      hiding (Result)
 import           Language.Fixpoint.Graph
@@ -116,10 +115,6 @@ removeOtherKs fi0 ks = fi1 { ws = ws', cm = cm' }
 ---------------------------------------------------------------------------
 -- Helper functions
 ---------------------------------------------------------------------------
-isSafe :: Result a -> Bool
-isSafe (Result Safe _ _) = True
-isSafe _                 = False
-
 addExt :: Ext -> Config -> Config
 addExt ext cfg = cfg { srcFile = queryFile ext cfg }
 
