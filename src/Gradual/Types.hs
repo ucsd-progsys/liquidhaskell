@@ -1,9 +1,15 @@
 module Gradual.Types where
 
+
+import qualified Language.Haskell.Liquid.UX.Config as C
 import Language.Fixpoint.Types
 
 import qualified Data.HashMap.Strict as M
 
+data GConfig = GConfig {depth :: Int}
+
+makeGConfig :: C.Config -> GConfig
+makeGConfig cfg = GConfig (C.gdepth cfg)
 
 type GSub a = M.HashMap KVar (a, Expr)
 

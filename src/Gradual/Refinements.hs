@@ -1,6 +1,7 @@
 module Gradual.Refinements (makeGMap) where
 
 import Gradual.Types
+import Gradual.Misc 
 -- import Gradual.PrettyPrinting
 
 import Language.Fixpoint.Types
@@ -12,11 +13,11 @@ import Language.Fixpoint.Utils.Files
 import Control.Monad (filterM)
 -- import Control.Monad.IO.Class
 
-makeGMap :: Config -> SInfo a -> [(KVar, (GWInfo, [Expr]))] -> IO (GMap GWInfo)
-makeGMap cfg sinfo mes = toGMap <$> runSolverM cfg' sI act 
+makeGMap :: GConfig -> Config -> SInfo a -> [(KVar, (GWInfo, [Expr]))] -> IO (GMap GWInfo)
+makeGMap gcfg cfg sinfo mes = toGMap <$> runSolverM cfg' sI act 
   where
     sI   = solverInfo cfg' sinfo
-    act  = mapM concretize mes
+    act  = mapM (concretize gcfg) mes
     cfg' = cfg { srcFile        = srcFile cfg `withExt` Pred 
                , extensionality = True -- disable mbqi
            }
@@ -32,9 +33,11 @@ makeGMap cfg sinfo mes = do
     sI = solverInfo cfg sinfo
 -}
 
-concretize :: (KVar, (GWInfo, [Expr])) -> SolveM (KVar, (GWInfo,[Expr]))
-concretize (kv, (info, es))
-  = (\es' -> (kv,(info,es'))) <$> filterM (isGoodInstance info) (PTrue:es)
+concretize :: GConfig -> (KVar, (GWInfo, [Expr])) -> SolveM (KVar, (GWInfo,[Expr]))
+concretize cfg (kv, (info, es))
+  = (\es' -> (kv,(info,es'))) <$> 
+     filterM (isGoodInstance info) 
+             (PTrue:(pAnd <$> powersetUpTo (depth cfg) es))
 
 isGoodInstance :: GWInfo -> Expr -> SolveM Bool 
 isGoodInstance info e = (&&) <$> (isLocal info e) <*> (isMoreSpecific info e) 

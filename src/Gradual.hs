@@ -46,21 +46,21 @@ runGradual :: Config -> CGInfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
 runGradual cfg cgi = do
   let fname = target (ghcI cgi)
   let fcfg  = fixConfig fname cfg
+  let gcfg  = makeGConfig cfg 
   finfo    <- quietly $ cgInfoFInfo (ghcI cgi) cgi
   sinfo    <- (uniquify . T.simplify) <$> (quietly $ simplifyFInfo fcfg finfo)
   let (gsis, sis) = L.partition F.isGradual $ partition' Nothing sinfo
   sol <- ((mempty,) . mconcat) <$> (quietly $ mapM (solve fcfg) sis)
-  when (not $ F.isSafe $ snd sol) (do 
+  when (not $ F.isSafe $ snd sol) $ do 
     putStrLn "The static part cannot be satisfied: UNSAFE"
     exitFailure
-    )
-  whenLoud  $ putStrLn ("\nNumber of Gradual Partitions : " ++ show (length gsis) ++"\n")
-  ((sol:) . mconcat) <$> mapMWithLog "Running Partition" (solveSInfo fcfg) gsis
+  whenLoud $ putStrLn ("\nNumber of Gradual Partitions : " ++ show (length gsis) ++"\n")
+  ((sol:) . mconcat) <$> mapMWithLog "Running Partition" (solveSInfo gcfg fcfg) gsis
 
 
-solveSInfo :: F.Config -> F.SInfo Cinfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
-solveSInfo fcfg sinfo = do 
-  gmap     <- makeGMap fcfg sinfo $ GS.init fcfg sinfo 
+solveSInfo :: GConfig -> F.Config -> F.SInfo Cinfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
+solveSInfo gcfg fcfg sinfo = do 
+  gmap     <- makeGMap gcfg fcfg sinfo $ GS.init fcfg sinfo 
   let allgs = concretize gmap sinfo
   putStrLn ("Total number of concretizations: " ++ show (length $ map snd allgs))
   res   <- quietly $ mapM (mapSndM (solve fcfg)) allgs
