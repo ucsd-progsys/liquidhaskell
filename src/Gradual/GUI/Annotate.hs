@@ -142,9 +142,9 @@ htmlHeader initSrc title = unlines
   , "<style type='text/css'>"
   , " form {display:inline; margin:0px; padding:0px; }"
   , "</style>"
-  , "<script src='/Users/niki/liquidtypes/liquidhaskell/src/Gradual/util.js'></script>"
+  , "<script src='http://goto.ucsd.edu/~nvazou/gradual/util.js'></script>"
   , initSrc
-  , "<link type='text/css' rel='stylesheet' href='/Users/niki/liquidtypes/liquidhaskell/src/Gradual/liquid.css' />"
+  , "<link type='text/css' rel='stylesheet' href='http://goto.ucsd.edu/~nvazou/gradual/liquid.css' />"
   , bottonsCss
   , "<body>"
   , "<hr>"
