@@ -139,6 +139,7 @@ instance SMTLIB2 Expr where
   smt2 env (PAll   bs p)    = build "(forall ({}) {})"  (smt2s env bs, smt2 env p)
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 env (ELam b e)       = smt2Lam env b e
+  smt2 env (ECoerc _ _ e)   = smt2 env e
   smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
 
 -- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
