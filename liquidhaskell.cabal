@@ -269,7 +269,11 @@ Library
                     Gradual.Refinements,
                     Gradual.PrettyPrinting,
                     Gradual.Misc,
-                    Gradual.Trivial
+                    Gradual.Trivial,
+                    Gradual.GUI,
+                    Gradual.GUI.Annotate,
+                    Gradual.GUI.Types,
+                    Gradual.GUI.Misc
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)

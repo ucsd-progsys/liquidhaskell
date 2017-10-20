@@ -28,22 +28,24 @@ import qualified Data.List                 as L
 
 import Control.Monad.State.Lazy
 
+import Gradual.Types (GSpan)
 
 -------------------------------------------------------------------------------
 -- |  Make each gradual appearence unique -------------------------------------
 -------------------------------------------------------------------------------
 
-uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> SInfo a
+uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> (GSpan, SInfo a)
 
-uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
+uniquify fi = (km', fi{cm = cm', ws = ws', bs = bs'})
   where
   (cm', km, bs') = uniquifyCS (bs fi) (cm fi)
   ws'            = expandWF km (ws fi)
+  km'            = M.union km $ M.map (const []) $ M.filter isGradual (ws fi)
 
 uniquifyCS :: (NFData a, Fixpoint a, Loc a)
            => BindEnv
            -> M.HashMap SubcId (SimpC a)
-           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
+           -> (M.HashMap SubcId (SimpC a), GSpan, BindEnv)
 uniquifyCS bs cs = (x, km, benv st)
   where
     (x, st) = runState (uniq cs) (initUniqueST bs)
@@ -100,7 +102,7 @@ instance Unique Expr where
 type UniqueM = State UniqueST
 data UniqueST
   = UniqueST { freshId :: Integer
-             , kmap    :: M.HashMap KVar [(KVar, Maybe SrcSpan)]
+             , kmap    :: GSpan
              , change  :: Bool
              , cache   :: M.HashMap KVar KVar
              , uloc    :: Maybe SrcSpan
@@ -245,7 +247,7 @@ addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 -------------------------------------------------------------------------------
 
 expandWF :: (NFData a, Fixpoint a)
-         => M.HashMap KVar [(KVar, Maybe SrcSpan)]
+         => GSpan
          -> M.HashMap KVar (WfC a)
          -> M.HashMap KVar (WfC a)
 expandWF km ws

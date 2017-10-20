@@ -1,11 +1,11 @@
 module Gradual.PrettyPrinting where
 
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.GHC.Misc
+
 
 class Pretty a where
   pretty :: a -> String 
-
-
 
 instance Pretty Expr where
   pretty = showpp . simplifyExpr 
@@ -14,7 +14,7 @@ instance Pretty KVar where
   pretty (KV x) = pretty x  
 
 instance Pretty Symbol where
-  pretty = show . tidySymbol
+  pretty = show . dropModuleNames. tidySymbol
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where 
   pretty (x,y) = pretty x ++ " |-> " ++ pretty y 
@@ -45,17 +45,5 @@ simplifyExpr = go
     go (PExist a e) = PExist a (go e)
     go (ETApp e a) = ETApp (go e) a
     go (ELam a e) = ELam a (go e)
-    go (EVar x)   = EVar (tidySymbol x)
+    go (EVar x)   = EVar (dropModuleNames $ tidySymbol x)
     go e            = e 
-
-
-{-
-
-ESym !SymConst
-          | ECon !Constant
-          | EVar !Symbol
-
-          | PKVar  !KVar !Subst
-          | PGrad  !KVar !Subst !GradInfo !Expr
-
--}

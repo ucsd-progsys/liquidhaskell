@@ -15,7 +15,7 @@
 ---------------------------------------------------------------------------
 
 
-module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate) where
+module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate, tokeniseWithLoc) where
 
 import           Data.Hashable
 import           Data.String
@@ -439,6 +439,9 @@ ins :: (Eq k, Eq k1, Hashable k, Hashable k1)
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where
     Asc rm         = M.lookupDefault (Asc M.empty) r m
+
+tokeniseWithLoc :: String -> [(TokenType, String, Loc)]
+tokeniseWithLoc = ACSS.tokeniseWithLoc (Just tokAnnot)
 
 --------------------------------------------------------------------------------
 -- | LH Related Stuff ----------------------------------------------------------

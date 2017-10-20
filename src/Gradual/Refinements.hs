@@ -9,6 +9,8 @@ import Language.Fixpoint.Types.Config
 import Language.Fixpoint.Solver.Monad
 import Language.Fixpoint.Solver.Solve (solverInfo)
 import Language.Fixpoint.Utils.Files 
+import Language.Fixpoint.SortCheck (exprSort_maybe)
+
 
 import Control.Monad (filterM)
 -- import Control.Monad.IO.Class
@@ -22,17 +24,6 @@ makeGMap gcfg cfg sinfo mes = toGMap <$> runSolverM cfg' sI act
                , extensionality = True -- disable mbqi
            }
 
-{-
-makeGMap cfg sinfo mes = do 
-  putStrLn "MakeGMap: \n\n"
-  putStrLn (concatMap (\(k,(_,es)) -> (show k ++ " |-> " ++ showFix es ++"\n\n")) mes)
-  mes' <- runSolverM cfg sI $ mapM concretize mes
-  putStrLn (concatMap (\(k,(_,es)) -> (show k ++ " |-> " ++ showFix es ++"\n\n")) mes')
-  return $ toGMap mes' 
-  where
-    sI = solverInfo cfg sinfo
--}
-
 concretize :: GConfig -> (KVar, (GWInfo, [Expr])) -> SolveM (KVar, (GWInfo,[Expr]))
 concretize cfg (kv, (info, es))
   = (\es' -> (kv,(info,es'))) <$> 
@@ -40,18 +31,23 @@ concretize cfg (kv, (info, es))
              (PTrue:(pAnd <$> powersetUpTo (depth cfg) es))
 
 isGoodInstance :: GWInfo -> Expr -> SolveM Bool 
-isGoodInstance info e = (&&) <$> (isLocal info e) <*> (isMoreSpecific info e) 
+isGoodInstance info e 
+  | isSensible e -- heuristic to delete stupit instantiations
+  = (&&) <$> (isLocal info e) <*> (isMoreSpecific info e) 
+  | otherwise 
+  = return False 
 
-{- 
-isGoodInstance info e = do 
-  l <- isLocal info e 
-  s <- isMoreSpecific info e
-  liftIO $ putStrLn ("Checking " ++ pretty e ++ 
-            ":: (isLocal = " ++ show l ++ 
-            " & isMoreSpecific than (" ++ pretty (gexpr info) ++ ") = " ++ show s ++ ")\n"
-            ) 
-  return (l && s)
--}
+isSensible :: Expr -> Bool 
+isSensible (PIff _ (PAtom _ e1 e2))
+  | e1 == e2 
+  = False 
+isSensible (PAtom cmp e _)
+  | cmp `elem` [Gt,Ge,Lt,Le]
+  , Just s <- exprSort_maybe e 
+  , boolSort == s
+  = False 
+isSensible _ 
+  = True 
 
 isLocal :: GWInfo -> Expr -> SolveM Bool 
 isLocal i e = isValid (PExist [(gsym i, gsort i)] e)
@@ -68,9 +64,3 @@ isValid e
   , e2 `elem` es    = return True    
 isValid e = not <$> checkSat (PNot e)
 
-{- 
-isValid e = do -- not <$> checkSat (PNot e)
-  r <- checkSat (PNot e)
-  liftIO $ putStrLn ("CHECKING VALIDITY OF " ++ showFix e ++ " = " ++ show r)
-  return $ not r  
--}
