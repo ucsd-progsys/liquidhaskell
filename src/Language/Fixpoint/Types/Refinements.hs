@@ -278,6 +278,7 @@ data Expr = ESym !SymConst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
+          | ECoerc !Symbol !Sort !Expr
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr
@@ -339,7 +340,7 @@ debruijnIndex = go
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
     go (PGrad _ _ _ e) = go e
-
+    go (ECoerc _ _ e)  = go e
 
 -- | Parsed refinement of @Symbol@ as @Expr@
 --   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
@@ -426,6 +427,7 @@ instance Fixpoint Expr where
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix (PGrad k _ _ e)  = toFix e <+> text "&&" <+> toFix k -- text "??" -- <+> toFix k <+> toFix su
+  toFix (ECoerc a t e)   = text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e -- text "??" -- <+> toFix k <+> toFix su
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
   simplify (PAnd [])     = PTrue
@@ -594,6 +596,7 @@ instance PPrint Expr where
   pprintPrec _ k (PAll xts p)    = pprintQuant k "forall" xts p
   pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
+  pprintPrec _ k (ECoerc a t e)  = parens $ "coerce" <+> toFix a <+> "~" <+> toFix t <+> text "in" <+> pprintTidy k e
   pprintPrec _ _ p@(PKVar {})    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s

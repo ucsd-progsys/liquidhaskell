@@ -172,6 +172,7 @@ visitExpr !v    = vE
     step !c !(PAtom r e1 e2) = PAtom r     <$> vE c e1 <*> vE c e2
     step !c !(PAll xts p)    = PAll   xts  <$> vE c p
     step !c !(ELam (x,t) e)  = ELam (x,t)  <$> vE c e
+    step !c !(ECoerc a t e)  = ECoerc a t  <$> vE c e
     step !c !(PExist xts p)  = PExist xts  <$> vE c p
     step !c !(ETApp e s)     = (`ETApp` s) <$> vE c e
     step !c !(ETAbs e s)     = (`ETAbs` s) <$> vE c e
@@ -220,6 +221,7 @@ mapMExpr f = go
     go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
     go (PAll xts p)    = f =<< (PAll   xts  <$>  go p                     )
     go (ELam (x,t) e)  = f =<< (ELam (x,t)  <$>  go e                     )
+    go (ECoerc a t e)  = f =<< (ECoerc a t  <$>  go e                     )
     go (PExist xts p)  = f =<< (PExist xts  <$>  go p                     )
     go (ETApp e s)     = f =<< ((`ETApp` s) <$>  go e                     )
     go (ETAbs e s)     = f =<< ((`ETAbs` s) <$>  go e                     )

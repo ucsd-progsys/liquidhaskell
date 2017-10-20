@@ -106,6 +106,10 @@ testSortP =
 
     , testCase "FObj " $
         show (doParse' sortP "test" "_foo") @?= "FObj \"_foo\""
+
+    , testCase "Coerce0" $
+        show (doParse' predP "test" "v = (coerce (a ~ int) (f x))")
+          @?= "PAtom Eq (EVar \"v\") (ECoerc \"a\" FInt (EApp (EVar \"f\") (EVar \"x\")))"
     ]
 
 -- ---------------------------------------------------------------------

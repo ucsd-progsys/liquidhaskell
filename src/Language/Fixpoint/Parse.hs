@@ -158,6 +158,7 @@ reservedNames = S.fromList
 
   -- reserved words used in liquid haskell
   , "forall"
+  , "coerce"
   , "exists"
   , "module"
   , "spec"
@@ -195,6 +196,7 @@ reservedNames = S.fromList
   , "type"
   , "using"
   , "with"
+  , "in"
   ]
 
 reservedOpNames :: [String]
@@ -351,6 +353,7 @@ expr0P
   =  trueP
  <|> falseP
  <|> (fastIfP EIte exprP)
+ <|> (coerceP exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reservedOp "_|_" >> return EBot)
@@ -382,6 +385,15 @@ fastIfP f bodyP
        reserved "else"
        b2 <- bodyP
        return $ f p b1 b2
+
+coerceP :: Parser Expr -> Parser Expr
+coerceP p = do
+  reserved "coerce"
+  (a, t) <- parens (pairP symbolP (reservedOp "~") sortP)
+  e      <- p
+  return $ ECoerc a t e
+
+
 
 {-
 qmIfP f bodyP
