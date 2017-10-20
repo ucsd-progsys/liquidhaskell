@@ -165,25 +165,22 @@ buildExprEdges table  = ordNub . go
     go (EBin _ e1 e2) = go e1 ++ go e2
     go (EIte _ e1 e2) = go e1 ++ go e2
     go (ECst e _)     = go e
-
     go (ESym _)       = []
     go (ECon _)       = []
     go (EVar v)       = go_alias v
+    go (PAnd ps)       = concatMap go ps
+    go (POr ps)        = concatMap go ps
+    go (PNot p)        = go p
+    go (PImp p q)      = go p ++ go q
+    go (PIff p q)      = go p ++ go q
+    go (PAll _ p)      = go p
+    go (ELam _ e)      = go e
+    go (ECoerc _ _ e)  = go e
+    go (PAtom _ e1 e2) = go e1 ++ go e2
+    go (ETApp e _)     = go e
+    go (ETAbs e _)     = go e
+    go (PKVar _ _)     = []
+    go (PExist _ e)    = go e
+    go (PGrad _ _ _ e) = go e
 
-    go (PAnd ps)           = concatMap go ps
-    go (POr ps)            = concatMap go ps
-    go (PNot p)            = go p
-    go (PImp p q)          = go p ++ go q
-    go (PIff p q)          = go p ++ go q
-    go (PAll _ p)          = go p
-    go (ELam _ e)          = go e
-
-    go (PAtom _ e1 e2)     = go e1 ++ go e2
-
-    go (ETApp e _)         = go e
-    go (ETAbs e _)         = go e
-    go (PKVar _ _)         = []
-    go (PExist _ e)        = go e
-    go (PGrad _ _ _ e)     = go e
-
-    go_alias f           = [f | M.member f table ]
+    go_alias f         = [f | M.member f table ]

@@ -23,6 +23,7 @@ import           Prelude                               hiding (error)
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
+import           Coercion
 
 import qualified CoreSyn                               as C
 import           Literal
@@ -208,31 +209,55 @@ coreToLogic cb = coreToLg (normalize cb)
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)
   = subst1 <$> coreToLg e <*>  makesub b
-coreToLg (C.Tick _ e)         = coreToLg e
+coreToLg (C.Tick _ e)          = coreToLg e
 coreToLg (C.App (C.Var v) e)
-  | ignoreVar v               = coreToLg e
+  | ignoreVar v                = coreToLg e
 coreToLg (C.Var x)
-  | x == falseDataConId       = return PFalse
-  | x == trueDataConId        = return PTrue
-  | otherwise                 = (lsSymMap <$> getState) >>= eVarWithMap x
-coreToLg e@(C.App _ _)        = toPredApp e
+  | x == falseDataConId        = return PFalse
+  | x == trueDataConId         = return PTrue
+  | otherwise                  = (lsSymMap <$> getState) >>= eVarWithMap x
+coreToLg e@(C.App _ _)         = toPredApp e
 coreToLg (C.Case e b _ alts)
-  | eqType (varType b) boolTy = checkBoolAlts alts >>= coreToIte e
-coreToLg (C.Lam x e)          = do p     <- coreToLg e
-                                   tce   <- lsEmb <$> getState
-                                   return $ ELam (symbol x, typeSort tce (varType x)) p
-coreToLg (C.Case e b _ alts)  = do p <- coreToLg e
-                                   casesToLg b p alts
-coreToLg (C.Lit l)            = case mkLit l of
-                                  Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
-                                  Just i  -> return i
-coreToLg (C.Cast e c)         = _fixme
-coreToLg e                    = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+  | eqType (varType b) boolTy  = checkBoolAlts alts >>= coreToIte e
+coreToLg (C.Lam x e)           = do p     <- coreToLg e
+                                    tce   <- lsEmb <$> getState
+                                    return $ ELam (symbol x, typeSort tce (varType x)) p
+coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
+                                    casesToLg b p alts
+coreToLg (C.Lit l)             = case mkLit l of
+                                   Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+                                   Just i  -> return i
+coreToLg (C.Cast e c)          = do fc <- coerceToLg c
+                                    e' <- coreToLg   e
+                                    case fc of
+                                      Just (a, t) -> return (ECoerc a t e')
+                                      Nothing     -> return e'
+coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+
+coerceToLg :: Coercion -> LogicM (Maybe (Symbol, Sort))
+coerceToLg = mapM typeEqToLg . coercionTypeEq
+
+coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
+coercionTypeEq co = do
+  (s, t) <- coVarTypes <$> getCoVar_maybe co
+  a      <- getTyVar_maybe s
+  Just (a, t)
+
+typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
+typeEqToLg (a, t) = do
+  tce   <- gets lsEmb
+  return (symbol a, typeSort tce t)
+
+  -- Pair t1 t2 <- coercionKind co
+  -- getCoVar_maybe :: Coercion -> Maybe CoVar
+  -- getTyVar_maybe :: Type -> Maybe TyVar
+  -- coVarTypes :: CoVar -> (Type, Type)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
+
 checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)

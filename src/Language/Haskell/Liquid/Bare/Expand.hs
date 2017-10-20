@@ -89,6 +89,7 @@ expandExpr = go
     go (PAll xs p)     = PAll xs     <$> go p
     go (PExist s e)    = PExist s    <$> go e
     go (ELam xt e)     = ELam xt     <$> go e
+    go (ECoerc a t e)  = ECoerc a t  <$> go e
     go (ETApp e s)     = (`ETApp` s) <$> go e
     go (ETAbs e s)     = (`ETAbs` s) <$> go e
     go (EBin op e1 e2) = EBin op     <$> go e1  <*> go e2
