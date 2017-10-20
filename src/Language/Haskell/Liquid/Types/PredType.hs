@@ -32,7 +32,7 @@ import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
-import qualified Var
+-- import qualified Var
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
@@ -78,10 +78,12 @@ dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
 
 dataConWorkRep :: DataCon -> SpecRep
 dataConWorkRep c = toRTypeRep
-                 . F.tracepp ("DCWR: " ++ F.showpp c)
+                 . F.tracepp ("DCWR-2: " ++ F.showpp c)
                  . ofType
-                 . Var.varType
-                 . dataConWorkId
+                 . F.tracepp ("DCWR-1: " ++ F.showpp c)
+                 . dataConRepType
+                 -- . Var.varType
+                 -- . dataConWorkId
                  $ c
 
 

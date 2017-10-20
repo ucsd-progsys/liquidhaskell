@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.GHC.Misc where
 import           Class                                      (classKey)
 import           Data.String
 import           PrelNames                                  (fractionalClassKeys)
-
+import           FamInstEnv
 import           Debug.Trace
 
 import           DataCon                                    (isTupleDataCon)
@@ -72,7 +72,7 @@ import           Outputable                                 (Outputable (..), te
 import qualified Outputable                                 as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
-import           Language.Fixpoint.Types                    hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
+import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
 import           Control.DeepSeq
@@ -86,6 +86,9 @@ mkAlive x
   = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
   | otherwise
   = x
+
+
+
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
@@ -113,7 +116,9 @@ miModGuts cls mg  = MI {
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
-  where z         = show (getName <$> mg_fam_insts mg)
+  where z         = showPpr (zing <$> mg_fam_insts mg)
+        zing fi   = (fi_fam fi, fi_tcs fi, fi_tvs fi, fi_rhs fi)
+
 mg_dir_imps :: ModGuts -> [ModuleName]
 mg_dir_imps m = fst <$> (dep_mods $ mg_deps m)
 
@@ -339,6 +344,9 @@ namedLocSymbol d = {- dropModuleNamesAndUnique . -} F.symbol <$> locNamedThing d
 
 varLocInfo :: (Type -> a) -> Var -> F.Located a
 varLocInfo f x = f . varType <$> locNamedThing x
+
+namedPanic :: (NamedThing a) => a -> String -> b
+namedPanic x msg = panic (Just (getSrcSpan x)) msg
 
 --------------------------------------------------------------------------------
 -- | Manipulating CoreExpr -----------------------------------------------------

@@ -242,8 +242,8 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy _ i
     fields   = zip (reverse xts) [1..]
     n        = length xts
     checker  = makeMeasureChecker (Loc l l' (makeDataConChecker dc)) checkT dc n
-    projT i  = dataConSel dc (Proj i)
-    checkT   = dataConSel dc Check
+    projT i  = dataConSel dc n (Proj i)
+    checkT   = dataConSel dc n Check
 
 
     -- checkT   = mkTy res bareBool
@@ -251,26 +251,64 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy _ i
     -- as       = makeRTVar <$> vs
     -- mkTy i o = F.tracepp ("mkTy" ++ show vs) $ mkUnivs as [] [] (RFun dummySymbol i o mempty)
 
-dataConSel :: DataCon -> DataConSel -> SpecType
-dataConSel dc Check    = mkArrow as [] [] [xt] bareBool
+dataConSel :: DataCon -> Int -> DataConSel -> SpecType
+dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
   where
-    (as, _, xt)        = traceShow ("bkDataCon: " ++ show dc) $ bkDataCon dc
+    (as, _, xt)          = traceShow ("bkDataCon: " ++ show dc) $ bkDataCon dc n
 
-dataConSel dc (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
+dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
-    ti                 = fromMaybe err $ getNth (i-1) ts
-    (as, ts, xt)       = bkDataCon dc
-    err                = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
+    ti                   = fromMaybe err $ getNth (i-1) ts
+    (as, ts, xt)         = bkDataCon dc n
+    err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
-bkDataCon :: (Monoid r) => DataCon -> ([RTVar RTyVar a], [RRType r], (Symbol, RRType r, r))
-bkDataCon dc    = (as, RT.ofType <$> ts, xt)
+bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
+bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
-    as          = makeRTVar . RT.rTyVar <$> αs
-    xt          = (dummySymbol, RT.ofType t, mempty)
-    -- (αs,_,_,_,ts,t)  = dataConFullSig dc
+    ts                = RT.ofType <$> takeLast nFlds _ts
+    t                 = RT.ofType  $  mkFamilyTyConApp tc tArgs'
+    as                = makeRTVar . RT.rTyVar <$> αs
+    (αs,_,_,_,_ts,_t) = dataConFullSig dc
+    tArgs'            = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)
+    nVars             = length αs
+    nArgs             = length tArgs
+    (tc, tArgs)       = fromMaybe err (splitTyConApp_maybe _t)
+    err               = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
+--    instTc            = dataConTyCon dc
+
+-- HEREHERE
+-- TyCoRep.isCoercionType :: Type -> Bool
+-- getCoVar_maybe :: Coercion -> Maybe CoVar
+-- coVarTypes     :: CoVar -> (Type, Type)
+-- Expr b = ... | Cast (Expr b) Coercion
+
+{-
+bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
+bkDataCon dc nFlds = (as, ts, xt)
+  where
+    xt             = (dummySymbol, t, mempty)
+    -- as             = ty_vars dcR
+    t              = F.tracepp "DATA-REP" $ ty_res  dcR
+    ts             = takeLast nFlds (ty_args dcR)
+    dcR            = dataConRep dc
+    as                = makeRTVar . RT.rTyVar <$> αs
+    (αs,_,_,_,_ts,_t) = GM.tracePpr ("DC-FULL: " ++ msg) $ dataConFullSig dc
+
+    origTc               = dataConOrigTyCon dc
+    currTc               = dataConTyCon dc
+    msg                  = "Orig = " ++ show (origTc, tyConTyVars origTc) ++
+                           "Curr = " ++ show (currTc, tyConTyVars currTc)
+-}
     -- (αs,_,ts,t) = dataConSig dc
-    (αs,_,ts,t) = _fixme -- GET the f-ing poly type, the above give the USER type, `Foo Int`, not (a~Int) => Foo a
-    
+    -- (αs,_,ts,t) = _fixme -- GET the f-ing poly type, the above give the USER type, `Foo Int`, not (a~Int) => Foo a
+    -- splitTyConApp_maybe :: Type -> Maybe (TyCon, [Type])
+{-
+splitTyConApp_maybe :: Type -> Maybe (TyCon, [Type])
+
+dataConRep :: DataCon -> SpecRep
+dataConRep = toRTypeRep . RT.ofType . varType . dataConWrapId
+-}
+
 data DataConSel = Check | Proj Int
 
 bareBool :: SpecType

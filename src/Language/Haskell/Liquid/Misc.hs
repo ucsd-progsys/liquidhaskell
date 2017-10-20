@@ -53,6 +53,11 @@ safeFromJust :: String -> Maybe t -> t
 safeFromJust _  (Just x) = x
 safeFromJust err _       = errorstar err
 
+takeLast :: Int -> [a] -> [a]
+takeLast n xs = drop (m - n) xs
+  where
+    m         = length xs
+    
 getNth :: Int -> [a] -> Maybe a
 getNth 0 (x:_)  = Just x
 getNth n (_:xs) = getNth (n-1) xs

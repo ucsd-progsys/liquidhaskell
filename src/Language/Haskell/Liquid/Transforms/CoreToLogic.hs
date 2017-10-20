@@ -208,37 +208,26 @@ coreToLogic cb = coreToLg (normalize cb)
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)
   = subst1 <$> coreToLg e <*>  makesub b
-coreToLg (C.Tick _ e)
-  = coreToLg e
+coreToLg (C.Tick _ e)         = coreToLg e
 coreToLg (C.App (C.Var v) e)
-  | ignoreVar v
-  = coreToLg e
+  | ignoreVar v               = coreToLg e
 coreToLg (C.Var x)
-  | x == falseDataConId
-  = return PFalse
-  | x == trueDataConId
-  = return PTrue
-  | otherwise
-  = (lsSymMap <$> getState) >>= eVarWithMap x
-coreToLg e@(C.App _ _)
-  = toPredApp e
-coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
-  = checkBoolAlts alts >>= coreToIte e
-coreToLg (C.Lam x e)
-  = do p     <- coreToLg e
-       tce   <- lsEmb <$> getState
-       return $ ELam (symbol x, typeSort tce (varType x)) p
+  | x == falseDataConId       = return PFalse
+  | x == trueDataConId        = return PTrue
+  | otherwise                 = (lsSymMap <$> getState) >>= eVarWithMap x
+coreToLg e@(C.App _ _)        = toPredApp e
 coreToLg (C.Case e b _ alts)
-  = do p <- coreToLg e
-       casesToLg b p alts
-
-coreToLg (C.Lit l)
-  = case mkLit l of
-     Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
-     Just i -> return i
-
-coreToLg e
-  = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+  | eqType (varType b) boolTy = checkBoolAlts alts >>= coreToIte e
+coreToLg (C.Lam x e)          = do p     <- coreToLg e
+                                   tce   <- lsEmb <$> getState
+                                   return $ ELam (symbol x, typeSort tce (varType x)) p
+coreToLg (C.Case e b _ alts)  = do p <- coreToLg e
+                                   casesToLg b p alts
+coreToLg (C.Lit l)            = case mkLit l of
+                                  Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+                                  Just i  -> return i
+coreToLg (C.Cast e c)         = _fixme
+coreToLg e                    = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
@@ -482,8 +471,8 @@ instance Simplify C.CoreExpr where
     = C.Let (simplify xes) (simplify e)
   simplify (C.Case e x t alts)
     = C.Case (simplify e) x t (filter (not . isUndefined) (simplify <$> alts))
-  simplify (C.Cast e _)
-    = simplify e
+  simplify (C.Cast e c)
+    = C.Cast (simplify e) c
   simplify (C.Tick _ e)
     = simplify e
   simplify (C.Coercion c)
