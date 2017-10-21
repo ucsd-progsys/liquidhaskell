@@ -3,6 +3,7 @@
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
+
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
 module Query where
