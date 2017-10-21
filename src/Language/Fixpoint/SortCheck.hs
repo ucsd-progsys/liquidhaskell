@@ -358,7 +358,7 @@ checkExpr f (PGrad _ _ _ e)  = checkPred f e >> return boolSort
 checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
 checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
-checkExpr f (ECoerc a t e) = checkExpr (addEnv f [(a, t)]) e
+checkExpr f (ECoerc a t e) = applyCoercion a t <$> checkExpr (addEnv f [(a, t)]) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
@@ -481,7 +481,7 @@ elab f (ELam (x,t) e) = do
 
 elab f (ECoerc a t e) = do
   (e', s) <- elab (elabAddEnv f [(a, t)]) e
-  return     (ECoerc a t e', s)
+  return     (ECoerc a t e', applyCoercion a t s)
 
 elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
@@ -966,6 +966,16 @@ apply θ          = Vis.mapSort f
   where
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
+
+--------------------------------------------------------------------------------
+applyCoercion :: Symbol -> Sort -> Sort -> Sort 
+--------------------------------------------------------------------------------
+applyCoercion a t = Vis.mapSort f 
+  where 
+    f (FObj b)  
+      | a == b    = t 
+    f s           = s 
+
 
 --------------------------------------------------------------------------------
 -- | Deconstruct a function-sort -----------------------------------------------
