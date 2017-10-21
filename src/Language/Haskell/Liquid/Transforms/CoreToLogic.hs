@@ -250,7 +250,7 @@ coercionTypeEq co
 typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
 typeEqToLg (a, t) = do
   tce   <- gets lsEmb
-  return (symbol a, typeSort tce t)
+  return (tyVarUniqueSymbol a, typeSort tce t)
 
   -- Pair t1 t2 <- coercionKind co
   -- getCoVar_maybe :: Coercion -> Maybe CoVar
