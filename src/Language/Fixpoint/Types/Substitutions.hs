@@ -108,6 +108,7 @@ instance Subable Expr where
   substa f                 = substf (EVar . f)
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
   substf f (ELam x e)      = substfLam f x e
+  substf f (ECoerc a t e)  = ECoerc a t (substf f e)
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
@@ -127,6 +128,7 @@ instance Subable Expr where
 
   subst su (EApp f e)      = EApp (subst su f) (subst su e)
   subst su (ELam x e)      = ELam x (subst (removeSubst su (fst x)) e)
+  subst su (ECoerc a t e)  = ECoerc a t (subst su e) 
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
@@ -268,6 +270,7 @@ exprSymbols = go
     go (EVar x)           = [x]
     go (EApp f e)         = go f ++ go e
     go (ELam (x,_) e)     = filter (/= x) (go e)
+    go (ECoerc _ _ e)     = go e
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = go e1 ++ go e2
     go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
