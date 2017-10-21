@@ -274,40 +274,6 @@ bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
     nArgs             = length tArgs
     (tc, tArgs)       = fromMaybe err (splitTyConApp_maybe _t)
     err               = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
---    instTc            = dataConTyCon dc
-
--- HEREHERE
--- TyCoRep.isCoercionType :: Type -> Bool
--- getCoVar_maybe :: Coercion -> Maybe CoVar
--- coVarTypes     :: CoVar -> (Type, Type)
--- Expr b = ... | Cast (Expr b) Coercion
-
-{-
-bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon dc nFlds = (as, ts, xt)
-  where
-    xt             = (dummySymbol, t, mempty)
-    -- as             = ty_vars dcR
-    t              = F.tracepp "DATA-REP" $ ty_res  dcR
-    ts             = takeLast nFlds (ty_args dcR)
-    dcR            = dataConRep dc
-    as                = makeRTVar . RT.rTyVar <$> αs
-    (αs,_,_,_,_ts,_t) = GM.tracePpr ("DC-FULL: " ++ msg) $ dataConFullSig dc
-
-    origTc               = dataConOrigTyCon dc
-    currTc               = dataConTyCon dc
-    msg                  = "Orig = " ++ show (origTc, tyConTyVars origTc) ++
-                           "Curr = " ++ show (currTc, tyConTyVars currTc)
--}
-    -- (αs,_,ts,t) = dataConSig dc
-    -- (αs,_,ts,t) = _fixme -- GET the f-ing poly type, the above give the USER type, `Foo Int`, not (a~Int) => Foo a
-    -- splitTyConApp_maybe :: Type -> Maybe (TyCon, [Type])
-{-
-splitTyConApp_maybe :: Type -> Maybe (TyCon, [Type])
-
-dataConRep :: DataCon -> SpecRep
-dataConRep = toRTypeRep . RT.ofType . varType . dataConWrapId
--}
 
 data DataConSel = Check | Proj Int
 

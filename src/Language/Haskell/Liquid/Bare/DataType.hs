@@ -456,7 +456,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
   let cs        = RT.ofType <$> dataConStupidTheta c'
-  let t0'       = {- fromMaybe t0 res' -} dataConResultTy c' t0 res'
+  let t0'       = {- fromMaybe t0 res' -} dataConResultTy c' nFlds t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
@@ -465,6 +465,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   where
     (xs, ts) = unzip xts
     t0       = RT.gApp tc αs πs
+    nFlds    = length xts
     -- rs       = [RT.rVar α | RTV α <- αs]
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt   = isJust res
@@ -474,16 +475,16 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
 --   For 'isVanillaDataCon' we can just use the `TyCon`
 --   applied to the relevant tyvars.
 dataConResultTy :: DataCon
-                -> SpecType         -- ^ vanilla
-                -> Maybe SpecType   -- ^ user-provided
+                -> Int              -- ^ number of value fields
+                -> SpecType         -- ^ vanilla result type
+                -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
-dataConResultTy _ _ (Just t) = t
-dataConResultTy c t _
-  | isVanillaDataCon c       = t
-dataConResultTy c _ _        = RT.ofType t
+dataConResultTy _ _ _ (Just t) = t
+dataConResultTy c _ t _
+  | isVanillaDataCon c         = t
+dataConResultTy c _ _ _        = RT.ofType t
   where
-    -- (_,_,_,t)                = dataConSig c
-    (_,_,_,_,_,t)            = GM.tracePpr ("FULL-SIG: " ++ show c) $ dataConFullSig c
+    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG: " ++ show c) $ dataConFullSig c
 
 
 normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)

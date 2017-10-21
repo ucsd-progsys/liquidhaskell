@@ -165,11 +165,10 @@ ghcSpecEnv sp        = res
   where
     res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
-    binds            =  (F.notracepp "ghcSpecEnv1" $ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
+    binds            =  ([(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
                                                                  isConLikeId v ]
-                     -- ++ (F.tracepp "ghcSpecEnv2" $ concatMap adtEnv (gsADTs sp))
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -860,7 +859,7 @@ withExtendedEnv :: Bool -> [Var] -> ReplaceM b -> ReplaceM b
 withExtendedEnv allowHO vs k = do
   RE env' fenv' emb tyi <- ask
   let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
-      fenv = F.tracepp "FENV" $ L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+      fenv = F.notracepp "FENV" $ L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
   withReaderT (const (RE env fenv emb tyi)) $ do
     mapM_ (replaceLocalBindsOne allowHO) vs
     k

@@ -61,7 +61,7 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
     pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dc dcp = _fixme_use_bkDataCon  [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType dc wrapT

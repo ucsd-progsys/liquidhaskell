@@ -236,7 +236,7 @@ coreToLg (C.Cast e c)          = do fc <- coerceToLg c
 coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 coerceToLg :: Coercion -> LogicM (Maybe (Symbol, Sort))
-coerceToLg c = tracepp ("coerce-to-lg:" ++ showPpr c) <$> (mapM typeEqToLg . coercionTypeEq $ c)
+coerceToLg c = (mapM typeEqToLg . coercionTypeEq $ c)
 
 coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
 coercionTypeEq co
@@ -244,8 +244,6 @@ coercionTypeEq co
   = (, t) <$> getTyVar_maybe s
   | otherwise
   = Nothing
-
-  -- (s, t) <- coVarTypes <$> (tracepp ("coercion-type-eq-1: " ++ showPpr co) $ getCoVar_maybe co)
 
 typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
 typeEqToLg (a, t) = do
@@ -408,9 +406,6 @@ splitArgs e = (f, reverse es)
     go f           = (f, [])
 
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
--- TODO:reflect-datacons tomaybesymbol (C.Var c) | isDataConId  c = Just $  F.tracepp "reflect-datacons:tomaybe1" $ symbol c
--- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybe2" $ simpleSymbolVar x
--- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ simpleSymbolVar' x
 tomaybesymbol (C.Var x) = Just $ symbol x
 tomaybesymbol _         = Nothing
 
