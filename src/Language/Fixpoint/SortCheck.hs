@@ -28,6 +28,7 @@ module Language.Fixpoint.SortCheck  (
   , sortExpr
   , checkSortExpr
   , exprSort
+  , exprSort_maybe
 
   -- * Unify
   , unifyFast
@@ -629,14 +630,21 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
 exprSort :: String -> Expr -> Sort
-exprSort msg = go
+exprSort msg e =
+  case exprSort_maybe e of
+    Nothing -> errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
+    Just s  -> s 
+
+
+exprSort_maybe :: Expr -> Maybe Sort
+exprSort_maybe = go
   where
-    go (ECst _ s) = s
-    go (ELam (_, sx) e) = FFunc sx (go e)
+    go (ECst _ s) = Just s
+    go (ELam (_, sx) e) = FFunc sx <$> go e
     go (EApp e ex)
-      | FFunc sx s <- genSort (go e)
-      = maybe s (`apply` s) $ unifySorts (go ex) sx
-    go e = errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
+      | Just (FFunc sx s) <- genSort <$> go e
+      = maybe s (`apply` s) <$> ((`unifySorts` sx) <$> go ex)
+    go _ = Nothing
 
 genSort :: Sort -> Sort
 genSort (FAbs _ t) = genSort t
