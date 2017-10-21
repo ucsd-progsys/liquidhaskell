@@ -24,6 +24,7 @@ import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
 import           Coercion
+import qualified Pair
 
 import qualified CoreSyn                               as C
 import           Literal
@@ -235,13 +236,16 @@ coreToLg (C.Cast e c)          = do fc <- coerceToLg c
 coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 coerceToLg :: Coercion -> LogicM (Maybe (Symbol, Sort))
-coerceToLg = mapM typeEqToLg . coercionTypeEq
+coerceToLg c = tracepp ("coerce-to-lg:" ++ showPpr c) <$> (mapM typeEqToLg . coercionTypeEq $ c)
 
 coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
-coercionTypeEq co = do
-  (s, t) <- coVarTypes <$> getCoVar_maybe co
-  a      <- getTyVar_maybe s
-  Just (a, t)
+coercionTypeEq co
+  | Pair.Pair s t <-  (tracePpr ("coercion-type-eq-1: " ++ showPpr co) $  coercionKind co)
+  = (, t) <$> getTyVar_maybe s
+  | otherwise
+  = Nothing
+
+  -- (s, t) <- coVarTypes <$> (tracepp ("coercion-type-eq-1: " ++ showPpr co) $ getCoVar_maybe co)
 
 typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
 typeEqToLg (a, t) = do
