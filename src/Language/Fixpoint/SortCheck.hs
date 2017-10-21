@@ -769,9 +769,10 @@ checkEqConstr _ _  θ a (FObj b)
   | a == b
   = return θ
 checkEqConstr f e θ a t = do
-  tA <- checkSym f a
-  unless (tA == t) (throwError $ errUnify e tA t)
-  return θ
+  case f a of 
+    Found tA -> do unless (tA == t) (throwError $ errUnify e tA t)
+                   return θ
+    _        -> throwError $ errUnify e (FObj a) t
 
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
