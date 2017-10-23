@@ -32,7 +32,7 @@ import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
--- import qualified Var
+import qualified Var
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
@@ -60,8 +60,9 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
+-- TODO: duplicated with Liquid.Measure.makeDataConType
 dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = _fixme_use_bkDataCon  [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType dc wrapT
@@ -81,11 +82,42 @@ dataConWorkRep c = toRTypeRep
                  . F.tracepp ("DCWR-2: " ++ F.showpp c)
                  . ofType
                  . F.tracepp ("DCWR-1: " ++ F.showpp c)
-                 . dataConRepType
-                 -- . Var.varType
-                 -- . dataConWorkId
+                 -- . dataConRepType
+                 . Var.varType
+                 . dataConWorkId
                  $ c
+{-
+dataConWorkRep :: DataCon -> SpecRep
+dataConWorkRep dc = RTypeRep
+  { ty_vars   = as
+  , ty_preds  = []
+  , ty_labels = []
+  , ty_binds  = replicate nArgs F.dummySymbol
+  , ty_refts  = replicate nArgs mempty
+  , ty_args   = ts'
+  , ty_res    = t'
+  }
+  where
+    (ts', t')          = F.tracepp "DCWR-1" (ofType <$> ts, ofType t)
+    as                 = makeRTVar . rTyVar <$> αs
+    tArg
+    (αs,_,eqs,th,ts,t) = dataConFullSig dc
+    nArgs              = length ts
 
+dataConResultTy :: DataCon -> [TyVar] -> Type -> Type
+dataConResultTy dc αs t = mkFamilyTyConApp tc tArgs'
+  where
+    tArgs'              = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)
+    nVars               = length αs
+    nArgs               = length tArgs
+    (tc, tArgs)         = fromMaybe err (splitTyConApp_maybe _t)
+    err                 = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
+
+  --  t                 = RT.ofType  $  mkFamilyTyConApp tc tArgs'
+  -- as                = makeRTVar . rTyVar <$> αs
+  --  (αs,_,_,_,_ts,_t) = dataConFullSig dc
+
+-}
 
 meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR

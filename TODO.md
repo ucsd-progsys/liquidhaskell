@@ -1,35 +1,86 @@
+### HEREHEREHERE 
+
+1. DONOT use `dataConFullSig` or any of that crap as it is incompatible with the
+plain `VarType` of the corresponding data con. For example:
+
+```
+    Trace: [bkDataConResult(Query.EntityField Query.Blob GHC.Types.Int,
+    forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)] : (EntityField Blob dog)
+```
+
+* That is, `dataConFullSig` says the output type is `Query.EntityField Query.Blob Int` 
+  but the actual var-type has the output type `Query.R:EntityFieldBlobdog dog` 
+  which will screw up all our invariants about the GHC and Liquid types lining
+  up.
+
+So.
+
+1. In "sort" land, use the FamInstTyCon name, which is the `EntityFieldBlobdog`,
+   that should be the type of the ADT etc.
+2. Give (the measures) `BlobXVal` and `BlobYVal` types like :: `EntityFieldBlobdog Int` 
+3. Give (the measures) `is$BlobXVal` and `is$BlobYVal` types like :: `EntityFieldBlobdog a -> Bool` 
 
 
+Concretely: rewrite `bkDataCon` and `dataConResultTy` to use `dataConWorkRep`
+(or `varType . dataConWorkId`)
 
-HASSLE:
+Note that the above will give us the type:
+
+    BlobXVal :: forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)
+
+when we are really looking for the "result" type of the constructor 
+
+    BlobXVal ::  Query.R:EntityFieldBlobdog Int 
+
+In this case, fret not, just use the tyvar substitutions, so from the `ty_args` 
+gather the equalities as done in `classBinds` -- see below, and then substitute 
+those into the body (but after accounting for the original tyvars.)
+
+`dataConResultTy` should be:
+
+```
+  as           = ty-vars from datacon 
+  tc           = tycon name 
+  t0           = gApp tc as 
+  tRes 
+   | isGadt    = substTyVar (gadtSubst as c) t0  
+   | otherwise = t0 
 
 
- /Users/rjhala/research/stack/liquidhaskell/tests/todo/ExactGADT3.hs:11:13: Error: Illegal type specification for `Query.foo`
+gadtSubst :: [RTyVar] -> DataCon -> Subst 
+gadtSubst as c = mkSubst (join bAs bTs) 
+  where 
+    bTs        = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args wr ] 
+    bs         = ty_vars wr
+    wr         = dataConWorkRep c 
+    bAs        = M.fromList zip bs as 
 
- 11 | {-@ reflect foo @-}
-                  ^
+join :: [(a, b)] -> [(a, c)] -> [(b, c)]
 
-     Query.foo :: lq1:(Field a) -> {VV : Int | VV == Query.foo lq1}
-     Sort Error in Refinement: {VV : int | (VV == Query.foo lq1
-                                            && VV == (if is$Query.FldX lq1 then 10 else 21))}
-     Unbound Symbol a_awx
- Perhaps you meant: head, tail
-  because
-Cannot unify int with a_awx in expression: is$Query.FldX lq1
 
-NEXT:
+eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
+eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+  | rtc_tc c == eqPrimTyCon = Just (a, t)
+eqSubst _                   = Nothing 
+``` 
 
-1. fix indentation in the "Perhaps you meant: ..."
 
-2. I'm guessing that we currently do
++classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
+    +   | rtc_tc c == eqPrimTyCon
+    +   +   = tracepp "classBinds:" [(rTyVarSymbol a, rTypeSortedReft emb t)]
+    +   +   -- = [tracepp ("classBinds: c = " ++ showpp c ++ " ts = " ++ showpp
+        ts) []
+        +classBinds _ _
+               = []
 
-      `is$Query.FldX : Field Int -> Bool`  
+Trace: [FULL-SIG: Query.BlobYVal] : ([dog],
+ [],
+ [(dog, GHC.Types.Int)],
+ [],
+ [],
+ Query.EntityField Query.Blob GHC.Types.Int)
 
-   but we SHOULD do
 
-      `is$Query.FldX : Field a -> Bool`  
-
-3. God knows what Z3 will think but we can `--no-adt` it up...
 
 ### CallStack/Error
 

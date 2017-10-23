@@ -46,6 +46,8 @@ instance PersistEntity Blob where
     BlobXVal :: EntityField Blob Int
     BlobYVal :: EntityField Blob Int
 
+floog = BlobXVal 
+
 {-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
 filter :: (a -> Bool) -> [a] -> [a]
 filter f (x:xs)

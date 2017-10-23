@@ -482,9 +482,11 @@ dataConResultTy :: DataCon
 dataConResultTy _ _ _ (Just t) = t
 dataConResultTy c _ t _
   | isVanillaDataCon c         = t
+  -- | otherwise                  = _fixme -- get the dataConRepType
 dataConResultTy c _ _ _        = RT.ofType t
   where
-    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG: " ++ show c) $ dataConFullSig c
+    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG: " ++ show c ++ " -- repr : " ++ GM.showPpr tr) $ dataConFullSig c
+    tr                         = dataConRepType c
 
 
 normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)

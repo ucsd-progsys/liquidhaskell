@@ -266,14 +266,15 @@ bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecT
 bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> takeLast nFlds _ts
-    t                 = RT.ofType  $  mkFamilyTyConApp tc tArgs'
+    t                 = traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ RT.ofType  $ mkTyConApp {- mkFamilyTyConApp -} tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
-    (αs,_,_,_,_ts,_t) = dataConFullSig dc
+    ((αs,_,_,_,_ts,_t), t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs
     (tc, tArgs)       = fromMaybe err (splitTyConApp_maybe _t)
     err               = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
+    hammer dc         = (dataConFullSig dc, Var.varType . dataConWorkId $ dc)
 
 data DataConSel = Check | Proj Int
 
