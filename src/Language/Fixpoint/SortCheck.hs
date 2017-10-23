@@ -833,7 +833,7 @@ checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwError $ errRel e t1 t2)
 --------------------------------------------------------------------------------
 
 unifyExpr :: Env -> Expr -> Maybe TVSubst
-unifyExpr f ee@(EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
+unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
   where
    θ1 = unifyExpr f e1 
    θ2 = unifyExpr f e2 
@@ -845,11 +845,12 @@ unifyExpr _ _
 
 unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
 unifyExprApp f e1 e2 = do 
-  t1 <- getArg <$> exprSort_maybe e1 
+  t1 <- getArg $ exprSort_maybe e1 
   t2 <- exprSort_maybe e2 
   unify f (Just $ EApp e1 e2) t1 t2 
   where
-    getArg (FFunc t1 _) = t1 
+    getArg (Just (FFunc t1 _)) = Just t1 
+    getArg _                   = Nothing 
 
 
 --------------------------------------------------------------------------------
