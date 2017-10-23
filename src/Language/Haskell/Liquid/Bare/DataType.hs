@@ -485,7 +485,7 @@ dataConResultTy c _ t _
   -- | otherwise                  = _fixme -- get the dataConRepType
 dataConResultTy c _ _ _        = RT.ofType t
   where
-    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG: " ++ show c ++ " -- repr : " ++ GM.showPpr tr) $ dataConFullSig c
+    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr tr) $ dataConFullSig c
     tr                         = dataConRepType c
 
 
