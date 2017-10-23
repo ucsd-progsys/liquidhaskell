@@ -1,8 +1,8 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorderqs" @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--no-adt" @-}
 
 module MonoidList where
 
@@ -45,9 +45,9 @@ mappend_assoc Emp ys zs
 
 mappend_assoc (x ::: xs) ys zs
   =   mappend_assoc xs ys zs
-data L a = Emp | a ::: L a
-{-@ data L [llen] = Emp | (:::) {x::a, xs:: (L a)} @-}
 
+data L a = Emp | a ::: L a
+{-@ data L [llen] a = Emp | (:::) {x::a, xs:: (L a)} @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int

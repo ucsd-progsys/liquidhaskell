@@ -6,7 +6,6 @@
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
 

@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 
@@ -67,7 +66,6 @@ let prop x =  0
 -- | If the proofs do not derive automatically, user can
 -- | optionally provide the Proofean statements, after `?`
 -- | Note, no inference occurs: logic only reasons about
--- | linear arithmetic and equalities
 
 {- 
 fibUp :: Int -> Proof 
