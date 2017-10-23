@@ -57,7 +57,7 @@ takeLast :: Int -> [a] -> [a]
 takeLast n xs = drop (m - n) xs
   where
     m         = length xs
-    
+
 getNth :: Int -> [a] -> Maybe a
 getNth 0 (x:_)  = Just x
 getNth n (_:xs) = getNth (n-1) xs
@@ -267,3 +267,9 @@ nubHashLast f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
 nubHashLastM :: (Eq k, Hashable k, Monad m) => (a -> m k) -> [a] -> m [a]
 nubHashLastM f xs =  M.elems . M.fromList . (`zip` xs) <$> mapM f xs
+
+join :: (Eq b, Hashable b) => [(a, b)] -> [(b, c)] -> [(a, c)]
+join aBs bCs = [ (a, c) | (a, b) <- aBs, c <- b2cs b ]
+  where
+    bM       = M.fromList bCs
+    b2cs b   = maybeToList (M.lookup b bM)

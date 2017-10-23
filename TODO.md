@@ -1,7 +1,24 @@
 ### HEREHEREHERE 
 
+-1. [HEREHEREHEREHERE] next, extend the TCEmb to account for the below, see
+    current failure in ExactGADT4.hs
+
+0. Actually, just use `dataConWorkRep` everywhere AND if you like, you can use 
+   `dataConFullSig`. The conflict below can only be resolved by TCEmb mapping 
+
+        Query.R:EntityFieldBlobDog -> EntityField Blob 
+
+   because anyways otherwise GHC gives the dataConWorkId and dataConWrapId types
+   where one of them has the `BlobDog` and the other has `EntityField Blob` 
+   and so if you use the SAME measures (as we must!) then we will end up with 
+   a malformed refinement on one of them.
+
+   SO: just use the `dataConFullSig` or the `dataConWorkId` to create the
+   `dataConWorkRep` and use that consistently?
+
+
 1. DONOT use `dataConFullSig` or any of that crap as it is incompatible with the
-plain `VarType` of the corresponding data con. For example:
+   plain `VarType` of the corresponding data con. For example:
 
 ```
     Trace: [bkDataConResult(Query.EntityField Query.Blob GHC.Types.Int,

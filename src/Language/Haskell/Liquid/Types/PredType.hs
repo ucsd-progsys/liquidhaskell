@@ -24,7 +24,11 @@ module Language.Haskell.Liquid.Types.PredType (
 
   , substParg
   , pApp
-  , pappSort, pappArity
+  , pappSort
+  , pappArity
+
+  -- * should be elsewhere
+  , dataConWorkRep
   ) where
 
 import           Prelude                         hiding (error)
@@ -32,7 +36,7 @@ import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
-import qualified Var
+-- import qualified Var
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
@@ -62,11 +66,11 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
 
 -- TODO: duplicated with Liquid.Measure.makeDataConType
 dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dc dcp = F.tracepp "ORVILLE" [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType dc wrapT
-    wrapT               = dcWrapSpecType dc dcp
+    wrapT               = dcWrapSpecType dc (F.tracepp "WRAP-SPECTYPE" dcp)
     workX               = dataConWorkId dc            -- this is the weird one for GADTs
     wrapX               = dataConWrapId dc            -- this is what the user expects to see
     isVanilla           = F.tracepp ("IS-Vanilla: " ++ showpp dc) $ isVanillaDataCon dc
@@ -82,9 +86,9 @@ dataConWorkRep c = toRTypeRep
                  . F.tracepp ("DCWR-2: " ++ F.showpp c)
                  . ofType
                  . F.tracepp ("DCWR-1: " ++ F.showpp c)
-                 -- . dataConRepType
-                 . Var.varType
-                 . dataConWorkId
+                 . dataConRepType
+                 -- . Var.varType
+                 -- . dataConWorkId
                  $ c
 {-
 dataConWorkRep :: DataCon -> SpecRep
@@ -140,8 +144,8 @@ strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _ _)
-  = mkArrow makeVars ps ls ts' rt'
+dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
+  = F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
@@ -166,7 +170,7 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt _ mname _)
+  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt mname _)
      =  (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))

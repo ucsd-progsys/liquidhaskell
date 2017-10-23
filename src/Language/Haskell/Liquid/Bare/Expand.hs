@@ -50,7 +50,7 @@ instance ExpandAliases DataConP where
     tyRes'    <- expand $ tyRes     d
     tyConsts' <- expand $ tyConstrs d
     tyArgs'   <- expand $ tyArgs    d
-    return d { tyRes = tyRes', tyConstrs = tyConsts', tyArgs = tyArgs' }
+    return d { tyRes =  tyRes', tyConstrs = tyConsts', tyArgs = tyArgs' }
 
 instance ExpandAliases RReft where
   expand = mapM expand

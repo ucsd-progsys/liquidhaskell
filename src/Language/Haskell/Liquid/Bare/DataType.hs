@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.DataType
   -- , qualifyDataDecl
   ) where
 
+import           TysPrim
 import           DataCon
 import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
@@ -40,7 +41,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
-import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
+import           Language.Haskell.Liquid.Types.PredType (dataConWorkRep, dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
@@ -336,13 +337,13 @@ dataConSpec' dcs = concatMap tx dcs
   where
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
     tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
-                                         , let t  = RT.expandProductType x t0  ]
+                                         , let t  = F.tracepp ("expandProductType" ++ showpp (x, t0)) $ RT.expandProductType x t0  ]
 
     -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
 
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.tracepp "meetDataConSpec" xts)
   where
     dcm0                 = M.fromList $ dataConSpec' dcs
     upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
@@ -456,16 +457,16 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
   let cs        = RT.ofType <$> dataConStupidTheta c'
-  let t0'       = {- fromMaybe t0 res' -} dataConResultTy c' nFlds t0 res'
+  let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
-  return          (c', DataConP l αs πs ls cs zts ot t0 isGadt (F.symbol name) l')
+  return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
     t0       = RT.gApp tc αs πs
-    nFlds    = length xts
+    -- nFlds    = length xts
     -- rs       = [RT.rVar α | RTV α <- αs]
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt   = isJust res
@@ -475,19 +476,36 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
 --   For 'isVanillaDataCon' we can just use the `TyCon`
 --   applied to the relevant tyvars.
 dataConResultTy :: DataCon
-                -> Int              -- ^ number of value fields
+                -> [RTyVar]         -- ^ DataConP ty-vars
                 -> SpecType         -- ^ vanilla result type
                 -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
 dataConResultTy _ _ _ (Just t) = t
-dataConResultTy c _ t _
+dataConResultTy c αs t _
   | isVanillaDataCon c         = t
-  -- | otherwise                  = _fixme -- get the dataConRepType
+  | False                      = F.tracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
 dataConResultTy c _ _ _        = RT.ofType t
   where
-    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr tr) $ dataConFullSig c
-    tr                         = dataConRepType c
+    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (tr0, tr1, tr2)) $ dataConFullSig c
+    tr0                        = dataConRepType c
+    tr1                        = varType $ dataConWorkId c
+    tr2                        = varType $ dataConWrapId c
 
+-- RTVar RTyVar RSort
+
+gadtSubst :: [RTyVar] -> DataCon -> [(RTyVar, RSort, SpecType)]
+gadtSubst as c  = mkSubst (Misc.join aBs bTs)
+  where
+    bTs         = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args workR ]
+    aBs         = zip as bs
+    bs          = ty_var_value <$> ty_vars workR
+    workR       = dataConWorkRep c
+    mkSubst bTs = [ (b, toRSort t, t) | (b, t) <- bTs ]
+
+eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
+eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+  | rtc_tc c == eqPrimTyCon = Just (a, t)
+eqSubst _                   = Nothing
 
 normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)
 normalizeField c i (x, t)

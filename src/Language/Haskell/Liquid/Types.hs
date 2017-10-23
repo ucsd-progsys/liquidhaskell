@@ -449,7 +449,7 @@ data DataConP = DataConP
   , tyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
-  , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
+  -- , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
   , dc_locE    :: !F.SourcePos
