@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--no-adt" @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}
@@ -113,8 +113,7 @@ seq_prop _ _ = trivial
 
 
 data L a = N | C a (L a)
-{-@ data L [llen]
-    = N | C {x :: a, xs :: L a } @-}
+{-@ data L [llen] a = N | C {x :: a, xs :: L a } @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int
