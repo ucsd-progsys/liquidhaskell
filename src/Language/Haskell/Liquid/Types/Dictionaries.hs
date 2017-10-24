@@ -20,7 +20,7 @@ import           Prelude                                   hiding (error)
 import           Var
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
-import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames)
+import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNamesCorrect)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Fixpoint.Misc                (mapFst)
@@ -43,7 +43,7 @@ makeDicTypeName :: SpecType -> String
 makeDicTypeName (RFun _ _ _ _)
   = "(->)"
 makeDicTypeName (RApp c _ _ _)
-  = F.symbolString $ dropModuleNames $ F.symbol $ rtc_tc c
+  = F.symbolString $ dropModuleNamesCorrect $ F.symbol $ rtc_tc c
 makeDicTypeName (RVar a _)
   = show a
 makeDicTypeName t
@@ -84,8 +84,8 @@ dlookup :: (Eq k, Hashable k)
 dlookup (DEnv denv) x     = M.lookup x denv
 
 
-dhasinfo :: Show a1 => Maybe (M.HashMap F.Symbol a) -> a1 -> Maybe a
+dhasinfo :: (F.Symbolic a1, Show a) => Maybe (M.HashMap F.Symbol a) -> a1 -> Maybe a
 dhasinfo Nothing _    = Nothing
 dhasinfo (Just xts) x = M.lookup x' xts
   where
-     x' = (dropModuleNames $ F.symbol $ show x)
+     x' = (dropModuleNamesCorrect $ F.symbol x)

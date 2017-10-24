@@ -6,7 +6,7 @@ module Range where
 -- is shadowed and should be renamed.
 
 {-@ data Zig = Zonk { pig :: Int } @-}
-data Zig = Zonk Int
+data Zig = Zonk Int 
 
 {-@ prop :: z:Zig -> {v:Int | v = pig z} @-}
 prop :: Zig -> Int

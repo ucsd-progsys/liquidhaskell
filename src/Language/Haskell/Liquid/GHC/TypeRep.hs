@@ -9,11 +9,11 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternSynonyms           #-}
+{-# LANGUAGE StandaloneDeriving        #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
 module Language.Haskell.Liquid.GHC.TypeRep (
-  pattern FunTy, 
   module TyCoRep, 
 
   mkTyArg, 
@@ -25,14 +25,15 @@ import TyCoRep
 import Coercion
 import CoAxiom
 import Type 
+import Var
 
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Fixpoint.Types (symbol)
 
-mkTyArg :: TyVar -> TyBinder
-mkTyArg v = Named v Visible
+-- e368f3265b80aeb337fbac3f6a70ee54ab14edfd
 
-pattern FunTy tx t = ForAllTy (Anon tx) t 
+mkTyArg :: TyVar -> TyVarBinder
+mkTyArg v = TvBndr v Required
 
 instance Eq Type where
   t1 == t2 = eqType' t1 t2
@@ -46,10 +47,10 @@ eqType' (CoercionTy c1) (CoercionTy c2)
   = c1 == c2  
 eqType'(CastTy t1 c1) (CastTy t2 c2) 
   = eqType' t1 t2 && c1 == c2 
-eqType' (ForAllTy (Named v1 _) t1) (ForAllTy (Named v2 _) t2) 
+eqType' (FunTy t11 t12) (FunTy t21 t22)
+  = eqType' t11 t21 && eqType' t12 t22  
+eqType' (ForAllTy (TvBndr v1 _) t1) (ForAllTy (TvBndr v2 _) t2) 
   = eqType' t1 (subst v2 (TyVarTy v1) t2) 
-eqType' (ForAllTy (Anon t11) t1) (ForAllTy (Anon t12) t2) 
-  = eqType' t11 t12 && eqType' t1 t2 
 eqType' (TyVarTy v1) (TyVarTy v2) 
   = v1 == v2 
 eqType' (AppTy t11 t12) (AppTy t21 t22) 
@@ -60,10 +61,7 @@ eqType' _ _
   = False 
 
 
-instance Eq TyBinder where
-  (Named v1 f1) == (Named v2 f2) = v1 == v2 && f1 == f2  
-  (Anon t1)     == (Anon t2)     = t1 == t2 
-  _             == _             = False 
+deriving instance (Eq tyvar, Eq argf) => Eq (TyVarBndr tyvar argf)
 
 instance Eq Coercion where
   _ == _ = True 
@@ -73,8 +71,8 @@ showTy :: Type -> String
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
 showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
 showTy (TyVarTy v)   = "(RVar " ++ show (symbol v)  ++ ")" 
-showTy (ForAllTy (Named v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
-showTy (ForAllTy (Anon t1) t2)  = "ForAllTy " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
+showTy (ForAllTy (TvBndr v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
+showTy (FunTy t1 t2)   = "FunTy " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
 showTy (CastTy _ _)    = "CastTy"
 showTy (CoercionTy _)  = "CoercionTy"
 showTy (LitTy _)       = "LitTy"
@@ -107,13 +105,13 @@ substType x tx (TyVarTy y)
   = tx 
   | otherwise
   = TyVarTy y 
-substType x tx (ForAllTy (Named y v) t)  
+substType x tx (FunTy t1 t2)
+  = FunTy (subst x tx t1) (subst x tx t2)
+substType x tx f@(ForAllTy b@(TvBndr y _) t)  
   | symbol x == symbol y 
-  = (ForAllTy (Named y v) t)
+  = f
   | otherwise 
-  = ForAllTy (Named y v) (subst x tx t)
-substType x tx (ForAllTy (Anon t1) t2)  
-  = ForAllTy (Anon (subst x tx t1)) (subst x tx t2)
+  = ForAllTy b (subst x tx t)
 substType x tx (CastTy t c)    
   = CastTy (subst x tx t) (subst x tx c)
 substType x tx (CoercionTy c)  
@@ -132,6 +130,8 @@ substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
   = AppCo (subst x tx c1) (subst x tx c2)
+substCoercion x tx (FunCo r c1 c2)
+  = FunCo r (subst x tx c1) (subst x tx c2)
 substCoercion x tx (ForAllCo y c1 c2)
   | symbol x == symbol y 
   = (ForAllCo y c1 c2)

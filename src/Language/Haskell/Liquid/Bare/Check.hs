@@ -4,7 +4,6 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
-
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
   , checkTerminationExpr
@@ -34,7 +33,7 @@ import           Language.Fixpoint.Misc                    (applyNonNull, group,
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import           Language.Fixpoint.Types                   hiding (panic, Error, R)
 
-import           Language.Haskell.Liquid.GHC.Misc          (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
+import           Language.Haskell.Liquid.GHC.Misc          (showPpr, fSrcSpan, sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Misc              (condNull, snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
 import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
@@ -317,7 +316,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   | otherwise
     = Nothing
   where
-    expectedArity = realTcArity tc
+    expectedArity = tyConArity tc
 
 {-
 checkFunRefs t = go t

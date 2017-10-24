@@ -35,7 +35,7 @@ import TyCon
 import TysWiredIn
 
 import Language.Haskell.Liquid.GHC.TypeRep
-import CoreSyn
+import CoreSyn hiding (mkTyArg)
 
 -- | Horrible hack to support hardwired symbols like
 --      `head`, `tail`, `fst`, `snd`
@@ -75,7 +75,7 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 --------------------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (mkTyArg dictionaryTyVar) $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (TvBndr dictionaryTyVar Required) $ TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"
@@ -119,8 +119,8 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] [] lt False l0)
-                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt  False l0)])
+                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] [] lt False wiredInName l0)
+                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt  False wiredInName l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -137,9 +137,12 @@ listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Ju
       cargs      = [(xs, xst), (x, xt)]
       fsize      = SymSizeFun (dummyLoc "len")
 
+wiredInName :: Symbol
+wiredInName = "WiredIn"
+
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt False l0)])
+                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt False wiredInName l0)])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant

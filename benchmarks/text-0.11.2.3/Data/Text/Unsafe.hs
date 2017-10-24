@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-# LANGUAGE CPP, MagicHash, UnboxedTuples #-}
 -- |
 -- Module      : Data.Text.Unsafe

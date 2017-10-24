@@ -87,6 +87,8 @@ module Language.Haskell.Liquid.Types (
   , DataDecl (..)
   , DataCtor (..)
   , DataConP (..)
+  , HasDataDecl (..), hasDecl
+  , DataDeclKind (..)
   , TyConP   (..)
 
   -- * Pre-instantiated RType
@@ -121,6 +123,8 @@ module Language.Haskell.Liquid.Types (
   , efoldReft, foldReft, foldReft'
   , mapReft, mapReftM, mapPropM
   , mapBot, mapBind
+  , foldRType
+
 
   -- * ???
   , Oblig(..)
@@ -246,7 +250,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Maybe                             (fromMaybe, mapMaybe)
 
-import           Data.List                              (nub)
+import           Data.List                              (foldl', nub)
 import           Data.Text                              (Text)
 
 
@@ -444,8 +448,10 @@ data DataConP = DataConP
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
+  , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
+
 
 instance F.Loc DataConP where
   srcSpan d = F.SS (dc_loc d) (dc_locE d)
@@ -749,7 +755,7 @@ data RType c tv r
     , rt_ty     :: !(RType c tv r)
     }
 
-  | RExprArg (F.Located Expr)                     -- ^ For expression arguments to type aliases
+  | RExprArg (F.Located Expr)                   -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
       rt_arg   :: !(RType c tv r)
@@ -1098,6 +1104,7 @@ data DataDecl   = D
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
+  , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
 
 -- | Data Constructor
@@ -1107,10 +1114,16 @@ data DataCtor = DataCtor
   , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
 
--- | Termination expressios
+-- | Termination expressions
 data SizeFun
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
+  deriving (Data, Typeable, Generic)
+
+-- | What kind of `DataDecl` is it?
+data DataDeclKind
+  = DataUser           -- ^ User defined data-definitions (should have refined fields)
+  | DataReflected      -- ^ Automatically lifted data-definitions (do not have refined fields)
   deriving (Data, Typeable, Generic)
 
 instance Show SizeFun where
@@ -1121,9 +1134,24 @@ szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
 szFun (SymSizeFun f) = \x -> F.mkEApp (F.symbol <$> f) [F.EVar x]
 
+data HasDataDecl
+  = NoDecl  (Maybe SizeFun)
+  | HasDecl
+  deriving (Show)
+
+hasDecl :: DataDecl -> HasDataDecl
+hasDecl d
+  | null (tycDCons d)
+  = NoDecl (tycSFun d)
+  -- // | Just s <- tycSFun d, null (tycDCons d)
+  -- // = NoDecl (Just s)
+  | otherwise
+  = HasDecl
+
 instance NFData   SizeFun
 instance B.Binary SizeFun
-
+instance NFData   DataDeclKind
+instance B.Binary DataDeclKind
 instance B.Binary DataCtor
 instance B.Binary DataDecl
 
@@ -1153,7 +1181,7 @@ instance F.PPrint DataDecl where
 -- | Name of the data-type
 instance F.Symbolic DataDecl where
   symbol =  F.symbol . tycName
-  
+
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------
@@ -1367,10 +1395,11 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
   syms        = foldReft (\_ r acc -> F.syms r ++ acc) []
-  substa f    = mapReft  (F.substa f)
-  substf f    = emapReft (F.substf . F.substfExcept f) []
-  subst su    = emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = emapReft (\xs r -> F.subst1Except xs r su) [] t
+  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
+  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
+  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
+  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+
 
 instance F.Reftable Predicate where
   isTauto (Pr ps)      = null ps
@@ -1426,7 +1455,45 @@ emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
 emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
-emapRef  f γ (RProp  s t)         = RProp s $ emapReft f γ t
+emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
+
+emapExprArg :: ([Symbol] -> Expr -> Expr) -> [Symbol] -> RType c tv r -> RType c tv r
+emapExprArg f = go
+  where
+    go _ t@(RVar {})        = t
+    go _ t@(RHole {})       = t
+    go γ (RAllT α t)        = RAllT α (go γ t)
+    go γ (RAllP π t)        = RAllP π (go γ t)
+    go γ (RAllS p t)        = RAllS p (go γ t)
+    go γ (RFun x t t' r)    = RFun  x (go γ t) (go (x:γ) t') r
+    go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
+    go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
+    go γ (REx z t t')       = REx   z (go γ t) (go γ t')
+    go γ (RExprArg e)       = RExprArg (f γ <$> F.tracepp "RExprArg" e)
+    go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
+    go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
+    mo _ t@(RProp _ (RHole {})) = t
+    mo γ (RProp s t)            = RProp s (go γ t)
+
+
+foldRType :: (acc -> RType c tv r -> acc) -> acc -> RType c tv r -> acc
+foldRType f = go
+  where
+    step a t                = go (f a t) t
+    prep a (RProp _ (RHole {})) = a
+    prep a (RProp _ t)      = step a t
+    go a (RVar {})          = a
+    go a (RHole {})         = a
+    go a (RExprArg {})      = a
+    go a (RAllT _ t)        = step a t
+    go a (RAllP _ t)        = step a t
+    go a (RAllS _ t)        = step a t
+    go a (RFun _ t t' _)    = foldl' step a [t, t']
+    go a (RAllE _ t t')     = foldl' step a [t, t']
+    go a (REx _ t t')       = foldl' step a [t, t']
+    go a (RAppTy t t' _)    = foldl' step a [t, t']
+    go a (RApp _ ts rs _)   = foldl' prep (foldl' step a ts) rs
+    go a (RRTy e _ _ t)     = foldl' step a (t : (snd <$> e))
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t

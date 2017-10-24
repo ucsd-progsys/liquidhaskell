@@ -13,6 +13,9 @@ module Language.Haskell.Liquid.Liquid (
 
    -- * Ghci State
   , MbEnv
+
+   -- * Liquid Constraint Generation 
+  , liquidConstraints
   ) where
 
 import           Prelude hiding (error)
@@ -52,6 +55,16 @@ type MbEnv = Maybe HscEnv
 liquid :: [String] -> IO b
 --------------------------------------------------------------------------------
 liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
+
+liquidConstraints :: Config -> IO (Either [CGInfo] ExitCode) 
+liquidConstraints cfg = do 
+  z <- actOrDie $ second Just <$> getGhcInfos Nothing cfg (files cfg)
+  case z of
+    Left e -> do
+      exitWithResult cfg (files cfg) $ mempty { o_result = e }
+      return $ Right $ resultExit e 
+    Right (gs, _) -> 
+      return $ Left $ map generateConstraints gs
 
 --------------------------------------------------------------------------------
 -- | This fellow does the real work

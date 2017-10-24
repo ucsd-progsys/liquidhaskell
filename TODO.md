@@ -1,20 +1,55 @@
-GHC-8 integration
-==================
+# 3 Failures moved in tests/DependendHaskell/todo
 
-## Last GHC7 commit
+- ClassKind.hs - Tests.Unit.pos
+- LF326.hs - Tests.Unit.pos
+- TypeFamilies.hs - Tests.Unit.pos
 
- (HEAD) : 1aba981fe855028c5ccd572fe8672cbc482f612e
- Timestamp: 2017-05-02 08:02:43 +0530
- Epoch Timestamp: 1493692363
+# FOR RJ.
+- remove old simplifyPatTuple? I think ghc does it now by defauls
+- [--no-pattern-inline] contra0.hs - Tests.Unit.neg
+- [--no-pattern-inline] MaybeMonad.hs - Tests.Unit.neg
+- [--no-pattern-inline] RG.hs - Tests.Unit.neg
+- [--no-pattern-inline] T743.hs - Tests.Unit.neg
+- [--no-pattern-inline] Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.T.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.hs - Tests.Benchmarks.bytestring
+
+- [--no-pattern-inline] Data/Vector/Algorithms/AmericanFlag.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Common.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Heap.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Insertion.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Intro.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Merge.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Optimal.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Search.hs
+
+{-@ reflect baz @-}
+bar :: Int -> Int
+bar n = n
+
+{-@ reflect baz @-}
+baz :: Int -> Int
+baz n = n
+
+{-@ reflect foo @-}
+foo 0 = bar 0  
+foo 1 = baz 1
+foo n = baz 1
+
+prop :: n:Int -> { foo n == 0 || foo n == 1 }
+prop n = ()
 
 
 
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated, this is 
+apparently even without cutvars being generated, this is
 because of some bizarro GHC transforms, that thwart eliminate.
-This is because GHC now threads `callstack` through such 
+This is because GHC now threads `callstack` through such
 computations, which make a top-level signature no longer top-level.
 
                  Prelude.error -> dummyError (no call-stack)
@@ -24,7 +59,7 @@ computations, which make a top-level signature no longer top-level.
   Map.hs         ""
   Base           103 -> 76.18 -> 68
 
-Not clear 
+Not clear
 Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - NO.
 - Or do we need to really use a different `error`?
@@ -36,12 +71,6 @@ Does all that `PatSelfBind` stuff help at all with these benchmarks?
 - [ ] NV: bound syntax `tests/todo/dropWhile.hs`
 - [ ] NV: bound `icfp/pos/FindRec.hs`
 - [ ] NV: HACK IO TyCon lookup, it appears as a data con (in Lookup)
-
-- Reader
-  - Applicative crashing
-  - Functor crashing
-  - Functor.NoEx
-  - Monad (...)
 
 TODO
 ====
@@ -175,7 +204,7 @@ Benchmarks
 -   vector
 -   repa
 -   repa-algorithms
-- 	xmonad (stackset)
+-   xmonad (stackset)
 -   snap/security
 -   hmatrix
       > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -464,12 +493,12 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 a. Following `RProp` we should have
 
-	* RHProp := x1:t1,...,xn:tn -> World
+  * RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
-	* WPreds : (h v1 ... vn), h2, ...
-	* Wbinds : x1 := T1, x2 := T2, ...
+  * WPreds : (h v1 ... vn), h2, ...
+  * Wbinds : x1 := T1, x2 := T2, ...
 
 c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
@@ -481,25 +510,25 @@ c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. ca
 
 Per Niki:
 
-	RProp := x1:t1,...,xn:tn -> RType
+  RProp := x1:t1,...,xn:tn -> RType
 
 with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
 
 For example, we represent
 
-	[a]<p>
+  [a]<p>
 
 as
 
-	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+  RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
 
 which is the `RTycon` for lists `[]` applied to:
 
 + Tyvar `a`
 
 + RPoly with:
-	* _params_ `h:a`
-	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+  * _params_ `h:a`
+  * _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
 
 + Outer refinement `true`
 

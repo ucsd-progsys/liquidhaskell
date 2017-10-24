@@ -2,15 +2,12 @@
 
 module Intro where
 
-{-@ LIQUID "--gradual" @-}
-{-@ LIQUID "--eliminate=none" @-}
-
 
 checkPos :: Int -> Int 
 {-@ checkPos :: {v:Int | 0 < v} -> {v:Int | 0 < v} @-}
 checkPos x = x 
 
-{-@ check :: {v:Int | true } -> {v:Bool | true } -} 
+{-@ check :: {v:Int | true } -> {v:Bool | true } @-} 
 check :: Int -> Bool 
 check x = undefined 
 

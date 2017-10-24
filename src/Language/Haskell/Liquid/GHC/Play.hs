@@ -88,14 +88,29 @@ instance Subable Type where
 
 substTysWith :: M.HashMap Var Type -> Type -> Type
 substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
-substTysWith s (ForAllTy (Anon t1) t2) = ForAllTy (Anon $ substTysWith s t1) (substTysWith s t2)
-substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar "impossible" v) s) t)
+substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
+substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar v) s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 substTysWith _ (LitTy t)       = LitTy t
 substTysWith s (CastTy t c)    = CastTy (substTysWith s t) c
 substTysWith _ (CoercionTy c)  = CoercionTy c 
 
+substExpr :: M.HashMap Var Var -> CoreExpr -> CoreExpr
+substExpr s = go 
+  where
+    subsVar v                = M.lookupDefault v v s
+    go (Var v)               = Var $ subsVar v
+    go (Lit l)               = Lit l 
+    go (App e1 e2)           = App (go e1) (go e2) 
+    go (Lam x e)             = Lam (subsVar x) (go e)
+    go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e) 
+    go (Let (Rec xes) e)     = Let (Rec [(subsVar x, go e) | (x,e) <- xes]) (go e)
+    go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e) | (c, xs, e) <- alts]
+    go (Cast e c)            = Cast (go e) c 
+    go (Tick t e)            = Tick t (go e)
+    go (Type t)              = Type t 
+    go (Coercion c)          = Coercion c 
 
 mapType :: (Type -> Type) -> Type -> Type
 mapType f = go
@@ -103,7 +118,7 @@ mapType f = go
     go t@(TyVarTy _)   = f t
     go (AppTy t1 t2)   = f $ AppTy (go t1) (go t2)
     go (TyConApp c ts) = f $ TyConApp c (go <$> ts)
-    go (ForAllTy (Anon t1) t2)   = f $ ForAllTy (Anon $ go t1) (go t2)
+    go (FunTy t1 t2)   = f $ FunTy (go t1) (go t2)
     go (ForAllTy v t)  = f $ ForAllTy v (go t)
     go t@(LitTy _)     = f t
     go (CastTy t c)    = CastTy (go t) c

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-pattern-inline" @-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 

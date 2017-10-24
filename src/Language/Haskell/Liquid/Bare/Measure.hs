@@ -37,7 +37,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
-import TysWiredIn (boolTyCon)
+import TysWiredIn (boolTyCon, wiredInTyCons)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -56,6 +56,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.Misc
+-- import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (findVarDef, varLocInfo, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import           Language.Haskell.Liquid.Types.RefType (generalize, ofType, bareOfType, uRType, typeSort)
 import           Language.Haskell.Liquid.Types
@@ -76,16 +77,20 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec
   | exactDC cfg = mapMaybe tyConDataDecl
+                -- . traceShow "VanillaTCs 2 "
                 . zipMap   (hasDataDecl spec)
-                . filter    isVanillaAlgTyCon
+                . F.notracepp "VanillaTCs 1 "
+                . liftableTyCons
+
   | otherwise   = const []
+
+liftableTyCons :: [TyCon] -> [TyCon]
+liftableTyCons = filter   (not . isBoxedTupleTyCon)
+               . filter   isVanillaAlgTyCon
+               . (L.\\ wiredInTyCons) -- TODO: use hashDiff
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
-
-data HasDataDecl
-  = NoDecl  (Maybe SizeFun)
-  | HasDecl
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
 hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
@@ -93,13 +98,6 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
     def          = NoDecl Nothing
     tcSym        = GM.dropModuleNamesAndUnique . symbol
     decls        = M.fromList [ (symbol d, hasDecl d) | d <- Ms.dataDecls spec ]
-
-hasDecl :: DataDecl -> HasDataDecl
-hasDecl d
-  | Just s <- tycSFun d, null (tycDCons d)
-  = NoDecl (Just s)
-  | otherwise
-  = HasDecl
 
 {-@ tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: (TyCon, HasDataDecl) -> Maybe DataDecl
@@ -115,6 +113,7 @@ tyConDataDecl (tc, NoDecl szF)
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
+      , tycKind   = DataReflected
       }
       where decls = map dataConDecl . tyConDataCons
 
@@ -198,7 +197,7 @@ meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
 meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _))
+makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt _ _))
   = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
@@ -226,11 +225,24 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ vs _ _ _ xts resTy isGadt 
     bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
 
 makeMeasureSelector :: (Show a1)
-                    => LocSymbol -> ty -> ctor -> Int -> a1 -> Measure ty ctor
+                    => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where
-    eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
-    mkx j = symbol ("xx" ++ show j)
+    -- x                           = qualifyField dc x0
+    eqn                         = Def x [] dc Nothing args (E (EVar $ mkx i))
+    args                        = ((, Nothing) . mkx) <$> [1 .. n]
+    mkx j                       = symbol ("xx" ++ show j)
+
+
+-- ///     qualifyField :: DataCon -> LocSymbol -> LocSymbol
+-- ///     qualifyField dc x
+  -- ///     | isWiredIn x = x
+  -- ///     | otherwise   = qualifyName dc <$> x
+-- ///
+-- ///     qualifyName :: (F.Symbolic name) => name -> F.Symbol -> F.Symbol
+-- ///     qualifyName n = GM.qualifySymbol nSym
+  -- ///     where
+    -- ///     nSym      = GM.takeModuleNames (F.symbol n)
 
 -- tyConDataCons
 makeMeasureChecker :: LocSymbol -> ty -> DataCon -> Int -> Measure ty DataCon

@@ -24,14 +24,13 @@ import PmExpr
 
 import Id
 import Name
-import TysWiredIn
 import Type
 import HsLit
 import TcHsSyn
 import MonadUtils
 import Util
 
-import qualified Data.Map as Map
+import NameEnv
 
 {-
 %************************************************************************
@@ -42,7 +41,7 @@ import qualified Data.Map as Map
 -}
 
 -- | The type of substitutions.
-type PmVarEnv = Map.Map Name PmExpr
+type PmVarEnv = NameEnv PmExpr
 
 -- | The environment of the oracle contains
 --     1. A Bool (are there any constraints we cannot handle? (PmExprOther)).
@@ -79,7 +78,7 @@ varIn x e = case e of
 
 -- | Flatten the DAG (Could be improved in terms of performance.).
 flattenPmVarEnv :: PmVarEnv -> PmVarEnv
-flattenPmVarEnv env = Map.map (exprDeepLookup env) env
+flattenPmVarEnv env = mapNameEnv (exprDeepLookup env) env
 
 -- | The state of the term oracle (includes complex constraints that cannot
 -- progress unless we get more information).
@@ -87,7 +86,7 @@ type TmState = ([ComplexEq], TmOracleEnv)
 
 -- | Initial state of the oracle.
 initialTmState :: TmState
-initialTmState = ([], (False, Map.empty))
+initialTmState = ([], (False, emptyNameEnv))
 
 -- | Solve a complex equality (top-level).
 solveOneEq :: TmState -> ComplexEq -> Maybe TmState
@@ -111,12 +110,12 @@ solveComplexEq solver_state@(standby, (unhandled, env)) eq@(e1, e2) = case eq of
   (PmExprCon c1 ts1, PmExprCon c2 ts2)
     | c1 == c2  -> foldlM solveComplexEq solver_state (zip ts1 ts2)
     | otherwise -> Nothing
-  (PmExprCon c [], PmExprEq t1 t2)
-    | c == trueDataCon  -> solveComplexEq solver_state (t1, t2)
-    | c == falseDataCon -> Just (eq:standby, (unhandled, env))
-  (PmExprEq t1 t2, PmExprCon c [])
-    | c == trueDataCon  -> solveComplexEq solver_state (t1, t2)
-    | c == falseDataCon -> Just (eq:standby, (unhandled, env))
+  (PmExprCon _ [], PmExprEq t1 t2)
+    | isTruePmExpr e1  -> solveComplexEq solver_state (t1, t2)
+    | isFalsePmExpr e1 -> Just (eq:standby, (unhandled, env))
+  (PmExprEq t1 t2, PmExprCon _ [])
+    | isTruePmExpr e2   -> solveComplexEq solver_state (t1, t2)
+    | isFalsePmExpr e2  -> Just (eq:standby, (unhandled, env))
 
   (PmExprVar x, PmExprVar y)
     | x == y    -> Just solver_state
@@ -139,7 +138,7 @@ extendSubstAndSolve x e (standby, (unhandled, env))
     -- had some progress. Careful about performance:
     -- See Note [Representation of Term Equalities] in deSugar/Check.hs
     (changed, unchanged) = partitionWith (substComplexEq x e) standby
-    new_incr_state       = (unchanged, (unhandled, Map.insert x e env))
+    new_incr_state       = (unchanged, (unhandled, extendNameEnv env x e))
 
 -- | When we know that a variable is fresh, we do not actually have to
 -- check whether anything changes, we know that nothing does. Hence,
@@ -148,7 +147,7 @@ extendSubstAndSolve x e (standby, (unhandled, env))
 extendSubst :: Id -> PmExpr -> TmState -> TmState
 extendSubst y e (standby, (unhandled, env))
   | isNotPmExprOther simpl_e
-  = (standby, (unhandled, Map.insert x simpl_e env))
+  = (standby, (unhandled, extendNameEnv env x simpl_e))
   | otherwise = (standby, (True, env))
   where
     x = idName y
@@ -218,7 +217,7 @@ applySubstComplexEq env (e1,e2) = (exprDeepLookup env e1, exprDeepLookup env e2)
 -- | Apply an (un-flattened) substitution to a variable.
 varDeepLookup :: PmVarEnv -> Name -> PmExpr
 varDeepLookup env x
-  | Just e <- Map.lookup x env = exprDeepLookup env e -- go deeper
+  | Just e <- lookupNameEnv env x = exprDeepLookup env e -- go deeper
   | otherwise                  = PmExprVar x          -- terminal
 {-# INLINE varDeepLookup #-}
 

@@ -5,8 +5,8 @@ module ReflectLib4 where
 
 -- | Lists ---------------------------------------------------------------------
 
-{-@ data List [llen] a = Nil | Cons {lHd :: a, lTl :: List a} @-}
-data List a = Nil | Cons a (List a)
+{-@ data List [llen] @-} -- a = Nil | Cons {lHd :: a, lTl :: List a} @-}
+data List a = Nil | Cons {lHd :: a, lTl :: List a} 
 
 {-@ measure llen @-}
 {-@ llen :: List a -> Nat @-}
