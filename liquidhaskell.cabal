@@ -203,6 +203,7 @@ Library
                     Language.Haskell.Liquid.Types,
                     Language.Haskell.Liquid.Types.Literals,
                     Language.Haskell.Liquid.Types.Strata,
+                    Language.Haskell.Liquid.Types.Fresh,
                     Language.Haskell.Liquid.Constraint.Fresh,
                     Language.Haskell.Liquid.Types.Visitors,
                     Language.Haskell.Liquid.WiredIn,
