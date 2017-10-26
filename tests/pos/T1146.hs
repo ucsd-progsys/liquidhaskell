@@ -1,4 +1,3 @@
-module Main where
 
 {-@ type Exactly N = { n:Int | n == N } @-}
 
