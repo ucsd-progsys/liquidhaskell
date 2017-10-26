@@ -1,5 +1,8 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Language.Haskell.Liquid.Bare.Env (
     BareM
@@ -48,6 +51,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.UX.Errors    ()
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types.Bounds
 
 --------------------------------------------------------------------------------
@@ -86,7 +90,14 @@ data BareEnv = BE
   , axSyms   :: !(M.HashMap F.Symbol LocSymbol)
   , propSyms :: !(M.HashMap F.Symbol LocSymbol)
   , beConfig :: !Config
+  , beIndex  :: !Integer
   }
+
+instance Freshable BareM Integer where
+  fresh = do s <- get
+             let n = beIndex s
+             put $ s { beIndex = n + 1 }
+             return n
 
 instance HasConfig BareEnv where
   getConfig = beConfig
