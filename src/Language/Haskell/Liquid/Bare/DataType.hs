@@ -317,8 +317,6 @@ canonizeDecls = Misc.nubHashLastM key
   where
     key       = fmap F.symbol . lookupGhcTyCon "canonizeDecls" . tycName
 
-
-
 groupVariances :: [DataDecl]
                -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
