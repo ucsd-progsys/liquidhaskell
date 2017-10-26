@@ -1,9 +1,6 @@
 -- | Sec 8 from Gradual Refinement Types 
 
 module Measures where
-{-@ LIQUID "--gradual" @-}
-{-@ LIQUID "--extensionality" @-}
-{-@ LIQUID "--eliminate=none" @-}
 {-@ LIQUID "--scrape-used-imports" @-}
 
 -- This does not work because I need the special locality treatment for measures

@@ -196,6 +196,8 @@ benchTests
      , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
      , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
      , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
+     , testGroup "without_ple" <$> dirTests "benchmarks/popl18/nople/pos"          autoIgnored               ExitSuccess
+     , testGroup "with_ple"    <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
      ]
 
 selfTests :: IO TestTree
@@ -350,9 +352,8 @@ proverIgnored = [ "OverviewListInfix.hs"
                 -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
                 ]
 
-autoIgnored = "Unification.hs" 
-            : "Fibonacci.hs" 
-            : proverIgnored
+autoIgnored = "Ackermann.hs" : proverIgnored
+
 
 
 hscIgnored :: [FilePath]

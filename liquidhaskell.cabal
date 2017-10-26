@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.0.5
+Version:             0.8.2.0
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell
@@ -67,7 +67,7 @@ Executable liquid
   default-language: Haskell98
   Build-Depends: base >=4.8.1.0 && <5
                , ghc
-               , ghc-boot == 8.0.2
+               , ghc-boot
                , cmdargs
                , time
                , deepseq
@@ -84,6 +84,18 @@ Executable liquid
     ghc-options: -Werror
   Default-Extensions: PatternGuards
 
+executable gradual
+  default-language: Haskell2010
+  main-is:        src/Gradual.hs
+  ghc-options: -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
+  build-depends:  base >=4.8.1.0 && <5,
+                  liquidhaskell, 
+                  liquid-fixpoint >= 0.7.0.5, 
+                  hscolour, 
+                  cmdargs
+
 executable target
   default-language: Haskell2010
   main-is:        src/Target.hs
@@ -94,8 +106,8 @@ executable target
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.8.1.0 && <5
-                , ghc == 8.0.2
-                , ghc-boot == 8.0.2
+                , ghc == 8.2.1
+                , ghc-boot == 8.2.1
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -121,7 +133,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.7.0.5
                 , located-base
-                , aeson >= 0.10 && < 1.0
+                , aeson >= 1.2 && < 1.3
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
@@ -249,7 +261,19 @@ Library
                     Test.Target.Targetable.Function,
                     Test.Target.Testable,
                     Test.Target.Types,
-                    Test.Target.Util
+                    Test.Target.Util, 
+
+                    Gradual.Concretize, 
+                    Gradual.Uniquify, 
+                    Gradual.Types,
+                    Gradual.Refinements,
+                    Gradual.PrettyPrinting,
+                    Gradual.Misc,
+                    Gradual.Trivial,
+                    Gradual.GUI,
+                    Gradual.GUI.Annotate,
+                    Gradual.GUI.Types,
+                    Gradual.GUI.Misc
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
@@ -263,8 +287,8 @@ test-suite test
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   ghc-options:       -W -threaded
-  if flag(devel)
-    ghc-options: -Werror
+--  if flag(devel)
+--    ghc-options: -Werror
   main-is:           test.hs
   build-depends:     base >=4.8.1.0 && <5
                ,     containers >= 0.5
@@ -293,7 +317,7 @@ test-suite liquidhaskell-parser
   main-is: Parser.hs
   build-depends:
                      base >=4.8.1.0 && <5
-               ,     ghc-boot == 8.0.2
+               ,     ghc-boot
                ,     containers >= 0.5
                ,     parsec
                ,     tasty >= 0.10
@@ -309,7 +333,7 @@ test-suite liquidhaskell-parser
   if flag(devel)
     hs-source-dirs:   tests src
     build-depends:
-                  aeson >= 0.10 && < 1.0
+                  aeson
                 , binary
                 , bytestring
                 , cereal
@@ -319,8 +343,8 @@ test-suite liquidhaskell-parser
                 , directory >= 1.2
                 , filepath >= 1.3
                 , mtl >= 2.1
-                , ghc == 8.0.2
-                , ghc-boot == 8.0.2
+                , ghc
+                , ghc-boot
                 , hashable >= 1.2
                 , liquid-fixpoint >= 0.7.0.5
                 , pretty
@@ -333,8 +357,8 @@ test-suite liquidhaskell-parser
   else
     build-depends: liquidhaskell
                  , base >= 4 && < 5
-                 , ghc == 8.0.2
-                 , ghc-boot == 8.0.2
+                 , ghc
+                 , ghc-boot
                  , array >= 0.5
                  , time >= 1.4
                  , directory >= 1.2

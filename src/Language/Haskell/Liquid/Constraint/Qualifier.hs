@@ -111,7 +111,7 @@ sigQualifiers info lEnv
 qualifyingBinders :: GhcInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ defVars       info ++ scrapeVars info
+    sTake              = S.fromList $ defVars info ++ useVars info ++ scrapeVars info
     sDrop              = S.fromList $ specAxiomVars info
 
 -- NOTE: this mines extra, useful qualifiers but causes

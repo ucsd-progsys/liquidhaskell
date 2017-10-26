@@ -1,12 +1,10 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 
 module FunctionAbstraction where
 import Language.Haskell.Liquid.ProofCombinators
 import Helper
 
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
-{-@ LIQUID "--proof-method=arithmetic" @-}
 
 
 fib :: Int -> Int
@@ -68,8 +66,8 @@ fib_incr :: Int -> Proof
 {-@ fib_incr :: n:Nat -> {fib n <= fib (n+1)} @-}
 fib_incr n
    | n == 0
-   = trivial
+   = [fib 1] *** QED
    | n == 1
-   = trivial
+   = [fib 2] *** QED
    | otherwise
-   = fib_incr (n-1) &&& fib_incr (n-2)
+   = (fib_incr (n-1) &&& fib_incr (n-2))

@@ -15,7 +15,7 @@
 ---------------------------------------------------------------------------
 
 
-module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate) where
+module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate, tokeniseWithLoc) where
 
 import           Data.Hashable
 import           Data.String
@@ -367,7 +367,7 @@ chopAltDBG y = filter (/= "")
 
 data Assoc k a = Asc (M.HashMap k a)
 type AnnTypes  = Assoc Int (Assoc Int Annot1)
-type AnnErrors = [(Loc, Loc, String)]
+newtype AnnErrors = AnnErrors [(Loc, Loc, String)]
 data Annot1    = A1  { ident :: String
                      , ann   :: String
                      , row   :: Int
@@ -410,7 +410,7 @@ instance ToJSON Loc where
                              , "column"   .= toJSON c ]
 
 instance ToJSON AnnErrors where
-  toJSON errs      = Array $ V.fromList $ fmap toJ errs
+  toJSON (AnnErrors errs) = Array $ V.fromList $ fmap toJ errs
     where
       toJ (l,l',s) = object [ "start"   .= toJSON l
                             , "stop"    .= toJSON l'
@@ -439,6 +439,9 @@ ins :: (Eq k, Eq k1, Hashable k, Hashable k1)
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where
     Asc rm         = M.lookupDefault (Asc M.empty) r m
+
+tokeniseWithLoc :: String -> [(TokenType, String, Loc)]
+tokeniseWithLoc = ACSS.tokeniseWithLoc (Just tokAnnot)
 
 --------------------------------------------------------------------------------
 -- | LH Related Stuff ----------------------------------------------------------

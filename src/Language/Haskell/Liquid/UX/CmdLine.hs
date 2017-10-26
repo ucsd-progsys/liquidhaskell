@@ -159,6 +159,11 @@ config = cmdArgsMode $ Config {
     = def &= help "Enable gradual refinementtype checking"
           &= name "gradual"
 
+ , gdepth
+    = 1
+    &= help ("Size of gradual conretizations, 1 by default")
+    &= name "gradual-depth"
+
  , ginteractive
     = def &= help "Interactive Gradual Solving"
           &= name "ginteractive"
@@ -506,6 +511,7 @@ defConfig = Config { files             = def
                    , noCheckUnknown    = def
                    , notermination     = def
                    , gradual           = False
+                   , gdepth            = 1 
                    , ginteractive      = False
                    , totalHaskell      = def
                    , autoproofs        = def
