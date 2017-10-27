@@ -28,6 +28,7 @@ import           TyCon                                  hiding (tyConName)
 import           Var
 import           InstEnv
 import           Class
+import           TysWiredIn (listTyCon)
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
@@ -356,11 +357,14 @@ checkDataCtor d@(DataCtor lc xts _)
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d = (cN == dN || null (tycDCons d))
+checkDataDecl c d
+  | isList         = True
+  | otherwise      = (cN == dN || null (tycDCons d))
   where
-    -- _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
-    cN            = length (GM.tyConTyVarsDef c)
-    dN            = length (tycTyVars         d)
+    isList         = show c == show listTyCon
+    -- _msg           = printf "checkDataDecl: c = %s ( %s, %s), cN = %d, dN = %d" (show c) (show listTyCon) (show $ isPrimTyCon c) cN dN
+    cN             = length (GM.tyConTyVarsDef c)
+    dN             = length (tycTyVars         d)
 
 
 -- FIXME: ES: why the maybes?

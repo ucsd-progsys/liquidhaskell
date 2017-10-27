@@ -82,7 +82,7 @@ import           Id                                         (isExportedId, idOcc
 
 
 isAnonBinder :: TC.TyConBinder -> Bool
-isAnonBinder (TvBndr _ TC.AnonTCB) = True 
+isAnonBinder (TvBndr _ TC.AnonTCB) = True
 isAnonBinder (TvBndr _ _)          = False
 
 mkAlive :: Var -> Id
@@ -408,7 +408,7 @@ isDictionaryExpression _          = Nothing
 realTcArity :: TyCon -> Arity
 realTcArity = tyConArity
 
-{- 
+{-
   tracePpr ("realTcArity of " ++ showPpr c
      ++ "\n tyConKind = " ++ showPpr (tyConKind c)
      ++ "\n kindArity = " ++ show (kindArity (tyConKind c))
@@ -418,7 +418,7 @@ realTcArity = tyConArity
 
 kindTCArity :: TyCon -> Arity
 kindTCArity = go . tyConKind
-  where 
+  where
     go (FunTy _ res) = 1 + go res
     go _             = 0
 
@@ -516,10 +516,14 @@ fastStringText :: FastString -> T.Text
 fastStringText = T.decodeUtf8With TE.lenientDecode . fastStringToByteString
 
 tyConTyVarsDef :: TyCon -> [TyVar]
-tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
--- tyConTyVarsDef c | TC.isPromotedTyCon   c = []
-tyConTyVarsDef c | TC.isPromotedDataCon c = []
-tyConTyVarsDef c = TC.tyConTyVars c
+tyConTyVarsDef c
+  | noTyVars c = []
+  | otherwise  = TC.tyConTyVars c
+  --where
+  --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
+
+noTyVars :: TyCon -> Bool
+noTyVars c =  (TC.isPrimTyCon c || isFunTyCon c || TC.isPromotedDataCon c)
 
 --------------------------------------------------------------------------------
 -- | Symbol Instances
@@ -603,12 +607,12 @@ dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
 
 dropModuleNamesCorrect  :: Symbol -> Symbol
 dropModuleNamesCorrect = F.symbol . go . F.symbolText
-  where 
+  where
     go s = case T.uncons s of
-             Just (c,tl) -> if isUpper c  && T.any (== '.') tl 
+             Just (c,tl) -> if isUpper c  && T.any (== '.') tl
                               then go $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
-                              else s 
-             Nothing -> s 
+                              else s
+             Nothing -> s
 
 takeModuleNames  :: Symbol -> Symbol
 takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
