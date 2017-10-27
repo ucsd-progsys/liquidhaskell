@@ -333,7 +333,7 @@ bareTypeBracesP = do
                     -- su replaces any use of x in the balance of the expression with the unique val
                     -- NOSUBST let xi = intSymbol x i
                     -- NOSUBST let su v = if v == x then xi else v
-                    return $ Left $ PC (PcExplicit x) $ {- substa su $ NOSUBST -} t (Reft (x, ra)) ))
+                    return $ Left $ PC (PcExplicit x) $ t (Reft (x, ra)) ))
            <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
                   return (Left $ nullPC t)
             )
@@ -342,13 +342,6 @@ bareTypeBracesP = do
     Right ct -> do
       PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
-
--- FIXME HEREHEREHERE bareArgP :: Symbol -> Parser BareType
--- FIXME HEREHEREHERE bareArgP x = do
-  -- FIXME HEREHEREHERE i     <- freshIntP
-  -- FIXME HEREHEREHERE t     <- bareArgRawP x
-  -- FIXME HEREHEREHERE let xi = intSymbol x i
-  -- FIXME HEREHEREHERE let su v = if v == x then xi else v
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv

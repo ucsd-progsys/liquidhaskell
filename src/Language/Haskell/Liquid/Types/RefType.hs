@@ -1303,9 +1303,9 @@ rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) 
               => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 applySolution = fmap . fmap . mapReft . appSolRefa
   where
     mapReft f (MkUReft (Reft (x, z)) p s) = MkUReft (Reft (x, f z)) p s
@@ -1316,9 +1316,9 @@ appSolRefa s p = mapKVars f p
   where
     f k        = Just $ M.lookupDefault PTop k s
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 shiftVV :: SpecType -> Symbol -> SpecType
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
