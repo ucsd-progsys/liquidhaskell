@@ -3,7 +3,7 @@
 
 {-@ LIQUID "--higherorder"       @-}
 {-@ LIQUID "--exact-data-cons"   @-}
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE GADTs               #-}
 module Foo where 
