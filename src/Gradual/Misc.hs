@@ -4,6 +4,13 @@ module Gradual.Misc where
 
 import Control.Monad (filterM)
 
+
+andM :: Monad m => [m Bool] -> m Bool
+andM []      = return True 
+andM (m1:ms) = do 
+  b1 <- m1 
+  if b1 then andM ms else return False
+  
 -------------------------------------------------------------------------------
 -- | Mapping ------------------------------------------------------------------
 -------------------------------------------------------------------------------

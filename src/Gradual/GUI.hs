@@ -11,6 +11,7 @@ import Gradual.GUI.Types
 import Gradual.GUI.Misc 
 
 import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
 
 render :: GConfig -> GSpan -> [[GSub a]] -> IO () 
 render cfg gspan sols = do 
@@ -54,7 +55,7 @@ initDependents :: [[(Int,Int)]] -> String
 initDependents xs = script $ concatMap go xs
   where
     go is = "dependents.push(" ++ "[" 
-              ++ concat [ "'content-" ++ show i ++ "-" ++ show j ++ "'" | (i,j)<-is] 
+              ++ L.intercalate"," [ "'content-" ++ show i ++ "-" ++ show j ++ "'" | (i,j)<-is] 
               ++ "]" ++ ");\n"
 
 initCurrentstatus :: [a] -> String

@@ -208,6 +208,10 @@ data CGInfo = CGInfo {
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   }
 
+
+instance HasConfig CGInfo where
+  getConfig = getConfig . ghcI
+  
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo
 

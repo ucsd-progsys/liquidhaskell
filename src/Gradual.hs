@@ -4,7 +4,7 @@ module Main where
 
 import Language.Haskell.Liquid.Liquid (liquidConstraints)
 
-import Language.Haskell.Liquid.Types (GhcInfo(..), Cinfo) 
+import Language.Haskell.Liquid.Types (GhcInfo(..), Cinfo, HasConfig(..)) 
 import Language.Haskell.Liquid.Constraint.Types (CGInfo(..)) -- , FixWfC, SubC(..), CGEnv(..))
 import Language.Haskell.Liquid.UX.Config (Config(..))
 import Language.Haskell.Liquid.UX.CmdLine (getOpts)
@@ -39,12 +39,13 @@ main = do
   cfg <- getArgs >>= getOpts
   css <- quietly $ liquidConstraints (cfg{gradual=True})
   case css of 
-    Left cgis -> mapM (runGradual (cfg{gradual=True})) cgis >> exitSuccess 
+    Left cgis -> mapM runGradual cgis >> exitSuccess 
     Right e   -> exitWith e 
 
 
-runGradual :: Config -> CGInfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
-runGradual cfg cgi = do
+runGradual :: CGInfo -> IO [(GSub F.GWInfo,F.Result (Integer, Cinfo))]
+runGradual cgi = do
+  let cfg      = (getConfig cgi){gradual=True}
   let fname    = target (ghcI cgi)
   let fcfg     = fixConfig fname cfg
   finfo       <- quietly $ cgInfoFInfo (ghcI cgi) cgi
