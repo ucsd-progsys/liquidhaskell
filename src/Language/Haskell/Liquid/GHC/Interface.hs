@@ -104,7 +104,6 @@ getGhcInfos hscEnv cfg tgtFiles' = do
   logicMap <- liftIO makeLogicMap
   runLiquidGhc hscEnv cfg (getGhcInfos' cfg logicMap tgtFiles)
 
-
 checkFilePresent :: FilePath -> IO ()
 checkFilePresent f = do
   b <- doesFileExist f
