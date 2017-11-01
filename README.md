@@ -764,6 +764,28 @@ import LibSpec  -- use this if you DO want the spec, in addition to OR instead o
 
 bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
 ```
+
+Inductive Predicates
+--------------------
+
+**Very Experimental**
+
+LH recently added support for *Inductive Predicates* 
+in the style of Isabelle, Coq etc. These are encoded 
+simply as plain Haskell GADTs but suitably refined.
+
+Apologies for the minimal documentation; see the 
+following examples for details:
+
+* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndEven.hs)
+* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndPerm.hs)
+* [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndStar.hs)
+
+
+
+
+
+
 Refinement Type Aliases
 -----------------------
 
