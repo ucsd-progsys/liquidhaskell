@@ -24,5 +24,11 @@ instance OptEq2 a where
 
 
 -- This is unsoundly UNSAFE 
+
+{- unsound :: x:Int -> {v:Int | v = x} -> Int @-}
+unsound :: Int -> Int -> Int
 unsound x y = x ==. y 
-ok      x y = x `cmp` y 
+
+{-@ ok :: x:Int -> {v:Int | v = x} -> Int @-}
+ok :: Int -> Int -> Int
+ok x y = x `cmp` y 
