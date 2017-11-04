@@ -783,7 +783,7 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
 -- RJ: The code of `isNumeric` is incomprehensible.
 -- Please fix it to use intSort instead of intFTyCon
 isNumeric :: TCEmb TyCon -> RTyCon -> Bool
-isNumeric tce c = mySort == FTC F.intFTyCon
+isNumeric tce c = mySort == FTC F.intFTyCon || mySort == F.FInt
   where
     mySort      = M.lookupDefault def rc tce
     def         = FTC . symbolFTycon . dummyLoc . tyConName $ rc
@@ -1466,7 +1466,6 @@ classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
 classBinds _ _
   = []
 
-
 rTyVarSymbol :: RTyVar -> Symbol
 rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
 
@@ -1481,16 +1480,13 @@ makeNumEnv = concatMap go
     go _ = []
 
 isDecreasing :: S.HashSet TyCon -> [RTyVar] -> SpecType -> Bool
-isDecreasing tcs tvs t = F.tracepp ("isDecreasing: " ++ showpp t) $ isDecreasing' tcs tvs t
- 
-isDecreasing' :: S.HashSet TyCon -> [RTyVar] -> SpecType -> Bool
-isDecreasing' autoenv  _ (RApp c _ _ _)
+isDecreasing autoenv  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or
   || isSizeable autoenv tc
   where tc = rtc_tc c
-isDecreasing' _ cenv (RVar v _)
+isDecreasing _ cenv (RVar v _)
   = v `elem` cenv
-isDecreasing' _ _ _
+isDecreasing _ _ _
   = False
 
 makeDecrType :: Symbolic a
