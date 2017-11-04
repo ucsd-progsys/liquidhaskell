@@ -30,7 +30,7 @@ txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (fSrcSpan t) tce tyi) (val t)
 
 addSymSort :: (PPrint t, Reftable t)
            => GHC.SrcSpan
-           -> M.HashMap TyCon FTycon
+           -> TCEmb TyCon
            -> M.HashMap TyCon RTyCon
            -> RType RTyCon RTyVar (UReft t)
            -> RType RTyCon RTyVar (UReft t)

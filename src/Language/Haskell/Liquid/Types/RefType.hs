@@ -694,7 +694,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 -------------------------------------------------------------------------
 addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-             => (M.HashMap TyCon FTycon)
+             => TCEmb TyCon
              -> (M.HashMap TyCon RTyCon)
              -> RRType r
              -> RRType r
@@ -703,7 +703,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
 expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-           => (M.HashMap TyCon FTycon)
+           => TCEmb TyCon
            -> (M.HashMap TyCon RTyCon)
            -> RRType r
            -> RRType r
@@ -764,8 +764,11 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
 
 appRTyCon :: SubsTy RTyVar (RType c RTyVar ()) RPVar
-          => M.HashMap TyCon FTycon
-          -> M.HashMap TyCon RTyCon -> RTyCon -> [RType c RTyVar r] -> RTyCon
+          => TCEmb TyCon
+          -> M.HashMap TyCon RTyCon
+          -> RTyCon
+          -> [RType c RTyVar r]
+          -> RTyCon
 appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
   where
     c    = rtc_tc rc
@@ -779,11 +782,12 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
 
 -- RJ: The code of `isNumeric` is incomprehensible.
 -- Please fix it to use intSort instead of intFTyCon
-isNumeric :: M.HashMap TyCon FTycon -> RTyCon -> Bool
-isNumeric tce c
-  =  fromMaybe
-       (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == F.intFTyCon
+isNumeric :: TCEmb TyCon -> RTyCon -> Bool
+isNumeric tce c = mySort == FTC F.intFTyCon
+  where
+    mySort      = M.lookupDefault def rc tce
+    def         = FTC . symbolFTycon . dummyLoc . tyConName $ rc
+    rc          = rtc_tc c
 
 addNumSizeFun :: RTyCon -> RTyCon
 addNumSizeFun c
@@ -1363,25 +1367,22 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 -- | From Old Fixpoint ---------------------------------------------------------
 --------------------------------------------------------------------------------
 typeSort :: TCEmb TyCon -> Type -> Sort
-typeSort tce t@(FunTy _ _)
-  = typeSortFun tce t
-typeSort tce τ@(ForAllTy _ _)
-  = typeSortForAll tce τ
-typeSort tce (TyConApp c τs)
-  = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
-typeSort tce (AppTy t1 t2)
-  = fApp (typeSort tce t1) [typeSort tce t2]
-typeSort _tce (TyVarTy tv)
-  = tyVarSort tv
-typeSort tce (CastTy t _)
-  = typeSort tce t
-typeSort _ τ
-  = FObj $ typeUniqueSymbol τ
+typeSort tce = go
+  where
+    go :: Type -> Sort
+    go t@(FunTy _ _)    = typeSortFun tce t
+    go τ@(ForAllTy _ _) = typeSortForAll tce τ
+    go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
+    go (AppTy t1 t2)    = fApp (go t1) [go t2]
+    go (TyVarTy tv)     = tyVarSort tv
+    go (CastTy t _)     = go t
+    go τ                = FObj $ typeUniqueSymbol τ
 
-tyConFTyCon :: M.HashMap TyCon FTycon -> TyCon -> FTycon
-tyConFTyCon tce c
-  = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c))
-              (M.lookup c tce)
+tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
+tyConFTyCon tce c = M.lookupDefault def c tce
+  where
+    def           = fTyconSort niTc
+    niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString

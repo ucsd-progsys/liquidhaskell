@@ -420,11 +420,11 @@ checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
 ---------------------------------------------------------------------------------------------------
 -- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
 ---------------------------------------------------------------------------------------------------
-checkMeasures :: M.HashMap TyCon FTycon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
+checkMeasures :: TCEmb TyCon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
 ---------------------------------------------------------------------------------------------------
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
-checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure :: TCEmb TyCon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
 checkMeasure emb γ (M name@(Loc src _ n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where

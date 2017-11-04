@@ -66,13 +66,17 @@ makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
 makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip F.mappendFTC) tc (ftc tc True True) m
-  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip F.mappendFTC) tc (ftc tc True False) m
+  = M.insertWith (flip mappendSortFTC) tc (ftc tc True True) m
+  | isNumCls  $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  = M.insertWith (flip mappendSortFTC) tc (ftc tc True False) m
   | otherwise
   = m
   where
-    ftc c = F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c)
+    ftc c f1 f2 = F.FTC (F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c) f1 f2)
+
+mappendSortFTC :: F.Sort -> F.Sort -> F.Sort
+mappendSortFTC (F.FTC x) (F.FTC y) = F.FTC (F.mappendFTC x y)
+mappendSortFTC _         _         = panic Nothing "mappendSortFTC:yikes"
 
 instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys
