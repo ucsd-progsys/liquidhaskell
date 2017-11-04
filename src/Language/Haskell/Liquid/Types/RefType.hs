@@ -1480,15 +1480,17 @@ makeNumEnv = concatMap go
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
-isDecreasing :: (Eq a, Foldable t1)
-             => S.HashSet TyCon -> t1 a -> RType RTyCon a t -> Bool
-isDecreasing autoenv  _ (RApp c _ _ _)
+isDecreasing :: S.HashSet TyCon -> [RTyVar] -> SpecType -> Bool
+isDecreasing tcs tvs t = F.tracepp ("isDecreasing: " ++ showpp t) $ isDecreasing' tcs tvs t
+ 
+isDecreasing' :: S.HashSet TyCon -> [RTyVar] -> SpecType -> Bool
+isDecreasing' autoenv  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or
   || isSizeable autoenv tc
   where tc = rtc_tc c
-isDecreasing _ cenv (RVar v _)
+isDecreasing' _ cenv (RVar v _)
   = v `elem` cenv
-isDecreasing _ _ _
+isDecreasing' _ _ _
   = False
 
 makeDecrType :: Symbolic a
