@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-termination" @-}
 module Tx () where
 
 import Language.Haskell.Liquid.Prelude
