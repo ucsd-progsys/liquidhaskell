@@ -76,7 +76,7 @@ makeNumericInfoOne m is
 
 mappendSortFTC :: F.Sort -> F.Sort -> F.Sort
 mappendSortFTC (F.FTC x) (F.FTC y) = F.FTC (F.mappendFTC x y)
-mappendSortFTC _         _         = panic Nothing "mappendSortFTC:yikes"
+mappendSortFTC s1        s2        = panic Nothing ("mappendSortFTC: s1 = " ++ showpp s1 ++ " s2 = " ++ showpp s2)
 
 instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys

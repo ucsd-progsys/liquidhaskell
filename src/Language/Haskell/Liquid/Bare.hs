@@ -80,7 +80,6 @@ import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 
 -- import Debug.Trace (trace)
-
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> FilePath
