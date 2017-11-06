@@ -279,7 +279,8 @@ altToLg de (C.DataAlt d, xs, e)
 altToLg _ (C.LitAlt _, _, _)
   = throw "altToLg on Lit"
 altToLg _ (C.DEFAULT, _, _)
-  = throw "altToLg on Default"
+  = throw ("Cannot reflect functions with Default pattern matching." ++ 
+           "\n\t Suggestion: Make sure your function is total and is not pattern matching on integer values.")
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
