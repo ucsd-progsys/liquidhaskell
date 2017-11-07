@@ -367,7 +367,7 @@ To *disable* termination checking for `foo` that is, to *assume* that it
 is terminating (possibly for some complicated reason currently beyond the
 scope of LiquidHaskell) you can write
 
-    {-@ Lazy foo @-}
+    {-@ lazy foo @-}
 
 Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.
