@@ -10,6 +10,14 @@ Main Web site
 * [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
 * [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
 
+Questions
+-----------
+If you have any questions
+
+* Join the Liquid Haskell [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTY1YzBiY2JlZjBjMTM5M2ZkMjNmZDk5ZjA2MGQyZjQ5ZjBmYjZjNGMzOTUyMTU2MDlmM2YzZDM2YjhiMWFjM2I)
+* Mail the [users mailing list](https://groups.google.com/forum/#!forum/liquidhaskell)
+* Create a github issue
+
 Contributing Guide
 ------------------
 
