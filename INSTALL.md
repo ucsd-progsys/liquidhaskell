@@ -23,9 +23,7 @@ Simply do:
 
 We are working to put `liquid` on `stackage`.
 
-Note: Currently, LiquidHaskell on hackage does not compile against GHC 8.
-Please make sure you are installing with GHC version less than 8. You can
-designate a specific version of LiquidHaskell to ensure that the correct
+You can designate a specific version of LiquidHaskell to ensure that the correct
 GHC version is in the environment. As an example,
 
     cabal install liquidhaskell-0.6.0.0
