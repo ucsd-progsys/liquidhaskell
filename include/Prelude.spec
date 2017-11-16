@@ -17,6 +17,7 @@ import GHC.Err
 GHC.Types.D# :: x:_ -> {v:_ | v = x}
 
 assume error :: {v:_ | false} -> a 
+assume errorWithoutStackTrace :: {v:_ | false} -> a 
 
 assume GHC.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
                      {xcmp::a, wcmp::b<q xcmp> |- c<p wcmp> <: c<r xcmp>}

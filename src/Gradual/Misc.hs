@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE BangPatterns          #-}
 
 module Gradual.Misc where 
 
@@ -23,7 +24,7 @@ mapSndM f (x,y) = (x,) <$> f y
 
 
 mapMWithLog :: String -> (a -> IO b) -> [a] -> IO [b]
-mapMWithLog msg f xs = go 1 xs 
+mapMWithLog msg f !xs = go 1 xs 
   where
     n = length xs 
 

@@ -8,5 +8,5 @@ simplify :: SInfo a -> SInfo a
 simplify sinfo = sinfo {cm = M.map f (cm sinfo)}
   where
     f c | PGrad _ _ _ e <- _crhs c 
-      = c { _crhs = e} 
+        = c { _crhs = e} 
     f c = c 

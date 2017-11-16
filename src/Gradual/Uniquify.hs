@@ -18,6 +18,7 @@ import Language.Fixpoint.Types.Constraints
 import Language.Fixpoint.Types.PrettyPrint
 import Language.Fixpoint.Types.Environments
 import Language.Fixpoint.Types.Visitor
+-- import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types.Spans
 import Language.Fixpoint.Types.Names        (gradIntSymbol)
 
@@ -29,6 +30,8 @@ import qualified Data.List                 as L
 import Control.Monad.State.Lazy
 
 import Gradual.Types (GSpan)
+-- import Gradual.PrettyPrinting
+-- import Debug.Trace (trace)
 
 -------------------------------------------------------------------------------
 -- |  Make each gradual appearence unique -------------------------------------
@@ -62,7 +65,7 @@ instance Loc a => Unique (SimpC a) where
     updateLoc $ srcSpan $ _cinfo cs
     rhs <- uniq (_crhs cs)
     env <- uniq (_cenv cs)
-    return cs{_crhs = rhs, _cenv = env}
+    return $ cs{_crhs = rhs, _cenv = env}
 
 instance Unique IBindEnv where
   uniq env = withCache (fromListIBindEnv <$> mapM uniq (elemsIBindEnv env))
@@ -109,8 +112,6 @@ data UniqueST
              , ubs     :: [BindId]
              , benv    :: BindEnv
              }
-
-
 
 updateLoc :: SrcSpan -> UniqueM ()
 updateLoc x = modify $ \s -> s{uloc = Just x}

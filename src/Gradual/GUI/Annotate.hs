@@ -14,7 +14,7 @@ import Gradual.GUI.Types
 import qualified Data.List as L
 
 pretag :: String
-pretag = "<div class='dropdown'><span class='dropbtn'>"
+pretag = "<div class='dropdown'><span class='dropbtn'> "
 
 
 posttag :: Int -> Int -> String -> String 
@@ -33,17 +33,17 @@ posttag i j val
 
 
 tag :: Loc -> [(String, Loc)] -> (Int, Int, SrcSpan, String) -> [(String, Loc)]
-tag eof toks (i, j, sp, v) = go False toks 
+tag eof toks (i, j, sp, v) = go False False toks 
   where
-    go True [] = [("</span>"++ posttag i j v, eof)]
-    go _    [] = []
-    go b    ((s,l):rest)
+    go _ True [] = [("</span>"++ posttag i j v, eof)]
+    go _ _    [] = []
+    go pt b    ((s,l):rest)
       | l `inLoc` sp, not b 
-      = (pretag ++ "<span class='"++ sourceName i++ "'>" ++ s , l):go True rest 
+      = (if pt then " " else "" ++ pretag ++ "<span class='"++ sourceName i++ "'>" ++ s , l):go True True rest 
       | not (l `inLoc` sp), b 
       = ("</span>"++ posttag i j v ++ s, l):rest 
       | otherwise 
-      = (s,l):go b rest 
+      = (s,l):go False b rest 
 
 _highlight :: String -> Loc -> [(String, Loc)] -> SrcSpan -> [(String, Loc)] 
 _highlight color eof toks sp = go False toks 

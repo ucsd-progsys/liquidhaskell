@@ -6,16 +6,21 @@ import Language.Fixpoint.Types
 
 import qualified Data.HashMap.Strict as M
 
-data GConfig = GConfig {gtarget :: String, depth :: Int, pId :: Int, pNumber :: Int}
+import Control.Monad.IO.Class
+
+data GConfig = GConfig {gtarget :: String, depth :: Int, pId :: Int, pNumber :: Int, keepLog :: Bool}
+
+whenLog :: MonadIO m =>  GConfig -> IO () -> m () 
+whenLog gcf act = if keepLog gcf then liftIO act else return ()
 
 defConfig :: GConfig
-defConfig = GConfig "" 0 0 0 
+defConfig = GConfig "" 0 0 0 False
 
 setPId :: GConfig -> Int -> GConfig
 setPId cfg i = cfg {pId = i}
 
 makeGConfig :: C.Config -> GConfig
-makeGConfig cfg = defConfig {depth = C.gdepth cfg, gtarget = head $ C.files cfg}
+makeGConfig cfg = defConfig {depth = C.gdepth cfg, gtarget = head $ C.files cfg, keepLog = True }
 
 
 

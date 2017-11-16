@@ -18,6 +18,7 @@ import qualified Data.HashMap.Strict as M
 import           Debug.Trace (trace)
 import           TyCon
 import           Var (Var)
+import           Language.Fixpoint.Misc (traceShow)
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
@@ -33,10 +34,11 @@ import           Language.Haskell.Liquid.Types
 qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 qualifiers info lEnv
-  =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
+  =  traceShow "QUALS = " (
+     condNull (useSpcQuals info) (gsQualifiers $ spec info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
-
+  ) 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 -- --------------------------------------------------------------------------------
@@ -111,7 +113,7 @@ sigQualifiers info lEnv
 qualifyingBinders :: GhcInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ defVars info ++ useVars info ++ scrapeVars info
+    sTake              = S.fromList $ defVars info {- ++ useVars info -} ++ scrapeVars info
     sDrop              = S.fromList $ specAxiomVars info
 
 -- NOTE: this mines extra, useful qualifiers but causes

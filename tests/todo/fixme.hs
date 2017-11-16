@@ -1,10 +1,9 @@
 {-@ LIQUID "--exactdc" @-}
 
-import A 
+import Prelude hiding (replicate)
 
-{-@ lazy bar @-}
-{-@ bar :: Foo a b -> {v:Foo a b | isFoo v} @-}
-bar :: Foo a b -> Foo a b
-bar x | isFoo x 
-  = x 
-bar x = bar x 
+{-@ reflect replicate @-}
+replicate :: Int -> a -> [a]
+replicate 0 _ = []
+replicate n x = x:(replicate (n - 1) x)
+

@@ -269,11 +269,14 @@ Library
                     Gradual.Refinements,
                     Gradual.PrettyPrinting,
                     Gradual.Misc,
+                    Gradual.Log,
                     Gradual.Trivial,
                     Gradual.GUI,
+                    Gradual.GUI.Solution.Annotate,
                     Gradual.GUI.Annotate,
                     Gradual.GUI.Types,
-                    Gradual.GUI.Misc
+                    Gradual.GUI.Misc,
+                    Gradual.Match
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)

@@ -164,6 +164,11 @@ config = cmdArgsMode $ Config {
     &= help ("Size of gradual conretizations, 1 by default")
     &= name "gradual-depth"
 
+ , gsimplify
+    = False
+    &= help ("Simplify gradual expressions on right hand side")
+    &= name "gradual-simplify"
+
  , ginteractive
     = def &= help "Interactive Gradual Solving"
           &= name "ginteractive"
@@ -512,6 +517,7 @@ defConfig = Config { files             = def
                    , notermination     = def
                    , gradual           = False
                    , gdepth            = 1 
+                   , gsimplify         = False 
                    , ginteractive      = False
                    , totalHaskell      = def
                    , autoproofs        = def
