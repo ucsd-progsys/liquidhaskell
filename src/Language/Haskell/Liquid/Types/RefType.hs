@@ -1461,8 +1461,7 @@ classBinds _ (RApp c ts _ _)
    = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
    | rtc_tc c == eqPrimTyCon
-   = tracepp "classBinds:" [(rTyVarSymbol a, rTypeSortedReft emb t)]
-   -- = [tracepp ("classBinds: c = " ++ showpp c ++ " ts = " ++ showpp ts) []
+   = [(rTyVarSymbol a, rTypeSortedReft emb t)]
 classBinds _ _
   = []
 

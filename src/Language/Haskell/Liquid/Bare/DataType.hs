@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeTyConEmbeds
   , makeRecordSelectorSigs
   , meetDataConSpec
-  , makeNumericInfo
+  , addClassEmbeds
 
   , DataConMap
   , dataConMap
@@ -59,9 +59,60 @@ import           Language.Haskell.Liquid.Bare.OfType
 -- import           Text.Printf                     (printf)
 -- import           Debug.Trace (trace)
 
-makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeNumericInfo Nothing x   = x
-makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
+--------------------------------------------------------------------------------
+-- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
+--------------------------------------------------------------------------------
+addClassEmbeds :: Maybe [ClsInst] -> [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
+
+--------------------------------------------------------------------------------
+-- | makeFamInstEmbeds : embed family instance tycons, see [NOTE:FamInstEmbeds]
+--------------------------------------------------------------------------------
+--     Query.R$58$EntityFieldBlobdog
+--   with the actual family instance  types that have numeric instances as int [Check!]
+--------------------------------------------------------------------------------
+makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeFamInstEmbeds tcs embs = L.foldl' embed embs famInstTcs
+  where
+    embed embs c           = M.insert c (famInstSort c) embs
+    famInstTcs             = filter isFamInstTyCon tcs
+
+famInstSort :: TyCon -> F.Sort
+famInstSort = _fixmeHEREHERE
+
+{- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
+     in two ways: (1) As an applied type, (2) As a special tycon.
+     For example, consider `tests/pos/ExactGADT4.hs`:
+
+         instance PersistEntity Blob where
+           data EntityField Blob dog where
+             BlobXVal :: EntityField Blob Int
+             BlobYVal :: EntityField Blob Int
+
+     here, the type of the constructor `BlobXVal` can be represented as:
+
+     (1) EntityField Blob Int,
+
+     or
+
+     (2) R$58$EntityFieldBlobdog Int
+
+     PROBLEM: For various reasons, GHC will use _both_ representations interchangeably,
+     which messes up our sort-checker.
+
+     SOLUTION: To address the above, we create an "embedding"
+
+        R$58$EntityFieldBlobdog :-> EntityField Blob
+
+     So that all occurrences of the (2) are treated as (1) by the sort checker.
+ -}
+
+--------------------------------------------------------------------------------
+-- | makeNumEmbeds: embed types that have numeric instances as int [Check!]
+--------------------------------------------------------------------------------
+makeNumEmbeds :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeNumEmbeds Nothing x   = x
+makeNumEmbeds (Just is) x = L.foldl' makeNumericInfoOne x is
 
 makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
@@ -339,7 +390,7 @@ dataConSpec' dcs = concatMap tx dcs
   where
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
     tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
-                                         , let t  = F.tracepp ("expandProductType" ++ showpp (x, t0)) $ RT.expandProductType x t0  ]
+                                         , let t  = F.notracepp ("expandProductType" ++ showpp (x, t0)) $ RT.expandProductType x t0  ]
 
     -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
 

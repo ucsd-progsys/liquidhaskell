@@ -86,9 +86,11 @@ makeHaskellDataDecls cfg spec tcs
 
 
 isReflectableTyCon :: TyCon -> Bool
-isReflectableTyCon tc = F.tracepp msg  $ (isVanillaAlgTyCon .||. isFamInstTyCon) tc
+isReflectableTyCon  = isFamInstTyCon' .||. isVanillaAlgTyCon
   where
-    msg               = "isReflectableTyCon c = " ++ F.showpp tc
+    isFamInstTyCon' c = F.tracepp ("isFamInstTyCon c = " ++ F.showpp c) (isFamInstTyCon c) 
+
+
 
 liftableTyCons :: [TyCon] -> [(TyCon, DataName)]
 liftableTyCons = F.tracepp "LiftableTCs 3"
@@ -276,9 +278,10 @@ bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecT
 bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> takeLast nFlds _ts
-    t                 = traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ RT.ofType  $ mkTyConApp {- mkFamilyTyConApp -} tc tArgs'
+    t                 = {- traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ -}
+                        RT.ofType  $ mkTyConApp {- mkFamilyTyConApp -} tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
-    ((αs,_,_,_,_ts,_t), t0) = hammer dc
+    ((αs,_,_,_,_ts,_t), _t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs

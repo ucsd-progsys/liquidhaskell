@@ -241,6 +241,8 @@ reflectedTyCons cfg embs cbs spec
 isEmbedded :: TCEmb TyCon -> TyCon -> Bool
 isEmbedded embs c = M.member c embs
 
+
+
 varTyCons :: Var -> [TyCon]
 varTyCons = specTypeCons . ofType . varType
 
@@ -367,7 +369,9 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
-  embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+
+  embs           <- addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+
   lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
@@ -376,6 +380,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   let expSyms     = S.toList (exportedSymbols mySpec)
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
+
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
   makeBounds embs name defVars cbs specs
