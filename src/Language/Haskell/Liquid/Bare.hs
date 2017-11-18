@@ -709,7 +709,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let adts         = makeDataDecls cfg embs myName tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.notracepp "CHOP1-datacons" datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.tracepp "CHOP1-datacons" datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 

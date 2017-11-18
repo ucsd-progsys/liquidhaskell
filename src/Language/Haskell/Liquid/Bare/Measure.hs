@@ -37,7 +37,7 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 
-import TysWiredIn (boolTyCon, wiredInTyCons)
+import TysWiredIn (boolTyCon) -- , wiredInTyCons)
 
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
@@ -80,15 +80,24 @@ makeHaskellDataDecls cfg spec tcs
                 . F.tracepp "VanillaTCs 1"
                 . liftableTyCons
                 . F.tracepp "VanillaTCs 0"
-                . filter (isVanillaAlgTyCon .||. isFamInstTyCon)
+                . filter isReflectableTyCon
                 $ tcs
   | otherwise   = []
 
+
+isReflectableTyCon :: TyCon -> Bool
+isReflectableTyCon tc = F.tracepp msg  $ (isVanillaAlgTyCon .||. isFamInstTyCon) tc
+  where
+    msg               = "isReflectableTyCon c = " ++ F.showpp tc
+
 liftableTyCons :: [TyCon] -> [(TyCon, DataName)]
-liftableTyCons = zipMapMaybe tyConDataName
+liftableTyCons = F.tracepp "LiftableTCs 3"
+               . zipMapMaybe tyConDataName
+               . F.tracepp "LiftableTCs 2"
                . filter   (not . isBoxedTupleTyCon)
-               . (`sortDiff` wiredInTyCons)
-          --   filter   isVanillaAlgTyCon
+               . F.tracepp "LiftableTCs 1"
+               -- . (`sortDiff` wiredInTyCons)
+               -- . F.tracepp "LiftableTCs 0"
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
@@ -128,7 +137,8 @@ tyConDataName tc
   | otherwise  = Nothing
   where
     vanillaTc  = isVanillaAlgTyCon tc
-    dcs        = tyConDataCons tc
+    dcs        = F.tracepp msg $ tyConDataCons tc
+    msg        = "tyConDataCons tc = " ++ F.showpp tc
 
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d  = DataCtor dx xts Nothing
