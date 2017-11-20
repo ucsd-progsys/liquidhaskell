@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.Bare (
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
+import qualified Unique
 import           HscTypes
 import           Id
 import           NameSet
@@ -49,7 +50,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (sortNub, applyNonNull, ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
@@ -211,13 +212,25 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = sortNub (defTcs ++ refTcs)
+  let tcs    = uniqNub (defTcs ++ refTcs)
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
                 , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
+
+-- sortUniquable :: (Uniquable a) => [a] -> [a]
+-- sortUniquable xs = s
+-- getUnique getKey :: Unique -> Int
+-- hashNub :: (Eq k, Hashable k) => [k] -> [k]
+-- hashNub = M.keys . M.fromList . fmap (, ())
+
+
+uniqNub :: (Unique.Uniquable a) => [a] -> [a]
+uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
+  where
+    index  = Unique.getKey . Unique.getUnique
 
 -- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
