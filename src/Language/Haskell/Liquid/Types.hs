@@ -1221,7 +1221,8 @@ instance F.Symbolic DataDecl where
   symbol = F.symbol . tycName
 
 instance F.PPrint DataName where
-  pprintTidy _ = text . show
+  pprintTidy k (DnName n) = F.pprintTidy k (F.val n)
+  pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n) 
 
   -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
   -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)

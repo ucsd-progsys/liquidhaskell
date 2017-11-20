@@ -679,7 +679,7 @@ ppError' _ dSp dCtx (ErrLiftExp _ v)
 ppError' _ dSp dCtx (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
         $+$ dCtx
-        $+$ (pprint v <+> dcolon <+> pprint s)
+        $+$ (pprint s <+> "for" <+> ppVar v)
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
   = dSp <+> "Malformed refined data constructor" <+> ppVar d
@@ -855,9 +855,7 @@ ppSrcSpans :: [SrcSpan] -> Doc
 ppSrcSpans = ppList (text "Conflicting definitions at")
 
 ppNames :: [Doc] -> Doc
-ppNames ds = ppList
-                (text "Could refer to any of the names")
-                [text "-" <+> d | d <- ds]
+ppNames ds = ppList "Could refer to any of the names" ds -- [text "-" <+> d | d <- ds]
 
 ppList :: (PPrint a) => Doc -> [a] -> Doc
 ppList d ls

@@ -30,7 +30,6 @@ import           TyCon                                  hiding (tyConName)
 import           Var
 import           InstEnv
 import           Class
-import           TysWiredIn (listTyCon)
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
@@ -437,18 +436,14 @@ checkDataCtor d@(DataCtor lc xts _)
 --   of the GHC TyCon. We just check that the right tyvars are supplied
 --   as errors in the names and types of the constructors will be caught
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
---   see tests/import/ListLib.hs for example of why plain == test is insufficient
---   for `listTyCon`, maybe some oddity with GHC 8.2.1?
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d
-  | isList         = True
-  | otherwise      = (cN == dN || null (tycDCons d))
+checkDataDecl c d = (cN == dN || null (tycDCons d))
   where
-    isList         = show c == show listTyCon
-    -- _msg           = printf "checkDataDecl: c = %s ( %s, %s), cN = %d, dN = %d" (show c) (show listTyCon) (show $ isPrimTyCon c) cN dN
-    cN             = length (GM.tyConTyVarsDef c)
-    dN             = length (tycTyVars         d)
+    -- _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
+    cN            = length (GM.tyConTyVarsDef c)
+    dN            = length (tycTyVars         d)
+
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: ModName

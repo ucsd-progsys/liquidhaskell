@@ -5,7 +5,7 @@
 
 module Language.Haskell.Liquid.Bare.Lookup (
     GhcLookup(..)
-  , lookupGhcThing
+--   , lookupGhcThing
   , lookupGhcVar
   , lookupGhcTyCon
   , lookupGhcDataCon
@@ -95,8 +95,9 @@ lookupGhcThing' _err f ns x = do
   mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   case nubHashOn showpp $ catMaybes mts of
     []  -> return Nothing
-    [z] -> return (Just z)
-    zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+    z:_ -> return (Just z)
+    -- [z] -> return (Just z)
+    -- zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = symbolString . F.symbol
