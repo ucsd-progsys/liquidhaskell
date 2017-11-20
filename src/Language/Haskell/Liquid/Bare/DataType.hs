@@ -24,6 +24,7 @@ import           DataCon
 import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
 import           SrcLoc                                 (SrcSpan)
+import qualified Type
 import           Text.Parsec
 import           TyCon                                  hiding (tyConName)
 import           Var
@@ -72,19 +73,29 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeFamInstEmbeds tcs embs = L.foldl' embed embs famInstTcs
+makeFamInstEmbeds cs embs = L.foldl' embed embs famInstTcs
   where
-    embed embs c           = M.insert c (famInstSort c) embs
-    famInstTcs             = filter isFamInstTyCon tcs
+    famInstTcs            = [ (c, t) | c <- cs, t <- tcSorts c ]
+    tcSorts               = maybeToList . famInstSort embs
+    embed embs (c, t)     = M.insert c t embs
 
-famInstSort :: TyCon -> F.Sort
-famInstSort = _fixmeHEREHERE
+famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
+famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
+
+tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
+tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
 
 {- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
      in two ways: (1) As an applied type, (2) As a special tycon.
      For example, consider `tests/pos/ExactGADT4.hs`:
 
-         instance PersistEntity Blob where
+
+        class PersistEntity record where
+          data EntityField record :: * -> *
+
+        data Blob = B { xVal :: Int, yVal :: Int }
+
+        instance PersistEntity Blob where
            data EntityField Blob dog where
              BlobXVal :: EntityField Blob Int
              BlobYVal :: EntityField Blob Int
