@@ -10,6 +10,14 @@ Main Web site
 * [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
 * [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
 
+Questions
+-----------
+If you have any questions
+
+* Join the Liquid Haskell [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTY1YzBiY2JlZjBjMTM5M2ZkMjNmZDk5ZjA2MGQyZjQ5ZjBmYjZjNGMzOTUyMTU2MDlmM2YzZDM2YjhiMWFjM2I)
+* Mail the [users mailing list](https://groups.google.com/forum/#!forum/liquidhaskell)
+* Create a github issue
+
 Contributing Guide
 ------------------
 
@@ -340,7 +348,7 @@ For example, in the function `foldl`
 by default the *second* argument (the first non-function argument) will be
 checked to be decreasing. However, the explicit hint
 
-    {-@ Decrease foo 3 @-}
+    {-@ decrease foo 3 @-}
 
 tells LiquidHaskell to instead use the *third* argument.
 
@@ -367,7 +375,7 @@ To *disable* termination checking for `foo` that is, to *assume* that it
 is terminating (possibly for some complicated reason currently beyond the
 scope of LiquidHaskell) you can write
 
-    {-@ Lazy foo @-}
+    {-@ lazy foo @-}
 
 Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.
@@ -382,7 +390,7 @@ does not decrease but `n` does. We can capture this notion of "x
 normally decreases, but if it does not, y will" with an extended
 annotation
 
-    {-@ Decrease ack 1 2 @-}
+    {-@ decrease ack 1 2 @-}
 
 An alternative way to express this specification is by annotating
 the function's type with the appropriate *numeric* decreasing expressions.
@@ -417,7 +425,7 @@ In this case, you can introduce a ghost parameter that orders the *functions*
 
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
-termination annotation `{-@ Decrease even 1 2 @-}` (see
+termination annotation `{-@ decrease even 1 2 @-}` (see
 [tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
 
 
@@ -455,12 +463,12 @@ No measure fields
 When a data type is refined, Liquid Haskell automatically turns the data constructor fields into measures.
 For example,
 
-   {-@ data L a = N | C {hd :: a, tl :: L a} @-}
+    {-@ data L a = N | C {hd :: a, tl :: L a} @-}
 
 will automatically create two measures `hd` and `td`.
 To deactivate this automatic measure definition, and speed up verification, you can use the `no-measure-fields` flag.
 
-  liquid --no-measure-fields test.hs
+    liquid --no-measure-fields test.hs
 
 
 
@@ -469,20 +477,20 @@ Prune Unsorted Predicates
 
 Consider a measure over lists of integers
 
-  sum :: [Int] -> Int
-  sum [] = 0 
-  sum (x:xs) = 1 + sum xs 
+    sum :: [Int] -> Int
+    sum [] = 0 
+    sum (x:xs) = 1 + sum xs 
 
 This measure will translate into strengthening the types of list constructors 
 
-  [] :: {v:[Int] | sum v = 0 }
-  (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
+    [] :: {v:[Int] | sum v = 0 }
+    (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
 The hack we do right now is to strengthen the polymorphic list with the `sum` information 
 
-  [] :: {v:[a] | sum v = 0 }
-  (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
+    [] :: {v:[a] | sum v = 0 }
+    (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
 
 But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash. 
 We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic. 
@@ -864,10 +872,10 @@ see [tests/pos/Map.hs](tests/pos/Map.hs)
 Infix Logic Operators
 ---------------------
 
-You can define infix operators in logic, following [Haskell's infix notation](Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity).
-For example, if (+++) is defined as a measure or reflected function, you can use it infix by declaring
+You can define infix operators in logic, following [Haskell's infix notation](https://www.haskell.org/onlinereport/decls.html#fixity).
+For example, if `(+++)` is defined as a measure or reflected function, you can use it infix by declaring
 
-   {-@ infixl 9 +++ @-}
+    {-@ infixl 9 +++ @-}
 
 
 Note: infix operators cannot contain the dot character `.`.
