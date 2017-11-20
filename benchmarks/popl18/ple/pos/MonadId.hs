@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--betaequivalence" @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}

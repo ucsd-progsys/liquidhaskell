@@ -15,6 +15,7 @@ import           Language.Fixpoint.Misc (fst3)
 import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
 import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
+import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
 import           Language.Haskell.Liquid.Bare.Env
@@ -48,7 +49,8 @@ makeRTAliases = graphExpand buildTypeEdges expBody
       let l  = rtPos  xt
       let l' = rtPosE xt
       body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
-      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body }
+      body' <- refreshTy body
+      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body' }
 
 makeREAliases :: [(ModName, RTAlias Symbol Expr)] -> BareM ()
 makeREAliases

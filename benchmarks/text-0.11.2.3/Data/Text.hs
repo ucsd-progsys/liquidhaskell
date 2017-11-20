@@ -1,4 +1,5 @@
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-pattern-inline" @-}
 
 
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}

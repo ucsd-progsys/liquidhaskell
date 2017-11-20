@@ -97,9 +97,15 @@ import Language.Fixpoint.Utils.Files
 getGhcInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
 getGhcInfos hscEnv cfg tgtFiles' = do
   tgtFiles <- mapM canonicalizePath tgtFiles'
+  _        <- mapM checkFilePresent tgtFiles
   _        <- mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
   runLiquidGhc hscEnv cfg (getGhcInfos' cfg logicMap tgtFiles)
+
+checkFilePresent :: FilePath -> IO ()
+checkFilePresent f = do
+  b <- doesFileExist f
+  when (not b) $ panic Nothing ("Cannot find file: " ++ f)
 
 getGhcInfos' :: Config -> Either Error LogicMap
             -> [FilePath]
@@ -176,7 +182,8 @@ configureGhcTargets tgtFiles = do
                      -- wich is backwards..
   let homeModules  = filter (not . isBootSummary) $
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
-  _               <- setTargetModules $ moduleName . ms_mod <$> homeModules
+  let homeNames    = moduleName . ms_mod <$> homeModules
+  _               <- setTargetModules homeNames
   return homeModules
 
 setTargetModules :: [ModuleName] -> Ghc ()
@@ -209,7 +216,7 @@ reachableModules depGraph mod =
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
-  graphFromEdgedVertices <$> mapM mkDepGraphNode homeModules
+  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode homeModules
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
 mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
@@ -297,7 +304,7 @@ processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
                -> ModuleGraph
                -> Ghc [GhcInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
-  -- liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
+  -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
   where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
@@ -307,7 +314,7 @@ processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGra
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
-  -- _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
+  -- DO-NOT-DELETE _                <- liftIO $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
@@ -357,8 +364,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modName        = ModName Target $ moduleName mod
   desugared         <- desugarModule typechecked
   let modGuts        = makeMGIModGuts desugared
+  let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
-  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
+  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   let impVs          = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)

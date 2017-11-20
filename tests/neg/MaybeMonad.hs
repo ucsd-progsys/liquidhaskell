@@ -1,3 +1,5 @@
+{-@ LIQUID "--nopatterninline" @-}
+
 module MaybeMonad where
 
 import Prelude hiding (take)

@@ -1,8 +1,6 @@
 -- | Sec 4 from Gradual Refinement Types 
 
 module Interpretations where
-{-@ LIQUID "--gradual" @-}
-{-@ LIQUID "--eliminate=none" @-}
 
 {-@ g :: Int -> {v:Int | v == 0 && ?? } -> Int @-} 
 g :: Int -> Int -> Int 

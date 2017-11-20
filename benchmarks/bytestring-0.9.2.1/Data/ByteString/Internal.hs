@@ -1,4 +1,5 @@
-{-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--pruneunsorted"     @-}
+{-@ LIQUID "--no-pattern-inline" @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #

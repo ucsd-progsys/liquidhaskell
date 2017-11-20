@@ -12,13 +12,18 @@ import qualified GHCi
 import GHCi.RemoteTypes
 import Data.Array
 import ByteCodeTypes
+#if MIN_VERSION_base(4,9,0)
 import GHC.Stack.CCS
+#else
+import GHC.Stack as GHC.Stack.CCS
+#endif
 #endif
 import Type
 import HsSyn
 import Module
 import Outputable
 import DynFlags
+import ConLike
 import Control.Monad
 import SrcLoc
 import ErrUtils
@@ -71,11 +76,8 @@ addTicksToBinds
 addTicksToBinds hsc_env mod mod_loc exports tyCons binds
   | let dflags = hsc_dflags hsc_env
         passes = coveragePasses dflags, not (null passes),
-    Just orig_file <- ml_hs_file mod_loc = do
-
-     if "boot" `isSuffixOf` orig_file
-         then return (binds, emptyHpcInfo False, Nothing)
-         else do
+    Just orig_file <- ml_hs_file mod_loc,
+    not ("boot" `isSuffixOf` orig_file) = do
 
      us <- mkSplitUniqSupply 'C' -- for cost centres
      let  orig_file2 = guessSourceFile binds orig_file
@@ -111,8 +113,8 @@ addTicksToBinds hsc_env mod mod_loc exports tyCons binds
      modBreaks <- mkModBreaks hsc_env mod tickCount entries
 
      when (dopt Opt_D_dump_ticked dflags) $
-         log_action dflags dflags NoReason SevDump noSrcSpan defaultDumpStyle
-             (pprLHsBinds binds1)
+         putLogMsg dflags NoReason SevDump noSrcSpan
+             (defaultDumpStyle dflags) (pprLHsBinds binds1)
 
      return (binds1, HpcInfo tickCount hashNo, Just modBreaks)
 
@@ -169,7 +171,6 @@ mkCCSArray hsc_env modul count entries = do
       where name = concat (intersperse "." decl_path)
             src = showSDoc dflags (ppr srcspan)
 #endif
-
 
 writeMixEntries
   :: DynFlags -> Module -> Int -> [MixEntry_] -> FilePath -> IO Int
@@ -514,12 +515,14 @@ addBinTickLHsExpr boxLabel (L pos e0)
 addTickHsExpr :: HsExpr Id -> TM (HsExpr Id)
 addTickHsExpr e@(HsVar (L _ id)) = do freeVar id; return e
 addTickHsExpr (HsUnboundVar {})  = panic "addTickHsExpr.HsUnboundVar"
+addTickHsExpr e@(HsConLikeOut con)
+  | Just id <- conLikeWrapId_maybe con = do freeVar id; return e
 addTickHsExpr e@(HsIPVar _)      = return e
 addTickHsExpr e@(HsOverLit _)    = return e
-addTickHsExpr e@(HsOverLabel _)  = return e
+addTickHsExpr e@(HsOverLabel{})  = return e
 addTickHsExpr e@(HsLit _)        = return e
 addTickHsExpr (HsLam matchgroup) = liftM HsLam (addTickMatchGroup True matchgroup)
-addTickHsExpr (HsLamCase ty mgs) = liftM (HsLamCase ty) (addTickMatchGroup True mgs)
+addTickHsExpr (HsLamCase mgs)    = liftM HsLamCase (addTickMatchGroup True mgs)
 addTickHsExpr (HsApp e1 e2)      = liftM2 HsApp (addTickLHsExprNever e1)
                                                 (addTickLHsExpr      e2)
 addTickHsExpr (HsAppTypeOut e ty) = liftM2 HsAppTypeOut (addTickLHsExprNever e)
@@ -549,6 +552,9 @@ addTickHsExpr (ExplicitTuple es boxity) =
         liftM2 ExplicitTuple
                 (mapM addTickTupArg es)
                 (return boxity)
+addTickHsExpr (ExplicitSum tag arity e ty) = do
+        e' <- addTickLHsExpr e
+        return (ExplicitSum tag arity e' ty)
 addTickHsExpr (HsCase e mgs) =
         liftM2 HsCase
                 (addTickLHsExpr e) -- not an EvalInner; e might not necessarily
@@ -589,7 +595,7 @@ addTickHsExpr (ExplicitPArr ty es) =
                 (return ty)
                 (mapM (addTickLHsExpr) es)
 
-addTickHsExpr (HsStatic e) = HsStatic <$> addTickLHsExpr e
+addTickHsExpr (HsStatic fvs e) = HsStatic fvs <$> addTickLHsExpr e
 
 addTickHsExpr expr@(RecordCon { rcon_flds = rec_binds })
   = do { rec_binds' <- addTickHsRecordBinds rec_binds
@@ -888,9 +894,10 @@ addTickHsCmd (HsCmdArrApp   e1 e2 ty1 arr_ty lr) =
                (return ty1)
                (return arr_ty)
                (return lr)
-addTickHsCmd (HsCmdArrForm e fix cmdtop) =
-        liftM3 HsCmdArrForm
+addTickHsCmd (HsCmdArrForm e f fix cmdtop) =
+        liftM4 HsCmdArrForm
                (addTickLHsExpr e)
+               (return f)
                (return fix)
                (mapM (liftL (addTickHsCmdTop)) cmdtop)
 
@@ -1078,7 +1085,6 @@ instance Applicative TM where
     (<*>) = ap
 
 instance Monad TM where
-  return = pure
   (TM m) >>= k = TM $ \ env st ->
                                 case m env st of
                                   (r1,fv1,st1) ->

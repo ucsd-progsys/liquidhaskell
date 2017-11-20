@@ -1,16 +1,46 @@
-### HEREHEREHERE 
+# 3 Failures moved in tests/DependentHaskell/todo
+
+- ClassKind.hs - Tests.Unit.pos
+- LF326.hs - Tests.Unit.pos
+- TypeFamilies.hs - Tests.Unit.pos
+
+# FOR RJ.
+- remove old simplifyPatTuple? I think ghc does it now by defauls
+- [--no-pattern-inline] contra0.hs - Tests.Unit.neg
+- [--no-pattern-inline] MaybeMonad.hs - Tests.Unit.neg
+- [--no-pattern-inline] RG.hs - Tests.Unit.neg
+- [--no-pattern-inline] T743.hs - Tests.Unit.neg
+- [--no-pattern-inline] Data/ByteString/Lazy/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Lazy.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Internal.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString/Char8.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.T.hs - Tests.Benchmarks.bytestring
+- [--no-pattern-inline] Data/ByteString.hs - Tests.Benchmarks.bytestring
+
+- [--no-pattern-inline] Data/Vector/Algorithms/AmericanFlag.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Common.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Heap.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Insertion.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Intro.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Merge.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Optimal.hs
+- [--no-pattern-inline] Data/Vector/Algorithms/Search.hs
+
+{-@ reflect baz @-}
+bar :: Int -> Int
+bar n = n
 
 -1. [HEREHEREHEREHERE] next, extend the TCEmb to account for the below, see
     current failure in ExactGADT4.hs
 
-0. Actually, just use `dataConWorkRep` everywhere AND if you like, you can use 
-   `dataConFullSig`. The conflict below can only be resolved by TCEmb mapping 
+0. Actually, just use `dataConWorkRep` everywhere AND if you like, you can use
+   `dataConFullSig`. The conflict below can only be resolved by TCEmb mapping
 
-        Query.R:EntityFieldBlobDog -> EntityField Blob 
+        Query.R:EntityFieldBlobDog -> EntityField Blob
 
    because anyways otherwise GHC gives the dataConWorkId and dataConWrapId types
-   where one of them has the `BlobDog` and the other has `EntityField Blob` 
-   and so if you use the SAME measures (as we must!) then we will end up with 
+   where one of them has the `BlobDog` and the other has `EntityField Blob`
+   and so if you use the SAME measures (as we must!) then we will end up with
    a malformed refinement on one of them.
 
    SO: just use the `dataConFullSig` or the `dataConWorkId` to create the
@@ -25,8 +55,8 @@
     forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)] : (EntityField Blob dog)
 ```
 
-* That is, `dataConFullSig` says the output type is `Query.EntityField Query.Blob Int` 
-  but the actual var-type has the output type `Query.R:EntityFieldBlobdog dog` 
+* That is, `dataConFullSig` says the output type is `Query.EntityField Query.Blob Int`
+  but the actual var-type has the output type `Query.R:EntityFieldBlobdog dog`
   which will screw up all our invariants about the GHC and Liquid types lining
   up.
 
@@ -34,8 +64,8 @@ So.
 
 1. In "sort" land, use the FamInstTyCon name, which is the `EntityFieldBlobdog`,
    that should be the type of the ADT etc.
-2. Give (the measures) `BlobXVal` and `BlobYVal` types like :: `EntityFieldBlobdog Int` 
-3. Give (the measures) `is$BlobXVal` and `is$BlobYVal` types like :: `EntityFieldBlobdog a -> Bool` 
+2. Give (the measures) `BlobXVal` and `BlobYVal` types like :: `EntityFieldBlobdog Int`
+3. Give (the measures) `is$BlobXVal` and `is$BlobYVal` types like :: `EntityFieldBlobdog a -> Bool`
 
 
 Concretely: rewrite `bkDataCon` and `dataConResultTy` to use `dataConWorkRep`
@@ -45,32 +75,32 @@ Note that the above will give us the type:
 
     BlobXVal :: forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)
 
-when we are really looking for the "result" type of the constructor 
+when we are really looking for the "result" type of the constructor
 
-    BlobXVal ::  Query.R:EntityFieldBlobdog Int 
+    BlobXVal ::  Query.R:EntityFieldBlobdog Int
 
-In this case, fret not, just use the tyvar substitutions, so from the `ty_args` 
-gather the equalities as done in `classBinds` -- see below, and then substitute 
+In this case, fret not, just use the tyvar substitutions, so from the `ty_args`
+gather the equalities as done in `classBinds` -- see below, and then substitute
 those into the body (but after accounting for the original tyvars.)
 
 `dataConResultTy` should be:
 
 ```
-  as           = ty-vars from datacon 
-  tc           = tycon name 
-  t0           = gApp tc as 
-  tRes 
+  as           = ty-vars from datacon
+  tc           = tycon name
+  t0           = gApp tc as
+  tRes
    | isGadt    = substTyVar (gadtSubst as c) t0  
-   | otherwise = t0 
+   | otherwise = t0
 
 
-gadtSubst :: [RTyVar] -> DataCon -> Subst 
-gadtSubst as c = mkSubst (join bAs bTs) 
-  where 
-    bTs        = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args wr ] 
+gadtSubst :: [RTyVar] -> DataCon -> Subst
+gadtSubst as c = mkSubst (join bAs bTs)
+  where
+    bTs        = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args wr ]
     bs         = ty_vars wr
-    wr         = dataConWorkRep c 
-    bAs        = M.fromList zip bs as 
+    wr         = dataConWorkRep c
+    bAs        = M.fromList zip bs as
 
 join :: [(a, b)] -> [(a, c)] -> [(b, c)]
 
@@ -78,8 +108,8 @@ join :: [(a, b)] -> [(a, c)] -> [(b, c)]
 eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
 eqSubst (RApp c [_, _, (RVar a _), t] _ _)
   | rtc_tc c == eqPrimTyCon = Just (a, t)
-eqSubst _                   = Nothing 
-``` 
+eqSubst _                   = Nothing
+```
 
 
 +classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
@@ -259,7 +289,7 @@ Benchmarks
 -   vector
 -   repa
 -   repa-algorithms
-- 	xmonad (stackset)
+-   xmonad (stackset)
 -   snap/security
 -   hmatrix
       > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -548,12 +578,12 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 a. Following `RProp` we should have
 
-	* RHProp := x1:t1,...,xn:tn -> World
+  * RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
-	* WPreds : (h v1 ... vn), h2, ...
-	* Wbinds : x1 := T1, x2 := T2, ...
+  * WPreds : (h v1 ... vn), h2, ...
+  * Wbinds : x1 := T1, x2 := T2, ...
 
 c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
@@ -565,25 +595,25 @@ c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. ca
 
 Per Niki:
 
-	RProp := x1:t1,...,xn:tn -> RType
+  RProp := x1:t1,...,xn:tn -> RType
 
 with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
 
 For example, we represent
 
-	[a]<p>
+  [a]<p>
 
 as
 
-	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+  RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
 
 which is the `RTycon` for lists `[]` applied to:
 
 + Tyvar `a`
 
 + RPoly with:
-	* _params_ `h:a`
-	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+  * _params_ `h:a`
+  * _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
 
 + Outer refinement `true`
 

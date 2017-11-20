@@ -617,6 +617,10 @@ instance FromJSON SrcSpan where
                               True  -> RealSrcSpan <$> v .: "spanInfo"
   parseJSON _          = mempty
 
+-- Default definition use ToJSON and FromJSON
+instance ToJSONKey SrcSpan
+instance FromJSONKey SrcSpan
+
 instance (PPrint a, Show a) => ToJSON (TError a) where
   toJSON e = object [ "pos" .= (pos e)
                     , "msg" .= (render $ ppError' Full empty empty e)

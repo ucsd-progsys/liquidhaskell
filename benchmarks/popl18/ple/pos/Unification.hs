@@ -6,7 +6,6 @@
 -- where? switch off non-lin-cuts in higher-order mode?
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate=all"   @-}
 

@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--pruneunsorted" @-}
+
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |

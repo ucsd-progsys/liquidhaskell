@@ -93,7 +93,6 @@ import Var
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Language.Haskell.Liquid.GHC.TypeRep          hiding (maybeParen, pprArrowChain)
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
@@ -425,8 +424,9 @@ instance Ord RTyVar where
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
 
-instance Ord RTyCon where
-  compare x y = compare (rtc_tc x) (rtc_tc y)
+-- TyCon isn't comparable
+--instance Ord RTyCon where
+--  compare x y = compare (rtc_tc x) (rtc_tc y)
 
 instance Hashable RTyCon where
   hashWithSalt i = hashWithSalt i . rtc_tc
@@ -1184,9 +1184,9 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (ForAllTy (Anon τ) τ')
+    go (FunTy τ τ')
       = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy (Named α _) τ)
+    go (ForAllTy (TvBndr α _) τ)
       = RAllT (tcFTVar tx α) $ go τ
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -1277,7 +1277,7 @@ toType  :: (ToTypeable r) => RRType r -> Type
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
 toType (RAllT a t) | RTV α <- ty_var_value a
-  = ForAllTy (mkTyArg α) (toType t)
+  = ForAllTy (TvBndr α Required) (toType t)
 toType (RAllP _ t)
   = toType t
 toType (RAllS _ t)
@@ -1317,9 +1317,9 @@ rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) 
               => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 applySolution = fmap . fmap . mapReft . appSolRefa
   where
     mapReft f (MkUReft (Reft (x, z)) p s) = MkUReft (Reft (x, f z)) p s
@@ -1330,9 +1330,9 @@ appSolRefa s p = mapKVars f p
   where
     f k        = Just $ M.lookupDefault PTop k s
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 shiftVV :: SpecType -> Symbol -> SpecType
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
@@ -1446,7 +1446,7 @@ mkProductTy :: (Monoid t, Monoid r)
             -> [(Symbol, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
   where
-    f    = ((<$>) ((dummySymbol, , mempty) . ofType)) . third4
+    f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -----------------------------------------------------------------------------------------

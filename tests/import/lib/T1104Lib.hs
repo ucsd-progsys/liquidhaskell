@@ -1,4 +1,4 @@
-module T1104_BB where 
+module T1104Lib where 
 
 data Foo a b = Foo {fooA :: a, fooB :: b}  |  Bar
 

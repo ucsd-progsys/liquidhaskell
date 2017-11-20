@@ -6,6 +6,7 @@ module Language.Haskell.Liquid.UX.ACSS (
   , breakS
   , srcModuleName
   , Status (..)
+  , tokeniseWithLoc
   ) where
 
 import Prelude hiding (error)
@@ -74,6 +75,12 @@ hsannot' baseLoc anchor tx =
                       . insertAnnotAnchors
                  else concatMap renderAnnotToken)
     . annotTokenise baseLoc tx
+
+tokeniseWithLoc :: CommentTransform -> String -> [(TokenType, String, Loc)]
+tokeniseWithLoc tx str = zipWith (\(x,y) z -> (x, y, z)) toks spans  
+  where
+    toks       = tokeniseWithCommentTransform tx str
+    spans      = tokenSpans Nothing $ map snd toks
 
 -- | annotTokenise is absurdly slow: O(#tokens x #errors)
 
