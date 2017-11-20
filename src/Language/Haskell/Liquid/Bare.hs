@@ -680,7 +680,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   where
     mkThing         = mkThing' False
     mkThing' b mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs , b || m == name ]
-    makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (F.tracepp "AUTOSIZE" $ Ms.autosize s)]
+    makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 
 

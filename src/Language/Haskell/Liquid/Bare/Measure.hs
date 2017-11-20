@@ -314,7 +314,7 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 makeMeasureChecker :: LocSymbol -> SpecType -> DataCon -> Int -> Measure SpecType DataCon
 makeMeasureChecker x s0 dc n = M {name = x, sort = s, eqns = eqn : (eqns <$> filter (/= dc) dcs)}
   where
-    s       = F.tracepp ("makeMeasureChecker: " ++ show x) s0
+    s       = F.notracepp ("makeMeasureChecker: " ++ show x) s0
     eqn     = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
     eqns d  = Def x [] d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
     nArgs d = length (dataConOrigArgTys d)

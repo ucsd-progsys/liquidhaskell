@@ -66,14 +66,14 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
 
 -- TODO: duplicated with Liquid.Measure.makeDataConType
 dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = F.tracepp "ORVILLE" [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType dc wrapT
-    wrapT               = dcWrapSpecType dc (F.tracepp "WRAP-SPECTYPE" dcp)
+    wrapT               = dcWrapSpecType dc dcp
     workX               = dataConWorkId dc            -- this is the weird one for GADTs
     wrapX               = dataConWrapId dc            -- this is what the user expects to see
-    isVanilla           = F.tracepp ("IS-Vanilla: " ++ showpp dc) $ isVanillaDataCon dc
+    isVanilla           = F.notracepp ("IS-Vanilla: " ++ showpp dc) $ isVanillaDataCon dc
 
 dcWorkSpecType :: DataCon -> SpecType -> SpecType
 dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
@@ -83,9 +83,9 @@ dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
 
 dataConWorkRep :: DataCon -> SpecRep
 dataConWorkRep c = toRTypeRep
-                 . F.tracepp ("DCWR-2: " ++ F.showpp c)
+                 -- . F.tracepp ("DCWR-2: " ++ F.showpp c)
                  . ofType
-                 . F.tracepp ("DCWR-1: " ++ F.showpp c)
+                 -- . F.tracepp ("DCWR-1: " ++ F.showpp c)
                  . dataConRepType
                  -- . Var.varType
                  -- . dataConWorkId
@@ -145,7 +145,8 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
-  = F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ mkArrow makeVars ps ls ts' rt'
+  = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
+    mkArrow makeVars ps ls ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)

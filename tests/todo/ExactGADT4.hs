@@ -2,7 +2,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{-  LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -71,12 +71,8 @@ evalQBlobYVal GE filter given = given <= filter
 {-@ reflect evalQBlob @-}
 evalQBlob :: Filter Blob typ -> Blob -> Bool
 evalQBlob filter blob = case filterField filter of
-  BlobXVal -> {- goo (filterValue filter) -} evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
-  BlobYVal -> {- goo (filterValue filter) -} evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
-
-{-@ reflect goo @-}
-goo :: Int -> Bool 
-goo n = if n == 0 then True else False 
+  BlobXVal -> evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
+  BlobYVal -> evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
 
 {-@ filterQBlob :: f:(Filter Blob a) -> [Blob] -> [{b:Blob | evalQBlob f b}] @-}
 filterQBlob :: Filter Blob a -> [Blob] -> [Blob]
