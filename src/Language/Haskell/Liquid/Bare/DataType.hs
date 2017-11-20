@@ -73,17 +73,26 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeFamInstEmbeds cs embs = L.foldl' embed embs famInstTcs
+makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
   where
-    famInstTcs            = [ (c, t) | c <- cs, t <- tcSorts c ]
-    tcSorts               = maybeToList . famInstSort embs
+    famInstSorts          = F.tracepp "famInstTcs"
+                            [ (c, RT.typeSort embs ty)
+                                | c        <- cs
+                                , (c', ts) <- tcInsts c
+                                , let n     = tyConArity c
+                                , let ty    = famInstType n c' ts ]
+    tcInsts               = maybeToList . tyConFamInst_maybe
     embed embs (c, t)     = M.insert c t embs
+    -- tcSorts               = maybeToList . famInstSort embs
 
-famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
-famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
+famInstType :: Int -> TyCon -> [Type] -> Type
+famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
 
-tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
-tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
+-- famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
+-- famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
+
+-- tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
+-- tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
 
 {- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
      in two ways: (1) As an applied type, (2) As a special tycon.

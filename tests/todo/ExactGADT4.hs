@@ -1,8 +1,8 @@
+{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-
+{- LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -39,6 +39,7 @@ createEqQuery field value =
   , filterFilter = EQUAL
   }
 
+{-@ data Blob = B { xVal :: Int, yVal :: Int } @-}
 data Blob = B { xVal :: Int, yVal :: Int }
 
 instance PersistEntity Blob where
@@ -70,8 +71,8 @@ evalQBlobYVal GE filter given = given <= filter
 {-@ reflect evalQBlob @-}
 evalQBlob :: Filter Blob typ -> Blob -> Bool
 evalQBlob filter blob = case filterField filter of
-  BlobXVal -> goo (filterValue filter) -- evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
-  BlobYVal -> goo (filterValue filter) -- evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
+  BlobXVal -> {- goo (filterValue filter) -} evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
+  BlobYVal -> {- goo (filterValue filter) -} evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
 
 {-@ reflect goo @-}
 goo :: Int -> Bool 

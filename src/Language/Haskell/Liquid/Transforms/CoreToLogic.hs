@@ -240,7 +240,8 @@ coerceToLg c = (mapM typeEqToLg . coercionTypeEq $ c)
 
 coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
 coercionTypeEq co
-  | Pair.Pair s t <-  (tracePpr ("coercion-type-eq-1: " ++ showPpr co) $  coercionKind co)
+  | Pair.Pair s t <- {- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $ -}
+                       coercionKind co
   = (, t) <$> getTyVar_maybe s
   | otherwise
   = Nothing

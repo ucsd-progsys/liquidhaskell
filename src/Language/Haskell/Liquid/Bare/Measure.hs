@@ -88,7 +88,7 @@ makeHaskellDataDecls cfg spec tcs
 isReflectableTyCon :: TyCon -> Bool
 isReflectableTyCon  = isFamInstTyCon' .||. isVanillaAlgTyCon
   where
-    isFamInstTyCon' c = F.tracepp ("isFamInstTyCon c = " ++ F.showpp c) (isFamInstTyCon c) 
+    isFamInstTyCon' c = F.tracepp ("isFamInstTyCon c = " ++ F.showpp c) (isFamInstTyCon c)
 
 
 
@@ -266,7 +266,7 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isG
 dataConSel :: DataCon -> Int -> DataConSel -> SpecType
 dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
   where
-    (as, _, xt)          = traceShow ("bkDataCon: " ++ show dc) $ bkDataCon dc n
+    (as, _, xt)          = {- traceShow ("bkDataCon: " ++ show dc) $ -} bkDataCon dc n
 
 dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
