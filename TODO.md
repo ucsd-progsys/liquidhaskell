@@ -1,3 +1,19 @@
+# T1089
+
+* AmbiguousInline.hs 
+	[dup?]
+* AmbiguousReflect.hs 
+	[dup?]
+* IndStar.hs - Tests.Unit.pos
+	[dup]
+* tests/pos/PromotedDataCons.hs	
+	[dup]
+* tests/neg/T602.hs 
+	[Double vs real]
+* tests/import/lib/ListLib.hs 
+	[ GHC-list vs fix-list ]
+
+
 # 3 Failures moved in tests/DependentHaskell/todo
 
 - ClassKind.hs - Tests.Unit.pos

@@ -134,15 +134,15 @@ data MatchIdxs
 
 {-@ data MatchIdxs
       = Small { targ    :: ByteStringNE
-              , bs      :: {bs:BS.ByteString | bLength bs < bLength targ}
+              , bs      :: {v:BS.ByteString | bLength v < bLength targ}
               }
 
       | MatchIdxs
               { targ    :: ByteStringNE
-              , input   :: {input : Int | input >= bLength targ}
-              , left    :: {left  : BS.ByteString | bLength left == bLength targ - 1}
+              , input   :: {v : Int | v >= bLength targ}
+              , left    :: {v : BS.ByteString | bLength v == bLength targ - 1}
               , matches :: [{v:Int | v <= input - bLength targ}]
-              , right   :: {right : BS.ByteString | bLength right == bLength targ - 1}
+              , right   :: {v : BS.ByteString | bLength v == bLength targ - 1}
               }
   @-}
 

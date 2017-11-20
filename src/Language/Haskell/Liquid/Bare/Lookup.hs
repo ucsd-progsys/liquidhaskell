@@ -99,6 +99,14 @@ lookupGhcThing' _err f ns x = do
     -- [z] -> return (Just z)
     -- zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
+filterByName :: (F.Symbolic a, PPrint b) => a -> [b] -> [b]
+filterByName x = filter (L.isSuffixOf xKey . showpp) ys
+  where
+    xKey       = show (dropModuleNamesAndUnique x)
+
+
+ -- ghcSymbolString = symbolString . dropModuleUnique
+
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = symbolString . F.symbol
 
