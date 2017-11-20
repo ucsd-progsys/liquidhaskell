@@ -1208,7 +1208,7 @@ instance Show DataDecl where
               -- (show $ F.srcSpan dd)
 
 instance Show DataName where
-  show (DnName n) = "tycon:"   ++ show (F.val n)
+  show (DnName n) =               show (F.val n)
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
 instance F.PPrint DataDecl where
@@ -1222,7 +1222,7 @@ instance F.Symbolic DataDecl where
 
 instance F.PPrint DataName where
   pprintTidy k (DnName n) = F.pprintTidy k (F.val n)
-  pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n) 
+  pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n)
 
   -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
   -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)
