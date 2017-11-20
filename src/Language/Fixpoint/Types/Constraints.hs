@@ -55,7 +55,7 @@ module Language.Fixpoint.Types.Constraints (
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
-  , unsafe, isUnsafe, safe
+  , unsafe, isUnsafe, isSafe ,safe
 
   -- * Cut KVars
   , Kuts (..)
@@ -141,6 +141,9 @@ updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
 isGWfc :: WfC a -> Bool
 isGWfc (GWfC {}) = True
 isGWfc (WfC  {}) = False
+
+instance HasGradual (WfC a) where
+  isGradual = isGWfc
 
 type SubcId = Integer
 
@@ -262,6 +265,10 @@ instance Monoid (Result a) where
 unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
 safe   = mempty {resStatus = Safe}
+
+isSafe :: Result a -> Bool 
+isSafe (Result Safe _ _) = True 
+isSafe _                 = False
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ <- resStatus r
@@ -601,6 +608,9 @@ data GInfo c a =
      , ae       :: AxiomEnv
      }
   deriving (Eq, Show, Functor, Generic)
+
+instance HasGradual (GInfo c a) where
+  isGradual info = any isGradual (M.elems $ ws info)
 
 instance Monoid HOInfo where
   mempty        = HOI False False

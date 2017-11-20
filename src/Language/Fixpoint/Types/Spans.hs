@@ -20,6 +20,7 @@ module Language.Fixpoint.Types.Spans (
   , dummyLoc
   , dummyPos
   , atLoc
+  , toSourcePos
 
   -- * Destructing spans
   , sourcePosElts

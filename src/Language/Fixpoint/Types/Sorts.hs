@@ -83,6 +83,9 @@ import qualified Data.HashMap.Strict       as M
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 type TCEmb a  = M.HashMap a Sort -- FTycon
 
+-- instance Show FTycon where
+--   show (TC s _) = show (val s)
+
 instance Symbolic FTycon where
   symbol (TC s _) = symbol s
 

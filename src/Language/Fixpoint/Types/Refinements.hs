@@ -160,7 +160,9 @@ isKvar _           = False
 class HasGradual a where
   isGradual :: a -> Bool
   gVars     :: a -> [KVar]
+  gVars _ = [] 
   ungrad    :: a -> a
+  ungrad x = x 
 
 instance HasGradual Expr where
   isGradual (PGrad {}) = True

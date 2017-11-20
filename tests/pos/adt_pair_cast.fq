@@ -1,6 +1,4 @@
 
-DELIBERATELY BREAKING PARSE TO APPEASE CIRCLE 
-
 data P 2 = [
    | P {pfst : @(0), psnd : @(1)}
    ]

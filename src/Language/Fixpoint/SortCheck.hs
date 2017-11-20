@@ -28,6 +28,7 @@ module Language.Fixpoint.SortCheck  (
   , sortExpr
   , checkSortExpr
   , exprSort
+  , exprSort_maybe
 
   -- * Unify
   , unifyFast
@@ -58,7 +59,7 @@ import           Control.Monad.State.Strict
 
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
-import           Data.Maybe                (mapMaybe, fromMaybe)
+import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
@@ -381,11 +382,15 @@ elab f@(_, g) e@(EBin o e1 e2) = do
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  return (eAppC s e1'          (ECst e2' s2), s)
+  let e = eAppC s e1' (ECst e2' s2)
+  let θ = unifyExpr (snd f) e 
+  return (applyExpr θ e, maybe s (`apply` s) θ) 
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  return (eAppC s (ECst e1' s1) (ECst e2' s2), s)
+  let e = eAppC s (ECst e1' s1) (ECst e2' s2)
+  let θ = unifyExpr (snd f) e 
+  return (applyExpr θ e, maybe s (`apply` s) θ) 
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -635,14 +640,21 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
 exprSort :: String -> Expr -> Sort
-exprSort msg = go
+exprSort msg e =
+  case exprSort_maybe e of
+    Nothing -> errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
+    Just s  -> s 
+
+
+exprSort_maybe :: Expr -> Maybe Sort
+exprSort_maybe = go
   where
-    go (ECst _ s) = s
-    go (ELam (_, sx) e) = FFunc sx (go e)
+    go (ECst _ s) = Just s
+    go (ELam (_, sx) e) = FFunc sx <$> go e
     go (EApp e ex)
-      | FFunc sx s <- genSort (go e)
-      = maybe s (`apply` s) $ unifySorts (go ex) sx
-    go e = errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
+      | Just (FFunc sx s) <- genSort <$> go e
+      = maybe s (`apply` s) <$> ((`unifySorts` sx) <$> go ex)
+    go _ = Nothing
 
 genSort :: Sort -> Sort
 genSort (FAbs _ t) = genSort t
@@ -821,6 +833,33 @@ checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (er
 
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwError $ errRel e t1 t2)
 
+
+
+--------------------------------------------------------------------------------
+-- | Sort Unification on Expressions
+--------------------------------------------------------------------------------
+
+unifyExpr :: Env -> Expr -> Maybe TVSubst
+unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
+  where
+   θ1 = unifyExpr f e1 
+   θ2 = unifyExpr f e2 
+   θ  = unifyExprApp f e1 e2 
+unifyExpr f (ECst e _)
+  = unifyExpr f e 
+unifyExpr _ _ 
+  = Nothing
+
+unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
+unifyExprApp f e1 e2 = do 
+  t1 <- getArg $ exprSort_maybe e1 
+  t2 <- exprSort_maybe e2 
+  unify f (Just $ EApp e1 e2) t1 t2 
+  where
+    getArg (Just (FFunc t1 _)) = Just t1 
+    getArg _                   = Nothing 
+
+
 --------------------------------------------------------------------------------
 -- | Sort Unification
 --------------------------------------------------------------------------------
@@ -967,6 +1006,13 @@ apply θ          = Vis.mapSort f
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
 
+applyExpr :: Maybe TVSubst -> Expr -> Expr
+applyExpr Nothing e  = e
+applyExpr (Just θ) e = Vis.mapExpr f e
+  where 
+    f (ECst e s) = ECst e (apply θ s)
+    f e          = e 
+
 --------------------------------------------------------------------------------
 applyCoercion :: Symbol -> Sort -> Sort -> Sort 
 --------------------------------------------------------------------------------
@@ -994,6 +1040,10 @@ checkFunSort t             = throwError $ errNonFunction 1 t
 
 newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
 
+instance Monoid TVSubst where
+  mempty                  = Th mempty
+  mappend (Th s1) (Th s2) = Th (mappend s1 s2) 
+
 lookupVar :: Int -> TVSubst -> Maybe Sort
 lookupVar i (Th m)   = M.lookup i m
 
@@ -1012,11 +1062,11 @@ errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
 
 errUnify :: Maybe Expr -> Sort -> Sort -> String
 errUnify eo t1 t2 = printf "Cannot unify %s with %s %s"
-                      (showpp t1) (showpp t2) (unifyExpr eo)
+                      (showpp t1) (showpp t2) (errUnifyExpr eo)
 
-unifyExpr :: Maybe Expr -> String
-unifyExpr Nothing  = ""
-unifyExpr (Just e) = "in expression: " ++ showpp e
+errUnifyExpr :: Maybe Expr -> String
+errUnifyExpr Nothing  = ""
+errUnifyExpr (Just e) = "in expression: " ++ showpp e
 
 errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
