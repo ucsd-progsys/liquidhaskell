@@ -1,11 +1,5 @@
 # T1089
 
-* AmbiguousInline.hs 
-	[dup?]
-* AmbiguousReflect.hs 
-	[dup?]
-* IndStar.hs - Tests.Unit.pos
-	[dup]
 * tests/pos/PromotedDataCons.hs	
 	[dup]
 * tests/neg/T602.hs 

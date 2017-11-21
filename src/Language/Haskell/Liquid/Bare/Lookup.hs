@@ -43,11 +43,12 @@ import           Text.PrettyPrint.HughesPJ        (text)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import qualified Data.List                        as L
+import           Data.Function                    (on)
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import qualified Language.Haskell.Liquid.Misc     as Misc
+-- import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -97,17 +98,25 @@ lookupGhcThing' _err f ns x = do
   ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
   let kts = catMaybes (f <$> ts)
   -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
-  return (minBy x kts)
+  case minBy kts of
+    []  -> return Nothing
+    [z] -> return (Just z)
+    zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+
   -- case filterByName x $ nubHashOn showpp $ catMaybes mts of
     -- []  -> return Nothing
     -- [z] -> return (Just z)
     -- zs  -> case filterByName x zs of
              -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
-minBy :: (F.Symbolic a, PPrint b) => a -> [(Int, b)] -> Maybe b
-minBy = _fixmeHEREHEREHERE
-  -- case L.sortBy (compare `on` fst) xs
-             -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+
+minBy :: [(Int, a)] -> [a]
+minBy kvs = case kvs' of
+              (_, vs):_ -> vs
+              []        -> []
+  where
+    kvs'  = L.sortBy (compare `on` fst) (F.groupList kvs)
+
 
 _filterByName :: (F.Symbolic a, PPrint b) => a -> [b] -> [b]
 _filterByName x = filter (L.isSuffixOf xKey . showpp)
@@ -239,22 +248,21 @@ lookupGhcVar x = do
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
-  lookupGhcThing err ftc (Just tcName) s  `catchError` \_ ->
-   lookupGhcThing err fdc (Just tcName) s
+  lookupGhcThing err ftc (Just tcName) s
+    -- `catchError` \_ ->
+    --  lookupGhcThing err fdc (Just tcName) s
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
       = Just (0, x)
-    ftc (AConLike (RealDataCon x))
-      = Just (1, dataConTyCon x)
-    ftc _
-      = Nothing
+    -- WHY? 1089 ftc (AConLike (RealDataCon x))
+    -- WHY? 1089 = Just (2, dataConTyCon x)
 
-    fdc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
+    ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
       = Just (0, dataConTyCon x)
-    fdc (AConLike (RealDataCon x))
+    ftc (AConLike (RealDataCon x))
       = Just (1, promoteDataCon x)
-    fdc _
+    ftc _
       = Nothing
 
     err = "type constructor or class\n " ++ src
