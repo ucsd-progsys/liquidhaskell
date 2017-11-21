@@ -42,11 +42,12 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
+import qualified Data.List                        as L
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.Misc     (nubHashOn)
+import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -79,31 +80,42 @@ instance GhcLookup DataName where
   lookupName e m ns = lookupName e m ns . dataNameSymbol
   srcSpan           = GM.fSrcSpanSrcSpan . F.srcSpan
 
-lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
+lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM b
 lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
     msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
 
-lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM (Maybe b)
+lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
 lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) ns x
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
-  mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
-  case nubHashOn showpp $ catMaybes mts of
-    []  -> return Nothing
-    z:_ -> return (Just z)
+  -- mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
+  ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
+  let kts = catMaybes (f <$> ts)
+  -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
+  return (minBy x kts)
+  -- case filterByName x $ nubHashOn showpp $ catMaybes mts of
+    -- []  -> return Nothing
     -- [z] -> return (Just z)
-    -- zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+    -- zs  -> case filterByName x zs of
+             -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
-filterByName :: (F.Symbolic a, PPrint b) => a -> [b] -> [b]
-filterByName x = filter (L.isSuffixOf xKey . showpp) ys
+minBy :: (F.Symbolic a, PPrint b) => a -> [(Int, b)] -> Maybe b
+minBy = _fixmeHEREHEREHERE
+  -- case L.sortBy (compare `on` fst) xs
+             -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+
+_filterByName :: (F.Symbolic a, PPrint b) => a -> [b] -> [b]
+_filterByName x = filter (L.isSuffixOf xKey . showpp)
   where
-    xKey       = show (dropModuleNamesAndUnique x)
+    xKey       = symbolicName x
 
+symbolicName :: (F.Symbolic a) => a -> String
+symbolicName = symbolString . GM.dropModuleNamesAndUnique . F.symbol
 
  -- ghcSymbolString = symbolString . dropModuleUnique
 
@@ -220,9 +232,10 @@ lookupGhcVar x = do
                lookupGhcThing "variable or data constructor" fv (Just dataName) x
     Just v  -> return v
   where
-    fv (AnId x)                   = Just x
-    fv (AConLike (RealDataCon x)) = Just $ dataConWorkId x
+    fv (AnId x)                   = Just (0, x)
+    fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
     fv _                          = Nothing
+
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
@@ -231,16 +244,16 @@ lookupGhcTyCon src s = do
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
-      = Just x
+      = Just (0, x)
     ftc (AConLike (RealDataCon x))
-      = Just (dataConTyCon x)
+      = Just (1, dataConTyCon x)
     ftc _
       = Nothing
 
     fdc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
-      = Just $ dataConTyCon x
+      = Just (0, dataConTyCon x)
     fdc (AConLike (RealDataCon x))
-      = Just $ promoteDataCon x
+      = Just (1, promoteDataCon x)
     fdc _
       = Nothing
 
@@ -267,5 +280,5 @@ isTupleDC zs
 lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
 lookupGhcDataCon' = lookupGhcThing "data constructor" fdc (Just dataName)
   where
-    fdc (AConLike (RealDataCon x)) = Just x
+    fdc (AConLike (RealDataCon x)) = Just (0, x)
     fdc _                          = Nothing
