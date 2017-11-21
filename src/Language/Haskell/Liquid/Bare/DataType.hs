@@ -57,7 +57,7 @@ import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
--- import           Text.Printf                     (printf)
+import           Text.Printf                     (printf)
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -390,7 +390,7 @@ makeConTypes' name dcs vdcs = do
 canonizeDecls :: [DataDecl] -> BareM [DataDecl]
 canonizeDecls = Misc.nubHashLastM key
   where
-    key       = fmap F.symbol . lookupGhcTyCon "canonizeDecls" . tycName
+    key       = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
 
 groupVariances :: [DataDecl]
                -> [(LocSymbol, [Variance])]
@@ -438,9 +438,9 @@ checkDataCtor d@(DataCtor lc xts _)
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d = (cN == dN || null (tycDCons d))
+checkDataDecl c d = F.tracepp _msg (cN == dN || null (tycDCons d))
   where
-    -- _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
+    _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
 
@@ -452,7 +452,7 @@ ofBDataDecl :: ModName
             -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
 ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
-       tc'           <- lookupGhcTyCon "ofBDataDecl" tc
+       tc'           <- lookupGhcDnTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
        cts           <- mapM checkDataCtor cts0
        cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts

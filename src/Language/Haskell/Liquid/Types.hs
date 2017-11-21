@@ -1207,6 +1207,9 @@ instance Show DataDecl where
               (show $ tycSFun   dd)
               -- (show $ F.srcSpan dd)
 
+
+
+
 instance Show DataName where
   show (DnName n) =               show (F.val n)
   show (DnCon  c) = "datacon:" ++ show (F.val c)

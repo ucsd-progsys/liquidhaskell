@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Bare.Lookup (
 --   , lookupGhcThing
   , lookupGhcVar
   , lookupGhcTyCon
+  , lookupGhcDnTyCon
   , lookupGhcDataCon
   ) where
 
@@ -48,7 +49,7 @@ import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, le
 import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
--- import qualified Language.Haskell.Liquid.Misc     as Misc
+import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -98,7 +99,7 @@ lookupGhcThing' _err f ns x = do
   ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
   let kts = catMaybes (f <$> ts)
   -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
-  case minBy kts of
+  case Misc.nubHashOn showpp (minBy kts) of
     []  -> return Nothing
     [z] -> return (Just z)
     zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
@@ -246,6 +247,22 @@ lookupGhcVar x = do
     fv _                          = Nothing
 
 
+lookupGhcDnTyCon :: String -> DataName -> BareM TyCon
+lookupGhcDnTyCon src (DnName s)
+                   = lookupGhcThing err ftc (Just tcName) s
+  where
+    err            = "type constructor " ++ src
+    ftc (ATyCon x) = Just (0, x)
+    ftc _          = Nothing
+
+lookupGhcDnTyCon src (DnCon  s)
+                   = lookupGhcThing err ftc (Just tcName) s
+  where
+    err            = "type constructor " ++ src
+    ftc (AConLike (RealDataCon x))
+                   = Just (1, dataConTyCon x)
+    ftc _          = Nothing
+
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
   lookupGhcThing err ftc (Just tcName) s
@@ -255,9 +272,8 @@ lookupGhcTyCon src s = do
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
       = Just (0, x)
-    -- WHY? 1089 ftc (AConLike (RealDataCon x))
-    -- WHY? 1089 = Just (2, dataConTyCon x)
-
+    -- ftc (AConLike (RealDataCon x))
+    --   = Just (1, dataConTyCon x)
     ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
       = Just (0, dataConTyCon x)
     ftc (AConLike (RealDataCon x))

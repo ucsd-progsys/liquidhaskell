@@ -124,7 +124,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.tracepp "tyConDataDecl-DECLS: " $ decls tc
+      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
