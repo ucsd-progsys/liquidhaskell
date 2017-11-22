@@ -1,7 +1,7 @@
 module Fixme where
 
 
-data TokenType = Foo | Char
+data TokenType = Foo | CChar
 
 
 {-@ bar :: Char @-}

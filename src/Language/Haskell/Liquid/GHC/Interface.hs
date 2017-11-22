@@ -28,7 +28,6 @@ import qualified GHC
 import GHC.Paths (libdir)
 
 import Annotations
-import Bag
 import Class
 import CoreMonad
 import CoreSyn
@@ -37,7 +36,6 @@ import Digraph
 import DriverPhases
 import DriverPipeline
 import DynFlags
-import ErrUtils
 import Finder
 import HscTypes hiding (Target)
 import IdInfo
@@ -679,10 +677,4 @@ instance PPrint TargetVars where
 ------------------------------------------------------------------------
 
 instance Result SourceError where
-  result = (`Crash` "Invalid Source")
-         . concatMap errMsgErrors
-         . bagToList
-         . srcErrorMessages
-
-errMsgErrors :: ErrMsg -> [TError t]
-errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]
+  result = (`Crash` "Invalid Source") . sourceErrors ""

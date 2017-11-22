@@ -24,13 +24,19 @@ module Language.Haskell.Liquid.Types.PredType (
 
   , substParg
   , pApp
-  , pappSort, pappArity
+  , pappSort
+  , pappArity
+
+  -- * should be elsewhere
+  , dataConWorkRep
   ) where
 
 import           Prelude                         hiding (error)
 import           DataCon
+import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
+-- import qualified Var
 import           Type
 import           Var
 import           Language.Haskell.Liquid.GHC.TypeRep
@@ -46,11 +52,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types
-
-
 import           Data.List                       (nub)
-
-
 import           Data.Default
 
 makeTyConInfo :: [(TC.TyCon, TyConP)] -> M.HashMap TC.TyCon RTyCon
@@ -63,12 +65,91 @@ mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
-dataConPSpecType :: DataCon -> DataConP -> SpecType
-dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
-  = mkArrow makeVars ps ls ts' rt'
+-- TODO: duplicated with Liquid.Measure.makeDataConType
+dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
+dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
   where
-    (xs, ts) = unzip $ reverse yts
-    -- mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
+    workT | isVanilla   = wrapT
+          | otherwise   = dcWorkSpecType dc wrapT
+    wrapT               = dcWrapSpecType dc dcp
+    workX               = dataConWorkId dc            -- this is the weird one for GADTs
+    wrapX               = dataConWrapId dc            -- this is what the user expects to see
+    isVanilla           = F.notracepp ("IS-Vanilla: " ++ showpp dc) $ isVanillaDataCon dc
+
+dcWorkSpecType :: DataCon -> SpecType -> SpecType
+dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
+  where
+    wkR                 = dataConWorkRep c
+    wrR                 = toRTypeRep wrT
+
+dataConWorkRep :: DataCon -> SpecRep
+dataConWorkRep c = toRTypeRep
+                 -- . F.tracepp ("DCWR-2: " ++ F.showpp c)
+                 . ofType
+                 -- . F.tracepp ("DCWR-1: " ++ F.showpp c)
+                 . dataConRepType
+                 -- . Var.varType
+                 -- . dataConWorkId
+                 $ c
+{-
+dataConWorkRep :: DataCon -> SpecRep
+dataConWorkRep dc = RTypeRep
+  { ty_vars   = as
+  , ty_preds  = []
+  , ty_labels = []
+  , ty_binds  = replicate nArgs F.dummySymbol
+  , ty_refts  = replicate nArgs mempty
+  , ty_args   = ts'
+  , ty_res    = t'
+  }
+  where
+    (ts', t')          = F.tracepp "DCWR-1" (ofType <$> ts, ofType t)
+    as                 = makeRTVar . rTyVar <$> αs
+    tArg
+    (αs,_,eqs,th,ts,t) = dataConFullSig dc
+    nArgs              = length ts
+
+dataConResultTy :: DataCon -> [TyVar] -> Type -> Type
+dataConResultTy dc αs t = mkFamilyTyConApp tc tArgs'
+  where
+    tArgs'              = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)
+    nVars               = length αs
+    nArgs               = length tArgs
+    (tc, tArgs)         = fromMaybe err (splitTyConApp_maybe _t)
+    err                 = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
+
+  --  t                 = RT.ofType  $  mkFamilyTyConApp tc tArgs'
+  -- as                = makeRTVar . rTyVar <$> αs
+  --  (αs,_,_,_,_ts,_t) = dataConFullSig dc
+
+-}
+
+meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
+meetWorkWrapRep c workR wrapR
+  | 0 <= pad
+  = workR { ty_binds = xs ++ (ty_binds wrapR)
+          , ty_args  = ts ++ zipWith strengthenRType ts' (ty_args wrapR)
+          , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
+          }
+  | otherwise
+  = panic (Just (getSrcSpan c)) errMsg
+  where
+    pad       = F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ workN - wrapN
+    (xs, _)   = splitAt pad (ty_binds workR)
+    (ts, ts') = splitAt pad (ty_args  workR)
+    workN     = length      (ty_args  workR)
+    wrapN     = length      (ty_args  wrapR)
+    errMsg    = "Unsupported Work/Wrap types for Data Constructor " ++ showPpr c
+
+strengthenRType :: SpecType -> SpecType -> SpecType
+strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
+
+dcWrapSpecType :: DataCon -> DataConP -> SpecType
+dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
+  = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
+    mkArrow makeVars ps ls ts' rt'
+  where
+    (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []

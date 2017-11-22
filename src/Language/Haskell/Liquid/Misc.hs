@@ -26,6 +26,13 @@ import           Paths_liquidhaskell
 
 type Nat = Int
 
+(.&&.), (.||.) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+(.&&.) = up (&&)
+(.||.) = up (||)
+
+up :: (b -> c -> d) -> (a -> b) -> (a -> c) -> (a -> d)
+up o f g x = f x `o` g x
+
 timedAction :: (Show msg) => Maybe msg -> IO a -> IO a
 timedAction label io = do
   t0 <- getCurrentTime
@@ -45,6 +52,16 @@ timedAction label io = do
 safeFromJust :: String -> Maybe t -> t
 safeFromJust _  (Just x) = x
 safeFromJust err _       = errorstar err
+
+takeLast :: Int -> [a] -> [a]
+takeLast n xs = drop (m - n) xs
+  where
+    m         = length xs
+
+getNth :: Int -> [a] -> Maybe a
+getNth 0 (x:_)  = Just x
+getNth n (_:xs) = getNth (n-1) xs
+getNth _ _      = Nothing
 
 fst4 :: (t, t1, t2, t3) -> t
 fst4 (a,_,_,_) = a
@@ -115,6 +132,11 @@ getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}
+
+zipMaybe :: [a] -> [b] -> Maybe [(a, b)]
+zipMaybe xs ys
+  | length xs == length ys = Just (zip xs ys)
+  | otherwise              = Nothing
 
 {-@ safeZipWithError :: _ -> xs:[a] -> ListL b xs -> ListL (a,b) xs / [xs] @-}
 safeZipWithError :: String -> [t] -> [t1] -> [(t, t1)]
@@ -250,3 +272,9 @@ nubHashLast f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
 nubHashLastM :: (Eq k, Hashable k, Monad m) => (a -> m k) -> [a] -> m [a]
 nubHashLastM f xs =  M.elems . M.fromList . (`zip` xs) <$> mapM f xs
+
+join :: (Eq b, Hashable b) => [(a, b)] -> [(b, c)] -> [(a, c)]
+join aBs bCs = [ (a, c) | (a, b) <- aBs, c <- b2cs b ]
+  where
+    bM       = M.fromList bCs
+    b2cs b   = maybeToList (M.lookup b bM)

@@ -32,6 +32,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , todo
   , impossible
   , uError
+  , sourceErrors
 
   -- * Printing Errors
   , ppError
@@ -43,9 +44,13 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
--- import           Data.Bifunctor
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
+
+import           HscTypes (srcErrorMessages, SourceError)
+import           ErrUtils
+import           Bag
+
 import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
@@ -674,7 +679,7 @@ ppError' _ dSp dCtx (ErrLiftExp _ v)
 ppError' _ dSp dCtx (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
         $+$ dCtx
-        $+$ (pprint v <+> dcolon <+> pprint s)
+        $+$ (pprint s <+> "for" <+> ppVar v)
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
   = dSp <+> "Malformed refined data constructor" <+> ppVar d
@@ -850,10 +855,19 @@ ppSrcSpans :: [SrcSpan] -> Doc
 ppSrcSpans = ppList (text "Conflicting definitions at")
 
 ppNames :: [Doc] -> Doc
-ppNames ds = ppList
-                (text "Could refer to any of the names")
-                [text "-" <+> d | d <- ds]
+ppNames ds = ppList "Could refer to any of the names" ds -- [text "-" <+> d | d <- ds]
 
 ppList :: (PPrint a) => Doc -> [a] -> Doc
 ppList d ls
   = nest 4 (sepVcat blankLine (d : [ text "*" <+> pprint l | l <- ls ]))
+
+-- | Convert a GHC error into a list of our errors.
+
+sourceErrors :: String -> SourceError -> [TError t]
+sourceErrors s = concatMap (errMsgErrors s) . bagToList . srcErrorMessages
+
+errMsgErrors :: String -> ErrMsg -> [TError t]
+errMsgErrors s e = [ ErrGhc (errMsgSpan e) msg ]
+   where
+     msg         =  text s
+                $+$ nest 4 (text (show e))

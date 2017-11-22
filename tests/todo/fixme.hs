@@ -1,10 +1,8 @@
-{-@ LIQUID "--exactdc" @-}
+module Foo (goo) where 
 
-import A 
+goo :: Int 
+goo = fac 5
 
-{-@ lazy bar @-}
-{-@ bar :: Foo a b -> {v:Foo a b | isFoo v} @-}
-bar :: Foo a b -> Foo a b
-bar x | isFoo x 
-  = x 
-bar x = bar x 
+fac :: Int -> Int 
+fac n = if n == 0 then 1 else n * (fac (n-1))
+

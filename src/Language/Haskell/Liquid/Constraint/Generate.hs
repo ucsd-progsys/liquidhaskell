@@ -1292,7 +1292,7 @@ makeSingleton γ e t
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 
--- reflectefd functions 
+-- reflectefd functions
 funExpr γ (Var v) | M.member v $ aenv γ
   = F.EVar <$> (M.lookup v $ aenv γ)
 
@@ -1326,13 +1326,13 @@ singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
 strengthenTop :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
-strengthenTop (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
-strengthenTop (RVar a r) r'        = RVar a       $ topMeet r r'
-strengthenTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
-strengthenTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
+strengthenTop (RApp c ts rs r) r'  = RApp c ts rs $ F.meet r r'
+strengthenTop (RVar a r) r'        = RVar a       $ F.meet r r'
+strengthenTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ F.meet r r'
+strengthenTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ F.meet r r'
 strengthenTop t _                  = t
 
-
+-- TODO: this is almost identical to RT.strengthen! merge them!
 strengthenMeet :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
@@ -1341,8 +1341,8 @@ strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
 strengthenMeet t _                  = t
 
-topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
-topMeet r r' = {- F.tracepp msg $ -} ({- F.top -} r `F.meet` r')
+-- topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
+-- topMeet r r' = r `F.meet` r'
 
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------

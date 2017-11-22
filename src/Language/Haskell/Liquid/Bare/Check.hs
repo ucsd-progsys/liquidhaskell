@@ -208,7 +208,7 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
-    mkClass (_, RApp c ts _ _) | isClass c = classBinds (rRCls c ts)
+    mkClass (_, RApp c ts _ _) | isClass c = classBinds emb (rRCls c ts)
     mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
@@ -267,16 +267,14 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
-           => Bool -> TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
+checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
-
 checkRType allowHO emb env t
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
-    cb c ts            = classBinds (rRCls c ts)
+    cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
@@ -421,11 +419,11 @@ checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
 ---------------------------------------------------------------------------------------------------
 -- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
 ---------------------------------------------------------------------------------------------------
-checkMeasures :: M.HashMap TyCon FTycon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
+checkMeasures :: TCEmb TyCon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
 ---------------------------------------------------------------------------------------------------
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
-checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure :: TCEmb TyCon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
 checkMeasure emb γ (M name@(Loc src _ n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where

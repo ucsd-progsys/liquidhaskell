@@ -23,6 +23,8 @@ import           Prelude                               hiding (error)
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
+import           Coercion
+import qualified Pair
 
 import qualified CoreSyn                               as C
 import           Literal
@@ -208,42 +210,57 @@ coreToLogic cb = coreToLg (normalize cb)
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)
   = subst1 <$> coreToLg e <*>  makesub b
-coreToLg (C.Tick _ e)
-  = coreToLg e
+coreToLg (C.Tick _ e)          = coreToLg e
 coreToLg (C.App (C.Var v) e)
-  | ignoreVar v
-  = coreToLg e
+  | ignoreVar v                = coreToLg e
 coreToLg (C.Var x)
-  | x == falseDataConId
-  = return PFalse
-  | x == trueDataConId
-  = return PTrue
-  | otherwise
-  = (lsSymMap <$> getState) >>= eVarWithMap x
-coreToLg e@(C.App _ _)
-  = toPredApp e
-coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
-  = checkBoolAlts alts >>= coreToIte e
-coreToLg (C.Lam x e)
-  = do p     <- coreToLg e
-       tce   <- lsEmb <$> getState
-       return $ ELam (symbol x, typeSort tce (varType x)) p
+  | x == falseDataConId        = return PFalse
+  | x == trueDataConId         = return PTrue
+  | otherwise                  = (lsSymMap <$> getState) >>= eVarWithMap x
+coreToLg e@(C.App _ _)         = toPredApp e
 coreToLg (C.Case e b _ alts)
-  = do p <- coreToLg e
-       casesToLg b p alts
+  | eqType (varType b) boolTy  = checkBoolAlts alts >>= coreToIte e
+coreToLg (C.Lam x e)           = do p     <- coreToLg e
+                                    tce   <- lsEmb <$> getState
+                                    return $ ELam (symbol x, typeSort tce (varType x)) p
+coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
+                                    casesToLg b p alts
+coreToLg (C.Lit l)             = case mkLit l of
+                                   Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+                                   Just i  -> return i
+coreToLg (C.Cast e c)          = do fc <- coerceToLg c
+                                    e' <- coreToLg   e
+                                    case fc of
+                                      Just (a, t) -> return (ECoerc a t e')
+                                      Nothing     -> return e'
+coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
-coreToLg (C.Lit l)
-  = case mkLit l of
-     Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
-     Just i -> return i
+coerceToLg :: Coercion -> LogicM (Maybe (Symbol, Sort))
+coerceToLg c = (mapM typeEqToLg . coercionTypeEq $ c)
 
-coreToLg e
-  = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
+coercionTypeEq co
+  | Pair.Pair s t <- {- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $ -}
+                       coercionKind co
+  = (, t) <$> getTyVar_maybe s
+  | otherwise
+  = Nothing
+
+typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
+typeEqToLg (a, t) = do
+  tce   <- gets lsEmb
+  return (tyVarUniqueSymbol a, typeSort tce t)
+
+  -- Pair t1 t2 <- coercionKind co
+  -- getCoVar_maybe :: Coercion -> Maybe CoVar
+  -- getTyVar_maybe :: Type -> Maybe TyVar
+  -- coVarTypes :: CoVar -> (Type, Type)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
+
 checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
@@ -391,9 +408,6 @@ splitArgs e = (f, reverse es)
     go f           = (f, [])
 
 tomaybesymbol :: C.CoreExpr -> Maybe Symbol
--- TODO:reflect-datacons tomaybesymbol (C.Var c) | isDataConId  c = Just $  F.tracepp "reflect-datacons:tomaybe1" $ symbol c
--- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ F.tracepp "reflect-datacons:tomaybe2" $ simpleSymbolVar x
--- TODO:reflect-datacons tomaybesymbol (C.Var x) = Just $ simpleSymbolVar' x
 tomaybesymbol (C.Var x) = Just $ symbol x
 tomaybesymbol _         = Nothing
 
@@ -483,8 +497,8 @@ instance Simplify C.CoreExpr where
     = C.Let (simplify xes) (simplify e)
   simplify (C.Case e x t alts)
     = C.Case (simplify e) x t (filter (not . isUndefined) (simplify <$> alts))
-  simplify (C.Cast e _)
-    = simplify e
+  simplify (C.Cast e c)
+    = C.Cast (simplify e) c
   simplify (C.Tick _ e)
     = simplify e
   simplify (C.Coercion c)

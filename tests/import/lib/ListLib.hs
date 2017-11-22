@@ -1,5 +1,6 @@
 -- | A module with some definitions for Lists
 
+{- LIQUID "--no-adt" @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder" @-}
 

@@ -51,11 +51,11 @@ import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 makeDataConChecker :: DataCon -> F.Symbol
 --------------------------------------------------------------------------------
 makeDataConChecker d
-  | nilDataCon  == d
-  = F.symbol "isNull"
-  | consDataCon == d
-  = F.symbol "notIsNull"
-  | otherwise
+  -- // NO-SPL-CASE | nilDataCon  == d
+  -- // NO-SPL-CASE = F.symbol "isNull"
+  -- // NO-SPL-CASE | consDataCon == d
+  -- // NO-SPL-CASE = F.symbol "notIsNull"
+  -- // NO-SPL-CASE | otherwise
   = F.testSymbol (F.symbol d)
 
 --------------------------------------------------------------------------------
@@ -73,11 +73,11 @@ makeDataConSelector mbDm d i = case mbDm of
 
 makeDataConSelector' :: DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
-  | consDataCon == d, i == 1
-  = F.symbol "head"
-  | consDataCon == d, i == 2
-  = F.symbol "tail"
-  | otherwise
+  -- // NO-SPL-CASE | d == consDataCon, i == 1
+  -- // NO-SPL-CASE = F.symbol "head"
+  -- // NO-SPL-CASE | d == consDataCon,  i == 2
+  -- // NO-SPL-CASE = F.symbol "tail"
+  -- // NO-SPL-CASE | otherwise
   = symbolMeasure "$select" (dcSymbol d) (Just i)
 
 dcSymbol :: DataCon -> F.Symbol

@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.WiredIn
-       (
-         pdVarReft
-       , wiredTyCons
+       ( wiredTyCons
        , wiredDataCons
        , wiredSortedSyms
 
@@ -119,22 +117,22 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] [] lt False wiredInName l0)
-                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt  False wiredInName l0)])
+                   , [(nilDataCon , DataConP l0 [RTV tyv] [p] [] [] []    lt False wiredInName l0)
+                     ,(consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs lt False wiredInName l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
       [tyv]      = tyConTyVarsDef c
       t          = rVar tyv :: RSort
       fld        = "fldList"
-      x          = "head"
-      xs         = "tail"
+      xHead      = "head"
+      xTail      = "tail"
       p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)]
+      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar xHead)]
       lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
-      cargs      = [(xs, xst), (x, xt)]
+      cargs      = [(xTail, xst), (xHead, xt)]
       fsize      = SymSizeFun (dummyLoc "len")
 
 wiredInName :: Symbol
@@ -164,9 +162,6 @@ tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo No
     mks  x        = (\i -> symbol (x++ show i)) <$> [1..n]
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
-
-pdVarReft :: PVar t -> UReft Reft
-pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps :: [Symbol]
      -> [t] -> [(Symbol, F.Expr)] -> [PVar t]

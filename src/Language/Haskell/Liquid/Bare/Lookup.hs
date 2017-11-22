@@ -5,9 +5,10 @@
 
 module Language.Haskell.Liquid.Bare.Lookup (
     GhcLookup(..)
-  , lookupGhcThing
+--   , lookupGhcThing
   , lookupGhcVar
   , lookupGhcTyCon
+  , lookupGhcDnTyCon
   , lookupGhcDataCon
   ) where
 
@@ -22,6 +23,7 @@ import           PrelNames                        (fromIntegerName, smallInteger
 import           Prelude                          hiding (error)
 import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
+import qualified SrcLoc
 import           TcEnv
 import           TyCon
 import           TysWiredIn
@@ -31,19 +33,23 @@ import           TcRnMonad
 import           IfaceEnv
 import           Var hiding (varName)
 import           TysPrim
-import RdrName
+import           RdrName
 -- import PrelNames (ioTyConKey)
 import           Control.Monad.Except             (catchError, throwError)
 import           Control.Monad.State
+import qualified Control.Exception as Ex
+
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ        (text)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
+import qualified Data.List                        as L
+import           Data.Function                    (on)
 import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
-import qualified Language.Fixpoint.Types          as F -- (tracepp, Symbol, Symbolic(..))
+import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
-import           Language.Haskell.Liquid.GHC.Misc (showPpr, splitModuleName, lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
-import           Language.Haskell.Liquid.Misc     (nubHashOn)
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
+import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
 
@@ -59,7 +65,7 @@ class F.Symbolic a => GhcLookup a where
 
 instance GhcLookup (Located F.Symbol) where
   lookupName e m ns = symbolLookup e m ns . val
-  srcSpan           = sourcePosSrcSpan . loc
+  srcSpan           = GM.sourcePosSrcSpan . loc
 
 instance GhcLookup Name where
   lookupName _ _ _ = return . (:[])
@@ -72,25 +78,60 @@ instance GhcLookup FieldLabel where
 instance F.Symbolic FieldLabel where
   symbol = F.symbol . flSelector
 
-lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM b
+instance GhcLookup DataName where
+  lookupName e m ns = lookupName e m ns . dataNameSymbol
+  srcSpan           = GM.fSrcSpanSrcSpan . F.srcSpan
+
+lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM b
 lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
-    msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
+    msg                 = unwords [ "Not in scope:", name, symbolicIdent x]
 
-lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe b) -> Maybe NameSpace -> a -> BareM (Maybe b)
+symbolicIdent :: (F.Symbolic a) => a -> String
+symbolicIdent x = "'" ++ symbolicString x ++ "'"
+
+
+lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
 lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) ns x
 --   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
-  mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
-  case nubHashOn showpp $ catMaybes mts of
+  -- mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
+  ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
+  let kts = catMaybes (f <$> ts)
+  -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
+  case Misc.nubHashOn showpp (minBy kts) of
     []  -> return Nothing
     [z] -> return (Just z)
     zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
+  -- case filterByName x $ nubHashOn showpp $ catMaybes mts of
+    -- []  -> return Nothing
+    -- [z] -> return (Just z)
+    -- zs  -> case filterByName x zs of
+             -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+
+
+minBy :: [(Int, a)] -> [a]
+minBy kvs = case kvs' of
+              (_, vs):_ -> vs
+              []        -> []
+  where
+    kvs'  = L.sortBy (compare `on` fst) (F.groupList kvs)
+
+
+_filterByName :: (F.Symbolic a, PPrint b) => a -> [b] -> [b]
+_filterByName x = filter (L.isSuffixOf xKey . showpp)
+  where
+    xKey       = symbolicName x
+
+symbolicName :: (F.Symbolic a) => a -> String
+symbolicName = symbolString . GM.dropModuleNamesAndUnique . F.symbol
+
+ -- ghcSymbolString = symbolString . dropModuleUnique
 
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = symbolString . F.symbol
@@ -127,20 +168,25 @@ symbolLookupEnv env mod ns k = do
     [] -> symbolLookupEnvFull env mod k
     _  -> return ns
 
+safeParseIdentifier :: HscEnv -> String -> IO (SrcLoc.Located RdrName)
+safeParseIdentifier env s = hscParseIdentifier env s `Ex.catch` handle
+  where
+    handle = uError . head . sourceErrors ("GHC error in safeParseIdentifier: " ++ s)
+
 symbolLookupEnvOrig :: HscEnv -> ModName -> Maybe NameSpace -> F.Symbol -> IO [Name]
 symbolLookupEnvOrig env mod namespace s
   | isSrcImport mod
   = do let modName = getModName mod
-       L _ rn <- hscParseIdentifier env $ ghcSymbolString s
+       L _ rn <- safeParseIdentifier env (ghcSymbolString s)
        let rn' = mkQual tcName (moduleNameFS modName,occNameFS $ rdrNameOcc rn)
-       res    <- lookupRdrName env modName (makeRdrName rn namespace)
-       -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
+       res    <- GM.lookupRdrName env modName (makeRdrName rn namespace)
+       -- 'safeParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
-       res'   <- lookupRdrName env modName rn'
+       res'   <- GM.lookupRdrName env modName rn'
        return $ catMaybes [res, res']
   | otherwise
-  = do rn             <- hscParseIdentifier env $ ghcSymbolString s
-       (_, lookupres) <- tcRnLookupRdrName env rn
+  = do rn             <- safeParseIdentifier env (ghcSymbolString s)
+       (_, lookupres) <- GM.tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
          _       -> return []
@@ -181,7 +227,7 @@ lookupTheName hsc mod name = initTcForLookup hsc (lookupOrig mod name)
 ghcSplitModuleName :: F.Symbol -> (ModuleName, OccName)
 ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolString s)
   where
-    (m, s)           = splitModuleName x
+    (m, s)           = GM.splitModuleName x
 
 ghcSymbolString :: F.Symbol -> String
 ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
@@ -200,26 +246,51 @@ lookupGhcVar x = do
                lookupGhcThing "variable or data constructor" fv (Just dataName) x
     Just v  -> return v
   where
-    fv (AnId x)                   = Just x
-    fv (AConLike (RealDataCon x)) = Just $ dataConWorkId x
+    fv (AnId x)                   = Just (0, x)
+    fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
     fv _                          = Nothing
+
+
+lookupGhcDnTyCon :: String -> DataName -> BareM TyCon
+lookupGhcDnTyCon src (DnName s)
+                   = lookupGhcThing err ftc (Just tcName) s
+  where
+    err            = "type constructor " ++ src
+    ftc (ATyCon x) = Just (0, x)
+    ftc (AConLike (RealDataCon x))
+              --      | GM.showPpr x == "GHC.Types.[]"
+                   = Just (1, {- GM.tracePpr ("lookupGHCTC1 s =" ++ symbolicIdent s ++ " " ++ show ok) $ -}
+                              dataConTyCon x)
+      where
+        res        = dataConTyCon x
+        _ok        = res == listTyCon
+    ftc _z         = {- GM.tracePpr ("lookupGhcDnTyCon s = " ++ show s ++ "result = " ++ GM.showPpr z) -}
+                     Nothing
+
+lookupGhcDnTyCon src (DnCon  s)
+                   = lookupGhcThing err ftc (Just tcName) s
+  where
+    err            = "type constructor " ++ src
+    ftc (AConLike (RealDataCon x))
+                   = Just (1, dataConTyCon x)
+    ftc _          = Nothing
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
-  lookupGhcThing err ftc (Just tcName) s  `catchError` \_ ->
-   lookupGhcThing err fdc (Just tcName) s
+  lookupGhcThing err ftc (Just tcName) s
+    -- `catchError` \_ ->
+    --  lookupGhcThing err fdc (Just tcName) s
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
-      = Just x
+      = Just (0, {- GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) -} x)
+    -- ftc (AConLike (RealDataCon x))
+    --   = Just (1, dataConTyCon x)
+    ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
+      = Just (0, dataConTyCon x)
+    ftc (AConLike (RealDataCon x))
+      = Just (1, promoteDataCon x)
     ftc _
-      = Nothing
-
-    fdc (AConLike (RealDataCon x)) | showPpr x == "GHC.Types.IO"  -- getUnique x `hasKey` ioTyConKey
-      = Just $ dataConTyCon x
-    fdc (AConLike (RealDataCon x)) --  isJust $ promoteDataCon_maybe x
-      = Just $ promoteDataCon x
-    fdc _
       = Nothing
 
     err = "type constructor or class\n " ++ src
@@ -245,5 +316,5 @@ isTupleDC zs
 lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
 lookupGhcDataCon' = lookupGhcThing "data constructor" fdc (Just dataName)
   where
-    fdc (AConLike (RealDataCon x)) = Just x
+    fdc (AConLike (RealDataCon x)) = Just (0, x)
     fdc _                          = Nothing

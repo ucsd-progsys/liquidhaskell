@@ -9,26 +9,28 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeTyConEmbeds
   , makeRecordSelectorSigs
   , meetDataConSpec
-  , makeNumericInfo
+  , addClassEmbeds
 
   , DataConMap
   , dataConMap
 
-    -- * Tests
+  -- * Tests
   -- , isPropDecl
   -- , qualifyDataDecl
   ) where
 
+import           TysWiredIn (listTyCon)
+import           TysPrim
 import           DataCon
 import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
 import           SrcLoc                                 (SrcSpan)
+import qualified Type
 import           Text.Parsec
 import           TyCon                                  hiding (tyConName)
 import           Var
 import           InstEnv
 import           Class
-import           TysWiredIn (listTyCon)
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
@@ -41,7 +43,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
-import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
+import           Language.Haskell.Liquid.Types.PredType (dataConWorkRep, dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Meet
@@ -56,23 +58,99 @@ import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
--- import           Text.Printf                     (printf)
+import           Text.Printf                     (printf)
 -- import           Debug.Trace (trace)
 
-makeNumericInfo :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeNumericInfo Nothing x   = x
-makeNumericInfo (Just is) x = foldl makeNumericInfoOne x is
+--------------------------------------------------------------------------------
+-- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
+--------------------------------------------------------------------------------
+addClassEmbeds :: Maybe [ClsInst] -> [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
+
+--------------------------------------------------------------------------------
+-- | makeFamInstEmbeds : embed family instance tycons, see [NOTE:FamInstEmbeds]
+--------------------------------------------------------------------------------
+--     Query.R$58$EntityFieldBlobdog
+--   with the actual family instance  types that have numeric instances as int [Check!]
+--------------------------------------------------------------------------------
+makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
+  where
+    famInstSorts          = F.notracepp "famInstTcs"
+                            [ (c, RT.typeSort embs ty)
+                                | c        <- cs
+                                , (c', ts) <- tcInsts c
+                                , let n     = tyConArity c
+                                , let ty    = famInstType n c' ts ]
+    tcInsts               = maybeToList . tyConFamInst_maybe
+    embed embs (c, t)     = M.insert c t embs
+    -- tcSorts               = maybeToList . famInstSort embs
+
+famInstType :: Int -> TyCon -> [Type] -> Type
+famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
+
+-- famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
+-- famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
+
+-- tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
+-- tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
+
+{- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
+     in two ways: (1) As an applied type, (2) As a special tycon.
+     For example, consider `tests/pos/ExactGADT4.hs`:
+
+
+        class PersistEntity record where
+          data EntityField record :: * -> *
+
+        data Blob = B { xVal :: Int, yVal :: Int }
+
+        instance PersistEntity Blob where
+           data EntityField Blob dog where
+             BlobXVal :: EntityField Blob Int
+             BlobYVal :: EntityField Blob Int
+
+     here, the type of the constructor `BlobXVal` can be represented as:
+
+     (1) EntityField Blob Int,
+
+     or
+
+     (2) R$58$EntityFieldBlobdog Int
+
+     PROBLEM: For various reasons, GHC will use _both_ representations interchangeably,
+     which messes up our sort-checker.
+
+     SOLUTION: To address the above, we create an "embedding"
+
+        R$58$EntityFieldBlobdog :-> EntityField Blob
+
+     So that all occurrences of the (2) are treated as (1) by the sort checker.
+ -}
+
+--------------------------------------------------------------------------------
+-- | makeNumEmbeds: embed types that have numeric instances as int [Check!]
+--------------------------------------------------------------------------------
+makeNumEmbeds :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeNumEmbeds Nothing x   = x
+makeNumEmbeds (Just is) x = L.foldl' makeNumericInfoOne x is
 
 makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip F.mappendFTC) tc (ftc tc True True) m
-  | isNumCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip F.mappendFTC) tc (ftc tc True False) m
+  = M.insertWith (flip mappendSortFTC) tc (ftc tc True True) m
+  | isNumCls  $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  = M.insertWith (flip mappendSortFTC) tc (ftc tc True False) m
   | otherwise
   = m
   where
-    ftc c = F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c)
+    ftc c f1 f2 = F.FTC (F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c) f1 f2)
+
+mappendSortFTC :: F.Sort -> F.Sort -> F.Sort
+mappendSortFTC (F.FTC x) (F.FTC y) = F.FTC (F.mappendFTC x y)
+mappendSortFTC s         (F.FTC _) = s
+mappendSortFTC (F.FTC _) s         = s
+mappendSortFTC s1        s2        = panic Nothing ("mappendSortFTC: s1 = " ++ showpp s1 ++ " s2 = " ++ showpp s2)
 
 instanceTyCon :: ClsInst -> Maybe TyCon
 instanceTyCon = go . is_tys
@@ -96,12 +174,14 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
               -> [(DataCon, Located DataConP)]
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd (F.notracepp "Make-Decl-CTORS" ctors)
-                | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
+  | makeDecls = [ makeFDataDecls tce tc dd ctors
+                | (tc, (dd, ctors)) <- groupDataCons tds' ds
+                , tc /= listTyCon
+                ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)
-    tds'      = F.notracepp "makeDataDecls-TYCONS" $ resolveTyCons name tds --[ (tc, (d, t)) | (_, tc, (d, t)) <- F.tracepp "makeDataDecls-TYCONS" tds ]
+    tds'      = resolveTyCons name tds
 
 -- [NOTE:Orphan-TyCons]
 
@@ -315,33 +395,39 @@ makeConTypes' name dcs vdcs = do
 canonizeDecls :: [DataDecl] -> BareM [DataDecl]
 canonizeDecls = Misc.nubHashLastM key
   where
-    key       = fmap F.symbol . lookupGhcTyCon "canonizeDecls" . tycName
+    key       = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
 
-groupVariances :: [DataDecl] -> [(LocSymbol, [Variance])]
+groupVariances :: [DataDecl]
+               -> [(LocSymbol, [Variance])]
                -> [(Maybe DataDecl, Maybe (LocSymbol, [Variance]))]
-groupVariances dcs vdcs    =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
+groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fst x) (fst y)) vdcs)
   where
     merge (d:ds) (v:vs)
-      | tycName d == fst v = (Just d, Just v)  : merge ds vs
-      | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
-      | otherwise          = (Nothing, Just v) : merge (d:ds) vs
-    merge []     vs        = ((Nothing,) . Just) <$> vs
-    merge ds     []        = ((,Nothing) . Just) <$> ds
+      | F.symbol d == sym v = (Just d, Just v)  : merge ds vs
+      | F.symbol d <  sym v = (Just d, Nothing) : merge ds (v:vs)
+      | otherwise           = (Nothing, Just v) : merge (d:ds) vs
+    merge []     vs         = ((Nothing,) . Just) <$> vs
+    merge ds     []         = ((,Nothing) . Just) <$> ds
+    sym                     = val . fst
 
 dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- RT.mkDataConIdsTy (a, dataConPSpecType a b) ]
     sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
+                                         , let t  = F.notracepp ("expandProductType" ++ showpp (x, t0)) $ RT.expandProductType x t0  ]
+
+    -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
+
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
   where
     dcm0                 = M.fromList $ dataConSpec' dcs
-    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
     upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
+    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
 
 checkDataCtor :: DataCtor -> BareM DataCtor
 checkDataCtor d@(DataCtor lc xts _)
@@ -355,18 +441,14 @@ checkDataCtor d@(DataCtor lc xts _)
 --   of the GHC TyCon. We just check that the right tyvars are supplied
 --   as errors in the names and types of the constructors will be caught
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
---   see tests/import/ListLib.hs for example of why plain == test is insufficient
---   for `listTyCon`, maybe some oddity with GHC 8.2.1?
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d
-  | isList         = True
-  | otherwise      = (cN == dN || null (tycDCons d))
+checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
   where
-    isList         = show c == show listTyCon
-    -- _msg           = printf "checkDataDecl: c = %s ( %s, %s), cN = %d, dN = %d" (show c) (show listTyCon) (show $ isPrimTyCon c) cN dN
-    cN             = length (GM.tyConTyVarsDef c)
-    dN             = length (tycTyVars         d)
+    _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
+    cN            = length (GM.tyConTyVarsDef c)
+    dN            = length (tycTyVars         d)
+
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: ModName
@@ -375,7 +457,7 @@ ofBDataDecl :: ModName
             -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
 ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
-       tc'           <- lookupGhcTyCon "ofBDataDecl" tc
+       tc'           <- lookupGhcDnTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
        cts           <- mapM checkDataCtor cts0
        cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts
@@ -388,14 +470,13 @@ ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_inf
        let tcp        = TyConP lc αs πs ls tvi pvi sfun
        return ((name, tc', tcp, Just (dd { tycDCons = cts }, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
     where
-       err         = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
-       αs          = RTV . GM.symbolTyVar <$> as
-       n           = length αs
-       lc          = loc  tc
-       lc'         = locE tc
-       f defPs     = case maybe_invariance_info of
-                      { Nothing -> ([], defPs);
-                        Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
+       err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
+       αs           = RTV . GM.symbolTyVar <$> as
+       n            = length αs
+       Loc lc lc' _ = dataNameSymbol tc
+       f defPs      = case maybe_invariance_info of
+                       { Nothing -> ([], defPs);
+                         Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))}
 
 ofBDataDecl name Nothing (Just (tc, is))
   = do tc'        <- lookupGhcTyCon "ofBDataDecl" tc
@@ -454,17 +535,55 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
   let cs        = RT.ofType <$> dataConStupidTheta c'
-  let t0'       = fromMaybe t0 res'
+  let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.notracepp "OFBDataCTOR" $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
+  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+                $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts) = unzip xts
-    rs       = [RT.rVar α | RTV α <- αs]
-    t0       = RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
+    t0       = RT.gApp tc αs πs
+    -- nFlds    = length xts
+    -- rs       = [RT.rVar α | RTV α <- αs]
+    -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt   = isJust res
     dLoc     = F.Loc l l' ()
+
+-- | This computes the result of a `DataCon` application.
+--   For 'isVanillaDataCon' we can just use the `TyCon`
+--   applied to the relevant tyvars.
+dataConResultTy :: DataCon
+                -> [RTyVar]         -- ^ DataConP ty-vars
+                -> SpecType         -- ^ vanilla result type
+                -> Maybe SpecType   -- ^ user-provided result type
+                -> SpecType
+dataConResultTy _ _ _ (Just t) = t
+dataConResultTy c αs t _
+  | isVanillaDataCon c         = t
+  | False                      = F.tracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
+dataConResultTy c _ _ _        = RT.ofType t
+  where
+    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (tr0, tr1, tr2)) $ dataConFullSig c
+    tr0                        = dataConRepType c
+    tr1                        = varType $ dataConWorkId c
+    tr2                        = varType $ dataConWrapId c
+
+-- RTVar RTyVar RSort
+
+gadtSubst :: [RTyVar] -> DataCon -> [(RTyVar, RSort, SpecType)]
+gadtSubst as c  = mkSubst (Misc.join aBs bTs)
+  where
+    bTs         = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args workR ]
+    aBs         = zip as bs
+    bs          = ty_var_value <$> ty_vars workR
+    workR       = dataConWorkRep c
+    mkSubst bTs = [ (b, toRSort t, t) | (b, t) <- bTs ]
+
+eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
+eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+  | rtc_tc c == eqPrimTyCon = Just (a, t)
+eqSubst _                   = Nothing
 
 normalizeField :: DataCon -> Int -> (F.Symbol, a) -> (F.Symbol, a)
 normalizeField c i (x, t)

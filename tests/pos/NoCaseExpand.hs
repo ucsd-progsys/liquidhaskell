@@ -6,7 +6,7 @@ module NoCaseExpand where
 
 data TokenType =
   Space | Keyword | Keyglyph | Layout | Comment | Conid | Varid |
-  Conop | Varop   | String   | Char   | Number  | Cpp   | Error |
+  Conop | Varop   | String   | CChar   | Number  | Cpp   | Error |
   Definition
 
 

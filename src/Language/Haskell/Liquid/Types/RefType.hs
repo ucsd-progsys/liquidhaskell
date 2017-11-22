@@ -41,9 +41,10 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * RType constructors
   , ofType, toType, bareOfType
-  , bTyVar, rTyVar, rVar, rApp, rEx
+  , bTyVar, rTyVar, rVar, rApp, gApp, rEx
   , symbolRTyVar, bareRTyVar
   , tyConBTyCon
+  , pdVarReft
 
   -- * Substitutions
   , subts, subvPredicate, subvUReft
@@ -70,7 +71,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , shiftVV
 
   -- * TODO: classify these
-  , mkDataConIdsTy
+  -- , mkDataConIdsTy
+  , expandProductType
   , mkTyConInfo
   , meetable
   , strengthenRefTypeGen
@@ -94,7 +96,7 @@ import qualified TyCon  as TC
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
-
+import TysPrim          (eqPrimTyCon)
 -- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
@@ -119,7 +121,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, dataConImplicitIds)
+import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
@@ -506,6 +508,15 @@ rApp :: TyCon
      -> RType RTyCon tv r
 rApp c = RApp (tyConRTyCon c)
 
+gApp :: TyCon -> [RTyVar] -> [PVar a] -> SpecType
+gApp tc αs πs = rApp tc
+                  [rVar α | RTV α <- αs]
+                  (rPropP [] . pdVarReft <$> πs)
+                  mempty
+
+pdVarReft :: PVar t -> UReft Reft
+pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
+
 tyConRTyCon :: TyCon -> RTyCon
 tyConRTyCon c = RTyCon c [] (mkTyConInfo c [] [] Nothing)
 
@@ -666,12 +677,11 @@ meets rs rs'
   | length rs == length rs' = zipWith meet rs rs'
   | otherwise               = panic Nothing "meets: unbalanced rs"
 
-
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
-strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r')
-strengthen (RVar a r) r'        = RVar a       (r `meet` r')
-strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
-strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
+strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
+strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
+strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
+strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthen t _                  = t
 
 
@@ -684,7 +694,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 -------------------------------------------------------------------------
 addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-             => (M.HashMap TyCon FTycon)
+             => TCEmb TyCon
              -> (M.HashMap TyCon RTyCon)
              -> RRType r
              -> RRType r
@@ -693,7 +703,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
 expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-           => (M.HashMap TyCon FTycon)
+           => TCEmb TyCon
            -> (M.HashMap TyCon RTyCon)
            -> RRType r
            -> RRType r
@@ -754,8 +764,11 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
 
 appRTyCon :: SubsTy RTyVar (RType c RTyVar ()) RPVar
-          => M.HashMap TyCon FTycon
-          -> M.HashMap TyCon RTyCon -> RTyCon -> [RType c RTyVar r] -> RTyCon
+          => TCEmb TyCon
+          -> M.HashMap TyCon RTyCon
+          -> RTyCon
+          -> [RType c RTyVar r]
+          -> RTyCon
 appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
   where
     c    = rtc_tc rc
@@ -769,11 +782,12 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
 
 -- RJ: The code of `isNumeric` is incomprehensible.
 -- Please fix it to use intSort instead of intFTyCon
-isNumeric :: M.HashMap TyCon FTycon -> RTyCon -> Bool
-isNumeric tce c
-  =  fromMaybe
-       (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == F.intFTyCon
+isNumeric :: TCEmb TyCon -> RTyCon -> Bool
+isNumeric tce c = mySort == FTC F.intFTyCon || mySort == F.FInt
+  where
+    mySort      = M.lookupDefault def rc tce
+    def         = FTC . symbolFTycon . dummyLoc . tyConName $ rc
+    rc          = rtc_tc c
 
 addNumSizeFun :: RTyCon -> RTyCon
 addNumSizeFun c
@@ -1353,25 +1367,23 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 -- | From Old Fixpoint ---------------------------------------------------------
 --------------------------------------------------------------------------------
 typeSort :: TCEmb TyCon -> Type -> Sort
-typeSort tce t@(FunTy _ _)
-  = typeSortFun tce t
-typeSort tce τ@(ForAllTy _ _)
-  = typeSortForAll tce τ
-typeSort tce (TyConApp c τs)
-  = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
-typeSort tce (AppTy t1 t2)
-  = fApp (typeSort tce t1) [typeSort tce t2]
-typeSort _tce (TyVarTy tv)
-  = tyVarSort tv
-typeSort tce (CastTy t _)
-  = typeSort tce t
-typeSort _ τ
-  = FObj $ typeUniqueSymbol τ
+typeSort tce = go
+  where
+    go :: Type -> Sort
+    go t@(FunTy _ _)    = typeSortFun tce t
+    go τ@(ForAllTy _ _) = typeSortForAll tce τ
+    go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
+    go (AppTy t1 t2)    = fApp (go t1) [go t2]
+    go (TyVarTy tv)     = tyVarSort tv
+    go (CastTy t _)     = go t
+    go τ                = FObj $ typeUniqueSymbol τ
 
-tyConFTyCon :: M.HashMap TyCon FTycon -> TyCon -> FTycon
-tyConFTyCon tce c
-  = fromMaybe (symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c))
-              (M.lookup c tce)
+tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
+tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
+  where
+    _msg           = "tyConFTyCon c = " ++ show c
+    def           = fTyconSort niTc
+    niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
@@ -1412,40 +1424,46 @@ grabArgs τs (FunTy τ1 τ2)
 grabArgs τs τ
   = reverse (τ:τs)
 
-
-mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-               => (DataCon, RType RTyCon RTyVar r) -> [(Var, RType RTyCon RTyVar r)]
-mkDataConIdsTy (dc, t) = (`expandProductType` t) <$> dataConImplicitIds dc
+-- mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
+--                => DataCon -> RType RTyCon RTyVar r -> [(Var, RType RTyCon RTyVar r)]
+-- mkDataConIdsTy dc t = (`expandProductType` t) <$> dataConImplicitIds dc
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-                  => Var -> RType RTyCon RTyVar r -> (Var, RType RTyCon RTyVar r)
+                  => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
 expandProductType x t
-  | ofType (varType x) == toRSort t = (x, t)
-  | otherwise                       = (x, t')
+  | isTrivial       = t
+  | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
      where
-      t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
-      τs         = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
-      trep       = toRTypeRep t
-      (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
+      isTrivial     = ofType (varType x) == toRSort t
+      τs            = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      trep          = toRTypeRep t
+      (xs',ts',rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
+
+-- splitFunTys :: Type -> ([Type], Type)
+
 
 mkProductTy :: (Monoid t, Monoid r)
             => (Type, Symbol, RType RTyCon RTyVar r, t)
             -> [(Symbol, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
-  where f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
-        menv = (emptyFamInstEnv, emptyFamInstEnv)
+  where
+    f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
+    menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -----------------------------------------------------------------------------------------
 -- | Binders generated by class predicates, typically for constraining tyvars (e.g. FNum)
 -----------------------------------------------------------------------------------------
-
-classBinds :: TyConable c => RType c RTyVar t -> [(Symbol, SortedReft)]
-classBinds (RApp c ts _ _)
+-- classBinds :: TyConable c => RType c RTyVar t -> [(Symbol, SortedReft)]
+classBinds :: TCEmb TyCon -> SpecType -> [(Symbol, SortedReft)]
+classBinds _ (RApp c ts _ _)
    | isFracCls c
    = [(rTyVarSymbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
    | isNumCls c
    = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
-classBinds _
+classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
+   | rtc_tc c == eqPrimTyCon
+   = [(rTyVarSymbol a, rTypeSortedReft emb t)]
+classBinds _ _
   = []
 
 rTyVarSymbol :: RTyVar -> Symbol
@@ -1461,8 +1479,7 @@ makeNumEnv = concatMap go
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
-isDecreasing :: (Eq a, Foldable t1)
-             => S.HashSet TyCon -> t1 a -> RType RTyCon a t -> Bool
+isDecreasing :: S.HashSet TyCon -> [RTyVar] -> SpecType -> Bool
 isDecreasing autoenv  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or
   || isSizeable autoenv tc

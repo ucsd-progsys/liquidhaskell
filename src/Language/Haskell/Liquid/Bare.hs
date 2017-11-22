@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.Bare (
 import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
+import qualified Unique
 import           HscTypes
 import           Id
 import           NameSet
@@ -80,7 +81,6 @@ import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 
 -- import Debug.Trace (trace)
-
 --------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> FilePath
@@ -165,12 +165,11 @@ ghcSpecEnv sp        = res
   where
     res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
-    binds            =  (F.notracepp "ghcSpecEnv1" $ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
-                                                                 isConLikeId v ]
-                     -- ++ (F.tracepp "ghcSpecEnv2" $ concatMap adtEnv (gsADTs sp))
-    rSort            = rTypeSortedReft emb
+    binds            =  ([(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v)          <- gsFreeSyms sp,
+                                                                  isConLikeId v ]
+    rSort t          = rTypeSortedReft emb t
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
@@ -213,7 +212,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = defTcs ++ refTcs
+  let tcs    = uniqNub (defTcs ++ refTcs)
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
@@ -221,13 +220,25 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
 
+-- sortUniquable :: (Uniquable a) => [a] -> [a]
+-- sortUniquable xs = s
+-- getUnique getKey :: Unique -> Int
+-- hashNub :: (Eq k, Hashable k) => [k] -> [k]
+-- hashNub = M.keys . M.fromList . fmap (, ())
+
+
+uniqNub :: (Unique.Uniquable a) => [a] -> [a]
+uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
+  where
+    index  = Unique.getKey . Unique.getUnique
+
 -- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
 --   that we don't have access to the code.
-_reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
-_reflectedTyCons cfg spec
-  | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
-  | otherwise   = return []
+-- // _reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
+-- // _reflectedTyCons cfg spec
+  -- // | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
+  -- // | otherwise   = return []
 
 reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
 reflectedTyCons cfg embs cbs spec
@@ -242,6 +253,8 @@ reflectedTyCons cfg embs cbs spec
 --   or its embedding, a bool?
 isEmbedded :: TCEmb TyCon -> TyCon -> Bool
 isEmbedded embs c = M.member c embs
+
+
 
 varTyCons :: Var -> [TyCon]
 varTyCons = specTypeCons . ofType . varType
@@ -369,7 +382,9 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
-  embs           <- makeNumericInfo instenv <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+
+  embs           <- addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+
   lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
@@ -378,6 +393,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   let expSyms     = S.toList (exportedSymbols mySpec)
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
+
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
   checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
   makeBounds embs name defVars cbs specs
@@ -650,14 +666,14 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
-  isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- (expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs)
-  gsMeasures' <- expand $ gsMeasures   sp
-  gsAsmSigs'  <- expand $ gsAsmSigs    sp
-  gsInSigs'   <- expand $ gsInSigs     sp
-  gsInvarnts' <- expand $ gsInvariants sp
-  gsCtors'    <- expand $ gsCtors      sp
-  gsIaliases' <- expand $ gsIaliases   sp
+  isgs        <- expand' $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
+  gsTySigs'   <- expand' $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+  gsMeasures' <- expand' $ gsMeasures   sp
+  gsAsmSigs'  <- expand' $ gsAsmSigs    sp
+  gsInSigs'   <- expand' $ gsInSigs     sp
+  gsInvarnts' <- expand' $ gsInvariants sp
+  gsCtors'    <- expand' $ gsCtors      sp
+  gsIaliases' <- expand' $ gsIaliases   sp
   return   $ sp { gsQualifiers = subst su quals
                 , gsDecr       = decr'
                 , gsLvars      = lvars'
@@ -711,7 +727,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let adts         = makeDataDecls cfg embs myName tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.notracepp "CHOP1-datacons" datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 
@@ -860,7 +876,7 @@ withExtendedEnv :: Bool -> [Var] -> ReplaceM b -> ReplaceM b
 withExtendedEnv allowHO vs k = do
   RE env' fenv' emb tyi <- ask
   let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
-      fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+      fenv = F.notracepp "FENV" $ L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
   withReaderT (const (RE env fenv emb tyi)) $ do
     mapM_ (replaceLocalBindsOne allowHO) vs
     k

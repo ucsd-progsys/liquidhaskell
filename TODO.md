@@ -1,4 +1,13 @@
-# 3 Failures moved in tests/DependendHaskell/todo
+# T1089
+
+* tests/neg/T602.hs
+	[Double vs real]
+* tests/import/lib/ListLib.hs
+* tests/import/client/ListClient.hs 
+	[ GHC-list vs fix-list ]
+
+
+# 3 Failures moved in tests/DependentHaskell/todo
 
 - ClassKind.hs - Tests.Unit.pos
 - LF326.hs - Tests.Unit.pos
@@ -30,17 +39,102 @@
 bar :: Int -> Int
 bar n = n
 
-{-@ reflect baz @-}
-baz :: Int -> Int
-baz n = n
+-1. [HEREHEREHEREHERE] next, extend the TCEmb to account for the below, see
+    current failure in ExactGADT4.hs
 
-{-@ reflect foo @-}
-foo 0 = bar 0  
-foo 1 = baz 1
-foo n = baz 1
+0. Actually, just use `dataConWorkRep` everywhere AND if you like, you can use
+   `dataConFullSig`. The conflict below can only be resolved by TCEmb mapping
 
-prop :: n:Int -> { foo n == 0 || foo n == 1 }
-prop n = ()
+        Query.R:EntityFieldBlobDog -> EntityField Blob
+
+   because anyways otherwise GHC gives the dataConWorkId and dataConWrapId types
+   where one of them has the `BlobDog` and the other has `EntityField Blob`
+   and so if you use the SAME measures (as we must!) then we will end up with
+   a malformed refinement on one of them.
+
+   SO: just use the `dataConFullSig` or the `dataConWorkId` to create the
+   `dataConWorkRep` and use that consistently?
+
+
+1. DONOT use `dataConFullSig` or any of that crap as it is incompatible with the
+   plain `VarType` of the corresponding data con. For example:
+
+```
+    Trace: [bkDataConResult(Query.EntityField Query.Blob GHC.Types.Int,
+    forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)] : (EntityField Blob dog)
+```
+
+* That is, `dataConFullSig` says the output type is `Query.EntityField Query.Blob Int`
+  but the actual var-type has the output type `Query.R:EntityFieldBlobdog dog`
+  which will screw up all our invariants about the GHC and Liquid types lining
+  up.
+
+So.
+
+1. In "sort" land, use the FamInstTyCon name, which is the `EntityFieldBlobdog`,
+   that should be the type of the ADT etc.
+2. Give (the measures) `BlobXVal` and `BlobYVal` types like :: `EntityFieldBlobdog Int`
+3. Give (the measures) `is$BlobXVal` and `is$BlobYVal` types like :: `EntityFieldBlobdog a -> Bool`
+
+
+Concretely: rewrite `bkDataCon` and `dataConResultTy` to use `dataConWorkRep`
+(or `varType . dataConWorkId`)
+
+Note that the above will give us the type:
+
+    BlobXVal :: forall dog. dog ~ GHC.Types.Int => Query.R:EntityFieldBlobdog dog)
+
+when we are really looking for the "result" type of the constructor
+
+    BlobXVal ::  Query.R:EntityFieldBlobdog Int
+
+In this case, fret not, just use the tyvar substitutions, so from the `ty_args`
+gather the equalities as done in `classBinds` -- see below, and then substitute
+those into the body (but after accounting for the original tyvars.)
+
+`dataConResultTy` should be:
+
+```
+  as           = ty-vars from datacon
+  tc           = tycon name
+  t0           = gApp tc as
+  tRes
+   | isGadt    = substTyVar (gadtSubst as c) t0  
+   | otherwise = t0
+
+
+gadtSubst :: [RTyVar] -> DataCon -> Subst
+gadtSubst as c = mkSubst (join bAs bTs)
+  where
+    bTs        = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args wr ]
+    bs         = ty_vars wr
+    wr         = dataConWorkRep c
+    bAs        = M.fromList zip bs as
+
+join :: [(a, b)] -> [(a, c)] -> [(b, c)]
+
+
+eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
+eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+  | rtc_tc c == eqPrimTyCon = Just (a, t)
+eqSubst _                   = Nothing
+```
+
+
++classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
+    +   | rtc_tc c == eqPrimTyCon
+    +   +   = tracepp "classBinds:" [(rTyVarSymbol a, rTypeSortedReft emb t)]
+    +   +   -- = [tracepp ("classBinds: c = " ++ showpp c ++ " ts = " ++ showpp
+        ts) []
+        +classBinds _ _
+               = []
+
+Trace: [FULL-SIG: Query.BlobYVal] : ([dog],
+ [],
+ [(dog, GHC.Types.Int)],
+ [],
+ [],
+ Query.EntityField Query.Blob GHC.Types.Int)
 
 
 

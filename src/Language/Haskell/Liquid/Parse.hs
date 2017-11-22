@@ -922,7 +922,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
-  , Measure.embeds     = M.fromList [e | Embed e <- xs]
+  , Measure.embeds     = M.fromList [(c, fTyconSort tc) | Embed (c, tc) <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
@@ -1398,7 +1398,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize
-  = D x [] [] [] [] pos fsize Nothing DataReflected
+  = D (DnName x) [] [] [] [] pos fsize Nothing DataReflected
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
@@ -1406,7 +1406,7 @@ dataDeclBodyP pos x fsize = do
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP
   whiteSpace
-  return      $ D x ts ps [] dcs pos fsize pTy DataUser
+  return      $ D (DnName x) ts ps [] dcs pos fsize pTy DataUser
 
 dataCtorsP :: Parser (Maybe BareType, [DataCtor])
 dataCtorsP

@@ -28,7 +28,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (dummySymbol)
-import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
+import qualified Language.Fixpoint.Types as F
 -- import Language.Fixpoint.Types (traceFix, showFix)
 -- import Language.Fixpoint.Misc (traceShow)
 
@@ -49,7 +49,7 @@ import Language.Haskell.Liquid.Bare.Misc
 -- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 
 makePluggedSigs :: ModName
-                -> TCEmb TyCon
+                -> F.TCEmb TyCon
                 -> M.HashMap TyCon RTyCon
                 -> NameSet
                 -> [(Var, LocSpecType)]
@@ -60,7 +60,7 @@ makePluggedSigs name embs tcEnv exports sigs
       let r = maybeTrue x name exports
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedAsmSigs :: TCEmb TyCon
+makePluggedAsmSigs :: F.TCEmb TyCon
                    -> M.HashMap TyCon RTyCon
                    -> [(Var, LocSpecType)]
                    -> BareM [(Var, LocSpecType)]
@@ -70,18 +70,19 @@ makePluggedAsmSigs embs tcEnv sigs
       let r = const killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedDataCons :: TCEmb TyCon
+makePluggedDataCons :: F.TCEmb TyCon
                     -> M.HashMap TyCon RTyCon
                     -> [(DataCon, Located DataConP)]
                     -> BareM [(DataCon, Located DataConP)]
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
-       let (das, _, dts, dt) = dataConSig dc
+       let (das, _, dts, dt0) = dataConSig dc
+       let (dt, rest) = (dt0, tyRes dcp)
        when (mismatch dts dcp) (Ex.throw $ err dc dcp)
        tyArgs <- zipWithM (\t1 (x, t2) ->
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) t1 (Loc l l' t2))
                  dts (reverse $ tyArgs dcp)
-       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) dt (Loc l l' (tyRes dcp))
+       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) dt (Loc l l' (rest {- tyRes dcp -}))
        return (dc, Loc l l' dcp { freeTyVars = map rTyVar das
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
@@ -92,7 +93,7 @@ makePluggedDataCons embs tcEnv dcs
       err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
 
 plugHoles :: (NamedThing a, PPrint a, Show a)
-          => TCEmb TyCon
+          => F.TCEmb TyCon
           -> M.HashMap TyCon RTyCon
           -> a
           -> (SpecType -> RReft -> RReft)
@@ -156,7 +157,7 @@ plugHoles tce tyi x f t (Loc l l' st)
 
     makeCls cs t              = foldr (uncurry rFun) t cs
 
-addRefs :: TCEmb TyCon
+addRefs :: F.TCEmb TyCon
      -> M.HashMap TyCon RTyCon
      -> SpecType
      -> SpecType
@@ -182,5 +183,5 @@ maybeTrue x target exports t r
 killHoles :: RReft -> RReft
 killHoles ur = ur { ur_reft = tx $ ur_reft ur }
   where
-    tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} mapPredReft dropHoles r
-    dropHoles    = pAnd . filter (not . isHole) . conjuncts
+    tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} F.mapPredReft dropHoles r
+    dropHoles    = F.pAnd . filter (not . isHole) . F.conjuncts

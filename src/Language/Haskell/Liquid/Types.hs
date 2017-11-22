@@ -85,6 +85,7 @@ module Language.Haskell.Liquid.Types (
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
   , DataDecl (..)
+  , DataName (..), dataNameSymbol
   , DataCtor (..)
   , DataConP (..)
   , HasDataDecl (..), hasDecl
@@ -100,6 +101,7 @@ module Language.Haskell.Liquid.Types (
   -- * Instantiated RType
   , BareType, PrType
   , SpecType, SpecProp
+  , SpecRep
   , LocBareType, LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
@@ -444,13 +446,29 @@ data DataConP = DataConP
   , freeTyVars :: ![RTyVar]               -- ^ Type parameters
   , freePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
   , freeLabels :: ![Symbol]               -- ^ ? strata stuff
-  , tyConsts   :: ![SpecType]             -- ^ ? Class constraints
+  , tyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
   , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , tyRes      :: !SpecType               -- ^ Result type
+  -- , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
   , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
   , dc_locE    :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
+
+-- | [NOTE:DataCon-Data] for each 'DataConP' we also
+--   store the type of the constructed data. This is
+--   *the same as* 'tyRes' for *vanilla* ADTs
+--   (e.g. List, Maybe etc.) but may differ for GADTs.
+--   For example,
+--
+--      data Thing a where
+--        X  :: Thing Int
+--        Y  :: Thing Bool
+--
+--   Here the 'DataConP' associated with 'X' (resp. 'Y')
+--   has 'tyRes' corresponding to 'Thing Int' (resp. 'Thing Bool'),
+--   but in both cases, the 'tyData' should be 'Thing a'.
+--
 
 
 instance F.Loc DataConP where
@@ -873,6 +891,7 @@ instance B.Binary r => B.Binary (UReft r)
 
 type BRType     = RType BTyCon BTyVar
 type RRType     = RType RTyCon RTyVar
+type RRep       = RTypeRep RTyCon RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
@@ -884,6 +903,7 @@ type RReft       = UReft     F.Reft
 type PrType      = RRType    Predicate
 type BareType    = BRType    RReft
 type SpecType    = RRType    RReft
+type SpecRep     = RRep      RReft
 type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
@@ -1016,6 +1036,9 @@ instance F.PPrint RTyCon where
 instance F.PPrint BTyCon where
   pprintTidy _ = text . F.symbolString . F.val . btc_tc
 
+instance F.PPrint v => F.PPrint (RTVar v s) where
+  pprintTidy k (RTVar x _) = F.pprintTidy k x
+
 instance Show RTyCon where
   show = F.showpp
 
@@ -1096,7 +1119,7 @@ mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
 -- | Data type refinements
 --------------------------------------------------------------------------------
 data DataDecl   = D
-  { tycName   :: F.LocSymbol           -- ^ Type  Constructor Name
+  { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
   , tycTyLabs :: [Symbol]              -- ^ PLabel  Parameters
@@ -1106,6 +1129,12 @@ data DataDecl   = D
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
+
+-- | The name of the `TyCon` corresponding to a `DataDecl`
+data DataName
+  = DnName !F.LocSymbol  -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
+  | DnCon  !F.LocSymbol  -- ^ for 'FamInst' TyCon we save some `DataCon` name
+  deriving (Eq, Ord, Data, Typeable, Generic)
 
 -- | Data Constructor
 data DataCtor = DataCtor
@@ -1152,6 +1181,7 @@ instance NFData   SizeFun
 instance B.Binary SizeFun
 instance NFData   DataDeclKind
 instance B.Binary DataDeclKind
+instance B.Binary DataName
 instance B.Binary DataCtor
 instance B.Binary DataDecl
 
@@ -1167,20 +1197,45 @@ instance F.Loc DataCtor where
 instance F.Loc DataDecl where
   srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
 
+instance F.Loc DataName where
+  srcSpan (DnName z) = F.srcSpan z
+  srcSpan (DnCon  z) = F.srcSpan z
+
+
 -- | For debugging.
 instance Show DataDecl where
   show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s" -- [at: %s]"
-              (show $ F.symbol  dd)
+              (show $ tycName   dd)
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
               -- (show $ F.srcSpan dd)
 
+
+
+
+instance Show DataName where
+  show (DnName n) =               show (F.val n)
+  show (DnCon  c) = "datacon:" ++ show (F.val c)
+
 instance F.PPrint DataDecl where
   pprintTidy _ = text . show
 
--- | Name of the data-type
+instance F.Symbolic DataName where
+  symbol = F.val . dataNameSymbol
+
 instance F.Symbolic DataDecl where
-  symbol =  F.symbol . tycName
+  symbol = F.symbol . tycName
+
+instance F.PPrint DataName where
+  pprintTidy k (DnName n) = F.pprintTidy k (F.val n)
+  pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n)
+
+  -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
+  -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)
+
+dataNameSymbol :: DataName -> F.LocSymbol
+dataNameSymbol (DnName z) = z
+dataNameSymbol (DnCon  z) = z
 
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
@@ -1231,11 +1286,10 @@ toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
     (αs, πs, ls, t')  = bkUniv  t
     (xs, ts, rs, t'') = bkArrow t'
 
-mkArrow :: (Foldable t, Foldable t1, Foldable t2, Foldable t3)
-        => t  (RTVar tv (RType c tv ()))
-        -> t1 (PVar (RType c tv ()))
-        -> t2 Symbol
-        -> t3 (Symbol, RType c tv r, r)
+mkArrow :: [RTVar tv (RType c tv ())]
+        -> [PVar (RType c tv ())]
+        -> [Symbol]
+        -> [(Symbol, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
 mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts
@@ -1706,9 +1760,8 @@ rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
 rTypeReft = fromMaybe F.trueReft . fmap F.toReft . stripRTypeBase
 
-
 -- stripRTypeBase ::  RType a -> Maybe a
-stripRTypeBase :: RType t t1 a -> Maybe a
+stripRTypeBase :: RType c tv r -> Maybe r
 stripRTypeBase (RApp _ _ _ x)
   = Just x
 stripRTypeBase (RVar _ x)

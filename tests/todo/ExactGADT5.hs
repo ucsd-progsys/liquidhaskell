@@ -1,8 +1,6 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--no-adt"                              @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -22,18 +20,23 @@ instance PersistEntity Blob where
 {-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
-{-@ data UpdateT record typ = Update { updateField :: EntityField record typ, updateValue :: typ } @-}
-data UpdateT record typ = Update
+{-@ data Update record typ <p :: typ -> Bool> = Update { updateField :: EntityField record typ<p>, updateValue :: typ<p> } @-}
+data Update record typ = Update 
     { updateField :: EntityField record typ
     , updateValue :: typ
-    }
+    } 
 
-{-@ createUpdate :: forall a <p :: a -> Bool>. EntityField record a<p> -> a<p> -> UpdateT record a<p> @-}
-createUpdate :: EntityField record a -> a -> UpdateT record a
+{-@ data variance Update covariant covariant contravariant @-}
+
+{-@ createUpdate :: forall a <p :: a -> Bool>. EntityField record a<p> -> a<p> -> Update record a<p> @-}
+createUpdate :: EntityField record a -> a -> Update record a
 createUpdate field value = Update {
       updateField = field
     , updateValue = value
 }
 
-testUpdateQuery :: () -> UpdateT Blob Int
+testUpdateQuery :: () -> Update Blob Int
 testUpdateQuery () = createUpdate BlobXVal 3
+
+testUpdateQueryFail :: () -> Update Blob Int
+testUpdateQueryFail () = createUpdate BlobXVal (-1)

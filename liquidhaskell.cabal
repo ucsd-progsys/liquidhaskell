@@ -41,6 +41,7 @@ data-files: include/*.hquals
 
 extra-source-files: CHANGES.md
                   , README.md
+                  , devel/Paths_liquidhaskell.hs
                   , tests/pos/*.hs
                   , tests/neg/*.hs
                   , tests/import/lib/*.hs

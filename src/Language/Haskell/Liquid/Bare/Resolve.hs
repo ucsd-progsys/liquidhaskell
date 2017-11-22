@@ -33,11 +33,8 @@ import Language.Fixpoint.Types (Expr(..),
 
 import           Language.Haskell.Liquid.Misc        (secondM, third3M)
 import           Language.Haskell.Liquid.Types
-
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
-
-import           Data.Maybe                          (fromMaybe)
 
 class Resolvable a where
   resolve :: SourcePos -> a -> BareM a
@@ -63,6 +60,7 @@ instance Resolvable Expr where
   resolve l (PIff p q)      = PIff    <$> resolve l p  <*> resolve l q
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
   resolve l (ELam (x,t) e)  = ELam    <$> ((,) <$> resolve l x <*> resolve l t) <*> resolve l e
+  resolve l (ECoerc a t e)  = ECoerc  <$> resolve l a <*> resolve l t   <*> resolve l e
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s
   resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s
@@ -136,8 +134,8 @@ instance Resolvable Sort where
     | tcs' `elem` prims   = FTC <$> return c
     | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
                                emb    <- embeds <$> get
-                               let ftc = symbolFTycon $ Loc l l' $ symbol ty
-                               return  $ FTC $ fromMaybe ftc (M.lookup ty emb)
+                               let ftc = FTC $ symbolFTycon $ Loc l l' $ symbol ty
+                               return  $ M.lookupDefault ftc ty emb
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
