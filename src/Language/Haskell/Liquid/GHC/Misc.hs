@@ -121,7 +121,7 @@ miModGuts cls mg  = MI {
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
-  where z         = showPpr (zing <$> mg_fam_insts mg)
+  where _z        = showPpr (zing <$> mg_fam_insts mg)
         zing fi   = (fi_fam fi, fi_tcs fi, fi_tvs fi, fi_rhs fi)
 
 mg_dir_imps :: ModGuts -> [ModuleName]
