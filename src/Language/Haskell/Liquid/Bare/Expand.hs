@@ -4,21 +4,27 @@
 
 module Language.Haskell.Liquid.Bare.Expand (
   -- * Alias Expansion
-  ExpandAliases (..)
+    ExpandAliases (..)
+  , expand'
   ) where
 
 import           Prelude                          hiding (error)
 import           Control.Monad.State              hiding (forM)
+import           Control.Monad.Except             (throwError)
 import qualified Data.HashMap.Strict              as M
 import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Types          (Expr(..), Reft(..), mkSubst, subst, eApps, splitEApp, Symbol, Subable)
-import           Language.Haskell.Liquid.Misc     (firstMaybes, safeZipWithError)
+import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
+import           Text.PrettyPrint.HughesPJ
+
+expand' :: (ExpandAliases a) => a -> BareM a
+expand' = expand (F.dummyPos "Bare.expand'")
 
 class ExpandAliases a where
-  expand :: F.SrcSpan -> a -> BareM a
+  expand :: F.SourcePos -> a -> BareM a
 
 instance ExpandAliases Expr where
   expand = expandExpr
@@ -57,7 +63,7 @@ instance ExpandAliases RReft where
   expand z = mapM (expand z)
 
 instance (ExpandAliases a) => ExpandAliases (Located a) where
-  expand z = mapM (expand z)
+  expand _ x = mapM (expand (F.loc x)) x
 
 instance (ExpandAliases a) => ExpandAliases (Maybe a) where
   expand z = mapM (expand z)
@@ -77,7 +83,7 @@ txPredReft' f z (Reft (v, ra)) = Reft . (v,) <$> f z ra
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-expandExpr :: F.SrcSpan -> Expr -> BareM Expr
+expandExpr :: F.SourcePos -> Expr -> BareM Expr
 expandExpr sp = go
   where
     go e@(EApp _ _)    = {- tracepp ("EXPANDEAPP e = " ++ showpp e ) <$> -} expandEApp sp (splitEApp e)
@@ -104,36 +110,39 @@ expandExpr sp = go
     go e@(ESym _)      = return e
     go e@(ECon _)      = return e
 
-expandSym :: F.SrcSpan -> Symbol -> BareM Expr
+expandSym :: F.SourcePos -> Symbol -> BareM Expr
 expandSym sp s = do
-  s' <- expandSym' sp s
+  s' <- expandSym' s
   expandEApp sp (EVar s', [])
 
-expandSym' :: F.SrcSpan -> Symbol -> BareM Symbol
-expandSym' sp s = do
+expandSym' :: Symbol -> BareM Symbol
+expandSym' s = do
   axs <- gets axSyms
   let s' = dropModuleNamesAndUnique s
   return $ if M.member s' axs then {- tracepp "EXPANDSYM" -} s' else s
 
-expandEApp :: F.SrcSpan -> (Expr, [Expr]) -> BareM Expr
+expandEApp :: F.SourcePos -> (Expr, [Expr]) -> BareM Expr
 expandEApp sp (EVar f, es) = do
   eAs   <- gets (exprAliases . rtEnv)
-  let mBody = firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
+  let mBody = Misc.firstMaybes [M.lookup f eAs, M.lookup (dropModuleUnique f) eAs]
   case mBody of
-    Just re -> expandApp sp re <$> mapM (expandExpr sp) es
+    Just re -> expandApp sp re =<< mapM (expandExpr sp) es
     Nothing -> eApps (EVar f)  <$> mapM (expandExpr sp) es
-expandEApp s (f, es) =
+expandEApp _ (f, es) =
   return $ eApps f es
 
 --------------------------------------------------------------------------------
 -- | Expand Alias Application --------------------------------------------------
 --------------------------------------------------------------------------------
-expandApp :: Subable ty => F.SrcSpan -> RTAlias Symbol ty -> [Expr] -> ty
-expandApp sp re es = subst su $ rtBody re
+expandApp :: Subable ty => F.SourcePos -> RTAlias Symbol ty -> [Expr] -> BareM ty
+expandApp l re es
+  | Just su <- args = return     $ subst su (rtBody re)
+  | otherwise       = throwError $ ErrAliasApp sp alias sp' msg
   where
-    su             = mkSubst $ safeZipWithError msg (rtVArgs re) es
-    msg            = "Malformed alias application" ++ "\n\t"
-                  ++ show (rtName re)
-                  ++ " defined at " ++ show (rtPos re)
-                  ++ "\n\texpects " ++ show (length $ rtVArgs re)
-                  ++ " arguments but it is given " ++ show (length es)
+    args            = mkSubst <$> Misc.zipMaybe (rtVArgs re) es
+    sp              = sourcePosSrcSpan l
+    alias           = pprint           (rtName re)
+    sp'             = sourcePosSrcSpan (rtPos re)
+    msg             =  text "expects" <+> pprint (length $ rtVArgs re)
+                   <+> text "arguments but it is given"
+                   <+> pprint (length es)

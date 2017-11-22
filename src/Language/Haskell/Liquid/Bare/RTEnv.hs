@@ -60,7 +60,7 @@ makeREAliases
       = inModule mod $
           do let l  = rtPos  xt
              let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expand (rtBody xt)
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expand l (rtBody xt)
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 

@@ -133,6 +133,11 @@ getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}
 
+zipMaybe :: [a] -> [b] -> Maybe [(a, b)]
+zipMaybe xs ys
+  | length xs == length ys = Just (zip xs ys)
+  | otherwise              = Nothing
+
 {-@ safeZipWithError :: _ -> xs:[a] -> ListL b xs -> ListL (a,b) xs / [xs] @-}
 safeZipWithError :: String -> [t] -> [t1] -> [(t, t1)]
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys

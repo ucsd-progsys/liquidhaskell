@@ -666,14 +666,14 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
-  isgs        <- expand $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
-  gsTySigs'   <- (expand $ strengthenHaskellMeasures (S.map fst hmeas) isgs)
-  gsMeasures' <- expand $ gsMeasures   sp
-  gsAsmSigs'  <- expand $ gsAsmSigs    sp
-  gsInSigs'   <- expand $ gsInSigs     sp
-  gsInvarnts' <- expand $ gsInvariants sp
-  gsCtors'    <- expand $ gsCtors      sp
-  gsIaliases' <- expand $ gsIaliases   sp
+  isgs        <- expand' $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
+  gsTySigs'   <- expand' $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+  gsMeasures' <- expand' $ gsMeasures   sp
+  gsAsmSigs'  <- expand' $ gsAsmSigs    sp
+  gsInSigs'   <- expand' $ gsInSigs     sp
+  gsInvarnts' <- expand' $ gsInvariants sp
+  gsCtors'    <- expand' $ gsCtors      sp
+  gsIaliases' <- expand' $ gsIaliases   sp
   return   $ sp { gsQualifiers = subst su quals
                 , gsDecr       = decr'
                 , gsLvars      = lvars'
