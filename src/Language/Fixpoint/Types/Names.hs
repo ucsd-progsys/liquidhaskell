@@ -214,8 +214,10 @@ instance PPrint Symbol where
 instance Fixpoint T.Text where
   toFix = text . T.unpack
 
--- RJ: Use `symbolSafeText` if you want it to machine-readable,
---     but `symbolText`     if you want it to be human-readable.
+{- | [NOTE: SymbolText] 
+	Use `symbolSafeText` if you want it to machine-readable,
+        but `symbolText`     if you want it to be human-readable.
+ -}
 
 instance Fixpoint Symbol where
   toFix = toFix . checkedText -- symbolSafeText
