@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver (
     -- * Parse Qualifiers from File
   , parseFInfo
 
-    -- * Simplified Info 
+    -- * Simplified Info
   , simplifyFInfo
 ) where
 
@@ -180,7 +180,7 @@ loudDump i cfg si = writeLoud $ msg ++ render (toFixpoint cfg si)
 
 simplifyFInfo :: (NFData a, Fixpoint a, Show a, Loc a)
                => Config -> FInfo a -> IO (SInfo a)
-simplifyFInfo !cfg !fi0 = do 
+simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
@@ -206,7 +206,7 @@ simplifyFInfo !cfg !fi0 = do
   instantiate cfg $!! si5
 
 solveNative' !cfg !fi0 = do
-  si6 <- simplifyFInfo cfg fi0 
+  si6 <- simplifyFInfo cfg fi0
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res

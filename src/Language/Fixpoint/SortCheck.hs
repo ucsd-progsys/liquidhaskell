@@ -199,13 +199,14 @@ elabApply env = go
     step (PAll   bs p)    = PAll   bs (go p)
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
-    step (ELam b e)       = ELam b (go e)
+    step (ELam b e)       = ELam b       (go e)
+    step (ECoerc a t e)   = ECoerc a t   (go e)
     step (PGrad k su i e) = PGrad k su i (go e)
     step e@(PKVar {})     = e
     step e@(ESym {})      = e
     step e@(ECon {})      = e
     step e@(EVar {})      = e
-    -- ELam, ETApp, ETAbs, PAll, PExist
+    -- ETApp, ETAbs, PAll, PExist
     step e                = error $ "TODO elabApply: " ++ showpp e
 
 --------------------------------------------------------------------------------
@@ -358,6 +359,7 @@ checkExpr f (PGrad _ _ _ e)  = checkPred f e >> return boolSort
 checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
 checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
+checkExpr f (ECoerc a t e) = applyCoercion a t <$> checkExpr (addEnv f [(a, t)]) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
@@ -481,6 +483,10 @@ elab f (ELam (x,t) e) = do
   (e', s) <- elab (elabAddEnv f [(x, t)]) e
   let t' = elaborate "ELam Arg" mempty t
   return (ELam (x, t') (ECst e' s), FFunc t s)
+
+elab f (ECoerc a t e) = do
+  (e', s) <- elab (elabAddEnv f [(a, t)]) e
+  return     (ECoerc a t e', applyCoercion a t s)
 
 elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
@@ -775,9 +781,10 @@ checkEqConstr _ _  θ a (FObj b)
   | a == b
   = return θ
 checkEqConstr f e θ a t = do
-  tA <- checkSym f a
-  unless (tA == t) (throwError $ errUnify e tA t)
-  return θ
+  case f a of 
+    Found tA -> do unless (tA == t) (throwError $ errUnify e tA t)
+                   return θ
+    _        -> throwError $ errUnify e (FObj a) t
 
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
@@ -1005,6 +1012,16 @@ applyExpr (Just θ) e = Vis.mapExpr f e
   where 
     f (ECst e s) = ECst e (apply θ s)
     f e          = e 
+
+--------------------------------------------------------------------------------
+applyCoercion :: Symbol -> Sort -> Sort -> Sort 
+--------------------------------------------------------------------------------
+applyCoercion a t = Vis.mapSort f 
+  where 
+    f (FObj b)  
+      | a == b    = t 
+    f s           = s 
+
 
 --------------------------------------------------------------------------------
 -- | Deconstruct a function-sort -----------------------------------------------

@@ -53,7 +53,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkFFunc
   , bkFFunc
 
-  , isNumeric, isReal, isString, isPolyInst 
+  , isNumeric, isReal, isString, isPolyInst
 
   -- * User-defined ADTs
   , DataField (..)
@@ -80,11 +80,11 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 
 
-data FTycon   = TC LocSymbol TCInfo deriving (Ord, Data, Typeable, Generic, Show)
-type TCEmb a  = M.HashMap a FTycon
+data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
+type TCEmb a  = M.HashMap a Sort -- FTycon
 
 -- instance Show FTycon where
---   show (TC s _) = show (val s) 
+--   show (TC s _) = show (val s)
 
 instance Symbolic FTycon where
   symbol (TC s _) = symbol s

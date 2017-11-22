@@ -1,0 +1,12 @@
+constant f : (func(1, [(Foo int); int]))
+
+bind 1 pig : {v : (Foo a) | true }
+
+bind 2 dog : {v : int | v = (coerce (a ~ int) (f pig)) }
+
+
+constraint:
+  env [1;2]
+  lhs {v : int | v = 10 }
+  rhs {v : int | v = 5 + 5}
+  id 1 tag []
