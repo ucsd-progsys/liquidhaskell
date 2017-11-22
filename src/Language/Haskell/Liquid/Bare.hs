@@ -146,7 +146,7 @@ postProcess cbs specEnv sp@(SP {..})
        , gsAsmSigs    = mapSnd addTCI <$> assms
        , gsInvariants = mapSnd addTCI <$> gsInvariants
        , gsLits       = txSort        <$> gsLits
-       , gsMeas       = F.tracepp "POST-PROC-GSMEAS" $ (txSort        <$> gsMeas)
+       , gsMeas       = txSort        <$> gsMeas
        , gsDicts      = dmapty addTCI'    gsDicts
        , gsTexprs     = ts
        }
@@ -169,7 +169,7 @@ ghcSpecEnv sp        = res
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors sp]
                      ++ [(x,        vSort v) | (x, v)          <- gsFreeSyms sp,
                                                                   isConLikeId v ]
-    rSort t          = F.tracepp ("RSORT t = " ++ F.showpp t) $ rTypeSortedReft emb t
+    rSort t          = rTypeSortedReft emb t
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
@@ -217,7 +217,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
-                , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
 
 -- sortUniquable :: (Uniquable a) => [a] -> [a]
@@ -383,7 +383,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
 
-  embs           <- F.tracepp "EMBS" <$> (addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0))
+  embs           <- addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
 
   lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
@@ -574,7 +574,7 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
                    , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
-                   , gsMeas     = F.tracepp "GS-MEAS" measSyms
+                   , gsMeas     = measSyms
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where
@@ -727,7 +727,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let adts         = makeDataDecls cfg embs myName tds datacons
   dm              <- gets dcEnv
   _               <- setDataDecls adts
-  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) $ F.tracepp "CHOP1-datacons" datacons
+  let dcSelectors  = concatMap (makeMeasureSelectors cfg dm) datacons
   recSels         <- makeRecordSelectorSigs datacons
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 

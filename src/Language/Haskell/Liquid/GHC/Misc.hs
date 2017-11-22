@@ -117,7 +117,7 @@ miModGuts cls mg  = MI {
   , mgi_dir_imps  = mg_dir_imps mg
   , mgi_rdr_env   = mg_rdr_env mg
   , mgi_tcs       = mg_tcs mg
-  , mgi_fam_insts = tracePpr ("MG-FAMILY-INSTANCES: " ++ z) $ mg_fam_insts mg
+  , mgi_fam_insts = mg_fam_insts mg
   , mgi_exports   = availsToNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }

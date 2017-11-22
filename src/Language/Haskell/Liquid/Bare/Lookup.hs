@@ -259,11 +259,13 @@ lookupGhcDnTyCon src (DnName s)
     ftc (ATyCon x) = Just (0, x)
     ftc (AConLike (RealDataCon x))
               --      | GM.showPpr x == "GHC.Types.[]"
-                   = Just (1, GM.tracePpr ("lookupGHCTC1 s =" ++ symbolicIdent s ++ " " ++ show ok) $ dataConTyCon x)
+                   = Just (1, {- GM.tracePpr ("lookupGHCTC1 s =" ++ symbolicIdent s ++ " " ++ show ok) $ -}
+                              dataConTyCon x)
       where
         res        = dataConTyCon x
-        ok         = res == listTyCon
-    ftc z          = GM.tracePpr ("lookupGhcDnTyCon s = " ++ show s ++ "result = " ++ GM.showPpr z) Nothing
+        _ok        = res == listTyCon
+    ftc _z         = {- GM.tracePpr ("lookupGhcDnTyCon s = " ++ show s ++ "result = " ++ GM.showPpr z) -}
+                     Nothing
 
 lookupGhcDnTyCon src (DnCon  s)
                    = lookupGhcThing err ftc (Just tcName) s
@@ -281,7 +283,7 @@ lookupGhcTyCon src s = do
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
-      = Just (0, GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) x)
+      = Just (0, {- GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) -} x)
     -- ftc (AConLike (RealDataCon x))
     --   = Just (1, dataConTyCon x)
     ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"

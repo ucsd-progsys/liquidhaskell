@@ -48,7 +48,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (traceShow, mlookup, sortNub, groupList, mapSnd, mapFst)
+import Language.Fixpoint.Misc (mlookup, sortNub, groupList, mapSnd, mapFst)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
@@ -73,13 +73,9 @@ import           Language.Haskell.Liquid.Bare.ToBare
 makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec tcs
-  | exactDC cfg = traceShow "VanillaTCs 3"
-                . mapMaybe tyConDataDecl
-                . traceShow "VanillaTCs 2"
+  | exactDC cfg = mapMaybe tyConDataDecl
                 . zipMap   (hasDataDecl spec . fst)
-                . F.tracepp "VanillaTCs 1"
                 . liftableTyCons
-                . F.tracepp "VanillaTCs 0"
                 . filter isReflectableTyCon
                 $ tcs
   | otherwise   = []
@@ -88,16 +84,16 @@ makeHaskellDataDecls cfg spec tcs
 isReflectableTyCon :: TyCon -> Bool
 isReflectableTyCon  = isFamInstTyCon' .||. isVanillaAlgTyCon
   where
-    isFamInstTyCon' c = F.tracepp ("isFamInstTyCon c = " ++ F.showpp c) (isFamInstTyCon c)
+    isFamInstTyCon' c = {- F.notracepp ("isFamInstTyCon c = " ++ F.showpp c) -} (isFamInstTyCon c)
 
 
 
 liftableTyCons :: [TyCon] -> [(TyCon, DataName)]
-liftableTyCons = F.tracepp "LiftableTCs 3"
+liftableTyCons = F.notracepp "LiftableTCs 3"
                . zipMapMaybe tyConDataName
-               . F.tracepp "LiftableTCs 2"
+               . F.notracepp "LiftableTCs 2"
                . filter   (not . isBoxedTupleTyCon)
-               . F.tracepp "LiftableTCs 1"
+               . F.notracepp "LiftableTCs 1"
                -- . (`sortDiff` wiredInTyCons)
                -- . F.tracepp "LiftableTCs 0"
 
@@ -124,7 +120,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
+      , tycDCons  = F.notracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
@@ -139,7 +135,7 @@ tyConDataName tc
   | otherwise  = Nothing
   where
     vanillaTc  = isVanillaAlgTyCon tc
-    dcs        = F.tracepp msg $ tyConDataCons tc
+    dcs        = F.notracepp msg $ tyConDataCons tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc
 
 dataConDecl :: DataCon -> DataCtor
@@ -260,7 +256,7 @@ dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
 dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
     ti                   = fromMaybe err $ getNth (i-1) ts
-    (as, ts, xt)         = F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ bkDataCon dc n
+    (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))

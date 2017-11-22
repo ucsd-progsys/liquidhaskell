@@ -76,7 +76,7 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
   where
-    famInstSorts          = F.tracepp "famInstTcs"
+    famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c        <- cs
                                 , (c', ts) <- tcInsts c
@@ -149,7 +149,7 @@ makeNumericInfoOne m is
 mappendSortFTC :: F.Sort -> F.Sort -> F.Sort
 mappendSortFTC (F.FTC x) (F.FTC y) = F.FTC (F.mappendFTC x y)
 mappendSortFTC s         (F.FTC _) = s
-mappendSortFTC (F.FTC _) s         = s 
+mappendSortFTC (F.FTC _) s         = s
 mappendSortFTC s1        s2        = panic Nothing ("mappendSortFTC: s1 = " ++ showpp s1 ++ " s2 = " ++ showpp s2)
 
 instanceTyCon :: ClsInst -> Maybe TyCon
@@ -421,7 +421,7 @@ dataConSpec' dcs = concatMap tx dcs
 
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.tracepp "meetDataConSpec" xts)
+meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
   where
     dcm0                 = M.fromList $ dataConSpec' dcs
     upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
@@ -443,7 +443,7 @@ checkDataCtor d@(DataCtor lc xts _)
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
 
 checkDataDecl :: TyCon -> DataDecl -> Bool
-checkDataDecl c d = F.tracepp _msg (cN == dN || null (tycDCons d))
+checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
   where
     _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
     cN            = length (GM.tyConTyVarsDef c)
@@ -537,7 +537,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
   let cs        = RT.ofType <$> dataConStupidTheta c'
   let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
