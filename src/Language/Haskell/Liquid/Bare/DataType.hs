@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.DataType
   -- , qualifyDataDecl
   ) where
 
+import           TysWiredIn (listTyCon) 
 import           TysPrim
 import           DataCon
 import           Name                                   (getSrcSpan)
@@ -172,7 +173,9 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' ds ]
+                | (tc, (dd, ctors)) <- groupDataCons tds' ds
+                , tc /= listTyCon
+                ]
   | otherwise = []
   where
     makeDecls = exactDC cfg && not (noADT cfg)

@@ -232,11 +232,6 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isG
  ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = not (isGadt || noMeasureFields cfg)
-    -- res        = mempty <$> if isVanillaDataCon dc
-    --                          then resTy
-    --                          else _fixme -- RT.gApp (dataConTyCon dc) vs ps
-    --                                      -- see [NOTE:Use DataconWorkId]
-
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
@@ -257,21 +252,15 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isG
     projT i  = dataConSel dc n (Proj i)
     checkT   = dataConSel dc n Check
 
-
-    -- checkT   = mkTy res bareBool
-    -- projT t  = mkTy res (mempty <$> t)
-    -- as       = makeRTVar <$> vs
-    -- mkTy i o = F.tracepp ("mkTy" ++ show vs) $ mkUnivs as [] [] (RFun dummySymbol i o mempty)
-
 dataConSel :: DataCon -> Int -> DataConSel -> SpecType
 dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
   where
-    (as, _, xt)          = {- traceShow ("bkDataCon: " ++ show dc) $ -} bkDataCon dc n
+    (as, _, xt)          = {- traceShow ("dataConSel: " ++ show dc) $ -} bkDataCon dc n
 
 dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
     ti                   = fromMaybe err $ getNth (i-1) ts
-    (as, ts, xt)         = bkDataCon dc n
+    (as, ts, xt)         = F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ bkDataCon dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
@@ -279,7 +268,7 @@ bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> takeLast nFlds _ts
     t                 = {- traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ -}
-                        RT.ofType  $ mkTyConApp {- mkFamilyTyConApp -} tc tArgs'
+                        RT.ofType  $ mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
     ((αs,_,_,_,_ts,_t), _t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (mkTyVarTy <$> αs)

@@ -146,7 +146,7 @@ postProcess cbs specEnv sp@(SP {..})
        , gsAsmSigs    = mapSnd addTCI <$> assms
        , gsInvariants = mapSnd addTCI <$> gsInvariants
        , gsLits       = txSort        <$> gsLits
-       , gsMeas       = txSort        <$> gsMeas
+       , gsMeas       = F.tracepp "POST-PROC-GSMEAS" $ (txSort        <$> gsMeas)
        , gsDicts      = dmapty addTCI'    gsDicts
        , gsTexprs     = ts
        }
@@ -166,10 +166,10 @@ ghcSpecEnv sp        = res
     res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  ([(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
-                                                                 isConLikeId v ]
-    rSort            = rTypeSortedReft emb
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v)          <- gsFreeSyms sp,
+                                                                  isConLikeId v ]
+    rSort t          = F.tracepp ("RSORT t = " ++ F.showpp t) $ rTypeSortedReft emb t
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
@@ -383,7 +383,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
 
-  embs           <- addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+  embs           <- F.tracepp "EMBS" <$> (addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0))
 
   lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
@@ -574,7 +574,7 @@ makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su s
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
                    , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
-                   , gsMeas     = measSyms
+                   , gsMeas     = F.tracepp "GS-MEAS" measSyms
                    , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
                    }
     where

@@ -86,7 +86,11 @@ lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe (Int, b
 lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
-    msg                 = unwords [ "Not in scope:", name, "`", symbolicString x, "'"]
+    msg                 = unwords [ "Not in scope:", name, symbolicIdent x]
+
+symbolicIdent :: (F.Symbolic a) => a -> String
+symbolicIdent x = "'" ++ symbolicString x ++ "'"
+
 
 lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
 lookupGhcThing' _err f ns x = do
@@ -253,7 +257,13 @@ lookupGhcDnTyCon src (DnName s)
   where
     err            = "type constructor " ++ src
     ftc (ATyCon x) = Just (0, x)
-    ftc _          = Nothing
+    ftc (AConLike (RealDataCon x))
+              --      | GM.showPpr x == "GHC.Types.[]"
+                   = Just (1, GM.tracePpr ("lookupGHCTC1 s =" ++ symbolicIdent s ++ " " ++ show ok) $ dataConTyCon x)
+      where
+        res        = dataConTyCon x
+        ok         = res == listTyCon
+    ftc z          = GM.tracePpr ("lookupGhcDnTyCon s = " ++ show s ++ "result = " ++ GM.showPpr z) Nothing
 
 lookupGhcDnTyCon src (DnCon  s)
                    = lookupGhcThing err ftc (Just tcName) s
@@ -271,7 +281,7 @@ lookupGhcTyCon src s = do
   where
     -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
-      = Just (0, x)
+      = Just (0, GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) x)
     -- ftc (AConLike (RealDataCon x))
     --   = Just (1, dataConTyCon x)
     ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"

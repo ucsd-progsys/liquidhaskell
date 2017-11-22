@@ -1036,6 +1036,9 @@ instance F.PPrint RTyCon where
 instance F.PPrint BTyCon where
   pprintTidy _ = text . F.symbolString . F.val . btc_tc
 
+instance F.PPrint v => F.PPrint (RTVar v s) where
+  pprintTidy k (RTVar x _) = F.pprintTidy k x
+
 instance Show RTyCon where
   show = F.showpp
 

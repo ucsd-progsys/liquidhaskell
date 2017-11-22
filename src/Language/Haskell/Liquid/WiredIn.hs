@@ -125,14 +125,14 @@ listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Ju
       [tyv]      = tyConTyVarsDef c
       t          = rVar tyv :: RSort
       fld        = "fldList"
-      x          = "head"
-      xs         = "tail"
+      xHead      = "head"
+      xTail      = "tail"
       p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)]
+      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar xHead)]
       lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
-      cargs      = [(xs, xst), (x, xt)]
+      cargs      = [(xTail, xst), (xHead, xt)]
       fsize      = SymSizeFun (dummyLoc "len")
 
 wiredInName :: Symbol

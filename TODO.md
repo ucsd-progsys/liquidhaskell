@@ -1,10 +1,9 @@
 # T1089
 
-* tests/pos/PromotedDataCons.hs	
-	[dup]
-* tests/neg/T602.hs 
+* tests/neg/T602.hs
 	[Double vs real]
-* tests/import/lib/ListLib.hs 
+* tests/import/lib/ListLib.hs
+* tests/import/client/ListClient.hs 
 	[ GHC-list vs fix-list ]
 
 
