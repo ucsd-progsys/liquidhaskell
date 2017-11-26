@@ -84,7 +84,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
-    es               = makeAxioms info
+    es               = [] -- makeAxioms info
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
     -- msg              = show . map F.symbol . M.keys . tyConInfo
 
@@ -199,8 +199,8 @@ specTypeToResultRef e t
     mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
     trep                   = toRTypeRep t
 
-makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
-makeAxioms _info = []
+-- makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
+-- makeAxioms _info = []
   -- // NO-SMT-AXIOMS | allowSMTInstationation (getConfig info)
   -- // NO-SMT-AXIOMS = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
   -- // NO-SMT-AXIOMS | otherwise
