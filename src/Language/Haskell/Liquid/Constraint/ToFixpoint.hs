@@ -99,9 +99,9 @@ makeAxiomEnvironment info xts fcs
     sp       = spec       info
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
-doExpand sp cfg sub = Config.allowPLE cfg
-                   && maybe False (`M.member` gsAutoInst sp) (subVar sub)
-
+doExpand sp cfg sub = Config.allowGlobalPLE cfg
+                   || (Config.allowLocalPLE cfg && maybe False (`M.member` gsAutoInst sp) (subVar sub))
+                   
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.Equ (F.symbol f) xts body tOut
   where
