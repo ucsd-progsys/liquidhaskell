@@ -266,8 +266,8 @@ unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
 safe   = mempty {resStatus = Safe}
 
-isSafe :: Result a -> Bool 
-isSafe (Result Safe _ _) = True 
+isSafe :: Result a -> Bool
+isSafe (Result Safe _ _) = True
 isSafe _                 = False
 
 isUnsafe :: Result a -> Bool
@@ -773,8 +773,8 @@ instance Monoid AxiomEnv where
           aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
 
 data Equation = Equ { eqName :: Symbol
-                    , eqArgs :: [Symbol]
-                    , eqBody :: Expr
+                    , eqArgs :: [(Symbol, Sort)]
+                    , eqBody :: (Expr, Sort)
                     }
   deriving (Eq, Show, Generic)
 
