@@ -141,19 +141,22 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 makeEquations :: GhcSpec -> [F.Equation]
-makeEquations sp = [ F.Equ f _fixme_xs (equationBody f xs e mbT) _fixme_sort
-                      | AxiomEq f xs e _ <- gsAxioms sp
-                      , let mbT           = M.lookup f sigs
+makeEquations sp = [ F.Equ f xts (equationBody (F.EVar f) xArgs e mbT) t
+                      | F.Equ f xts e t <- gsAxioms sp
+                      , let mbT          = M.lookup f sigs
+                      , let xArgs        = F.EVar . fst <$> xts
                    ]
   where
     sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs sp ]
 
-equationBody :: F.Symbol -> [F.Symbol] -> F.Expr -> Maybe LocSpecType -> F.Expr
-equationBody f xs e mbT = F.pAnd [eBody, rBody mbT ]
+equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
+equationBody f xArgs e mbT
+  | Just t <- mbT = F.pAnd [eBody, rBody t]
+  | otherwise     = eBody
   where
-    eBody               = F.PAtom F.Eq (F.eApps (F.EVar f) (F.EVar <$> xs)) e
-    rBody Nothing       = F.PTrue
-    rBody (Just t)      = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar f) (F.EVar <$> xs)) (val t)
+    eBody         = F.PAtom F.Eq (F.eApps f xArgs) e
+    rBody t       = specTypeToLogic xArgs (F.eApps f xArgs) (val t)
+
     -- lookupSpecType x xts      = L.lookup x (mapFst simplesymbol <$> xts)
     -- makeRefBody _ _  Nothing  = F.PTrue
     -- makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
@@ -165,11 +168,9 @@ specTypeToLogic es e t
   | ok        = F.subst su (F.PImp (F.pAnd args) res)
   | otherwise = F.PTrue
   where
-    res     = specTypeToResultRef e t
-
-    args    = zipWith mkExpr (mkReft <$> ts) es
-
-    mkReft t =  F.toReft $ fromMaybe mempty (stripRTypeBase t)
+    res       = specTypeToResultRef e t
+    args      = zipWith mkExpr (mkReft <$> ts) es
+    mkReft t  =  F.toReft $ fromMaybe mempty (stripRTypeBase t)
     mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
 
 
@@ -199,7 +200,7 @@ specTypeToResultRef e t
     trep                   = toRTypeRep t
 
 makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
-makeAxioms info = []
+makeAxioms _info = []
   -- // NO-SMT-AXIOMS | allowSMTInstationation (getConfig info)
   -- // NO-SMT-AXIOMS = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
   -- // NO-SMT-AXIOMS | otherwise
