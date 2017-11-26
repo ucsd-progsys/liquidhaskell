@@ -779,6 +779,15 @@ data Equation = Equ { eqName :: Symbol            -- ^ name of reflected functio
                     }
   deriving (Eq, Show, Generic)
 
+instance Subable Equation where
+  syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
+  subst su = mapEqBody (subst su)
+  substf f = mapEqBody (substf f)
+  substa f = mapEqBody (substa f)
+
+mapEqBody :: (Expr -> Expr) -> Equation -> Equation
+mapEqBody f a = a { eqBody = f (eqBody a) }
+
 instance PPrint Equation where
   pprintTidy k (Equ f xs e _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
     where
