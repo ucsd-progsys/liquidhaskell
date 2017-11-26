@@ -772,15 +772,17 @@ instance Monoid AxiomEnv where
           aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
           aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
 
-data Equation = Equ { eqName :: Symbol
-                    , eqArgs :: [(Symbol, Sort)]
-                    , eqBody :: (Expr, Sort)
+data Equation = Equ { eqName :: Symbol            -- ^ name of reflected function
+                    , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
+                    , eqBody :: Expr              -- ^ definition of body
+                    , eqSort :: Sort              -- ^ sort of body
                     }
   deriving (Eq, Show, Generic)
 
 instance PPrint Equation where
-  pprintTidy k (Equ f xs e) = "def" <+> pprint f <+> intersperse " " (pprint <$> xs) <+> ":=" <+> pprintTidy k e
-
+  pprintTidy k (Equ f xs e _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
+    where
+      ppArgs xs               = intersperse " " (pprint <$> xs)
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
@@ -800,9 +802,9 @@ instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e)  = text "define"
-                     <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
-                     <+> lparen <> toFix e <> rparen
+  toFix (Equ f xs e _) = text "define"
+                        <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
+                        <+> lparen <> toFix e <> rparen
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
@@ -813,10 +815,12 @@ instance Fixpoint Rewrite where
    <+> lparen <> toFix e <> rparen
 
 getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))
+getEqBody (Equ  x xts (PAnd ((PAtom Eq fxs e):_)) _)
   | (EVar f, es) <- splitEApp fxs
   , f == x
-  , es == (EVar <$> xs)
+  , es == (EVar . fst <$> xts)
   = Just e
+  where
+
 getEqBody _
   = Nothing

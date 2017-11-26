@@ -182,7 +182,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                             , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
-    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
+    eqs = [(EVar x, ex) | Equ a _ bd _ <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
                         ]
@@ -374,19 +374,23 @@ evalApp γ e (EVar f, [ex])
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
-  | Just eq <- L.find ((==f) . eqName) (knAms γ)
+  | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substPopIf (zip (eqArgs eq) es) bd
+  = eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es  --  recursive
   = evalRecApplication γ (eApps (EVar f) es) $
-    subst (mkSubst $ zip (eqArgs eq) es) bd
+    subst (mkSubst $ zip (eqArgNames eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
+
+-- FIXME-1089
+eqArgNames :: Equation -> [Symbol]
+eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
 substPopIf xes e = η $ foldl go e xes
