@@ -11,11 +11,12 @@ import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
+import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 
-import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
+-- import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
 import Data.Maybe (fromJust)
 
 -- AT: Move to own module?
@@ -29,7 +30,9 @@ import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import           Data.Maybe                        (fromMaybe)
 import           Language.Fixpoint.Misc
+import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
+import           TyCon                             (TyCon)
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -90,18 +93,32 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations info ++ (specTypToEq  <$> xts))
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts])
            (concatMap makeSimplify xts)
-           doExpand
+           (doExpand sp cfg <$> fcs)
   where
-    cfg = getConfig info
-    doExpand = (\sub -> allowLiquidInstationationGlobal cfg
-                || allowLiquidInstationationLocal cfg
-                && maybe False (`M.member` gsAutoInst (spec info)) (subVar sub))
-                                    <$> fcs
-    specTypToEq (x, t)
-      = F.Equ (F.symbol x) (ty_binds $ toRTypeRep t)
-           (specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
+    emb      = gsTcEmbeds sp
+    cfg      = getConfig  info
+    sp       = spec       info
+
+doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
+doExpand sp cfg sub = allowLiquidInstationationGlobal cfg
+                   || allowLiquidInstationationLocal  cfg
+                   && maybe False (`M.member` gsAutoInst sp) (subVar sub)
+
+specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
+specTypeEq emb f t = F.Equ (F.symbol f) xts body tOut
+  where
+    xts            = Misc.safeZipWithError "specTypeEq" xs (RT.rTypeSort emb <$> ts)
+    body           = specTypeToResultRef bExp t
+    tOut           = RT.rTypeSort emb (ty_res tRep)
+    tRep           = toRTypeRep t
+    xs             = ty_binds tRep
+    ts             = ty_args  tRep
+    bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
+  -- = F.Equ (F.symbol x)
+  --        (ty_binds $ toRTypeRep t)
+  --        (specTypeToResultRef (F.eApps (F.eVar x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
 makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
@@ -127,8 +144,8 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
-makeEquations :: GhcInfo -> [F.Equation]
-makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x xs e _ <- axioms]
+makeEquations :: GhcSpec -> [F.Equation]
+makeEquations sp = [ F.Equ x xs (equationBody x xs e) | AxiomEq x xs e _ <- gsAxioms sp ]
   where
     equationBody x xs e       = F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x sigs)]
     makeEqBody x xs e         = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
@@ -136,8 +153,6 @@ makeEquations info            = [ F.Equ x xs (equationBody x xs e) | AxiomEq x x
     makeRefBody _ _  Nothing  = F.PTrue
     makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
     sigs                      = gsTySigs sp
-    axioms                    = gsAxioms sp
-    sp                        = spec info
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
@@ -180,8 +195,8 @@ specTypeToResultRef e t
     trep                   = toRTypeRep t
 
 makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
-makeAxioms info
-  | allowSMTInstationation (getConfig info)
-  = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
-  | otherwise
-  = []
+makeAxioms info = []
+  -- // NO-SMT-AXIOMS | allowSMTInstationation (getConfig info)
+  -- // NO-SMT-AXIOMS = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
+  -- // NO-SMT-AXIOMS | otherwise
+  -- // NO-SMT-AXIOMS = []

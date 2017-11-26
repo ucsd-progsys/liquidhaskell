@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , Instantiate (..)
-   , allowSMTInstationation
+   -- , allowSMTInstationation
    , allowLiquidInstationation
    , allowLiquidInstationationGlobal
    , allowLiquidInstationationLocal
@@ -92,15 +92,22 @@ instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
-data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
+data Instantiate
+  = NoInstances
+  -- //  | SMTInstances
+  | LiquidInstances
+  | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod = Rewrite | AllMethods
+data ProofMethod
+  = Rewrite
+  | AllMethods
   deriving (Eq, Data, Typeable, Generic)
 
 
-allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
-allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
+-- allowSMTInstationation, 
+allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
+-- allowSMTInstationation    cfg = False -- autoInstantiate cfg == SMTInstances
 
 allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
                               || autoInstantiate cfg == LiquidInstancesLocal
@@ -125,7 +132,7 @@ instance Default Instantiate where
 
 instance Show Instantiate where
   show NoInstances           = "none"
-  show SMTInstances          = "SMT"
+  -- show SMTInstances          = "SMT"
   show LiquidInstancesLocal  = "liquid-local"
   show LiquidInstances       = "liquid-global"
 
