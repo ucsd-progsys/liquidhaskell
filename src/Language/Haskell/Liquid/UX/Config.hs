@@ -6,13 +6,10 @@
 module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
-   , Instantiate (..)
-   -- , allowSMTInstationation
-   , allowLiquidInstationation
-   , allowLiquidInstationationGlobal
-   , allowLiquidInstationationLocal
-   , ProofMethod (..)
-   , allowRewrite
+   , allowPLE, allowLocalPLE, allowGlobalPLE
+   -- , Instantiate (..)
+   -- , ProofMethod (..)
+   -- , allowRewrite
    ) where
 
 import Prelude hiding (error)
@@ -80,11 +77,12 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , proofMethod     :: ProofMethod -- ^ How to create automatic instances
-  , fuel            :: Int         -- ^ Fuel for axiom instantiation
+  -- , proofMethod     :: ProofMethod -- ^ How to create automatic instances
+  -- , fuel            :: Int         -- ^ Fuel for axiom instantiation
   , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
+  , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize ProofMethod
@@ -105,19 +103,27 @@ data ProofMethod
   deriving (Eq, Data, Typeable, Generic)
 
 
--- allowSMTInstationation, 
-allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
+-- allowSMTInstationation,
 -- allowSMTInstationation    cfg = False -- autoInstantiate cfg == SMTInstances
 
-allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
-                              || autoInstantiate cfg == LiquidInstancesLocal
+allowPLE :: Config -> Bool
+allowPLE cfg
+  =  allowGlobalPLE cfg
+  || allowLocalPLE cfg
 
-allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
-allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
+allowGlobalPLE :: Config -> Bool
+allowGlobalPLE cfg
+  =  proofLogicEval  cfg
+  || autoInstantiate cfg == LiquidInstances
 
-allowInstances, allowRewrite :: Config -> Bool
-allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
-allowInstances  cfg = autoInstantiate cfg /= NoInstances
+allowLocalPLE :: Config -> Bool
+allowLocalPLE cfg
+  =  proofLogicEval  cfg
+  || autoInstantiate cfg == LiquidInstancesLocal
+
+-- allowInstances, allowRewrite :: Config -> Bool
+-- allowRewrite    cfg = allowInstances cfg -- THIS IS A TAUTOLOGY! && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
+-- allowInstances  cfg = allowPLE cfg       -- autoInstantiate cfg /= NoInstances
 
 instance Default ProofMethod where
   def = Rewrite

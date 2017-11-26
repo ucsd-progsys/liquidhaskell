@@ -21,15 +21,12 @@ import Data.Maybe (fromJust)
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
-import           Language.Haskell.Liquid.UX.Config ( allowLiquidInstationationGlobal
-                                                   , allowLiquidInstationationLocal
-                                                   , allowRewrite
-                                                   )
+import qualified Language.Haskell.Liquid.UX.Config as Config
 import           Language.Haskell.Liquid.GHC.Misc  (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import           Data.Maybe                        (fromMaybe)
-import           Language.Fixpoint.Misc
+-- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
 import           TyCon                             (TyCon)
@@ -57,7 +54,7 @@ fixConfig tgt cfg = def
   , FC.gradual          = gradual           cfg
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
-  , FC.rewriteAxioms    = allowRewrite      cfg
+  , FC.rewriteAxioms    = Config.allowPLE   cfg
   }
 
 
@@ -102,8 +99,7 @@ makeAxiomEnvironment info xts fcs
     sp       = spec       info
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
-doExpand sp cfg sub = allowLiquidInstationationGlobal cfg
-                   || allowLiquidInstationationLocal  cfg
+doExpand sp cfg sub = Config.allowPLE cfg
                    && maybe False (`M.member` gsAutoInst sp) (subVar sub)
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
@@ -145,14 +141,22 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 makeEquations :: GhcSpec -> [F.Equation]
-makeEquations sp = [ F.Equ x xs (equationBody x xs e) | AxiomEq x xs e _ <- gsAxioms sp ]
+makeEquations sp = [ F.Equ f _fixme_xs (equationBody f xs e mbT) _fixme_sort
+                      | AxiomEq f xs e _ <- gsAxioms sp
+                      , let mbT           = M.lookup f sigs
+                   ]
   where
-    equationBody x xs e       = F.pAnd [makeEqBody x xs e, makeRefBody x xs (lookupSpecType x sigs)]
-    makeEqBody x xs e         = F.PAtom F.Eq (F.eApps (F.EVar x) (F.EVar <$> xs)) e
-    lookupSpecType x xts      = L.lookup x (mapFst simplesymbol <$> xts)
-    makeRefBody _ _  Nothing  = F.PTrue
-    makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
-    sigs                      = gsTySigs sp
+    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs sp ]
+
+equationBody :: F.Symbol -> [F.Symbol] -> F.Expr -> Maybe LocSpecType -> F.Expr
+equationBody f xs e mbT = F.pAnd [eBody, rBody mbT ]
+  where
+    eBody               = F.PAtom F.Eq (F.eApps (F.EVar f) (F.EVar <$> xs)) e
+    rBody Nothing       = F.PTrue
+    rBody (Just t)      = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar f) (F.EVar <$> xs)) (val t)
+    -- lookupSpecType x xts      = L.lookup x (mapFst simplesymbol <$> xts)
+    -- makeRefBody _ _  Nothing  = F.PTrue
+    -- makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
