@@ -81,9 +81,9 @@ instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> IO Expr
 instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
-  = return (tracepp "instSimpC 0:" PTrue)
+  = return PTrue
 instSimpC cfg ctx bds aenv _ sub
-  = -- tracepp ("instSimpC 1: " ++ show sid) .
+  = -- tracepp ("instSimpC " ++ show sid) .
     pAnd . (is0 ++) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
@@ -150,7 +150,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      { knSels   = sels
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
-                                     , knAms    = aenvEqs aenv
+                                     , knAms    = tracepp "KN-AMS" $ aenvEqs aenv
                                      , knPreds  = \bs e c -> askSMT c bs e
                                      }
   where
@@ -182,7 +182,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                             , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
-    eqs = [(EVar x, ex) | Equ a _ bd _ <- filter (null . eqArgs) $ aenvEqs aenv
+    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
                         ]
@@ -278,8 +278,8 @@ data EvalEnv = EvalEnv { evId        :: Int
 type EvalST a = StateT EvalEnv IO a
 
 evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
-         -> [Expr]
-         -> IO [(Expr, Expr)]
+            -> [Expr]
+            -> IO [(Expr, Expr)]
 evaluate cfg ctx facts aenv einit
   = (eqs ++) <$>
     (fmap join . sequence)
@@ -374,23 +374,19 @@ evalApp γ e (EVar f, [ex])
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
-  | Just eq <- L.find ((== f) . eqName) (knAms γ)
+  | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd
+  = eval γ $ η $ substPopIf (zip (eqArgs eq) es) bd
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es  --  recursive
   = evalRecApplication γ (eApps (EVar f) es) $
-    subst (mkSubst $ zip (eqArgNames eq) es) bd
+    subst (mkSubst $ zip (eqArgs eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
-
--- FIXME-1089
-eqArgNames :: Equation -> [Symbol]
-eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
 substPopIf xes e = η $ foldl go e xes
