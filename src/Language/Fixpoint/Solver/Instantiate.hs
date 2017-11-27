@@ -54,10 +54,11 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
+    aenv            = tracepp "AXIOM-ENV" (ae fi)
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
 sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
@@ -182,7 +183,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                             , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
-    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
+    eqs = [(EVar x, ex) | Equ a _ bd _ <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
                         ]
@@ -378,15 +379,18 @@ evalApp γ _ (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substPopIf (zip (eqArgs eq) es) bd
+  = eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es  --  recursive
   = evalRecApplication γ (eApps (EVar f) es) $
-    subst (mkSubst $ zip (eqArgs eq) es) bd
+    subst (mkSubst $ zip (eqArgNames eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
+
+eqArgNames :: Equation -> [Symbol]
+eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
 substPopIf xes e = η $ foldl go e xes
