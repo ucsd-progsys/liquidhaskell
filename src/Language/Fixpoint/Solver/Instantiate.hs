@@ -81,9 +81,9 @@ instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> IO Expr
 instSimpC _ _ _ aenv sid _
   | not (M.lookupDefault False sid (aenvExpand aenv))
-  = return PTrue
+  = return (tracepp "instSimpC 0:" PTrue)
 instSimpC cfg ctx bds aenv _ sub
-  = -- tracepp ("instSimpC " ++ show sid) .
+  = -- tracepp ("instSimpC 1: " ++ show sid) .
     pAnd . (is0 ++) <$>
     if rewriteAxioms cfg then evalEqs else return []
   where
@@ -278,8 +278,8 @@ data EvalEnv = EvalEnv { evId        :: Int
 type EvalST a = StateT EvalEnv IO a
 
 evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
-            -> [Expr]
-            -> IO [(Expr, Expr)]
+         -> [Expr]
+         -> IO [(Expr, Expr)]
 evaluate cfg ctx facts aenv einit
   = (eqs ++) <$>
     (fmap join . sequence)
@@ -291,7 +291,7 @@ evaluate cfg ctx facts aenv einit
     -- no test needs it
     -- TODO: add a flag to enable it
     evalOne :: Expr -> IO [(Expr, Expr)]
-    evalOne e = do
+    evalOne e = tracepp ("evalOne e = " ++ showpp e) <$> do
       (e', st) <- runStateT (eval γ e) initEvalSt
       if e' == e then return [] else return ((e, e'):evSequence st)
 
