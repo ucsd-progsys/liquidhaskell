@@ -70,7 +70,6 @@ module Language.Fixpoint.Types.Constraints (
   , AxiomEnv (..)
   , Equation (..)
   , Rewrite  (..)
-  , getEqBody
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -826,14 +825,3 @@ instance Fixpoint Rewrite where
    <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> lparen <> toFix e <> rparen
-
-getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ  x xts (PAnd ((PAtom Eq fxs e):_)) _)
-  | (EVar f, es) <- splitEApp fxs
-  , f == x
-  , es == (EVar . fst <$> xts)
-  = Just e
-  where
-
-getEqBody _
-  = Nothing

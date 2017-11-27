@@ -379,7 +379,7 @@ evalApp γ _ (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd
+  = tracepp "evalApp" <$> (eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd)
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
@@ -388,6 +388,26 @@ evalApp γ _e (EVar f, es)
     subst (mkSubst $ zip (eqArgNames eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
+
+getEqBody :: Equation -> Maybe Expr
+getEqBody (Equ x xts b _)
+  | Just (fxs, e) <- getEqBodyPred b
+  , (EVar f, es)  <- splitEApp fxs
+  , f == x
+  , es == (EVar . fst <$> xts)
+  = Just e
+
+getEqBody _
+  = Nothing
+
+getEqBodyPred :: Expr -> Maybe (Expr, Expr)
+getEqBodyPred (PAtom Eq fxs e)
+  = Just (fxs, e)
+getEqBodyPred (PAnd ((PAtom Eq fxs e):_))
+  = Just (fxs, e)
+getEqBodyPred _
+  = Nothing
+
 
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
