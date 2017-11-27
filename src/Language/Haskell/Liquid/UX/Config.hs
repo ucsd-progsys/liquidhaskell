@@ -7,9 +7,6 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
-   -- , Instantiate (..)
-   -- , ProofMethod (..)
-   -- , allowRewrite
    ) where
 
 import Prelude hiding (error)
@@ -78,39 +75,33 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  -- , proofMethod     :: ProofMethod -- ^ How to create automatic instances
-  -- , fuel            :: Int         -- ^ Fuel for axiom instantiation
+  -- NO-TRIGGER , proofMethod     :: ProofMethod -- ^ How to create automatic instances
+  -- NO-TRIGGER , fuel            :: Int         -- ^ Fuel for axiom instantiation
   , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
-instance Serialize ProofMethod
+-- NO-TRIGGER instance Serialize ProofMethod
 instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
 data Instantiate
   = NoInstances
-  -- //  | SMTInstances
   | LiquidInstances
   | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod
-  = Rewrite
-  | AllMethods
-  deriving (Eq, Data, Typeable, Generic)
-
-
--- allowSMTInstationation,
--- allowSMTInstationation    cfg = False -- autoInstantiate cfg == SMTInstances
+-- NO-TRIGGER data ProofMethod
+-- NO-TRIGGER   = Rewrite
+-- NO-TRIGGER   | AllMethods
+-- NO-TRIGGER   deriving (Eq, Data, Typeable, Generic)
 
 allowPLE :: Config -> Bool
 allowPLE cfg
   =  F.tracepp "allowPLE" (allowGlobalPLE cfg || allowLocalPLE cfg)
-
 
 allowGlobalPLE :: Config -> Bool
 allowGlobalPLE cfg
@@ -122,17 +113,12 @@ allowLocalPLE cfg
   =  proofLogicEval  cfg
   || autoInstantiate cfg == LiquidInstancesLocal
 
--- allowInstances, allowRewrite :: Config -> Bool
--- allowRewrite    cfg = allowInstances cfg -- THIS IS A TAUTOLOGY! && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
--- allowInstances  cfg = allowPLE cfg       -- autoInstantiate cfg /= NoInstances
-
-instance Default ProofMethod where
-  def = Rewrite
-
-instance Show ProofMethod where
-  show Rewrite    = "rewrite"
-  show AllMethods = "all"
-
+-- NO-TRIGGER instance Default ProofMethod where
+  -- NO-TRIGGER def = Rewrite
+-- NO-TRIGGER
+-- NO-TRIGGER instance Show ProofMethod where
+  -- NO-TRIGGER show Rewrite    = "rewrite"
+  -- NO-TRIGGER show AllMethods = "all"
 
 instance Default Instantiate where
   def = NoInstances

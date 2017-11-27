@@ -53,14 +53,6 @@ import Data.List                           (nub)
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
--- a   hiding (Config, linear, elimBound, elimStats,
--- nonLinCuts, getOpts, cores, minPartSize,
--- maxPartSize, eliminate, defConfig,
--- stringTheory,
--- withPragmas,
--- extensionality,
--- alphaEquivalence, betaEquivalence, normalForm)
--- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
