@@ -144,7 +144,7 @@ instance Show Instantiate where
   show LiquidInstances       = "liquid-global"
 
 
-instance HasConfig Config where
+instance HasConfig  Config where
   getConfig x = x
 
 class HasConfig t where

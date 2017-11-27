@@ -44,7 +44,7 @@ fixConfig tgt cfg = def
   , FC.maxPartSize      = maxPartSize       cfg
   , FC.elimStats        = elimStats         cfg
   , FC.elimBound        = elimBound         cfg
-  , FC.allowHO          = higherOrderFlag   cfg
+  , FC.allowHO          = F.tracepp "ALLOW-HO" $ higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
   , FC.extensionality   = extensionality    cfg || gradual cfg
   , FC.alphaEquivalence = alphaEquivalence  cfg
@@ -101,7 +101,7 @@ makeAxiomEnvironment info xts fcs
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (`M.member` gsAutoInst sp) (subVar sub))
-                   
+
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.Equ (F.symbol f) xts body tOut
   where
