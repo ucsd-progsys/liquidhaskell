@@ -733,7 +733,7 @@ defineP = do
   name   <- symbolP
   params <- parens        $ sepBy (symBindP sortP) comma
   sort   <- colon        *> sortP
-  body   <- reserved "=" *> exprP
+  body   <- reserved "=" *> predP 
   return  $ Equ name params body sort
 
 matchP :: Parser Rewrite
