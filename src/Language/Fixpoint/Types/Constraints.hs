@@ -766,11 +766,15 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] (M.fromList [])
-  mappend a1 a2 = AEnv aenvEqs' aenvSimpl' aenvExpand'
-    where aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
-          aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
-          aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
+  mempty           = AEnv [] [] (M.fromList [])
+  mappend a1 a2    = AEnv aenvEqs' aenvSimpl' aenvExpand'
+    where
+      aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
+      aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
+      aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
+
+instance PPrint AxiomEnv where
+  pprintTidy _ = text . show
 
 data Equation = Equ { eqName :: Symbol            -- ^ name of reflected function
                     , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
