@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.UX.Config (
 import Prelude hiding (error)
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
-import qualified Language.Fixpoint.Types as F
+-- import qualified Language.Fixpoint.Types as F
 import GHC.Generics
 import System.Console.CmdArgs
 
@@ -101,7 +101,7 @@ data Instantiate
 
 allowPLE :: Config -> Bool
 allowPLE cfg
-  =  F.tracepp "allowPLE" (allowGlobalPLE cfg || allowLocalPLE cfg)
+  =  (allowGlobalPLE cfg || allowLocalPLE cfg)
 
 allowGlobalPLE :: Config -> Bool
 allowGlobalPLE cfg

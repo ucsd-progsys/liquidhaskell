@@ -564,10 +564,10 @@ dataConResultTy c αs t _
   | False                      = F.tracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
 dataConResultTy c _ _ _        = RT.ofType t
   where
-    (_,_,_,_,_,t)              = GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (tr0, tr1, tr2)) $ dataConFullSig c
-    tr0                        = dataConRepType c
-    tr1                        = varType $ dataConWorkId c
-    tr2                        = varType $ dataConWrapId c
+    (_,_,_,_,_,t)              = {- GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (_tr0, _tr1, _tr2)) $ -} dataConFullSig c
+    _tr0                        = dataConRepType c
+    _tr1                        = varType $ dataConWorkId c
+    _tr2                        = varType $ dataConWrapId c
 
 -- RTVar RTyVar RSort
 
