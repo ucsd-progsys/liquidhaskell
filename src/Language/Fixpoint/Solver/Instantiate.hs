@@ -376,45 +376,37 @@ evalApp γ e (EVar f, [ex])
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
-  -- , Just bd <- getEqBody eq
+  , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , not (eqRec eq) -- f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substEq PopIf eq es
+  , not (eqRec eq)                    -- non-recursive equations
+  = eval γ $ η $ substEq PopIf eq bd es
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
-  -- , Just bd <- getEqBody eq
-  , length (eqArgs eq) == length es  --  recursive
-  = evalRecApplication γ (eApps (EVar f) es) $
-    substEq Normal eq es -- subst (mkSubst $ zip (eqArgNames eq) es) bd
+  , Just bd <- getEqBody eq
+  , length (eqArgs eq) == length es   -- recursive equations
+  = evalRecApplication γ (eApps (EVar f) es) $ substEq Normal eq bd es
 evalApp _ _ (f, es)
   = return $ eApps f es
 
 data SubstOp = PopIf | Normal
 
-substEq :: SubstOp -> Equation -> [Expr] -> Expr
-substEq o eq es = case o of
+substEq :: SubstOp -> Equation -> Expr -> [Expr] -> Expr
+substEq o eq bd es = case o of
     PopIf  -> substPopIf     xes  bd
     Normal -> subst (mkSubst xes) bd
   where
     xes     = zip xs es
-    bd      = getEqBody  eq
+    -- bd      = getEqBody  eq
     xs      = eqArgNames eq
 
-getEqBody :: Equation -> Expr
-getEqBody eq = fromMaybe err (getEqBody' eq)
-  where
-    err      = panic $ "Instantiate.getEqBody: malformed equation-body for "
-                    ++ showpp (eqName eq)
-
-getEqBody' :: Equation -> Maybe Expr
-getEqBody' (Equ x xts b _ _)
+getEqBody :: Equation -> Maybe Expr
+getEqBody (Equ x xts b _ _)
   | Just (fxs, e) <- getEqBodyPred b
   , (EVar f, es)  <- splitEApp fxs
   , f == x
   , es == (EVar . fst <$> xts)
   = Just e
-
-getEqBody' _
+getEqBody _
   = Nothing
 
 getEqBodyPred :: Expr -> Maybe (Expr, Expr)
