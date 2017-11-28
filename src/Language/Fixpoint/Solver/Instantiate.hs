@@ -151,7 +151,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                      { knSels   = sels
                                      , knEqs    = eqs
                                      , knSims   = aenvSimpl aenv
-                                     , knAms    = tracepp "KN-AMS" $ aenvEqs aenv
+                                     , knAms    = aenvEqs aenv
                                      , knPreds  = \bs e c -> askSMT c bs e
                                      }
   where
@@ -172,7 +172,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 2. when size e2 < size e1
     -- @TODO: Can this be generalized?
     -- simpleEqs = []
-    simpleEqs = {- tracepp "SIMPLEEQS" $ -} _makeSimplifications (aenvSimpl aenv) =<<
+    simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
                L.nub (catMaybes [_getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
     atms = splitPAnd =<< (expr <$> filter isProof es)
     isProof (_, RR s _) = showpp s == "Tuple"
@@ -183,7 +183,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                             , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
-    eqs = [(EVar x, ex) | Equ a _ bd _ <- filter (null . eqArgs) $ aenvEqs aenv
+    eqs = [(EVar x, ex) | Equ a _ bd _ _ <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
                         ]
@@ -208,9 +208,9 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
 
-_makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
-_makeSimplifications sis (dc, es, e)
- = go =<< sis
+makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+makeSimplifications sis (dc, es, e)
+     = go =<< sis
  where
    go (SMeasure f dc' xs bd)
      | dc == dc', length xs == length es
@@ -265,8 +265,8 @@ splitPAnd e         = [e]
 -- that appears in the expression e
 -- required by PMEquivalence.mconcatChunk
 -- ADTs does this automatically
-assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors _ _ = return ()
+-- assertSelectors :: Knowledge -> Expr -> EvalST ()
+-- assertSelectors _ _ = return ()
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
@@ -311,7 +311,7 @@ grepTopApps _               = []
 
 -- AT: I think makeLam is the adjoint of splitEApp?
 makeLam :: Knowledge -> Expr -> Expr
-makeLam γ e = foldl (flip ELam) e (knLams γ)
+makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
 eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
@@ -376,28 +376,45 @@ evalApp γ e (EVar f, [ex])
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
-  , Just bd <- getEqBody eq
+  -- , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , f `notElem` syms bd -- not recursive
-  = tracepp "evalApp" <$> (eval γ $ η $ substPopIf (zip (eqArgNames eq) es) bd)
+  , not (eqRec eq) -- f `notElem` syms bd -- not recursive
+  = eval γ $ η $ substEq PopIf eq es
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
-  , Just bd <- getEqBody eq
+  -- , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es  --  recursive
   = evalRecApplication γ (eApps (EVar f) es) $
-    subst (mkSubst $ zip (eqArgNames eq) es) bd
+    substEq Normal eq es -- subst (mkSubst $ zip (eqArgNames eq) es) bd
 evalApp _ _ (f, es)
   = return $ eApps f es
 
-getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ x xts b _)
+data SubstOp = PopIf | Normal
+
+substEq :: SubstOp -> Equation -> [Expr] -> Expr
+substEq o eq es = case o of
+    PopIf  -> substPopIf     xes  bd
+    Normal -> subst (mkSubst xes) bd
+  where
+    xes     = zip xs es
+    bd      = getEqBody  eq
+    xs      = eqArgNames eq
+
+getEqBody :: Equation -> Expr
+getEqBody eq = fromMaybe err (getEqBody' eq)
+  where
+    err      = panic $ "Instantiate.getEqBody: malformed equation-body for "
+                    ++ showpp (eqName eq)
+
+getEqBody' :: Equation -> Maybe Expr
+getEqBody' (Equ x xts b _ _)
   | Just (fxs, e) <- getEqBodyPred b
   , (EVar f, es)  <- splitEApp fxs
   , f == x
   , es == (EVar . fst <$> xts)
   = Just e
 
-getEqBody _
+getEqBody' _
   = Nothing
 
 getEqBodyPred :: Expr -> Maybe (Expr, Expr)
@@ -408,32 +425,33 @@ getEqBodyPred (PAnd ((PAtom Eq fxs e):_))
 getEqBodyPred _
   = Nothing
 
-
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = η $ foldl go e xes
+substPopIf xes e = η $ L.foldl' go e xes
   where
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ e (EIte b e1 e2)
-  = do b' <- eval γ b
-       b'' <- liftIO (isValid γ b')
-       if b''
-          then addApplicationEq γ e e1 >>
-               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-               eval γ e1 >>=
-               ((e, "App") ~>)
-          else do b''' <- liftIO (isValid γ (PNot b'))
-                  if b'''
-                     then addApplicationEq γ e e2 >>
-                          ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
-                          eval γ e2 >>=
-                          ((e, "App") ~>)
-                     else return e
+evalRecApplication γ e (EIte b e1 e2) = do
+  b'  <- eval γ b
+  b'' <- liftIO (isValid γ b')
+  if b''
+    then addApplicationEq γ e e1 >>
+         -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+         eval γ e1 >>=
+         ((e, "App") ~>)
+    else do
+      b''' <- liftIO (isValid γ (PNot b'))
+      if b'''
+        then addApplicationEq γ e e2 >>
+             -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
+             eval γ e2 >>=
+             ((e, "App") ~>)
+        else return e
+
 evalRecApplication _ _ e
   = return e
 

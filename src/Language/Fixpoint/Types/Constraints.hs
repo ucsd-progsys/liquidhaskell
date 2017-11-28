@@ -69,6 +69,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation (..)
+  , mkEquation
   , Rewrite  (..)
 
   -- * Misc  [should be elsewhere but here due to dependencies]
@@ -747,10 +748,11 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
-data AxiomEnv = AEnv { aenvEqs     :: ![Equation]
-                     , aenvSimpl   :: ![Rewrite]
-                     , aenvExpand  :: M.HashMap SubcId Bool
-                     }
+data AxiomEnv = AEnv
+  { aenvEqs     :: ![Equation]
+  , aenvSimpl   :: ![Rewrite]
+  , aenvExpand  :: M.HashMap SubcId Bool
+  }
   deriving (Eq, Show, Generic)
 
 instance B.Binary AxiomEnv
@@ -775,12 +777,17 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
-data Equation = Equ { eqName :: Symbol            -- ^ name of reflected function
-                    , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-                    , eqBody :: Expr              -- ^ definition of body
-                    , eqSort :: Sort              -- ^ sort of body
-                    }
+data Equation = Equ
+  { eqName :: !Symbol           -- ^ name of reflected function
+  , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
+  , eqBody :: !Expr             -- ^ definition of body
+  , eqSort :: !Sort             -- ^ sort of body
+  , eqRec  :: !Bool             -- ^ is this a recursive definition
+  }
   deriving (Eq, Show, Generic)
+
+mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
+mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
 instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
@@ -792,9 +799,9 @@ mapEqBody :: (Expr -> Expr) -> Equation -> Equation
 mapEqBody f a = a { eqBody = f (eqBody a) }
 
 instance PPrint Equation where
-  pprintTidy k (Equ f xs e _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
+  pprintTidy k (Equ f xs e _ _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
     where
-      ppArgs xs               = intersperse " " (pprint <$> xs)
+      ppArgs xs                 = intersperse " " (pprint <$> xs)
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
@@ -814,7 +821,7 @@ instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _) = text "define"
+  toFix (Equ f xs e _ _) = text "define"
                         <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
                         <+> lparen <> toFix e <> rparen
 

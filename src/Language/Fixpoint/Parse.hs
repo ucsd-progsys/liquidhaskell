@@ -727,14 +727,12 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 ---------------------------------------------------------------------
 
 defineP :: Parser Equation
--- defineP = Equ <$> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
-
 defineP = do
   name   <- symbolP
   params <- parens        $ sepBy (symBindP sortP) comma
   sort   <- colon        *> sortP
-  body   <- reserved "=" *> predP 
-  return  $ Equ name params body sort
+  body   <- reserved "=" *> predP
+  return  $ mkEquation name params body sort
 
 matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
