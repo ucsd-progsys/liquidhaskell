@@ -54,10 +54,11 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) (ae fi) i c
+                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
+    aenv            = {- tracepp "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
 sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
@@ -171,7 +172,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 2. when size e2 < size e1
     -- @TODO: Can this be generalized?
     -- simpleEqs = []
-    simpleEqs = {- tracepp "SIMPLEEQS" $ -} _makeSimplifications (aenvSimpl aenv) =<<
+    simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
                L.nub (catMaybes [_getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
     atms = splitPAnd =<< (expr <$> filter isProof es)
     isProof (_, RR s _) = showpp s == "Tuple"
@@ -182,7 +183,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                                             , isSelector s ]
            in L.nub (sels ++ subst su sels)
 
-    eqs = [(EVar x, ex) | Equ a _ bd <- filter (null . eqArgs) $ aenvEqs aenv
+    eqs = [(EVar x, ex) | Equ a _ bd _ _ <- filter (null . eqArgs) $ aenvEqs aenv
                         , PAtom Eq (EVar x) ex <- splitPAnd bd
                         , x == a
                         ]
@@ -207,9 +208,9 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     isSelector :: Symbol -> Bool
     isSelector  = L.isPrefixOf "select" . symbolString
 
-_makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
-_makeSimplifications sis (dc, es, e)
- = go =<< sis
+makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+makeSimplifications sis (dc, es, e)
+     = go =<< sis
  where
    go (SMeasure f dc' xs bd)
      | dc == dc', length xs == length es
@@ -264,8 +265,8 @@ splitPAnd e         = [e]
 -- that appears in the expression e
 -- required by PMEquivalence.mconcatChunk
 -- ADTs does this automatically
-assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors _ _ = return ()
+-- assertSelectors :: Knowledge -> Expr -> EvalST ()
+-- assertSelectors _ _ = return ()
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
@@ -273,6 +274,7 @@ assertSelectors _ _ = return ()
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
                        , _evAEnv     :: AxiomEnv
+                       , evEnv      :: !SymEnv
                        }
 
 type EvalST a = StateT EvalEnv IO a
@@ -285,13 +287,14 @@ evaluate cfg ctx facts aenv einit
     (fmap join . sequence)
     (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge cfg ctx aenv facts
-    initEvalSt = EvalEnv 0 [] aenv
+    (eqs, γ)   = makeKnowledge cfg ctx aenv facts
+    senv       = SMT.ctxSymEnv ctx
+    initEvalSt = EvalEnv 0 [] aenv senv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
     -- TODO: add a flag to enable it
     evalOne :: Expr -> IO [(Expr, Expr)]
-    evalOne e = do
+    evalOne e = {- notracepp ("evalOne e = " ++ showpp e) <$> -} do
       (e', st) <- runStateT (eval γ e) initEvalSt
       if e' == e then return [] else return ((e, e'):evSequence st)
 
@@ -310,7 +313,7 @@ grepTopApps _               = []
 
 -- AT: I think makeLam is the adjoint of splitEApp?
 makeLam :: Knowledge -> Expr -> Expr
-makeLam γ e = foldl (flip ELam) e (knLams γ)
+makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
 eval :: Knowledge -> Expr -> EvalST Expr
 eval γ e | Just e' <- lookupKnowledge γ e
@@ -327,6 +330,8 @@ eval γ (ELam (x,s) e)
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2
+eval γ (ECoerc a t e)
+  = ECoerc a t <$> eval γ e
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
 eval γ (PAtom r e1 e2)
@@ -368,8 +373,7 @@ evalArgs γ = go []
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
-  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc))
-                        (knSims γ)
+  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
@@ -377,19 +381,99 @@ evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , f `notElem` syms bd -- not recursive
-  = eval γ $ η $ substPopIf (zip (eqArgs eq) es) bd
+  , f `notElem` syms bd               -- non-recursive equations
+  -- , not (eqRec eq)
+  = eval γ . η =<< substEq PopIf eq es bd
+
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
-  , length (eqArgs eq) == length es  --  recursive
-  = evalRecApplication γ (eApps (EVar f) es) $
-    subst (mkSubst $ zip (eqArgs eq) es) bd
+  , length (eqArgs eq) == length es   -- recursive equations
+  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq es bd
 evalApp _ _ (f, es)
   = return $ eApps f es
 
+--------------------------------------------------------------------------------
+-- | 'substEq' unfolds or instantiates an equation at a particular list of
+--   argument values. We must also substitute the sort-variables that appear
+--   as coercions. See tests/proof/ple1.fq
+--------------------------------------------------------------------------------
+substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
+substEq o eq es bd = substEqVal o eq es <$> substEqCoerce eq es bd
+
+data SubstOp = PopIf | Normal
+
+substEqVal :: SubstOp -> Equation -> [Expr] -> Expr -> Expr
+substEqVal o eq es bd = case o of
+    PopIf  -> substPopIf     xes  bd
+    Normal -> subst (mkSubst xes) bd
+  where
+    xes    =  zip xs es
+    xs     =  eqArgNames eq
+
+substEqCoerce :: Equation -> [Expr] -> Expr -> EvalST Expr
+substEqCoerce eq es bd = do
+  env      <- seSort <$> gets evEnv
+  let ts    = snd    <$> eqArgs eq
+  let coSub = mkCoSub env es ts
+  return    $ applyCoSub coSub bd
+
+-- | @CoSub@ is a map from (coercion) ty-vars represented as 'FObj s'
+--   to the ty-vars that they should be substituted with. Note the
+--   domain and range are both Symbol and not the Int used for real ty-vars.
+
+type CoSub = M.HashMap Symbol Symbol
+
+mkCoSub :: SEnv Sort -> [Expr] -> [Sort] -> CoSub
+mkCoSub env es xTs = Misc.safeFromList "mkCoSub" xys
+  where
+    eTs            = sortExpr sp env <$> es
+    sp             = panicSpan "mkCoSub"
+    xys            = concat (zipWith matchSorts xTs eTs)
+
+matchSorts :: Sort -> Sort -> [(Symbol, Symbol)]
+matchSorts = go
+  where
+    go (FObj x)      (FObj y)      = [(x, y)]
+    go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
+    go (FFunc s1 t1) (FFunc s2 t2) = go s1 s2 ++ go t1 t2
+    go (FApp s1 t1)  (FApp s2 t2)  = go s1 s2 ++ go t1 t2
+    go _             _             = []
+
+applyCoSub :: CoSub -> Expr -> Expr
+applyCoSub coSub      = Vis.mapExpr fE
+  where
+    fE (ECoerc a t e) = ECoerc (txV a) (txS t) e
+    fE e              = e
+    txS               = Vis.mapSort fS
+    fS (FObj a)       = FObj   (txV a)
+    fS t              = t
+    txV a             = M.lookupDefault a a coSub
+
+--------------------------------------------------------------------------------
+getEqBody :: Equation -> Maybe Expr
+getEqBody (Equ x xts b _ _)
+  | Just (fxs, e) <- getEqBodyPred b
+  , (EVar f, es)  <- splitEApp fxs
+  , f == x
+  , es == (EVar . fst <$> xts)
+  = Just e
+getEqBody _
+  = Nothing
+
+getEqBodyPred :: Expr -> Maybe (Expr, Expr)
+getEqBodyPred (PAtom Eq fxs e)
+  = Just (fxs, e)
+getEqBodyPred (PAnd ((PAtom Eq fxs e):_))
+  = Just (fxs, e)
+getEqBodyPred _
+  = Nothing
+
+eqArgNames :: Equation -> [Symbol]
+eqArgNames = map fst . eqArgs
+
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = η $ foldl go e xes
+substPopIf xes e = η $ L.foldl' go e xes
   where
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
@@ -400,13 +484,13 @@ evalRecApplication γ e (EIte b e1 e2)
        b'' <- liftIO (isValid γ b')
        if b''
           then addApplicationEq γ e e1 >>
-               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+               -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                eval γ e1 >>=
                ((e, "App") ~>)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
                      then addApplicationEq γ e e2 >>
-                          ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
+                          -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
                           eval γ e2 >>=
                           ((e, "App") ~>)
                      else return e

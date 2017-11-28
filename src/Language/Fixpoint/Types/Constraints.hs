@@ -69,8 +69,8 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation (..)
+  , mkEquation
   , Rewrite  (..)
-  , getEqBody
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -266,8 +266,8 @@ unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
 safe   = mempty {resStatus = Safe}
 
-isSafe :: Result a -> Bool 
-isSafe (Result Safe _ _) = True 
+isSafe :: Result a -> Bool
+isSafe (Result Safe _ _) = True
 isSafe _                 = False
 
 isUnsafe :: Result a -> Bool
@@ -748,10 +748,11 @@ saveTextQuery cfg fi = do
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
-data AxiomEnv = AEnv { aenvEqs     :: ![Equation]
-                     , aenvSimpl   :: ![Rewrite]
-                     , aenvExpand  :: M.HashMap SubcId Bool
-                     }
+data AxiomEnv = AEnv
+  { aenvEqs     :: ![Equation]
+  , aenvSimpl   :: ![Rewrite]
+  , aenvExpand  :: M.HashMap SubcId Bool
+  }
   deriving (Eq, Show, Generic)
 
 instance B.Binary AxiomEnv
@@ -766,21 +767,41 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Monoid AxiomEnv where
-  mempty = AEnv [] [] (M.fromList [])
-  mappend a1 a2 = AEnv aenvEqs' aenvSimpl' aenvExpand'
-    where aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
-          aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
-          aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
+  mempty           = AEnv [] [] (M.fromList [])
+  mappend a1 a2    = AEnv aenvEqs' aenvSimpl' aenvExpand'
+    where
+      aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
+      aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
+      aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
 
-data Equation = Equ { eqName :: Symbol
-                    , eqArgs :: [Symbol]
-                    , eqBody :: Expr
-                    }
+instance PPrint AxiomEnv where
+  pprintTidy _ = text . show
+
+data Equation = Equ
+  { eqName :: !Symbol           -- ^ name of reflected function
+  , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
+  , eqBody :: !Expr             -- ^ definition of body
+  , eqSort :: !Sort             -- ^ sort of body
+  , eqRec  :: !Bool             -- ^ is this a recursive definition
+  }
   deriving (Eq, Show, Generic)
 
-instance PPrint Equation where
-  pprintTidy k (Equ f xs e) = "def" <+> pprint f <+> intersperse " " (pprint <$> xs) <+> ":=" <+> pprintTidy k e
+mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
+mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
+instance Subable Equation where
+  syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
+  subst su = mapEqBody (subst su)
+  substf f = mapEqBody (substf f)
+  substa f = mapEqBody (substa f)
+
+mapEqBody :: (Expr -> Expr) -> Equation -> Equation
+mapEqBody f a = a { eqBody = f (eqBody a) }
+
+instance PPrint Equation where
+  pprintTidy k (Equ f xs e _ _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
+    where
+      ppArgs xs                 = intersperse " " (pprint <$> xs)
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
@@ -800,9 +821,9 @@ instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e)  = text "define"
-                     <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
-                     <+> lparen <> toFix e <> rparen
+  toFix (Equ f xs e _ _) = text "define"
+                        <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
+                        <+> lparen <> toFix e <> rparen
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
@@ -811,12 +832,3 @@ instance Fixpoint Rewrite where
    <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> lparen <> toFix e <> rparen
-
-getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ  x xs (PAnd ((PAtom Eq fxs e):_)))
-  | (EVar f, es) <- splitEApp fxs
-  , f == x
-  , es == (EVar <$> xs)
-  = Just e
-getEqBody _
-  = Nothing

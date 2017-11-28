@@ -1,0 +1,17 @@
+fixpoint "--rewrite"
+
+constant foo: (func(1, [@(0)  ; int]))
+constant bar: (func(0, [Bob   ; int]))
+
+define foo(x : alpha) : int = (foo x = coerce (alpha ~ Bob) (bar x))
+define bar(y : Bob)   : int = (bar y = 22)
+
+expand [1 : True]
+
+bind 0 z : {v: beta | true }
+
+constraint:
+  env []
+  lhs {v : int | true }
+  rhs {v : int | (foo z) = 22 }
+  id 1 tag []

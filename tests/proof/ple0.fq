@@ -1,0 +1,13 @@
+fixpoint "--rewrite"
+
+constant adder: (func(0, [int; int; int]))
+
+define adder(x : int, y : int) : int = ((adder x y) = (x + y))
+
+expand [1 : True]
+
+constraint:
+  env []
+  lhs {v : int | true }
+  rhs {v : int | (adder 5 6) = 11 }
+  id 1 tag []

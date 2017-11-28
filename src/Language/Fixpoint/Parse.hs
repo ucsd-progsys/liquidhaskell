@@ -706,12 +706,13 @@ qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
   n      <- upperIdP
-  params <- parens $ sepBy1 (sortBindP tP) comma
+  params <- parens $ sepBy1 (symBindP tP) comma
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
-  where
-    sortBindP = pairP symbolP colon
+
+symBindP :: Parser a -> Parser (Symbol, a)
+symBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
@@ -726,7 +727,12 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 ---------------------------------------------------------------------
 
 defineP :: Parser Equation
-defineP = Equ <$> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
+defineP = do
+  name   <- symbolP
+  params <- parens        $ sepBy (symBindP sortP) comma
+  sort   <- colon        *> sortP
+  body   <- reserved "=" *> predP
+  return  $ mkEquation name params body sort
 
 matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)

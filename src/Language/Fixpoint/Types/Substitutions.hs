@@ -39,10 +39,10 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
 
 mkSubst :: [(Symbol, Expr)] -> Subst
 
-mkSubst = Su . M.fromList . reverse . filter notTrivial 
+mkSubst = Su . M.fromList . reverse . filter notTrivial
   where
     notTrivial (x, EVar y) = x /= y
-    notTrivial _           = True  
+    notTrivial _           = True
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = M.null xes
@@ -128,7 +128,7 @@ instance Subable Expr where
 
   subst su (EApp f e)      = EApp (subst su f) (subst su e)
   subst su (ELam x e)      = ELam x (subst (removeSubst su (fst x)) e)
-  subst su (ECoerc a t e)  = ECoerc a t (subst su e) 
+  subst su (ECoerc a t e)  = ECoerc a t (subst su e)
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
