@@ -581,7 +581,7 @@ consoleResultFull cfg out _ = do
 consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
 consoleResultJson _ _ annm = do
   putStrLn "RESULT"
-  B.putStrLn . encode . ACSS.errors $ annm
+  B.putStrLn . encode . annErrors $ annm
 
 resultWithContext :: FixResult UserError -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
