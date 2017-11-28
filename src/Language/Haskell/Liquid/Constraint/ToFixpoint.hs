@@ -15,8 +15,6 @@ import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
-
--- import Language.Haskell.Liquid.UX.Config (allowSMTInstationation)
 import Data.Maybe (fromJust)
 
 -- AT: Move to own module?
@@ -103,7 +101,7 @@ doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (`M.member` gsAutoInst sp) (subVar sub))
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
-specTypeEq emb f t = F.Equ (F.symbol f) xts body tOut
+specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
   where
     xts            = Misc.safeZipWithError "specTypeEq" xs (RT.rTypeSort emb <$> ts)
     body           = specTypeToResultRef bExp t
@@ -112,9 +110,6 @@ specTypeEq emb f t = F.Equ (F.symbol f) xts body tOut
     xs             = ty_binds tRep
     ts             = ty_args  tRep
     bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
-  -- = F.Equ (F.symbol x)
-  --        (ty_binds $ toRTypeRep t)
-  --        (specTypeToResultRef (F.eApps (F.eVar x) (F.EVar <$> ty_binds (toRTypeRep t))) t)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
 makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
@@ -141,10 +136,10 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 makeEquations :: GhcSpec -> [F.Equation]
-makeEquations sp = [ F.Equ f xts (equationBody (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t <- gsAxioms sp
-                      , let mbT          = M.lookup f sigs
-                      , let xArgs        = F.EVar . fst <$> xts
+makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
+                      | F.Equ f xts e t _ <- gsAxioms sp
+                      , let mbT            = M.lookup f sigs
+                      , let xArgs          = F.EVar . fst <$> xts
                    ]
   where
     sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs sp ]
@@ -156,10 +151,6 @@ equationBody f xArgs e mbT
   where
     eBody         = F.PAtom F.Eq (F.eApps f xArgs) e
     rBody t       = specTypeToLogic xArgs (F.eApps f xArgs) (val t)
-
-    -- lookupSpecType x xts      = L.lookup x (mapFst simplesymbol <$> xts)
-    -- makeRefBody _ _  Nothing  = F.PTrue
-    -- makeRefBody x xs (Just t) = specTypeToLogic (F.EVar <$> xs) (F.eApps (F.EVar x) (F.EVar <$> xs)) (val t)
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
@@ -198,10 +189,3 @@ specTypeToResultRef e t
   where
     mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
     trep                   = toRTypeRep t
-
--- makeAxioms :: GhcInfo -> [F.Triggered F.Expr]
--- makeAxioms _info = []
-  -- // NO-SMT-AXIOMS | allowSMTInstationation (getConfig info)
-  -- // NO-SMT-AXIOMS = F.defaultTrigger . axiomEq <$> gsAxioms (spec info)
-  -- // NO-SMT-AXIOMS | otherwise
-  -- // NO-SMT-AXIOMS = []

@@ -23,7 +23,6 @@ import           Text.PrettyPrint.HughesPJ (text)
 import qualified Data.HashSet        as S
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types (Symbol, symbol)
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.RefType
@@ -48,7 +47,7 @@ makeHaskellAxioms tce cbs spec sp adts = do
 updateLMapXV :: LocSymbol -> Var -> BareM ()
 updateLMapXV x v = do
   updateLMap x x v
-  updateLMap (x {val = (symbol . showPpr . getName) v}) x v
+  updateLMap (x {val = (F.symbol . showPpr . getName) v}) x v
 
 getReflectDefs
   :: GhcSpec -> Ms.BareSpec -> [CoreBind]
@@ -77,7 +76,7 @@ makeAxiom :: F.TCEmb TyCon
 makeAxiom tce lmap dm (x, mbT, v, def) = do
   insertAxiom v Nothing
   updateLMap x x v
-  updateLMap (x{val = (symbol . showPpr . getName) v}) x v
+  updateLMap (x{val = (F.symbol . showPpr . getName) v}) x v
   let (t, e) = makeAssumeType tce lmap dm x mbT v def
   return (v, t, e)
 
@@ -88,7 +87,7 @@ makeAssumeType
   :: F.TCEmb TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
   -> (LocSpecType, AxiomEq)
 makeAssumeType tce lmap dm x mbT v def
-  = (x {val = at `strengthenRes` F.subst su ref},  makeSMTAxiom x xts le out)
+  = (x {val = at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)
   where
     t     = fromMaybe (ofType $ varType v) mbT
     out   = rTypeSort tce (ty_res tRep)
@@ -105,15 +104,11 @@ makeAssumeType tce lmap dm x mbT v def
     (xs, def') = grabBody (normalize def)
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
-    xts        = zipWith (\x t -> (symbol x, rTypeSort tce t)) xs ts
+    xts        = zipWith (\x t -> (F.symbol x, rTypeSort tce t)) xs ts
     ts         = filter (not . isClassType) (ty_args tRep)
 
-
-makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Sort -> AxiomEq
-makeSMTAxiom f xts e t = F.Equ (val f) xts e t -- (F.PAll xts (F.EEq f_xs e))
-  where
-    -- xs               = fst <$> xts
-    -- f_xs             = F.mkEApp f (F.EVar <$> xs)
+-- makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Sort -> AxiomEq
+-- makeSMTAxiom = F.mkEquation . val
 
 grabBody :: CoreExpr -> ([Id], CoreExpr)
 grabBody (Lam x e)  = (x:xs, e') where (xs, e') = grabBody e
@@ -137,7 +132,7 @@ updateLMap x y vv
   where
     nargs = dropWhile isClassType $ ty_args trep
     trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
-    ys    = zipWith (\i _ -> symbol ("x" ++ show i)) [1..] nargs
+    ys    = zipWith (\i _ -> F.symbol ("x" ++ show i)) [1..] nargs
 
     isFun (FunTy _ _)    = True
     isFun (ForAllTy _ t) = isFun t
@@ -194,7 +189,7 @@ axiomType s _mbT t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i
   | x /= F.dummySymbol = x
-  | otherwise          = symbol ("lq" ++ show i)
+  | otherwise          = F.symbol ("lq" ++ show i)
 
 singletonApp :: F.Symbolic a => LocSymbol -> [a] -> UReft F.Reft
 singletonApp s ys = MkUReft r mempty mempty
