@@ -16,6 +16,7 @@ module Language.Fixpoint.Types.Spans (
 
   -- * Constructing spans
   , dummySpan
+  , panicSpan
   , locAt
   , dummyLoc
   , dummyPos
@@ -174,8 +175,11 @@ instance Loc () where
   srcSpan _ = dummySpan
 
 dummySpan :: SrcSpan
-dummySpan = SS l l
-  where l = initialPos ""
+dummySpan = panicSpan ""
+
+panicSpan :: String -> SrcSpan
+panicSpan s = SS l l
+  where l = initialPos s
 
 -- atLoc :: Located a -> b -> Located b
 -- atLoc (Loc l l' _) = Loc l l'

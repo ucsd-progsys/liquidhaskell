@@ -383,14 +383,14 @@ elab f@(_, g) e@(EBin o e1 e2) = do
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
   let e = eAppC s e1' (ECst e2' s2)
-  let θ = unifyExpr (snd f) e 
-  return (applyExpr θ e, maybe s (`apply` s) θ) 
+  let θ = unifyExpr (snd f) e
+  return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
   let e = eAppC s (ECst e1' s1) (ECst e2' s2)
-  let θ = unifyExpr (snd f) e 
-  return (applyExpr θ e, maybe s (`apply` s) θ) 
+  let θ = unifyExpr (snd f) e
+  return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab _ e@(ESym _) =
   return (e, strSort)
@@ -640,10 +640,13 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
 exprSort :: String -> Expr -> Sort
-exprSort msg e =
-  case exprSort_maybe e of
-    Nothing -> errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
-    Just s  -> s 
+exprSort msg e = fromMaybe (panic err) (exprSort_maybe e)
+  where
+    err        = printf "exprSort [%s] on unexpected expression %s" msg (show e)
+
+  -- case exprSort_maybe e of
+  --  Nothing -> errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
+  --  Just s  -> s
 
 
 exprSort_maybe :: Expr -> Maybe Sort
@@ -668,10 +671,9 @@ unite f e t1 t2 = do
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
-checkSym f x
-  = case f x of
-     Found s -> instantiate s
-     Alts xs -> throwError $ errUnboundAlts x xs
+checkSym f x = case f x of
+  Found s -> instantiate s
+  Alts xs -> throwError (errUnboundAlts x xs)
 
 -- | Helper for checking if-then-else expressions
 checkIte :: Env -> Expr -> Expr -> Expr -> CheckM Sort
@@ -781,7 +783,7 @@ checkEqConstr _ _  θ a (FObj b)
   | a == b
   = return θ
 checkEqConstr f e θ a t = do
-  case f a of 
+  case f a of
     Found tA -> do unless (tA == t) (throwError $ errUnify e tA t)
                    return θ
     _        -> throwError $ errUnify e (FObj a) t
@@ -842,22 +844,22 @@ checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwError $ errRel e t1 t2)
 unifyExpr :: Env -> Expr -> Maybe TVSubst
 unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
   where
-   θ1 = unifyExpr f e1 
-   θ2 = unifyExpr f e2 
-   θ  = unifyExprApp f e1 e2 
+   θ1 = unifyExpr f e1
+   θ2 = unifyExpr f e2
+   θ  = unifyExprApp f e1 e2
 unifyExpr f (ECst e _)
-  = unifyExpr f e 
-unifyExpr _ _ 
+  = unifyExpr f e
+unifyExpr _ _
   = Nothing
 
 unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
-unifyExprApp f e1 e2 = do 
-  t1 <- getArg $ exprSort_maybe e1 
-  t2 <- exprSort_maybe e2 
-  unify f (Just $ EApp e1 e2) t1 t2 
+unifyExprApp f e1 e2 = do
+  t1 <- getArg $ exprSort_maybe e1
+  t2 <- exprSort_maybe e2
+  unify f (Just $ EApp e1 e2) t1 t2
   where
-    getArg (Just (FFunc t1 _)) = Just t1 
-    getArg _                   = Nothing 
+    getArg (Just (FFunc t1 _)) = Just t1
+    getArg _                   = Nothing
 
 
 --------------------------------------------------------------------------------
@@ -1009,18 +1011,18 @@ apply θ          = Vis.mapSort f
 applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
 applyExpr (Just θ) e = Vis.mapExpr f e
-  where 
+  where
     f (ECst e s) = ECst e (apply θ s)
-    f e          = e 
+    f e          = e
 
 --------------------------------------------------------------------------------
-applyCoercion :: Symbol -> Sort -> Sort -> Sort 
+applyCoercion :: Symbol -> Sort -> Sort -> Sort
 --------------------------------------------------------------------------------
-applyCoercion a t = Vis.mapSort f 
-  where 
-    f (FObj b)  
-      | a == b    = t 
-    f s           = s 
+applyCoercion a t = Vis.mapSort f
+  where
+    f (FObj b)
+      | a == b    = t
+    f s           = s
 
 
 --------------------------------------------------------------------------------
@@ -1042,7 +1044,7 @@ newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
 
 instance Monoid TVSubst where
   mempty                  = Th mempty
-  mappend (Th s1) (Th s2) = Th (mappend s1 s2) 
+  mappend (Th s1) (Th s2) = Th (mappend s1 s2)
 
 lookupVar :: Int -> TVSubst -> Maybe Sort
 lookupVar i (Th m)   = M.lookup i m

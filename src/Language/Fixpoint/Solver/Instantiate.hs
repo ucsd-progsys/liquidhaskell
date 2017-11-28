@@ -274,7 +274,7 @@ splitPAnd e         = [e]
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
                        , _evAEnv     :: AxiomEnv
-                       , _evEnv      :: !SymEnv
+                       , evEnv      :: !SymEnv
                        }
 
 type EvalST a = StateT EvalEnv IO a
@@ -330,6 +330,8 @@ eval γ (ELam (x,s) e)
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2
+eval γ (ECoerc a t e)
+  = ECoerc a t <$> eval γ e
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
 eval γ (PAtom r e1 e2)
@@ -397,10 +399,9 @@ evalApp _ _ (f, es)
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
-substEq o eq es bd = substEqVal o eq es <$> substEqSort eq es bd
+substEq o eq es bd = substEqVal o eq es <$> substEqCoerce eq es bd
 
-substEqSort :: Equation -> [Expr] -> Expr -> EvalST Expr
-substEqSort eq es bd = return bd -- _fixme
+data SubstOp = PopIf | Normal
 
 substEqVal :: SubstOp -> Equation -> [Expr] -> Expr -> Expr
 substEqVal o eq es bd = case o of
@@ -410,10 +411,46 @@ substEqVal o eq es bd = case o of
     xes    =  zip xs es
     xs     =  eqArgNames eq
 
-data SubstOp = PopIf | Normal
+substEqCoerce :: Equation -> [Expr] -> Expr -> EvalST Expr
+substEqCoerce eq es bd = do
+  env      <- seSort <$> gets evEnv
+  let ts    = snd    <$> eqArgs eq
+  let coSub = mkCoSub env es ts
+  return    $ applyCoSub coSub bd
+
+-- | @CoSub@ is a map from (coercion) ty-vars represented as 'FObj s'
+--   to the ty-vars that they should be substituted with. Note the
+--   domain and range are both Symbol and not the Int used for real ty-vars.
+
+type CoSub = M.HashMap Symbol Symbol
+
+mkCoSub :: SEnv Sort -> [Expr] -> [Sort] -> CoSub
+mkCoSub env es xTs = Misc.safeFromList "mkCoSub" xys
+  where
+    eTs            = sortExpr sp env <$> es
+    sp             = panicSpan "mkCoSub"
+    xys            = concat (zipWith matchSorts xTs eTs)
+
+matchSorts :: Sort -> Sort -> [(Symbol, Symbol)]
+matchSorts = go
+  where
+    go (FObj x)      (FObj y)      = [(x, y)]
+    go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
+    go (FFunc s1 t1) (FFunc s2 t2) = go s1 s2 ++ go t1 t2
+    go (FApp s1 t1)  (FApp s2 t2)  = go s1 s2 ++ go t1 t2
+    go _             _             = []
+
+applyCoSub :: CoSub -> Expr -> Expr
+applyCoSub coSub      = Vis.mapExpr fE
+  where
+    fE (ECoerc a t e) = ECoerc (txV a) (txS t) e
+    fE e              = e
+    txS               = Vis.mapSort fS
+    fS (FObj a)       = FObj   (txV a)
+    fS t              = t
+    txV a             = M.lookupDefault a a coSub
+
 --------------------------------------------------------------------------------
-
-
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ x xts b _ _)
   | Just (fxs, e) <- getEqBodyPred b
