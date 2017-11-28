@@ -274,6 +274,7 @@ splitPAnd e         = [e]
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
                        , _evAEnv     :: AxiomEnv
+                       , _evEnv      :: !SymEnv
                        }
 
 type EvalST a = StateT EvalEnv IO a
@@ -286,8 +287,9 @@ evaluate cfg ctx facts aenv einit
     (fmap join . sequence)
     (evalOne <$> L.nub (grepTopApps =<< einit))
   where
-    (eqs, γ) = makeKnowledge cfg ctx aenv facts
-    initEvalSt = EvalEnv 0 [] aenv
+    (eqs, γ)   = makeKnowledge cfg ctx aenv facts
+    senv       = SMT.ctxSymEnv ctx
+    initEvalSt = EvalEnv 0 [] aenv senv
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
     -- TODO: add a flag to enable it
@@ -369,8 +371,7 @@ evalArgs γ = go []
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
-  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc))
-                        (knSims γ)
+  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
@@ -378,25 +379,30 @@ evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , not (eqRec eq)                    -- non-recursive equations
-  = eval γ $ η $ substEq PopIf eq bd es
+  , f `notElem` syms bd -- not recursive
+  -- , not (eqRec eq)                    -- non-recursive equations
+  = do e' <- substEq PopIf eq bd es
+       eval γ (η e')
+
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
-  = evalRecApplication γ (eApps (EVar f) es) $ substEq Normal eq bd es
+  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq bd es
 evalApp _ _ (f, es)
   = return $ eApps f es
 
 data SubstOp = PopIf | Normal
 
-substEq :: SubstOp -> Equation -> Expr -> [Expr] -> Expr
-substEq o eq bd es = case o of
+substEq :: SubstOp -> Equation -> Expr -> [Expr] -> EvalST Expr
+substEq o eq bd es = return (substEqVal o eq bd es)
+
+substEqVal :: SubstOp -> Equation -> Expr -> [Expr] -> Expr
+substEqVal o eq bd es = case o of
     PopIf  -> substPopIf     xes  bd
     Normal -> subst (mkSubst xes) bd
   where
     xes     = zip xs es
-    -- bd      = getEqBody  eq
     xs      = eqArgNames eq
 
 getEqBody :: Equation -> Maybe Expr
@@ -427,23 +433,21 @@ substPopIf xes e = η $ L.foldl' go e xes
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ e (EIte b e1 e2) = do
-  b'  <- eval γ b
-  b'' <- liftIO (isValid γ b')
-  if b''
-    then addApplicationEq γ e e1 >>
-         -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-         eval γ e1 >>=
-         ((e, "App") ~>)
-    else do
-      b''' <- liftIO (isValid γ (PNot b'))
-      if b'''
-        then addApplicationEq γ e e2 >>
-             -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
-             eval γ e2 >>=
-             ((e, "App") ~>)
-        else return e
-
+evalRecApplication γ e (EIte b e1 e2)
+  = do b' <- eval γ b
+       b'' <- liftIO (isValid γ b')
+       if b''
+          then addApplicationEq γ e e1 >>
+               -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+               eval γ e1 >>=
+               ((e, "App") ~>)
+          else do b''' <- liftIO (isValid γ (PNot b'))
+                  if b'''
+                     then addApplicationEq γ e e2 >>
+                          -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
+                          eval γ e2 >>=
+                          ((e, "App") ~>)
+                     else return e
 evalRecApplication _ _ e
   = return e
 
