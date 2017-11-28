@@ -2,7 +2,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-  LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-} 
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -15,7 +15,7 @@ data PersistFilter = EQUAL | LE | GE
 class PersistEntity record where
   data EntityField record :: * -> *
 
-{-@ 
+{-@
 data Filter record typ = Filter
     { filterField  :: EntityField record typ
     , filterValue  :: typ
@@ -47,7 +47,7 @@ instance PersistEntity Blob where
     BlobXVal :: EntityField Blob Int
     BlobYVal :: EntityField Blob Int
 
-floog = BlobXVal 
+floog = BlobXVal
 
 {-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
 filter :: (a -> Bool) -> [a] -> [a]

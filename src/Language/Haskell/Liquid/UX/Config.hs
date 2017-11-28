@@ -6,18 +6,13 @@
 module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
-   , Instantiate (..)
-   , allowSMTInstationation
-   , allowLiquidInstationation
-   , allowLiquidInstationationGlobal
-   , allowLiquidInstationationLocal
-   , ProofMethod (..)
-   , allowRewrite
+   , allowPLE, allowLocalPLE, allowGlobalPLE
    ) where
 
 import Prelude hiding (error)
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
+-- import qualified Language.Fixpoint.Types as F
 import GHC.Generics
 import System.Console.CmdArgs
 
@@ -80,57 +75,62 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , proofMethod     :: ProofMethod -- ^ How to create automatic instances
-  , fuel            :: Int         -- ^ Fuel for axiom instantiation
+  -- NO-TRIGGER , proofMethod     :: ProofMethod -- ^ How to create automatic instances
+  -- NO-TRIGGER , fuel            :: Int         -- ^ Fuel for axiom instantiation
   , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
+  , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
-instance Serialize ProofMethod
+-- NO-TRIGGER instance Serialize ProofMethod
 instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
-data Instantiate = NoInstances | SMTInstances | LiquidInstances | LiquidInstancesLocal
+data Instantiate
+  = NoInstances
+  | LiquidInstances
+  | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
 
-data ProofMethod = Rewrite | AllMethods
-  deriving (Eq, Data, Typeable, Generic)
+-- NO-TRIGGER data ProofMethod
+-- NO-TRIGGER   = Rewrite
+-- NO-TRIGGER   | AllMethods
+-- NO-TRIGGER   deriving (Eq, Data, Typeable, Generic)
 
+allowPLE :: Config -> Bool
+allowPLE cfg
+  =  (allowGlobalPLE cfg || allowLocalPLE cfg)
 
-allowSMTInstationation, allowLiquidInstationation, allowLiquidInstationationLocal, allowLiquidInstationationGlobal :: Config -> Bool
-allowSMTInstationation    cfg = autoInstantiate cfg == SMTInstances
+allowGlobalPLE :: Config -> Bool
+allowGlobalPLE cfg
+  =  proofLogicEval  cfg
+  || autoInstantiate cfg == LiquidInstances
 
-allowLiquidInstationation cfg =  autoInstantiate cfg == LiquidInstances
-                              || autoInstantiate cfg == LiquidInstancesLocal
+allowLocalPLE :: Config -> Bool
+allowLocalPLE cfg
+  =  proofLogicEval  cfg
+  || autoInstantiate cfg == LiquidInstancesLocal
 
-allowLiquidInstationationGlobal cfg = autoInstantiate cfg == LiquidInstances
-allowLiquidInstationationLocal  cfg = autoInstantiate cfg == LiquidInstancesLocal
-
-allowInstances, allowRewrite :: Config -> Bool
-allowRewrite    cfg = allowInstances cfg && (proofMethod cfg == Rewrite    || proofMethod cfg == AllMethods)
-allowInstances  cfg = autoInstantiate cfg /= NoInstances
-
-instance Default ProofMethod where
-  def = Rewrite
-
-instance Show ProofMethod where
-  show Rewrite    = "rewrite"
-  show AllMethods = "all"
-
+-- NO-TRIGGER instance Default ProofMethod where
+  -- NO-TRIGGER def = Rewrite
+-- NO-TRIGGER
+-- NO-TRIGGER instance Show ProofMethod where
+  -- NO-TRIGGER show Rewrite    = "rewrite"
+  -- NO-TRIGGER show AllMethods = "all"
 
 instance Default Instantiate where
   def = NoInstances
 
 instance Show Instantiate where
   show NoInstances           = "none"
-  show SMTInstances          = "SMT"
+  -- show SMTInstances          = "SMT"
   show LiquidInstancesLocal  = "liquid-local"
   show LiquidInstances       = "liquid-global"
 
 
-instance HasConfig Config where
+instance HasConfig  Config where
   getConfig x = x
 
 class HasConfig t where

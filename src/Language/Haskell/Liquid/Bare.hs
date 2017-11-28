@@ -493,7 +493,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 adts sp = do
                 }
 
 qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq
-qualifyAxiomEq v su eq = subst su eq { axiomName = symbol v}
+qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 makeLogicMap :: GhcSpec -> BareM GhcSpec
 makeLogicMap sp = do

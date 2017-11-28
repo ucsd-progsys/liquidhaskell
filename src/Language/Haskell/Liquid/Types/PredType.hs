@@ -134,7 +134,7 @@ meetWorkWrapRep c workR wrapR
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
   where
-    pad       = F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ workN - wrapN
+    pad       = {- F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ -} workN - wrapN
     (xs, _)   = splitAt pad (ty_binds workR)
     (ts, ts') = splitAt pad (ty_args  workR)
     workN     = length      (ty_args  workR)

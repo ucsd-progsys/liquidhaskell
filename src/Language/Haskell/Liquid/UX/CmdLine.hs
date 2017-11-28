@@ -53,14 +53,6 @@ import Data.List                           (nub)
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
--- a   hiding (Config, linear, elimBound, elimStats,
--- nonLinCuts, getOpts, cores, minPartSize,
--- maxPartSize, eliminate, defConfig,
--- stringTheory,
--- withPragmas,
--- extensionality,
--- alphaEquivalence, betaEquivalence, normalForm)
--- import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
@@ -320,14 +312,6 @@ config = cmdArgsMode $ Config {
             &= name "eliminate"
             &= help "Use elimination for 'all' (use TRUE for cut-kvars), 'some' (use quals for cut-kvars) or 'none' (use quals for all kvars)."
 
-  -- , noEliminate
-  --  = False &= name "no-eliminate"
-  --          &= help "Don't use KVar elimination during solving"
-
-  --, oldEliminate
-  --  = False &= name "old-eliminate"
-  --          &= help "Use old eliminate algorithm (temp. for benchmarking)"
-
   , noPatternInline
     = False &= name "no-pattern-inline"
             &= help "Don't inline special patterns (e.g. `>>=` and `return`) during constraint generation."
@@ -345,17 +329,22 @@ config = cmdArgsMode $ Config {
           &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
           &= name "automatic-instances"
 
-  , proofMethod
-    = def
-          &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
-          &= name "proof-method"
-  , fuel
-    = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
-        &= name "fuel"
+  -- , proofMethod
+    -- = def
+          -- &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
+          -- &= name "proof-method"
+  -- , fuel
+    -- = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
+        -- &= name "fuel"
 
   , debugInstantionation
     = False &= help "Debug Progress in liquid instantiation"
         &= name "debug-instantiation"
+
+  , proofLogicEval
+    = False &= help "Enable Proof-by-Logical-Evaluation"
+        &= name "ple"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -511,7 +500,7 @@ defConfig = Config { files             = def
                    , noCheckUnknown    = def
                    , notermination     = def
                    , gradual           = False
-                   , gdepth            = 1 
+                   , gdepth            = 1
                    , ginteractive      = False
                    , totalHaskell      = def
                    , autoproofs        = def
@@ -552,15 +541,16 @@ defConfig = Config { files             = def
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
                    , autoInstantiate   = def
-                   , proofMethod       = def
-                   , fuel              = defFuel
+                   -- , proofMethod       = def
+                   -- , fuel              = defFuel
                    , debugInstantionation = False
                    , noslice              = False
                    , noLiftedImport       = False
+                   , proofLogicEval       = False
                    }
 
-defFuel :: Int
-defFuel = 2
+-- defFuel :: Int
+-- defFuel = 2
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
