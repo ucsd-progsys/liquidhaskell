@@ -54,11 +54,11 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
-    aenv            = tracepp "AXIOM-ENV" (ae fi)
+    aenv            = {- tracepp "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
 sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
@@ -294,7 +294,7 @@ evaluate cfg ctx facts aenv einit
     -- no test needs it
     -- TODO: add a flag to enable it
     evalOne :: Expr -> IO [(Expr, Expr)]
-    evalOne e = tracepp ("evalOne e = " ++ showpp e) <$> do
+    evalOne e = {- notracepp ("evalOne e = " ++ showpp e) <$> -} do
       (e', st) <- runStateT (eval γ e) initEvalSt
       if e' == e then return [] else return ((e, e'):evSequence st)
 
