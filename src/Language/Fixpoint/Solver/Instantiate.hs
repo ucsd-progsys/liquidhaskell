@@ -397,18 +397,18 @@ evalApp _ _ (f, es)
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
-substEq o eq es bd = substEqVal o eq es <$> substEqSort eq es bd 
+substEq o eq es bd = substEqVal o eq es <$> substEqSort eq es bd
 
 substEqSort :: Equation -> [Expr] -> Expr -> EvalST Expr
-substEqSort = _fixme
+substEqSort eq es bd = return bd -- _fixme
 
 substEqVal :: SubstOp -> Equation -> [Expr] -> Expr -> Expr
 substEqVal o eq es bd = case o of
     PopIf  -> substPopIf     xes  bd
     Normal -> subst (mkSubst xes) bd
   where
-    xes     = zip xs es
-    xs      = eqArgNames eq
+    xes    =  zip xs es
+    xs     =  eqArgNames eq
 
 data SubstOp = PopIf | Normal
 --------------------------------------------------------------------------------
