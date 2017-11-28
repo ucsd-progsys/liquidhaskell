@@ -379,31 +379,40 @@ evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , f `notElem` syms bd -- not recursive
-  -- , not (eqRec eq)                    -- non-recursive equations
-  = do e' <- substEq PopIf eq bd es
-       eval γ (η e')
+  , f `notElem` syms bd               -- non-recursive equations
+  -- , not (eqRec eq)
+  = eval γ . η =<< substEq PopIf eq es bd
 
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
-  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq bd es
+  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq es bd
 evalApp _ _ (f, es)
   = return $ eApps f es
 
-data SubstOp = PopIf | Normal
+--------------------------------------------------------------------------------
+-- | 'substEq' unfolds or instantiates an equation at a particular list of
+--   argument values. We must also substitute the sort-variables that appear
+--   as coercions. See tests/proof/ple1.fq
+--------------------------------------------------------------------------------
+substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
+substEq o eq es bd = substEqVal o eq es <$> substEqSort eq es bd 
 
-substEq :: SubstOp -> Equation -> Expr -> [Expr] -> EvalST Expr
-substEq o eq bd es = return (substEqVal o eq bd es)
+substEqSort :: Equation -> [Expr] -> Expr -> EvalST Expr
+substEqSort = _fixme
 
-substEqVal :: SubstOp -> Equation -> Expr -> [Expr] -> Expr
-substEqVal o eq bd es = case o of
+substEqVal :: SubstOp -> Equation -> [Expr] -> Expr -> Expr
+substEqVal o eq es bd = case o of
     PopIf  -> substPopIf     xes  bd
     Normal -> subst (mkSubst xes) bd
   where
     xes     = zip xs es
     xs      = eqArgNames eq
+
+data SubstOp = PopIf | Normal
+--------------------------------------------------------------------------------
+
 
 getEqBody :: Equation -> Maybe Expr
 getEqBody (Equ x xts b _ _)
