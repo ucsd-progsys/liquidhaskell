@@ -23,14 +23,17 @@ data Filter record typ = Filter
     , filterFilter :: PersistFilter
     } 
 
+{-@ reflect createEqQuery @-}
 createEqQuery :: (PersistEntity record, Eq typ) => 
                  EntityField record typ -> typ -> Filter record typ
-createEqQuery field value =
+createEqQuery field value = Filter field value EQUAL
+{- 
   Filter {
     filterField = field
   , filterValue = value
   , filterFilter = EQUAL
   }
+-}
 
 createLeQuery :: (PersistEntity record, Eq typ) => 
                  EntityField record typ -> typ -> Filter record typ
@@ -91,8 +94,10 @@ select _ = undefined
 -- Should typecheck:
 {-@ getZeros :: [Blob] -> [{b:Blob | xVal b == 0}] @-}
 getZeros :: [Blob] -> [Blob]
-getZeros = filterQBlob (Filter BlobXVal 0 EQUAL) --  (createEqQuery BlobXVal 0) blobs 
+-- getZeros = filterQBlob  (Filter BlobXVal 0 EQUAL) -- (createEqQuery BlobXVal 0) blobs 
+getZeros = filterQBlob (createEqQuery BlobXVal 0) 
 
 {-@ getZeros_ :: () -> [{b:Blob | xVal b == 0}] @-}
 getZeros_ :: () -> [Blob]
-getZeros_ () = select (Filter BlobXVal 0 EQUAL) -- (createEqQuery BlobXVal 0)
+-- getZeros_ () = select (Filter BlobXVal 0 EQUAL) -- (createEqQuery BlobXVal 0)
+getZeros_ () = select (createEqQuery BlobXVal 0)
