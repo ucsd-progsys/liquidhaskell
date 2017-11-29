@@ -176,7 +176,7 @@ makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
                 | (tc, (dd, ctors)) <- groupDataCons tds' ds
-                , tc /= listTyCon
+                -- , tc /= listTyCon
                 ]
   | otherwise = []
   where
@@ -243,14 +243,13 @@ groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
 isResolvedDataConP :: ModName -> DataConP -> Bool
 isResolvedDataConP m dp = F.symbol m == dcpModule dp
 
-_groupDataCons :: [(TyCon, DataPropDecl)]
-              -> [(DataCon, Located DataConP)]
-              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
-_groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
-  where
-    declM             = M.fromList tds
-    ctorM             = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
-
+-- _groupDataCons :: [(TyCon, DataPropDecl)]
+              -- -> [(DataCon, Located DataConP)]
+              -- -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
+-- _groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
+  -- where
+    -- declM             = M.fromList tds
+    -- ctorM             = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
 
 makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
                -> F.DataDecl
