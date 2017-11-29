@@ -15,7 +15,13 @@
 ---------------------------------------------------------------------------
 
 
-module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate, tokeniseWithLoc) where
+module Language.Haskell.Liquid.UX.Annotate
+  ( specAnchor
+  , mkOutput
+  , annotate
+  , tokeniseWithLoc
+  , annErrors
+  ) where
 
 import           Data.Hashable
 import           Data.String
@@ -365,14 +371,14 @@ chopAltDBG y = filter (/= "")
 -- | JSON: Annotation Data Types ---------------------------------------
 ------------------------------------------------------------------------
 
-data Assoc k a = Asc (M.HashMap k a)
-type AnnTypes  = Assoc Int (Assoc Int Annot1)
+data Assoc k a    = Asc (M.HashMap k a)
+type AnnTypes     = Assoc Int (Assoc Int Annot1)
 newtype AnnErrors = AnnErrors [(Loc, Loc, String)]
-data Annot1    = A1  { ident :: String
-                     , ann   :: String
-                     , row   :: Int
-                     , col   :: Int
-                     }
+data Annot1       = A1  { ident :: String
+                        , ann   :: String
+                        , row   :: Int
+                        , col   :: Int
+                        }
 
 ------------------------------------------------------------------------
 -- | Creating Vim Annotations ------------------------------------------
@@ -412,9 +418,9 @@ instance ToJSON Loc where
 instance ToJSON AnnErrors where
   toJSON (AnnErrors errs) = Array $ V.fromList $ fmap toJ errs
     where
-      toJ (l,l',s) = object [ "start"   .= toJSON l
-                            , "stop"    .= toJSON l'
-                            , "message" .= toJSON s  ]
+      toJ (l,l',s)        = object [ "start"   .= toJSON l
+                                   , "stop"    .= toJSON l'
+                                   , "message" .= toJSON s  ]
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
@@ -423,9 +429,12 @@ instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"  .= toJSON (annTypes    a)
-                    , "errors" .= toJSON (ACSS.errors a)
+                    , "errors" .= toJSON (annErrors   a)
                     , "status" .= toJSON (ACSS.status a)
                     ]
+
+annErrors :: ACSS.AnnMap -> AnnErrors
+annErrors = AnnErrors . ACSS.errors
 
 annTypes         :: ACSS.AnnMap -> AnnTypes
 annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
