@@ -23,14 +23,21 @@ data Filter record typ = Filter
     , filterFilter :: PersistFilter
     } 
 
+
+{-@ reflect createEqQuery @-}
+{-
 createEqQuery :: (PersistEntity record, Eq typ) => 
-                 EntityField record typ -> typ -> Filter record typ
+	         EntityField record typ -> typ -> Filter record typ
 createEqQuery field value =
   Filter {
     filterField = field
   , filterValue = value
   , filterFilter = EQUAL
   }
+-}
+
+createEqQuery :: EntityField record typ -> typ -> Filter record typ
+createEqQuery field value = Filter field value EQUAL 
 
 createLeQuery :: (PersistEntity record, Eq typ) => 
                  EntityField record typ -> typ -> Filter record typ
@@ -89,10 +96,19 @@ select _ = undefined
 -- Client code:
 
 -- Should typecheck:
-{-@ getZeros :: [Blob] -> [{b:Blob | xVal b == 0}] @-}
-getZeros :: [Blob] -> [Blob]
-getZeros = filterQBlob (Filter BlobXVal 0 EQUAL) --  (createEqQuery BlobXVal 0) blobs 
+{-@ getZeros1 :: [Blob] -> [{b:Blob | xVal b == 10}] @-}
+getZeros1 :: [Blob] -> [Blob]
+getZeros1 = filterQBlob (Filter BlobXVal 0 EQUAL)
 
-{-@ getZeros_ :: () -> [{b:Blob | xVal b == 0}] @-}
-getZeros_ :: () -> [Blob]
-getZeros_ () = select (Filter BlobXVal 0 EQUAL) -- (createEqQuery BlobXVal 0)
+{-@ getZeros2 :: () -> [{b:Blob | xVal b == 0}] @-}
+getZeros2 :: () -> [Blob]
+getZeros2 () = select (Filter BlobXVal 0 EQUAL) 
+
+{-@ getZeros3 :: [Blob] -> [{b:Blob | xVal b == 0}] @-}
+getZeros3 :: [Blob] -> [Blob]
+getZeros3 blobs = filterQBlob (createEqQuery BlobXVal 0) blobs 
+
+{-@ getZeros4 :: () -> [{b:Blob | xVal b == 0}] @-}
+getZeros4 :: () -> [Blob]
+getZeros4 () = select (createEqQuery BlobXVal 0)
+
