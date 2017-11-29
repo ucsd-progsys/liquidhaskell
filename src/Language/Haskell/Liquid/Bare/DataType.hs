@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Bare.DataType
   -- , qualifyDataDecl
   ) where
 
-import           TysWiredIn (listTyCon)
+-- import           TysWiredIn (listTyCon)
 import           TysPrim
 import           DataCon
 import           Name                                   (getSrcSpan)
