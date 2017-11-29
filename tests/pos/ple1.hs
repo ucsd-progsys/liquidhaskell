@@ -1,6 +1,5 @@
-{- LIQUID "--ple"             @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--no-adt"          @-}
+{- LIQUID "--no-adt"          @-}
 
 module PLE where
 
