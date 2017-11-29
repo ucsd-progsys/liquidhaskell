@@ -33,7 +33,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
--- import           Data.Foldable        (foldlM)
+import           Data.Foldable        (foldlM)
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_e,_str) ~> e' = do
@@ -261,19 +261,43 @@ splitPAnd e         = [e]
 --------------------------------------------------------------------------------
 -- AT@TODO do this for all reflected functions, not just DataCons
 
--- Insert measure info for every constructor
--- that appears in the expression e
--- required by PMEquivalence.mconcatChunk
--- ADTs does this automatically
--- assertSelectors :: Knowledge -> Expr -> EvalST ()
--- assertSelectors _ _ = return ()
+{- [NOTE:Datacon-Selectors] The 'assertSelectors' function
+   insert measure information for every constructor that appears
+   in the expression e.
+
+   In theory, this is not required as the SMT ADT encoding takes
+   care of it. However, in practice, some constructors, e.g. from
+   GADTs cannot be directly encoded in SMT due to the lack of SMTLIB
+   support for GADT. Hence, we still need to hang onto this code.
+   TODO: a concrete .fq test that illustrates why this is needed.
+ -}
+
+assertSelectors :: Knowledge -> Expr -> EvalST ()
+assertSelectors γ e = do
+    sims <- aenvSimpl <$> gets evAEnv
+    _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) e sims
+    return ()
+  where
+    go :: Rewrite -> Expr -> EvalST Expr
+    go (SMeasure f dc xs bd) e@(EApp _ _)
+      | (EVar dc', es) <- splitEApp e
+      , dc == dc', length xs == length es
+      = addSMTEquality γ (EApp (EVar f) e) (subst (mkSubst $ zip xs es) bd)
+      >> return e
+    go _ e
+      = return e
+
+addSMTEquality :: Knowledge -> Expr -> Expr -> EvalST (IO ())
+addSMTEquality γ e1 e2 = return $ do
+  ctx <- knContext γ
+  SMT.smtAssert ctx (PAtom Eq (makeLam γ e1) (makeLam γ e2))
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv { evId        :: Int
                        , evSequence  :: [(Expr,Expr)]
-                       , _evAEnv     :: AxiomEnv
+                       , evAEnv     :: AxiomEnv
                        , evEnv      :: !SymEnv
                        }
 
@@ -382,7 +406,6 @@ evalApp γ _ (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations
-  -- , not (eqRec eq)
   = eval γ . η =<< substEq PopIf eq es bd
 
 evalApp γ _e (EVar f, es)
@@ -484,13 +507,13 @@ evalRecApplication γ e (EIte b e1 e2)
        b'' <- liftIO (isValid γ b')
        if b''
           then addApplicationEq γ e e1 >>
-               -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                eval γ e1 >>=
                ((e, "App") ~>)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
                      then addApplicationEq γ e e2 >>
-                          -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
+                          ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
                           eval γ e2 >>=
                           ((e, "App") ~>)
                      else return e

@@ -831,4 +831,4 @@ instance Fixpoint Rewrite where
    <+> toFix f
    <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
-   <+> lparen <> toFix e <> rparen
+   <+> parens (toFix e)
