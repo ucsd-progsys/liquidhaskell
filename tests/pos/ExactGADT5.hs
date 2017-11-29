@@ -1,8 +1,8 @@
-{-@ LIQUID "--no-adt" 	                           @-}
+{- LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--ple" @-} 
+{-@ LIQUID "--ple" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -21,12 +21,12 @@ data Filter record typ = Filter
     { filterField  :: EntityField record typ
     , filterValue  :: typ
     , filterFilter :: PersistFilter
-    } 
+    }
 
 
 {-@ reflect createEqQuery @-}
 {-
-createEqQuery :: (PersistEntity record, Eq typ) => 
+createEqQuery :: (PersistEntity record, Eq typ) =>
 	         EntityField record typ -> typ -> Filter record typ
 createEqQuery field value =
   Filter {
@@ -37,15 +37,15 @@ createEqQuery field value =
 -}
 
 createEqQuery :: EntityField record typ -> typ -> Filter record typ
-createEqQuery field value = Filter field value EQUAL 
+createEqQuery field value = Filter field value EQUAL
 
-createLeQuery :: (PersistEntity record, Eq typ) => 
+createLeQuery :: (PersistEntity record, Eq typ) =>
                  EntityField record typ -> typ -> Filter record typ
 createLeQuery field value =
   Filter {
     filterField = field
   , filterValue = value
-  , filterFilter = LE 
+  , filterFilter = LE
   }
 
 {-@ data Blob  = B { xVal :: Int, yVal :: Int } @-}
@@ -82,8 +82,8 @@ evalQBlobYVal GE filter given = given >= filter
 {-@ reflect evalQBlob @-}
 evalQBlob :: Filter Blob typ -> Blob -> Bool
 evalQBlob filter blob = case filterField filter of
-    BlobXVal -> evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
-    BlobYVal -> evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
+  BlobXVal -> evalQBlobXVal (filterFilter filter) (filterValue filter) (xVal blob)
+  BlobYVal -> evalQBlobYVal (filterFilter filter) (filterValue filter) (yVal blob)
 
 {-@ filterQBlob :: f:(Filter Blob a) -> [Blob] -> [{b:Blob | evalQBlob f b}] @-}
 filterQBlob :: Filter Blob a -> [Blob] -> [Blob]
@@ -102,13 +102,12 @@ getZeros1 = filterQBlob (Filter BlobXVal 0 EQUAL)
 
 {-@ getZeros2 :: () -> [{b:Blob | xVal b == 0}] @-}
 getZeros2 :: () -> [Blob]
-getZeros2 () = select (Filter BlobXVal 0 EQUAL) 
+getZeros2 () = select (Filter BlobXVal 0 EQUAL)
 
 {-@ getZeros3 :: [Blob] -> [{b:Blob | xVal b == 0}] @-}
 getZeros3 :: [Blob] -> [Blob]
-getZeros3 blobs = filterQBlob (createEqQuery BlobXVal 0) blobs 
+getZeros3 blobs = filterQBlob (createEqQuery BlobXVal 0) blobs
 
 {-@ getZeros4 :: () -> [{b:Blob | xVal b == 0}] @-}
 getZeros4 :: () -> [Blob]
 getZeros4 () = select (createEqQuery BlobXVal 0)
-

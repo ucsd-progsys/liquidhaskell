@@ -62,7 +62,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, errorTests, benchTests ]
+    tests = group "Tests" [ unitTests, errorTests, benchTests, proverTests ]
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests  ]
@@ -170,11 +170,11 @@ unitTests = group "Unit"
   [ testGroup "pos"            <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
   , testGroup "neg"            <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
   , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+  , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
+  , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
-  , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
-  , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
   -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
   -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
   ]
@@ -184,21 +184,24 @@ gPosIgnored = ["Intro.hs"]
 gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
-benchTests
-  = group "Benchmarks" [
-       testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
-     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
-     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
-     , testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
-     , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-     , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
-     , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
-     , testGroup "without_ple" <$> dirTests "benchmarks/popl18/nople/pos"          autoIgnored               ExitSuccess
-     , testGroup "with_ple"    <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
-     ]
+benchTests = group "Benchmarks" 
+  [ testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
+  , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
+  , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
+  , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
+  , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+  , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+  ]
+
+proverTests :: IO TestTree 
+proverTests = group "Prover" 
+  [ testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
+  , testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
+  , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
+  , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
+  , testGroup "without_ple" <$> dirTests "benchmarks/popl18/nople/pos"          autoIgnored               ExitSuccess
+  , testGroup "with_ple"    <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
+  ]
 
 selfTests :: IO TestTree
 selfTests

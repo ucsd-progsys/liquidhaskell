@@ -34,9 +34,9 @@ import           Type       (Type)
 import           CoreSyn
 import           Var        (varType, isTyVar, Var)
 
+import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Visitor (kvars)
-import           Language.Haskell.Liquid.Misc  ((=>>))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Fresh
