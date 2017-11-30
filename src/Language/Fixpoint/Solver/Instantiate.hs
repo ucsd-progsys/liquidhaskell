@@ -54,7 +54,7 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -117,17 +117,24 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
 -- AT:@TODO: should unify knSims and knAms, as well as their analogues in AxiomEnv
-data Knowledge
-  = KN { knEqs     :: ![(Expr, Expr)]
-       , knSims    :: ![Rewrite]
-       , knAms     :: ![Equation]
-       , knContext :: IO SMT.Context
-       , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
-       , knLams    :: [(Symbol, Sort)]
-       }
+data Knowledge = KN
+  { knEqs     :: ![(Expr, Expr)]
+  , knSims    :: ![Rewrite]
+  , knAms     :: ![Equation]
+  , knContext :: IO SMT.Context
+  , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
+  , knLams    :: [(Symbol, Sort)]
+  }
 
 emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge ctx = KN [] [] [] ctx (\_ _ _ -> return False) []
+emptyKnowledge ctx = KN
+  { knEqs     = []
+  , knSims    = []
+  , knAms     = []
+  , knContext = ctx
+  , knPreds   = (\_ _ _ -> return False)
+  , knLams    = []
+  }
 
 -- | 'lookupKnowledge' is a hack to support 0-ary functions
 --   e.g. `mempty = Emp` in MonoidList.hs
@@ -263,23 +270,23 @@ splitPAnd e         = [e]
  -}
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors _ _ = return ()
+-- assertSelectors _ _ = return ()
 {- TODO: HEREHEREHEREHEREHEREHERE
   1. DOES this kill Unification.hs? (Guard under --no-adt)
   2. Use addEquality instead off _addSMTEquality.
-   
+-}
 assertSelectors γ e = do
-    sims <- aenvSimpl <$> gets evAEnv
+    sims <- aenvSimpl <$> gets _evAEnv
+    -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (tracepp "assertSelector" e) sims
-    forM_ sims $ \s -> do
-      Vis.mapMExpr (go s) (tracepp "assertSelectors" e)
+    forM_ sims $ \s -> Vis.mapMExpr (go s) e
     return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
-      | (EVar dc', es) <- mySplitEApp e
-      , tracepp (printf "DC-check %s %s" (show dc) (show dc')) $ dc == dc'
-      , tracepp (printf "len-check %s %s" (show xs) (show es)) $ length xs == length es
+      | (EVar dc', es) <- splitEApp e
+      , dc == dc'
+      , length xs == length es
       = do let e1 = (EApp (EVar f) e)
            let e2 = (subst (mkSubst $ zip xs es) bd)
            addEquality γ e1 e2
@@ -287,23 +294,21 @@ assertSelectors γ e = do
     go _ e
       = return e
 
-mySplitEApp :: Expr -> (Expr, [Expr])
-mySplitEApp e = tracepp "mySplitEApp" $ splitEApp e
--}
-
-_addSMTEquality :: Knowledge -> Expr -> Expr -> IO ()
-_addSMTEquality γ e1 e2 = do
-  ctx <- knContext γ
-  SMT.smtAssert ctx (tracepp "addSMTEQ" (PAtom Eq (makeLam γ e1) (makeLam γ e2)))
+-- _addSMTEquality :: Knowledge -> Expr -> Expr -> IO ()
+-- _addSMTEquality γ e1 e2 = do
+  -- ctx <- knContext γ
+  -- SMT.smtAssert ctx (tracepp "addSMTEQ" (PAtom Eq (makeLam γ e1) (makeLam γ e2)))
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
-data EvalEnv = EvalEnv { evId        :: Int
-                       , evSequence  :: [(Expr,Expr)]
-                       , _evAEnv     :: AxiomEnv
-                       , evEnv      :: !SymEnv
-                       }
+data EvalEnv = EvalEnv
+  { evId        :: !Int
+  , evSequence  :: [(Expr,Expr)]
+  , _evAEnv     :: !AxiomEnv
+  , evEnv       :: !SymEnv
+  , _evCfg      :: !Config
+  }
 
 type EvalST a = StateT EvalEnv IO a
 
@@ -317,7 +322,7 @@ evaluate cfg ctx facts aenv einit
   where
     (eqs, γ)   = makeKnowledge cfg ctx aenv facts
     senv       = SMT.ctxSymEnv ctx
-    initEvalSt = EvalEnv 0 [] aenv senv
+    initEvalSt = EvalEnv 0 [] aenv senv cfg
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
     -- TODO: add a flag to enable it

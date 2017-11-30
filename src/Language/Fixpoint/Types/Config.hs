@@ -56,41 +56,40 @@ defaultMaxPartSize :: Int
 defaultMaxPartSize = 700
 
 
-data Config
-  = Config {
-      srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c, or even *.fq or *.bfq)
-    , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
-    , minPartSize :: Int                 -- ^ Minimum size of a partition
-    , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
-    , solver      :: SMTSolver           -- ^ which SMT solver to use
-    , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , stringTheory :: Bool               -- ^ interpretation of string theory by SMT
-    , defunction  :: Bool                -- ^ defunctionalize (use 'apply' for all uninterpreted applications)
-    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
-    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
-    , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars
-    , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
-    , elimStats   :: Bool                -- ^ print eliminate stats
-    , solverStats :: Bool                -- ^ print solver stats
-    , metadata    :: Bool                -- ^ print meta-data associated with constraints
-    , stats       :: Bool                -- ^ compute constraint statistics
-    , parts       :: Bool                -- ^ partition FInfo into separate fq files
-    , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
-    , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
-    , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
-    , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
-    , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
-    , gradual     :: Bool                -- ^ solve "gradual" constraints
-    , ginteractive :: Bool                -- ^ interactive gradual solving
-    , extensionality   :: Bool           -- ^ allow function extensionality
-    , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
-    , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
-    , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
-    , autoKuts         :: Bool           -- ^ ignore given kut variables
-    , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
-    , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
-    , rewriteAxioms    :: Bool           -- ^ allow axiom instantiation via rewriting
-    } deriving (Eq,Data,Typeable,Show,Generic)
+data Config = Config
+  { srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c, or even *.fq or *.bfq)
+  , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
+  , minPartSize :: Int                 -- ^ Minimum size of a partition
+  , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
+  , solver      :: SMTSolver           -- ^ which SMT solver to use
+  , linear      :: Bool                -- ^ not interpret div and mul in SMT
+  , stringTheory :: Bool               -- ^ interpretation of string theory by SMT
+  , defunction  :: Bool                -- ^ defunctionalize (use 'apply' for all uninterpreted applications)
+  , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
+  , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
+  , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars
+  , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
+  , elimStats   :: Bool                -- ^ print eliminate stats
+  , solverStats :: Bool                -- ^ print solver stats
+  , metadata    :: Bool                -- ^ print meta-data associated with constraints
+  , stats       :: Bool                -- ^ compute constraint statistics
+  , parts       :: Bool                -- ^ partition FInfo into separate fq files
+  , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
+  , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
+  , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
+  , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
+  , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
+  , gradual     :: Bool                -- ^ solve "gradual" constraints
+  , ginteractive :: Bool                -- ^ interactive gradual solving
+  , extensionality   :: Bool           -- ^ allow function extensionality
+  , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
+  , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
+  , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
+  , autoKuts         :: Bool           -- ^ ignore given kut variables
+  , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
+  , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
+  , rewriteAxioms    :: Bool           -- ^ allow axiom instantiation via rewriting
+  } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig
