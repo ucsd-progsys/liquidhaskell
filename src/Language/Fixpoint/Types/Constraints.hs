@@ -806,11 +806,12 @@ ppArgs = parens . intersperse ", " . fmap pprint
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
-data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
-                          , smDC    :: Symbol         -- eg. D
-                          , smArgs  :: [Symbol]       -- eg. xs
-                          , smBody  :: Expr           -- eg. e[xs]
-                          }
+data Rewrite  = SMeasure
+  { smName  :: Symbol         -- eg. f
+  , smDC    :: Symbol         -- eg. D
+  , smArgs  :: [Symbol]       -- eg. xs
+  , smBody  :: Expr           -- eg. e[xs]
+  }
   deriving (Eq, Show, Generic)
 
 instance Fixpoint AxiomEnv where
@@ -832,3 +833,6 @@ instance Fixpoint Rewrite where
    <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> parens (toFix e)
+
+instance PPrint Rewrite where
+  pprintTidy _ = toFix
