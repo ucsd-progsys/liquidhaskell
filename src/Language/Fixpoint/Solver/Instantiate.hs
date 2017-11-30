@@ -116,12 +116,8 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
--- AT:@TODO: knSels and knEqs should really just be the same thing. In this way,
--- we should also unify knSims and knAms, as well as their analogues in AxiomEnv
 data Knowledge
-  = KN { knSels    :: ![(Expr, Expr)]
-       , knEqs     :: ![(Expr, Expr)]
-       , knSims    :: ![Rewrite]
+  = KN { knSims    :: ![Rewrite]
        , knAms     :: ![Equation]
        , knContext :: IO SMT.Context
        , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
@@ -129,17 +125,7 @@ data Knowledge
        }
 
 emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge ctx = KN [] [] [] [] ctx (\_ _ _ -> return False) []
-
-lookupKnowledge :: Knowledge -> Expr -> Maybe Expr
-lookupKnowledge γ e
-  -- Zero argument axioms like `mempty = N`
-  | Just e' <- L.lookup e (knEqs γ)
-  = Just e'
-  | Just e' <- L.lookup e (knSels γ)
-  = Just e'
-  | otherwise
-  = Nothing
+emptyKnowledge ctx = KN [] [] ctx (\_ _ _ -> return False) []
 
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
@@ -148,9 +134,7 @@ makeKnowledge :: Config -> SMT.Context -> AxiomEnv
                  -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
 makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
-                                     { knSels   = sels
-                                     , knEqs    = eqs
-                                     , knSims   = aenvSimpl aenv
+                                     { knSims   = aenvSimpl aenv
                                      , knAms    = aenvEqs aenv
                                      , knPreds  = \bs e c -> askSMT c bs e
                                      }
@@ -176,18 +160,6 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                L.nub (catMaybes [_getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
     atms = splitPAnd =<< (expr <$> filter isProof es)
     isProof (_, RR s _) = showpp s == "Tuple"
-    sels = (go . expr) =<< es
-    go e = let es   = splitPAnd e
-               su   = mkSubst [(x, EVar y)  | PAtom Eq (EVar x) (EVar y) <- es ]
-               sels = [(EApp (EVar s) x, e) | PAtom Eq (EApp (EVar s) x) e <- es
-                                            , isSelector s ]
-           in L.nub (sels ++ subst su sels)
-
-    eqs = [(EVar x, ex) | Equ a _ bd _ _ <- filter (null . eqArgs) $ aenvEqs aenv
-                        , PAtom Eq (EVar x) ex <- splitPAnd bd
-                        , x == a
-                        ]
-
     toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
     elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
 
@@ -203,10 +175,6 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
           SMT.smtPop ctx
           return b
       | otherwise      = return False
-
-    -- TODO: Stringy hacks
-    isSelector :: Symbol -> Bool
-    isSelector  = L.isPrefixOf "select" . symbolString
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
@@ -311,19 +279,12 @@ grepTopApps (ENeg e)        = grepTopApps e
 grepTopApps e@(EApp _ _)    = [e]
 grepTopApps _               = []
 
--- AT: I think makeLam is the adjoint of splitEApp?
+-- makeLam is the adjoint of splitEApp
 makeLam :: Knowledge -> Expr -> Expr
 makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
 eval :: Knowledge -> Expr -> EvalST Expr
-eval γ e | Just e' <- lookupKnowledge γ e
-  = (e, "Knowledge") ~> e'
 eval γ (ELam (x,s) e)
-  -- SHIFTLAM (assuming this shifting is redundant if DEFUNC has already happened)
-  -- = do let x' = lamArgSymbol (1 + length (knLams γ))
-       -- e'    <- eval γ{knLams = (x',s):knLams γ} (subst1 e (x, EVar x'))
-       -- return $ ELam (x,s) $ subst1 e' (x', EVar x)
-
   = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
        return $ ELam (x, s) e'
 
@@ -334,6 +295,8 @@ eval γ (ECoerc a t e)
   = ECoerc a t <$> eval γ e
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
+eval γ e@(EVar _)
+  = evalApp γ e (e,[])
 eval γ (PAtom r e1 e2)
   = PAtom r <$> eval γ e1 <*> eval γ e2
 eval γ (ENeg e)
@@ -378,6 +341,7 @@ evalApp γ e (EVar f, [ex])
   = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
+  -- we should move the lookupKnowledge stuff here into kmAms γ
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
