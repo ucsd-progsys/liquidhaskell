@@ -25,7 +25,6 @@ data Filter record typ = Filter
 
 
 {-@ reflect createEqQuery @-}
-{-
 createEqQuery :: (PersistEntity record, Eq typ) =>
 	         EntityField record typ -> typ -> Filter record typ
 createEqQuery field value =
@@ -34,10 +33,10 @@ createEqQuery field value =
   , filterValue = value
   , filterFilter = EQUAL
   }
--}
 
-createEqQuery :: EntityField record typ -> typ -> Filter record typ
-createEqQuery field value = Filter field value EQUAL
+
+-- createEqQuery :: EntityField record typ -> typ -> Filter record typ
+-- createEqQuery field value = Filter field value EQUAL
 
 createLeQuery :: (PersistEntity record, Eq typ) =>
                  EntityField record typ -> typ -> Filter record typ
