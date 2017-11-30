@@ -399,6 +399,11 @@ allCombinations xs = assert (and . map (((length xs) == ) . length)) $ go xs
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
 
+(=>>) :: Monad m => m b -> (b -> m a) -> m b
+(=>>) m f = m >>= (\x -> f x >> return x)
+
+(<<=) :: Monad m => (b -> m a) -> m b -> m b
+(<<=) = flip (=>>)
 
 (<$$>) ::  (Monad m) => (a -> m b) -> [a] -> m [b]
 _ <$$> []           = return []

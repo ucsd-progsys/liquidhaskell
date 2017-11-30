@@ -19,6 +19,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
+import           Language.Fixpoint.Misc          ((<<=))
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.SortCheck
@@ -33,13 +34,12 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import           Data.Maybe           (catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
--- import           Data.Foldable        (foldlM)
+-- import           Text.Printf (printf)
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (_e,_str) ~> e' = do
-    modify (\st -> st{evId = evId st + 1})
-    -- traceM $ showpp _str ++ " : " ++ showpp _e ++ showpp e'
-    return (η e')
+    modify (\st -> st {evId = evId st + 1})
+    return (wtf e')
 
 
 --------------------------------------------------------------------------------
@@ -116,30 +116,30 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
--- AT:@TODO: knSels and knEqs should really just be the same thing. In this way,
--- we should also unify knSims and knAms, as well as their analogues in AxiomEnv
-data Knowledge
-  = KN { knSels    :: ![(Expr, Expr)]
-       , knEqs     :: ![(Expr, Expr)]
-       , knSims    :: ![Rewrite]
-       , knAms     :: ![Equation]
-       , knContext :: IO SMT.Context
-       , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
-       , knLams    :: [(Symbol, Sort)]
-       }
+-- AT:@TODO: should unify knSims and knAms, as well as their analogues in AxiomEnv
+data Knowledge = KN
+  { knEqs     :: ![(Expr, Expr)]
+  , knSims    :: ![Rewrite]
+  , knAms     :: ![Equation]
+  , knContext :: IO SMT.Context
+  , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
+  , knLams    :: [(Symbol, Sort)]
+  }
 
 emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge ctx = KN [] [] [] [] ctx (\_ _ _ -> return False) []
+emptyKnowledge ctx = KN
+  { knEqs     = []
+  , knSims    = []
+  , knAms     = []
+  , knContext = ctx
+  , knPreds   = (\_ _ _ -> return False)
+  , knLams    = []
+  }
 
+-- | 'lookupKnowledge' is a hack to support 0-ary functions
+--   e.g. `mempty = Emp` in MonoidList.hs
 lookupKnowledge :: Knowledge -> Expr -> Maybe Expr
-lookupKnowledge γ e
-  -- Zero argument axioms like `mempty = N`
-  | Just e' <- L.lookup e (knEqs γ)
-  = Just e'
-  | Just e' <- L.lookup e (knSels γ)
-  = Just e'
-  | otherwise
-  = Nothing
+lookupKnowledge γ e = L.lookup e (knEqs γ)
 
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
@@ -148,8 +148,7 @@ makeKnowledge :: Config -> SMT.Context -> AxiomEnv
                  -> [(Symbol, SortedReft)]
                  -> ([(Expr, Expr)], Knowledge)
 makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
-                                     { knSels   = sels
-                                     , knEqs    = eqs
+                                     { knEqs    = eqs ++ sels
                                      , knSims   = aenvSimpl aenv
                                      , knAms    = aenvEqs aenv
                                      , knPreds  = \bs e c -> askSMT c bs e
@@ -166,12 +165,9 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
                               ))
       return ctx
 
-    -- This creates the rewrite rule e1 -> e2
-    -- when should I apply it?
+    -- This creates the rewrite rule e1 -> e2. When should I apply it?
     -- 1. when e2 is a data con and can lead to further reductions
     -- 2. when size e2 < size e1
-    -- @TODO: Can this be generalized?
-    -- simpleEqs = []
     simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
                L.nub (catMaybes [_getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
     atms = splitPAnd =<< (expr <$> filter isProof es)
@@ -261,21 +257,58 @@ splitPAnd e         = [e]
 --------------------------------------------------------------------------------
 -- AT@TODO do this for all reflected functions, not just DataCons
 
--- Insert measure info for every constructor
--- that appears in the expression e
--- required by PMEquivalence.mconcatChunk
--- ADTs does this automatically
--- assertSelectors :: Knowledge -> Expr -> EvalST ()
+{- [NOTE:Datacon-Selectors] The 'assertSelectors' function
+   insert measure information for every constructor that appears
+   in the expression e.
+
+   In theory, this is not required as the SMT ADT encoding takes
+   care of it. However, in practice, some constructors, e.g. from
+   GADTs cannot be directly encoded in SMT due to the lack of SMTLIB
+   support for GADT. Hence, we still need to hang onto this code.
+
+   See tests/proof/ple2.fq for a concrete example.
+ -}
+
+assertSelectors :: Knowledge -> Expr -> EvalST ()
 -- assertSelectors _ _ = return ()
+{- TODO: HEREHEREHEREHEREHEREHERE
+  1. DOES this kill Unification.hs? (Guard under --no-adt)
+  2. Use addEquality instead off _addSMTEquality.
+-}
+assertSelectors γ e = do
+    sims <- aenvSimpl <$> gets _evAEnv
+    -- cfg  <- gets evCfg
+    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (tracepp "assertSelector" e) sims
+    forM_ sims $ \s -> Vis.mapMExpr (go s) e
+    return ()
+  where
+    go :: Rewrite -> Expr -> EvalST Expr
+    go (SMeasure f dc xs bd) e@(EApp _ _)
+      | (EVar dc', es) <- splitEApp e
+      , dc == dc'
+      , length xs == length es
+      = do let e1 = (EApp (EVar f) e)
+           let e2 = (subst (mkSubst $ zip xs es) bd)
+           addEquality γ e1 e2
+           return e
+    go _ e
+      = return e
+
+-- _addSMTEquality :: Knowledge -> Expr -> Expr -> IO ()
+-- _addSMTEquality γ e1 e2 = do
+  -- ctx <- knContext γ
+  -- SMT.smtAssert ctx (tracepp "addSMTEQ" (PAtom Eq (makeLam γ e1) (makeLam γ e2)))
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
-data EvalEnv = EvalEnv { evId        :: Int
-                       , evSequence  :: [(Expr,Expr)]
-                       , _evAEnv     :: AxiomEnv
-                       , evEnv      :: !SymEnv
-                       }
+data EvalEnv = EvalEnv
+  { evId        :: !Int
+  , evSequence  :: [(Expr,Expr)]
+  , _evAEnv     :: !AxiomEnv
+  , evEnv       :: !SymEnv
+  , _evCfg      :: !Config
+  }
 
 type EvalST a = StateT EvalEnv IO a
 
@@ -289,7 +322,7 @@ evaluate cfg ctx facts aenv einit
   where
     (eqs, γ)   = makeKnowledge cfg ctx aenv facts
     senv       = SMT.ctxSymEnv ctx
-    initEvalSt = EvalEnv 0 [] aenv senv
+    initEvalSt = EvalEnv 0 [] aenv senv cfg
     -- This adds all intermediate unfoldings into the assumptions
     -- no test needs it
     -- TODO: add a flag to enable it
@@ -375,15 +408,14 @@ evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
-  = do e'    <- eval γ $ η $ substPopIf (zip (smArgs simp) es) (smBody simp)
+  = do e'    <- eval γ $ wtf $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations
-  -- , not (eqRec eq)
-  = eval γ . η =<< substEq PopIf eq es bd
+  = eval γ . wtf =<< assertSelectors γ <<= substEq PopIf eq es bd
 
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((==f) . eqName) (knAms γ)
@@ -473,7 +505,7 @@ eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = η $ L.foldl' go e xes
+substPopIf xes e = wtf $ L.foldl' go e xes
   where
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
@@ -483,22 +515,22 @@ evalRecApplication γ e (EIte b e1 e2)
   = do b' <- eval γ b
        b'' <- liftIO (isValid γ b')
        if b''
-          then addApplicationEq γ e e1 >>
-               -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+          then addEquality γ e e1 >>
+               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                eval γ e1 >>=
                ((e, "App") ~>)
           else do b''' <- liftIO (isValid γ (PNot b'))
                   if b'''
-                     then addApplicationEq γ e e2 >>
-                          -- ({-# SCC "assertSelectors-1" #-} assertSelectors γ e2) >>
+                     then addEquality γ e e2 >>
+                          ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
                           eval γ e2 >>=
                           ((e, "App") ~>)
                      else return e
 evalRecApplication _ _ e
   = return e
 
-addApplicationEq :: Knowledge -> Expr -> Expr -> EvalST ()
-addApplicationEq γ e1 e2 =
+addEquality :: Knowledge -> Expr -> Expr -> EvalST ()
+addEquality γ e1 e2 =
   modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
 
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
@@ -522,10 +554,14 @@ evalIte' γ _ b e1 e2 _ _
        e2' <- eval γ e2
        return $ EIte b e1' e2'
 
+--------------------------------------------------------------------------------
 -- normalization required by ApplicativeMaybe.composition
----------------------------------------------------------
-η :: Expr -> Expr
-η = snd . go
+--------------------------------------------------------------------------------
+-- RJ: What on earth is this function doing?
+wtf :: Expr -> Expr
+wtf = id
+{-
+wtf = snd . go
   where
     go (EIte b t f)
       | isTautoPred t && isFalse f
@@ -549,5 +585,6 @@ evalIte' γ _ b e1 e2 _ _
               else (False, EApp e1' e2')
     go e = (False, e)
 
+-}
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

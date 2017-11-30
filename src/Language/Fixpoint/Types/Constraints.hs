@@ -799,31 +799,32 @@ mapEqBody :: (Expr -> Expr) -> Equation -> Equation
 mapEqBody f a = a { eqBody = f (eqBody a) }
 
 instance PPrint Equation where
-  pprintTidy k (Equ f xs e _ _) = "def" <+> pprint f <+> ppArgs xs <+> ":=" <+> pprintTidy k e
-    where
-      ppArgs xs                 = intersperse " " (pprint <$> xs)
+  pprintTidy _ = toFix
+
+ppArgs :: (PPrint a) => [a] -> Doc
+ppArgs = parens . intersperse ", " . fmap pprint
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
-data Rewrite  = SMeasure  { smName  :: Symbol         -- eg. f
-                          , smDC    :: Symbol         -- eg. D
-                          , smArgs  :: [Symbol]       -- eg. xs
-                          , smBody  :: Expr           -- eg. e[xs]
-                          }
+data Rewrite  = SMeasure
+  { smName  :: Symbol         -- eg. f
+  , smDC    :: Symbol         -- eg. D
+  , smArgs  :: [Symbol]       -- eg. xs
+  , smBody  :: Expr           -- eg. e[xs]
+  }
   deriving (Eq, Show, Generic)
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
-    where pairdoc (x,y) = text $ show x ++ " : " ++ show y
+    where
+      pairdoc (x,y) = text $ show x ++ " : " ++ show y
 
 instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _ _) = text "define"
-                        <+> toFix f <+> hsep (toFix <$> xs) <+> text " = "
-                        <+> lparen <> toFix e <> rparen
+  toFix (Equ f xs e _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (toFix e)
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
@@ -831,4 +832,7 @@ instance Fixpoint Rewrite where
    <+> toFix f
    <+> parens (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
-   <+> lparen <> toFix e <> rparen
+   <+> parens (toFix e)
+
+instance PPrint Rewrite where
+  pprintTidy _ = toFix
