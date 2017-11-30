@@ -96,7 +96,7 @@ select _ = undefined
 -- Client code:
 
 -- Should typecheck:
-{-@ getZeros1 :: [Blob] -> [{b:Blob | xVal b == 0}] @-}
+{-@ getZeros1 :: [Blob] -> [{b:Blob | xVal b == 10}] @-}
 getZeros1 :: [Blob] -> [Blob]
 getZeros1 = filterQBlob (Filter BlobXVal 0 EQUAL)
 

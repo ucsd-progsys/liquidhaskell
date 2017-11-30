@@ -10,9 +10,9 @@ import Prelude hiding (mappend, mempty)
 import Language.Haskell.Liquid.ProofCombinators
 
 -- | Monoid
--- | mempty-left ∀ x . mappend mempty  x ≡ x
--- | mempty-right ∀ x . mappend x  mempty ≡ x
--- | mappend-assoc ∀ x y z . mappend (mappend x  y) z ≡ mappend x (mappend y z)
+-- | mempty-left ∀ x . mappend mempty x ≡ x
+-- | mempty-right ∀ x . mappend x mempty ≡ x
+-- | mappend-assoc ∀ x y z . mappend (mappend x y) z ≡ mappend x (mappend y z)
 
 {-@ axiomatize mappend @-}
 mappend :: L a -> L a -> L a

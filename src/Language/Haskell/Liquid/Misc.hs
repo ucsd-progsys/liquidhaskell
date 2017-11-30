@@ -239,11 +239,6 @@ tryIgnore s a = catch a $ \e ->
                    writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
-(=>>) :: Monad m => m b -> (b -> m a) -> m b
-(=>>) m f = m >>= (\x -> f x >> return x)
-
-(<<=) :: Monad m => (b -> m a) -> m b -> m b
-(<<=) = flip (=>>)
 
 condNull :: Bool -> [a] -> [a]
 condNull c xs = if c then xs else []
