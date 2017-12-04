@@ -6,7 +6,6 @@ module Ev where
 
 import Peano 
 
-test :: Peano -> Int 
-test Z     = 0 
-test (S n) = test n 
-
+pInt :: Peano -> Int 
+pInt Z     = 0 
+pInt (S n) = 1 + pInt n

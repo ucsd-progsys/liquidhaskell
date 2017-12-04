@@ -627,7 +627,7 @@ makeGhcSpec2 :: [(Maybe Var  , LocSpecType)]
              -> GhcSpec
              -> BareM GhcSpec
 makeGhcSpec2 invs ntys ialias measures su syms sp
-  = return $ sp { gsInvariants = mapSnd (subst su) <$> (F.tracepp "INVARIANTS" invs)
+  = return $ sp { gsInvariants = mapSnd (subst su) <$> invs
                 , gsNewTypes   = mapSnd (subst su) <$> ntys
                 , gsIaliases   = subst su ialias
                 , gsMeasures   = ((qualifyMeasure syms . subst su) <$> (ms1 ++ ms2))
@@ -761,7 +761,7 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
 makeMeasureInvariants sigs xs
-  = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- (F.tracepp "SIGS" sigs)
+  = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
                                        , isSymbolOfVar (val x) y ]
 
 isSymbolOfVar :: Symbol -> Var -> Bool

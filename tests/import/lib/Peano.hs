@@ -10,8 +10,6 @@ module Peano where
 -- | Peano Numbers -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{- invariant {v: Peano | toNat v >= 0} @-}
-
 {-@ data Peano [toNat] @-}
 data Peano where
   Z :: Peano
@@ -23,15 +21,11 @@ toNat :: Peano -> Int
 toNat Z     = 0
 toNat (S n) = 1 + toNat n
 
-{- reflect plus @-}
--- plus :: Peano -> Peano -> Peano
--- plus Z     n = n
--- plus (S m) n = S (plus m n)
+{-@ reflect plus @-}
+plus :: Peano -> Peano -> Peano
+plus Z     n = n
+plus (S m) n = S (plus m n)
 
-{- reflect double @-}
--- double :: Peano -> Peano
--- double n = plus n n
-
-test :: Peano -> Int
-test Z     = 0
-test (S n) = test n
+{-@ reflect double @-}
+double :: Peano -> Peano
+double n = plus n n
