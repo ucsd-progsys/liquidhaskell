@@ -271,20 +271,23 @@ reflectedVars spec cbs = fst <$> xDefs
     xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
     reflSyms           = fmap val . S.toList . Ms.reflects $ spec
 
--- findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
-
--- makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
-
 makeLiftedSpec1
-  :: FilePath -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)] -> [AxiomEq]
+  :: FilePath -> ModName -> Ms.BareSpec
+  -> [(Var, LocSpecType)]
+  -> [AxiomEq]
+  -> [(Maybe Var, LocSpecType)]
   -> BareM ()
-makeLiftedSpec1 file name lSpec0 xts axs
+makeLiftedSpec1 file name lSpec0 xts axs invs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
-    xbs    = [ (varLocSym x, specToBare <$> t) | (x, t) <- xts ]
-    lSpec1 = lSpec0 { Ms.asmSigs  = F.notracepp "ASM-SIGS"  xbs
-                    , Ms.reflSigs = F.notracepp "REFL-SIGS" xbs
-                    , Ms.axeqs    = axs }
+    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
+    -- xinvs  = [ (Just (varLocSym x), specToBare <$> t) | (Just x, t) <- invs ]
+    xinvs  = [ ((varLocSym <$>x), specToBare <$> t) | (x, t) <- invs ]
+    lSpec1 = lSpec0 { Ms.asmSigs    = xbs
+                    , Ms.reflSigs   = xbs
+                    , Ms.axeqs      = axs
+                    , Ms.invariants = xinvs
+                    }
 
 varLocSym :: Var -> LocSymbol
 varLocSym v = symbol <$> GM.locNamedThing v
@@ -416,7 +419,7 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
     >>= makeSpecDictionaries embs vars specs
     -- The lifted-spec is saved in the next step
-    >>= makeGhcAxioms file name embs cbs su specs lSpec0 adts
+    >>= makeGhcAxioms file name embs cbs su specs lSpec0 invs adts
     >>= makeLogicMap
     >>= makeExactDataCons name cfg (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
@@ -471,9 +474,11 @@ getAxiomEqs = concatMap (Ms.axeqs . snd)
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms
   :: FilePath -> ModName -> TCEmb TyCon -> [CoreBind] -> Subst
-  -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec -> [F.DataDecl] -> GhcSpec
+  -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
+  -> [(Maybe Var, LocSpecType)] -> [F.DataDecl]
+  -> GhcSpec
   -> BareM GhcSpec
-makeGhcAxioms file name embs cbs su specs lSpec0 adts sp = do
+makeGhcAxioms file name embs cbs su specs lSpec0 invs adts sp = do
   let mSpc = fromMaybe mempty (lookup name specs)
   let rfls = S.fromList (getReflects specs)
   xtes    <- makeHaskellAxioms embs cbs sp mSpc adts
@@ -481,7 +486,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 adts sp = do
   let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
   let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
-  _       <- makeLiftedSpec1 file name lSpec0 xts mAxs
+  _       <- makeLiftedSpec1 file name lSpec0 xts mAxs invs
   let xts' = xts ++ gsAsmSigs sp
   let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
@@ -756,7 +761,9 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
-makeMeasureInvariants sigs xs = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs, isSymbolOfVar (val x) y ]
+makeMeasureInvariants sigs xs
+  = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
+                                       , isSymbolOfVar (val x) y ]
 
 isSymbolOfVar :: Symbol -> Var -> Bool
 isSymbolOfVar x v = x == symbol' v

@@ -914,7 +914,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
   , Measure.reflSigs   = []
-  , Measure.invariants = [t | Invt   t <- xs]
+  , Measure.invariants = [(Nothing, t) | Invt   t <- xs]
   , Measure.ialiases   = [t | IAlias t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs] ++ [d | NTDecl d <- xs]
@@ -1273,7 +1273,7 @@ infixCondIdP'
 
 -- | LHS of the thing being defined
 binderP :: Parser Symbol
-binderP    = pwr <$> parens (idP bad)
+binderP    = pwr    <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
     idP p  = many1 (satisfy (not . p))

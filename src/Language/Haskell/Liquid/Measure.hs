@@ -59,7 +59,7 @@ data Spec ty bndr  = Spec
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
   , reflSigs   :: ![(LocSymbol, ty)]            -- ^ Reflected type signatures
-  , invariants :: ![ty]                         -- ^ Data type invariants
+  , invariants :: ![(Maybe LocSymbol, ty)]      -- ^ Data type invariants; the Maybe is the generating measure
   , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
