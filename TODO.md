@@ -1,5 +1,10 @@
 # T1089
 
+moster slowdown
+
+* borscht-2017-08-24T18-14-25/summary.csv vs. DEVELOP?
+
+
 * tests/neg/T602.hs
 	[Double vs real]
 * tests/import/lib/ListLib.hs
