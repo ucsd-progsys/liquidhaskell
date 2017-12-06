@@ -1402,7 +1402,7 @@ emptyDecl x pos fsize@(Just _)
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
-    msg = "Empty declaration: should have at least one of [size] or fields."
+    msg = "You should specify either a default [size] or one or more fields in the data declaration"
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
