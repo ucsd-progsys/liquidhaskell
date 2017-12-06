@@ -755,7 +755,8 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
-  checkDuplicateSigs (sigs ++ asms)
+  checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs. 
+  -- checkDuplicateSigs asms
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()

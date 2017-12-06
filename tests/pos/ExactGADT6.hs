@@ -15,6 +15,10 @@ instance PersistEntity Blob where
         BlobXVal :: EntityField Blob Int
         BlobYVal :: EntityField Blob Int
 
+
+{-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
+data Blob = B { xVal :: Int, yVal :: Int }
+
 {-@ blobXVal :: EntityField Blob {v:Int | v >= 0} @-}
 blobXVal :: EntityField Blob Int
 blobXVal = BlobXVal

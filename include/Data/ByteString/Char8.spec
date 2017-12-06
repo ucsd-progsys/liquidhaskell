@@ -40,11 +40,11 @@ assume unsnoc
     :: i : Data.ByteString.ByteString
     -> Maybe ({ o : Data.ByteString.ByteString | bslen o == bslen i - 1 }, Char)
 
-last :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
+assume last :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
 
-tail :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
+assume tail :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
 
-init :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
+assume init :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Char
 
 assume null
     :: bs : Data.ByteString.ByteString

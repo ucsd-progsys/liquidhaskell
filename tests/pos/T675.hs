@@ -1,8 +1,8 @@
 import Data.ByteString
 import Data.ByteString.Unsafe
 
-{-@ assume unsafeTake :: n : Int -> ibs : { ibs : ByteString | bslen ibs >= n } -> { obs : ByteString | bslen obs == n } @-}
-{-@ assume unsafeDrop :: n : Int -> ibs : { ibs : ByteString | bslen ibs >= n } -> { obs : ByteString | bslen obs == bslen ibs - n } @-}
+{- assume unsafeTake :: n : Int -> ibs : { ibs : ByteString | bslen ibs >= n } -> { obs : ByteString | bslen obs == n } @-}
+{- assume unsafeDrop :: n : Int -> ibs : { ibs : ByteString | bslen ibs >= n } -> { obs : ByteString | bslen obs == bslen ibs - n } @-}
 
 
 {-@ extract :: ibs : { ibs : ByteString | bslen ibs >= 100 } -> { obs : ByteString | bslen obs == 4 } @-}

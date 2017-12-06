@@ -111,7 +111,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (DataCtor (..), panic, shiftVV, Predicate, isNumeric)
+import Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
@@ -1643,10 +1643,25 @@ instance Show RTyVar where
 instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
+instance PPrint DataDecl where
+  pprintTidy k dd = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd) <+> "="
+                    $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
+
 instance PPrint DataCtor where
-  pprintTidy k (DataCtor c xts t) =
-    pprintTidy k c <+> text "::" <+> (hsep $ punctuate (text "->")
-                                          ((pprintTidy k <$> xts) ++ [pprintTidy k t]))
+  pprintTidy k (DataCtor c xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
+  pprintTidy k (DataCtor c xts (Just t)) = pprintTidy k c <+> dcolon <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+
+ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
+ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)
+
+ppMbSizeFun :: Maybe SizeFun -> Doc
+ppMbSizeFun Nothing  = ""
+ppMbSizeFun (Just z) = F.pprint z
+
+-- instance PPrint DataCtor where
+  -- pprintTidy k (DataCtor c xts t) =
+    -- pprintTidy k c <+> text "::" <+> (hsep $ punctuate (text "->")
+                                          -- ((pprintTidy k <$> xts) ++ [pprintTidy k t]))
 
 -- ppHack :: (?callStack :: CallStack) => a -> b
 -- ppHack _ = errorstar "OOPS"

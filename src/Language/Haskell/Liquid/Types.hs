@@ -1212,15 +1212,15 @@ instance Show DataDecl where
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
               (show $ tycKind   dd)
-              -- (show $ F.srcSpan dd)
 
 
 instance Show DataName where
   show (DnName n) =               show (F.val n)
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
-instance F.PPrint DataDecl where
-  pprintTidy _ = text . show
+instance F.PPrint SizeFun where
+  pprintTidy _ (IdSizeFun)    = "[id]"
+  pprintTidy _ (SymSizeFun x) = brackets (F.pprint (F.val x))
 
 instance F.Symbolic DataName where
   symbol = F.val . dataNameSymbol
