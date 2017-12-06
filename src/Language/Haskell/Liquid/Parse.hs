@@ -1397,8 +1397,12 @@ dataDeclP = do
   (dataDeclBodyP pos x fsize <|> return (emptyDecl x pos fsize))
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
-emptyDecl x pos fsize
-  = D (DnName x) [] [] [] [] pos fsize Nothing DataReflected
+emptyDecl x pos fsize@(Just _)
+  = D (DnName x) [] [] [] [] pos fsize Nothing DataUser
+emptyDecl x pos _
+  = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
+  where
+    msg = "You should specify either a default [size] or one or more fields in the data declaration"
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do

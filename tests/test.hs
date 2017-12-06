@@ -109,6 +109,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Illegal type specification for `assumed type Range.pig`"
   , errorTest "tests/errors/ShadowMeasure.hs"       2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/ShadowMeasureVar.hs"    2 "Multiple specifications for `shadow`"
+  , errorTest "tests/errors/DupData.hs"             2 "Multiple specifications for `OVec`"
+  , errorTest "tests/errors/EmptyData.hs"           2 "one or more fields in the data declaration for `A`"
   , errorTest "tests/errors/AmbiguousReflect.hs"    2 "Ambiguous specification symbol `mappend`"
   , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
   , errorTest "tests/errors/TerminationExprSort.hs" 2 "Illegal termination specification for `TerminationExpr.showSep`"
@@ -184,7 +186,7 @@ gPosIgnored = ["Intro.hs"]
 gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
-benchTests = group "Benchmarks" 
+benchTests = group "Benchmarks"
   [ testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
   , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
   , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
@@ -193,8 +195,8 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
   ]
 
-proverTests :: IO TestTree 
-proverTests = group "Prover" 
+proverTests :: IO TestTree
+proverTests = group "Prover"
   [ -- SUBSUMED-by-popl18 testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
     testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
   , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess

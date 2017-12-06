@@ -1154,9 +1154,9 @@ data SizeFun
 
 -- | What kind of `DataDecl` is it?
 data DataDeclKind
-  = DataUser           -- ^ User defined data-definitions (should have refined fields)
+  = DataUser           -- ^ User defined data-definitions         (should have refined fields)
   | DataReflected      -- ^ Automatically lifted data-definitions (do not have refined fields)
-  deriving (Data, Typeable, Generic)
+  deriving (Eq, Data, Typeable, Generic, Show)
 
 instance Show SizeFun where
   show IdSizeFun      = "IdSizeFun"
@@ -1207,13 +1207,12 @@ instance F.Loc DataName where
 
 -- | For debugging.
 instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s" -- [at: %s]"
+  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s, kind = %s" -- [at: %s]"
               (show $ tycName   dd)
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
+              (show $ tycKind   dd)
               -- (show $ F.srcSpan dd)
-
-
 
 
 instance Show DataName where

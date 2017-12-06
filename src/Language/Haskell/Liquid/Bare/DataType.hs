@@ -386,15 +386,28 @@ makeConTypes' name dcs vdcs = do
   dcs' <- canonizeDecls dcs
   unzip <$> mapM (uncurry (ofBDataDecl name)) (groupVariances dcs' vdcs)
 
--- | 'canonizeDecls ds' returns a subset of 'ds' where duplicates, e.g. arising
+-- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
---   lifted versions appear LATER in the input list, and always use those instead
---   of the unlifted versions.
+--   lifted versions appear LATER in the input list, and always use those
+--   instead of the unlifted versions.
 
 canonizeDecls :: [DataDecl] -> BareM [DataDecl]
-canonizeDecls = Misc.nubHashLastM key
+canonizeDecls ds = do
+  ks <- mapM key ds
+  case Misc.uniqueByKey' selectDD (zip ks ds) of
+    Left ds  -> err ds
+    Right ds -> return ds
   where
-    key       = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
+    key          = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
+    err ds@(d:_) = uError (ErrDupSpecs (GM.fSrcSpan d) (pprint $ tycName d)(GM.fSrcSpan <$> ds))
+    err _        = panic Nothing "impossible:canonizeDecls"
+
+selectDD :: [DataDecl] -> Either [DataDecl] DataDecl
+selectDD [d] = Right d
+selectDD ds  = case [ d | d <- ds, tycKind d == DataReflected ] of
+                 [d] -> Right d
+                 _   -> Left  ds
+
 
 groupVariances :: [DataDecl]
                -> [(LocSymbol, [Variance])]

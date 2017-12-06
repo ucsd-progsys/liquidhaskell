@@ -6,7 +6,7 @@ module T1112 where
 
 import T1112Lib
 
-{-@ data Product @-}
+{- data Product @-}
 
 {-@ axiomatize leqProd @-}
 leqProd :: Eq (f p)
