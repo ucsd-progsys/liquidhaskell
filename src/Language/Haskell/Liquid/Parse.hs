@@ -1398,7 +1398,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize
-  = D (DnName x) [] [] [] [] pos fsize Nothing DataReflected
+  = D (DnName x) [] [] [] [] pos fsize Nothing DataUser
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do

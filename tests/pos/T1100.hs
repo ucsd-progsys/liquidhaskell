@@ -7,7 +7,6 @@
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
 class PersistEntity record where
-    {-@ data EntityField @-}
     data EntityField record :: * -> *
 
 instance PersistEntity Blob where
