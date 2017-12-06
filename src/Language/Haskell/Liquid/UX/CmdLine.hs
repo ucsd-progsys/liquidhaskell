@@ -42,8 +42,8 @@ import qualified Data.ByteString.Lazy.Char8 as B
 import System.Directory
 import System.Exit
 import System.Environment
-import Paths_liquidhaskell (version)
-import Data.Version (showVersion)
+-- SIGH. CIRCLE hassles: import Paths_liquidhaskell (version)
+-- SIGH. CIRCLE hassles: import Data.Version (showVersion)
 import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
@@ -438,7 +438,11 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell v" ++ showVersion version ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
+  where
+    myVersion :: String
+    myVersion = "0.8.2.0"
+    -- CIRCLE HASSLES: myVersion = showVersion version
 
 -- NOTE [searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
