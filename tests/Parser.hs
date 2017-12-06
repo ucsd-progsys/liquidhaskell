@@ -34,7 +34,7 @@ main =  defaultMainWithIngredients (
 
 tests :: TestTree
 tests =
-  testGroup "Tests"
+  testGroup "ParserTests"
     [
       testSucceeds
     , testSpecP
@@ -135,11 +135,10 @@ testSpecP =
 
     , testCase "data" $
        parseSingleSpec "data Bob = B {foo :: Int}" @?=
-          "DDecl DataDecl: data = \"Bob\", tyvars = [], sizeFun = Nothing"
-
+          "DDecl DataDecl: data = \"Bob\", tyvars = [], sizeFun = Nothing, kind = DataUser"
     , testCase "newtype" $
        parseSingleSpec "newtype Foo = Bar {x :: Nat}" @?=
-          "NTDecl DataDecl: data = \"Foo\", tyvars = [], sizeFun = Nothing"
+          "NTDecl DataDecl: data = \"Foo\", tyvars = [], sizeFun = Nothing, kind = DataUser"
 
     , testCase "include" $
        parseSingleSpec "include <listSet.hquals>" @?=
@@ -327,7 +326,7 @@ testSucceeds =
          , "                   , r   :: Tree {v:a | key < v }"
          , "                   }" ])
         @?=
-          "DDecl DataDecl: data = \"Tree\", tyvars = [\"a\"], sizeFun = Just SymSizeFun \"ht\""
+          "DDecl DataDecl: data = \"Tree\", tyvars = [\"a\"], sizeFun = Just SymSizeFun \"ht\", kind = DataUser"
 
     , testCase "type spec 7" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?=
@@ -355,7 +354,7 @@ testSucceeds =
           , "  | App (fn :: f) (arg :: f)"
           , "  | Paren (ast :: f)" ])
           @?=
-          "DDecl DataDecl: data = \"AstF\", tyvars = [\"f\"], sizeFun = Nothing"
+          "DDecl DataDecl: data = \"AstF\", tyvars = [\"f\"], sizeFun = Nothing, kind = DataUser"
 
     , testCase "type spec 11" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?=
@@ -445,7 +444,7 @@ testSucceeds =
          , "    Nil  :: List a "
          , "  | Cons :: listHead:a -> listTail:List a -> List a  "])
         @?=
-          "DDecl DataDecl: data = \"List\", tyvars = [\"a\"], sizeFun = Nothing"
+          "DDecl DataDecl: data = \"List\", tyvars = [\"a\"], sizeFun = Nothing, kind = DataUser"
 
     , testCase "type spec 28" $
        parseSingleSpec (unlines $
@@ -453,7 +452,7 @@ testSucceeds =
          , "    Nil2  :: List2 a "
          , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
         @?=
-          "DDecl DataDecl: data = \"List2\", tyvars = [\"a\",\"b\"], sizeFun = Nothing"
+          "DDecl DataDecl: data = \"List2\", tyvars = [\"a\",\"b\"], sizeFun = Nothing, kind = DataUser"
 
     , testCase "type spec 29" $
        parseSingleSpec (unlines $
@@ -462,7 +461,7 @@ testSucceeds =
          , "| ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))"
          ])
         @?=
-          "DDecl DataDecl: data = \"Ev\", tyvars = [], sizeFun = Nothing"
+          "DDecl DataDecl: data = \"Ev\", tyvars = [], sizeFun = Nothing, kind = DataUser"
 
     , testCase "type spec 30" $
        parseSingleSpec (unlines $

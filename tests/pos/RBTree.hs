@@ -22,7 +22,6 @@ data RBTree a = Leaf
                   }
   @-}
 
-
 data Color = B -- ^ Black
            | R -- ^ Red
            deriving (Eq,Show)
@@ -195,17 +194,6 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ measure bh        :: RBTree a -> Int
     bh (Leaf)         = 0
     bh (Node c x l r) = bh l + if (c == R) then 0 else 1
-  @-}
-
--- | Binary Search Ordering
-
-{-@ data RBTree a <l :: a -> a -> Bool, r :: a -> a -> Bool>
-            = Leaf
-            | Node { nCol   :: Color
-                   , nKey   :: a
-                   , nLeft  :: RBTree <l, r> (a <l nKey>)
-                   , nRight :: RBTree <l, r> (a <r nKey>)
-                  }
   @-}
 
 -------------------------------------------------------------------------------
