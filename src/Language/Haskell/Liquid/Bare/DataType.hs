@@ -34,11 +34,12 @@ import           Class
 import           Data.Maybe
 import           Language.Haskell.Liquid.GHC.TypeRep
 
-import           Control.Monad                          (when) -- , (>=>))
+import           Control.Monad                          (forM_, when) -- , (>=>))
 import           Control.Monad.State                    (gets)
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
+import qualified Data.HashSet                           as S
 
 import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
@@ -59,6 +60,7 @@ import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Lookup
 import           Language.Haskell.Liquid.Bare.OfType
 import           Text.Printf                     (printf)
+import           Text.PrettyPrint.HughesPJ       ((<+>))
 -- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -383,7 +385,7 @@ makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])
 makeConTypes' name dcs vdcs = do
-  dcs' <- canonizeDecls dcs
+  dcs' <- F.tracepp "CANONIZED-DECLS" <$> canonizeDecls dcs
   unzip <$> mapM (uncurry (ofBDataDecl name)) (groupVariances dcs' vdcs)
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
@@ -440,10 +442,25 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "me
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
     meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
 
-checkDataCtor :: DataCtor -> BareM DataCtor
-checkDataCtor d@(DataCtor lc xts _)
+checkDataCtors :: TyCon -> [DataCtor] -> BareM ()
+checkDataCtors c ds = do
+  mapM_ checkDataCtor ds
+  let dcs = S.fromList . fmap F.symbol $ tyConDataCons c
+  forM_ ds $ \d -> do
+    let dn = dcName d
+    x     <- F.symbol <$> lookupGhcDataCon dn
+    when (not (S.member x dcs)) (uError (errInvalidDataCon c dn))
+
+errInvalidDataCon :: TyCon -> LocSymbol -> UserError
+errInvalidDataCon c d = ErrBadData sp (pprint (val d)) msg
+  where
+    sp                = GM.sourcePosSrcSpan (loc d)
+    msg               = ppVar c <+> "is not the type constructor"
+
+checkDataCtor :: DataCtor -> BareM ()
+checkDataCtor (DataCtor lc xts _)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
-  | otherwise     = return d
+  | otherwise     = return ()
     where
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
@@ -460,17 +477,16 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
 
-
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: ModName
             -> Maybe DataDecl
             -> (Maybe (LocSymbol, [Variance]))
             -> BareM ((ModName, TyCon, TyConP, Maybe DataPropDecl), [(DataCon, Located DataConP)])
-ofBDataDecl name (Just dd@(D tc as ps ls cts0 _ sfun pt _)) maybe_invariance_info
+ofBDataDecl name (Just dd@(D tc as ps ls cts _ sfun pt _)) maybe_invariance_info
   = do πs            <- mapM ofBPVar ps
        tc'           <- lookupGhcDnTyCon "ofBDataDecl" tc
        when (not $ checkDataDecl tc' dd) (Ex.throw err)
-       cts           <- mapM checkDataCtor cts0
+       checkDataCtors tc' cts
        cts'          <- mapM (ofBDataCtor name lc lc' tc' αs ps ls πs) cts
        pd            <- mapM (mkSpecType' lc []) pt
        let tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]

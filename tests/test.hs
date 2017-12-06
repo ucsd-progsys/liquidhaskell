@@ -166,6 +166,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/BadDataCon2.hs"         2 "GHC and Liquid specifications have different numbers of fields for `Boo.Cuthb`"
   , errorTest "tests/errors/BadSig0.hs"             2 "Error: Illegal type specification for `Zoo.foo`"
   , errorTest "tests/errors/BadSig1.hs"             2 "Error: Illegal type specification for `constructor Ev.EZ`"
+  , errorTest "tests/errors/BadData1.hs"            2 "`Main.EntityField` is not the type constructor for `BlobXVal`"
+  , errorTest "tests/errors/BadData2.hs"            2 "`Boo.Hog` is not the type constructor for `Cuthb`"
   , errorTest "tests/errors/T1140.hs"               2 "Specified type does not refine Haskell type for `Blank.foo`"
   ]
 

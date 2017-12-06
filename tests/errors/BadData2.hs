@@ -2,8 +2,8 @@
 
 module Boo where
 
-{-@ data Hog where 
-	Cuthb :: Nat -> T 
+{-@ data Hog where  
+      Cuthb :: Nat -> T 
   @-}
 
 data Hog = H Int 
