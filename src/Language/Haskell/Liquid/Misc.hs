@@ -147,7 +147,7 @@ safeZipWithError msg _      _      = errorstar msg
 safeZip3WithError :: String -> [t] -> [t1] -> [t2] -> [(t, t1, t2)]
 safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
 safeZip3WithError _   []     []     []     = []
-safeZip3WithError msg _      _      _      = errorstar msg
+safeZip3WithError msg xs     ys     zs     = errorstar ("safeZip3WithError: " ++ show (length xs, length ys, length zs) ++ msg)
 
 mapNs :: (Eq a, Num a, Foldable t) => t a -> (a1 -> a1) -> [a1] -> [a1]
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns

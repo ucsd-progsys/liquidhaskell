@@ -239,7 +239,9 @@ splitsSWithVariance :: CGEnv
                     -> [Variance]
                     -> CG [([Stratum], [Stratum])]
 splitsSWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (safeZip3WithError "splitsSWithVariance" t1s t2s padvariants)
+  where
+    padvariants = take (length t1s) (variants ++ repeat Bivariant)
 
 rsplitsSWithVariance :: Bool
                      -> CGEnv
@@ -251,7 +253,10 @@ rsplitsSWithVariance False _ _ _ _
   = return []
 
 rsplitsSWithVariance _ γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (safeZip3WithError "rsplitsSWithVariance" t1s t2s padvariants)
+  where
+   padvariants = take (length t1s) (variants ++ repeat Bivariant)
+
 
 bsplitS t1 t2
   = return $ [(s1, s2)]
@@ -382,7 +387,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp _ t2s r2s _ = t2'
        let isapplied = True -- TC.tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsCWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar  <-  splitsCWithVariance           γ' t1s t2s $ traceShow ("Variance for c = " ++ show c) $ varianceTyArgs tyInfo
        csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
@@ -437,7 +442,9 @@ splitsCWithVariance :: CGEnv
                     -> [Variance]
                     -> CG [FixSubC]
 splitsCWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (safeZip3WithError "splitsCWithVariance" t1s t2s padvariants)
+  where
+   padvariants = take (length t1s) (variants ++ repeat Bivariant)
 
 rsplitsCWithVariance :: Bool
                      -> CGEnv
@@ -449,7 +456,9 @@ rsplitsCWithVariance False _ _ _ _
   = return []
 
 rsplitsCWithVariance _ γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (safeZip3WithError "rsplitsCWithVariance" t1s t2s padvariants)
+  where 
+    padvariants = take (length t1s) (variants ++ repeat Bivariant)
 
 bsplitC :: CGEnv
         -> SpecType
