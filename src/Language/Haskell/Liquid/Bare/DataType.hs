@@ -395,19 +395,18 @@ canonizeDecls :: [DataDecl] -> BareM [DataDecl]
 canonizeDecls ds = do
   ks <- mapM key ds
   case Misc.uniqueByKey' selectDD (zip ks ds) of
-    Left ds  -> err ds
-    Right ds -> return ds
+    Left  ds     -> err    ds
+    Right ds     -> return ds
   where
     key          = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
-    err ds@(d:_) = uError (ErrDupSpecs (GM.fSrcSpan d) (pprint $ tycName d)(GM.fSrcSpan <$> ds))
-    err _        = panic Nothing "impossible:canonizeDecls"
+    err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
+    err _        = impossible Nothing "canonizeDecls"
 
-selectDD :: [DataDecl] -> Either [DataDecl] DataDecl
-selectDD [d] = Right d
-selectDD ds  = case [ d | d <- ds, tycKind d == DataReflected ] of
-                 [d] -> Right d
-                 _   -> Left  ds
-
+selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
+selectDD (_,[d]) = Right d
+selectDD (_, ds) = case [ d | d <- ds, tycKind d == DataReflected ] of
+                     [d] -> Right d
+                     _   -> Left  ds
 
 groupVariances :: [DataDecl]
                -> [(LocSymbol, [Variance])]

@@ -56,7 +56,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.Misc               (nubHashOn)
+import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
@@ -329,7 +329,7 @@ _dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <-
 --------------------------------------------------------------------------------
 symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
 symbolVarMap f vs xs' = do
-  let xs    = nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
+  let xs    = Misc.nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
   syms1    <- M.fromList <$> makeSymbols f vs (val <$> xs)
   syms2    <- lookupIds True [ (lx, ()) | lx@(Loc _ _ x) <- xs
                                         , not (M.member x syms1)
@@ -403,9 +403,6 @@ makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
-
-  -- HEREHEREHERE:checkDisjointNames
-
   (invs, ntys, ialias, sigs, asms)        <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   quals    <- mconcat <$> mapM makeQualifiers specs
   let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
@@ -758,7 +755,15 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
+  checkDuplicateSigs (sigs ++ asms)
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
+
+checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()
+checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
+  Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
+  Right _      -> return ()
+  where
+    symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
 
 makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
 makeMeasureInvariants sigs xs

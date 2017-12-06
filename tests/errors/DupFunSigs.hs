@@ -1,3 +1,5 @@
+-- See https://github.com/ucsd-progsys/liquidhaskell/issues/1137
+
 import Data.List
 
 {-@ type WeekDayNum = { i:Int | 0 < i && i <= 7 } @-}
