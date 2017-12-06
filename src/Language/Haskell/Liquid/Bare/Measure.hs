@@ -82,15 +82,11 @@ makeHaskellDataDecls cfg spec tcs
 
 
 isReflectableTyCon :: TyCon -> Bool
-isReflectableTyCon  = isFamInstTyCon' .||. isVanillaAlgTyCon
-  where
-    isFamInstTyCon' c = {- F.notracepp ("isFamInstTyCon c = " ++ F.showpp c) -} (isFamInstTyCon c)
-
-
+isReflectableTyCon  = isFamInstTyCon .||. isVanillaAlgTyCon
 
 liftableTyCons :: [TyCon] -> [(TyCon, DataName)]
 liftableTyCons = F.notracepp "LiftableTCs 3"
-               . zipMapMaybe tyConDataName
+               . zipMapMaybe (tyConDataName True)
                . F.notracepp "LiftableTCs 2"
                . filter   (not . isBoxedTupleTyCon)
                . F.notracepp "LiftableTCs 1"
@@ -104,11 +100,11 @@ zipMapMaybe :: (a -> Maybe b) -> [a] -> [(a, b)]
 zipMapMaybe f = mapMaybe (\x -> (x, ) <$> f x)
 
 hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
-hasDataDecl spec = \tc -> M.lookupDefault def (tcSym tc) decls
+hasDataDecl spec = \tc -> M.lookupDefault def (tcName tc) decls
   where
     def          = NoDecl Nothing
-    tcSym        = GM.dropModuleNamesAndUnique . symbol
-    decls        = M.fromList [ (symbol d, hasDecl d) | d <- Ms.dataDecls spec ]
+    tcName       = tyConDataName False
+    decls        = M.fromList [ (Just (tycName d), hasDecl d) | d <- Ms.dataDecls spec ]
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -128,12 +124,13 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       }
       where decls = map dataConDecl . tyConDataCons
 
-tyConDataName :: TyCon -> Maybe DataName
-tyConDataName tc
-  | vanillaTc  = Just (DnName (symbol <$> GM.locNamedThing tc))
-  | d:_ <- dcs = Just (DnCon  (symbol <$> GM.locNamedThing d ))
+tyConDataName :: Bool -> TyCon -> Maybe DataName
+tyConDataName full tc
+  | vanillaTc  = Just (DnName ((post . symbol) <$> GM.locNamedThing tc))
+  | d:_ <- dcs = Just (DnCon  ((post . symbol) <$> GM.locNamedThing d ))
   | otherwise  = Nothing
   where
+    post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = isVanillaAlgTyCon tc
     dcs        = F.notracepp msg $ tyConDataCons tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc

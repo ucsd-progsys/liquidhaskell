@@ -7,7 +7,7 @@ class PersistEntity record where
     data EntityField record :: * -> *
 
 instance PersistEntity Blob where
-    {-@ data EntityField record typ where
+    {-@ data EntityField Blob typ where
         BlobXVal :: EntityField Blob {v:Int | v >= 0}
       | BlobYVal :: EntityField Blob Int
     @-}
@@ -23,11 +23,10 @@ data Blob = B { xVal :: Int, yVal :: Int }
 blobXVal :: EntityField Blob Int
 blobXVal = BlobXVal
 
--- OK 
+-- OK
 -- testUpdateQuery :: () -> Update Blob Int
 -- testUpdateQuery () = createUpdate blobXVal 3
 
 -- BAD
 -- testUpdateQueryFail :: () -> Update Blob Int
 -- testUpdateQueryFail () = createUpdate blobXVal (-1)
-

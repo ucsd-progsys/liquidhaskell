@@ -1180,6 +1180,10 @@ hasDecl d
   | otherwise
   = HasDecl
 
+instance Hashable DataName where
+  hashWithSalt i = hashWithSalt i . F.symbol
+
+
 instance NFData   SizeFun
 instance B.Binary SizeFun
 instance NFData   DataDeclKind

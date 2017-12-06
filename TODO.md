@@ -1,15 +1,14 @@
-# T1089
+# T1173 
 
-moster slowdown
+* tests/pos/ExactGADT6.hs 
+	1. PARSE
+		- extend Parse.hs to accept/ignore the instance args (here, 'Blob') 
+		- use the DataName corresponding to the FIRST ctor (here 'BlobXVal') 
+	2. DataDecl with Invariants 
+		- Get the 'data' definition's invariants to appear in the data-decl (not just the "raw" lifted one from `tyConDataDecl`)
 
 * borscht-2017-08-24T18-14-25/summary.csv vs. DEVELOP?
 
-
-* tests/neg/T602.hs
-	[Double vs real]
-* tests/import/lib/ListLib.hs
-* tests/import/client/ListClient.hs 
-	[ GHC-list vs fix-list ]
 
 
 # 3 Failures moved in tests/DependentHaskell/todo
