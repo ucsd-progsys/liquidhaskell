@@ -383,7 +383,7 @@ makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])
 makeConTypes' name dcs vdcs = do
-  dcs' <- canonizeDecls (F.tracepp "DATADECLS" dcs)
+  dcs' <- canonizeDecls dcs
   unzip <$> mapM (uncurry (ofBDataDecl name)) (groupVariances dcs' vdcs)
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
