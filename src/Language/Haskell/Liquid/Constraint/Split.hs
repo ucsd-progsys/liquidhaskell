@@ -387,7 +387,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp _ t2s r2s _ = t2'
        let isapplied = True -- TC.tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsCWithVariance           γ' t1s t2s $ traceShow ("Variance for c = " ++ show c) $ varianceTyArgs tyInfo
+       csvar  <-  splitsCWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
        csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 

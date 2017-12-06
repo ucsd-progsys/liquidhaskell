@@ -10,13 +10,19 @@ class PersistEntity record where
     data EntityField record :: * -> *
 
 instance PersistEntity Blob where
-    {-@ data EntityField record typ where
+-- The following is just not used!
+-- Replace it with assumed definitions as below
+    {- data EntityField record typ where
         BlobXVal :: EntityField Blob {v:Int | v >= 0}
       | BlobYVal :: EntityField Blob Int
     @-}
     data EntityField Blob typ where
         BlobXVal :: EntityField Blob Int
         BlobYVal :: EntityField Blob Int
+
+{-@ assume blobXVal :: EntityField Blob {v:Int | v >= 0} @-}
+blobXVal :: EntityField Blob Int
+blobXVal = BlobXVal
 
 {-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
@@ -37,7 +43,8 @@ createUpdate field value = Update {
 }
 
 testUpdateQuery :: () -> Update Blob Int
-testUpdateQuery () = createUpdate BlobXVal 3
+testUpdateQuery () = createUpdate blobXVal 3
 
 testUpdateQueryFail :: () -> Update Blob Int
-testUpdateQueryFail () = createUpdate BlobXVal (-1)
+testUpdateQueryFail () = createUpdate blobXVal (-1)
+
