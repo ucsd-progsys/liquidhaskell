@@ -41,7 +41,7 @@ import           GHC                                    (ModuleName, mkModuleNam
 import           Text.PrettyPrint.HughesPJ              (text )
 -- import           SrcLoc                                 (noSrcSpan)
 
-import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor, Error, R, Predicate)
+import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
 import qualified Language.Fixpoint.Misc                 as F           --  (mapSnd)
@@ -1406,11 +1406,21 @@ emptyDecl x pos _
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
+  vanilla    <- null <$> sepBy locUpperIdP blanks
   ts         <- sepBy noWhere blanks
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP
+  let dn      = dataDeclName pos x vanilla dcs
   whiteSpace
-  return      $ D (DnName x) ts ps [] dcs pos fsize pTy DataUser
+  return      $ D dn ts ps [] dcs pos fsize pTy DataUser
+
+dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
+dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration
+dataDeclName _ _ False (d:_) = DnCon  (dcName d)      -- family instance declaration
+dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (val x)) msg)
+  where
+    msg                  = "You should specify at least one data constructor for a family instance"
+
 
 dataCtorsP :: Parser (Maybe BareType, [DataCtor])
 dataCtorsP

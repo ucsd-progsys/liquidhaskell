@@ -1,6 +1,6 @@
 module LocalTermExpr where
 
-{-@ assume (!!) :: xs:[a] -> {v:Nat | v < len xs} -> a @-}
+{- assume (!!) :: xs:[a] -> {v:Nat | v < len xs} -> a @-}
 
 mysum xs = go 0 0
   where

@@ -104,6 +104,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ExportMeasure1.hs"      2 "Cannot lift `psnd` into refinement logic"
   , errorTest "tests/errors/ExportReflect0.hs"      2 "Cannot lift `identity` into refinement logic"
   , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`"
+  , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"
   , errorTest "tests/errors/DupMeasure.hs"          2 "Multiple measures named `lenA`"
   , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Malformed application of type alias `Range.pig`"
   , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Illegal type specification for `assumed type Range.pig`"
@@ -308,10 +309,10 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-	, "--no-lifted-imports -iinclude --c-files=cbits/fpstring.c"
+        , "--no-lifted-imports -iinclude --c-files=cbits/fpstring.c"
         )
       , ( "benchmarks/text-0.11.2.3"
-	, "--no-lifted-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        , "--no-lifted-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."

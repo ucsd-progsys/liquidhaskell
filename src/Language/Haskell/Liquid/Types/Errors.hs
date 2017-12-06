@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , impossible
   , uError
   , sourceErrors
+  , errDupSpecs
 
   -- * Printing Errors
   , ppError
@@ -61,7 +62,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
-import           Language.Fixpoint.Misc       ({- traceShow, -} dcolon)
+import qualified Language.Fixpoint.Misc     as Misc
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
@@ -388,6 +389,10 @@ data TError t =
 
   deriving (Typeable, Generic , Functor )
 
+errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
+errDupSpecs d spans@(sp:_) = ErrDupSpecs sp d spans
+errDupSpecs _ _            = impossible Nothing "errDupSpecs with empty spans!"
+
 instance NFData ParseError where
   rnf t = seq t ()
 
@@ -667,7 +672,7 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
 ppError' _ dSp dCtx (ErrTySpec _ v t s)
   = dSp <+> text "Illegal type specification for" <+> ppVar v
         $+$ dCtx
-        $+$ nest 4 (vcat [ pprint v <+> dcolon <+> pprint t
+        $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
                          ])
 

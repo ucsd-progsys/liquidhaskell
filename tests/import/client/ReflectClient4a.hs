@@ -19,9 +19,10 @@ test2 = ()
 test3 = ()
 
 {-@ test4 :: { app Nil Nil == Nil } @-}
+test4 = () 
 
-{-@ test4 :: { gapp Nil = Nil } @-}
-test4 = ()
+{-@ test5 :: { gapp Nil = Nil } @-}
+test5 = ()
 
 
 -- {- thmAppLen :: xs:List a -> ys:List a ->
