@@ -362,7 +362,10 @@ getOpts :: [String] -> IO Config
 getOpts as = do
   cfg0   <- envCfg
   cfg1   <- mkOpts =<< cmdArgsRun'
-                         config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
+                         config { modeValue = (modeValue config)
+                                                { cmdArgsValue   = cfg0
+                                                }
+                                }
                          as
   cfg    <- fixConfig cfg1
   when (json cfg) $ setVerbosity Quiet
@@ -434,7 +437,7 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell v.0.8.2.0 Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
 
 -- NOTE [searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
