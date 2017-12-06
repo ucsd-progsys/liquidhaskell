@@ -392,9 +392,16 @@ makeConTypes' name dcs vdcs = do
 --   of the unlifted versions.
 
 canonizeDecls :: [DataDecl] -> BareM [DataDecl]
-canonizeDecls = Misc.nubHashLastM key
+canonizeDecls ds = do
+  ks <- mapM key ds
+  case Misc.uniqueByKey (zip ks ds) of
+    Left ds  -> err ds
+    Right ds -> return ds
   where
-    key       = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
+    key          = fmap F.symbol . lookupGhcDnTyCon "canonizeDecls" . tycName
+    err ds@(d:_) = uError (ErrDupSpecs (GM.fSrcSpan d) (pprint $ tycName d)(GM.fSrcSpan <$> ds))
+    err _        = panic Nothing "impossible:canonizeDecls" 
+
 
 groupVariances :: [DataDecl]
                -> [(LocSymbol, [Variance])]

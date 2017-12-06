@@ -268,6 +268,12 @@ nubHashLast f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 nubHashLastM :: (Eq k, Hashable k, Monad m) => (a -> m k) -> [a] -> m [a]
 nubHashLastM f xs =  M.elems . M.fromList . (`zip` xs) <$> mapM f xs
 
+uniqueByKey :: (Eq k, Hashable k) => [(k, v)] -> Either [v] [v]
+uniqueByKey = sequence . map (tx . snd) . groupList
+  where
+    tx [v]  = Right v
+    tx vs   = Left  vs
+
 join :: (Eq b, Hashable b) => [(a, b)] -> [(b, c)] -> [(a, c)]
 join aBs bCs = [ (a, c) | (a, b) <- aBs, c <- b2cs b ]
   where
