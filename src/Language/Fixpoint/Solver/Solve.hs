@@ -55,7 +55,7 @@ solve cfg fi = do
 -- | Progress Bar
 --------------------------------------------------------------------------------
 withProgressFI :: SolverInfo a b -> IO b -> IO b
-withProgressFI = withProgress . fromIntegral . cNumScc . siDeps  
+withProgressFI = withProgress . (+ 1) . fromIntegral . cNumScc . siDeps  
 --------------------------------------------------------------------------------
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
