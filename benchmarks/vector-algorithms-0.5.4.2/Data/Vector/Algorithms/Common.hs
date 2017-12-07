@@ -1,5 +1,4 @@
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--no-pattern-inline" @-}
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}

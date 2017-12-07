@@ -1,4 +1,3 @@
-{-@ LIQUID "--no-pattern-inline" @-}
 {-# LANGUAGE TypeOperators, BangPatterns, ScopedTypeVariables #-}
 
 -- ---------------------------------------------------------------------------
