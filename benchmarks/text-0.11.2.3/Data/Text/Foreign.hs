@@ -1,4 +1,4 @@
-{-@ LIQUID "--no-pattern-inline" @-}
+{- LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
