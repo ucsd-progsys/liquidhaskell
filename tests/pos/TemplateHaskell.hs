@@ -1,7 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-{-@ LIQUID "--no-pattern-inline" @-}
-
 module TemplateHaskell where
 
 import Language.Haskell.TH.Syntax

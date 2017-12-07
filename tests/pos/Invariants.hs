@@ -1,4 +1,3 @@
-{-@ LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--short-names"       @-}
 

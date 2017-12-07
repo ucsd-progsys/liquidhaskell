@@ -1,6 +1,7 @@
-module Count () where
 
 {-@ LIQUID "--no-pattern-inline" @-}
+
+module Count () where
 
 {-@ measure count :: Count a -> Int @-}
 

@@ -1,5 +1,3 @@
-{-@ LIQUID "--nopatterninline" @-}
-
 module RG where
 
 import Data.IORef as R

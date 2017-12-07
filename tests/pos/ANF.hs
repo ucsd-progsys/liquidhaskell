@@ -1,5 +1,4 @@
 {-@ LIQUID "--no-termination"    @-}
-{-@ LIQUID "--no-pattern-inline" @-}
 
 module ANF (Op (..), Expr (..), isImm, isAnf, anf) where
 

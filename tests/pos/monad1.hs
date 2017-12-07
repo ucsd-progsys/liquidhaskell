@@ -1,6 +1,5 @@
 module Monad where
 
-{-@ LIQUID "--no-pattern-inline" @-}
 
 -- create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l = do

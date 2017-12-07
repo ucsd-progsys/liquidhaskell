@@ -1,5 +1,3 @@
-{-@ LIQUID "--nopatterninline" @-}
-
 module Bob where
 
 {-@ checkNat :: Nat -> Int @-}
