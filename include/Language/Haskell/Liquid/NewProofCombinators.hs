@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
 
-module ProofCombinators (
+module NewProofCombinators (
 
   -- Attention! the operators Admitted and (==?) are 
   -- UNSAFE: they should not belong the final proof term
