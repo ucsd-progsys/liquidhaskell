@@ -1,7 +1,6 @@
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--nopatterninline" @-}
 
 
 {-# OPTIONS_GHC -cpp -fno-warn-orphans #-}

@@ -1,6 +1,5 @@
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--no-pattern-inline" @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 -- |

@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 {-@ LIQUID "--prune-unsorted" @-}
-{-@ LIQUID "--no-pattern-inline" @-}
 
 -- |
 -- Module      : Data.ByteString.Fusion
