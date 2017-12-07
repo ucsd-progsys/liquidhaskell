@@ -38,7 +38,8 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Printing Errors
   , ppError
   , ppError'
-
+  , ppVar
+  
   -- * SrcSpan Helpers
   , realSrcSpan
   , unpackRealSrcSpan

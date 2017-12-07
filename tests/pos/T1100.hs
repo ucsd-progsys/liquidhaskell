@@ -2,7 +2,6 @@
 {-@ LIQUID "--no-adt"                              @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{- LIQUID "--automatic-instances=liquidinstances" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -10,7 +9,7 @@ class PersistEntity record where
     data EntityField record :: * -> *
 
 instance PersistEntity Blob where
-    {-@ data EntityField record typ where
+  {-@ data EntityField Blob typ where
         BlobXVal :: EntityField Blob {v:Int | v >= 0}
       | BlobYVal :: EntityField Blob Int
     @-}
