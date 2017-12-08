@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
 
-module NewProofCombinators (
+module Language.Haskell.Liquid.NewProofCombinators (
 
   -- ATTENTION! `Admit` and `(==!)` are UNSAFE: they should not belong the final proof term
 
