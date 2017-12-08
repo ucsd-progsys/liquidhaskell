@@ -5,8 +5,7 @@
 
 module NewProofCombinators (
 
-  -- Attention! the operators Admitted and (==?) are 
-  -- UNSAFE: they should not belong the final proof term
+  -- ATTENTION! `Admitted` and `(==!)` are UNSAFE: they should not belong the final proof term
 
   -- * Proof is just a () alias 
   Proof
@@ -18,12 +17,11 @@ module NewProofCombinators (
   , (?)
 
   -- * These two operators check all intermediate equalities 
-  , (==!) -- proof of equality is implicit eg. x ==! y
-  , (==:) -- proof of equality is explitic eg. x ==: y ? p
+  , (===) -- proof of equality is implicit eg. x === y
+  , (==?) -- proof of equality is explitic eg. x ==? y ? p
 
   -- Uncheck operator used only for proof debugging
-  
-  , (==?) -- x ==? y always succeds 
+  , (==!) -- x ==! y always succeds 
 
   -- * The below operator does not check intermediate equalities
   --   but takes optional proof argument.
@@ -85,48 +83,53 @@ data QED = Admitted | QED
 
 -- | Implicit equality
 
--- x ==! y returns the proof certificate that 
+-- x === y returns the proof certificate that 
 -- result value is equal to both x and y
 -- when y == x (as assumed by the operator's precondition) 
 
-infixl 3 ==!
-{-@ (==!) :: x:a -> y:{a | y == x} -> {v:a | v == x && v == y} @-} 
-(==!) :: a -> a -> a 
-x ==! _  = x
+infixl 3 ===
+{-@ (===) :: x:a -> y:{a | y == x} -> {v:a | v == x && v == y} @-} 
+(===) :: a -> a -> a 
+x === _  = x
 
+-------------------------------------------------------------------------------
 -- | Explicit equality
--- `x ==: y ? p` returns the proof certificate that 
--- result value is equal to both x and y
--- when y == x is explicitely asserted by the proof term p
+-- 	`x ==? y ? p` 
+--   returns the proof certificate that result value is equal to both x and y
+--   when y == x is explicitely asserted by the proof term p
+-------------------------------------------------------------------------------
 
-infixl 3 ==:
-{-@ (==:) :: x:a -> y:a -> {v:Proof | x == y} -> {v:a | v == x && v == y} @-} 
-(==:) :: a -> a -> Proof -> a 
-(==:) x _ _ = x
+infixl 3 ==?
+{-@ (==?) :: x:a -> y:a -> {v:Proof | x == y} -> {v:a | v == x && v == y} @-} 
+(==?) :: a -> a -> Proof -> a 
+(==?) x _ _ = x
 
--- where `?` is basically Haskell's $ and is used for the right precedence
+-------------------------------------------------------------------------------
+-- | `?` is basically Haskell's $ and is used for the right precedence
+-------------------------------------------------------------------------------
 
 infixl 3 ?
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
 
 
+-------------------------------------------------------------------------------
 -- | Assumed equality
--- `x ==? y ` returns the admitted proof certificate that 
--- result value is equal to both x and y
+-- 	`x ==! y ` 
+--   returns the admitted proof certificate that result value is equals x and y
+-------------------------------------------------------------------------------
 
-infixl 3 ==?
-{-@ assume (==?) :: x:a -> y:a -> {v:a | v == x && v == y} @-} 
-(==?) :: a -> a -> a 
-(==?) x _ = x
+infixl 3 ==!
+{-@ assume (==!) :: x:a -> y:a -> {v:a | v == x && v == y} @-} 
+(==!) :: a -> a -> a 
+(==!) x _ = x
 
 
--- Example: See ListExamples 
-
--- In short: 
--- - (==?) is only for proof debuging
--- - (==:) requires explicit proof term
--- - (==!) does not require explicit proof term
+-- | To summarize: 
+--
+-- 	- (==!) is *only* for proof debuging
+--	- (===) does not require explicit proof term
+-- 	- (==?) requires explicit proof term
 
 -------------------------------------------------------------------------------
 -- | * Unchecked Proof Certificates -------------------------------------------
