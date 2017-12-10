@@ -32,7 +32,7 @@ import           Control.Monad.State
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
-import           Data.Maybe           (catMaybes, fromMaybe)
+import           Data.Maybe           (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
 -- import           Text.Printf (printf)
 
@@ -154,7 +154,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 1. when e2 is a data con and can lead to further reductions
     -- 2. when size e2 < size e1
     simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
-               L.nub (catMaybes [_getDCEquality e1 e2 | PAtom Eq e1 e2 <- atms])
+               L.nub (catMaybes [_getDCEquality senv e1 e2 | PAtom Eq e1 e2 <- atms])
     atms = splitPAnd =<< (expr <$> filter isProof es)
     isProof (_, RR s _) = showpp s == "Tuple"
     toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
@@ -183,8 +183,8 @@ makeSimplifications sis (dc, es, e)
    go _
      = []
 
-_getDCEquality :: Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-_getDCEquality e1 e2
+_getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
+_getDCEquality senv e1 e2
     | Just dc1 <- f1
     , Just dc2 <- f2
     = if dc1 == dc2
@@ -197,19 +197,23 @@ _getDCEquality e1 e2
     | otherwise
     = Nothing
   where
-    (f1, es1) = Misc.mapFst getDC $ splitEApp e1
-    (f2, es2) = Misc.mapFst getDC $ splitEApp e2
+    (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
+    (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
 
-    -- TODO: Stringy hacks
-    getDC (EVar x)
-      = if isUpper $ head $ symbolString $ dropModuleNames x
-          then Just x
-          else Nothing
-    getDC _
-      = Nothing
+-- TODO: Stringy hacks
+getDC :: SymEnv -> Expr -> Maybe Symbol
+getDC senv (EVar x)
+  | isUpperSymbol x && isNothing (symEnvTheory x senv)
+  = Just x
+getDC _ _
+  = Nothing
 
-    dropModuleNames = mungeNames (symbol . last) "."
+isUpperSymbol :: Symbol -> Bool
+isUpperSymbol = isUpper . headSym . dropModuleNames
 
+dropModuleNames :: Symbol -> Symbol
+dropModuleNames = mungeNames (symbol . last) "."
+  where
     mungeNames _ _ ""  = ""
     mungeNames f d s'@(symbolText -> s)
       | s' == tupConName = tupConName

@@ -254,20 +254,12 @@ smt2App k env f (d:ds)
 
 smt2App _ _ _ _    = Nothing
 
--- smt2App env (EVar f) (d:ds)
---  | Just s <- {- tracepp ("SYMENVTHEORY: " ++ showpp f) $ -} symEnvTheory f env
---  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
-
 smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder.Builder
 smt2AppArg k env (ECst (EVar f) t)
   | Just fThy <- symEnvTheory f env
   = Just $ if isPolyCtor fThy t
             then (k env f (ffuncOut t))
             else (build "{}" (Only (tsRaw fThy)))
-
--- // smt2AppArg _ env (EVar f)
--- // | Just fThy <- symEnvTheory f env
--- //  = Just (build "{}" (Only (tsRaw fThy)))
 
 smt2AppArg _ _ _
   = Nothing
@@ -308,8 +300,6 @@ preamble u _    = smtlibPreamble u
 --   to avoid duplicate SMT definitions.  `uninterpSEnv` is for uninterpreted
 --   symbols, and `interpSEnv` is for interpreted symbols.
 --------------------------------------------------------------------------------
--- theorySEnv :: SEnv Sort
--- theorySEnv = fromListSEnv . M.toList . fmap tsSort $ theorySymbols
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
@@ -356,51 +346,8 @@ interpSymbols =
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
--- SHIFTLAM _uninterpSymbols :: [(Symbol, TheorySymbol)]
--- SHIFTLAM _uninterpSymbols = [ (x, uninterpSym x t) | (x, t) <- _uninterpSymbols']
--- SHIFTLAM
--- SHIFTLAM --------------------------------------------------------------------------------
--- SHIFTLAM _uninterpSym :: Symbol -> Sort -> TheorySymbol
--- SHIFTLAM --------------------------------------------------------------------------------
--- SHIFTLAM _uninterpSym x t =  Thy x (symbolRaw x) t Uninterp
--- SHIFTLAM
--- SHIFTLAM _uninterpSymbols' :: [(Symbol, Sort)]
--- SHIFTLAM _uninterpSymbols' = [] -- [ (toIntName,  mkFFunc 1 [FVar 0, FInt]) ]
-
-  -- SHIFTLAM  [ (setToIntName,    FFunc (setSort intSort)   intSort)
-  -- SHIFTLAM  , (bitVecToIntName, FFunc bitVecSort intSort)
-  -- SHIFTLAM  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
-  -- SHIFTLAM  , (realToIntName,   FFunc realSort   intSort)
-  -- SHIFTLAM  , (lambdaName   ,   FFunc intSort (FFunc intSort intSort))
-  -- SHIFTLAM  ]
-  -- SHIFTLAM  ++ concatMap makeApplies [1..maxLamArg]
-  -- SHIFTLAM  ++ [(lamArgSymbol i, s) | i <- [1..maxLamArg], s <- sorts]
--- SHIFTLAM
--- SHIFTLAM  -- THESE ARE DUPLICATED IN DEFUNCTIONALIZATION
-
 maxLamArg :: Int
 maxLamArg = 7
-
--- SHIFTLAM sorts :: [Sort]
--- SHIFTLAM sorts = [intSort]
-
--- NIKI TODO: allow non integer lambda arguments
--- sorts = [setSort intSort, bitVecSort intSort, mapSort intSort intSort, boolSort, realSort, intSort]
--- makeLamArg :: Sort -> Int  -> Symbol
--- makeLamArg _ = intArgName
-
--- SHIFTLAM makeApplies :: Int -> [(Symbol, Sort)]
--- SHIFTLAM makeApplies i =
-  -- SHIFTLAM [ (intApplyName i,    go i intSort)
-  -- SHIFTLAM , (setApplyName i,    go i (setSort intSort))
-  -- SHIFTLAM , (bitVecApplyName i, go i bitVecSort)
-  -- SHIFTLAM , (mapApplyName i,    go i $ mapSort intSort intSort)
-  -- SHIFTLAM , (realApplyName i,   go i realSort)
-  -- SHIFTLAM , (boolApplyName i,   go i boolSort)
-  -- SHIFTLAM ]
-  -- SHIFTLAM where
-    -- SHIFTLAM go 0 s = FFunc intSort s
-    -- SHIFTLAM go i s = FFunc intSort $ go (i-1) s
 
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
 axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
