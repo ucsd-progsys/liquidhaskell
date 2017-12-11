@@ -265,8 +265,10 @@ exprArg _   (RApp x [] [] _)
   = EVar (F.symbol x)
 exprArg msg (RApp f ts [] _)
   = F.mkEApp (F.symbol <$> btc_tc f) (exprArg msg <$> ts)
-exprArg msg (RAppTy (RVar f _) t _)
-  = F.mkEApp (dummyLoc $ F.symbol f) [exprArg msg t]
+exprArg msg (RAppTy t1 t2 _)
+  = F.EApp (exprArg msg t1) (exprArg msg t2)
+-- exprArg msg (RAppTy (RVar f _) t _)
+--  = F.mkEApp (dummyLoc $ F.symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
   -- = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z ++ "[" ++ show (toConstr z) ++ "]") msg
