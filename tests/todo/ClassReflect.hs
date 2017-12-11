@@ -1,3 +1,5 @@
+{-@ LIQUID "--ple" @-}
+
 module Blank where
 
 class Bob a where
