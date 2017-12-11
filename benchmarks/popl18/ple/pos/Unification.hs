@@ -37,14 +37,17 @@ unify TBot TBot
   = Just Emp
 unify t1@(TVar i) t2
   | not (S.member i (freeVars t2))
-  = Just (C (P i t2) Emp `byTheorem` theoremVar t2 i)
+  -- ORIG = Just (C (P i t2) Emp `byTheorem` theoremVar t2 i)
+  = Just (C (P i t2) Emp) `byTheorem` theoremVar t2 i
 unify t1 t2@(TVar i)
   | not (S.member i (freeVars t1))
-  = Just (C (P i t1) Emp `byTheorem` theoremVar t1 i)
+  -- ORIG = Just (C (P i t1) Emp `byTheorem` theoremVar t1 i)
+  = Just (C (P i t1) Emp) `byTheorem` theoremVar t1 i
 unify (TFun t11 t12) (TFun t21 t22)
   = case unify t11 t21 of
       Just θ1 -> case unify (apply θ1 t12) (apply θ1 t22) of
-                   Just θ2 -> Just (append θ2 θ1 `byTheorem` theoremFun t11 t12 t21 t22 θ1 θ2)
+		    -- Just θ2 -> Just (append θ2 θ1 `byTheorem` theoremFun t11 t12 t21 t22 θ1 θ2)
+		   Just θ2 -> Just (append θ2 θ1) `byTheorem` theoremFun t11 t12 t21 t22 θ1 θ2
                    Nothing -> Nothing
       _       -> Nothing
 unify t1 t2
