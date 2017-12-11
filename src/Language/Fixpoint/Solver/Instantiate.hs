@@ -165,7 +165,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
     askSMT ctx bs e
       | isTautoPred  e = return True
-      | isContraPred e = return False
+    -- // Why?  | isContraPred e = return False -- Why the f?
       | null (Vis.kvars e) = do
           SMT.smtPush ctx
           b <- SMT.checkValid' ctx [] PTrue (toSMT bs e)
@@ -480,21 +480,25 @@ substPopIf xes e = wtf $ L.foldl' go e xes
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ e (EIte b e1 e2)
-  = do b' <- eval γ b
-       b'' <- liftIO (isValid γ b')
-       if b''
-          then addEquality γ e e1 >>
-               ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-               eval γ e1 >>=
-               ((e, "App") ~>)
-          else do b''' <- liftIO (isValid γ (PNot b'))
-                  if b'''
-                     then addEquality γ e e2 >>
-                          ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                          eval γ e2 >>=
-                          ((e, "App") ~>)
-                     else return e
+evalRecApplication γ e (EIte b e1 e2) = do
+  contra <- {- tracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
+  if contra
+    then return e
+    else do b' <- eval γ b
+            b1 <- liftIO (isValid γ b')
+            if b1
+              then addEquality γ e e1 >>
+                   ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+                   eval γ e1 >>=
+                   ((e, "App") ~>)
+              else do
+                   b2 <- liftIO (isValid γ (PNot b'))
+                   if b2
+                      then addEquality γ e e2 >>
+                           ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
+                           eval γ e2 >>=
+                           ((e, "App") ~>)
+                      else return e
 evalRecApplication _ _ e
   = return e
 
