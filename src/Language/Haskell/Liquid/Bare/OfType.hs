@@ -248,14 +248,17 @@ expandRTAliasApp l rta args r
     targs = takeWhile notIsRExprArg args
     eargs = dropWhile notIsRExprArg args
 
-
-
-
-
+--------------------------------------------------------------------------------
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell
--- HORRIBLE HACK To allow treating upperCase X as value variables X
--- e.g. type Matrix a Row Col = List (List a Row) Col
-
+--   this function allows us to treating (parsed) "types" as "value"
+--   arguments, e.g. type Matrix a Row Col = List (List a Row) Col
+--   Note that during parsing, we don't necessarily know whether a
+--   string is a type or a value expression. E.g. in tests/pos/T1189.hs,
+--   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
+--     {-@ type Prop E = {v:_ | prop v = E} @-}
+--   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
+--   `exprArg` converts that `BareType` into an `Expr`.
+--------------------------------------------------------------------------------
 exprArg :: (PrintfArg t1)  => t1 -> BareType -> Expr
 exprArg _   (RExprArg e)
   = val e
@@ -267,8 +270,8 @@ exprArg msg (RApp f ts [] _)
   = F.mkEApp (F.symbol <$> btc_tc f) (exprArg msg <$> ts)
 exprArg msg (RAppTy t1 t2 _)
   = F.EApp (exprArg msg t1) (exprArg msg t2)
--- exprArg msg (RAppTy (RVar f _) t _)
---  = F.mkEApp (dummyLoc $ F.symbol f) [exprArg msg t]
+-- ORIG exprArg msg (RAppTy (RVar f _) t _)
+-- ORIG = F.mkEApp (dummyLoc $ F.symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
   -- = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z ++ "[" ++ show (toConstr z) ++ "]") msg
