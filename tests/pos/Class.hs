@@ -86,4 +86,4 @@ sumMList xs = go max 0
 x :: MList Int
 x = 1 `Cons` (2 `Cons` (3 `Cons` Nil))
 
-foo = liquidAssert $ size (Cons 1 Nil) == size []
+foo = liquidAssert $ size (Cons 1 Nil) == size [7]
