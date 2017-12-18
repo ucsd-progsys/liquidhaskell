@@ -642,6 +642,10 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
 
+
+totalityType :: PPrint a =>  Tidy -> a -> Bool 
+totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
+
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
@@ -649,6 +653,13 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
   = dSp <+> pprintTidy td o
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext td p c)
+
+ppError' td dSp dCtx (ErrSubType _ _ _ _ tE)
+  | totalityType td tE
+  = dSp <+> text "Totallity Error"
+        $+$ dCtx
+        $+$ text "Your function is not total: not all patterns are defined." 
+        $+$ "Hint: Use \"--no-totality\" to deactivate totality checking."
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
