@@ -9,14 +9,13 @@
 
 module Language.Fixpoint.Solver.GradualSolve (solveGradual) where
 
+{- COMMENTING OUT AS IT DOESNT BUILD!
 import           Control.Monad (when, filterM, foldM)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import qualified Language.Fixpoint.SortCheck       as So
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.GradualSolution  as S
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
@@ -26,9 +25,13 @@ import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenNormal, whenLoud)
-import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+-}
+
+import           Control.DeepSeq
+import qualified Language.Fixpoint.Types           as F
+import           Language.Fixpoint.Types.Config hiding (stats)
 
 solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 solveGradual = undefined
