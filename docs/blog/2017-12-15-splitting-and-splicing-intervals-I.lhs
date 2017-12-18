@@ -3,10 +3,9 @@ layout: post
 title: Splitting and Splicing Intervals (Part 1)
 date: 2017-12-15
 comments: true
-external-url:
 author: Ranjit Jhala
 published: true
-categories: reflection, abstract-refinements
+tags: reflection, abstract-refinements
 demo: IntervalSets.hs
 ---
 
@@ -26,10 +25,20 @@ their [nifty new tool][hs-to-coq].
   abilities let us specify and check "correctness",
   and even better, understand _why_ the code works.
 
+(Click here to [demo][demo])
+
 <!-- more -->
+
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/ribbon.png"
+       alt="Ribbons" height="150">
+  </div>
+</div>
 
 <div class="hidden">
 \begin{code}
+{-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--prune-unsorted" @-}
@@ -44,16 +53,6 @@ data Interval  = I
   } deriving (Show)
 
 \end{code}
-</div>
-
-<div class="row-fluid">
-  <div class="span12 pagination-centered">
-  <img src="static/img/escher-helix.jpg"
-       alt="Escher Ribbons" width="400">
-       <br>
-       <br>
-       <br>
-  </div>
 </div>
 
 Encoding Sets as Intervals
@@ -80,12 +79,11 @@ and then *partitioning* the list into compact intervals
 
 That is,
 
-1. Each interval `(from, to)` corresponds to the set of numbers
-   `{from, from+1, ..., to-1}`.
+1. Each interval `(from, to)` corresponds to the set
+   `{from,from+1,...,to-1}`.
 
-2. Ordering ensures there is a canonical representation, which
-   will simplify operations on the intervals.
-
+2. Ordering ensures there is a canonical representation
+   that simplifies interval operations.
 
 Making Illegal Intervals Unrepresentable
 ----------------------------------------
@@ -118,7 +116,7 @@ goodItv = I 10 20
 badItv  = I 20 10     -- ILLEGAL: empty interval!
 \end{code}
 
-**Combining Many Intervals**
+**Many Intervals**
 
 We can represent arbitrary sets as a *list of* `Interval`s:
 
@@ -130,36 +128,37 @@ The plain Haskell type doesn't have enough teeth to
 enforce legality, specifically, to ensure *ordering*
 and the absence of *overlaps*. Refinements to the rescue!
 
-First, we specify a **lower-bounded** `Interval` as:
+First, we specify a *lower-bounded* `Interval` as:
 
 \begin{code}
-{-@ type LbInterval N   = {v:Interval | N <= from v} @-}
+{-@ type LbItv N = {v:Interval | N <= from v} @-}
 \end{code}
 
-Intuitively, an `LbInterval n` is one that starts (at or) after `n`.
+Intuitively, an `LbItv n` is one that starts (at or) after `n`.
 
-Next, we use the above to define an **ordered list**
+Next, we use the above to define an *ordered list*
 of lower-bounded intervals:
 
 \begin{code}
-{-@ type OrdIntervals N = [LbInterval N]<{\vHd vTl -> to vHd <= from vTl}> @-}
+{-@ type OrdItvs N = [LbItv N]<{\vHd vTl -> to vHd <= from vTl}> @-}
 \end{code}
 
 The signature above uses an [abstract-refinement][abs-ref]
-to capture the legality requirements in two parts:
+to capture the legality requirements.
 
 1. An `OrdInterval N` is a list of `Interval` that are
-   lower-bounded by `N`, understand
+   lower-bounded by `N`, and
 
-2. (Recursively, in each sub-list), the head `Interval`
-   `vHd` *ends before* each `Interval` in the tail `vTl`.
+2. In each sub-list, the head `Interval` `vHd` *precedes*
+   each in the tail `vTl`.
 
-**Legal Intervals**
+Legal Intervals
+---------------
 
 We can now describe legal `Intervals` simply as:
 
 \begin{code}
-{-@ data Intervals = Intervals { itvs :: OrdIntervals 0 } @-}
+{-@ data Intervals = Intervals { itvs :: OrdItvs 0 } @-}
 \end{code}
 
 LH will now ensure that illegal `Intervals` are not representable.
@@ -185,10 +184,10 @@ goodLIs lb ((I f t) : is) = lb <= f && f < t && goodLIs t is
 
 We can check that our type-based representation is indeed
 legit by checking that `goodLIs` returns `True` whenever it
-is called with a valid of `OrdIntervals`:
+is called with a valid of `OrdItvs`:
 
 \begin{code}
-{-@ goodLIs :: lb:Nat -> is:OrdIntervals lb -> {v : Bool | v } @-}
+{-@ goodLIs :: lb:Nat -> is:OrdItvs lb -> {v : Bool | v } @-}
 \end{code}
 
 
@@ -204,14 +203,14 @@ For example, here's the code for _intersecting_ two sets,
 each represented as intervals. We've made exactly one
 change to the function implemented by Breitner: we added
 the extra lower-bound parameter `lb` to the recursive `go`
-to make clear that the function takes two `OrdIntervals lb`
-and returns an `OrdIntervals lb`.
+to make clear that the function takes two `OrdItvs lb`
+and returns an `OrdItvs lb`.
 
 \begin{code}
 intersect :: Intervals -> Intervals -> Intervals
 intersect (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
   where
-    {-@ go :: lb:Int -> OrdIntervals lb -> OrdIntervals lb -> OrdIntervals lb @-}
+    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
     go _ _ [] = []
     go _ [] _ = []
     go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
@@ -227,7 +226,7 @@ intersect (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
       where f'    = max f1 f2
 \end{code}
 
-Internal vs. External Verification
+Internal vs External Verification
 ----------------------------------
 
 By representing legality **internally** as a refinement type,
@@ -237,16 +236,16 @@ that LH can _automatically_ chomp through the above code to
 guarantee that we haven't messed up the invariants.
 
 To appreciate the payoff, compare to the effort needed
-to verify legality using [the external representation
-used in the hs-to-coq proof][intersect-good].
+to verify legality using the external representation
+used in the [hs-to-coq proof][intersect-good].
 
-The same principle applies to both the `union`
+The same principle and simplification benefits apply to both the `union`
 
 \begin{code}
 union :: Intervals -> Intervals -> Intervals
 union (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
   where
-    {-@ go :: lb:Int -> OrdIntervals lb -> OrdIntervals lb -> OrdIntervals lb @-}
+    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
     go _ is [] = is
     go _ [] is = is
     go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
@@ -266,7 +265,7 @@ and the `subtract` functions too:
 subtract :: Intervals -> Intervals -> Intervals
 subtract (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
   where
-    {-@ go :: lb:Int -> OrdIntervals lb -> OrdIntervals lb -> OrdIntervals lb @-}
+    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
     go _ is [] = is
     go _ [] _  = []
     go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
@@ -296,12 +295,13 @@ I hope the above example illustrates why _"making illegal states"_
 unrepresentable is a great principle for engineering code _and_ proofs.
 
 That said, notice that with [hs-to-coq][nomeata-intervals], Breitner
-was able to go far beyond the above legality requirement: he was able
-to specify and verify that the above code was indeed a _correct_
-implementation of a Set data structure.
+was able to go _far beyond_ the above legality requirement: he was able
+to specify and verify the far more important (and difficult) property
+that the above is a _correct_ implementation of a Set library.
 
 Is it even _possible_, let alone _easier_ to do that with LH?
 
+[demo]:              http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=IntervalSets.hs
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439
 [union-good]:        https://github.com/antalsz/hs-to-coq/blob/b7efc7a8dbacca384596fc0caf65e62e87ef2768/examples/intervals/Proofs_Function.v#L319-L382
 [subtract-good]:     https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L565-L648

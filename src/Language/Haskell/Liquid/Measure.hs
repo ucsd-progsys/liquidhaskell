@@ -315,7 +315,7 @@ mapArgumens lc t1 t2 = go xts1' xts2'
       | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2'))
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
-      = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constroctors cannot be merged\n"
+      = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
           ++ show t1 ++ "\n" ++ show t2 )
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
@@ -336,7 +336,7 @@ stitchArgs :: (Monoid t1, Monoid r, PPrint a)
            -> [Type]
            -> [(t, RType RTyCon RTyVar r, t1)]
 stitchArgs sp dc xs ts
-  | nXs == nTs         = zipWith g xs $ ofType `fmap` ts
+  | nXs == nTs         = zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
       nXs              = length xs
