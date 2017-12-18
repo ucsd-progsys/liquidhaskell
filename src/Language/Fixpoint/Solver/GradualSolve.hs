@@ -30,6 +30,13 @@ import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
+solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solveGradual = undefined
+
+
+
+{- COMMENTING OUT AS IT DOESNT BUILD!
+
 --------------------------------------------------------------------------------
 -- | Progress Bar
 --------------------------------------------------------------------------------
@@ -61,7 +68,7 @@ siKvars = S.fromList . M.keys . F.ws
 --------------------------------------------------------------------------------
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution  =  tidySolution  (F.resSolution r)
-                 , F.gresSolution =  gtidySolution (F.gresSolution r) 
+                 , F.gresSolution =  gtidySolution (F.gresSolution r)
                  }
 
 tidySolution :: F.FixSolution -> F.FixSolution
@@ -123,6 +130,7 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 -------------------------------------------------------------------------------
 
 solveGradual :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+-- solveGradual = undefined
 
 solveGradual cfg fi = do
     (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
@@ -140,7 +148,7 @@ solveGradual cfg fi = do
 solveGradual_ :: (NFData a, F.Fixpoint a)
        => Config
        -> F.SInfo a
-       -> Sol.GSolution 
+       -> Sol.GSolution
        -> S.HashSet F.KVar
        -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
@@ -154,55 +162,55 @@ solveGradual_ cfg fi s0 ks wkl = do
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
-filterLocal :: Sol.GSolution -> SolveM Sol.GSolution 
-filterLocal sol = do 
-  gs' <- mapM (initGBind sol) gs 
+filterLocal :: Sol.GSolution -> SolveM Sol.GSolution
+filterLocal sol = do
+  gs' <- mapM (initGBind sol) gs
   return $ Sol.updateGMap sol $ M.fromList gs'
-  where 
-    gs = M.toList $ Sol.gMap sol 
+  where
+    gs = M.toList $ Sol.gMap sol
 
 initGBind :: Sol.GSolution -> (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind)) -> SolveM (F.KVar, (((F.Symbol, F.Sort), F.Expr), Sol.GBind))
-initGBind sol (k, (e, gb)) = do  
+initGBind sol (k, (e, gb)) = do
    elems0  <- filterM (isLocal e) (Sol.gbEquals gb)
-   elems   <- sortEquals elems0 
+   elems   <- sortEquals elems0
    lattice <- makeLattice [] (map (:[]) elems) elems
    return $ ((k,) . (e,) . Sol.equalsGb) lattice
   where
     makeLattice acc new elems
       | null new
-      = return acc 
+      = return acc
       | otherwise
       = do let cands = [e:es |e<-elems, es<-new]
            localCans <- filterM (isLocal e) cands
-           newElems  <- filterM (notTrivial (new ++ acc)) localCans 
+           newElems  <- filterM (notTrivial (new ++ acc)) localCans
            makeLattice (acc ++ new) newElems elems
 
-    notTrivial [] _     = return True 
+    notTrivial [] _     = return True
     notTrivial (x:xs) p = do v <- isValid (mkPred x) (mkPred p)
-                             if v then return False 
-                                  else notTrivial xs p 
+                             if v then return False
+                                  else notTrivial xs p
 
     mkPred eq = So.elaborate "initBGind.mkPred" (Sol.sEnv sol) (F.pAnd (Sol.eqPred <$> eq))
-    isLocal (v, e) eqs = do 
-      let pp = So.elaborate "filterLocal" (Sol.sEnv sol) $ F.PExist [v] $ F.pAnd (e:(Sol.eqPred <$> eqs)) 
+    isLocal (v, e) eqs = do
+      let pp = So.elaborate "filterLocal" (Sol.sEnv sol) $ F.PExist [v] $ F.pAnd (e:(Sol.eqPred <$> eqs))
       isValid mempty pp
 
     root      = Sol.trueEqual
-    sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs 
-      where 
+    sortEquals xs = (bfs [0]) <$> makeEdges vs [] vs
+      where
        vs        = zip [0..] (root:(head <$> xs))
 
-       bfs []     _  = [] 
+       bfs []     _  = []
        bfs (i:is) es = (snd $ (vs!!i)) : bfs (is++map snd (filter (\(j,k) ->  (j==i && notElem k is)) es)) es
 
        makeEdges _   acc []    = return acc
        makeEdges vs acc (x:xs) = do ves  <- concat <$> mapM (makeEdgesOne x) vs
-                                    if any (\(i,j) -> elem (j,i) acc) ves 
-                                      then makeEdges (filter ((/= fst x) . fst) vs) (filter (\(i,j) -> ((i /= fst x) && (j /= fst x))) acc) xs 
-                                      else makeEdges vs (mergeEdges (ves ++ acc)) xs 
+                                    if any (\(i,j) -> elem (j,i) acc) ves
+                                      then makeEdges (filter ((/= fst x) . fst) vs) (filter (\(i,j) -> ((i /= fst x) && (j /= fst x))) acc) xs
+                                      else makeEdges vs (mergeEdges (ves ++ acc)) xs
 
-    makeEdgesOne (i,_) (j,_) | i == j = return [] 
-    makeEdgesOne (i,x) (j,y) = do 
+    makeEdgesOne (i,_) (j,_) | i == j = return []
+    makeEdgesOne (i,x) (j,y) = do
       ij <- isValid (mkPred [x]) (mkPred [y])
       return (if ij then [(j,i)] else [])
 
@@ -261,9 +269,9 @@ result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.GSolution
 --------------------------------------------------------------------------------
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s 
+  stat    <- result_ wkl s
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult cfg s <*> solResultGradual wkl cfg s 
+  F.Result (ci <$> stat) <$> solResult cfg s <*> solResultGradual wkl cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
 
@@ -280,7 +288,7 @@ solResult cfg
 
 
 solResultGradual :: W.Worklist a -> Config -> Sol.GSolution -> SolveM F.GFixSolution
-solResultGradual w _cfg sol 
+solResultGradual w _cfg sol
   = F.toGFixSol . Sol.resultGradual <$> updateGradualSolution (W.unsatCandidates w) sol
 
 --------------------------------------------------------------------------------
@@ -290,17 +298,17 @@ updateGradualSolution cs sol = foldM f (Sol.emptyGMap sol) cs
   where
    f s c = do
     be <- getBinds
-    let lpi = S.lhsPred be sol c 
-    let rp  = rhsPred c 
-    gbs    <- firstValid rp lpi 
-    return $ Sol.updateGMapWithKey gbs s 
+    let lpi = S.lhsPred be sol c
+    let rp  = rhsPred c
+    gbs    <- firstValid rp lpi
+    return $ Sol.updateGMapWithKey gbs s
 
 
-firstValid :: Monoid a =>  F.Expr -> [(a, F.Expr)] -> SolveM a 
-firstValid _   [] = return mempty 
+firstValid :: Monoid a =>  F.Expr -> [(a, F.Expr)] -> SolveM a
+firstValid _   [] = return mempty
 firstValid rhs ((y,lhs):xs) = do
   v <- isValid lhs rhs
-  if v then return y else firstValid rhs xs 
+  if v then return y else firstValid rhs xs
 
 
 --------------------------------------------------------------------------------
@@ -317,3 +325,4 @@ isUnsat s c = do
   return res
 
 
+-}

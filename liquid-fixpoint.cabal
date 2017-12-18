@@ -1,237 +1,366 @@
-name:                liquid-fixpoint
-version:             0.7.0.5
-Copyright:           2010-17 Ranjit Jhala, University of California, San Diego.
-synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
-homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
-license:             BSD3
-license-file:        LICENSE
-author:              Ranjit Jhala, Niki Vazou, Eric Seidel
-maintainer:          jhala@cs.ucsd.edu
-category:            Language
-build-type:          Simple
-cabal-version:       >=1.10
-Tested-With:         GHC == 7.10.3, GHC == 8.0.1
+-- This file has been generated from package.yaml by hpack version 0.18.1.
+--
+-- see: https://github.com/sol/hpack
 
+name:           liquid-fixpoint
+version:        0.7.0.5
+synopsis:       Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
+description:    This package is a Haskell wrapper to the SMTLIB-based
+                Horn-Clause/Logical Implication constraint solver used
+                for Liquid Types.
+                .
+                The package includes:
+                .
+                1. Types for Expressions, Predicates, Constraints, Solutions
+                .
+                2. Code for solving constraints
+                .
+                Requirements
+                .
+                In addition to the .cabal dependencies you require
+                .
+                - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
+category:       Language
+homepage:       https://github.com/ucsd-progsys/liquid-fixpoint#readme
+bug-reports:    https://github.com/ucsd-progsys/liquid-fixpoint/issues
+author:         Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:     jhala@cs.ucsd.edu
+copyright:      2010-17 Ranjit Jhala, University of California, San Diego.
+license:        BSD3
+license-file:   LICENSE
+tested-with:    GHC==7.10.3 GHC==8.0.1
+build-type:     Simple
+cabal-version:  >= 1.10
 
+extra-source-files:
+    Makefile
+    tests/logs/cur/pin
+    tests/neg/adt0.fq
+    tests/neg/adt1.fq
+    tests/neg/adt2.fq
+    tests/neg/adt3.fq
+    tests/neg/adt_bin_0.fq
+    tests/neg/adt_even_0.fq
+    tests/neg/conj-rhs.fq
+    tests/neg/elim-dep-00.fq
+    tests/neg/float-literal.fq
+    tests/neg/float.fq
+    tests/neg/hex00.fq
+    tests/neg/lit00.fq
+    tests/neg/literals.fq
+    tests/neg/NonLinear.fq
+    tests/neg/NonLinear.hs.fq
+    tests/neg/pack00.fq
+    tests/neg/pack01.fq
+    tests/neg/poly0.fq
+    tests/neg/poly1.fq
+    tests/neg/poly2.fq
+    tests/neg/test00.fq
+    tests/neg/test00.hs.fq
+    tests/neg/test00a.fq
+    tests/neg/test1.fq
+    tests/neg/test2.fq
+    tests/neg/test3.fq
+    tests/pos/adt.fq
+    tests/pos/adt_bin_0.fq
+    tests/pos/adt_bin_lam.fq
+    tests/pos/adt_curry.fq
+    tests/pos/adt_dep_0.fq
+    tests/pos/adt_dep_1.fq
+    tests/pos/adt_either.fq
+    tests/pos/adt_even_0.fq
+    tests/pos/adt_func_0.fq
+    tests/pos/adt_func_1.fq
+    tests/pos/adt_list_0.fq
+    tests/pos/adt_list_1.fq
+    tests/pos/adt_list_2.fq
+    tests/pos/adt_list_nested.fq
+    tests/pos/adt_pair_cast.fq
+    tests/pos/adt_partial.fq
+    tests/pos/adt_poly_dead.fq
+    tests/pos/adt_qual.fq
+    tests/pos/bad-subst00.fq
+    tests/pos/bad-subst01.fq
+    tests/pos/bad-subst02.fq
+    tests/pos/baz.fq
+    tests/pos/bool00.fq
+    tests/pos/bool03.fq
+    tests/pos/bool04.fq
+    tests/pos/coerce0.fq
+    tests/pos/coerce1.fq
+    tests/pos/conj-rhs.fq
+    tests/pos/cut-keyword.fq
+    tests/pos/elim00.fq
+    tests/pos/empty.fq
+    tests/pos/EqConstr0.fq
+    tests/pos/EqConstr1.fq
+    tests/pos/float.fq
+    tests/pos/func-arg.fq
+    tests/pos/func00.fq
+    tests/pos/hex.ts.fq
+    tests/pos/hex00.fq
+    tests/pos/ho00.fq
+    tests/pos/kvar-param-poly-00.fq
+    tests/pos/len00-rename.fq
+    tests/pos/len00.fq
+    tests/pos/listqual.hs.fq
+    tests/pos/lit00.fq
+    tests/pos/literals.fq
+    tests/pos/literals01.fq
+    tests/pos/literals02.fq
+    tests/pos/literals03.fq
+    tests/pos/literals04.fq
+    tests/pos/literals05.fq
+    tests/pos/LogicCurry1.hs.fq
+    tests/pos/meas00.fq
+    tests/pos/meas02.fq
+    tests/pos/MergeSort.fq
+    tests/pos/min00.fq
+    tests/pos/multi-sorts.fq
+    tests/pos/multiple-func-sorts.fq
+    tests/pos/NonLinear-pack.fq
+    tests/pos/num00.fq
+    tests/pos/numoverload00.fq
+    tests/pos/overwrite-names.fq
+    tests/pos/poly.fq
+    tests/pos/poly0.fq
+    tests/pos/poly1.fq
+    tests/pos/poly2.fq
+    tests/pos/poly_inst.fq
+    tests/pos/qualif-inst.fq
+    tests/pos/real00.fq
+    tests/pos/sets.fq
+    tests/pos/test00-par.fq
+    tests/pos/test00.fq
+    tests/pos/test00.hs.fq
+    tests/pos/test000.hs.fq
+    tests/pos/test00a.fq
+    tests/pos/test1.fq
+    tests/pos/test2.fq
+    tests/pos/test3.fq
+    tests/pos/test4.fq
+    tests/pos/unexpected-ge.fq
+    tests/pos/unused.fq
+    tests/pos/wl00.fq
+    tests/pos/wl01.fq
+    tests/pos/wl02.fq
+    tests/pos/wrong-arity.fq
+    unix/Language/Fixpoint/Utils/Progress.hs
+    win/Language/Fixpoint/Utils/Progress.hs
 
-description:     This package is a Haskell wrapper to the SMTLIB-based
-                 Horn-Clause/Logical Implication constraint solver used
-                 for Liquid Types.
-                 .
-                 The package includes:
-                 .
-                 1. Types for Expressions, Predicates, Constraints, Solutions
-                 .
-                 2. Code for solving constraints
-                 .
-                 Requirements
-                 .
-                 In addition to the .cabal dependencies you require
-                 .
-                 - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
+source-repository head
+  type: git
+  location: https://github.com/ucsd-progsys/liquid-fixpoint
 
-Extra-Source-Files: tests/neg/*.fq
-                  , tests/pos/*.fq
-                  , unix/Language/Fixpoint/Utils/*.hs
-                  , win/Language/Fixpoint/Utils/*.hs
-                  , tests/logs/cur/pin
-                  , Makefile
+flag devel
+  description: turn on stricter error reporting for development
+  manual: True
+  default: False
 
-Source-Repository head
-  Type:        git
-  Location:    https://github.com/ucsd-progsys/liquid-fixpoint/
-
-Flag devel
-  Description: turn on stricter error reporting for development
-  Default:     False
-  Manual:      True
-
-Executable fixpoint
-  default-language: Haskell98
-  Main-is:       Fixpoint.hs
-  ghc-options:   -threaded -W -fno-warn-missing-methods
+library
+  hs-source-dirs:
+      src
+  ghc-options: -W -fno-warn-missing-methods
+  build-depends:
+      base >=4.8.1.0 && <5
+    , array
+    , async
+    , attoparsec
+    , syb
+    , cmdargs
+    , ansi-terminal
+    , bifunctors
+    , binary
+    , bytestring
+    , containers
+    , deepseq
+    , directory
+    , filemanip
+    , filepath
+    , ghc-prim
+    , intern
+    , mtl
+    , parsec
+    , pretty
+    , boxes
+    , parallel
+    , process
+    , syb
+    , text
+    , transformers
+    , hashable
+    , unordered-containers
+    , cereal
+    , text-format
+    , fgl
+    , fgl-visualize
+    , dotgen
+    , time
+    , parallel-io
   if flag(devel)
     ghc-options: -Werror
-  hs-source-dirs: bin
-  Build-Depends: base >=4.8.1.0 && <5
-               , liquid-fixpoint
-
-Library
-  default-language: Haskell98
-  ghc-options:     -W -fno-warn-missing-methods
-  if flag(devel)
-    ghc-options:   -Werror
-  hs-source-dirs:  src
-  Exposed-Modules: Language.Fixpoint.Types.Names,
-                   Language.Fixpoint.Types.Errors,
-                   Language.Fixpoint.Types.Config,
-                   Language.Fixpoint.Types.Visitor,
-                   Language.Fixpoint.Types.Theories,
-                   Language.Fixpoint.Types.PrettyPrint,
-                   Language.Fixpoint.Types.Spans,
-                   Language.Fixpoint.Types.Sorts,
-                   Language.Fixpoint.Types.Refinements,
-                   Language.Fixpoint.Types.Substitutions,
-                   Language.Fixpoint.Types.Environments,
-                   Language.Fixpoint.Types.Constraints,
-                   Language.Fixpoint.Types.Triggers,
-                   Language.Fixpoint.Types.Solutions,
-                   Language.Fixpoint.Types.Utils,
-                   Language.Fixpoint.Types.Graduals,
-                   Language.Fixpoint.Types,
-                   Language.Fixpoint.Graph.Types,
-                   Language.Fixpoint.Graph.Reducible,
-                   Language.Fixpoint.Graph.Indexed,
-                   Language.Fixpoint.Graph.Partition,
-                   Language.Fixpoint.Graph.Deps,
-                   Language.Fixpoint.Graph,
-                   Language.Fixpoint.Defunctionalize,
-                   Language.Fixpoint.Smt.Types,
-                   Language.Fixpoint.Smt.Bitvector,
-                   Language.Fixpoint.Smt.Theories,
-                   Language.Fixpoint.Smt.Serialize,
-                   Language.Fixpoint.Smt.Interface,
-                   Language.Fixpoint.Minimize,
-                   Language.Fixpoint.Solver,
-                   Language.Fixpoint.Parse,
-                   Language.Fixpoint.SortCheck,
-                   Language.Fixpoint.Misc,
-                   Language.Fixpoint.Utils.Progress,
-                   Language.Fixpoint.Utils.Files,
-                   Language.Fixpoint.Solver.GradualSolution,
-                   Language.Fixpoint.Solver.Solution,
-                   Language.Fixpoint.Solver.Worklist,
-                   Language.Fixpoint.Solver.Monad,
-                   Language.Fixpoint.Solver.TrivialSort,
-                   Language.Fixpoint.Solver.UniqifyKVars,
-                   Language.Fixpoint.Solver.UniqifyBinds,
-                   Language.Fixpoint.Solver.Eliminate,
-                   Language.Fixpoint.Solver.Instantiate,
-                   Language.Fixpoint.Solver.Sanitize,
-                   Language.Fixpoint.Utils.Statistics,
-                   Language.Fixpoint.Solver.Solve
-
-  Build-Depends: base >=4.8.1.0 && <5
-               , array
-               , async
-               , attoparsec
-               , syb
-               , cmdargs
-               , ansi-terminal
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filemanip
-               , filepath
-               , ghc-prim
-               , intern
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , transformers
-               , hashable
-               , unordered-containers
-               , cereal
-               , text-format
-               , fgl
-               , fgl-visualize
-               , dotgen
-               , time
-               , parallel-io
-
-  if impl(ghc >= 7.10.2)
-    Build-Depends: located-base
-  if !os(windows)
-    Build-Depends: ascii-progress >= 0.3
-    hs-source-dirs: unix
+  if impl(ghc >=7.10.2)
+    build-depends:
+        located-base
+  if !(os(windows))
+    hs-source-dirs:
+        unix
+    build-depends:
+        ascii-progress >=0.3
   if os(windows)
-    hs-source-dirs: win
+    hs-source-dirs:
+        win
+  exposed-modules:
+      Language.Fixpoint.Types.Names
+      Language.Fixpoint.Types.Errors
+      Language.Fixpoint.Types.Config
+      Language.Fixpoint.Types.Visitor
+      Language.Fixpoint.Types.Theories
+      Language.Fixpoint.Types.PrettyPrint
+      Language.Fixpoint.Types.Spans
+      Language.Fixpoint.Types.Sorts
+      Language.Fixpoint.Types.Refinements
+      Language.Fixpoint.Types.Substitutions
+      Language.Fixpoint.Types.Environments
+      Language.Fixpoint.Types.Constraints
+      Language.Fixpoint.Types.Triggers
+      Language.Fixpoint.Types.Solutions
+      Language.Fixpoint.Types.Utils
+      Language.Fixpoint.Types.Graduals
+      Language.Fixpoint.Types
+      Language.Fixpoint.Graph.Types
+      Language.Fixpoint.Graph.Reducible
+      Language.Fixpoint.Graph.Indexed
+      Language.Fixpoint.Graph.Partition
+      Language.Fixpoint.Graph.Deps
+      Language.Fixpoint.Graph
+      Language.Fixpoint.Defunctionalize
+      Language.Fixpoint.Smt.Types
+      Language.Fixpoint.Smt.Bitvector
+      Language.Fixpoint.Smt.Theories
+      Language.Fixpoint.Smt.Serialize
+      Language.Fixpoint.Smt.Interface
+      Language.Fixpoint.Minimize
+      Language.Fixpoint.Solver
+      Language.Fixpoint.Parse
+      Language.Fixpoint.SortCheck
+      Language.Fixpoint.Misc
+      Language.Fixpoint.Utils.Progress
+      Language.Fixpoint.Utils.Files
+      Language.Fixpoint.Solver.GradualSolution
+      Language.Fixpoint.Solver.Solution
+      Language.Fixpoint.Solver.Worklist
+      Language.Fixpoint.Solver.Monad
+      Language.Fixpoint.Solver.TrivialSort
+      Language.Fixpoint.Solver.UniqifyKVars
+      Language.Fixpoint.Solver.UniqifyBinds
+      Language.Fixpoint.Solver.Eliminate
+      Language.Fixpoint.Solver.Instantiate
+      Language.Fixpoint.Solver.Sanitize
+      Language.Fixpoint.Utils.Statistics
+      Language.Fixpoint.Solver.Solve
+  other-modules:
+      Language.Fixpoint.Solver.GradualSolve
+      Paths_liquid_fixpoint
+  default-language: Haskell2010
+
+executable fixpoint
+  main-is: Fixpoint.hs
+  hs-source-dirs:
+      bin
+  ghc-options: -threaded -W -fno-warn-missing-methods
+  build-depends:
+      base >=4.8.1.0 && <5
+    , liquid-fixpoint
+  if flag(devel)
+    ghc-options: -Werror
+  default-language: Haskell2010
 
 test-suite test
-  default-language: Haskell98
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   tests
-  ghc-options:      -threaded
+  type: exitcode-stdio-1.0
+  main-is: test.hs
+  hs-source-dirs:
+      tests
+  ghc-options: -threaded
+  build-depends:
+      base >=4.8 && <5
+    , directory
+    , filepath
+    , process
+    , stm >=2.4
+    , containers >=0.5
+    , mtl >=2.1
+    , transformers >=0.3
+    , tasty >=0.10
+    , tasty-hunit
+    , tasty-rerun >=1.1
+    , tasty-ant-xml
+    , tasty-hunit >=0.9
+    , text
   if flag(devel)
-    ghc-options:    -Werror
-  main-is:          test.hs
-  build-depends:    base >= 4.8 && < 5,
-                    directory,
-                    filepath,
-                    process,
-                    stm >= 2.4,
-                    containers >= 0.5,
-                    mtl >= 2.1,
-                    transformers >= 0.3,
-                    tasty >= 0.10,
-                    tasty-hunit,
-                    tasty-rerun >= 1.1,
-                    tasty-ant-xml,
-                    tasty-hunit >= 0.9,
-                    text
+    ghc-options: -Werror
+  default-language: Haskell2010
 
 test-suite testparser
-  default-language: Haskell98
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   tests
-  ghc-options:      -threaded
+  type: exitcode-stdio-1.0
+  main-is: testParser.hs
+  hs-source-dirs:
+      tests
+  ghc-options: -threaded
+  build-depends:
+      base >=4.8 && <5
+    , directory
+    , filepath
+    , tasty >=0.10
+    , tasty-hunit
+    , tasty-rerun >=1.1
+    , tasty-ant-xml
+    , tasty-hunit >=0.9
+    , text
   if flag(devel)
-    ghc-options:    -Werror
-  main-is:          testParser.hs
-  build-depends:    base >= 4.8 && < 5,
-                    directory,
-                    filepath,
-                    tasty >= 0.10,
-                    tasty-hunit,
-                    tasty-rerun >= 1.1,
-                    tasty-ant-xml,
-                    tasty-hunit >= 0.9,
-                    text
+    ghc-options: -Werror
   if flag(devel)
-    hs-source-dirs:   tests src
+    hs-source-dirs:
+        tests
+        src
     build-depends:
-                 array
-               , async
-               , attoparsec
-               , syb
-               , cmdargs
-               , ansi-terminal
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filemanip
-               , filepath
-               , ghc-prim
-               , intern
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , transformers
-               , hashable
-               , unordered-containers
-               , cereal
-               , text-format
-               , fgl
-               , fgl-visualize
-               , dotgen
-               , time
-    if impl(ghc >= 7.10.2)
-      Build-Depends: located-base
+        array
+      , async
+      , attoparsec
+      , syb
+      , cmdargs
+      , ansi-terminal
+      , bifunctors
+      , binary
+      , bytestring
+      , containers
+      , deepseq
+      , directory
+      , filemanip
+      , filepath
+      , ghc-prim
+      , intern
+      , mtl
+      , parsec
+      , pretty
+      , boxes
+      , parallel
+      , process
+      , syb
+      , text
+      , transformers
+      , hashable
+      , unordered-containers
+      , cereal
+      , text-format
+      , fgl
+      , fgl-visualize
+      , dotgen
+      , time
+    if impl(ghc >=7.10.2)
+      build-depends:
+          located-base
   else
-    build-depends: liquid-fixpoint
+    build-depends:
+        liquid-fixpoint
+  default-language: Haskell2010
