@@ -8,7 +8,6 @@ define Data.Set.Base.member x xs      = (Set_mem x xs)
 define Data.Set.Base.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Base.elems xs         = (listElts xs)
 
-
 define Data.Set.Internal.singleton x      = (Set_sng x)
 define Data.Set.Internal.union x y        = (Set_cup x y)
 define Data.Set.Internal.intersection x y = (Set_cap x y)
@@ -20,7 +19,12 @@ define Data.Set.Internal.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Internal.elems xs         = (listElts xs)
 
 
-define GHC.Types.True                 = (true) 
+define GHC.Types.True                 = (true)
+
+define Language.Haskell.Liquid.Bag.get k m   = (Map_select m k)
+define Language.Haskell.Liquid.Bag.put k m   = (Map_store m k (1 + (Map_select m k)))
+define Language.Haskell.Liquid.Bag.union m n = (Map_union  m n)
+define Language.Haskell.Liquid.Bag.empty     = (Map_default 0)
 
 define Data.Map.Base.insert k v m     = (Map_store m k v)
 define Data.Map.Base.select k v       = (Map_select m k)
