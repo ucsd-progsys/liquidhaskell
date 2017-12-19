@@ -2,8 +2,6 @@
 
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--ple" 	          @-} 
 
 
 module Zong where
