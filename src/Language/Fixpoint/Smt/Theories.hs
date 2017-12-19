@@ -58,7 +58,7 @@ elt  = "Elt"
 set  = "Set"
 map  = "Map"
 
-emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
+emp, add, cup, cap, mem, dif, sub, com, sel, sto, mcup :: Raw
 emp   = "smt_set_emp"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
@@ -69,8 +69,10 @@ sub   = "smt_set_sub"
 com   = "smt_set_com"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
+mcup  = "smt_map_cup"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto :: Symbol
+
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto, mapCup :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -83,6 +85,7 @@ setDif   = "Set_dif"
 setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
+mapCup   = "Map_union"
 
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
@@ -132,6 +135,8 @@ z3Preamble u
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
+    , format "(define-fun {} ((m1 {}) (m2 {})) {} ((_ map (+ ({} {}) {})) m1 m2))"
+        (mcup, map, map, map, elt, elt, elt)
     , format "(define-fun {} ((b Bool)) Int (ite b 1 0))"
         (Only (boolToIntName :: T.Text))
     , uifDef u (symbolText mulFuncName) ("*"   :: T.Text)
@@ -323,6 +328,7 @@ interpSymbols =
   , interpSym setCom   com   setCmpSort
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
+  , interpSym mapCup   mcup  mapCupSort
   , interpSym bvOrName "bvor"   bvBopSort
   , interpSym bvAndName "bvand" bvBopSort
   , interpSym strLen    strLen    strLenSort
@@ -336,6 +342,9 @@ interpSymbols =
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
+    mapCupSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                         (mapSort (FVar 0) (FVar 1))
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
