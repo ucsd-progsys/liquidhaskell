@@ -5,7 +5,6 @@
 
 module Language.Haskell.Liquid.Bare.Lookup (
     GhcLookup(..)
---   , lookupGhcThing
   , lookupGhcVar
   , lookupGhcTyCon
   , lookupGhcDnTyCon
@@ -233,11 +232,13 @@ ghcSymbolString :: F.Symbol -> String
 ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
 -- ghcSymbolString = symbolString . dropModuleUnique
 
+--------------------------------------------------------------------------------
 -- | It's possible that we have already resolved the 'Name' we are looking for,
 -- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
 -- as in @{v:Ordering | v = EQ}@. In this case, the fully-qualified 'Name'
 -- (@GHC.Types.EQ@) will likely not be in scope, so we store our own mapping of
 -- fully-qualified 'Name's to 'Var's and prefer pulling 'Var's from it.
+--------------------------------------------------------------------------------
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x = do
   env <- gets varEnv

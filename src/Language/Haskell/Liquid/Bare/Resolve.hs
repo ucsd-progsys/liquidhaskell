@@ -80,15 +80,6 @@ resolveSym _ ls@(Loc _ _ s) = do
     then return ls
     else resolveCtor ls
 
-    -- nv <- gets (typeAliases . rtEnv)
-         -- case M.lookup s env of
-           -- Nothing | isCon s -> resolveCtor ls
-                                -- -- do v <- lookupGhcVar ls
-                                -- --   let qs = symbol v
-                                -- --   addSym (qs, v)
-                                -- --   return $ Loc l l' qs
-           -- _                 -> return ls
-
 resolveCtor :: LocSymbol -> BareM LocSymbol
 resolveCtor ls = do
   env1 <- gets propSyms

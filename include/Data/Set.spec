@@ -6,6 +6,7 @@ embed Data.Set.Set as Set_Set
 // -- | Logical Set Operators: Interpreted "natively" by the SMT solver -------------------------
 // ----------------------------------------------------------------------------------------------
 
+
 // union
 measure Set_cup  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 

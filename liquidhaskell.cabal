@@ -152,6 +152,7 @@ Library
    hs-source-dirs:  src, include
    Exposed-Modules: LiquidHaskell,
                     Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.Bag,
                     Language.Haskell.Liquid.ProofCombinators,
                     Language.Haskell.Liquid.Foreign,
                     Language.Haskell.Liquid.List,
