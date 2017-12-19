@@ -214,7 +214,7 @@ instance PPrint Symbol where
 instance Fixpoint T.Text where
   toFix = text . T.unpack
 
-{- | [NOTE: SymbolText] 
+{- | [NOTE: SymbolText]
 	Use `symbolSafeText` if you want it to machine-readable,
         but `symbolText`     if you want it to be human-readable.
  -}
@@ -605,6 +605,7 @@ prims = [ propConName
         , mapConName
         , "Map_select"
         , "Map_store"
+        , "Map_union"
         , size32Name
         , size64Name
         , bitVecName
