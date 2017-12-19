@@ -116,7 +116,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.notracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
+      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
@@ -256,7 +256,8 @@ dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
-bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
+-- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
+bkDataCon :: (F.Reftable r) => DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (Symbol, RRType r, r))
 bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> takeLast nFlds _ts

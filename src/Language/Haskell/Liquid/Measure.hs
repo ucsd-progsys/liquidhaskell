@@ -34,12 +34,13 @@ import           Data.Binary                            as B
 import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import           Data.List                              (foldl', partition)
+import qualified Data.List                              as L
 import           Data.Maybe                             (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan)
 import           Language.Haskell.Liquid.GHC.Misc
+-- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types          hiding (GhcInfo(..), GhcSpec (..))
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
@@ -222,13 +223,11 @@ dataConTypes  s = (ctorTys, measTys)
     measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
     ctorTys     = concatMap makeDataConType (snd <$> M.toList (ctorMap s))
 
-
-
 makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType []
   = []
 makeDataConType ds | isNothing (dataConWrapId_maybe dc)
-  = [(woId, combineDCTypes t ts)]
+  = [(woId, combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
@@ -238,7 +237,7 @@ makeDataConType ds | isNothing (dataConWrapId_maybe dc)
 makeDataConType ds
   = [(woId, extend loci woRType wrRType), (wrId, extend loci wrRType woRType)]
   where
-    (wo, wr) = partition isWorkerDef ds
+    (wo, wr) = L.partition isWorkerDef ds
     dc       = ctor $ head ds
     loci     = loc $ measure $ head ds
     woId     = dataConWorkId dc
@@ -248,8 +247,8 @@ makeDataConType ds
     wots     = defRefType wot <$> wo
     wrts     = defRefType wrt <$> wr
 
-    wrRType  = combineDCTypes wrt wrts
-    woRType  = combineDCTypes wot wots
+    wrRType  = combineDCTypes "cdc1" wrt wrts
+    woRType  = combineDCTypes "cdc2" wot wots
 
 
     isWorkerDef def
@@ -294,9 +293,12 @@ noDummySyms t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
-combineDCTypes :: (Foldable t, PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-               => Type -> t (RType RTyCon RTyVar r) -> RType RTyCon RTyVar r
-combineDCTypes t = foldl' strengthenRefTypeGen (ofType t)
+-- combineDCTypes :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
+--                => Type -> [(RType RTyCon RTyVar r)] -> RType RTyCon RTyVar r
+combineDCTypes            :: String -> Type -> [RRType Reft] -> RRType Reft
+combineDCTypes _msg t0 ts0 = L.foldl' strengthenRefTypeGen (ofType t) ts
+  where
+    (t, ts) = {- tracepp ("combineDCTypes " ++ msg) -} (t0, ts0)
 
 mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
 mapArgumens lc t1 t2 = go xts1' xts2'
@@ -320,25 +322,36 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
-                     = {- traceShow "defRefType: " $ -} generalize $ mkArrow [] [] [] xts t'
+                     = {- tracepp ("defRefType: " ++ showpp f) $ -}  generalize $ mkArrow as [] [] xts t'
   where
-    xts              = stitchArgs (fSrcSpan f) dc ({- tracepp ("FIELDS-XS" ++ showpp f) -} xs) ({- tracepp ("FIELDS-TS" ++ showpp f) -} ts)
+    xts              = stitchArgs (fSrcSpan f) dc ({- tracepp ("FIELDS-XS: " ++ showpp f) -} xs) ({- tracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) -} ts)
     t                = fromMaybe (ofType tr) mt
     t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    mkForAlls xts t  = foldl' (\t (x, tx) -> RAllE x tx t) t xts
-    (ts, tr)         = splitFunTys $ snd $ splitForAllTys tdc
+    mkForAlls xts t  = L.foldl' (\t (x, tx) -> RAllE x tx t) t xts
+    (αs, ts, tr)     = splitType tdc
+    as                = makeRTVar . rTyVar <$> αs
+    -- (αs,ps,dcTs,_)   = dataConSig dc
+    -- (ts', tr)        = splitFunTys $ snd $ splitForAllTys tdc
+    -- ts               = Misc.takeLast (length dcTs) ts'
 
+splitType :: Type -> ([TyVar],[Type], Type)
+splitType t  = (αs, ts, tr)
+  where
+    (αs, tb) = splitForAllTys t
+    (ts, tr) = splitFunTys tb
 
-stitchArgs :: (Monoid t1, Monoid r, PPrint a)
+stitchArgs :: (Monoid t1, PPrint a)
            => SrcSpan
            -> a
-           -> [(t, Maybe (RType RTyCon RTyVar r))]
+           -> [(Symbol, Maybe (RRType Reft))]
            -> [Type]
-           -> [(t, RType RTyCon RTyVar r, t1)]
-stitchArgs sp dc xs ts
-  | nXs == nTs         = zipWith g xs (ofType <$> ts)
+           -> [(Symbol, RRType Reft, t1)]
+stitchArgs sp dc xs allTs
+  | nXs == nTs         = (g (dummySymbol, Nothing) . ofType <$> pts) ++
+                         zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
+      (pts, ts)        = L.partition isPredTy allTs
       nXs              = length xs
       nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
