@@ -2,16 +2,16 @@ module BagTest where
 
 import Language.Haskell.Liquid.Bag as B
 
-{- measure elems @-}
-elems :: (Ord a) => [a] -> B.Bag a
-elems []     = B.empty
-elems (x:xs) = B.put x (elems xs)
+{-@ measure bag @-}
+bag :: (Ord a) => [a] -> B.Bag a
+bag []     = B.empty
+bag (x:xs) = B.put x (bag xs)
 
 {-@ prop0 :: x:_ -> TT @-}
 prop0 :: Int -> Bool
 prop0 x = (B.get x a == 2)
   where
-    a   = B.bag [x, x, x + 1]
+    a   = bag [x, x, x + 1]
 
 {-@ prop1 :: x:_ -> TT @-}
 prop1 :: Int -> Bool

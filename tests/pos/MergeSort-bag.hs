@@ -40,8 +40,7 @@ split xs         = (xs, [])
 
 
 -- | A type describing two `Halves` of a list `Xs`
-{-@ type Halves a Xs = {v: (Half a Xs, Half a Xs) | len (fst v) + len (snd v) = len Xs
-                                                  && B.union (bag (fst v)) (bag (snd v)) == bag Xs}
+{-@ type Halves a Xs = {v: (Half a Xs, Half a Xs) | len (fst v) + len (snd v) = len Xs && B.union (bag (fst v)) (bag (snd v)) == bag Xs}
   @-}
 
 -- | Each `Half` is empty or smaller than the input:
