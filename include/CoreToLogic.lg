@@ -20,11 +20,15 @@ define Data.Set.Internal.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Internal.elems xs         = (listElts xs)
 
 
-define GHC.Types.True                 = (true) 
+define GHC.Types.True                 = (true)
+
+define Language.Haskell.Liquid.Bag.empty     = (Map_default 0)
+define Language.Haskell.Liquid.Bag.get k m   = (Map_select m k)
+define Language.Haskell.Liquid.Bag.put k m   = (Map_store m k (1 + (Map_select m k)))
+define Language.Haskell.Liquid.Bag.union m n = (Map_union  m n)
 
 define Data.Map.Base.insert k v m     = (Map_store m k v)
 define Data.Map.Base.select k v       = (Map_select m k)
-define Data.Map.Base.union  m1 m2     = (Map_union  m1 m2)
 
 define Language.Haskell.Liquid.String.stringEmp = (stringEmp)
 define Data.RString.RString.stringEmp = (stringEmp)
