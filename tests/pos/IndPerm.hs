@@ -1,7 +1,7 @@
-{-# LANGUAGE GADTs                                 #-}
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-# LANGUAGE GADTs            #-}
+{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--higherorder"    @-}
+{-@ LIQUID "--ple"            @-}
 
 module IndPred where
 

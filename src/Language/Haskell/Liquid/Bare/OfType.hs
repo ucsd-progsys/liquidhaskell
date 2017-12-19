@@ -5,7 +5,6 @@
 module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
   , ofMeaSort
-  , ofBSort
   , ofBPVar
   , mkLSpecType
   , mkSpecType'
@@ -34,18 +33,6 @@ import qualified Data.HashMap.Strict as M
 -- import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types (Expr (..))
 import qualified Language.Fixpoint.Types as F
--- ( atLoc
-   --  , Expr(..)
-   --  , F.Reftable
-   --  , Symbol
-   --  , meet
-   --  , mkSubst
-  --  , subst
-  --  , symbol
-  --  , symbolString
-  --  , mkEApp
-  --  )
-
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -68,11 +55,12 @@ ofBareType l
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp return
+  = ofBRType failRTAliasApp {- expandRTAliasApp_ -} return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp return
+  = ofBRType failRTAliasApp {- expandRTAliasApp_ -} return
+
 
 --------------------------------------------------------------------------------
 
@@ -205,6 +193,10 @@ failRTAliasApp l rta _ _
     err :: Error
     err = ErrIllegalAliasApp (sourcePosSrcSpan l) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta)
 
+expandRTAliasApp_ :: SourcePos -> RTAlias RTyVar SpecType -> [BSort] -> () -> BareM RSort
+expandRTAliasApp_ l rta args _ = do
+  res <- expandRTAliasApp l rta ([ const mempty <$> t | t <- args] ) mempty 
+  return (void res)
 
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
