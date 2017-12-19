@@ -1,0 +1,37 @@
+
+bind 1 m1 : {v : Map_t Int Int | v = Map_default 0}
+bind 2 m2 : {v : Map_t Int Int | v = (Map_store (Map_store m1 10 1) 20 1) } 
+bind 3 m3 : {v : Map_t Int Int | v = (Map_store (Map_store m1 20 1) 10 1) } 
+bind 4 m4 : {v : Map_t Int Int | v = (Map_store m1 10 1) } 
+bind 5 m5 : {v : Map_t Int Int | v = (Map_store m1 20 1) } 
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | v = Map_select m1 100 }
+  rhs {v : int | v = 0 } 
+  id 1 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | v = Map_select m2 100 }
+  rhs {v : int | v = 0 } 
+  id 2 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | v = Map_select m2 10 }
+  rhs {v : int | v = 1 } 
+  id 3 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : int | true }
+  rhs {v : int | m2 = m3 } 
+  id 4 tag []
+
+constraint:
+  env [ 1; 2; 3; 4; 5 ]
+  lhs {v : int | true }
+  rhs {v : int | m2 = Map_union m4 m4 } 
+  id 5 tag []
+

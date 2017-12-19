@@ -13,6 +13,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Convert theory symbols
      , smt2Symbol
+
        -- * Preamble to initialize SMT
      , preamble
 
@@ -27,7 +28,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
-     , setCom, setCup, setDif, setSng, mapSel, mapSto
+     , setCom, setCup, setDif, setSng, mapSel, mapCup, mapSto, mapDef
 
       -- * Query Theories
      , isSmt2App
@@ -49,16 +50,23 @@ import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
 
---------------------------------------------------------------------------
--- | Set Theory ----------------------------------------------------------
---------------------------------------------------------------------------
+
+{- | [NOTE:Adding-Theories] To add new (SMTLIB supported) theories to
+     liquid-fixpoint and upstream, grep for "Map_default" and then add
+     your corresponding symbol in all those places.
+     This is currently far more complicated than it needs to be.
+ -}
+
+--------------------------------------------------------------------------------
+-- | Theory Symbols ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 elt, set, map :: Raw
 elt  = "Elt"
 set  = "Set"
 map  = "Map"
 
-emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
+emp, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
 emp   = "smt_set_emp"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
@@ -69,8 +77,11 @@ sub   = "smt_set_sub"
 com   = "smt_set_com"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
+mcup  = "smt_map_cup"
+mdef  = "smt_map_def"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto :: Symbol
+
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -81,9 +92,12 @@ setCom   = "Set_com"
 setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
+
+mapSel, mapSto, mapCup, mapDef :: Symbol
 mapSel   = "Map_select"
 mapSto   = "Map_store"
-
+mapCup   = "Map_union"
+mapDef   = "Map_default"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -132,6 +146,10 @@ z3Preamble u
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
+    , format "(define-fun {} ((m1 {}) (m2 {})) {} ((_ map (+ ({} {}) {})) m1 m2))"
+        (mcup, map, map, map, elt, elt, elt)
+    , format "(define-fun {} ((v {})) {} ((as const ({})) v))"
+        (mdef, elt, map, map)
     , format "(define-fun {} ((b Bool)) Int (ite b 1 0))"
         (Only (boolToIntName :: T.Text))
     , uifDef u (symbolText mulFuncName) ("*"   :: T.Text)
@@ -323,6 +341,8 @@ interpSymbols =
   , interpSym setCom   com   setCmpSort
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
+  , interpSym mapCup   mcup  mapCupSort
+  , interpSym mapDef   mdef  mapDefSort
   , interpSym bvOrName "bvor"   bvBopSort
   , interpSym bvAndName "bvand" bvBopSort
   , interpSym strLen    strLen    strLenSort
@@ -335,11 +355,18 @@ interpSymbols =
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
+    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                 $ FFunc (FVar 0) (FVar 1)
+    mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
+                                 $ FFunc (mapSort (FVar 0) intSort)
+                                         (mapSort (FVar 0) intSort)
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
+    mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
+                                         (mapSort (FVar 0) (FVar 1))
+
     bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
 
 
