@@ -322,9 +322,9 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
-                     = tracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] xts t'
+                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] xts t'
   where
-    xts              = stitchArgs (fSrcSpan f) dc (tracepp ("FIELDS-XS: " ++ showpp f) xs) (tracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) ts)
+    xts              = stitchArgs (fSrcSpan f) dc (notracepp ("FIELDS-XS: " ++ showpp f) xs) (notracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) ts)
     t                = fromMaybe (ofType tr) mt
     t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
     mkForAlls xts t  = L.foldl' (\t (x, tx) -> RAllE x tx t) t xts
@@ -351,7 +351,7 @@ stitchArgs sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> tracepp ("isPredTy: " ++ showpp t) $ isPredTy t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isPredTy t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
