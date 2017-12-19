@@ -29,6 +29,9 @@ module Language.Haskell.Liquid.NewProofCombinators (
 
   -- * Combining Proofs
   , (&&&)
+  , withProof 
+  , impossible 
+
 
 ) where
 
@@ -163,3 +166,22 @@ instance (a~b) => OptEq a b where
 
 (&&&) :: Proof -> Proof -> Proof
 x &&& _ = x
+
+
+{-@ withProof :: x:a -> b -> {v:a | v = x} @-}
+withProof :: a -> b -> a
+withProof x y = x
+
+{-@ impossible :: {v:a | false} -> b @-}
+impossible :: a -> b
+impossible _ = undefined
+
+-------------------------------------------------------------------------------
+-- | Convenient Syntax for Inductive Propositions 
+-------------------------------------------------------------------------------
+
+{-@ measure prop :: a -> b           @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
+
+
+
