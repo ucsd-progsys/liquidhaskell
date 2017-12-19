@@ -55,11 +55,11 @@ ofBareType l
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp {- expandRTAliasApp_ -} return
+  = ofBRType failRTAliasApp {- _expandRTAliasApp_ -} return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp {- expandRTAliasApp_ -} return
+  = ofBRType failRTAliasApp {- _expandRTAliasApp_ -} return
 
 
 --------------------------------------------------------------------------------
@@ -193,8 +193,8 @@ failRTAliasApp l rta _ _
     err :: Error
     err = ErrIllegalAliasApp (sourcePosSrcSpan l) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta)
 
-expandRTAliasApp_ :: SourcePos -> RTAlias RTyVar SpecType -> [BSort] -> () -> BareM RSort
-expandRTAliasApp_ l rta args _ = do
+_expandRTAliasApp_ :: SourcePos -> RTAlias RTyVar SpecType -> [BSort] -> () -> BareM RSort
+_expandRTAliasApp_ l rta args _ = do
   res <- expandRTAliasApp l rta ([ const mempty <$> t | t <- args] ) mempty 
   return (void res)
 
