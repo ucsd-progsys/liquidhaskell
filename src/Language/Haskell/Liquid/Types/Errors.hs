@@ -656,7 +656,7 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
 
 ppError' td dSp dCtx (ErrSubType _ _ _ _ tE)
   | totalityType td tE
-  = dSp <+> text "Totallity Error"
+  = dSp <+> text "Totality Error"
         $+$ dCtx
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ "Hint: Use \"--no-totality\" to deactivate totality checking."
