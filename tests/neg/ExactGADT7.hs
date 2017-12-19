@@ -4,7 +4,6 @@
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--ple" @-}
 
 module Blank where
 
@@ -12,7 +11,7 @@ data Some a where
   SomeBool  :: Bool -> Some Bool
   SomeInt   :: Int  -> Some Int
 
-{-@ reflect isBool @-}
+{-@ measure isBool @-}
 isBool :: Some a -> Bool
 isBool (SomeBool  _) = True
 isBool (SomeInt   _) = False
@@ -22,5 +21,5 @@ isBool (SomeInt   _) = False
 {-@ a :: Thing @-}
 a = SomeBool True
 
-{-@ b :: Thing @-}
-b = SomeBool True
+{-@ b :: {v: Some Int | isBool v} @-}
+b = SomeInt 5
