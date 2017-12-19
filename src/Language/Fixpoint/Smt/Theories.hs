@@ -13,6 +13,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Convert theory symbols
      , smt2Symbol
+
        -- * Preamble to initialize SMT
      , preamble
 
@@ -27,7 +28,7 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
-     , setCom, setCup, setDif, setSng, mapSel, mapSto, mapDef
+     , setCom, setCup, setDif, setSng, mapSel, mapCup, mapSto, mapDef
 
       -- * Query Theories
      , isSmt2App
@@ -49,9 +50,16 @@ import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
 
---------------------------------------------------------------------------
--- | Set Theory ----------------------------------------------------------
---------------------------------------------------------------------------
+
+{- | [NOTE:Adding-Theories] To add new (SMTLIB supported) theories to
+     liquid-fixpoint and upstream, grep for "Map_default" and then add
+     your corresponding symbol in all those places.
+     This is currently far more complicated than it needs to be.
+ -}
+
+--------------------------------------------------------------------------------
+-- | Theory Symbols ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 elt, set, map :: Raw
 elt  = "Elt"

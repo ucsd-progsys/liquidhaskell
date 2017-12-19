@@ -606,6 +606,7 @@ prims = [ propConName
         , "Map_select"
         , "Map_store"
         , "Map_union"
+        , "Map_default"
         , size32Name
         , size64Name
         , bitVecName
