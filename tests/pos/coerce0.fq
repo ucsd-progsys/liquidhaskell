@@ -2,7 +2,7 @@ constant f : (func(1, [(Foo int); int]))
 
 bind 1 pig : {v : (Foo a) | true }
 
-bind 2 dog : {v : int | v = (coerce (a ~ int) (f pig)) }
+bind 2 dog : {v : int | v = f (coerce (Foo a ~ Foo int) pig) }
 
 
 constraint:

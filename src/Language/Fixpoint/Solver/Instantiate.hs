@@ -329,8 +329,8 @@ eval γ (ELam (x,s) e)
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2
-eval γ (ECoerc a t e)
-  = ECoerc a t <$> eval γ e
+eval γ (ECoerc s t e)
+  = ECoerc s t <$> eval γ e
 eval γ e@(EApp _ _)
   = evalArgs γ e >>= evalApp γ e
 eval γ e@(EVar _)
@@ -444,7 +444,7 @@ matchSorts = go
 applyCoSub :: CoSub -> Expr -> Expr
 applyCoSub coSub      = Vis.mapExpr fE
   where
-    fE (ECoerc a t e) = ECoerc (txV a) (txS t) e
+    fE (ECoerc s t e) = ECoerc (txS s) (txS t) e
     fE e              = e
     txS               = Vis.mapSort fS
     fS (FObj a)       = FObj   (txV a)
