@@ -280,7 +280,7 @@ data Expr = ESym !SymConst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
-          | ECoerc !Symbol !Sort !Expr
+          | ECoerc !Sort !Sort !Expr  
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr

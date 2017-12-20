@@ -389,9 +389,9 @@ fastIfP f bodyP
 coerceP :: Parser Expr -> Parser Expr
 coerceP p = do
   reserved "coerce"
-  (a, t) <- parens (pairP symbolP (reservedOp "~") sortP)
+  (s, t) <- parens (pairP sortP (reservedOp "~") sortP)
   e      <- p
-  return $ ECoerc a t e
+  return $ ECoerc s t e
 
 
 
