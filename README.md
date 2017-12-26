@@ -29,7 +29,7 @@ Requirements
 
 LiquidHaskell requires (in addition to the cabal dependencies)
 
-- SMTLIB2 compatible solver
+- SMTLIB2 compatible solver installed and its executable found on PATH
 
 How To Clone, Build and Install
 -------------------------------
