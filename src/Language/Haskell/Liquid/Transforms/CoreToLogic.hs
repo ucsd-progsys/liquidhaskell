@@ -228,28 +228,27 @@ coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
 coreToLg (C.Lit l)             = case mkLit l of
                                    Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
                                    Just i  -> return i
-coreToLg (C.Cast e c)          = do fc <- coerceToLg c
-                                    e' <- coreToLg   e
-                                    case fc of
-                                      Just (a, t) -> return (ECoerc a t e')
-                                      Nothing     -> return e'
+coreToLg (C.Cast e c)          = do (s, t) <- coerceToLg c
+                                    e'     <- coreToLg   e
+                                    return (ECoerc s t e')
 coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
-coerceToLg :: Coercion -> LogicM (Maybe (Symbol, Sort))
-coerceToLg c = (mapM typeEqToLg . coercionTypeEq $ c)
 
-coercionTypeEq :: Coercion -> Maybe (TyVar, Type)
+
+
+coerceToLg :: Coercion -> LogicM (Sort, Sort)
+coerceToLg = typeEqToLg . coercionTypeEq
+
+coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
   | Pair.Pair s t <- {- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $ -}
                        coercionKind co
-  = (, t) <$> getTyVar_maybe s
-  | otherwise
-  = Nothing
+  = (s, t) 
 
-typeEqToLg :: (TyVar, Type) -> LogicM (Symbol, Sort)
-typeEqToLg (a, t) = do
+typeEqToLg :: (Type, Type) -> LogicM (Sort, Sort)
+typeEqToLg (s, t) = do
   tce   <- gets lsEmb
-  return (tyVarUniqueSymbol a, typeSort tce t)
+  return (typeSort tce s, typeSort tce t)
 
   -- Pair t1 t2 <- coercionKind co
   -- getCoVar_maybe :: Coercion -> Maybe CoVar
