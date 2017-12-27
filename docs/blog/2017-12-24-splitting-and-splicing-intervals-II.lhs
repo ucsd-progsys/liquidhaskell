@@ -9,50 +9,24 @@ tags: reflection, abstract-refinements
 demo: RangeSet.hs
 ---
 
-[Previously][splicing-1], we saw how the principle of 
-_"making illegal states unrepresentable"_ allowed LH 
-to easily enforce a _key invariant_ in 
+[Previously][splicing-1], we saw how the principle of
+_"making illegal states unrepresentable"_ allowed LH
+to easily enforce a _key invariant_ in
 [Joachim](https://twitter.com/nomeata?lang=en)
 Breitner's library for representing sets of integers
 as [sorted lists of intervals][nomeata-intervals].
 
 However, with [hs-to-coq][hs-to-coq], Breitner
-was able to do much more: Coq let him specify and 
+was able to do much more: Coq let him specify and
 verify that his code properly implemented a Set library.
 
-Today, lets see how LH's new _"type-level computation"_ 
-abilities let us reason about intervals, while using the 
+Today, lets see how LH's new _"type-level computation"_
+abilities let us reason about intervals, while using the
 SMT solver to greatly simplify the overhead of proof.
 
 (Click here to [demo][demo])
 
 <!-- more -->
-
-## Intervals
-
-- `data Interval` 
-- `rng` 
-
-## Membership 
-
-- `lem_mem` -- EQ 
-- `lem_mem` -- PLE 
-
-## Disjointness
-
-- `lem_disj` -- EQ 
-- `lem_disj` -- PLE 
-
-## Splitting 
-
-- `lem_split_union` 	-- PLE 
-- `lem_split` 		-- PLE
-
-## Set Operations 
-
-- `lem_sub`		-- PLE
-- `lem_union`		-- PLE
-- `lem_intersect` 	-- PLE
 
 <div class="row-fluid">
   <div class="span12 pagination-centered">
@@ -66,270 +40,465 @@ SMT solver to greatly simplify the overhead of proof.
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--no-adt"         @-}
-{-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diff"           @-}
+{-@ LIQUID "--ple"            @-}
 
-module Intervals where
+module RangeSet where
 
-data Interval  = I
-  { from :: Int
-  , to   :: Int
-  } deriving (Show)
-
+import           Prelude hiding (min, max)
+import           Language.Haskell.Liquid.NewProofCombinators
 \end{code}
 </div>
 
-Encoding Sets as Intervals
---------------------------
 
-The key idea underlying the intervals data structure, is that
-we can represent sets of integers like:
+Intervals
+---------
+
+Recall that the key idea is to represent sets of integers like
 
 ```haskell
 { 7, 1, 10, 3, 11, 2, 9, 12, 4}
 ```
 
-by first *ordering* them into a list
-
-```haskell
-[ 1, 2, 3, 4, 7, 9, 10, 11, 12 ]
-```
-
-and then *partitioning* the list into compact intervals
+as ordered lists of *intervals*
 
 ```haskell
 [ (1, 5), (7, 8), (9, 13) ]
 ```
 
-That is,
+where each pair `(i, j)` represents the set `{i, i+1,..., j-1}`.
 
-1. Each interval `(from, to)` corresponds to the set
-   `{from,from+1,...,to-1}`.
+To verify that the implementation correctly implements a set
+data type, we need a way to
 
-2. Ordering ensures there is a canonical representation
-   that simplifies interval operations.
+1. _Specify_ the set of values being described,
+2. _Establish_ some key properties of these sets.
 
-Making Illegal Intervals Unrepresentable
-----------------------------------------
+Range-Sets: Semantics of Intervals
+----------------------------------
 
-We require that the list of intervals be
-"sorted, non-empty, disjoint and non-adjacent".
-Lets follow the slogan of _make-illegal-values-unrepresentable_
-to see how we can encode the legality constraints with refinements.
-
-**A Single Interval**
-
-We can ensure that each interval is **non-empty** by
-refining the data type for a single interval to specify
-that the `to` field must be strictly bigger than the `from`
-field:
+We can describe the set of values corresponding
+to (i.e. ``the semantics of'') an interval `i, j`
+by importing the `Data.Set` library
 
 \begin{code}
-{-@ data Interval = I
-      { from :: Int
-      , to   :: {v: Int | from < v }
-      }
+import qualified Data.Set as S
+\end{code}
+
+and then using the library to write a function
+`rng i j` that defines the **range-set** `{i..j-1}`
+
+\begin{code}
+{-@ reflect rng @-}
+{-@ rng :: i:Int -> j:Int -> S.Set Int / [j - i] @-}
+rng i j
+  | i < j     = S.union (S.singleton i) (rng (i+1) j)
+  | otherwise = S.empty
+\end{code}
+
+Equational Reasoning
+--------------------
+
+To build up a little intuition about the above
+definition and how LH reasons about Sets, lets
+write some simple "unit proofs".
+
+First, lets check that `2` is indeed in the
+set `rng 1 3`, by writing a type signature
+
+\begin{code}
+{-@ test1 :: () -> { S.member 2 (rng 1 3) } @-}
+\end{code}
+
+Any _implementation_ of the above type is a _proof_
+that `2` is indeed in `rng 1 3`. Notice that we can
+_reuse_ the operators from `Data.Set` (here, `S.member`)
+to talk about set operations in the refinement logic.
+
+We can construct a _proof_ of the above in an
+[equational style][bird-algebra]:
+
+\begin{code}
+test1 ()
+  =   S.member 2 (rng 1 3)
+      -- by unfolding `rng 1 3`
+  === S.member 2 (S.union (S.singleton 1) (rng 2 3))
+      -- by unfolding `rng 2 3`
+  === S.member 2 (S.union (S.singleton 1) (S.union (S.singleton 2) (rng 3 3)))
+      -- by set-theory
+  === True
+  *** QED
+\end{code}
+
+the "proof" uses two library operators:
+
+* **Implicit Equality"** [`e1 === e2`][lh-eq]
+  checks that `e1` is indeed `e2` after
+  **unfolding functions at most once**, and returns a term
+  that equals both `e1` and `e2`, and
+
+* [`e *** QED`][lh-qed] allows us to convert any term `e`
+  into a `()` to complete a proof.
+
+Thus, the first two steps of the above proof, simply unfold `rng`
+and the final step follows from the SMT solver's "native" decision
+procedure for sets which can _automatically_ verify equalities over
+set operations like `S.union`, `S.singleton` and `S.member`.
+
+Reusing Proofs
+--------------
+
+As a second example, lets check that:
+
+\begin{code}
+{-@ test2 :: () -> { S.member 2 (rng 0 3) } @-}
+test2 ()
+  =   S.member 2 (rng 0 3)
+      -- (1) by unfolding `rng 0 3`
+  === S.member 2 (S.union (S.singleton 0) (rng 1 3))
+      -- (2) by set-theory
+  === (2 == 0 || S.member 2 (rng 1 3))
+      -- (3) by using ex1
+  ==? True ? test1 ()
+
+  *** QED
+\end{code}
+
+The first two steps are as before and we _could_ complete
+the proof by continuing to unfold in the equational style.
+However, `test1` already establishes that `S.member 2 (rng 1 3)`
+and we can _reuse_ this using:
+
+* **Explicit Equality** [`e1 ==? e2 ? pf`][lh-exp-eq]
+  which checks that `e1` is indeed `e2` _using_ any extra
+  facts asserted by the term `pf` (in addition to unfolding
+  functions at most once), and returns a term
+  that equals both `e1` and `e2`.
+
+
+Proof by Logical Evaluation
+---------------------------
+
+Equational proofs like `test1` and `test2` often
+have long chains of calculations that can be
+tedious to spell out. Fortunately, we taught LH a new
+trick called **Proof by Logical Evaluation** (PLE) that
+shifts the burden of performing those calculations
+onto the machine (if thats what the user wants.)
+
+For example, PLE completely automates the above proofs above proofs:
+
+\begin{code}
+{-@ test1_ple :: () -> { S.member 2 (rng 1 3) } @-}
+test1_ple () = ()
+
+{-@ test2_ple :: () -> { S.member 2 (rng 0 3) } @-}
+test2_ple () = ()
+\end{code}
+
+While automation is cool, it can be *very* helpful to first
+write out all the steps of an equational proof, at least
+while building up intuition.
+
+
+Membership
+----------
+
+At this point, we have enough tools to start proving some
+interesting facts about _range-sets_. For example, if `x`
+is _outside_ the range `i..j` then it does not belong in
+`rng i j`:
+
+\begin{code}
+{-@ lem_mem :: i:_ -> j:_ -> x:{_| x < i || j <= x} ->
+                  {not (S.member x (rng i j))} / [j - i]
   @-}
 \end{code}
 
-Now, LH will ensure that we can only construct *legal*,
-non-empty `Interval`s
+**Proof by Induction**
+
+We will prove the above ["by induction"][tag-induction]
+
+A confession: I always had trouble understanding what
+exactly _by induction_ really meant. Why was it it ok
+to "do" induction on one thing but not another?
+
+With LH, _induction is just recursion_. That is,
+
+1. We can *recursively* use the same theorem we
+   are trying to prove, but
+
+2. We must make sure that the recursive function/proof
+   _terminates_.
+
+The proof makes this clear:
 
 \begin{code}
-goodItv = I 10 20
-badItv  = I 20 10     -- ILLEGAL: empty interval!
+lem_mem i j x
+                -- BASE CASE
+  | i >= j  =   not (S.member x (rng i j))
+                -- by unfolding `rng i j`
+            === not (S.member x S.empty)
+                -- by set-theory
+            === True
+
+            *** QED
+
+                -- INDUCTIVE CASE
+  | i < j   =   not (S.member x (rng i j))
+                -- by unfolding `rng i j`
+            === not (S.member x (S.union (S.singleton i) (rng (i + 1) j)))
+                -- by set-theory
+            === (x /= i && not (S.member x (rng (i + 1) j)))
+                -- (*) by "induction hypothesis"
+            ==? True ? lem_mem (i + 1) j x
+
+            *** QED
 \end{code}
 
-**Many Intervals**
+There are two cases.
 
-We can represent arbitrary sets as a *list of* `Interval`s:
+- **Base Case** (`i >= j`) : Here `rng i j` is empty, so `x`
+  cannot be in it.
+
+- **Inductive Case** (`i < j`) : Here we unfold `rng i j` and
+  then _recursively call_ `lem_mem (i+1) j` to obtain the fact
+  that `x` cannot be in `i+1..j` to complete the proof.
+
+LH automatically checks that the proof:
+
+1. **Accounts for all cases**, as otherwise the
+   function is _not total_ i.e. like the `head` function
+   which is only defined on non-empty lists.
+   (Try deleting a case at the [demo][demo] to see what happens.)
+
+2. **Terminates**, as otherwise the induction is bogus (or in math-speak,
+   not _well-founded_). For the latter, it uses the [termination metric][]
+
 
 \begin{code}
-data Intervals = Intervals { itvs :: [Interval] }
+{-@ lem_mem_ple :: i:_ -> j:_ -> x:{_| x < i || j <= x} ->
+                     {not (S.member x (rng i j))} / [j - i]
+  @-}
+lem_mem_ple f t x
+  | f < t     =  lem_mem_ple (f + 1) t x
+  | otherwise =  ()
 \end{code}
 
-The plain Haskell type doesn't have enough teeth to
-enforce legality, specifically, to ensure *ordering*
-and the absence of *overlaps*. Refinements to the rescue!
+Disjointness
+------------
 
-First, we specify a *lower-bounded* `Interval` as:
+- `lem_disj` -- EQ
+- `lem_disj` -- PLE
 
 \begin{code}
-{-@ type LbItv N = {v:Interval | N <= from v} @-}
+--------------------------------------------------------------------------------
+-- | LEMMA: The range-sets of non-overlapping ranges is disjoint.
+--------------------------------------------------------------------------------
+{-@ lem_disj :: f1:_ -> t1:_ -> f2:{Int | t1 <= f2 } -> t2:Int  ->
+                   { disjoint (rng f1 t1) (rng f2 t2) } / [t2 - f2] @-}
+lem_disj :: Int -> Int -> Int -> Int -> ()
+lem_disj f1 t1 f2 t2
+  | f2 < t2   =   disjoint (rng f1 t1) (rng f2 t2)
+              === disjoint (rng f1 t1) (S.union (S.singleton f2) (rng (f2 + 1) t2))
+              === (disjoint (rng f1 t1) (rng (f2 + 1) t2) && not (S.member f2 (rng f1 t1)))
+              ==? disjoint (rng f1 t1) (rng (f2 + 1) t2) ? lem_mem f1 t1 f2
+              ==? True                                   ? lem_disj f1 t1 (f2 + 1) t2
+              *** QED
+  | otherwise =   disjoint (rng f1 t1) (rng f2 t2)
+              === disjoint (rng f1 t1) S.empty
+              === True
+              *** QED
+
+{-
+{- lem_disj :: f1:_ -> t1:_ -> f2:{Int | t1 <= f2 } -> t2:Int  ->
+                   { disjoint (rng f1 t1) (rng f2 t2) } / [t2 - f2] @-}
+lem_disj :: Int -> Int -> Int -> Int -> ()
+lem_disj f1 t1 f2 t2
+  | f2 < t2   = lem_mem f1 t1 f2 &&& lem_disj f1 t1 (f2 + 1) t2
+  | otherwise = ()
+-}
 \end{code}
 
-Intuitively, an `LbItv n` is one that starts (at or) after `n`.
+Splitting
+---------
 
-Next, we use the above to define an *ordered list*
-of lower-bounded intervals:
+- `lem_split_union` 	-- PLE
+- `lem_split` 		    -- PLE
 
 \begin{code}
-{-@ type OrdItvs N = [LbItv N]<{\vHd vTl -> to vHd <= from vTl}> @-}
+{-@ inline disjointUnion @-}
+disjointUnion :: S.Set Int -> S.Set Int -> S.Set Int -> Bool
+disjointUnion s a b = s == S.union a b && disjoint a b
+
+{-@ inline disjoint @-}
+disjoint :: S.Set Int -> S.Set Int -> Bool
+disjoint a b = (S.intersection a b) == S.empty
+--------------------------------------------------------------------------------
+-- | LEMMA: A range-set can be partitioned by any point within the range.
+--------------------------------------------------------------------------------
+{-@ lem_split :: f:_ -> x:{_ | f <= x} -> t:{_ | x <= t} ->
+                   { disjointUnion (rng f t) (rng f x) (rng x t) } @-}
+lem_split :: Int -> Int -> Int -> ()
+lem_split f x t = lem_split_union f x t &&& lem_disj f x x t
+
+{-@ lem_split_union :: f:_ -> x:{_ | f <= x} -> t:{_ | x <= t} ->
+                        { rng f t = S.union (rng f x) (rng x t) } / [x - f]  @-}
+lem_split_union :: Int -> Int -> Int -> ()
+lem_split_union f x t
+  | f == x    =   rng f t
+              === S.union S.empty   (rng f t)
+              === S.union (rng f f) (rng f t)
+              *** QED
+
+  | otherwise =   rng f t
+              === S.union (S.singleton f) (rng (f+1) t)
+              ==? S.union (S.singleton f) (S.union (rng (f+1) x) (rng x t))
+                  ? lem_split_union (f + 1) x t
+              === S.union (S.union (S.singleton f) (rng (f+1) x)) (rng x t)
+              === S.union (rng f x) (rng x t)
+              *** QED
+
+{-
+{- lem_split :: f:_ -> x:{_ | f <= x} -> t:{_ | x <= t} ->
+                   { disjointUnion (rng f t) (rng f x) (rng x t) } / [x - f] @-}
+lem_split :: Int -> Int -> Int -> ()
+lem_split f x t
+  | f == x    =  ()
+  | otherwise =  lem_split (f + 1) x t &&& lem_mem x t f
+-}
 \end{code}
 
-The signature above uses an [abstract-refinement][abs-ref]
-to capture the legality requirements.
+Set Operations
+--------------
 
-1. An `OrdInterval N` is a list of `Interval` that are
-   lower-bounded by `N`, and
+**Subset**
 
-2. In each sub-list, the head `Interval` `vHd` *precedes*
-   each in the tail `vTl`.
-
-Legal Intervals
----------------
-
-We can now describe legal `Intervals` simply as:
+- `lem_sub`		      -- PLE
 
 \begin{code}
-{-@ data Intervals = Intervals { itvs :: OrdItvs 0 } @-}
+--------------------------------------------------------------------------------
+-- | LEMMA: The range-set of an interval is contained inside that of a larger.
+--------------------------------------------------------------------------------
+{-@ lem_sub :: f1:_ -> t1:{_ | f1 < t1} -> f2:_ -> t2:{_ | f2 < t2 && f2 <= f1 && t1 <= t2 } ->
+                { S.isSubsetOf (rng f1 t1) (rng f2 t2) } @-}
+lem_sub :: Int -> Int -> Int -> Int -> ()
+lem_sub f1 t1 f2 t2 = lem_split f2 f1 t2
+                  &&& lem_split f1 t1 t2
 \end{code}
 
-LH will now ensure that illegal `Intervals` are not representable.
+**Union**
+
+- `lem_union`		    -- PLE
 
 \begin{code}
-goodItvs  = Intervals [I 1 5, I 7 8, I 9 13]  -- LEGAL
+--------------------------------------------------------------------------------
+-- | LEMMA: The endpoints define the union of overlapping range-sets.
+--------------------------------------------------------------------------------
+{-@ lem_union :: f1:_ -> t1:{_ | f1 < t1} -> f2:_ -> t2:{_ | f2 < t2 && f1 <= t2 && t2 <= t1 } ->
+                { rng (min f1 f2) t1 = S.union (rng f1 t1) (rng f2 t2) }   @-}
+lem_union :: Int -> Int -> Int -> Int -> ()
+lem_union f1 t1 f2 t2
+  | f1 < f2   =    rng (min f1 f2) t1
+              ===  rng f1 t1
+              ==?  S.union (rng f1 t1) (rng f2 t2) ? lem_sub f2 t2 f1 t1
+              *** QED
 
-badItvs1  = Intervals [I 1 7, I 5 8]          -- ILLEGAL: overlap!
-badItvs2  = Intervals [I 1 5, I 9 13, I 7 8]  -- ILLEGAL: disorder!
+  | otherwise =   S.union (rng f1 t1) (rng f2 t2)
+              ==? S.union (S.union (rng f1 t2) (rng t2 t1)) (S.union (rng f2 f1) (rng f1 t2))
+                  ? (lem_split f1 t2 t1 &&& lem_split f2 f1 t2)
+              === S.union (rng f2 f1) (S.union (rng f1 t2) (rng t2 t1))
+              === S.union (rng f2 f1) (rng f1 t1)
+              ==? rng f2 t1 ? lem_split f2 f1 t1
+              === rng (min f1 f2) t1
+              *** QED
+{-
+{- lem_union :: f1:_ -> t1:{_ | f1 < t1} -> f2:_ -> t2:{_ | f2 < t2 && f1 <= t2 && t2 <= t1 } ->
+                { rng (min f1 f2) t1 = S.union (rng f1 t1) (rng f2 t2) }   @-}
+lem_union :: Int -> Int -> Int -> Int -> ()
+lem_union f1 t1 f2 t2
+  | f1 < f2   = lem_sub f2 t2 f1 t1
+  | otherwise = lem_split f2 f1 t1
+            &&& lem_split f1 t2 t1
+            &&& lem_split f2 f1 t2
+-}
 \end{code}
 
-Do the types _really_ capture the legality requirements?
-In the original code, Breitner described goodness as a
-recursively defined predicate that takes an additional
-_lower bound_ `lb` and returns `True` iff the representation
-was legal:
+**Intersection**
+
+- `lem_intersect` 	-- PLE
 
 \begin{code}
-goodLIs :: Int -> [Interval] -> Bool
-goodLIs _ []              = True
-goodLIs lb ((I f t) : is) = lb <= f && f < t && goodLIs t is
+--------------------------------------------------------------------------------
+-- | LEMMA: The inner-points define the intersection of overlapping range-sets.
+--------------------------------------------------------------------------------
+{-@ lem_intersect :: f1:_ -> t1:{_ | f1 < t1} -> f2:_ -> t2:{_ | f2 < t2 && f1 <= t2 && t2 <= t1 } ->
+                      { rng (max f1 f2) t2 = S.intersection (rng f1 t1) (rng f2 t2) }  @-}
+lem_intersect :: Int -> Int -> Int -> Int -> ()
+lem_intersect f1 t1 f2 t2
+  | f1 < f2   =    rng (max f1 f2) t2
+              ===  rng f2 t2
+              ==?  S.intersection (rng f1 t1) (rng f2 t2)
+                        ? lem_sub f2 t2 f1 t1
+              *** QED
+
+  | otherwise =    S.intersection (rng f1 t1) (rng f2 t2)
+              ==?  (S.intersection (S.union (rng f1 t2) (rng t2 t1)) (S.union (rng f2 f1) (rng f1 t2)))
+                        ? (lem_split f1 t2 t1 &&& lem_split f2 f1 t2)
+              ==?  rng f1 t2
+                        ? (lem_disj  f2 f1 f1 t1 &&& lem_disj  f2 t2 t2 t1)
+              ===  rng (max f1 f2) t2
+              ***  QED
+
+{-
+{- lem_intersect :: f1:_ -> t1:{_ | f1 < t1} -> f2:_ -> t2:{_ | f2 < t2 && f1 <= t2 && t2 <= t1 } ->
+                      { rng (max f1 f2) t2 = S.intersection (rng f1 t1) (rng f2 t2) }  @-}
+lem_intersect :: Int -> Int -> Int -> Int -> ()
+lem_intersect f1 t1 f2 t2
+  | f1 < f2   = lem_sub f2 t2 f1 t1
+  | otherwise = lem_split f1 t2 t1
+            &&& lem_split f2 f1 t2
+            &&& lem_disj  f2 f1 f1 t1
+            &&& lem_disj  f2 t2 t2 t1
+
+-}
 \end{code}
 
-We can check that our type-based representation is indeed
-legit by checking that `goodLIs` returns `True` whenever it
-is called with a valid of `OrdItvs`:
-
+<div class="hidden">
 \begin{code}
-{-@ goodLIs :: lb:Nat -> is:OrdItvs lb -> {v : Bool | v } @-}
+--------------------------------------------------------------------------------
+-- | Some helper definitions
+--------------------------------------------------------------------------------
+{-@ reflect min @-}
+min :: (Ord a) => a -> a -> a
+min x y = if x < y then x else y
+
+{-@ reflect max @-}
+max :: (Ord a) => a -> a -> a
+max x y = if x < y then y else x
+
+rng         :: Int -> Int -> S.Set Int
+test1       :: () -> ()
+test2       :: () -> ()
+test1_ple   :: () -> ()
+test2_ple   :: () -> ()
+lem_mem     :: Int -> Int -> Int -> ()
+lem_mem_ple :: Int -> Int -> Int -> ()
+
+-- https://ucsd-progsys.github.io/liquidhaskell-blog/tags/induction.html
 \end{code}
+</div>
 
-
-Algorithms on Intervals
------------------------
-
-We represent legality as a type, but is that _good for_?
-After all, we could, as seen above, just as well have written a
-predicate `goodLIs`? The payoff comes when it comes to _using_
-the `Intervals` e.g. to implement various set operations.
-
-For example, here's the code for _intersecting_ two sets,
-each represented as intervals. We've made exactly one
-change to the function implemented by Breitner: we added
-the extra lower-bound parameter `lb` to the recursive `go`
-to make clear that the function takes two `OrdItvs lb`
-and returns an `OrdItvs lb`.
-
-\begin{code}
-intersect :: Intervals -> Intervals -> Intervals
-intersect (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
-  where
-    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
-    go _ _ [] = []
-    go _ [] _ = []
-    go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
-      -- reorder for symmetry
-      | t1 < t2   = go lb (i2:is2) (i1:is1)
-      -- disjoint
-      | f1 >= t2  = go lb (i1:is1) is2
-      -- subset
-      | t1 == t2  = I f' t2 : go t2 is1 is2
-      -- overlapping
-      | f2 < f1   = (I f' t2 : go t2 (I t2 t1 : is1) is2)
-      | otherwise = go lb (I f2 t1 : is1) (i2:is2)
-      where f'    = max f1 f2
-\end{code}
-
-Internal vs External Verification
-----------------------------------
-
-By representing legality **internally** as a refinement type,
-as opposed to **externally** as predicate (`goodLIs`) we have
-exposed enough information about the structure of the values
-that LH can _automatically_ chomp through the above code to
-guarantee that we haven't messed up the invariants.
-
-To appreciate the payoff, compare to the effort needed
-to verify legality using the external representation
-used in the [hs-to-coq proof][intersect-good].
-
-The same principle and simplification benefits apply to both the `union`
-
-\begin{code}
-union :: Intervals -> Intervals -> Intervals
-union (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
-  where
-    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
-    go _ is [] = is
-    go _ [] is = is
-    go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
-      -- reorder for symmetry
-      | t1 < t2 = go lb (i2:is2) (i1:is1)
-      -- disjoint
-      | f1 > t2 = i2 : go t2 (i1:is1) is2
-      -- overlapping
-      | otherwise  = go lb ( (I f' t1) : is1) is2
-      where
-        f' = min f1 f2
-\end{code}
-
-and the `subtract` functions too:
-
-\begin{code}
-subtract :: Intervals -> Intervals -> Intervals
-subtract (Intervals is1) (Intervals is2) = Intervals (go 0 is1 is2)
-  where
-    {-@ go :: lb:Int -> OrdItvs lb -> OrdItvs lb -> OrdItvs lb @-}
-    go _ is [] = is
-    go _ [] _  = []
-    go lb (i1@(I f1 t1) : is1) (i2@(I f2 t2) : is2)
-      -- i2 past i1
-      | t1 <= f2  = (i1 : go t1 is1 (i2:is2))
-      -- i1 past i2
-      | t2 <= f1  = (go lb (i1:is1) is2)
-      -- i1 contained in i2
-      | f2 <= f1, t1 <= t2 = go lb is1 (i2:is2)
-      -- i2 covers beginning of i1
-      | f2 <= f1 = go t2 (I t2 t1 : is1) is2
-      -- -- i2 covers end of i1
-      | t1 <= t2 = ((I f1 f2) : go f2 is1 (i2:is2))
-      -- i2 in the middle of i1
-      | otherwise = (I f1 f2 : go f2 (I t2 t1 : is1) is2)
-\end{code}
-
-
-both of which require [non-trivial][union-good] [proofs][subtract-good]
-in the _external style_. (Of course, its possible those proofs can be
-simplified.)
-
-Summing Up (and Looking Ahead)
-------------------------------
-
-I hope the above example illustrates why _"making illegal states"_
-unrepresentable is a great principle for engineering code _and_ proofs.
-
-That said, notice that with [hs-to-coq][nomeata-intervals], Breitner
-was able to go _far beyond_ the above legality requirement: he was able
-to specify and verify the far more important (and difficult) property
-that the above is a _correct_ implementation of a Set library.
-
-Is it even _possible_, let alone _easier_ to do that with LH?
-
+[lh-qed]:            https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L65-L69
+[lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L87-L96
+[lh-exp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L98-L116
+[bird-algebra]:      http://themattchan.com/docs/algprog.pdf
 [demo]:              http://goto.ucsd.edu:8090/index.html#?demo=RangeSet.hs
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439
 [union-good]:        https://github.com/antalsz/hs-to-coq/blob/b7efc7a8dbacca384596fc0caf65e62e87ef2768/examples/intervals/Proofs_Function.v#L319-L382
 [subtract-good]:     https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L565-L648
-[abs-ref]:           /tags/abstract-refinements.html
+[tag-abs-ref]:      /tags/abstract-refinements.html
+[tag-induction]:    /tags/induction.html
 [hs-to-coq]:         https://github.com/antalsz/hs-to-coq
 [nomeata-intervals]: https://www.joachim-breitner.de/blog/734-Finding_bugs_in_Haskell_code_by_proving_it

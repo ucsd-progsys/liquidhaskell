@@ -187,7 +187,7 @@ added to the source file via:
 
 for example, to disable termination checking (see below)
 
-    {-@ LIQUID "--notermination" @-}
+    {-@ LIQUID "--no-termination" @-}
 
 You may also put command line options in the environment variable
 `LIQUIDHASKELL_OPTS`. For example, if you add the line:
@@ -327,7 +327,7 @@ Termination Check
 
 By **default** a termination check is performed on all recursive functions.
 
-Use the `no-termination` option to disable the check
+Use the `--no-termination` option to disable the check
 
     liquid --no-termination test.hs
 
@@ -335,63 +335,77 @@ In recursive functions the *first* algebraic or integer argument should be decre
 
 The default decreasing measure for lists is length and Integers its value.
 
-The user can specify the decreasing measure in data definitions:
+### Default Termination Metrics
 
-    {-@ data L [llen] a = Nil | Cons (x::a) (xs:: L a) @-}
+The user can specify the *size* of a data-type in the data definition
 
-Defines that `llen` is the decreasing measure (to be defined by the user).
+```haskell
+    {-@ data L [llen] a = Nil | Cons { x::a, xs:: L a} @-}
+```
 
-For example, in the function `foldl`
+In the above, the measure `llen`, which needs to be defined by the user
+(see below), is defined as the *default metric* for the type `L a`. LH
+will use this default metric to _automatically_ prove that the following
+terminates:
 
-    foldl k acc N           = acc
-    foldl k acc (Cons x xs) = foldl k (x `k` acc) xs
+```haskell
+    append :: L a -> L a -> L a  
+    append N           ys = ys
+    append (Cons x xs) ys = Cons x (append xs ys)
+```
 
-by default the *second* argument (the first non-function argument) will be
-checked to be decreasing. However, the explicit hint
+as, by default the *first* (non-function) argument with an
+associated size metric is checked to be strictly terminating
+and non-negative at each recursive call.
 
-    {-@ decrease foo 3 @-}
+### Explicit Termination Metrics
 
-tells LiquidHaskell to instead use the *third* argument.
+However, consider the function `reverse`
 
-Apart from specifying a specific decreasing measure for an Algebraic Data Type,
-the user can specify that the ADT follows the expected decreasing measure by
+```haskell
+    reverseAcc :: L a -> L a -> L a  
+    reverseAcc acc N           = acc
+    reverseAcc acc (Cons x xs) = reverseAcc (Cons x acc) xs
+```
 
-    {-@ autosize L @-}
+Here, the first argument does not decrease, instead
+the second does. We can tell LH to use the second
+argument using the *explicit termination metric*
 
-Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`.
+```haskell
+    reverseAcc :: L a -> xs:L a -> L a / [llen xs]  
+```  
 
-For example, `autosize L` will refine the data constructors of `L a` with the `autosize :: a -> Int` information, such that
+which tells LH that the `llen` of the second argument `xs`
+is what decreases at each recursive call.
 
-    Nil  :: {v:L a | autosize v = 0}
-    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
+Decreasing expressions can be arbitrary refinement expressions, e.g.,
 
-Also, an invariant that `autosize` is non negative will be generated
+```haskell
+    {-@ merge :: Ord a => xs:L a -> ys:L a -> L a / [llen xs + llen ys] @-}
+```
 
-    invariant  {v:L a| autosize v >= 0 }
+states that at each recursive call of `merge` the _sum of the lengths_
+of its arguments will decrease.
 
-This information is all LiquidHaskell needs to prove termination on functions that recurse on `L a` (on ADTs in general.)
-
-
-To *disable* termination checking for `foo` that is, to *assume* that it
-is terminating (possibly for some complicated reason currently beyond the
-scope of LiquidHaskell) you can write
-
-    {-@ lazy foo @-}
+### Lexicographic Termination Metrics
 
 Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.
 
+```haskell
+    {-@ ack :: m:Int -> n:Int -> Nat / [m, n] @-}
     ack m n
       | m == 0          = n + 1
       | m > 0 && n == 0 = ack (m-1) 1
       | m > 0 && n >  0 = ack (m-1) (ack m (n-1))
+```
 
 In all but one recursive call `m` decreases, in the final call `m`
-does not decrease but `n` does. We can capture this notion of "x
-normally decreases, but if it does not, y will" with an extended
-annotation
+does not decrease but `n` does. We can capture this notion of `m`
+normally decreases, but if it does not, `n` will decrease with a
+*lexicographic* termination metric `[m, n]`.
 
-    {-@ decrease ack 1 2 @-}
 
 An alternative way to express this specification is by annotating
 the function's type with the appropriate *numeric* decreasing expressions.
@@ -401,35 +415,82 @@ As an example, you can give `ack` a type
 
 stating that the *numeric* expressions `[m, n]` are lexicographically decreasing.
 
-Decreasing expressions can be arbitrary refinement expressions, e.g.,
-
-    {-@ merge :: Ord a => xs:[a] -> ys:[a] -> [a] / [(len xs) + (len ys)] @-}
-
-states that at each recursive call of `merge` the sum of the lengths
-of its arguments will be decreased.
+### Mutually Recursive Functions
 
 When dealing with mutually recursive functions you may run into a
 situation where the decreasing parameter must be measured *across* a
 series of invocations, e.g.
 
+```haskell
+    even :: Int -> Bool
     even 0 = True
     even n = odd (n-1)
 
-    odd  n = not $ even n
+    odd :: Int -> Bool
+    odd  n = not (even n)
+```
 
-In this case, you can introduce a ghost parameter that orders the *functions*
+In this case, you can introduce a ghost parameter that *orders the functions*
 
-    even 0 _ = True
-    even n _ = odd (n-1) 1
+```haskell
+    {-@ isEven :: n:Nat -> z:{v:Int | v = 0} -> Bool / [n, z] @-}
+    isEven :: Int -> Int -> Bool
+    isEven 0 _ = True
+    isEven n _ = isOdd (n-1) 1
 
-    odd  n _ = not $ even n 0
+    {-@ isOdd :: n:Nat -> z:{v:Int | v = 1} -> Bool / [n, z] @-}
+    isOdd :: Int -> Int -> Bool
+    isOdd  n _ = not (isEven n 0)
+```
 
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
-termination annotation `{-@ decrease even 1 2 @-}` (see
-[tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example).
+termination annotation as shown above.
+See [tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example.
+
+### Automatic Termination Metrics
+
+Apart from specifying a specific decreasing measure for
+an Algebraic Data Type, the user can specify that the ADT
+follows the expected decreasing measure by
+
+```haskell
+    {-@ autosize L @-}
+```
+
+Then, LH will define an instance of the function `autosize`
+for `L` that decreases by 1 at each recursive call and use
+`autosize` at functions that recurse on `L`.
+
+For example, `autosize L` will refine the data constructors
+of `L a` with the `autosize :: a -> Int` information, such
+that
+
+```haskell
+    Nil  :: {v:L a | autosize v = 0}
+    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
+```
+
+Also, an invariant that `autosize` is non negative will be generated
+
+```haskell
+    invariant  {v:L a| autosize v >= 0 }
+```
+
+This information is all LiquidHaskell needs to prove termination
+on functions that recurse on `L a` (on ADTs in general.)
 
 
+### Disabling Termination Checking
+
+To *disable* termination checking for `foo` that is,
+to *assume* that it is terminating (possibly for some
+complicated reason currently beyond the scope of LH)
+you can write
+
+```haskell
+    {-@ lazy foo @-}
+```
 
 Total Haskell
 --------------
@@ -479,22 +540,22 @@ Prune Unsorted Predicates
 Consider a measure over lists of integers
 
     sum :: [Int] -> Int
-    sum [] = 0 
-    sum (x:xs) = 1 + sum xs 
+    sum [] = 0
+    sum (x:xs) = 1 + sum xs
 
-This measure will translate into strengthening the types of list constructors 
+This measure will translate into strengthening the types of list constructors
 
     [] :: {v:[Int] | sum v = 0 }
     (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
-The hack we do right now is to strengthen the polymorphic list with the `sum` information 
+The hack we do right now is to strengthen the polymorphic list with the `sum` information
 
     [] :: {v:[a] | sum v = 0 }
     (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
 
-But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash. 
-We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic. 
+But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash.
+We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic.
 
 
     liquid --prune-unsorted test.hs
@@ -779,11 +840,11 @@ Inductive Predicates
 
 **Very Experimental**
 
-LH recently added support for *Inductive Predicates* 
-in the style of Isabelle, Coq etc. These are encoded 
+LH recently added support for *Inductive Predicates*
+in the style of Isabelle, Coq etc. These are encoded
 simply as plain Haskell GADTs but suitably refined.
 
-Apologies for the minimal documentation; see the 
+Apologies for the minimal documentation; see the
 following examples for details:
 
 * [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndEven.hs)
@@ -935,10 +996,12 @@ Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/Ha
 
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
 
+```haskell
     {-@ measure llen @-}
     llen        :: [a] -> Int
     llen []     = 0
     llen (x:xs) = 1 + llen xs
+```
 
 The above definition
   - refines list's data constructors types with the llen information, and
@@ -1002,13 +1065,13 @@ that must be satisfied by the concrete refinements used at any call-site.
 
 Dependent Pairs
 ===============
-Dependent Pairs are expressed by binding the initial tuples of the pair. For example 
+Dependent Pairs are expressed by binding the initial tuples of the pair. For example
 `incrPair` defines an increasing pair.
 
     {-@ incrPair :: Int -> (x::Int, {v:Int | x <= v}) @-}
     incrPair i = (i, i+1)
 
-Internally dependent pairs are implemented using abstract refinement types. 
+Internally dependent pairs are implemented using abstract refinement types.
 That is `(x::a, {v:b | p x})` desugars to `(a,b)<\x -> {v:b | p x}>`.
 
 Invariants
@@ -1035,9 +1098,9 @@ But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 
-**WARNING:** There is an older _global_ invariant mechanism that 
+**WARNING:** There is an older _global_ invariant mechanism that
 attaches a refinement to a datatype globally.
-Do not use this mechanism -- it is *unsound* and about to 
+Do not use this mechanism -- it is *unsound* and about to
 deprecated in favor of something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
 
 Forexample,  the length of a list cannot be negative
@@ -1045,7 +1108,7 @@ Forexample,  the length of a list cannot be negative
     {-@ invariant {v:[a] | (len v >= 0)} @-}
 
 LiquidHaskell can prove that this invariant holds, by proving that all List's
-constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell 
+constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell
 assumes that each list element that is created satisfies
 this invariant.
 
@@ -1276,7 +1339,7 @@ The `liquidinstances` automatically generates proof terms using symbolic evaluat
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 ```
 
-This flag is **global** and will symbolically evaluation all the terms that appear in the specifications. 
+This flag is **global** and will symbolically evaluation all the terms that appear in the specifications.
 
 As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
 
@@ -1284,7 +1347,7 @@ As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](htt
 {-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
 ```
 
-will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated 
+will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated
 for automatic instantiation using the following liquid annotation
 
 ```
